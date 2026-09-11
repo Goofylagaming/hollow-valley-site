@@ -80,6 +80,16 @@ document.querySelectorAll('a[href="#wallet"]').forEach((link) => {
   });
 });
 
+const marketplaceSection = document.getElementById("marketplace");
+
+document.querySelectorAll('a[href="#marketplace"]').forEach((link) => {
+  link.addEventListener("click", () => {
+    if (!marketplaceSection) return;
+    marketplaceSection.hidden = false;
+    marketplaceSection.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+});
+
 const speciesSection = document.getElementById("species");
 
 document.querySelectorAll(".species-nav-link").forEach((link) => {
