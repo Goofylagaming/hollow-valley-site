@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Herby Death Squad Games — a community-first Isle Evrima survival server.">
+  <title>Herby Death Squad | Evrima Portal</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#top"><span class="brand-mark">HDS</span><span><b>HERBY DEATH SQUAD</b><small>EVRIMA SURVIVAL PORTAL</small></span></a>
+      <nav class="main-nav">
+        <a href="#top" class="active">Home</a><a href="#dinos">Dinosaurs</a><a href="#rules">Server rules</a><a href="#community">Community</a>
+      </nav>
+      <a class="discord-link" href="https://discord.gg/herbydeathsquadgames" target="_blank" rel="noreferrer"><span class="online-dot"></span> Join Discord <b>↗</b></a>
+      <button class="menu-toggle" aria-label="Toggle navigation" aria-expanded="false"><span></span><span></span></button>
+    </header>
+
+    <main id="top">
+      <section class="portal-hero">
+        <div class="hero-grid"></div>
+        <div class="hero-copy">
+          <p class="overline"><span class="rule"></span> THE ISLE: EVRIMA · HDS COMMUNITY SERVER</p>
+          <h1>Welcome<br><span>to the</span><br>wild.</h1>
+          <p class="hero-description">Enter a living prehistoric world where every footprint matters, every encounter carries risk, and the strongest stories are made together.</p>
+          <div class="hero-actions"><a class="primary-button" href="#dinos">Explore the roster <b>→</b></a><a class="secondary-link" href="#community">Join the herd <b>↗</b></a></div>
+        </div>
+        <div class="hero-dinosaur" aria-hidden="true"><div class="dino-eye"></div><div class="dino-ridge"></div></div>
+        <div class="hero-stats"><span><b>01</b><small>Fair-play survival</small></span><span><b>24/7</b><small>Community support</small></span><span><b>∞</b><small>Stories to tell</small></span></div>
+      </section>
+
+      <section class="roster-section" id="dinos">
+        <div class="section-top"><div><p class="overline green">SPECIES DATABASE</p><h2>Choose your <em>survivor.</em></h2></div><p class="section-intro">Every species has a role. Every role has a story. Start yours with the Herby Death Squad.</p></div>
+        <div class="filter-row" role="group" aria-label="Filter species"><button class="filter active" data-filter="all">All species</button><button class="filter" data-filter="herbivore">Herbivores</button><button class="filter" data-filter="carnivore">Carnivores</button><span class="roster-count">06 / CURRENT ROSTER</span></div>
+        <div class="dino-grid">
+          <article class="dino-card featured" data-category="carnivore" data-dino="Tyrannosaurus" data-role="Carnivore / Apex" data-description="A powerful apex predator built for controlling territory and setting the pace of an encounter." data-social="Solo / Pack"><div class="dino-art tyrant"><span>TYRANNOSAURUS</span></div><div class="dino-info"><div><small>CARNIVORE / APEX</small><h3>Tyrannosaurus</h3></div><b class="dino-arrow">↗</b></div><div class="meter"><span style="width:92%"></span></div><div class="dino-meta"><span>Threat <i>●●●●●</i></span><span>Solo / Pack</span></div></article>
+          <article class="dino-card" data-category="carnivore" data-dino="Carnotaurus" data-role="Carnivore / Scout" data-description="Fast, aggressive and mobile. Carnotaurus thrives on finding openings before disappearing into the brush." data-social="Solo / Pack"><div class="dino-art carno"><span>CARNOTAURUS</span></div><div class="dino-info"><div><small>CARNIVORE / SCOUT</small><h3>Carnotaurus</h3></div><b class="dino-arrow">↗</b></div><div class="meter"><span style="width:70%"></span></div><div class="dino-meta"><span>Threat <i>●●●●○</i></span><span>Solo / Pack</span></div></article>
+          <article class="dino-card" data-category="herbivore" data-dino="Tenontosaurus" data-role="Herbivore / Grazer" data-description="A dependable herd dinosaur with a strong kick and a steady temperament." data-social="Herd"><div class="dino-art teno"><span>TENONTO</span></div><div class="dino-info"><div><small>HERBIVORE / GRAZER</small><h3>Tenontosaurus</h3></div><b class="dino-arrow">↗</b></div><div class="meter"><span style="width:55%"></span></div><div class="dino-meta"><span>Threat <i>●●●○○</i></span><span>Herd</span></div></article>
+          <article class="dino-card" data-category="herbivore" data-dino="Deinocheirus" data-role="Herbivore / Omnivore" data-description="A huge wetland specialist that combines reach, presence and an unpredictable edge." data-social="Herd"><div class="dino-art deino"><span>DEINOCHEIRUS</span></div><div class="dino-info"><div><small>HERBIVORE / OMNIVORE</small><h3>Deinocheirus</h3></div><b class="dino-arrow">↗</b></div><div class="meter"><span style="width:78%"></span></div><div class="dino-meta"><span>Threat <i>●●●●○</i></span><span>Herd</span></div></article>
+          <article class="dino-card" data-category="herbivore" data-dino="Gallimimus" data-role="Herbivore / Scout" data-description="A quick-footed scout made for distance, awareness and keeping a herd moving." data-social="Herd"><div class="dino-art galli"><span>GALLIMIMUS</span></div><div class="dino-info"><div><small>HERBIVORE / SCOUT</small><h3>Gallimimus</h3></div><b class="dino-arrow">↗</b></div><div class="meter"><span style="width:42%"></span></div><div class="dino-meta"><span>Threat <i>●●○○○</i></span><span>Herd</span></div></article>
+          <article class="dino-card" data-category="herbivore" data-dino="Hypsilophodon" data-role="Herbivore / Small" data-description="Small, alert and adaptable. The best defense is knowing when to move." data-social="Colony"><div class="dino-art hypsi"><span>HYPSILOPHODON</span></div><div class="dino-info"><div><small>HERBIVORE / SMALL</small><h3>Hypsilophodon</h3></div><b class="dino-arrow">↗</b></div><div class="meter"><span style="width:24%"></span></div><div class="dino-meta"><span>Threat <i>●○○○○</i></span><span>Colony</span></div></article>
+        </div>
+      </section>
+
+      <section class="rules-strip" id="rules"><div class="strip-number">02</div><div><p class="overline green">THE HDS SURVIVAL CODE</p><h2>Respect the wild.<br><em>Earn your place.</em></h2></div><p>Our rules are simple: respect the world, respect the players, and leave room for every story. No toxicity. No shortcuts. Just a better way to play.</p><a class="outline-button" href="#community">Read the code <b>↗</b></a></section>
+
+      <section class="community-section" id="community"><div class="community-orb">HDS</div><div class="community-copy"><p class="overline green">THE GATHERING</p><h2>The gates open<br><em>soon.</em></h2><p>Meet your future packmates, follow development and help shape the Herby Death Squad server before the first call echoes through the valley.</p><a class="primary-button dark" href="https://discord.gg/herbydeathsquadgames" target="_blank" rel="noreferrer">Join the Discord <b>→</b></a></div></section>
+    </main>
+    <footer><span>© 2026 Herby Death Squad Games</span><span>ISLE EVRIMA COMMUNITY SERVER</span><a href="#top">Back to top ↑</a></footer>
+  </div>
+  <dialog class="dino-dialog" aria-labelledby="dialog-title">
+    <button class="dialog-close" aria-label="Close species details">×</button>
+    <p class="overline green">SPECIES PROFILE</p>
+    <h2 id="dialog-title">Species name</h2>
+    <p class="dialog-role"></p>
+    <p class="dialog-description"></p>
+    <div class="dialog-social"><span>Best played as</span><strong></strong></div>
+  </dialog>
+  <script src="assets/site.js"></script>
+</body>
+</html>
