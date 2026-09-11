@@ -79,3 +79,15 @@ document.querySelectorAll('a[href="#wallet"]').forEach((link) => {
     walletSection.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 });
+
+const speciesSection = document.getElementById("species");
+
+document.querySelectorAll(".species-nav-link").forEach((link) => {
+  link.addEventListener("click", () => {
+    if (!speciesSection) return;
+    speciesSection.hidden = false;
+    const targetFilter = document.querySelector(`.filter[data-filter="${link.dataset.filter}"]`);
+    targetFilter?.click();
+    speciesSection.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+});
