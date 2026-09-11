@@ -11,6 +11,20 @@ navLinks?.querySelectorAll("a").forEach((link) => {
     navLinks.classList.remove("open");
     menuButton?.setAttribute("aria-expanded", "false");
   });
+
+  navLinks?.querySelectorAll(".nav-group > button").forEach((button) => {
+    button.addEventListener("click", () => {
+      const group = button.parentElement;
+      const isOpen = group.classList.toggle("open");
+      button.setAttribute("aria-expanded", String(isOpen));
+      navLinks.querySelectorAll(".nav-group").forEach((other) => {
+        if (other !== group) {
+          other.classList.remove("open");
+          other.querySelector("button")?.setAttribute("aria-expanded", "false");
+        }
+      });
+    });
+  });
 });
 
 const filters = document.querySelectorAll(".filter");
