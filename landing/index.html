@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Herby Death Squad Games</title>
+<meta name="description" content="Herby Death Squad Games — indie game studio and community, home of the Hollow Valley Isle: Evrima server.">
+<link rel="icon" href="data:,">
+<style>
+@import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&family=Oswald:wght@400;500;600&display=swap");
+:root{--bg:#090b08;--panel:#11150f;--line:#30382a;--text:#f0ead5;--muted:#8d9077;--gold:#d8a928;--green:#3e633c}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;min-height:100vh;display:flex;flex-direction:column;background:var(--bg);color:var(--text);font-family:Manrope,Arial,sans-serif}
+a{color:inherit;text-decoration:none}
+
+.hero{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:60px 20px;overflow:hidden;background:radial-gradient(ellipse at 50% 30%,#536b384d,transparent 55%),linear-gradient(106deg,#182517 0,#080b08 70%)}
+.hero-grid{position:absolute;inset:0;opacity:.18;background-image:linear-gradient(#a79c5a20 1px,transparent 1px),linear-gradient(90deg,#a79c5a20 1px,transparent 1px);background-size:80px 80px;mask-image:radial-gradient(ellipse at 50% 40%,#000,transparent 75%)}
+
+.brand-mark{position:relative;z-index:2;display:grid;width:56px;height:56px;place-items:center;margin-bottom:22px;border:1px solid var(--gold);border-radius:6px;color:var(--gold);font:700 18px Oswald;letter-spacing:-.08em}
+.overline{position:relative;z-index:2;color:#b4b89e;font:600 11px Oswald;letter-spacing:.24em;text-transform:uppercase}
+.overline .rule{display:inline-block;width:30px;height:1px;margin:0 12px 3px 0;background:var(--gold)}
+h1{position:relative;z-index:2;margin:18px 0 10px;color:#f0ead5;font:600 clamp(34px,6vw,64px)/1.05 Cinzel;letter-spacing:-.02em}
+h1 span{color:var(--gold);font-style:normal}
+p.tagline{position:relative;z-index:2;max-width:520px;margin:0 auto 42px;color:#b0b29a;font-size:15px;line-height:1.75}
+
+.projects{position:relative;z-index:2;display:flex;flex-wrap:wrap;justify-content:center;gap:22px;max-width:720px}
+.project-card{display:flex;flex-direction:column;align-items:flex-start;gap:14px;width:320px;padding:28px;border:1px solid var(--line);background:#11150fcc;text-align:left;transition:.25s}
+.project-card:hover{border-color:var(--gold);transform:translateY(-3px)}
+.project-card small{color:var(--green);font:700 10px Oswald;letter-spacing:.16em;text-transform:uppercase}
+.project-card small.status-dot::before{content:"";display:inline-block;width:6px;height:6px;margin-right:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green)}
+.project-card h2{margin:2px 0 0;font:600 26px Cinzel;color:#eee9d6}
+.project-card p{margin:0;color:#8d9077;font-size:12.5px;line-height:1.7}
+.project-card .cta{margin-top:8px;display:inline-flex;align-items:center;gap:10px;padding:12px 16px;background:var(--gold);color:#171606;font:800 10px Oswald;letter-spacing:.1em;text-transform:uppercase}
+.project-card .cta:hover{background:#f0c849}
+.project-card.soon{opacity:.55;cursor:default}
+.project-card.soon:hover{border-color:var(--line);transform:none}
+.project-card.soon small{color:var(--muted)}
+.project-card.soon small.status-dot::before{background:var(--muted);box-shadow:none}
+
+footer{position:relative;z-index:2;display:flex;justify-content:center;gap:18px;padding:26px 20px;color:#747e66;font:9px Oswald;letter-spacing:.15em;text-transform:uppercase;border-top:1px solid #ffffff0b}
+footer a:hover{color:var(--gold)}
+</style>
+</head>
+<body>
+  <main class="hero">
+    <div class="hero-grid"></div>
+    <div class="brand-mark">HD</div>
+    <p class="overline"><span class="rule"></span>Indie Game Studio</p>
+    <h1>Herby Death Squad <span>Games</span></h1>
+    <p class="tagline">A small studio building communities and servers worth logging into. Currently running one project — with more on the horizon.</p>
+
+    <div class="projects">
+      <a class="project-card" href="https://hollowvalley.herbydeathsquadgames.com/">
+        <small class="status-dot">Live Now</small>
+        <h2>Hollow Valley</h2>
+        <p>Our flagship The Isle: Evrima server — dashboard, dino roster, marketplace, quests and leaderboards.</p>
+        <span class="cta">Enter the Server &rarr;</span>
+      </a>
+      <div class="project-card soon">
+        <small class="status-dot">Coming Soon</small>
+        <h2>Next Project</h2>
+        <p>We're always cooking up something new. Check back later for updates on what's next.</p>
+      </div>
+    </div>
+  </main>
+  <footer>
+    <span>&copy; <span id="year"></span> Herby Death Squad Games</span>
+    <a href="https://hollowvalley.herbydeathsquadgames.com/">Hollow Valley</a>
+  </footer>
+  <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+</body>
+</html>

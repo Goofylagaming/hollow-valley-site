@@ -8,9 +8,11 @@ covers a normal VPS instead).
 ## 1. Domain (done ✅)
 
 You've already bought **herbydeathsquadgames.com** via Cloudflare Registrar.
-This site will run on the subdomain `hollowvalley.herbydeathsquadgames.com`,
-keeping the root domain free for a future brand hub/landing page (and any
-other game servers you add later).
+This site (the actual app) runs on the subdomain
+`hollowvalley.herbydeathsquadgames.com`. The **root domain**
+(`herbydeathsquadgames.com`) hosts a small static landing page
+(`landing/index.html`) with a "studio" front door and a big button into
+Hollow Valley — see step 6b below.
 
 Pick a VPS host to run the app on:
 
@@ -113,6 +115,36 @@ at `https://hollowvalley.herbydeathsquadgames.com`.
 > If you're using Cloudflare's orange-cloud proxy, switch SSL/TLS mode to
 > "Full (strict)" in the Cloudflare dashboard once certbot has issued the
 > certificate above, so traffic is encrypted end-to-end.
+
+## 6b. Root domain landing page (herbydeathsquadgames.com)
+
+The `landing/` folder is a plain static page (no Node/Docker involved) that
+lists your projects with a button into Hollow Valley. To serve it at the bare
+root domain:
+
+1. Add a Cloudflare DNS record for the root domain:
+
+   ```
+   Type: A
+   Name: @
+   IPv4 address: <your server's public IP>
+   Proxy status: DNS only at first (needed for certbot), switch to Proxied
+                 after the cert is issued
+   ```
+
+2. On the server, enable the Nginx site (already cloned as part of the repo):
+
+   ```bash
+   sudo cp nginx/herbydeathsquadgames.conf /etc/nginx/sites-available/
+   sudo ln -s /etc/nginx/sites-available/herbydeathsquadgames.conf /etc/nginx/sites-enabled/
+   sudo nginx -t && sudo systemctl reload nginx
+   sudo certbot --nginx -d herbydeathsquadgames.com -d www.herbydeathsquadgames.com
+   ```
+
+Now `https://herbydeathsquadgames.com` shows the studio landing page, and its
+"Enter the Server" button links to `https://hollowvalley.herbydeathsquadgames.com/`.
+To edit the landing page copy/branding later, just edit `landing/index.html`
+and `git pull` on the server (no rebuild needed, it's static).
 
 ## 7. Updating the site later
 
