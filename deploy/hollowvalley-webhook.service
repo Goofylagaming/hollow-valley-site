@@ -1,0 +1,13 @@
+[Unit]
+Description=GitHub webhook listener for auto-deploy
+After=network.target docker.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/webhook -hooks /opt/hollow-valley-site/deploy/hooks.json -port 9000 -ip 127.0.0.1 -verbose
+Restart=always
+RestartSec=5
+User=root
+
+[Install]
+WantedBy=multi-user.target

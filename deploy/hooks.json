@@ -1,0 +1,32 @@
+[
+  {
+    "id": "deploy",
+    "execute-command": "/opt/hollow-valley-site/deploy/deploy.sh",
+    "command-working-directory": "/opt/hollow-valley-site",
+    "response-message": "Deploy triggered",
+    "trigger-rule": {
+      "and": [
+        {
+          "match": {
+            "type": "payload-hmac-sha256",
+            "secret": "REPLACE_WITH_WEBHOOK_SECRET",
+            "parameter": {
+              "source": "header",
+              "name": "X-Hub-Signature-256"
+            }
+          }
+        },
+        {
+          "match": {
+            "type": "value",
+            "value": "refs/heads/master",
+            "parameter": {
+              "source": "payload",
+              "name": "ref"
+            }
+          }
+        }
+      ]
+    }
+  }
+]
