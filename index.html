@@ -12,7 +12,7 @@
     <header class="topbar">
       <a class="brand" href="#top"><span class="brand-mark">HDS</span><span><b>HERBY DEATH SQUAD</b><small>EVRIMA SURVIVAL PORTAL</small></span></a>
       <nav class="main-nav">
-        <a href="#top" class="active">Home</a><a href="#dinos">Dinosaurs</a><a href="#rules">Server rules</a><a href="#community">Community</a>
+        <a href="#top" class="active">Command</a><a href="#dinos">My dinos</a><a href="#marketplace">Marketplace</a><a href="#skins">Skins</a><a href="#map">Live map</a><a href="#wallet">Wallet</a>
       </nav>
       <a class="discord-link" href="https://discord.gg/herbydeathsquadgames" target="_blank" rel="noreferrer"><span class="online-dot"></span> Join Discord <b>↗</b></a>
       <button class="menu-toggle" aria-label="Toggle navigation" aria-expanded="false"><span></span><span></span></button>
@@ -22,17 +22,29 @@
       <section class="portal-hero">
         <div class="hero-grid"></div>
         <div class="hero-copy">
-          <p class="overline"><span class="rule"></span> THE ISLE: EVRIMA · HDS COMMUNITY SERVER</p>
-          <h1>Welcome<br><span>to the</span><br>wild.</h1>
-          <p class="hero-description">Enter a living prehistoric world where every footprint matters, every encounter carries risk, and the strongest stories are made together.</p>
-          <div class="hero-actions"><a class="primary-button" href="#dinos">Explore the roster <b>→</b></a><a class="secondary-link" href="#community">Join the herd <b>↗</b></a></div>
+          <p class="overline"><span class="rule"></span> COMMAND CENTER</p>
+          <h1>Welcome back,<br><span>GoofyIaGaming</span></h1>
+          <p class="hero-description">Track your survivors, manage your Amber and keep up with everything happening in the HDS valley.</p>
+          <div class="hero-actions"><a class="primary-button" href="#dinos">View my dinos <b>→</b></a><a class="secondary-link" href="https://discord.gg/herbydeathsquadgames" target="_blank" rel="noreferrer">Open Discord <b>↗</b></a></div>
         </div>
         <div class="hero-dinosaur" aria-hidden="true"><div class="dino-eye"></div><div class="dino-ridge"></div></div>
-        <div class="hero-stats"><span><b>01</b><small>Fair-play survival</small></span><span><b>24/7</b><small>Community support</small></span><span><b>∞</b><small>Stories to tell</small></span></div>
+        <div class="hero-dashboard">
+          <article class="summary-card overview-card"><small>ROSTER OVERVIEW</small><div><span><b>06</b><i>DINOS</i></span><span><b>04</b><i>PARKED</i></span><span><b>02</b><i>ACTIVE</i></span></div></article>
+        </div>
       </section>
 
       <section class="roster-section" id="dinos">
-        <div class="section-top"><div><p class="overline green">SPECIES DATABASE</p><h2>Choose your <em>survivor.</em></h2></div><p class="section-intro">Every species has a role. Every role has a story. Start yours with the Herby Death Squad.</p></div>
+        <div class="section-top"><div><p class="overline green">YOUR SURVIVORS</p><h2>Every life leaves<br><em>a mark.</em></h2></div><p class="section-intro">Keep track of your current characters, growth and last known location.</p></div>
+        <div class="dashboard-columns">
+          <div class="survivor-list">
+            <div class="list-heading"><span>ACTIVE ROSTER</span><a href="#dinos">View all →</a></div>
+            <article class="survivor-row"><b>♧</b><strong>Austroraptor <small>A</small></strong><em>PARKED</em><span>Basin Lake</span></article>
+            <article class="survivor-row"><b>♧</b><strong>Pachycephalosaurus <small>C</small></strong><em>PARKED</em><span>The Swamp</span></article>
+            <article class="survivor-row"><b>♧</b><strong>Deinosuchus <small>S</small></strong><em>ACTIVE</em><span>Basin Lake</span></article>
+            <article class="survivor-row"><b>♧</b><strong>Diabloceratops <small>B</small></strong><em>PARKED</em><span>West River</span></article>
+          </div>
+          <div class="map-preview" id="map"><div class="list-heading"><span>LIVE POSITIONS</span><a href="#map">Open →</a></div><div class="map-art"><i>LIVE MAP</i><span>◇</span><b>◌</b></div><small>0 contacts in your visibility scope</small></div>
+        </div>
         <div class="filter-row" role="group" aria-label="Filter species"><button class="filter active" data-filter="all">All species</button><button class="filter" data-filter="herbivore">Herbivores</button><button class="filter" data-filter="carnivore">Carnivores</button><span class="roster-count">06 / CURRENT ROSTER</span></div>
         <div class="dino-grid">
           <article class="dino-card featured" data-category="carnivore" data-dino="Tyrannosaurus" data-role="Carnivore / Apex" data-description="A powerful apex predator built for controlling territory and setting the pace of an encounter." data-social="Solo / Pack"><div class="dino-art tyrant"><span>TYRANNOSAURUS</span></div><div class="dino-info"><div><small>CARNIVORE / APEX</small><h3>Tyrannosaurus</h3></div><b class="dino-arrow">↗</b></div><div class="meter"><span style="width:92%"></span></div><div class="dino-meta"><span>Threat <i>●●●●●</i></span><span>Solo / Pack</span></div></article>
@@ -44,6 +56,8 @@
         </div>
       </section>
 
+      <section class="activity-section" id="wallet"><div class="activity-heading"><div><p class="overline green">RECENT ACTIVITY</p><h2>Your valley <em>ledger.</em></h2></div><span>LAST 30 DAYS</span></div><div class="activity-list"><div><b>↗</b><span>Active-play earnings <small>Today, 18:16</small></span><strong>+800</strong></div><div><b>↗</b><span>Daily bonus spin <small>Today, 18:09</small></span><strong>+4,000</strong></div><div><b>↗</b><span>Daily bonus spin <small>Yesterday, 20:53</small></span><strong>+8,000</strong></div></div></section>
+      <section class="marketplace-section" id="marketplace"><p class="overline green">TRADE POST</p><h2>Marketplace <em>coming soon.</em></h2><p>Trade growth, cosmetics and community rewards with other survivors.</p><a class="outline-button" href="#community">Join the waitlist <b>↗</b></a></section>
       <section class="rules-strip" id="rules"><div class="strip-number">02</div><div><p class="overline green">THE HDS SURVIVAL CODE</p><h2>Respect the wild.<br><em>Earn your place.</em></h2></div><p>Our rules are simple: respect the world, respect the players, and leave room for every story. No toxicity. No shortcuts. Just a better way to play.</p><a class="outline-button" href="#community">Read the code <b>↗</b></a></section>
 
       <section class="community-section" id="community"><div class="community-orb">HDS</div><div class="community-copy"><p class="overline green">THE GATHERING</p><h2>The gates open<br><em>soon.</em></h2><p>Meet your future packmates, follow development and help shape the Herby Death Squad server before the first call echoes through the valley.</p><a class="primary-button dark" href="https://discord.gg/herbydeathsquadgames" target="_blank" rel="noreferrer">Join the Discord <b>→</b></a></div></section>
