@@ -69,3 +69,13 @@ filters.forEach((filter) => {
     });
   });
 });
+
+const walletSection = document.getElementById("wallet");
+
+document.querySelectorAll('a[href="#wallet"]').forEach((link) => {
+  link.addEventListener("click", () => {
+    if (!walletSection) return;
+    walletSection.hidden = false;
+    walletSection.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+});
