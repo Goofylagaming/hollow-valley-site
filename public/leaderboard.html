@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Kill/death and playtime leaderboards.">
+  <title>K/D leaderboard | Herby Death Squad</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main>
+      <section class="page-header">
+        <p class="overline green">RANKINGS</p>
+        <h1>Leaderboard.</h1>
+        <p class="section-intro">Rankings populate once player stats are reported from the game server. No fabricated data is shown here.</p>
+      </section>
+      <section class="roster-section">
+        <div class="filter-row" role="group" aria-label="Leaderboard tabs">
+          <button class="filter active" data-tab="mostKills">Most kills</button>
+          <button class="filter" data-tab="bestKd">Best K:D</button>
+          <button class="filter" data-tab="mostPlaytime">Most playtime</button>
+        </div>
+        <table class="leaderboard-table">
+          <thead><tr><th>#</th><th>Player</th><th id="lb-metric-label">Kills</th></tr></thead>
+          <tbody id="lb-body"><tr><td colspan="3">Loading…</td></tr></tbody>
+        </table>
+      </section>
+    </main>
+    <footer><span>© 2026 Herby Death Squad Games</span><span>ISLE EVRIMA COMMUNITY SERVER</span><a href="/">Back to command ↑</a></footer>
+  </div>
+  <script src="assets/common.js"></script>
+  <script src="assets/leaderboard.js"></script>
+</body>
+</html>

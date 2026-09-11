@@ -1,123 +1,58 @@
-const menuButton = document.querySelector(".menu-toggle");
-const navLinks = document.querySelector(".main-nav");
+const { api, escapeHtml } = window.HDS;
 
-menuButton?.addEventListener("click", () => {
-  const isOpen = navLinks.classList.toggle("open");
-  menuButton.setAttribute("aria-expanded", String(isOpen));
-});
-
-navLinks?.querySelectorAll("a").forEach((link) => {
-  link.addEventListener("click", () => {
-    navLinks.classList.remove("open");
-    menuButton?.setAttribute("aria-expanded", "false");
-  });
-});
-
-navLinks?.querySelectorAll(".nav-group > button").forEach((button) => {
-  button.addEventListener("click", () => {
-    const group = button.parentElement;
-    const isOpen = group.classList.toggle("open");
-    button.setAttribute("aria-expanded", String(isOpen));
-    navLinks.querySelectorAll(".nav-group").forEach((other) => {
-      if (other !== group) {
-        other.classList.remove("open");
-        other.querySelector("button")?.setAttribute("aria-expanded", "false");
-      }
-    });
-  });
-});
-
-// ---------- Section reveal helpers ----------
+// ---------- Section reveal helpers (wired once the shared nav has loaded) ----------
 function revealSection(section) {
   if (!section) return;
   section.hidden = false;
   section.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-const walletSection = document.getElementById("wallet");
-document.querySelectorAll('a[href="#wallet"]').forEach((link) => {
-  link.addEventListener("click", () => {
+document.addEventListener("hds:nav-ready", () => {
+  const walletSection = document.getElementById("wallet");
+  document.querySelectorAll('a[href="/#wallet"], a[href="#wallet"]').forEach((link) => {
+    link.addEventListener("click", (event) => {
+      if (link.getAttribute("href").startsWith("/#") && window.location.pathname !== "/") return;
+      event.preventDefault();
+      revealSection(walletSection);
+      loadWallet();
+      history.replaceState(null, "", "#wallet");
+    });
+  });
+
+  const questsSection = document.getElementById("quests");
+  document.querySelectorAll(".quests-nav-link").forEach((link) => {
+    link.addEventListener("click", (event) => {
+      if (window.location.pathname !== "/") return;
+      event.preventDefault();
+      revealSection(questsSection);
+      loadQuests();
+      history.replaceState(null, "", "#quests");
+    });
+  });
+
+  const speciesSection = document.getElementById("species");
+  document.querySelectorAll(".species-nav-link").forEach((link) => {
+    link.addEventListener("click", (event) => {
+      if (window.location.pathname !== "/") return;
+      event.preventDefault();
+      revealSection(speciesSection);
+      const targetFilter = document.querySelector(`.filter[data-filter="${link.dataset.filter}"]`);
+      targetFilter?.click();
+      history.replaceState(null, "", "#species");
+    });
+  });
+
+  // Deep-link support: opening index.html#wallet directly reveals that section.
+  if (window.location.hash === "#wallet") {
     revealSection(walletSection);
     loadWallet();
-  });
-});
-
-const marketplaceSection = document.getElementById("marketplace");
-document.querySelectorAll('a[href="#marketplace"]').forEach((link) => {
-  link.addEventListener("click", () => revealSection(marketplaceSection));
-});
-
-const questsSection = document.getElementById("quests");
-document.querySelectorAll(".quests-nav-link").forEach((link) => {
-  link.addEventListener("click", () => {
+  } else if (window.location.hash === "#quests") {
     revealSection(questsSection);
     loadQuests();
-  });
-});
-
-const speciesSection = document.getElementById("species");
-document.querySelectorAll(".species-nav-link").forEach((link) => {
-  link.addEventListener("click", () => {
+  } else if (window.location.hash === "#species") {
     revealSection(speciesSection);
-    const targetFilter = document.querySelector(`.filter[data-filter="${link.dataset.filter}"]`);
-    targetFilter?.click();
-  });
+  }
 });
-
-// ---------- API helpers ----------
-async function api(path, options = {}) {
-  const response = await fetch(path, {
-    credentials: "same-origin",
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
-  const contentType = response.headers.get("content-type") || "";
-  const body = contentType.includes("application/json") ? await response.json() : null;
-  if (!response.ok) {
-    const message = body?.error || `Request failed (${response.status})`;
-    throw new Error(message);
-  }
-  return body;
-}
-
-// ---------- Auth state ----------
-const authAction = document.getElementById("auth-action");
-const heroHeading = document.getElementById("hero-heading");
-
-async function loadMe() {
-  try {
-    const me = await api("/api/me");
-    if (me.loggedIn && me.user) {
-      if (authAction) {
-        authAction.textContent = "Logout";
-        authAction.href = "/auth/logout";
-        authAction.classList.add("logged-in");
-      }
-      if (heroHeading) {
-        heroHeading.innerHTML = `Welcome back,<br><span>${escapeHtml(me.user.username)}</span>`;
-      }
-    } else {
-      if (authAction) {
-        const label = me.discordLoginConfigured ? "Login with Discord" : "Discord login not configured";
-        authAction.innerHTML = `<span class="online-dot"></span> ${label} <b>↗</b>`;
-        authAction.href = me.discordLoginConfigured ? "/auth/discord" : "#";
-      }
-      if (heroHeading) {
-        heroHeading.innerHTML = "Welcome,<br><span>survivor.</span>";
-      }
-    }
-    return me;
-  } catch (err) {
-    console.error("Failed to load /api/me", err);
-    return { loggedIn: false, user: null };
-  }
-}
-
-function escapeHtml(value) {
-  const div = document.createElement("div");
-  div.textContent = value;
-  return div.innerHTML;
-}
 
 // ---------- Species ----------
 let dinoDialogWired = false;
@@ -210,10 +145,10 @@ async function loadWallet() {
   const balanceEl = document.getElementById("wallet-balance");
   const txEl = document.getElementById("wallet-transactions");
   if (!balanceEl || !txEl) return;
-  const me = await loadMe();
+  const me = await window.HDS.loadMe();
   if (!me.loggedIn) {
     balanceEl.textContent = "0";
-    txEl.innerHTML = `<div class="empty-roster"><strong>Login required</strong><span>Log in with Discord to view your Amber balance.</span></div>`;
+    txEl.innerHTML = `<div class="empty-roster"><strong>Login required</strong><span>Log in with Discord to view your Valley Coin balance.</span></div>`;
     return;
   }
   try {
@@ -239,7 +174,7 @@ async function loadWallet() {
 async function loadQuests() {
   const listEl = document.getElementById("quest-list");
   if (!listEl) return;
-  const me = await loadMe();
+  const me = await window.HDS.loadMe();
   if (!me.loggedIn) {
     listEl.innerHTML = `<p class="section-intro">Log in with Discord to view and claim quests.</p>`;
     return;
@@ -250,7 +185,7 @@ async function loadQuests() {
       .map(
         (q) => `<div class="quest-row" data-quest-id="${q.id}">
           <div><strong>${escapeHtml(q.title)}</strong><span>${escapeHtml(q.description)}</span></div>
-          <div class="quest-reward">+${q.reward} Amber</div>
+          <div class="quest-reward">+${q.reward} Valley Coin</div>
           <button class="outline-button quest-claim" data-quest-id="${q.id}" ${q.claimed ? "disabled" : ""}>${q.claimed ? "Claimed" : "Claim"}</button>
         </div>`
       )
@@ -278,11 +213,11 @@ async function loadQuests() {
   }
 }
 
-// ---------- Roster & Map ----------
+// ---------- Roster & Map preview on the homepage ----------
 async function loadRoster() {
   const rosterEl = document.getElementById("roster-empty-state");
   if (!rosterEl) return;
-  const me = await loadMe();
+  const me = await window.HDS.loadMe();
   if (!me.loggedIn) return;
   try {
     const roster = await api("/api/roster");
@@ -313,7 +248,6 @@ async function loadMapPositions() {
 }
 
 // ---------- Init ----------
-loadMe();
 loadSpecies();
 loadRoster();
 loadMapPositions();

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Buy dinos from the official catalog or from other survivors.">
+  <title>Marketplace | Herby Death Squad</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main>
+      <section class="page-header">
+        <p class="overline green">TRADE POST</p>
+        <h1>Marketplace.</h1>
+        <p class="section-intro">Buy an official dino with Valley Coin, or trade with another survivor.</p>
+      </section>
+      <section class="roster-section">
+        <div class="filter-row" role="group" aria-label="Filter by species">
+          <button class="filter active" data-filter="all">All species</button>
+          <button class="filter" data-filter="herbivore">Herbivores</button>
+          <button class="filter" data-filter="carnivore">Carnivores</button>
+          <button class="filter" data-filter="omnivore">Omnivores</button>
+          <button class="filter" data-filter="flying">Flying</button>
+          <select id="sort-select" style="margin-left:auto;padding:9px;border:1px solid var(--line);background:transparent;color:#8a9279">
+            <option value="price-asc">Price: low to high</option>
+            <option value="price-desc">Price: high to low</option>
+            <option value="size-desc">Size: biggest first</option>
+          </select>
+        </div>
+        <div class="list-heading"><span>OFFICIAL CATALOG</span></div>
+        <div class="dino-grid" id="catalog-grid"><p class="section-intro">Loading catalog…</p></div>
+
+        <div class="list-heading" style="margin-top:40px"><span>SURVIVOR LISTINGS</span></div>
+        <div class="storage-grid" id="listings-grid"><p class="section-intro">Loading listings…</p></div>
+      </section>
+    </main>
+    <footer><span>© 2026 Herby Death Squad Games</span><span>ISLE EVRIMA COMMUNITY SERVER</span><a href="/">Back to command ↑</a></footer>
+  </div>
+  <script src="assets/common.js"></script>
+  <script src="assets/marketplace.js"></script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Your Herby Death Squad account overview.">
+  <title>Dashboard | Herby Death Squad</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main>
+      <section class="page-header">
+        <p class="overline green">COMMAND CENTER</p>
+        <h1>Your dashboard.</h1>
+        <p class="section-intro">An overview of your account, storage and supporter status.</p>
+      </section>
+      <section class="roster-section">
+        <div id="dashboard-guard"><p class="section-intro">Log in with Discord to see your dashboard.</p></div>
+        <div id="dashboard-content" hidden>
+          <div class="summary-grid">
+            <div class="summary-tile"><small>DINOS IN STORAGE</small><b id="dash-dino-count">0</b></div>
+            <div class="summary-tile"><small>WALLET BALANCE</small><b id="dash-wallet">0</b></div>
+            <div class="summary-tile"><small>SUPPORTER STATUS</small><b id="dash-supporter">None</b></div>
+            <div class="summary-tile"><small>DAILY BONUS</small><b id="dash-bonus-state">Ready</b></div>
+          </div>
+          <div class="page-toolbar">
+            <button class="small-button" id="claim-daily-bonus">Roll daily bonus</button>
+          </div>
+          <div class="list-heading"><span>RECENT ACTIVITY</span></div>
+          <div class="activity-list" id="dash-activity"><div class="empty-roster"><strong>No activity yet</strong><span>Play, complete quests or trade to see it here.</span></div></div>
+        </div>
+      </section>
+    </main>
+    <footer><span>© 2026 Herby Death Squad Games</span><span>ISLE EVRIMA COMMUNITY SERVER</span><a href="/">Back to command ↑</a></footer>
+  </div>
+  <script src="assets/common.js"></script>
+  <script src="assets/dashboard.js"></script>
+</body>
+</html>

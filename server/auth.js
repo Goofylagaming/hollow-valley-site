@@ -1,13 +1,16 @@
 // Discord OAuth2 login. Requires an application registered at
 // https://discord.com/developers/applications with the redirect URI below added.
 const express = require("express");
-const { findOrCreateUser } = require("./db");
+const { findOrCreateUser, db } = require("./db");
 
 const router = express.Router();
 
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
 const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI;
+const ADMIN_DISCORD_IDS = new Set(
+  (process.env.ADMIN_DISCORD_IDS || "").split(",").map((id) => id.trim()).filter(Boolean)
+);
 
 const isConfigured = Boolean(DISCORD_CLIENT_ID && DISCORD_CLIENT_SECRET && DISCORD_REDIRECT_URI);
 
@@ -57,6 +60,10 @@ router.get("/discord/callback", async (req, res) => {
         ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
         : null,
     });
+
+    if (ADMIN_DISCORD_IDS.has(discordUser.id)) {
+      db.prepare("UPDATE users SET is_admin = 1 WHERE id = ?").run(user.id);
+    }
 
     req.session.userId = user.id;
     res.redirect("/");

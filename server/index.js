@@ -12,6 +12,12 @@ const questsRouter = require("./routes/quests");
 const rosterRouter = require("./routes/roster");
 const leaderboardsRouter = require("./routes/leaderboards");
 const mapRouter = require("./routes/map");
+const dashboardRouter = require("./routes/dashboard");
+const mydinosRouter = require("./routes/mydinos");
+const marketplaceRouter = require("./routes/marketplace");
+const skinsRouter = require("./routes/skins");
+const supporterRouter = require("./routes/supporter");
+const dailyBonusRouter = require("./routes/dailybonus");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -38,7 +44,7 @@ app.use(
 // Attach the logged-in user (if any) to every request.
 app.use((req, res, next) => {
   if (req.session.userId) {
-    req.user = db.prepare("SELECT id, discord_id, username, avatar FROM users WHERE id = ?").get(req.session.userId) || null;
+    req.user = db.prepare("SELECT id, discord_id, username, avatar, is_admin FROM users WHERE id = ?").get(req.session.userId) || null;
   }
   next();
 });
@@ -54,8 +60,22 @@ app.use("/api/quests", questsRouter);
 app.use("/api/roster", rosterRouter);
 app.use("/api/leaderboards", leaderboardsRouter);
 app.use("/api/map", mapRouter);
+app.use("/api/dashboard", dashboardRouter);
+app.use("/api/mydinos", mydinosRouter);
+app.use("/api/marketplace", marketplaceRouter);
+app.use("/api/skins", skinsRouter);
+app.use("/api/supporter", supporterRouter);
+app.use("/api/daily-bonus", dailyBonusRouter);
 
 app.use(express.static(path.join(__dirname, "..", "public")));
+
+// Clean URLs for each page (e.g. /dashboard -> public/dashboard.html).
+const PAGE_ROUTES = ["dashboard", "mydinos", "marketplace", "skins", "livemap", "leaderboard", "supporter"];
+for (const page of PAGE_ROUTES) {
+  app.get(`/${page}`, (req, res) => {
+    res.sendFile(path.join(__dirname, "..", "public", `${page}.html`));
+  });
+}
 
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "..", "public", "index.html"));

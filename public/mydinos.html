@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Your Isle Evrima dino storage.">
+  <title>My dinos | Herby Death Squad</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main>
+      <section class="page-header">
+        <p class="overline green">STORAGE</p>
+        <h1>My dinos.</h1>
+        <p class="section-intro">Redeem, park, sell or gift the dinos in your storage.</p>
+      </section>
+      <section class="roster-section">
+        <div id="mydinos-guard"><p class="section-intro">Log in with Discord to view your storage.</p></div>
+        <div id="mydinos-content" hidden>
+          <div class="filter-row" role="group" aria-label="Filter by species">
+            <button class="filter active" data-filter="all">All species</button>
+            <span class="roster-count" id="mydinos-count">0 in storage</span>
+          </div>
+          <div class="storage-grid" id="storage-grid"><p class="section-intro">Loading storage…</p></div>
+        </div>
+      </section>
+    </main>
+    <footer><span>© 2026 Herby Death Squad Games</span><span>ISLE EVRIMA COMMUNITY SERVER</span><a href="/">Back to command ↑</a></footer>
+  </div>
+  <dialog class="dino-dialog" id="gift-dialog">
+    <button class="dialog-close" aria-label="Close">×</button>
+    <p class="overline green">GIFT DINO</p>
+    <h2>Send to a survivor</h2>
+    <div class="form-row"><input type="text" id="gift-username" placeholder="Recipient's site username"></div>
+    <div class="form-row"><button class="small-button" id="gift-confirm">Send gift</button></div>
+  </dialog>
+  <dialog class="dino-dialog" id="list-dialog">
+    <button class="dialog-close" aria-label="Close">×</button>
+    <p class="overline green">LIST FOR SALE</p>
+    <h2>Set a price</h2>
+    <div class="form-row"><input type="number" id="list-price" placeholder="Price in Valley Coin" min="1"></div>
+    <div class="form-row"><button class="small-button" id="list-confirm">List on marketplace</button></div>
+  </dialog>
+  <script src="assets/common.js"></script>
+  <script src="assets/mydinos.js"></script>
+</body>
+</html>
