@@ -14,8 +14,11 @@ other game servers you add later).
 
 Pick a VPS host to run the app on:
 
-- **Hetzner Cloud** — cheapest, ~$4-5/mo (CX22), EU/US locations.
-- **DigitalOcean** — ~$6/mo droplet, very good docs.
+- **Hetzner Cloud (recommended)** — cheapest, ~$4-5/mo (CX22: 2vCPU/4GB),
+  EU/US locations, plenty of headroom for this app. Sign up at
+  https://www.hetzner.com/cloud, create a server with the **Ubuntu 22.04 or
+  24.04** image, cheapest CX22 tier, and note its public IPv4 address.
+- **DigitalOcean** — ~$6/mo droplet, very good docs if you want more hand-holding.
 - **Linode/Akamai** — similar pricing to DigitalOcean.
 
 Once you have the server's public IP, add this DNS record in the Cloudflare
