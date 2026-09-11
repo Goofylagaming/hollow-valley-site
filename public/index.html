@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Herby Death Squad Games — a community-first Isle Evrima survival server.">
+  <title>Herby Death Squad | Evrima Portal</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#top"><span class="brand-mark">HDS</span><span><b>HERBY DEATH SQUAD</b><small>EVRIMA SURVIVAL PORTAL</small></span></a>
+      <nav class="main-nav">
+        <a href="#top" class="active">Command</a>
+        <div class="nav-group"><button type="button" aria-expanded="false">My stuff <span>⌃</span></button><div class="mega-menu"><a href="#dinos"><b>▣</b><span>Inventory<small>Your dinos, skins &amp; items</small></span></a><a href="#quests" class="quests-nav-link"><b>▱</b><span>Quests<small>Daily, weekly &amp; permanent quests</small></span></a><a href="#wallet" class="wallet-nav-link"><b>◈</b><span>Wallet<small>Your valley balance</small></span></a></div></div>
+        <div class="nav-group"><button type="button" aria-expanded="false">Playable dinos <span>⌃</span></button><div class="mega-menu"><a href="#species" class="species-nav-link" data-filter="all"><b>◈</b><span>All species<small>Full Evrima roster</small></span></a><a href="#species" class="species-nav-link" data-filter="carnivore"><b>◉</b><span>Carnivores<small>Hunters &amp; predators</small></span></a><a href="#species" class="species-nav-link" data-filter="herbivore"><b>▱</b><span>Herbivores<small>Herd &amp; grazers</small></span></a><a href="#species" class="species-nav-link" data-filter="omnivore"><b>◇</b><span>Omnivores<small>Foragers</small></span></a><a href="#species" class="species-nav-link" data-filter="flying"><b>⌁</b><span>Flying<small>Aerial species</small></span></a></div></div>
+        <div class="nav-group"><button type="button" aria-expanded="false">Games <span>⌃</span></button><div class="mega-menu"><a href="#dinos"><b>◉</b><span>Roll<small>Provably fair roulette</small></span></a><a href="#dinos"><b>⌁</b><span>Crash<small>Cash out before it crashes</small></span></a><a href="#dinos"><b>♠</b><span>Blackjack<small>Beat the dealer</small></span></a><a href="#dinos"><b>◇</b><span>Crates<small>Unbox rare drops</small></span></a></div></div>
+        <div class="nav-group"><button type="button" aria-expanded="false">Shops <span>⌃</span></button><div class="mega-menu"><a href="#marketplace"><b>◯</b><span>Dino shop<small>Dinosaurs &amp; skins</small></span></a><a href="#marketplace"><b>▣</b><span>Item shop<small>Gear &amp; cosmetics</small></span></a></div></div>
+        <div class="nav-group"><button type="button" aria-expanded="false">Marketplace <span>⌃</span></button><div class="mega-menu"><a href="#marketplace"><b>▣</b><span>Marketplace<small>Buy &amp; sell dinos</small></span></a><a href="#marketplace"><b>⌁</b><span>Auctions<small>Bid, highest wins</small></span></a></div></div>
+        <div class="nav-group"><button type="button" aria-expanded="false">Leaderboards <span>⌃</span></button><div class="mega-menu"><a href="#"><b>◎</b><span>Kills<small>Top hunters</small></span></a><a href="#"><b>♙</b><span>Deaths<small>Most defeated</small></span></a><a href="#"><b>⚔</b><span>K / D Ratio<small>Best survival ratio</small></span></a><a href="#"><b>◷</b><span>Playtime<small>Most time logged</small></span></a></div></div>
+        <a href="#community">Events</a>
+        <div class="nav-group"><button type="button" aria-expanded="false">More <span>⌃</span></button><div class="mega-menu"><a href="#community"><b>♡</b><span>Patreon<small>Support us</small></span></a><a href="#community"><b>▣</b><span>Twitch<small>Watch the stream</small></span></a></div></div>
+      </nav>
+      <a class="discord-link" id="auth-action" href="/auth/discord"><span class="online-dot"></span> Login with Discord <b>↗</b></a>
+      <button class="menu-toggle" aria-label="Toggle navigation" aria-expanded="false"><span></span><span></span></button>
+    </header>
+
+    <main id="top">
+      <section class="portal-hero">
+        <div class="hero-grid"></div>
+        <div class="hero-copy">
+          <p class="overline"><span class="rule"></span> COMMAND CENTER</p>
+          <h1 id="hero-heading">Welcome,<br><span>survivor.</span></h1>
+          <p class="hero-description">Track your survivors, manage your Amber and keep up with everything happening in the HDS valley.</p>
+          <div class="hero-actions"><a class="primary-button" href="#dinos">View my dinos <b>→</b></a><a class="secondary-link" href="https://discord.gg/herbydeathsquadgames" target="_blank" rel="noreferrer">Open Discord <b>↗</b></a></div>
+        </div>
+        <div class="hero-dinosaur" aria-hidden="true"><div class="dino-eye"></div><div class="dino-ridge"></div></div>
+      </section>
+
+      <section class="roster-section" id="dinos">
+        <div class="section-top"><div><p class="overline green">YOUR SURVIVORS</p><h2>Every life leaves<br><em>a mark.</em></h2></div><p class="section-intro">Keep track of your current characters, growth and last known location.</p></div>
+        <div class="dashboard-columns">
+          <div class="survivor-list">
+            <div class="list-heading"><span>ACTIVE ROSTER</span><a href="#dinos">View all →</a></div>
+            <div class="empty-roster" id="roster-empty-state"><b>◇</b><strong>No active survivors yet</strong><span>Connect your account to see your characters here.</span></div>
+          </div>
+          <div class="map-preview" id="map"><div class="list-heading"><span>LIVE POSITIONS</span><a href="#map">Open →</a></div><div class="map-art"><i>LIVE MAP</i><span>◇</span><b>◌</b></div><small id="map-contacts">0 contacts in your visibility scope</small></div>
+        </div>
+      </section>
+
+      <section class="roster-section" id="quests" hidden>
+        <div class="section-top"><div><p class="overline green">DAILY &amp; WEEKLY</p><h2>Valley<br><em>quests.</em></h2></div><p class="section-intro">Complete quests to earn Amber for your wallet.</p></div>
+        <div class="quest-list" id="quest-list"><p class="section-intro">Log in with Discord to view and claim quests.</p></div>
+      </section>
+
+      <section class="roster-section" id="species" hidden>
+        <div class="section-top"><div><p class="overline green">SPECIES DATABASE</p><h2>Playable<br><em>dinosaurs.</em></h2></div><p class="section-intro">Every dinosaur currently playable in Isle Evrima.</p></div>
+        <div class="filter-row" role="group" aria-label="Filter species"><button class="filter active" data-filter="all">All species</button><button class="filter" data-filter="herbivore">Herbivores</button><button class="filter" data-filter="carnivore">Carnivores</button><button class="filter" data-filter="omnivore">Omnivores</button><button class="filter" data-filter="flying">Flying</button><span class="roster-count" id="roster-count">.. / LIVE EVRIMA ROSTER</span></div>
+        <div class="dino-grid" id="dino-grid"><p class="section-intro">Loading species database…</p></div>
+      </section>
+
+      <section class="wallet-section" id="wallet" hidden><div class="activity-heading"><div><p class="overline green">YOUR BALANCE</p><h2>Valley <em>wallet.</em></h2></div><span>ALL TIME</span></div><div class="wallet-balance"><small>CURRENT BALANCE</small><b id="wallet-balance">0</b><span>Earn coins by playing, completing quests and joining events.</span></div><div class="activity-list" id="wallet-transactions"><div class="empty-roster"><strong>No transactions yet</strong><span>Your earnings and spending will show up here once the server goes live.</span></div></div></section>
+      <section class="marketplace-section" id="marketplace" hidden><p class="overline green">TRADE POST</p><h2>Marketplace <em>coming soon.</em></h2><p>Trade growth, cosmetics and community rewards with other survivors.</p><a class="outline-button" href="#community">Join the waitlist <b>↗</b></a></section>
+      <section class="rules-strip" id="rules"><div class="strip-number">02</div><div><p class="overline green">THE HDS SURVIVAL CODE</p><h2>Respect the wild.<br><em>Earn your place.</em></h2></div><p>Our rules are simple: respect the world, respect the players, and leave room for every story. No toxicity. No shortcuts. Just a better way to play.</p><a class="outline-button" href="#community">Read the code <b>↗</b></a></section>
+
+      <section class="community-section" id="community"><div class="community-orb">HDS</div><div class="community-copy"><p class="overline green">THE GATHERING</p><h2>The gates open<br><em>soon.</em></h2><p>Meet your future packmates, follow development and help shape the Herby Death Squad server before the first call echoes through the valley.</p><a class="primary-button dark" href="https://discord.gg/herbydeathsquadgames" target="_blank" rel="noreferrer">Join the Discord <b>→</b></a></div></section>
+    </main>
+    <footer><span>© 2026 Herby Death Squad Games</span><span>ISLE EVRIMA COMMUNITY SERVER</span><a href="#top">Back to top ↑</a></footer>
+  </div>
+  <dialog class="dino-dialog" aria-labelledby="dialog-title">
+    <button class="dialog-close" aria-label="Close species details">×</button>
+    <p class="overline green">SPECIES PROFILE</p>
+    <h2 id="dialog-title">Species name</h2>
+    <p class="dialog-role"></p>
+    <p class="dialog-description"></p>
+    <div class="dialog-social"><span>Best played as</span><strong></strong></div>
+  </dialog>
+  <script src="assets/site.js"></script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+services:
+  web:
+    build: .
+    container_name: hollowvalley-web
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "3000:3000"
+    volumes:
+      - hollowvalley-data:/app/data
+
+volumes:
+  hollowvalley-data:

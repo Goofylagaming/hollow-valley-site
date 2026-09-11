@@ -1,0 +1,20 @@
+# Alternative to Docker: run the Node process directly under systemd.
+# Copy to /etc/systemd/system/hollowvalley.service, edit the paths/user, then:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now hollowvalley
+
+[Unit]
+Description=Herby Death Squad Games portal
+After=network.target
+
+[Service]
+Type=simple
+User=hollowvalley
+WorkingDirectory=/opt/hollowvalley-site
+EnvironmentFile=/opt/hollowvalley-site/.env
+ExecStart=/usr/bin/node server/index.js
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
