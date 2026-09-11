@@ -5,24 +5,39 @@ login — it is **not** a static site anymore, so it needs a host that can run a
 persistent Node process (Netlify cannot do this; that's fine, this guide
 covers a normal VPS instead).
 
-## 1. Pick a host + buy a domain
+## 1. Domain (done ✅)
 
-Recommended low-cost VPS providers that work well for a small community site:
+You've already bought **herbydeathsquadgames.com** via Cloudflare Registrar.
+This site will run on the subdomain `hollowvalley.herbydeathsquadgames.com`,
+keeping the root domain free for a future brand hub/landing page (and any
+other game servers you add later).
+
+Pick a VPS host to run the app on:
 
 - **Hetzner Cloud** — cheapest, ~$4-5/mo (CX22), EU/US locations.
-- **DigitalOcean** — ~$6/mo droplet, very good docs, easy Discord community familiarity.
+- **DigitalOcean** — ~$6/mo droplet, very good docs.
 - **Linode/Akamai** — similar pricing to DigitalOcean.
 
-Any of these give you a plain Ubuntu server with a public IP. Buy a domain
-from Namecheap, Porkbun, or Cloudflare Registrar (all ~$10-15/yr for a
-`.com`), then in your domain's DNS settings add:
+Once you have the server's public IP, add this DNS record in the Cloudflare
+dashboard (Website → herbydeathsquadgames.com → DNS):
 
 ```
-A     @      <your server's IP>
-A     www    <your server's IP>
+Type: A
+Name: hollowvalley
+IPv4 address: <your server's public IP>
+Proxy status: Proxied (orange cloud) or DNS only — either works; proxied
+              gives you free CDN/DDoS protection in front of the app.
+TTL: Auto
 ```
 
-DNS changes can take a few minutes to a few hours to propagate.
+This makes `hollowvalley.herbydeathsquadgames.com` point at your server. DNS
+changes usually take effect within a few minutes on Cloudflare.
+
+> If you enable the orange-cloud proxy, set `DISCORD_REDIRECT_URI` and the
+> Nginx `server_name` to `https://hollowvalley.herbydeathsquadgames.com` and
+> use Cloudflare's "Full (strict)" SSL mode once certbot has issued a cert —
+> otherwise Cloudflare's edge cert alone can leave the origin connection
+> unencrypted.
 
 ## 2. Server setup (one time)
 
@@ -40,7 +55,8 @@ sudo apt install -y nginx certbot python3-certbot-nginx git
 git clone https://github.com/Goofylagaming/hollow-valley-site.git
 cd hollow-valley-site
 cp .env.example .env
-nano .env   # fill in SESSION_SECRET, DISCORD_CLIENT_ID/SECRET, DISCORD_REDIRECT_URI
+nano .env   # fill in SESSION_SECRET, DISCORD_CLIENT_ID/SECRET,
+            # DISCORD_REDIRECT_URI=https://hollowvalley.herbydeathsquadgames.com/auth/discord/callback
 ```
 
 Generate a strong `SESSION_SECRET`:
@@ -63,9 +79,9 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ## 4. Discord login setup
 
 1. Go to https://discord.com/developers/applications → New Application.
-2. OAuth2 → General → add a redirect: `https://yourdomain.com/auth/discord/callback`
+2. OAuth2 → General → add a redirect: `https://hollowvalley.herbydeathsquadgames.com/auth/discord/callback`
 3. Copy the **Client ID** and **Client Secret** into `.env`.
-4. Set `DISCORD_REDIRECT_URI=https://yourdomain.com/auth/discord/callback` in `.env` to match exactly.
+4. Set `DISCORD_REDIRECT_URI=https://hollowvalley.herbydeathsquadgames.com/auth/discord/callback` in `.env` to match exactly.
 
 Without this, the site still runs — the "Login with Discord" button will just
 show a friendly "not configured yet" message instead of erroring out.
@@ -83,14 +99,17 @@ Docker volume (`hollowvalley-data`) even if the container restarts/rebuilds.
 
 ```bash
 sudo cp nginx/hollowvalley.conf /etc/nginx/sites-available/hollowvalley.conf
-sudo sed -i "s/yourdomain.com/YOURREALDOMAIN.com/g" /etc/nginx/sites-available/hollowvalley.conf
 sudo ln -s /etc/nginx/sites-available/hollowvalley.conf /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com
+sudo certbot --nginx -d hollowvalley.herbydeathsquadgames.com
 ```
 
 Certbot auto-configures HTTPS and sets up auto-renewal. Your site is now live
-at `https://yourdomain.com`.
+at `https://hollowvalley.herbydeathsquadgames.com`.
+
+> If you're using Cloudflare's orange-cloud proxy, switch SSL/TLS mode to
+> "Full (strict)" in the Cloudflare dashboard once certbot has issued the
+> certificate above, so traffic is encrypted end-to-end.
 
 ## 7. Updating the site later
 
