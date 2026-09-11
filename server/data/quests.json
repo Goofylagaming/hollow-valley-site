@@ -1,0 +1,5 @@
+[
+  { "id": "daily-checkin", "title": "Daily check-in", "description": "Log in and claim your daily Valley Coin.", "reward": 150, "cadence": "daily" },
+  { "id": "daily-discord", "title": "Say hello in Discord", "description": "Drop a message in #general to claim a bonus.", "reward": 100, "cadence": "daily" },
+  { "id": "weekly-survivor", "title": "Weekly survivor bonus", "description": "Claim your weekly loyalty bonus.", "reward": 750, "cadence": "weekly" }
+]
