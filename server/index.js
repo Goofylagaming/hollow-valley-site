@@ -48,6 +48,17 @@ app.use(
   })
 );
 
+// Auth state must never be cached - by the browser, the bfcache, Cloudflare or
+// any other intermediary - or a stale "logged out" response can be replayed to
+// a user who actually holds a valid session.
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api/") || req.path.startsWith("/auth/")) {
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
+    res.set("Pragma", "no-cache");
+  }
+  next();
+});
+
 // Attach the logged-in user (if any) to every request.
 app.use((req, res, next) => {
   if (req.session.userId) {
