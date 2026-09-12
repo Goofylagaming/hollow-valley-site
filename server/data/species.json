@@ -8,8 +8,12 @@
     "social": "Solo / Pack",
     "art": "tyrant",
     "threatPercent": 92,
-    "threatDots": "●●●●●",
-    "featured": true
+    "threatDots": "\u25cf\u25cf\u25cf\u25cf\u25cf",
+    "featured": true,
+    "packLimit": 2,
+    "peakWeightPercent": 87.5,
+    "biteForce": "6,500 N",
+    "growthTime": "~35 hours"
   },
   {
     "id": "allosaurus",
@@ -20,8 +24,12 @@
     "social": "Solo / Pack",
     "art": "carno",
     "threatPercent": 75,
-    "threatDots": "●●●●○",
-    "featured": false
+    "threatDots": "\u25cf\u25cf\u25cf\u25cf\u25cb",
+    "featured": false,
+    "packLimit": 3,
+    "peakWeightPercent": 87.5,
+    "biteForce": "3,000 N",
+    "growthTime": "~20 hours"
   },
   {
     "id": "carnotaurus",
@@ -32,8 +40,12 @@
     "social": "Solo / Pack",
     "art": "carno",
     "threatPercent": 70,
-    "threatDots": "●●●●○",
-    "featured": false
+    "threatDots": "\u25cf\u25cf\u25cf\u25cf\u25cb",
+    "featured": false,
+    "packLimit": 3,
+    "peakWeightPercent": 87.5,
+    "biteForce": "2,200 N",
+    "growthTime": "~8 hours"
   },
   {
     "id": "ceratosaurus",
@@ -44,8 +56,12 @@
     "social": "Solo / Pack",
     "art": "tyrant",
     "threatPercent": 68,
-    "threatDots": "●●●●○",
-    "featured": false
+    "threatDots": "\u25cf\u25cf\u25cf\u25cf\u25cb",
+    "featured": false,
+    "packLimit": 4,
+    "peakWeightPercent": 87.5,
+    "biteForce": "2,400 N",
+    "growthTime": "~6 hours"
   },
   {
     "id": "deinosuchus",
@@ -56,8 +72,12 @@
     "social": "Solo / Group",
     "art": "deino",
     "threatPercent": 94,
-    "threatDots": "●●●●●",
-    "featured": false
+    "threatDots": "\u25cf\u25cf\u25cf\u25cf\u25cf",
+    "featured": false,
+    "packLimit": 2,
+    "peakWeightPercent": 100,
+    "biteForce": "20,000+ N (strongest bite in-game)",
+    "growthTime": "~23 hours"
   },
   {
     "id": "dilophosaurus",
@@ -68,8 +88,12 @@
     "social": "Solo / Pack",
     "art": "galli",
     "threatPercent": 60,
-    "threatDots": "●●●○○",
-    "featured": false
+    "threatDots": "\u25cf\u25cf\u25cf\u25cb\u25cb",
+    "featured": false,
+    "packLimit": 6,
+    "peakWeightPercent": 87.5,
+    "biteForce": "900 N",
+    "growthTime": "~6 hours"
   },
   {
     "id": "herrerasaurus",
@@ -80,8 +104,12 @@
     "social": "Solo / Pack",
     "art": "carno",
     "threatPercent": 38,
-    "threatDots": "●●○○○",
-    "featured": false
+    "threatDots": "\u25cf\u25cf\u25cb\u25cb\u25cb",
+    "featured": false,
+    "packLimit": 10,
+    "peakWeightPercent": 87.5,
+    "biteForce": "450 N",
+    "growthTime": "~5.5 hours"
   },
   {
     "id": "omniraptor",
@@ -92,8 +120,12 @@
     "social": "Pack",
     "art": "carno",
     "threatPercent": 52,
-    "threatDots": "●●●○○",
-    "featured": false
+    "threatDots": "\u25cf\u25cf\u25cf\u25cb\u25cb",
+    "featured": false,
+    "packLimit": 8,
+    "peakWeightPercent": 87.5,
+    "biteForce": "1,100 N",
+    "growthTime": "~6 hours"
   },
   {
     "id": "troodon",
@@ -104,8 +136,12 @@
     "social": "Pack",
     "art": "hypsi",
     "threatPercent": 35,
-    "threatDots": "●●○○○",
-    "featured": false
+    "threatDots": "\u25cf\u25cf\u25cb\u25cb\u25cb",
+    "featured": false,
+    "packLimit": 10,
+    "peakWeightPercent": 87.5,
+    "biteForce": "600 N",
+    "growthTime": "~3 hours"
   },
   {
     "id": "pteranodon",
@@ -116,8 +152,12 @@
     "social": "Solo / Group",
     "art": "galli",
     "threatPercent": 45,
-    "threatDots": "●●○○○",
-    "featured": false
+    "threatDots": "\u25cf\u25cf\u25cb\u25cb\u25cb",
+    "featured": false,
+    "packLimit": 6,
+    "peakWeightPercent": 87.5,
+    "biteForce": "400 N",
+    "growthTime": "~4.5 hours"
   },
   {
     "id": "diabloceratops",
@@ -128,8 +168,12 @@
     "social": "Herd",
     "art": "teno",
     "threatPercent": 65,
-    "threatDots": "●●●●○",
-    "featured": false
+    "threatDots": "\u25cf\u25cf\u25cf\u25cf\u25cb",
+    "featured": false,
+    "packLimit": 6,
+    "peakWeightPercent": 87.5,
+    "biteForce": "1,800 N",
+    "growthTime": "~8 hours"
   },
   {
     "id": "dryosaurus",
@@ -140,8 +184,12 @@
     "social": "Herd",
     "art": "hypsi",
     "threatPercent": 30,
-    "threatDots": "●○○○○",
-    "featured": false
+    "threatDots": "\u25cf\u25cb\u25cb\u25cb\u25cb",
+    "featured": false,
+    "packLimit": 10,
+    "peakWeightPercent": 87.5,
+    "biteForce": "300 N",
+    "growthTime": "~4.5 hours"
   },
   {
     "id": "tenontosaurus",
@@ -152,8 +200,12 @@
     "social": "Herd",
     "art": "teno",
     "threatPercent": 55,
-    "threatDots": "●●●○○",
-    "featured": false
+    "threatDots": "\u25cf\u25cf\u25cf\u25cb\u25cb",
+    "featured": false,
+    "packLimit": 8,
+    "peakWeightPercent": 87.5,
+    "biteForce": "1,200 N",
+    "growthTime": "~5.5 hours"
   },
   {
     "id": "maiasaura",
@@ -164,8 +216,12 @@
     "social": "Herd",
     "art": "teno",
     "threatPercent": 58,
-    "threatDots": "●●●○○",
-    "featured": false
+    "threatDots": "\u25cf\u25cf\u25cf\u25cb\u25cb",
+    "featured": false,
+    "packLimit": 9,
+    "peakWeightPercent": 87.5,
+    "biteForce": "1,400 N",
+    "growthTime": "~7 hours"
   },
   {
     "id": "pachycephalosaurus",
@@ -176,8 +232,12 @@
     "social": "Herd",
     "art": "teno",
     "threatPercent": 48,
-    "threatDots": "●●●○○",
-    "featured": false
+    "threatDots": "\u25cf\u25cf\u25cf\u25cb\u25cb",
+    "featured": false,
+    "packLimit": 8,
+    "peakWeightPercent": 87.5,
+    "biteForce": "900 N",
+    "growthTime": "~6.25 hours"
   },
   {
     "id": "stegosaurus",
@@ -188,8 +248,12 @@
     "social": "Herd",
     "art": "teno",
     "threatPercent": 82,
-    "threatDots": "●●●●○",
-    "featured": false
+    "threatDots": "\u25cf\u25cf\u25cf\u25cf\u25cb",
+    "featured": false,
+    "packLimit": 5,
+    "peakWeightPercent": 87.5,
+    "biteForce": "1,600 N",
+    "growthTime": "~18 hours"
   },
   {
     "id": "triceratops",
@@ -200,8 +264,12 @@
     "social": "Herd",
     "art": "teno",
     "threatPercent": 88,
-    "threatDots": "●●●●●",
-    "featured": false
+    "threatDots": "\u25cf\u25cf\u25cf\u25cf\u25cf",
+    "featured": false,
+    "packLimit": 6,
+    "peakWeightPercent": 87.5,
+    "biteForce": "3,200 N",
+    "growthTime": "~20 hours"
   },
   {
     "id": "deinocheirus",
@@ -212,8 +280,12 @@
     "social": "Herd",
     "art": "deino",
     "threatPercent": 78,
-    "threatDots": "●●●●○",
-    "featured": false
+    "threatDots": "\u25cf\u25cf\u25cf\u25cf\u25cb",
+    "featured": false,
+    "packLimit": 4,
+    "peakWeightPercent": 87.5,
+    "biteForce": "700 N",
+    "growthTime": "~24 hours"
   },
   {
     "id": "gallimimus",
@@ -224,8 +296,12 @@
     "social": "Herd",
     "art": "galli",
     "threatPercent": 42,
-    "threatDots": "●●○○○",
-    "featured": false
+    "threatDots": "\u25cf\u25cf\u25cb\u25cb\u25cb",
+    "featured": false,
+    "packLimit": 8,
+    "peakWeightPercent": 87.5,
+    "biteForce": "350 N",
+    "growthTime": "~5.5 hours"
   },
   {
     "id": "hypsilophodon",
@@ -236,8 +312,12 @@
     "social": "Colony",
     "art": "hypsi",
     "threatPercent": 24,
-    "threatDots": "●○○○○",
-    "featured": false
+    "threatDots": "\u25cf\u25cb\u25cb\u25cb\u25cb",
+    "featured": false,
+    "packLimit": 10,
+    "peakWeightPercent": 87.5,
+    "biteForce": "150 N",
+    "growthTime": "~2 hours"
   },
   {
     "id": "beipiaosaurus",
@@ -248,7 +328,11 @@
     "social": "Solo / Group",
     "art": "galli",
     "threatPercent": 40,
-    "threatDots": "●●○○○",
-    "featured": false
+    "threatDots": "\u25cf\u25cf\u25cb\u25cb\u25cb",
+    "featured": false,
+    "packLimit": 12,
+    "peakWeightPercent": 87.5,
+    "biteForce": "500 N",
+    "growthTime": "~4 hours"
   }
 ]

@@ -64,6 +64,10 @@ function wireDinoDialog() {
   const dialogRole = dinoDialog.querySelector(".dialog-role");
   const dialogDescription = dinoDialog.querySelector(".dialog-description");
   const dialogSocial = dinoDialog.querySelector(".dialog-social strong");
+  const statPack = dinoDialog.querySelector(".stat-pack");
+  const statWeight = dinoDialog.querySelector(".stat-weight");
+  const statBite = dinoDialog.querySelector(".stat-bite");
+  const statGrowth = dinoDialog.querySelector(".stat-growth");
 
   document.querySelectorAll(".dino-card").forEach((card) => {
     card.tabIndex = 0;
@@ -72,6 +76,10 @@ function wireDinoDialog() {
       dialogRole.textContent = card.dataset.role;
       dialogDescription.textContent = card.dataset.description;
       dialogSocial.textContent = card.dataset.social;
+      if (statPack) statPack.textContent = card.dataset.packLimit || "—";
+      if (statWeight) statWeight.textContent = card.dataset.peakWeight ? `${card.dataset.peakWeight}%` : "—";
+      if (statBite) statBite.textContent = card.dataset.biteForce || "—";
+      if (statGrowth) statGrowth.textContent = card.dataset.growthTime || "—";
       dinoDialog.showModal();
     };
     card.addEventListener("click", openDetails);
@@ -117,7 +125,7 @@ function renderSpecies(list) {
   grid.innerHTML = list
     .map((dino) => {
       const featuredClass = dino.featured ? " featured" : "";
-      return `<article class="dino-card${featuredClass}" data-category="${dino.category}" data-dino="${escapeHtml(dino.name)}" data-role="${escapeHtml(dino.role)}" data-description="${escapeHtml(dino.description)}" data-social="${escapeHtml(dino.social)}">
+      return `<article class="dino-card${featuredClass}" data-category="${dino.category}" data-dino="${escapeHtml(dino.name)}" data-role="${escapeHtml(dino.role)}" data-description="${escapeHtml(dino.description)}" data-social="${escapeHtml(dino.social)}" data-pack-limit="${escapeHtml(String(dino.packLimit ?? ""))}" data-peak-weight="${escapeHtml(String(dino.peakWeightPercent ?? ""))}" data-bite-force="${escapeHtml(dino.biteForce || "")}" data-growth-time="${escapeHtml(dino.growthTime || "")}"
         <div class="dino-art ${dino.art}"><span>${dino.name.toUpperCase()}</span></div>
         <div class="dino-info"><div><small>${dino.role.toUpperCase()}</small><h3>${escapeHtml(dino.name)}</h3></div><b class="dino-arrow">↗</b></div>
         <div class="meter"><span style="width:${dino.threatPercent}%"></span></div>
