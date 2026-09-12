@@ -50,6 +50,11 @@ app.use((req, res, next) => {
   if (req.session.userId) {
     req.user = db.prepare("SELECT id, discord_id, steam_id, username, avatar, is_admin FROM users WHERE id = ?").get(req.session.userId) || null;
   }
+  if (process.env.DEBUG_AUTH === "1") {
+    console.log(
+      `[auth-debug] ${req.method} ${req.originalUrl} | cookie=${req.headers.cookie ? "present" : "MISSING"} | sessionID=${req.sessionID} | session.userId=${req.session.userId ?? "none"} | resolvedUser=${req.user ? req.user.username : "none"}`
+    );
+  }
   next();
 });
 
