@@ -39,7 +39,7 @@ window.HDS = (function () {
     if (!authArea) return;
 
     if (me.loggedIn && me.user) {
-      authArea.innerHTML = `<a class="steam-signin logged-in" id="auth-action" href="/auth/logout"><span class="steam-icon">●</span> ${escapeHtml(me.user.username)} · Logout</a>`;
+      authArea.innerHTML = `<a class="steam-signin logged-in" id="auth-action" href="/auth/logout"><span class="steam-icon">●</span> Logged in as: ${escapeHtml(me.user.username)} · Logout</a>`;
     } else {
       const steamLabel = me.steamLoginConfigured ? "Sign in with Steam" : "Steam login not configured";
       authArea.innerHTML = `<a class="steam-signin" id="auth-steam" href="${me.steamLoginConfigured ? "/auth/steam" : "#"}"><span class="steam-icon">◈</span> ${steamLabel}</a>`;
