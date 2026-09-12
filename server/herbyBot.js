@@ -13,6 +13,7 @@ const CHANNEL_RENAME_INTERVAL_MS = 5 * 60_000; // Discord rate-limits channel re
 
 let client = null;
 let lastChannelName = null;
+let lockedChannelId = null;
 
 function isConfigured() {
   return Boolean(process.env.DISCORD_BOT_TOKEN);
@@ -57,6 +58,30 @@ async function updateStatusChannel() {
   }
 }
 
+async function lockStatusChannel() {
+  const channelId = process.env.DISCORD_STATUS_CHANNEL_ID;
+  if (!client || !client.isReady() || !channelId || lockedChannelId === channelId) return;
+
+  try {
+    const channel = await client.channels.fetch(channelId);
+    if (channel?.guild) {
+      // Deny @everyone from sending messages/creating threads - the channel
+      // is read-only, just showing live status via its name.
+      await channel.permissionOverwrites.edit(channel.guild.roles.everyone, {
+        SendMessages: false,
+        SendMessagesInThreads: false,
+        CreatePublicThreads: false,
+        CreatePrivateThreads: false,
+        AddReactions: false,
+      });
+      lockedChannelId = channelId;
+      console.log(`[herbybot] locked status channel ${channelId} (read-only)`);
+    }
+  } catch (err) {
+    console.error("[herbybot] failed to lock status channel:", err.message);
+  }
+}
+
 function start() {
   if (!isConfigured()) {
     console.log("[herbybot] DISCORD_BOT_TOKEN not set - Discord bot status disabled");
@@ -70,6 +95,7 @@ function start() {
     console.log(`[herbybot] logged in as ${client.user.tag}`);
     updatePresence();
     updateStatusChannel();
+    lockStatusChannel();
   });
 
   client.login(process.env.DISCORD_BOT_TOKEN).catch((err) => {
