@@ -36,20 +36,13 @@ window.HDS = (function () {
 
   function applyAuthUi(me) {
     const authArea = document.getElementById("auth-area");
-    const discordLink = document.getElementById("auth-discord");
     if (!authArea) return;
 
     if (me.loggedIn && me.user) {
       authArea.innerHTML = `<a class="steam-signin logged-in" id="auth-action" href="/auth/logout"><span class="steam-icon">●</span> ${escapeHtml(me.user.username)} · Logout</a>`;
-      if (discordLink) discordLink.style.display = "none";
     } else {
       const steamLabel = me.steamLoginConfigured ? "Sign in with Steam" : "Steam login not configured";
       authArea.innerHTML = `<a class="steam-signin" id="auth-steam" href="${me.steamLoginConfigured ? "/auth/steam" : "#"}"><span class="steam-icon">◈</span> ${steamLabel}</a>`;
-      if (discordLink) {
-        discordLink.style.display = "";
-        discordLink.textContent = me.discordLoginConfigured ? "Discord" : "Discord (not configured)";
-        discordLink.href = me.discordLoginConfigured ? "/auth/discord" : "#";
-      }
     }
   }
 
@@ -105,10 +98,6 @@ window.HDS = (function () {
         event.preventDefault();
         api("/auth/logout", { method: "POST" }).finally(() => window.location.reload());
       }
-    });
-
-    document.getElementById("auth-discord")?.addEventListener("click", (event) => {
-      if (event.currentTarget.getAttribute("href") === "#") event.preventDefault();
     });
   }
 
