@@ -10,10 +10,11 @@
     "threatPercent": 92,
     "threatDots": "\u25cf\u25cf\u25cf\u25cf\u25cf",
     "featured": true,
-    "packLimit": 2,
+    "packLimit": 1,
     "peakWeightPercent": 87.5,
-    "biteForce": "6,500 N",
-    "growthTime": "~35 hours"
+    "biteForce": "1,200 (peak adult bite)",
+    "growthTime": "~6.3 hours",
+    "releasedInEvrima": true
   },
   {
     "id": "allosaurus",
@@ -28,8 +29,9 @@
     "featured": false,
     "packLimit": 3,
     "peakWeightPercent": 87.5,
-    "biteForce": "3,000 N",
-    "growthTime": "~20 hours"
+    "biteForce": "300 (peak adult bite)",
+    "growthTime": "~3 hours",
+    "releasedInEvrima": true
   },
   {
     "id": "carnotaurus",
@@ -44,8 +46,9 @@
     "featured": false,
     "packLimit": 3,
     "peakWeightPercent": 87.5,
-    "biteForce": "2,200 N",
-    "growthTime": "~8 hours"
+    "biteForce": "175 (adult bite)",
+    "growthTime": "~2h 15m",
+    "releasedInEvrima": true
   },
   {
     "id": "ceratosaurus",
@@ -60,8 +63,9 @@
     "featured": false,
     "packLimit": 4,
     "peakWeightPercent": 87.5,
-    "biteForce": "2,400 N",
-    "growthTime": "~6 hours"
+    "biteForce": "345 (charged bite)",
+    "growthTime": "~2.5 hours (approx.)",
+    "releasedInEvrima": true
   },
   {
     "id": "deinosuchus",
@@ -76,8 +80,9 @@
     "featured": false,
     "packLimit": 2,
     "peakWeightPercent": 100,
-    "biteForce": "20,000+ N (strongest bite in-game)",
-    "growthTime": "~23 hours"
+    "biteForce": "550 (prime bite, highest on roster)",
+    "growthTime": "~23 hours (avg diet)",
+    "releasedInEvrima": true
   },
   {
     "id": "dilophosaurus",
@@ -92,8 +97,9 @@
     "featured": false,
     "packLimit": 6,
     "peakWeightPercent": 87.5,
-    "biteForce": "900 N",
-    "growthTime": "~6 hours"
+    "biteForce": "85 (Evrima projected)",
+    "growthTime": "~1.8 hours (Legacy ref., Evrima TBD)",
+    "releasedInEvrima": false
   },
   {
     "id": "herrerasaurus",
@@ -108,8 +114,9 @@
     "featured": false,
     "packLimit": 10,
     "peakWeightPercent": 87.5,
-    "biteForce": "450 N",
-    "growthTime": "~5.5 hours"
+    "biteForce": "30 bite / ~425 tree-pounce",
+    "growthTime": "~1h 40m",
+    "releasedInEvrima": true
   },
   {
     "id": "omniraptor",
@@ -124,8 +131,9 @@
     "featured": false,
     "packLimit": 8,
     "peakWeightPercent": 87.5,
-    "biteForce": "1,100 N",
-    "growthTime": "~6 hours"
+    "biteForce": "65 (adult bite)",
+    "growthTime": "~1h 15m",
+    "releasedInEvrima": true
   },
   {
     "id": "troodon",
@@ -140,8 +148,9 @@
     "featured": false,
     "packLimit": 10,
     "peakWeightPercent": 87.5,
-    "biteForce": "600 N",
-    "growthTime": "~3 hours"
+    "biteForce": "15 base (up to 2x with venom stacks)",
+    "growthTime": "~40 minutes",
+    "releasedInEvrima": true
   },
   {
     "id": "pteranodon",
@@ -156,8 +165,9 @@
     "featured": false,
     "packLimit": 6,
     "peakWeightPercent": 87.5,
-    "biteForce": "400 N",
-    "growthTime": "~4.5 hours"
+    "biteForce": "20 (peck)",
+    "growthTime": "~40 minutes",
+    "releasedInEvrima": true
   },
   {
     "id": "diabloceratops",
@@ -172,8 +182,9 @@
     "featured": false,
     "packLimit": 6,
     "peakWeightPercent": 87.5,
-    "biteForce": "1,800 N",
-    "growthTime": "~8 hours"
+    "biteForce": "275 (adult bite)",
+    "growthTime": "~3 hours (roadmap ref.)",
+    "releasedInEvrima": false
   },
   {
     "id": "dryosaurus",
@@ -188,8 +199,9 @@
     "featured": false,
     "packLimit": 10,
     "peakWeightPercent": 87.5,
-    "biteForce": "300 N",
-    "growthTime": "~4.5 hours"
+    "biteForce": "20 (adult bite)",
+    "growthTime": "~30 minutes",
+    "releasedInEvrima": true
   },
   {
     "id": "tenontosaurus",
@@ -204,8 +216,9 @@
     "featured": false,
     "packLimit": 8,
     "peakWeightPercent": 87.5,
-    "biteForce": "1,200 N",
-    "growthTime": "~5.5 hours"
+    "biteForce": "360 (kick / tail slam)",
+    "growthTime": "~1h 45m",
+    "releasedInEvrima": true
   },
   {
     "id": "maiasaura",
@@ -220,8 +233,9 @@
     "featured": false,
     "packLimit": 9,
     "peakWeightPercent": 87.5,
-    "biteForce": "1,400 N",
-    "growthTime": "~7 hours"
+    "biteForce": "175 (adult bite)",
+    "growthTime": "~1h 50m",
+    "releasedInEvrima": true
   },
   {
     "id": "pachycephalosaurus",
@@ -236,8 +250,9 @@
     "featured": false,
     "packLimit": 8,
     "peakWeightPercent": 87.5,
-    "biteForce": "900 N",
-    "growthTime": "~6.25 hours"
+    "biteForce": "High (ram/fracture mechanic, not a biter)",
+    "growthTime": "~2h 10m",
+    "releasedInEvrima": true
   },
   {
     "id": "stegosaurus",
@@ -252,8 +267,9 @@
     "featured": false,
     "packLimit": 5,
     "peakWeightPercent": 87.5,
-    "biteForce": "1,600 N",
-    "growthTime": "~18 hours"
+    "biteForce": "1,000 (tail swing, highest single-hit in game)",
+    "growthTime": "~5 hours",
+    "releasedInEvrima": true
   },
   {
     "id": "triceratops",
@@ -266,10 +282,11 @@
     "threatPercent": 88,
     "threatDots": "\u25cf\u25cf\u25cf\u25cf\u25cf",
     "featured": false,
-    "packLimit": 6,
+    "packLimit": 4,
     "peakWeightPercent": 87.5,
-    "biteForce": "3,200 N",
-    "growthTime": "~20 hours"
+    "biteForce": "~300 (roadmap estimate, horn/charge based)",
+    "growthTime": "~6 hours (roadmap ref.)",
+    "releasedInEvrima": false
   },
   {
     "id": "deinocheirus",
@@ -284,8 +301,9 @@
     "featured": false,
     "packLimit": 4,
     "peakWeightPercent": 87.5,
-    "biteForce": "700 N",
-    "growthTime": "~24 hours"
+    "biteForce": "~700 (estimate, not yet in Evrima)",
+    "growthTime": "~24 hours (estimate, not yet in Evrima)",
+    "releasedInEvrima": false
   },
   {
     "id": "gallimimus",
@@ -300,8 +318,9 @@
     "featured": false,
     "packLimit": 8,
     "peakWeightPercent": 87.5,
-    "biteForce": "350 N",
-    "growthTime": "~5.5 hours"
+    "biteForce": "~40 (kick, weak bite)",
+    "growthTime": "~1h 45m",
+    "releasedInEvrima": true
   },
   {
     "id": "hypsilophodon",
@@ -316,8 +335,9 @@
     "featured": false,
     "packLimit": 10,
     "peakWeightPercent": 87.5,
-    "biteForce": "150 N",
-    "growthTime": "~2 hours"
+    "biteForce": "2 (adult bite)",
+    "growthTime": "~30 minutes",
+    "releasedInEvrima": true
   },
   {
     "id": "beipiaosaurus",
@@ -332,7 +352,8 @@
     "featured": false,
     "packLimit": 12,
     "peakWeightPercent": 87.5,
-    "biteForce": "500 N",
-    "growthTime": "~4 hours"
+    "biteForce": "20 (bite/peck)",
+    "growthTime": "~30 minutes (approx.)",
+    "releasedInEvrima": true
   }
 ]
