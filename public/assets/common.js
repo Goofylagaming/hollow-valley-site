@@ -101,11 +101,31 @@ window.HDS = (function () {
     });
   }
 
-  return { api, escapeHtml, loadMe, initNav };
+  async function loadServerStatus() {
+    const el = document.querySelector(".server-status");
+    if (!el) return;
+    try {
+      const status = await api("/api/server-status");
+      const dot = el.querySelector(".status-dot");
+      if (status.configured && status.online) {
+        dot?.classList.remove("offline");
+        el.querySelector(".status-count")?.remove();
+        el.innerHTML = `<span class="status-dot"></span> Server name: <b>Hollow Valley</b> <span class="status-count">— ${status.playerCount} online now</span>`;
+      } else if (status.configured && !status.online) {
+        el.innerHTML = `<span class="status-dot offline"></span> Server name: <b>Hollow Valley</b> <span class="status-note">— currently offline</span>`;
+      }
+      // If status isn't configured at all, leave the static fallback markup as-is.
+    } catch (err) {
+      // Leave the static fallback markup in place on any error.
+    }
+  }
+
+  return { api, escapeHtml, loadMe, loadServerStatus, initNav };
 })();
 
 document.addEventListener("DOMContentLoaded", () => {
   window.HDS.initNav().then(() => {
     document.dispatchEvent(new CustomEvent("hds:nav-ready"));
   });
+  window.HDS.loadServerStatus();
 });

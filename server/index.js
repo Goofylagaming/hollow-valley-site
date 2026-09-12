@@ -19,6 +19,9 @@ const marketplaceRouter = require("./routes/marketplace");
 const skinsRouter = require("./routes/skins");
 const supporterRouter = require("./routes/supporter");
 const dailyBonusRouter = require("./routes/dailybonus");
+const serverStatusRouter = require("./routes/serverStatus");
+const serverStatusService = require("./services/serverStatus");
+const herbyBot = require("./herbyBot");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -76,6 +79,7 @@ app.use("/api/marketplace", marketplaceRouter);
 app.use("/api/skins", skinsRouter);
 app.use("/api/supporter", supporterRouter);
 app.use("/api/daily-bonus", dailyBonusRouter);
+app.use("/api/server-status", serverStatusRouter);
 
 app.use(express.static(path.join(__dirname, "..", "public")));
 
@@ -93,4 +97,6 @@ app.get("*", (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Herby Death Squad portal running on port ${PORT}`);
+  serverStatusService.start();
+  herbyBot.start();
 });
