@@ -43,6 +43,42 @@
 .map-canvas-wrap{border:1px solid var(--line);background:var(--panel);padding:16px;margin-top:20px}
 .map-svg{width:100%;height:auto;border:1px solid #5a221d;background:#1a0e0c}
 .map-status{margin-top:12px;color:#9c8a72;font-size:11px}
+.map-plane{position:relative;width:100%;padding-top:99.6%;border:1px solid #5a221d;background:radial-gradient(circle at 50% 45%,#241511 0%,#150b09 70%,#100706 100%);overflow:hidden}
+.map-grid,.map-layer{position:absolute;inset:0}
+.grid-line{position:absolute;background:rgba(122,58,44,.28)}
+.grid-line.v{top:0;bottom:0;width:1px}
+.grid-line.h{left:0;right:0;height:1px}
+.grid-label{position:absolute;color:#6b5a4c;font:10px Oswald;letter-spacing:.08em;pointer-events:none}
+.grid-label.col{top:2px;transform:translateX(-50%)}
+.grid-label.row{left:3px;transform:translateY(-50%)}
+.region-label{position:absolute;transform:translate(-50%,-50%);color:#7d6a58;font:10px Oswald;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;pointer-events:none;text-shadow:0 1px 2px #000}
+.marker{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:3px}
+.marker-dot{display:block;width:11px;height:11px;border-radius:50%;border:2px solid #0d0605}
+.marker.me .marker-dot{background:var(--gold);box-shadow:0 0 0 0 rgba(216,169,40,.7);animation:pingMe 1.9s infinite}
+.marker.other .marker-dot{width:8px;height:8px;background:#8a4a3a}
+.marker-name{color:var(--gold);font:600 10px Oswald;letter-spacing:.08em;white-space:nowrap;text-shadow:0 1px 3px #000}
+@keyframes pingMe{70%{box-shadow:0 0 0 13px rgba(216,169,40,0)}100%{box-shadow:0 0 0 0 rgba(216,169,40,0)}}
+.char-panel{margin-top:20px}
+.char-card{border:1px solid var(--line);background:var(--panel);padding:19px}
+.char-head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap}
+.char-head h2{margin:2px 0 4px;color:#e8d9c8;font:600 26px Oswald;letter-spacing:.02em}
+.prime-tag{display:inline-block;vertical-align:middle;margin-left:6px;padding:2px 7px;border:1px solid var(--gold);color:var(--gold);font:600 9px Oswald;letter-spacing:.14em}
+.char-sub{color:#9c8a72;font-size:11px}
+.char-loc{display:flex;flex-direction:column;align-items:flex-end;gap:3px;text-align:right}
+.grid-ref{color:var(--gold);font:600 30px Oswald;line-height:1}
+.loc-region{color:#d8c9b8;font:600 11px Oswald;letter-spacing:.1em;text-transform:uppercase}
+.loc-coords{color:#8a7a6c;font-size:10px}
+.vitals{display:grid;gap:7px;margin-top:17px}
+.vital{display:flex;align-items:center;gap:10px}
+.vital-label{width:62px;color:#9c8a72;font:10px Oswald;letter-spacing:.12em;text-transform:uppercase}
+.vital-track{flex:1;height:7px;background:#1a0e0c;border:1px solid #3a2420}
+.vital-fill{display:block;height:100%;background:linear-gradient(90deg,#6b8f3a,#9cc44a)}
+.vital-fill.low{background:linear-gradient(90deg,#8f3a2a,#c4553a)}
+.vital-value{width:36px;color:#8a7a6c;font-size:10px;text-align:right}
+.mut-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:15px}
+.mut-chip{padding:3px 9px;border:1px solid #4a2420;background:#100908;color:#c9b79c;font:10px Oswald;letter-spacing:.08em}
+.mut-none{color:#6b5a4c;font-size:10px}
+.prime-inline{color:var(--gold);font-style:normal;font-size:9px;letter-spacing:.1em;text-transform:uppercase}
 .tag-pill{display:inline-block;padding:3px 8px;border:1px solid #5a3a34;color:#c2a98f;font-size:9px;text-transform:uppercase;letter-spacing:.06em}
 
 .steam-signin{display:inline-flex;align-items:center;gap:8px;padding:11px 20px;margin-left:14px;border-radius:999px;background:linear-gradient(135deg,#e8c657,#b8841f);color:#1a0e05;font:700 10px Oswald;letter-spacing:.09em;text-transform:uppercase;box-shadow:0 8px 22px #8a5a1faa;transition:.2s}

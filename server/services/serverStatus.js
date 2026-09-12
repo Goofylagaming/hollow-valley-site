@@ -16,6 +16,7 @@ const state = {
   playerCount: 0,
   maxPlayers: DEFAULT_MAX_PLAYERS,
   players: [],
+  characters: [],
   lastChecked: null,
   lastError: null,
 };
@@ -23,7 +24,7 @@ const state = {
 async function poll() {
   if (!state.configured) return;
   try {
-    const { players, maxPlayers } = await fetchServerStatus({
+    const { players, characters, maxPlayers } = await fetchServerStatus({
       host: process.env.RCON_HOST,
       port: Number(process.env.RCON_PORT),
       password: process.env.RCON_PASSWORD,
@@ -32,11 +33,13 @@ async function poll() {
     state.playerCount = players.length;
     state.maxPlayers = maxPlayers || DEFAULT_MAX_PLAYERS;
     state.players = players;
+    state.characters = characters || [];
     state.lastError = null;
   } catch (err) {
     state.online = false;
     state.playerCount = 0;
     state.players = [];
+    state.characters = [];
     state.lastError = err.message;
   }
   state.lastChecked = new Date().toISOString();

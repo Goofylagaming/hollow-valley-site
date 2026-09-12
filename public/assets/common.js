@@ -10,7 +10,9 @@ window.HDS = (function () {
     const body = contentType.includes("application/json") ? await response.json() : null;
     if (!response.ok) {
       const message = body?.error || `Request failed (${response.status})`;
-      throw new Error(message);
+      const error = new Error(message);
+      error.status = response.status;
+      throw error;
     }
     return body;
   }
