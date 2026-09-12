@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Live positions on the Herby Death Squad Isle Evrima server.">
   <title>Live map | Herby Death Squad</title>
-  <link rel="stylesheet" href="assets/styles.css?v=11">
+  <link rel="stylesheet" href="assets/styles.css?v=12">
 </head>
 <body>
   <div class="app-shell">
@@ -14,16 +14,17 @@
       <section class="page-header">
         <p class="overline green">LIVE POSITIONS</p>
         <h1>Live map.</h1>
-        <p class="section-intro">Your in-game character, linked to your Steam account and refreshed live from the server. Positions are shown on a schematic grid, not the licensed in-game map artwork.</p>
+        <p class="section-intro">Your in-game character, linked to your Steam account and refreshed live from the server. Positions are shown on a schematic map drawn from community coordinate data.</p>
       </section>
       <section class="roster-section">
         <div id="my-character" class="char-panel"><div class="empty-roster"><strong>Loading&hellip;</strong><span>Checking the server for your character.</span></div></div>
         <div class="map-canvas-wrap">
           <div class="map-plane">
+            <div class="map-base" id="map-base"></div>
             <div class="map-grid" id="map-grid"></div>
-            <div class="map-layer" id="map-regions"></div>
             <div class="map-layer" id="map-markers"></div>
           </div>
+          <p class="map-credit" id="map-credit"></p>
           <p class="map-status" id="map-status">Checking connection…</p>
         </div>
         <div class="list-heading" style="margin-top:24px"><span>OTHER SURVIVORS ONLINE</span></div>
@@ -33,6 +34,6 @@
     <footer><span>© 2026 Herby Death Squad Games</span><span>ISLE EVRIMA COMMUNITY SERVER</span><a href="/">Back to command ↑</a></footer>
   </div>
   <script src="assets/common.js?v=8"></script>
-  <script src="assets/livemap.js?v=2"></script>
+  <script src="assets/livemap.js?v=3"></script>
 </body>
 </html>

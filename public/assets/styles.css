@@ -43,12 +43,26 @@
 .map-canvas-wrap{border:1px solid var(--line);background:var(--panel);padding:16px;margin-top:20px}
 .map-svg{width:100%;height:auto;border:1px solid #5a221d;background:#1a0e0c}
 .map-status{margin-top:12px;color:#9c8a72;font-size:11px}
-.map-plane{position:relative;width:100%;padding-top:99.6%;border:1px solid #5a221d;background:radial-gradient(circle at 50% 45%,#241511 0%,#150b09 70%,#100706 100%);overflow:hidden}
-.map-grid,.map-layer{position:absolute;inset:0}
-.grid-line{position:absolute;background:rgba(122,58,44,.28)}
+.map-plane{position:relative;width:100%;padding-top:99.6%;border:1px solid #5a221d;background:#0b1622;overflow:hidden}
+.map-base,.map-grid,.map-layer{position:absolute;inset:0}
+.map-cartography{width:100%;height:100%;display:block}
+.map-cartography .coast{fill:#2b3a26;stroke:#c08a3e;stroke-width:2;stroke-linejoin:round}
+.map-cartography .road{fill:none;stroke:#caa870;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;opacity:.75}
+.map-cartography .road.trail{stroke:#8f7c5a;stroke-width:1.3;stroke-dasharray:5 4;opacity:.6}
+.map-cartography .water-dot{fill:#4a90d9;opacity:.85}
+.map-cartography .land-dot{fill:#d8a928;opacity:.8}
+.map-cartography .cave{fill:none;stroke:#c4553a;stroke-width:1.6;opacity:.85}
+.map-cartography .lbl{font-family:Oswald,sans-serif;text-anchor:middle;pointer-events:none;paint-order:stroke;stroke:#0b1622;stroke-width:3;stroke-linejoin:round}
+.map-cartography .lbl.water{fill:#7fb3e8;font-size:11px}
+.map-cartography .lbl.land{fill:#e0c98f;font-size:11px}
+.map-cartography .lbl.area{fill:#b9a894;font-size:15px;letter-spacing:.12em;text-transform:uppercase;opacity:.75}
+.map-cartography .lbl.area.lg{font-size:19px}
+.map-cartography .lbl.area.sm{font-size:12px;opacity:.6}
+.map-credit{margin-top:6px;color:#6b5a4c;font-size:10px}
+.grid-line{position:absolute;background:rgba(216,169,40,.14)}
 .grid-line.v{top:0;bottom:0;width:1px}
 .grid-line.h{left:0;right:0;height:1px}
-.grid-label{position:absolute;color:#6b5a4c;font:10px Oswald;letter-spacing:.08em;pointer-events:none}
+.grid-label{position:absolute;color:#7d6a58;font:10px Oswald;letter-spacing:.08em;pointer-events:none;text-shadow:0 1px 2px #000}
 .grid-label.col{top:2px;transform:translateX(-50%)}
 .grid-label.row{left:3px;transform:translateY(-50%)}
 .region-label{position:absolute;transform:translate(-50%,-50%);color:#7d6a58;font:10px Oswald;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;pointer-events:none;text-shadow:0 1px 2px #000}
