@@ -10,10 +10,10 @@
     "threatPercent": 92,
     "threatDots": "\u25cf\u25cf\u25cf\u25cf\u25cf",
     "featured": true,
-    "packLimit": 1,
+    "packLimit": 2,
     "peakWeightPercent": 87.5,
-    "biteForce": "1,200 (peak adult bite)",
-    "growthTime": "~6.3 hours",
+    "biteForce": "770 (in-game peak bite force stat)",
+    "growthTime": "35h 33m",
     "releasedInEvrima": true
   },
   {
@@ -29,8 +29,8 @@
     "featured": false,
     "packLimit": 3,
     "peakWeightPercent": 87.5,
-    "biteForce": "300 (peak adult bite)",
-    "growthTime": "~3 hours",
+    "biteForce": "201 (in-game peak bite force stat)",
+    "growthTime": "10 hours",
     "releasedInEvrima": true
   },
   {
@@ -46,8 +46,8 @@
     "featured": false,
     "packLimit": 3,
     "peakWeightPercent": 87.5,
-    "biteForce": "175 (adult bite)",
-    "growthTime": "~2h 15m",
+    "biteForce": "172.5 (in-game peak bite force stat)",
+    "growthTime": "7h 40m",
     "releasedInEvrima": true
   },
   {
@@ -61,10 +61,10 @@
     "threatPercent": 68,
     "threatDots": "\u25cf\u25cf\u25cf\u25cf\u25cb",
     "featured": false,
-    "packLimit": 4,
+    "packLimit": 5,
     "peakWeightPercent": 87.5,
-    "biteForce": "345 (charged bite)",
-    "growthTime": null,
+    "biteForce": "172.5 (in-game peak bite force stat)",
+    "growthTime": "6 hours",
     "releasedInEvrima": true
   },
   {
@@ -80,8 +80,8 @@
     "featured": false,
     "packLimit": 2,
     "peakWeightPercent": 100,
-    "biteForce": "550 (prime bite, highest on roster)",
-    "growthTime": "~5-10 hours (diet dependent; up to ~10h on bad diet)",
+    "biteForce": "575 (in-game peak bite force stat)",
+    "growthTime": "23h 3m",
     "releasedInEvrima": true
   },
   {
@@ -95,11 +95,11 @@
     "threatPercent": 60,
     "threatDots": "\u25cf\u25cf\u25cf\u25cb\u25cb",
     "featured": false,
-    "packLimit": null,
-    "peakWeightPercent": null,
-    "biteForce": null,
-    "growthTime": null,
-    "releasedInEvrima": false
+    "packLimit": 5,
+    "peakWeightPercent": 87.5,
+    "biteForce": "97.75 (in-game peak bite force stat)",
+    "growthTime": "6 hours",
+    "releasedInEvrima": true
   },
   {
     "id": "herrerasaurus",
@@ -114,8 +114,8 @@
     "featured": false,
     "packLimit": 10,
     "peakWeightPercent": 87.5,
-    "biteForce": "30 bite / ~425 tree-pounce",
-    "growthTime": "~1h 40m",
+    "biteForce": "34.5 (in-game peak bite force stat)",
+    "growthTime": "5h 25m",
     "releasedInEvrima": true
   },
   {
@@ -131,8 +131,8 @@
     "featured": false,
     "packLimit": 8,
     "peakWeightPercent": 87.5,
-    "biteForce": "65 (adult bite)",
-    "growthTime": "~1h 15m",
+    "biteForce": "75.75 (in-game peak bite force stat)",
+    "growthTime": "5h 55m",
     "releasedInEvrima": true
   },
   {
@@ -148,8 +148,8 @@
     "featured": false,
     "packLimit": 10,
     "peakWeightPercent": 87.5,
-    "biteForce": "15 base (up to 2x with venom stacks)",
-    "growthTime": "~40 minutes",
+    "biteForce": "17.25 (in-game peak bite force stat)",
+    "growthTime": "3h 10m",
     "releasedInEvrima": true
   },
   {
@@ -165,8 +165,8 @@
     "featured": false,
     "packLimit": 6,
     "peakWeightPercent": 87.5,
-    "biteForce": "20 (peck)",
-    "growthTime": "~40 minutes",
+    "biteForce": "23 (in-game peak bite force stat)",
+    "growthTime": "4h 30m",
     "releasedInEvrima": true
   },
   {
@@ -180,11 +180,11 @@
     "threatPercent": 65,
     "threatDots": "\u25cf\u25cf\u25cf\u25cf\u25cb",
     "featured": false,
-    "packLimit": null,
-    "peakWeightPercent": null,
-    "biteForce": null,
-    "growthTime": null,
-    "releasedInEvrima": false
+    "packLimit": 6,
+    "peakWeightPercent": 87.5,
+    "biteForce": "316.25 (in-game peak bite force stat)",
+    "growthTime": "7h 45m",
+    "releasedInEvrima": true
   },
   {
     "id": "dryosaurus",
@@ -199,8 +199,8 @@
     "featured": false,
     "packLimit": 10,
     "peakWeightPercent": 87.5,
-    "biteForce": "20 (adult bite)",
-    "growthTime": "~30 minutes",
+    "biteForce": "23 (in-game peak bite force stat)",
+    "growthTime": "4h 25m",
     "releasedInEvrima": true
   },
   {
@@ -216,8 +216,8 @@
     "featured": false,
     "packLimit": 8,
     "peakWeightPercent": 87.5,
-    "biteForce": "360 (kick / tail slam)",
-    "growthTime": "~1h 45m",
+    "biteForce": "40.25 (in-game peak bite force stat)",
+    "growthTime": "5h 40m",
     "releasedInEvrima": true
   },
   {
@@ -231,10 +231,10 @@
     "threatPercent": 58,
     "threatDots": "\u25cf\u25cf\u25cf\u25cb\u25cb",
     "featured": false,
-    "packLimit": 9,
+    "packLimit": 10,
     "peakWeightPercent": 87.5,
-    "biteForce": "175 (adult bite)",
-    "growthTime": "~1h 50m",
+    "biteForce": "57.5 (in-game peak bite force stat)",
+    "growthTime": "7 hours",
     "releasedInEvrima": true
   },
   {
@@ -250,8 +250,8 @@
     "featured": false,
     "packLimit": 8,
     "peakWeightPercent": 87.5,
-    "biteForce": "High (ram/fracture mechanic, not a biter)",
-    "growthTime": "~2h 10m",
+    "biteForce": "34.5 (in-game peak bite force stat)",
+    "growthTime": "6h 15m",
     "releasedInEvrima": true
   },
   {
@@ -267,8 +267,8 @@
     "featured": false,
     "packLimit": 5,
     "peakWeightPercent": 87.5,
-    "biteForce": "1,000 (tail swing, highest single-hit in game)",
-    "growthTime": "~5 hours",
+    "biteForce": "57.5 (in-game peak bite force stat)",
+    "growthTime": "17h 55m",
     "releasedInEvrima": true
   },
   {
@@ -282,11 +282,11 @@
     "threatPercent": 88,
     "threatDots": "\u25cf\u25cf\u25cf\u25cf\u25cf",
     "featured": false,
-    "packLimit": null,
-    "peakWeightPercent": null,
-    "biteForce": null,
-    "growthTime": null,
-    "releasedInEvrima": false
+    "packLimit": 4,
+    "peakWeightPercent": 87.5,
+    "biteForce": "1035 (in-game peak bite force stat)",
+    "growthTime": "29h 10m",
+    "releasedInEvrima": true
   },
   {
     "id": "deinocheirus",
@@ -318,8 +318,8 @@
     "featured": false,
     "packLimit": 8,
     "peakWeightPercent": 87.5,
-    "biteForce": null,
-    "growthTime": "~1h 45m",
+    "biteForce": "28.75 (in-game peak bite force stat)",
+    "growthTime": "5h 25m",
     "releasedInEvrima": true
   },
   {
@@ -335,8 +335,8 @@
     "featured": false,
     "packLimit": 10,
     "peakWeightPercent": 87.5,
-    "biteForce": "2 (adult bite)",
-    "growthTime": "~30 minutes",
+    "biteForce": "2.3 (in-game peak bite force stat)",
+    "growthTime": "1h 50m",
     "releasedInEvrima": true
   },
   {
@@ -352,8 +352,8 @@
     "featured": false,
     "packLimit": 12,
     "peakWeightPercent": 87.5,
-    "biteForce": "20 (bite/peck)",
-    "growthTime": null,
+    "biteForce": "23 (in-game peak bite force stat)",
+    "growthTime": "3h 40m",
     "releasedInEvrima": true
   }
 ]
