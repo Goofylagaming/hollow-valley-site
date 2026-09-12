@@ -77,10 +77,10 @@ function wireDinoDialog() {
       dialogRole.textContent = card.dataset.role;
       dialogDescription.textContent = card.dataset.description;
       dialogSocial.textContent = card.dataset.social;
-      if (statPack) statPack.textContent = card.dataset.packLimit || "—";
-      if (statWeight) statWeight.textContent = card.dataset.peakWeight ? `${card.dataset.peakWeight}%` : "—";
-      if (statBite) statBite.textContent = card.dataset.biteForce || "—";
-      if (statGrowth) statGrowth.textContent = card.dataset.growthTime || "—";
+      if (statPack) statPack.textContent = card.dataset.packLimit || "TBD in Evrima";
+      if (statWeight) statWeight.textContent = card.dataset.peakWeight ? `${card.dataset.peakWeight}%` : "TBD in Evrima";
+      if (statBite) statBite.textContent = card.dataset.biteForce || "Not yet documented";
+      if (statGrowth) statGrowth.textContent = card.dataset.growthTime || "Not yet documented";
       if (dialogStatus) dialogStatus.hidden = card.dataset.released !== "false";
       dinoDialog.showModal();
     };

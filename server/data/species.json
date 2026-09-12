@@ -64,7 +64,7 @@
     "packLimit": 4,
     "peakWeightPercent": 87.5,
     "biteForce": "345 (charged bite)",
-    "growthTime": "~2.5 hours (approx.)",
+    "growthTime": null,
     "releasedInEvrima": true
   },
   {
@@ -81,7 +81,7 @@
     "packLimit": 2,
     "peakWeightPercent": 100,
     "biteForce": "550 (prime bite, highest on roster)",
-    "growthTime": "~23 hours (avg diet)",
+    "growthTime": "~5-10 hours (diet dependent; up to ~10h on bad diet)",
     "releasedInEvrima": true
   },
   {
@@ -95,10 +95,10 @@
     "threatPercent": 60,
     "threatDots": "\u25cf\u25cf\u25cf\u25cb\u25cb",
     "featured": false,
-    "packLimit": 6,
-    "peakWeightPercent": 87.5,
-    "biteForce": "85 (Evrima projected)",
-    "growthTime": "~1.8 hours (Legacy ref., Evrima TBD)",
+    "packLimit": null,
+    "peakWeightPercent": null,
+    "biteForce": null,
+    "growthTime": null,
     "releasedInEvrima": false
   },
   {
@@ -180,10 +180,10 @@
     "threatPercent": 65,
     "threatDots": "\u25cf\u25cf\u25cf\u25cf\u25cb",
     "featured": false,
-    "packLimit": 6,
-    "peakWeightPercent": 87.5,
-    "biteForce": "275 (adult bite)",
-    "growthTime": "~3 hours (roadmap ref.)",
+    "packLimit": null,
+    "peakWeightPercent": null,
+    "biteForce": null,
+    "growthTime": null,
     "releasedInEvrima": false
   },
   {
@@ -282,10 +282,10 @@
     "threatPercent": 88,
     "threatDots": "\u25cf\u25cf\u25cf\u25cf\u25cf",
     "featured": false,
-    "packLimit": 4,
-    "peakWeightPercent": 87.5,
-    "biteForce": "~300 (roadmap estimate, horn/charge based)",
-    "growthTime": "~6 hours (roadmap ref.)",
+    "packLimit": null,
+    "peakWeightPercent": null,
+    "biteForce": null,
+    "growthTime": null,
     "releasedInEvrima": false
   },
   {
@@ -299,10 +299,10 @@
     "threatPercent": 78,
     "threatDots": "\u25cf\u25cf\u25cf\u25cf\u25cb",
     "featured": false,
-    "packLimit": 4,
-    "peakWeightPercent": 87.5,
-    "biteForce": "~700 (estimate, not yet in Evrima)",
-    "growthTime": "~24 hours (estimate, not yet in Evrima)",
+    "packLimit": null,
+    "peakWeightPercent": null,
+    "biteForce": null,
+    "growthTime": null,
     "releasedInEvrima": false
   },
   {
@@ -318,7 +318,7 @@
     "featured": false,
     "packLimit": 8,
     "peakWeightPercent": 87.5,
-    "biteForce": "~40 (kick, weak bite)",
+    "biteForce": null,
     "growthTime": "~1h 45m",
     "releasedInEvrima": true
   },
@@ -353,7 +353,7 @@
     "packLimit": 12,
     "peakWeightPercent": 87.5,
     "biteForce": "20 (bite/peck)",
-    "growthTime": "~30 minutes (approx.)",
+    "growthTime": null,
     "releasedInEvrima": true
   }
 ]
