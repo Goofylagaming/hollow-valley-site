@@ -33,11 +33,14 @@ app.use(
     secret: process.env.SESSION_SECRET || "dev-secret-change-me",
     resave: false,
     saveUninitialized: false,
+    rolling: true, // refresh the expiry on every active request, so regular
+    // visitors effectively stay signed in indefinitely instead of being
+    // logged out a fixed number of days after their first login.
     cookie: {
       httpOnly: true,
       secure: IS_PRODUCTION,
       sameSite: "lax",
-      maxAge: 1000 * 60 * 60 * 24 * 30,
+      maxAge: 1000 * 60 * 60 * 24 * 90,
     },
   })
 );
