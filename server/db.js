@@ -172,10 +172,18 @@ function findOrCreateUser({ discordId, username, avatar }) {
 // allowlist) — this is purely a second, non-admin sign-in option for players,
 // and stores their SteamID64 so it can later be matched against the game
 // server's own logs/RCON output for website <-> in-game syncing.
-function findOrCreateUserBySteam({ steamId, username, avatar }) {
+//
+// `hasRealProfile` is true only when a real Steam Web API name/avatar was
+// fetched (STEAM_API_KEY configured). Without it we only have a generic
+// placeholder name — never let that clobber an existing account's real
+// display name/avatar (e.g. one set via Discord, or a previous real Steam
+// profile fetch) on repeat logins.
+function findOrCreateUserBySteam({ steamId, username, avatar, hasRealProfile = false }) {
   const existing = db.prepare("SELECT * FROM users WHERE steam_id = ?").get(steamId);
   if (existing) {
-    db.prepare("UPDATE users SET username = ?, avatar = ? WHERE id = ?").run(username, avatar, existing.id);
+    if (hasRealProfile) {
+      db.prepare("UPDATE users SET username = ?, avatar = ? WHERE id = ?").run(username, avatar, existing.id);
+    }
     return db.prepare("SELECT * FROM users WHERE id = ?").get(existing.id);
   }
   const info = db

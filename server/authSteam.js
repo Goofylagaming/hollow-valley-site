@@ -68,6 +68,7 @@ router.get("/callback", async (req, res) => {
 
     let username = `Survivor${steamId.slice(-5)}`;
     let avatar = null;
+    let hasRealProfile = false;
     if (STEAM_API_KEY) {
       const profileResponse = await fetch(
         `https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${STEAM_API_KEY}&steamids=${steamId}`
@@ -78,11 +79,12 @@ router.get("/callback", async (req, res) => {
         if (player) {
           username = player.personaname || username;
           avatar = player.avatarfull || null;
+          hasRealProfile = true;
         }
       }
     }
 
-    const user = findOrCreateUserBySteam({ steamId, username, avatar });
+    const user = findOrCreateUserBySteam({ steamId, username, avatar, hasRealProfile });
     req.session.userId = user.id;
     res.redirect("/");
   } catch (error) {
