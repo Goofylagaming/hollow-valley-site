@@ -110,7 +110,7 @@ window.HDS = (function () {
       if (status.configured && status.online) {
         dot?.classList.remove("offline");
         el.querySelector(".status-count")?.remove();
-        el.innerHTML = `<span class="status-dot"></span> Server name: <b>Hollow Valley</b> <span class="status-count">— ${status.playerCount} online now</span>`;
+        el.innerHTML = `<span class="status-dot"></span> Server name: <b>Hollow Valley</b> <span class="status-count">— ${status.playerCount}/${status.maxPlayers} online now</span>`;
       } else if (status.configured && !status.online) {
         el.innerHTML = `<span class="status-dot offline"></span> Server name: <b>Hollow Valley</b> <span class="status-note">— currently offline</span>`;
       }

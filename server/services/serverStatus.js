@@ -2,14 +2,19 @@
 // every request to /api/server-status is instant (no live RCON round-trip
 // per page view). If RCON isn't configured or the server is unreachable,
 // callers get a clear "unknown"/"offline" state instead of an error.
-const { fetchPlayers } = require("../rcon");
+const { fetchServerStatus } = require("../rcon");
 
 const POLL_INTERVAL_MS = 30_000;
+// Fallback used whenever RCON doesn't return a max player count itself
+// (the srv:details reply format is undocumented/inconsistent). Override via
+// the MAX_PLAYERS env var if the server's slot count changes.
+const DEFAULT_MAX_PLAYERS = Number(process.env.MAX_PLAYERS) || 100;
 
 const state = {
   configured: Boolean(process.env.RCON_HOST && process.env.RCON_PORT && process.env.RCON_PASSWORD),
   online: false,
   playerCount: 0,
+  maxPlayers: DEFAULT_MAX_PLAYERS,
   players: [],
   lastChecked: null,
   lastError: null,
@@ -18,13 +23,14 @@ const state = {
 async function poll() {
   if (!state.configured) return;
   try {
-    const players = await fetchPlayers({
+    const { players, maxPlayers } = await fetchServerStatus({
       host: process.env.RCON_HOST,
       port: Number(process.env.RCON_PORT),
       password: process.env.RCON_PASSWORD,
     });
     state.online = true;
     state.playerCount = players.length;
+    state.maxPlayers = maxPlayers || DEFAULT_MAX_PLAYERS;
     state.players = players;
     state.lastError = null;
   } catch (err) {

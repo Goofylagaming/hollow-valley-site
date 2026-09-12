@@ -21,7 +21,7 @@ function isConfigured() {
 function formatStatusText(state) {
   if (!state.configured) return "Hollow Valley";
   if (!state.online) return "Hollow Valley - offline";
-  return `Hollow Valley - ${state.playerCount} online`;
+  return `Hollow Valley - ${state.playerCount}/${state.maxPlayers} online`;
 }
 
 async function updatePresence() {
@@ -41,7 +41,7 @@ async function updateStatusChannel() {
   const label = !state.configured
     ? "server-status-unavailable"
     : state.online
-    ? `🟢-online-${state.playerCount}-players`
+    ? `🟢-online-${state.playerCount}-${state.maxPlayers}-players`
     : "🔴-offline";
 
   if (label === lastChannelName) return;
