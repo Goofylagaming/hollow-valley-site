@@ -91,6 +91,29 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 Without this, the site still runs — the "Login with Discord" button will just
 show a friendly "not configured yet" message instead of erroring out.
 
+## 4b. Steam login setup (the main sign-in button for players)
+
+Steam uses OpenID, not OAuth, so there's no app to register — just set these
+two values in `.env` to match your real domain:
+
+```
+STEAM_RETURN_URL=https://hollowvalley.herbydeathsquadgames.com/auth/steam/callback
+STEAM_REALM=https://hollowvalley.herbydeathsquadgames.com/
+```
+
+Optional but recommended: grab a free Steam Web API key at
+https://steamcommunity.com/dev/apikey (enter your domain as the "domain
+name") and set `STEAM_API_KEY` so real Steam display names/avatars are shown
+instead of a generic "SurvivorXXXXX" placeholder.
+
+Steam sign-ins are always regular (non-admin) accounts — admin status is only
+ever granted through the `ADMIN_DISCORD_IDS` allowlist above. Each account
+stores the player's SteamID64, which is exactly the ID format The Isle:
+Evrima's own server logs/RCON use — this is what makes it possible to later
+sync in-game state (kills, playtime, which dino they're on) to the matching
+website account, once a small bridge script reads the game server and POSTs
+that data in using the SteamID64 as the join key.
+
 ## 5. Run it with Docker (recommended)
 
 ```bash
@@ -173,8 +196,9 @@ Then follow step 6 above for Nginx + HTTPS.
 
 ## What's real vs. still a placeholder
 
-- **Login (Discord OAuth), wallet balance, quest claims, daily bonus, transaction
-  history** — fully working, persisted in SQLite.
+- **Login (Steam OpenID for players, Discord OAuth for admin access), wallet
+  balance, quest claims, daily bonus, transaction history** — fully working,
+  persisted in SQLite.
 - **Species database** — served from `server/data/species.json`, real API-backed.
 - **My Dinos (storage), Marketplace (official catalog + peer listings), Skins**
   — fully working economy: buy official dinos with Valley Coin, resell your

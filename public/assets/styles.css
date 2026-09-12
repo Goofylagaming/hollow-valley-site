@@ -45,3 +45,9 @@
 .map-status{margin-top:12px;color:#8a9279;font-size:11px}
 .tag-pill{display:inline-block;padding:3px 8px;border:1px solid #4b5b4b;color:#9aab92;font-size:9px;text-transform:uppercase;letter-spacing:.06em}
 
+.steam-signin{display:inline-flex;align-items:center;gap:8px;padding:11px 20px;margin-left:14px;border-radius:999px;background:linear-gradient(135deg,#3ec070,#1f7a45);color:#06170d;font:700 10px Oswald;letter-spacing:.09em;text-transform:uppercase;box-shadow:0 8px 22px #0f5c30aa;transition:.2s}
+.steam-signin:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.steam-signin.logged-in{background:linear-gradient(135deg,#3a4433,#1c2318);color:#e5e7dc;box-shadow:none}
+.steam-signin .steam-icon{font-size:14px;line-height:1}
+#auth-discord{margin-left:22px;color:#7d8571;font-size:9px}
+#auth-discord:hover{color:var(--gold)}

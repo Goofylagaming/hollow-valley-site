@@ -35,16 +35,21 @@ window.HDS = (function () {
   }
 
   function applyAuthUi(me) {
-    const authAction = document.getElementById("auth-action");
-    if (!authAction) return;
+    const authArea = document.getElementById("auth-area");
+    const discordLink = document.getElementById("auth-discord");
+    if (!authArea) return;
+
     if (me.loggedIn && me.user) {
-      authAction.textContent = "Logout";
-      authAction.href = "/auth/logout";
-      authAction.classList.add("logged-in");
+      authArea.innerHTML = `<a class="steam-signin logged-in" id="auth-action" href="/auth/logout"><span class="steam-icon">●</span> ${escapeHtml(me.user.username)} · Logout</a>`;
+      if (discordLink) discordLink.style.display = "none";
     } else {
-      const label = me.discordLoginConfigured ? "Login with Discord" : "Discord login not configured";
-      authAction.innerHTML = `<span class="online-dot"></span> ${label} <b>↗</b>`;
-      authAction.href = me.discordLoginConfigured ? "/auth/discord" : "#";
+      const steamLabel = me.steamLoginConfigured ? "Sign in with Steam" : "Steam login not configured";
+      authArea.innerHTML = `<a class="steam-signin" id="auth-steam" href="${me.steamLoginConfigured ? "/auth/steam" : "#"}"><span class="steam-icon">◈</span> ${steamLabel}</a>`;
+      if (discordLink) {
+        discordLink.style.display = "";
+        discordLink.textContent = me.discordLoginConfigured ? "Discord" : "Discord (not configured)";
+        discordLink.href = me.discordLoginConfigured ? "/auth/discord" : "#";
+      }
     }
   }
 
@@ -92,12 +97,18 @@ window.HDS = (function () {
     wireNavInteractions();
     await loadMe();
 
-    document.getElementById("auth-action")?.addEventListener("click", (event) => {
-      if (event.currentTarget.getAttribute("href") === "#") event.preventDefault();
-      if (event.currentTarget.getAttribute("href") === "/auth/logout") {
+    document.getElementById("auth-area")?.addEventListener("click", (event) => {
+      const link = event.target.closest("a");
+      if (!link) return;
+      if (link.getAttribute("href") === "#") event.preventDefault();
+      if (link.id === "auth-action" && link.getAttribute("href") === "/auth/logout") {
         event.preventDefault();
         api("/auth/logout", { method: "POST" }).finally(() => window.location.reload());
       }
+    });
+
+    document.getElementById("auth-discord")?.addEventListener("click", (event) => {
+      if (event.currentTarget.getAttribute("href") === "#") event.preventDefault();
     });
   }
 

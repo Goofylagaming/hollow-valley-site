@@ -13,7 +13,8 @@ db.exec("PRAGMA journal_mode = WAL;");
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    discord_id TEXT UNIQUE NOT NULL,
+    discord_id TEXT UNIQUE,
+    steam_id TEXT UNIQUE,
     username TEXT NOT NULL,
     avatar TEXT,
     is_admin INTEGER NOT NULL DEFAULT 0,
@@ -120,6 +121,36 @@ db.exec(`
   );
 `);
 
+// Migration for databases created before Steam login existed: the old schema
+// required discord_id NOT NULL and had no steam_id column. SQLite can't drop
+// a NOT NULL constraint in place, so rebuild the table when needed.
+(function ensureUsersSchema() {
+  const columns = db.prepare("PRAGMA table_info(users)").all();
+  const discordColumn = columns.find((column) => column.name === "discord_id");
+  const hasSteamColumn = columns.some((column) => column.name === "steam_id");
+
+  if (discordColumn && discordColumn.notnull === 1) {
+    db.exec(`
+      CREATE TABLE users_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        discord_id TEXT UNIQUE,
+        steam_id TEXT UNIQUE,
+        username TEXT NOT NULL,
+        avatar TEXT,
+        is_admin INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      INSERT INTO users_new (id, discord_id, username, avatar, is_admin, created_at)
+        SELECT id, discord_id, username, avatar, is_admin, created_at FROM users;
+      DROP TABLE users;
+      ALTER TABLE users_new RENAME TO users;
+    `);
+  } else if (!hasSteamColumn) {
+    db.exec("ALTER TABLE users ADD COLUMN steam_id TEXT;");
+    db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_steam_id ON users(steam_id);");
+  }
+})();
+
 function getUserByUsername(username) {
   return db.prepare("SELECT * FROM users WHERE username = ? COLLATE NOCASE").get(username);
 }
@@ -131,6 +162,25 @@ function findOrCreateUser({ discordId, username, avatar }) {
     return db.prepare("SELECT * FROM users WHERE id = ?").get(existing.id);
   }
   const info = db.prepare("INSERT INTO users (discord_id, username, avatar) VALUES (?, ?, ?)").run(discordId, username, avatar);
+  const userId = Number(info.lastInsertRowid);
+  db.prepare("INSERT INTO wallets (user_id, balance) VALUES (?, 0)").run(userId);
+  db.prepare("INSERT INTO player_stats (user_id) VALUES (?)").run(userId);
+  return db.prepare("SELECT * FROM users WHERE id = ?").get(userId);
+}
+
+// Steam login never grants admin (that's reserved for the ADMIN_DISCORD_IDS
+// allowlist) — this is purely a second, non-admin sign-in option for players,
+// and stores their SteamID64 so it can later be matched against the game
+// server's own logs/RCON output for website <-> in-game syncing.
+function findOrCreateUserBySteam({ steamId, username, avatar }) {
+  const existing = db.prepare("SELECT * FROM users WHERE steam_id = ?").get(steamId);
+  if (existing) {
+    db.prepare("UPDATE users SET username = ?, avatar = ? WHERE id = ?").run(username, avatar, existing.id);
+    return db.prepare("SELECT * FROM users WHERE id = ?").get(existing.id);
+  }
+  const info = db
+    .prepare("INSERT INTO users (steam_id, username, avatar) VALUES (?, ?, ?)")
+    .run(steamId, username, avatar);
   const userId = Number(info.lastInsertRowid);
   db.prepare("INSERT INTO wallets (user_id, balance) VALUES (?, 0)").run(userId);
   db.prepare("INSERT INTO player_stats (user_id) VALUES (?)").run(userId);
@@ -358,6 +408,7 @@ function getDashboardSummary(userId) {
 module.exports = {
   db,
   findOrCreateUser,
+  findOrCreateUserBySteam,
   getUserByUsername,
   getWallet,
   creditWallet,

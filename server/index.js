@@ -6,6 +6,7 @@ const session = require("express-session");
 const { db } = require("./db");
 const { SqliteSessionStore } = require("./sessionStore");
 const authRouter = require("./auth");
+const authSteamRouter = require("./authSteam");
 const speciesRouter = require("./routes/species");
 const walletRouter = require("./routes/wallet");
 const questsRouter = require("./routes/quests");
@@ -44,16 +45,22 @@ app.use(
 // Attach the logged-in user (if any) to every request.
 app.use((req, res, next) => {
   if (req.session.userId) {
-    req.user = db.prepare("SELECT id, discord_id, username, avatar, is_admin FROM users WHERE id = ?").get(req.session.userId) || null;
+    req.user = db.prepare("SELECT id, discord_id, steam_id, username, avatar, is_admin FROM users WHERE id = ?").get(req.session.userId) || null;
   }
   next();
 });
 
 app.get("/api/me", (req, res) => {
-  res.json({ loggedIn: Boolean(req.user), user: req.user || null, discordLoginConfigured: authRouter.isConfigured });
+  res.json({
+    loggedIn: Boolean(req.user),
+    user: req.user || null,
+    discordLoginConfigured: authRouter.isConfigured,
+    steamLoginConfigured: authSteamRouter.isConfigured,
+  });
 });
 
 app.use("/auth", authRouter);
+app.use("/auth/steam", authSteamRouter);
 app.use("/api/species", speciesRouter);
 app.use("/api/wallet", walletRouter);
 app.use("/api/quests", questsRouter);
