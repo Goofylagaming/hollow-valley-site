@@ -1,4 +1,9 @@
-const SftpClient = require("ssh2-sftp-client");
+let SftpClient = null;
+try {
+  SftpClient = require("ssh2-sftp-client");
+} catch (e) {
+  console.warn("[SFTP Bridge] ssh2-sftp-client module not available, SFTP actions will be disabled.");
+}
 
 function getSftpConfig() {
   return {
@@ -16,6 +21,13 @@ function getBaseRemotePath() {
 }
 
 async function executeGameAction({ action, steamId, species, growth, prime }) {
+  if (!SftpClient) {
+    return {
+      ok: false,
+      error: "SFTP bridge client is not installed or configured on this server.",
+    };
+  }
+
   const sftp = new SftpClient();
   const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
   const baseDir = getBaseRemotePath();
