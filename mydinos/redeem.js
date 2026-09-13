@@ -7,5 +7,5 @@ async function redeemDino(steamid) {
 
     const data = await res.json();
 
-    alert(data.success ? (data.message || "Dino redeemed successfully.") : ("Error: " + (data.error || "Failed to redeem dinosaur.")));
+    alert(data.success ? "Dino redeemed." : data.error);
 }
