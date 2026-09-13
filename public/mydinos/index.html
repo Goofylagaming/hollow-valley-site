@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My Dinos</title>
+    <script src="script.js"></script>
+</head>
+<body>
+
+<h1>Your Dinosaurs</h1>
+
+<div id="dino-list"></div>
+
+<script>
+async function loadDinos() {
+    let steamid = "{{steamid}}"; // Replace with your auth system
+    if (steamid.includes("{{")) {
+        try {
+            const meRes = await fetch("/api/me");
+            const meData = await meRes.json();
+            if (meData.loggedIn && meData.user && meData.user.steam_id) {
+                steamid = meData.user.steam_id;
+            }
+        } catch (e) {}
+    }
+
+    const res = await fetch(`/api/playerdata?steamid=${steamid}`);
+    const data = await res.json();
+
+    const container = document.getElementById("dino-list");
+
+    if (!data.success) {
+        container.innerHTML = `<p style="color:red">Error: ${data.error || "Could not fetch dino data"}</p>`;
+        return;
+    }
+
+    container.innerHTML = `
+        <pre>${data.data || "No active character data"}</pre>
+        <button onclick="parkDino('${steamid}')">Park Dino</button>
+    `;
+}
+
+loadDinos();
+</script>
+
+</body>
+</html>

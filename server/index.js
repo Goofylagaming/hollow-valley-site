@@ -26,6 +26,9 @@ const serverStatusService = require("./services/serverStatus");
 const { syncSteamProfiles } = require("./services/steamProfile");
 const herbyBot = require("./herbyBot");
 
+const parkHandler = require("../api/park");
+const playerdataHandler = require("../api/playerdata");
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
@@ -97,6 +100,10 @@ app.use("/api/server-status", serverStatusRouter);
 app.use("/api/events", eventsRouter);
 app.use("/api/mapdata", mapdataRouter);
 
+app.all("/api/park", parkHandler);
+app.all("/api/playerdata", playerdataHandler);
+
+app.use("/mydinos", express.static(path.join(__dirname, "..", "mydinos")));
 app.use(express.static(path.join(__dirname, "..", "public")));
 
 // Clean URLs for each page (e.g. /dashboard -> public/dashboard.html).
