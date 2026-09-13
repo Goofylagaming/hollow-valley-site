@@ -1,65 +1,91 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
-    <title>My Dinos</title>
-    <script src="script.js"></script>
-    <style>
-      body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #f8fafc; padding: 24px; margin: 0; }
-      h1 { color: #38bdf8; margin-bottom: 16px; }
-      pre { background: #1e293b; padding: 16px; border-radius: 8px; border: 1px solid #334155; overflow-x: auto; color: #e2e8f0; }
-      button { background: #0284c7; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; }
-      button:hover { background: #0369a1; }
-      .badge { display: inline-block; background: #334155; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-bottom: 12px; }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Manage your Isle Evrima dinosaurs.">
+  <title>My Dinos | Herby Death Squad</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=13">
+  <script src="script.js"></script>
 </head>
 <body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main>
+      <section class="page-header">
+        <p class="overline green">DINOSAUR MANAGEMENT</p>
+        <h1>Your Dinosaurs.</h1>
+        <p class="section-intro">View live game character data, park your active dinosaur, or redeem parked dinosaurs.</p>
+      </section>
 
-<h1>Your Dinosaurs</h1>
+      <section class="roster-section">
+        <div id="dino-list">
+          <div class="storage-card">
+            <p class="section-intro">Loading dinosaur data…</p>
+          </div>
+        </div>
+      </section>
+    </main>
+    <footer>
+      <span>© 2026 Herby Death Squad Games</span>
+      <span>ISLE EVRIMA COMMUNITY SERVER</span>
+      <a href="/">Back to command ↑</a>
+    </footer>
+  </div>
 
-<div id="dino-list"><p>Loading dinosaur data…</p></div>
-
-<script>
-async function loadDinos() {
-    let steamid = "{{steamid}}";
-    if (steamid.includes("{{")) {
+  <script src="/assets/common.js?v=10"></script>
+  <script>
+    async function loadDinos() {
+      let steamid = "{{steamid}}";
+      if (steamid.includes("{{")) {
         try {
-            const meRes = await fetch("/api/me");
-            const meData = await meRes.json();
-            if (meData.loggedIn && meData.user && meData.user.steam_id) {
-                steamid = meData.user.steam_id;
-            }
+          const meRes = await fetch("/api/me");
+          const meData = await meRes.json();
+          if (meData.loggedIn && meData.user && meData.user.steam_id) {
+            steamid = meData.user.steam_id;
+          }
         } catch (e) {}
-    }
+      }
 
-    const container = document.getElementById("dino-list");
+      const container = document.getElementById("dino-list");
 
-    try {
+      try {
         const res = await fetch(`/api/playerdata?steamid=${steamid}`);
         const data = await res.json();
 
         if (!data.success) {
-            container.innerHTML = `<p style="color:#ef4444">Error: ${data.error || "Could not fetch dino data"}</p>`;
-            return;
+          container.innerHTML = `
+            <div class="storage-card">
+              <span class="tag-pill" style="background:#ef444422; color:#ef4444;">ERROR</span>
+              <p style="color:#ef4444; margin-top:12px;">${data.error || "Could not fetch dino data"}</p>
+            </div>`;
+          return;
         }
 
         const renderContent = typeof data.data === "object" ? JSON.stringify(data.data, null, 2) : String(data.data || "No active character data");
-        const sourceLabel = data.source ? `<div class="badge">Source: ${data.source}</div>` : "";
+        const sourceLabel = data.source ? `<span class="tag-pill">${data.source.toUpperCase()}</span>` : "";
 
         container.innerHTML = `
-            ${sourceLabel}
-            <pre>${renderContent}</pre>
-            <div style="display: flex; gap: 12px; margin-top: 12px;">
-                <button onclick="parkDino('${steamid}')">Park Dino</button>
-                <button onclick="redeemDino('${steamid}')" style="background: #10b981;">Redeem Dino</button>
+          <div class="storage-card">
+            <div style="display:flex; justify-between; align-items:center; margin-bottom:12px;">
+              ${sourceLabel}
             </div>
+            <pre style="background:#0f172a; padding:16px; border-radius:8px; border:1px solid #334155; overflow-x:auto; color:#e2e8f0; font-family:monospace; margin-bottom:16px;">${renderContent}</pre>
+            <div style="display: flex; gap: 12px;">
+              <button class="small-button green" onclick="parkDino('${steamid}')">Park Dino</button>
+              <button class="small-button" onclick="redeemDino('${steamid}')">Redeem Dino</button>
+            </div>
+          </div>
         `;
-    } catch (err) {
-        container.innerHTML = `<p style="color:#ef4444">Failed to load dinosaur data: ${err.message}</p>`;
+      } catch (err) {
+        container.innerHTML = `
+          <div class="storage-card">
+            <p style="color:#ef4444;">Failed to load dinosaur data: ${err.message}</p>
+          </div>`;
+      }
     }
-}
 
-loadDinos();
-</script>
-
+    loadDinos();
+  </script>
 </body>
 </html>
