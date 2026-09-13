@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Manage your Isle Evrima dinosaurs.">
   <title>My Dinos | Herby Death Squad</title>
-  <link rel="stylesheet" href="/assets/styles.css?v=13">
+  <link rel="stylesheet" href="/assets/styles.css?v=14">
   <script src="script.js"></script>
 </head>
 <body>
@@ -18,9 +18,9 @@
         <p class="section-intro">View live game character data, park your active dinosaur, or redeem parked dinosaurs.</p>
       </section>
 
-      <section class="roster-section">
+      <section class="roster-section" style="max-width: 1000px; margin: 0 auto;">
         <div id="dino-list">
-          <div class="storage-card">
+          <div class="dino-card-v2">
             <p class="section-intro">Loading dinosaur data…</p>
           </div>
         </div>
@@ -35,6 +35,146 @@
 
   <script src="/assets/common.js?v=10"></script>
   <script>
+    function renderDinoCardHtml(dino, options = {}) {
+      const species = dino.species || dino.species_id || "Dinosaur";
+      const name = dino.name || dino.nickname || species;
+      const gender = dino.gender || "Male";
+      const isPrime = Boolean(dino.isPrime || dino.is_prime);
+
+      const carnivores = ["Allosaurus", "Carnotaurus", "Ceratosaurus", "Deinosuchus", "Dilophosaurus", "Gallimimus", "Pteranodon", "Raptor", "Utahraptor", "Troodon", "Tyrannosaurus", "Herrerasaurus", "Omnoraptor", "Baryonyx"];
+      const diet = carnivores.some(c => species.toLowerCase().includes(c.toLowerCase())) ? "Carnivore" : "Herbivore";
+
+      let growthPct = 100;
+      if (dino.growth !== undefined && dino.growth !== null) {
+        growthPct = dino.growth <= 1 ? Math.round(dino.growth * 100) : Math.round(dino.growth);
+      } else if (dino.size_percent !== undefined && dino.size_percent !== null) {
+        growthPct = Math.round(dino.size_percent);
+      }
+
+      function parseStat(v, defaultVal = 100) {
+        if (v === undefined || v === null) return defaultVal;
+        return v <= 1 ? Math.round(v * 100) : Math.round(v);
+      }
+
+      const health = parseStat(dino.health);
+      const stamina = parseStat(dino.stamina);
+      const blood = parseStat(dino.blood, 100);
+      const hunger = parseStat(dino.hunger ?? dino.food);
+      const thirst = parseStat(dino.thirst ?? dino.water);
+
+      let locationStr = "";
+      if (dino.location) {
+        if (typeof dino.location === "object" && dino.location.x !== undefined) {
+          locationStr = `📍 Pos (${Math.round(dino.location.x)}, ${Math.round(dino.location.y)})`;
+        } else if (typeof dino.location === "string") {
+          locationStr = `📍 ${dino.location}`;
+        }
+      }
+
+      const mutations = Array.isArray(dino.mutations) ? dino.mutations : [];
+
+      return `
+        <div class="dino-card-v2">
+          <div class="dino-header">
+            <div class="dino-title-area">
+              <div class="dino-avatar">💀</div>
+              <div class="dino-main-info">
+                <h2>
+                  ${escapeHtml(species)}
+                  <span class="dino-badge-type">${species.charAt(0)}</span>
+                </h2>
+                <div class="dino-sub">
+                  "${escapeHtml(name)}" • ${diet} • ${escapeHtml(gender)}
+                </div>
+                <div class="dino-loc">
+                  ${locationStr ? `<span>${escapeHtml(locationStr)}</span>` : ''}
+                  <span class="growth-highlight">GROWTH ${growthPct}%</span>
+                </div>
+              </div>
+            </div>
+            ${isPrime ? `<div class="prime-badge">👑 PRIME ELDER</div>` : ''}
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-group">
+              <div class="stat-label-row">
+                <span class="stat-name">HEALTH</span>
+                <span class="stat-val">${health}%</span>
+              </div>
+              <div class="progress-bg">
+                <div class="progress-fill health" style="width: ${health}%;"></div>
+              </div>
+            </div>
+
+            <div class="stat-group">
+              <div class="stat-label-row">
+                <span class="stat-name">HUNGER</span>
+                <span class="stat-val">${hunger}%</span>
+              </div>
+              <div class="progress-bg">
+                <div class="progress-fill hunger" style="width: ${hunger}%;"></div>
+              </div>
+            </div>
+
+            <div class="stat-group">
+              <div class="stat-label-row">
+                <span class="stat-name">STAMINA</span>
+                <span class="stat-val">${stamina}%</span>
+              </div>
+              <div class="progress-bg">
+                <div class="progress-fill stamina" style="width: ${stamina}%;"></div>
+              </div>
+            </div>
+
+            <div class="stat-group">
+              <div class="stat-label-row">
+                <span class="stat-name">THIRST</span>
+                <span class="stat-val">${thirst}%</span>
+              </div>
+              <div class="progress-bg">
+                <div class="progress-fill thirst" style="width: ${thirst}%;"></div>
+              </div>
+            </div>
+
+            <div class="stat-group">
+              <div class="stat-label-row">
+                <span class="stat-name">BLOOD</span>
+                <span class="stat-val">${blood}%</span>
+              </div>
+              <div class="progress-bg">
+                <div class="progress-fill blood" style="width: ${blood}%;"></div>
+              </div>
+            </div>
+
+            <div class="stat-group">
+              <div class="stat-label-row">
+                <span class="stat-name">SIZE</span>
+                <span class="stat-val">${growthPct}%</span>
+              </div>
+              <div class="progress-bg">
+                <div class="progress-fill size" style="width: ${growthPct}%;"></div>
+              </div>
+            </div>
+          </div>
+
+          ${mutations.length > 0 ? `
+            <div class="mutations-row">
+              <span style="font-size:12px; color:#a08b76; font-family:'Oswald'; margin-right:6px;">MUTATIONS:</span>
+              ${mutations.map(m => `<span class="mutation-chip">🧬 ${escapeHtml(m)}</span>`).join('')}
+            </div>
+          ` : ''}
+
+          <div class="dino-actions-row">
+            ${options.isLive ? `
+              <button class="btn-dino-action park" onclick="parkDino('${options.steamid}')">🅿️ Park Dino</button>
+            ` : `
+              <button class="btn-dino-action redeem" onclick="redeemDino('${options.steamid}')">🔄 Redeem</button>
+            `}
+          </div>
+        </div>
+      `;
+    }
+
     async function loadDinos() {
       let steamid = "{{steamid}}";
       if (steamid.includes("{{")) {
@@ -55,32 +195,50 @@
 
         if (!data.success) {
           container.innerHTML = `
-            <div class="storage-card">
+            <div class="dino-card-v2">
               <span class="tag-pill" style="background:#ef444422; color:#ef4444;">ERROR</span>
-              <p style="color:#ef4444; margin-top:12px;">${data.error || "Could not fetch dino data"}</p>
+              <p style="color:#ef4444; margin-top:12px;">${escapeHtml(data.error || "Could not fetch dino data")}</p>
             </div>`;
           return;
         }
 
-        const renderContent = typeof data.data === "object" ? JSON.stringify(data.data, null, 2) : String(data.data || "No active character data");
-        const sourceLabel = data.source ? `<span class="tag-pill">${data.source.toUpperCase()}</span>` : "";
+        let parsedData = data.data;
+        if (typeof parsedData === "string") {
+          try { parsedData = JSON.parse(parsedData); } catch (e) {}
+        }
 
-        container.innerHTML = `
-          <div class="storage-card">
-            <div style="display:flex; justify-between; align-items:center; margin-bottom:12px;">
-              ${sourceLabel}
-            </div>
-            <pre style="background:#0f172a; padding:16px; border-radius:8px; border:1px solid #334155; overflow-x:auto; color:#e2e8f0; font-family:monospace; margin-bottom:16px;">${renderContent}</pre>
-            <div style="display: flex; gap: 12px;">
-              <button class="small-button green" onclick="parkDino('${steamid}')">Park Dino</button>
-              <button class="small-button" onclick="redeemDino('${steamid}')">Redeem Dino</button>
-            </div>
-          </div>
-        `;
+        if (parsedData && typeof parsedData === "object" && (parsedData.species || parsedData.species_id)) {
+          container.innerHTML = renderDinoCardHtml(parsedData, { isLive: true, steamid });
+        } else if (parsedData && parsedData.status === "not_spawned_in_game") {
+          container.innerHTML = `
+            <div class="dino-card-v2">
+              <div class="dino-header">
+                <div class="dino-title-area">
+                  <div class="dino-avatar">🦖</div>
+                  <div class="dino-main-info">
+                    <h2>No Active In-Game Dinosaur</h2>
+                    <div class="dino-sub">${escapeHtml(parsedData.message || "Log into the game server or redeem a parked dinosaur.")}</div>
+                  </div>
+                </div>
+              </div>
+              <div class="dino-actions-row">
+                <button class="btn-dino-action redeem" onclick="redeemDino('${steamid}')">🔄 Redeem Dinosaur</button>
+              </div>
+            </div>`;
+        } else {
+          container.innerHTML = `
+            <div class="dino-card-v2">
+              <pre style="background:#0f172a; padding:16px; border-radius:8px; border:1px solid #334155; overflow-x:auto; color:#e2e8f0; font-family:monospace; margin-bottom:16px;">${escapeHtml(typeof parsedData === "object" ? JSON.stringify(parsedData, null, 2) : String(parsedData))}</pre>
+              <div class="dino-actions-row">
+                <button class="btn-dino-action park" onclick="parkDino('${steamid}')">🅿️ Park Dino</button>
+                <button class="btn-dino-action redeem" onclick="redeemDino('${steamid}')">🔄 Redeem Dino</button>
+              </div>
+            </div>`;
+        }
       } catch (err) {
         container.innerHTML = `
-          <div class="storage-card">
-            <p style="color:#ef4444;">Failed to load dinosaur data: ${err.message}</p>
+          <div class="dino-card-v2">
+            <p style="color:#ef4444;">Failed to load dinosaur data: ${escapeHtml(err.message)}</p>
           </div>`;
       }
     }

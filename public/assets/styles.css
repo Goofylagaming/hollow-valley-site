@@ -5,7 +5,225 @@
 .dino-card{cursor:pointer}.dino-card:focus-visible{outline:2px solid var(--gold);outline-offset:3px}.dino-dialog{width:min(420px,calc(100% - 40px));padding:30px;border:1px solid #8b6d25;background:#160e0d;color:var(--text);box-shadow:0 20px 90px #000b}.dino-dialog::backdrop{background:#050302cc;backdrop-filter:blur(3px)}.dino-dialog h2{margin:12px 0 5px;font-size:34px}.dialog-role{margin:0;color:var(--gold);font:10px Oswald;letter-spacing:.16em;text-transform:uppercase}.dialog-description{margin:23px 0;color:#bcae9c;font-size:13px;line-height:1.7}.dialog-status{margin:0 0 14px;padding:8px 10px;border:1px solid #6b3a1f;background:#2a1610;color:#e0a678;font-size:11px;letter-spacing:.02em}.dialog-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 14px}.stat-item{padding:9px 11px;border:1px solid #3a2416;background:#1d1210}.stat-item span{display:block;color:#8a7a6c;font:9px Oswald;letter-spacing:.12em;text-transform:uppercase;margin-bottom:4px}.stat-item strong{display:block;color:var(--gold);font-size:14px}.dialog-note{margin:0 0 15px;color:#6d5f52;font-size:10px;font-style:italic}.dialog-social{display:flex;justify-content:space-between;padding-top:15px;border-top:1px solid var(--line);color:#8a7a6c;font:10px Oswald;letter-spacing:.1em;text-transform:uppercase}.dialog-social strong{color:#e2d4c0}.dialog-close{position:absolute;top:17px;right:18px;border:0;background:none;color:#b8a888;font-size:24px;cursor:pointer}.dialog-close:hover{color:var(--gold)}footer span:nth-child(2){color:#81917f}
 @media(max-width:760px){.topbar{height:68px;padding:0 20px}.main-nav,.discord-link{display:none}.menu-toggle{display:flex;flex-direction:column;gap:5px;margin-left:auto;padding:8px;border:0;background:none}.menu-toggle span{width:22px;height:1px;background:#e2d8c8}.main-nav.open{position:absolute;top:68px;right:15px;left:15px;display:flex;flex-direction:column;gap:0;padding:8px;background:#0c0c0af5;border:1px solid var(--line)}.main-nav.open a,.main-nav.open .nav-group>button{width:100%;padding:13px;text-align:left;border:0}.main-nav.open .nav-group{width:100%}.main-nav.open .mega-menu{position:static;grid-template-columns:1fr;min-width:0;padding:4px 0 7px;border:0;border-top:1px solid #3a2420;box-shadow:none;background:#100908}.main-nav.open .mega-menu a{padding:10px 13px}.portal-hero{min-height:300px;padding:100px 27px 40px}.hero-dinosaur{right:-28%;width:90%;opacity:.4}.hero-dashboard{right:27px;bottom:94px;left:27px;grid-template-columns:1fr}.summary-card{min-height:112px}.hero-stats{display:none}.roster-section{padding:60px 27px 50px}.roster-section,.rules-strip,.community-section{padding-left:27px;padding-right:27px}.section-top,.section-heading{display:block}.section-intro{margin-top:20px}.dashboard-columns{grid-template-columns:1fr;margin:35px 0}.survivor-row{flex-wrap:wrap}.survivor-row span{min-width:0;margin-left:auto}.filter-row{overflow:auto;white-space:nowrap}.roster-count{display:none}.dino-grid{grid-template-columns:1fr}.dino-art{height:155px}.rules-strip{grid-template-columns:1fr;gap:20px}.strip-number{font-size:22px}.rules-strip h2{margin-top:8px}.join-strip{grid-template-columns:1fr;gap:16px;text-align:left}.community-section{grid-template-columns:1fr;gap:60px}.community-orb{width:180px;height:180px;font-size:34px}footer{flex-direction:column;gap:12px;padding:25px 27px}}
 
-/* ---- Dashboard / MyDinos / Marketplace / Skins / Leaderboard / Supporter / Live map ---- */
+/* ---- Dino Card V2 UI (Unchained Lands style) ---- */
+.dino-card-v2 {
+  background: #121210;
+  border: 1px solid #2d2a1e;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  color: #f0ead5;
+  font-family: 'Manrope', system-ui, sans-serif;
+}
+.dino-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.dino-title-area {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+.dino-avatar {
+  width: 56px;
+  height: 56px;
+  background: #1c1810;
+  border: 1px solid #4a3b20;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  flex-shrink: 0;
+}
+.dino-main-info h2 {
+  margin: 0;
+  font-family: 'Cinzel', serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: #f0ead5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dino-badge-type {
+  background: #2a2214;
+  border: 1px solid #5a4520;
+  color: #d8a928;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Oswald', sans-serif;
+}
+.dino-sub {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #a08b76;
+}
+.dino-loc {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #a08b76;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.dino-loc .growth-highlight {
+  color: #d8a928;
+  font-weight: 700;
+  font-family: 'Oswald', sans-serif;
+  letter-spacing: 0.05em;
+}
+.prime-badge {
+  background: linear-gradient(135deg, #3d2f10, #241d08);
+  border: 1px solid #d8a928;
+  color: #f5c74b;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-family: 'Oswald', sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 0 12px rgba(216, 169, 40, 0.2);
+  white-space: nowrap;
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 28px;
+  margin-bottom: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #2a241a;
+}
+@media (max-width: 650px) {
+  .stats-grid { grid-template-columns: 1fr; }
+  .dino-header { flex-direction: column; }
+}
+.stat-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.stat-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: 'Oswald', sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+.stat-name { color: #a08b76; text-transform: uppercase; }
+.stat-val { color: #f0ead5; font-weight: 700; }
+.progress-bg {
+  width: 100%;
+  height: 8px;
+  background: #1a1814;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid #2a241a;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+.progress-fill.health { background: #22c55e; box-shadow: 0 0 8px rgba(34, 197, 94, 0.4); }
+.progress-fill.stamina { background: #0284c7; box-shadow: 0 0 8px rgba(2, 132, 199, 0.4); }
+.progress-fill.blood { background: #ef4444; box-shadow: 0 0 8px rgba(239, 68, 68, 0.4); }
+.progress-fill.hunger { background: #eab308; box-shadow: 0 0 8px rgba(234, 179, 8, 0.4); }
+.progress-fill.thirst { background: #06b6d4; box-shadow: 0 0 8px rgba(6, 182, 212, 0.4); }
+.progress-fill.size { background: #a855f7; box-shadow: 0 0 8px rgba(168, 85, 247, 0.4); }
+
+.mutations-row {
+  margin-bottom: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.mutation-chip {
+  background: #1a1622;
+  border: 1px solid #4c2d73;
+  color: #c084fc;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-weight: 600;
+}
+
+.dino-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 18px;
+  border-top: 1px solid #2a241a;
+}
+.btn-dino-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-family: 'Oswald', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+.btn-dino-action.redeem {
+  background: #064e3b;
+  border-color: #10b981;
+  color: #6ee7b7;
+}
+.btn-dino-action.redeem:hover {
+  background: #047857;
+  color: #ffffff;
+}
+.btn-dino-action.park {
+  background: #0c4a6e;
+  border-color: #0284c7;
+  color: #7dd3fc;
+}
+.btn-dino-action.park:hover {
+  background: #0369a1;
+  color: #ffffff;
+}
+.btn-dino-action.prime {
+  background: #d8a928;
+  color: #171606;
+  border-color: #f0c849;
+}
+.btn-dino-action.prime:hover { background: #f0c849; }
+.btn-dino-action.dark {
+  background: #1a1814;
+  border-color: #3a3428;
+  color: #d0c4b4;
+}
+.btn-dino-action.dark:hover {
+  background: #2a2620;
+  border-color: #5a5040;
+  color: #ffffff;
+}
+.btn-dino-action.danger {
+  background: #2d1210;
+  border-color: #7f1d1d;
+  color: #f87171;
+}
+.btn-dino-action.danger:hover {
+  background: #7f1d1d;
+  color: #ffffff;
+}
 .page-header{position:relative;padding:150px 8vw 40px;overflow:hidden;background:linear-gradient(106deg,#09090ce6 0,#09090ccc 55%,#09090ce6 100%),url("images/hero-banner.png") center 30%/cover no-repeat}
 .page-header h1{margin:10px 0 0;font:600 clamp(30px,3.6vw,48px)/1.05 Cinzel}
 .page-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:18px}
