@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const parkHandler = require("../api/park");
 const playerdataHandler = require("../api/playerdata");
+const redeemHandler = require("../api/redeem");
 
 test("api/park returns 400 when steamid is missing", async () => {
   let statusCode = 0;
@@ -20,6 +21,27 @@ test("api/park returns 400 when steamid is missing", async () => {
   };
 
   await parkHandler(req, res);
+  assert.strictEqual(statusCode, 400);
+  assert.strictEqual(jsonResult.error, "Missing SteamID");
+});
+
+test("api/redeem returns 400 when steamid is missing", async () => {
+  let statusCode = 0;
+  let jsonResult = null;
+
+  const req = { body: {} };
+  const res = {
+    status(code) {
+      statusCode = code;
+      return this;
+    },
+    json(data) {
+      jsonResult = data;
+      return this;
+    },
+  };
+
+  await redeemHandler(req, res);
   assert.strictEqual(statusCode, 400);
   assert.strictEqual(jsonResult.error, "Missing SteamID");
 });

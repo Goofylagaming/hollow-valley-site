@@ -28,6 +28,7 @@ const herbyBot = require("./herbyBot");
 
 const parkHandler = require("../api/park");
 const playerdataHandler = require("../api/playerdata");
+const redeemHandler = require("../api/redeem");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -102,6 +103,7 @@ app.use("/api/mapdata", mapdataRouter);
 
 app.all("/api/park", parkHandler);
 app.all("/api/playerdata", playerdataHandler);
+app.all("/api/redeem", redeemHandler);
 
 app.use("/mydinos", express.static(path.join(__dirname, "..", "mydinos")));
 app.use(express.static(path.join(__dirname, "..", "public")));

@@ -48,7 +48,10 @@ async function loadDinos() {
         container.innerHTML = `
             ${sourceLabel}
             <pre>${renderContent}</pre>
-            <button onclick="parkDino('${steamid}')">Park Dino</button>
+            <div style="display: flex; gap: 12px; margin-top: 12px;">
+                <button onclick="parkDino('${steamid}')">Park Dino</button>
+                <button onclick="redeemDino('${steamid}')" style="background: #10b981;">Redeem Dino</button>
+            </div>
         `;
     } catch (err) {
         container.innerHTML = `<p style="color:#ef4444">Failed to load dinosaur data: ${err.message}</p>`;
