@@ -158,7 +158,7 @@ async function loadWallet() {
   const me = await window.HDS.loadMe();
   if (!me.loggedIn) {
     balanceEl.textContent = "0";
-    txEl.innerHTML = `<div class="empty-roster"><strong>Login required</strong><span>Log in with Discord to view your Valley Coin balance.</span></div>`;
+    txEl.innerHTML = `<div class="empty-roster"><strong>Login required</strong><span>Sign in with Steam to view your Valley Coin balance.</span></div>`;
     return;
   }
   try {
@@ -186,7 +186,7 @@ async function loadQuests() {
   if (!listEl) return;
   const me = await window.HDS.loadMe();
   if (!me.loggedIn) {
-    listEl.innerHTML = `<p class="section-intro">Log in with Discord to view and claim quests.</p>`;
+    listEl.innerHTML = `<p class="section-intro">Sign in with Steam to view and claim quests.</p>`;
     return;
   }
   try {
@@ -228,10 +228,16 @@ async function loadRoster() {
   const rosterEl = document.getElementById("roster-empty-state");
   if (!rosterEl) return;
   const me = await window.HDS.loadMe();
+  if (me.loggedIn && me.user) {
+    const heroHeading = document.getElementById("hero-heading");
+    if (heroHeading) {
+      heroHeading.innerHTML = `Welcome back,<br><span>${escapeHtml(me.user.username)}.</span>`;
+    }
+  }
   if (!me.loggedIn) return;
   try {
     const roster = await api("/api/roster");
-    if (roster.length) {
+    if (roster && roster.length) {
       rosterEl.outerHTML = roster
         .map(
           (r) =>
@@ -248,12 +254,14 @@ async function loadMapPositions() {
   const contactsEl = document.getElementById("map-contacts");
   if (!contactsEl) return;
   try {
-    const map = await api("/api/map/positions");
-    contactsEl.textContent = map.connected
-      ? `${map.positions.length} contacts in your visibility scope`
-      : "Live map offline — server not connected yet";
+    const status = await api("/api/server-status");
+    if (status.configured && status.online) {
+      contactsEl.textContent = `${status.playerCount}/${status.maxPlayers} players online in the valley`;
+    } else {
+      contactsEl.textContent = "Live map offline — server not connected yet";
+    }
   } catch (err) {
-    console.error("Failed to load map positions", err);
+    console.error("Failed to load map contacts", err);
   }
 }
 

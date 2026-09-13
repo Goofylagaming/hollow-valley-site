@@ -24,21 +24,38 @@ window.HDS = (function () {
   }
 
   let cachedMe = null;
+  let mePromise = null;
 
   async function loadMe(force = false) {
-    if (cachedMe && !force) return cachedMe;
-    try {
-      cachedMe = await api("/api/me");
-    } catch (err) {
-      try {
-        await new Promise((resolve) => setTimeout(resolve, 600));
-        cachedMe = await api("/api/me");
-      } catch {
-        cachedMe = cachedMe || { loggedIn: false, user: null, steamLoginConfigured: true };
-      }
+    if (cachedMe && !force) {
+      applyAuthUi(cachedMe);
+      return cachedMe;
     }
-    applyAuthUi(cachedMe);
-    return cachedMe;
+    if (mePromise && !force) {
+      const me = await mePromise;
+      applyAuthUi(me);
+      return me;
+    }
+
+    mePromise = (async () => {
+      try {
+        cachedMe = await api("/api/me");
+      } catch (err) {
+        try {
+          await new Promise((resolve) => setTimeout(resolve, 600));
+          cachedMe = await api("/api/me");
+        } catch {
+          cachedMe = cachedMe || { loggedIn: false, user: null, steamLoginConfigured: true };
+        }
+      } finally {
+        mePromise = null;
+      }
+      return cachedMe;
+    })();
+
+    const me = await mePromise;
+    applyAuthUi(me);
+    return me;
   }
 
   function applyAuthUi(me) {

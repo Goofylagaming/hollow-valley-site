@@ -44,7 +44,7 @@ async function loadTiers() {
   grid.querySelectorAll("button[data-tier]").forEach((btn) =>
     btn.addEventListener("click", async () => {
       const me = await window.HDS.loadMe();
-      if (!me.loggedIn) return alert("Log in with Discord first.");
+      if (!me.loggedIn) return alert("Sign in with Steam first.");
       try {
         const result = await api(`/api/supporter/${btn.dataset.tier}/checkout`, { method: "POST" });
         if (result.url) window.location.href = result.url;
