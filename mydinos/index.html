@@ -7,6 +7,7 @@
   <title>My Dinos | Herby Death Squad</title>
   <link rel="stylesheet" href="/assets/styles.css?v=14">
   <script src="script.js"></script>
+  <script src="redeem.js"></script>
 </head>
 <body>
   <div class="app-shell">
@@ -167,9 +168,10 @@
           <div class="dino-actions-row">
             ${options.isLive ? `
               <button class="btn-dino-action park" onclick="parkDino('${options.steamid}')">🅿️ Park Dino</button>
-            ` : `
-              <button class="btn-dino-action redeem" onclick="redeemDino('${options.steamid}')">🔄 Redeem</button>
-            `}
+            ` : ''}
+            <button class="btn-dino-action redeem" onclick="redeemDino('${options.steamid}')">🔄 Redeem Dino</button>
+            <a href="/mydinos/parked.html" class="btn-dino-action dark">View Parked Dinos</a>
+            <a href="/mydinos/admin.html" class="btn-dino-action dark">Admin Panel</a>
           </div>
         </div>
       `;
@@ -223,6 +225,8 @@
               </div>
               <div class="dino-actions-row">
                 <button class="btn-dino-action redeem" onclick="redeemDino('${steamid}')">🔄 Redeem Dinosaur</button>
+                <a href="/mydinos/parked.html" class="btn-dino-action dark">View Parked Dinos</a>
+                <a href="/mydinos/admin.html" class="btn-dino-action dark">Admin Panel</a>
               </div>
             </div>`;
         } else {
@@ -232,6 +236,8 @@
               <div class="dino-actions-row">
                 <button class="btn-dino-action park" onclick="parkDino('${steamid}')">🅿️ Park Dino</button>
                 <button class="btn-dino-action redeem" onclick="redeemDino('${steamid}')">🔄 Redeem Dino</button>
+                <a href="/mydinos/parked.html" class="btn-dino-action dark">View Parked Dinos</a>
+                <a href="/mydinos/admin.html" class="btn-dino-action dark">Admin Panel</a>
               </div>
             </div>`;
         }
