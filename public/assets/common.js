@@ -30,9 +30,6 @@ window.HDS = (function () {
     try {
       cachedMe = await api("/api/me");
     } catch (err) {
-      // A transient network failure must not be mistaken for a logout. Retry
-      // once, and if that also fails fall back to the last known state rather
-      // than flipping a signed-in user's UI to "logged out".
       try {
         await new Promise((resolve) => setTimeout(resolve, 600));
         cachedMe = await api("/api/me");
@@ -52,7 +49,8 @@ window.HDS = (function () {
       authArea.innerHTML = `<a class="steam-signin logged-in" href="/dashboard"><span class="steam-icon">●</span> Logged in as: ${escapeHtml(me.user.username)}</a><a class="logout-link" id="auth-action" href="#">Logout</a>`;
     } else {
       const steamLabel = me.steamLoginConfigured ? "Sign in with Steam" : "Steam login not configured";
-      authArea.innerHTML = `<a class="steam-signin" id="auth-steam" href="${me.steamLoginConfigured ? "/auth/steam" : "#"}"><span class="steam-icon">◈</span> ${steamLabel}</a>`;
+      const href = me.steamLoginConfigured ? "/auth/steam" : "#";
+      authArea.innerHTML = `<a class="steam-signin" id="auth-steam" href="${href}"><span class="steam-icon">◈</span> ${steamLabel}</a>`;
     }
   }
 
@@ -103,10 +101,16 @@ window.HDS = (function () {
     document.getElementById("auth-area")?.addEventListener("click", (event) => {
       const link = event.target.closest("a");
       if (!link) return;
-      if (link.getAttribute("href") === "#") event.preventDefault();
+
       if (link.id === "auth-action") {
         event.preventDefault();
         api("/auth/logout", { method: "POST" }).finally(() => window.location.reload());
+        return;
+      }
+
+      const href = link.getAttribute("href");
+      if (!href || href === "#") {
+        event.preventDefault();
       }
     });
   }
@@ -124,9 +128,8 @@ window.HDS = (function () {
       } else if (status.configured && !status.online) {
         el.innerHTML = `<span class="status-dot offline"></span> Server name: <b>Hollow Valley</b> <span class="status-note">— currently offline</span>`;
       }
-      // If status isn't configured at all, leave the static fallback markup as-is.
     } catch (err) {
-      // Leave the static fallback markup in place on any error.
+      // Leave static fallback
     }
   }
 

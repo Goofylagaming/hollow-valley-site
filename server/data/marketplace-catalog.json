@@ -2,106 +2,106 @@
   {
     "speciesId": "tyrannosaurus",
     "price": 3680,
-    "sizePercent": 10
+    "sizePercent": 75
   },
   {
     "speciesId": "allosaurus",
     "price": 3000,
-    "sizePercent": 10
+    "sizePercent": 75
   },
   {
     "speciesId": "carnotaurus",
     "price": 2800,
-    "sizePercent": 10
+    "sizePercent": 75
   },
   {
     "speciesId": "ceratosaurus",
     "price": 2720,
-    "sizePercent": 10
+    "sizePercent": 75
   },
   {
     "speciesId": "deinosuchus",
     "price": 3760,
-    "sizePercent": 10
+    "sizePercent": 75
   },
   {
     "speciesId": "dilophosaurus",
     "price": 2400,
-    "sizePercent": 10
+    "sizePercent": 75
   },
   {
     "speciesId": "herrerasaurus",
     "price": 1520,
-    "sizePercent": 10
+    "sizePercent": 75
   },
   {
     "speciesId": "omniraptor",
     "price": 2080,
-    "sizePercent": 10
+    "sizePercent": 75
   },
   {
     "speciesId": "troodon",
     "price": 1400,
-    "sizePercent": 10
+    "sizePercent": 75
   },
   {
     "speciesId": "pteranodon",
     "price": 1800,
-    "sizePercent": 10
+    "sizePercent": 75
   },
   {
     "speciesId": "diabloceratops",
     "price": 2600,
-    "sizePercent": 10
+    "sizePercent": 75
   },
   {
     "speciesId": "dryosaurus",
     "price": 1200,
-    "sizePercent": 10
+    "sizePercent": 75
   },
   {
     "speciesId": "tenontosaurus",
     "price": 2200,
-    "sizePercent": 10
+    "sizePercent": 75
   },
   {
     "speciesId": "maiasaura",
     "price": 2320,
-    "sizePercent": 10
+    "sizePercent": 75
   },
   {
     "speciesId": "pachycephalosaurus",
     "price": 1920,
-    "sizePercent": 10
+    "sizePercent": 75
   },
   {
     "speciesId": "stegosaurus",
     "price": 3280,
-    "sizePercent": 10
+    "sizePercent": 75
   },
   {
     "speciesId": "triceratops",
     "price": 3520,
-    "sizePercent": 10
+    "sizePercent": 75
   },
   {
     "speciesId": "deinocheirus",
     "price": 3120,
-    "sizePercent": 10
+    "sizePercent": 75
   },
   {
     "speciesId": "gallimimus",
     "price": 1680,
-    "sizePercent": 10
+    "sizePercent": 75
   },
   {
     "speciesId": "hypsilophodon",
     "price": 960,
-    "sizePercent": 10
+    "sizePercent": 75
   },
   {
     "speciesId": "beipiaosaurus",
     "price": 1600,
-    "sizePercent": 10
+    "sizePercent": 75
   }
 ]

@@ -3,6 +3,7 @@
 // per page view). If RCON isn't configured or the server is unreachable,
 // callers get a clear "unknown"/"offline" state instead of an error.
 const { fetchServerStatus } = require("../rcon");
+const { recordLivePlaytime } = require("../db");
 
 const POLL_INTERVAL_MS = 30_000;
 // Fallback used whenever RCON doesn't return a max player count itself
@@ -34,6 +35,7 @@ async function poll() {
     state.maxPlayers = maxPlayers || DEFAULT_MAX_PLAYERS;
     state.players = players;
     state.characters = characters || [];
+    recordLivePlaytime(players);
     state.lastError = null;
   } catch (err) {
     state.online = false;

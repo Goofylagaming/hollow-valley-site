@@ -1,9 +1,3 @@
-// Steam login via OpenID 2.0 (Steam has no OAuth, only OpenID). This is the
-// primary non-admin sign-in option — players link their Steam account so the
-// site can eventually be matched against the game server's own SteamID64-based
-// logs/RCON output for website <-> in-game syncing. Admin status is only ever
-// granted via Discord (see ADMIN_DISCORD_IDS in auth.js) — Steam logins never
-// become admins.
 const express = require("express");
 const { findOrCreateUserBySteam } = require("./db");
 
@@ -17,6 +11,32 @@ const isConfigured = Boolean(STEAM_RETURN_URL && STEAM_REALM);
 
 const STEAM_OPENID_ENDPOINT = "https://steamcommunity.com/openid/login";
 const CLAIMED_ID_PATTERN = /^https:\/\/steamcommunity\.com\/openid\/id\/(\d+)$/;
+const DEFAULT_RETURN_PATH = "/mydinos";
+
+function returnPathFromRequest(req) {
+  const requested = typeof req.query.returnTo === "string" ? req.query.returnTo : null;
+  if (requested?.startsWith("/") && !requested.startsWith("//")) return requested;
+
+  const referer = req.get("referer");
+  if (!referer) return DEFAULT_RETURN_PATH;
+  try {
+    const url = new URL(referer);
+    if (url.origin === STEAM_REALM.replace(/\/$/, "")) return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    // An invalid Referer must never affect the destination after login.
+  }
+  return DEFAULT_RETURN_PATH;
+}
+
+function redirectAfterSessionSave(req, res, destination) {
+  req.session.save((error) => {
+    if (error) {
+      console.error("Steam session save failed:", error);
+      return res.redirect("/?login=failed");
+    }
+    res.redirect(destination);
+  });
+}
 
 router.get("/", (req, res) => {
   if (!isConfigured) {
@@ -32,7 +52,11 @@ router.get("/", (req, res) => {
     "openid.identity": "http://specs.openid.net/auth/2.0/identifier_select",
     "openid.claimed_id": "http://specs.openid.net/auth/2.0/identifier_select",
   });
-  res.redirect(`${STEAM_OPENID_ENDPOINT}?${params.toString()}`);
+  // Persist the existing login before Steam redirects away. This is essential
+  // when a Discord user is linking Steam, and avoids redirect/session races.
+  req.session.steamLoginStartedAt = Date.now();
+  req.session.steamReturnPath = returnPathFromRequest(req);
+  redirectAfterSessionSave(req, res, `${STEAM_OPENID_ENDPOINT}?${params.toString()}`);
 });
 
 router.get("/callback", async (req, res) => {
@@ -44,21 +68,25 @@ router.get("/callback", async (req, res) => {
       throw new Error("Missing openid.claimed_id in Steam callback");
     }
 
-    // Stateless verification: echo every openid.* field back to Steam with
-    // mode switched to check_authentication and trust its is_valid response.
-    const verifyParams = new URLSearchParams();
-    for (const [key, value] of Object.entries(req.query)) {
-      if (typeof value === "string") verifyParams.set(key, value);
+    const rawQuery = req.originalUrl.split("?")[1] || "";
+    let checkAuthBody = "";
+    if (rawQuery.includes("openid.mode=")) {
+      checkAuthBody = rawQuery.replace(/openid\.mode=[^&]*/, "openid.mode=check_authentication");
+    } else {
+      const verifyParams = new URLSearchParams(rawQuery);
+      verifyParams.set("openid.mode", "check_authentication");
+      checkAuthBody = verifyParams.toString();
     }
-    verifyParams.set("openid.mode", "check_authentication");
 
     const verifyResponse = await fetch(STEAM_OPENID_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: verifyParams.toString(),
+      body: checkAuthBody,
     });
     const verifyText = await verifyResponse.text();
+
     if (!verifyResponse.ok || !verifyText.includes("is_valid:true")) {
+      console.error("[Steam Auth Callback Verification Failed]:", verifyResponse.status, verifyText);
       throw new Error("Steam OpenID verification failed");
     }
 
@@ -70,23 +98,37 @@ router.get("/callback", async (req, res) => {
     let avatar = null;
     let hasRealProfile = false;
     if (STEAM_API_KEY) {
-      const profileResponse = await fetch(
-        `https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${STEAM_API_KEY}&steamids=${steamId}`
-      );
-      if (profileResponse.ok) {
-        const data = await profileResponse.json();
-        const player = data?.response?.players?.[0];
-        if (player) {
-          username = player.personaname || username;
-          avatar = player.avatarfull || null;
-          hasRealProfile = true;
+      try {
+        const profileResponse = await fetch(
+          `https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${STEAM_API_KEY}&steamids=${steamId}`
+        );
+        if (profileResponse.ok) {
+          const data = await profileResponse.json();
+          const player = data?.response?.players?.[0];
+          if (player) {
+            username = player.personaname || username;
+            avatar = player.avatarfull || null;
+            hasRealProfile = true;
+          }
         }
+      } catch (err) {
+        console.error("Steam profile fetch error:", err);
       }
     }
 
-    const user = findOrCreateUserBySteam({ steamId, username, avatar, hasRealProfile });
+    const user = findOrCreateUserBySteam({
+      currentUserId: req.session.userId,
+      steamId,
+      username,
+      avatar,
+      hasRealProfile,
+    });
+
     req.session.userId = user.id;
-    res.redirect("/");
+    const returnPath = req.session.steamReturnPath || DEFAULT_RETURN_PATH;
+    delete req.session.steamLoginStartedAt;
+    delete req.session.steamReturnPath;
+    redirectAfterSessionSave(req, res, returnPath);
   } catch (error) {
     console.error("Steam OpenID error:", error);
     res.redirect("/?login=failed");

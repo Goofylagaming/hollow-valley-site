@@ -1,5 +1,5 @@
 // SQLite persistence layer. Uses Node's built-in node:sqlite module (Node 22+)
-// so there is no native module to compile — this keeps deployment simple on any host.
+// so there is no native module to compile ? this keeps deployment simple on any host.
 const path = require("node:path");
 const fs = require("node:fs");
 const { DatabaseSync } = require("node:sqlite");
@@ -56,7 +56,7 @@ db.exec(`
     water INTEGER NOT NULL DEFAULT 100,
     food INTEGER NOT NULL DEFAULT 100,
     blood INTEGER NOT NULL DEFAULT 100,
-    size_percent INTEGER NOT NULL DEFAULT 10,
+    size_percent INTEGER NOT NULL DEFAULT 75,
     mutations TEXT NOT NULL DEFAULT '[]',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
@@ -65,7 +65,13 @@ db.exec(`
     user_id INTEGER PRIMARY KEY REFERENCES users(id),
     kills INTEGER NOT NULL DEFAULT 0,
     deaths INTEGER NOT NULL DEFAULT 0,
-    playtime_minutes INTEGER NOT NULL DEFAULT 0
+    playtime_minutes INTEGER NOT NULL DEFAULT 0,
+    playtime_seconds INTEGER NOT NULL DEFAULT 0
+  );
+
+  CREATE TABLE IF NOT EXISTS player_activity (
+    steam_id TEXT PRIMARY KEY,
+    last_seen_at INTEGER NOT NULL
   );
 
   CREATE TABLE IF NOT EXISTS sessions (
@@ -79,7 +85,7 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     species_id TEXT NOT NULL,
     price INTEGER NOT NULL,
-    size_percent INTEGER NOT NULL DEFAULT 10,
+    size_percent INTEGER NOT NULL DEFAULT 75,
     active INTEGER NOT NULL DEFAULT 1
   );
 
@@ -151,16 +157,48 @@ db.exec(`
   }
 })();
 
+(function ensurePlayerStatsSchema() {
+  const columns = db.prepare("PRAGMA table_info(player_stats)").all();
+  if (!columns.some((column) => column.name === "playtime_seconds")) {
+    db.exec("ALTER TABLE player_stats ADD COLUMN playtime_seconds INTEGER NOT NULL DEFAULT 0;");
+    db.exec("UPDATE player_stats SET playtime_seconds = playtime_minutes * 60 WHERE playtime_seconds = 0;");
+  }
+})();
+
 function getUserByUsername(username) {
   return db.prepare("SELECT * FROM users WHERE username = ? COLLATE NOCASE").get(username);
 }
 
-function findOrCreateUser({ discordId, username, avatar }) {
-  const existing = db.prepare("SELECT * FROM users WHERE discord_id = ?").get(discordId);
-  if (existing) {
-    db.prepare("UPDATE users SET username = ?, avatar = ? WHERE id = ?").run(username, avatar, existing.id);
-    return db.prepare("SELECT * FROM users WHERE id = ?").get(existing.id);
+function findOrCreateUser({ currentUserId, discordId, username, avatar }) {
+  const existingDiscordUser = db.prepare("SELECT * FROM users WHERE discord_id = ?").get(discordId);
+
+  if (currentUserId) {
+    const currentUser = db.prepare("SELECT * FROM users WHERE id = ?").get(currentUserId);
+    if (currentUser) {
+      if (existingDiscordUser && existingDiscordUser.id !== currentUser.id) {
+        const targetId = currentUser.id;
+        const sourceId = existingDiscordUser.id;
+        db.prepare("UPDATE roster SET user_id = ? WHERE user_id = ?").run(targetId, sourceId);
+        const sourceWallet = db.prepare("SELECT balance FROM wallets WHERE user_id = ?").get(sourceId);
+        if (sourceWallet && sourceWallet.balance > 0) {
+          db.prepare("UPDATE wallets SET balance = balance + ? WHERE user_id = ?").run(sourceWallet.balance, targetId);
+        }
+        db.prepare("UPDATE wallet_transactions SET user_id = ? WHERE user_id = ?").run(targetId, sourceId);
+        db.prepare("UPDATE skins SET owner_user_id = ? WHERE owner_user_id = ?").run(targetId, sourceId);
+        db.prepare("DELETE FROM wallets WHERE user_id = ?").run(sourceId);
+        db.prepare("DELETE FROM player_stats WHERE user_id = ?").run(sourceId);
+        db.prepare("DELETE FROM users WHERE id = ?").run(sourceId);
+      }
+      db.prepare("UPDATE users SET discord_id = ?, username = ?, avatar = ? WHERE id = ?").run(discordId, username, avatar, currentUser.id);
+      return db.prepare("SELECT * FROM users WHERE id = ?").get(currentUser.id);
+    }
   }
+
+  if (existingDiscordUser) {
+    db.prepare("UPDATE users SET username = ?, avatar = ? WHERE id = ?").run(username, avatar, existingDiscordUser.id);
+    return db.prepare("SELECT * FROM users WHERE id = ?").get(existingDiscordUser.id);
+  }
+
   const info = db.prepare("INSERT INTO users (discord_id, username, avatar) VALUES (?, ?, ?)").run(discordId, username, avatar);
   const userId = Number(info.lastInsertRowid);
   db.prepare("INSERT INTO wallets (user_id, balance) VALUES (?, 0)").run(userId);
@@ -168,24 +206,40 @@ function findOrCreateUser({ discordId, username, avatar }) {
   return db.prepare("SELECT * FROM users WHERE id = ?").get(userId);
 }
 
-// Steam login never grants admin (that's reserved for the ADMIN_DISCORD_IDS
-// allowlist) — this is purely a second, non-admin sign-in option for players,
-// and stores their SteamID64 so it can later be matched against the game
-// server's own logs/RCON output for website <-> in-game syncing.
-//
-// `hasRealProfile` is true only when a real Steam Web API name/avatar was
-// fetched (STEAM_API_KEY configured). Without it we only have a generic
-// placeholder name — never let that clobber an existing account's real
-// display name/avatar (e.g. one set via Discord, or a previous real Steam
-// profile fetch) on repeat logins.
-function findOrCreateUserBySteam({ steamId, username, avatar, hasRealProfile = false }) {
-  const existing = db.prepare("SELECT * FROM users WHERE steam_id = ?").get(steamId);
-  if (existing) {
-    if (hasRealProfile) {
-      db.prepare("UPDATE users SET username = ?, avatar = ? WHERE id = ?").run(username, avatar, existing.id);
+function findOrCreateUserBySteam({ currentUserId, steamId, username, avatar, hasRealProfile = false }) {
+  const existingSteamUser = db.prepare("SELECT * FROM users WHERE steam_id = ?").get(steamId);
+
+  if (currentUserId) {
+    const currentUser = db.prepare("SELECT * FROM users WHERE id = ?").get(currentUserId);
+    if (currentUser) {
+      if (existingSteamUser && existingSteamUser.id !== currentUser.id) {
+        const targetId = currentUser.id;
+        const sourceId = existingSteamUser.id;
+        db.prepare("UPDATE roster SET user_id = ? WHERE user_id = ?").run(targetId, sourceId);
+        const sourceWallet = db.prepare("SELECT balance FROM wallets WHERE user_id = ?").get(sourceId);
+        if (sourceWallet && sourceWallet.balance > 0) {
+          db.prepare("UPDATE wallets SET balance = balance + ? WHERE user_id = ?").run(sourceWallet.balance, targetId);
+        }
+        db.prepare("UPDATE wallet_transactions SET user_id = ? WHERE user_id = ?").run(targetId, sourceId);
+        db.prepare("UPDATE skins SET owner_user_id = ? WHERE owner_user_id = ?").run(targetId, sourceId);
+        db.prepare("DELETE FROM wallets WHERE user_id = ?").run(sourceId);
+        db.prepare("DELETE FROM player_stats WHERE user_id = ?").run(sourceId);
+        db.prepare("DELETE FROM users WHERE id = ?").run(sourceId);
+      }
+      const newName = (hasRealProfile || !currentUser.username) ? username : currentUser.username;
+      const newAvatar = avatar || currentUser.avatar;
+      db.prepare("UPDATE users SET steam_id = ?, username = ?, avatar = ? WHERE id = ?").run(steamId, newName, newAvatar, currentUser.id);
+      return db.prepare("SELECT * FROM users WHERE id = ?").get(currentUser.id);
     }
-    return db.prepare("SELECT * FROM users WHERE id = ?").get(existing.id);
   }
+
+  if (existingSteamUser) {
+    if (hasRealProfile) {
+      db.prepare("UPDATE users SET username = ?, avatar = ? WHERE id = ?").run(username, avatar, existingSteamUser.id);
+    }
+    return db.prepare("SELECT * FROM users WHERE id = ?").get(existingSteamUser.id);
+  }
+
   const info = db
     .prepare("INSERT INTO users (steam_id, username, avatar) VALUES (?, ?, ?)")
     .run(steamId, username, avatar);
@@ -238,10 +292,10 @@ function getRosterEntry(id) {
   return db.prepare("SELECT * FROM roster WHERE id = ?").get(id);
 }
 
-function addRosterDino(userId, speciesId, sizePercent = 10) {
+function addRosterDino(userId, speciesId, sizePercent = 75, isPrime = 0, status = "parked") {
   const info = db
-    .prepare("INSERT INTO roster (user_id, species_id, size_percent) VALUES (?, ?, ?)")
-    .run(userId, speciesId, sizePercent);
+    .prepare("INSERT INTO roster (user_id, species_id, size_percent, is_prime, status) VALUES (?, ?, ?, ?, ?)")
+    .run(userId, speciesId, sizePercent, isPrime ? 1 : 0, status);
   return getRosterEntry(Number(info.lastInsertRowid));
 }
 
@@ -275,6 +329,32 @@ function transferRosterDino(id, toUserId) {
   return getRosterEntry(id);
 }
 
+function recordLivePlaytime(players, now = Date.now()) {
+  const getUser = db.prepare("SELECT id FROM users WHERE steam_id = ?");
+  const getActivity = db.prepare("SELECT last_seen_at FROM player_activity WHERE steam_id = ?");
+  const touchActivity = db.prepare(
+    "INSERT INTO player_activity (steam_id, last_seen_at) VALUES (?, ?) ON CONFLICT(steam_id) DO UPDATE SET last_seen_at = excluded.last_seen_at"
+  );
+  const ensureStats = db.prepare("INSERT INTO player_stats (user_id) VALUES (?) ON CONFLICT(user_id) DO NOTHING");
+  const addTime = db.prepare(
+    "UPDATE player_stats SET playtime_seconds = playtime_seconds + ?, playtime_minutes = CAST((playtime_seconds + ?) / 60 AS INTEGER) WHERE user_id = ?"
+  );
+
+  for (const player of players) {
+    if (!player?.steamId) continue;
+    const user = getUser.get(String(player.steamId));
+    const prior = getActivity.get(String(player.steamId));
+    // Count only a normal polling interval, never an arbitrary offline gap.
+    const elapsedMs = prior ? Math.max(0, Math.min(now - prior.last_seen_at, 60_000)) : 0;
+    const elapsedSeconds = Math.floor(elapsedMs / 1000);
+    if (user && elapsedSeconds > 0) {
+      ensureStats.run(user.id);
+      addTime.run(elapsedSeconds, elapsedSeconds, user.id);
+    }
+    touchActivity.run(String(player.steamId), now);
+  }
+}
+
 function getLeaderboards() {
   const rows = db
     .prepare(
@@ -287,9 +367,9 @@ function getLeaderboards() {
     ...row,
     kd: row.deaths > 0 ? Number((row.kills / row.deaths).toFixed(2)) : row.kills,
   }));
-  const mostKills = [...withRatio].sort((a, b) => b.kills - a.kills).slice(0, 10);
-  const bestKd = [...withRatio].sort((a, b) => b.kd - a.kd).slice(0, 10);
-  const mostPlaytime = [...withRatio].sort((a, b) => b.playtime_minutes - a.playtime_minutes).slice(0, 10);
+  const mostKills = withRatio.filter((row) => row.kills > 0).sort((a, b) => b.kills - a.kills).slice(0, 10);
+  const bestKd = withRatio.filter((row) => row.deaths > 0).sort((a, b) => b.kd - a.kd).slice(0, 10);
+  const mostPlaytime = withRatio.filter((row) => row.playtime_minutes > 0).sort((a, b) => b.playtime_minutes - a.playtime_minutes).slice(0, 10);
   return { mostKills, bestKd, mostPlaytime, kills: mostKills };
 }
 
@@ -300,12 +380,20 @@ function getMarketplaceCatalog() {
 
 function seedMarketplaceCatalogIfEmpty(entries) {
   const { count } = db.prepare("SELECT COUNT(*) AS count FROM marketplace_catalog").get();
-  if (count > 0) return;
-  const insert = db.prepare(
-    "INSERT INTO marketplace_catalog (species_id, price, size_percent) VALUES (?, ?, ?)"
-  );
-  for (const entry of entries) {
-    insert.run(entry.speciesId, entry.price, entry.sizePercent ?? 10);
+  if (count === 0) {
+    const insert = db.prepare(
+      "INSERT INTO marketplace_catalog (species_id, price, size_percent) VALUES (?, ?, ?)"
+    );
+    for (const entry of entries) {
+      insert.run(entry.speciesId, entry.price, entry.sizePercent ?? 75);
+    }
+  } else {
+    const update = db.prepare(
+      "UPDATE marketplace_catalog SET size_percent = ?, price = ? WHERE species_id = ?"
+    );
+    for (const entry of entries) {
+      update.run(entry.sizePercent ?? 75, entry.price, entry.speciesId);
+    }
   }
 }
 
@@ -431,6 +519,7 @@ module.exports = {
   applySkinToRoster,
   removeRosterDino,
   transferRosterDino,
+  recordLivePlaytime,
   getLeaderboards,
   getMarketplaceCatalog,
   seedMarketplaceCatalogIfEmpty,

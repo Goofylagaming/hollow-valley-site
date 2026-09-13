@@ -103,4 +103,14 @@ function gridCell(x, y) {
   return `${String.fromCharCode(65 + row)}${col + 1}`;
 }
 
-module.exports = { BOUNDS, REGIONS, project, toLatLong, nearestRegion, gridCell };
+// Evrima's RCON reports Location as `X=<east/west> Y=<north/south>`, which is
+// the transpose of the convention used everywhere else: the in-game Lat/Long
+// readout, the community Gateway map data and this module all treat the first
+// value as the north/south axis. Swapping once here, at the point RCON data
+// enters the system, keeps every downstream caller on one convention.
+function fromRconLocation(location) {
+  if (!location) return { x: null, y: null, z: null };
+  return { x: location.y, y: location.x, z: location.z };
+}
+
+module.exports = { BOUNDS, REGIONS, project, toLatLong, nearestRegion, gridCell, fromRconLocation };

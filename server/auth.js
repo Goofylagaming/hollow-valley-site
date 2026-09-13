@@ -54,6 +54,7 @@ router.get("/discord/callback", async (req, res) => {
     const discordUser = await userResponse.json();
 
     const user = findOrCreateUser({
+      currentUserId: req.session.userId,
       discordId: discordUser.id,
       username: `${discordUser.username}`,
       avatar: discordUser.avatar

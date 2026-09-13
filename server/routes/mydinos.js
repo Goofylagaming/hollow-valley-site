@@ -2,6 +2,7 @@ const express = require("express");
 const {
   getRoster,
   getRosterEntry,
+  addRosterDino,
   setRosterStatus,
   setRosterPrime,
   removeRosterDino,
@@ -12,6 +13,8 @@ const {
   getSkinEntry,
 } = require("../db");
 const { requireAuth } = require("../middleware/requireAuth");
+const { executeGameAction } = require("../services/sftpBridge");
+const serverStatus = require("../services/serverStatus");
 
 const router = express.Router();
 
@@ -28,29 +31,124 @@ router.get("/", requireAuth, (req, res) => {
   res.json(getRoster(req.user.id));
 });
 
-router.post("/:id/redeem", requireAuth, (req, res) => {
+router.get("/active-character", requireAuth, (req, res) => {
+  const steamId = req.user.steam_id;
+  if (!steamId) return res.json({ active: false, reason: "steam_not_linked" });
+
+  const state = serverStatus.getState();
+  if (!state.online) return res.json({ active: false, reason: "server_offline" });
+
+  const char = (state.characters || []).find((c) => c.steamId === steamId);
+  if (!char) return res.json({ active: false, reason: "not_in_game" });
+
+  res.json({
+    active: true,
+    character: {
+      name: char.name,
+      species: char.species,
+      growth: char.growth,
+      health: char.health,
+      isPrime: char.isPrime,
+    },
+  });
+});
+
+router.post("/park-active", requireAuth, async (req, res) => {
+  const steamId = req.user.steam_id;
+  if (!steamId) {
+    return res.status(400).json({ error: "Your Steam account is not linked. Please sign in with Steam first." });
+  }
+
+  const result = await executeGameAction({
+    action: "park",
+    steamId,
+  });
+
+  if (!result.ok) {
+    return res.status(400).json({ error: result.error || "Failed to park active character in game" });
+  }
+
+  let speciesId = "Unknown";
+  let sizePercent = 100;
+  let isPrime = false;
+
+  if (result.data) {
+    try {
+      const data = typeof result.data === "string" ? JSON.parse(result.data) : result.data;
+      if (data.species) speciesId = data.species;
+      if (data.growth) sizePercent = Math.round(data.growth * 100);
+      if (data.isPrime !== undefined) isPrime = Boolean(data.isPrime);
+    } catch (e) {
+      console.error("Failed to parse park result data", e);
+    }
+  }
+
+  const dino = addRosterDino(req.user.id, speciesId, sizePercent, isPrime, "parked");
+  res.json({ ok: true, dino });
+});
+
+router.post("/:id/redeem", requireAuth, async (req, res) => {
   const dino = ownedOr404(req, res);
   if (!dino) return;
+
+  const steamId = req.user.steam_id;
+  if (steamId) {
+    const result = await executeGameAction({
+      action: "redeem",
+      steamId,
+      species: dino.species_id,
+      growth: (dino.size_percent || 100) / 100,
+      prime: dino.is_prime,
+    });
+    if (!result.ok) {
+      return res.status(400).json({ error: result.error || "Failed to redeem dino in game" });
+    }
+  }
+
   res.json(setRosterStatus(dino.id, "active"));
 });
 
-router.post("/:id/park", requireAuth, (req, res) => {
+router.post("/:id/park", requireAuth, async (req, res) => {
   const dino = ownedOr404(req, res);
   if (!dino) return;
+
+  const steamId = req.user.steam_id;
+  if (steamId) {
+    const result = await executeGameAction({
+      action: "park",
+      steamId,
+    });
+    if (!result.ok) {
+      return res.status(400).json({ error: result.error || "Failed to park dino in game" });
+    }
+  }
+
   res.json(setRosterStatus(dino.id, "parked"));
 });
 
-router.post("/:id/set-prime", requireAuth, (req, res) => {
+router.post("/:id/set-prime", requireAuth, async (req, res) => {
   const dino = ownedOr404(req, res);
   if (!dino) return;
-  res.json(setRosterPrime(dino.id, Boolean(req.body?.prime)));
+
+  const isPrime = Boolean(req.body?.prime);
+  const steamId = req.user.steam_id;
+  if (steamId) {
+    const result = await executeGameAction({
+      action: "set_prime",
+      steamId,
+      prime: isPrime,
+    });
+    if (!result.ok) {
+      return res.status(400).json({ error: result.error || "Failed to update prime status in game" });
+    }
+  }
+
+  res.json(setRosterPrime(dino.id, isPrime));
 });
 
 router.post("/:id/sell", requireAuth, (req, res) => {
   const dino = ownedOr404(req, res);
   if (!dino) return;
-  // Selling back to the server for a fraction of catalog value, since there's no live buyer yet
-  // unless the player lists it on the peer marketplace instead.
   const scrapValue = Math.max(10, Math.round((dino.size_percent || 10) * 8));
   removeRosterDino(dino.id);
   const wallet = creditWallet(req.user.id, scrapValue, `Scrapped ${dino.species_id}`);

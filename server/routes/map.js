@@ -1,7 +1,15 @@
 const express = require("express");
 const { requireAuth } = require("../middleware/requireAuth");
 const serverStatus = require("../services/serverStatus");
-const { project, toLatLong, nearestRegion, gridCell, BOUNDS, REGIONS } = require("../evrimaMap");
+const {
+  project,
+  toLatLong,
+  nearestRegion,
+  gridCell,
+  fromRconLocation,
+  BOUNDS,
+  REGIONS,
+} = require("../evrimaMap");
 
 const router = express.Router();
 
@@ -25,7 +33,7 @@ function vitals(character) {
 // Full detail including exact position - only ever used for the requesting
 // user's own character, or for admins (who need it for moderation).
 function toDetailedEntry(character) {
-  const { x, y, z } = character.location;
+  const { x, y, z } = fromRconLocation(character.location);
   return {
     name: character.name,
     species: character.species,

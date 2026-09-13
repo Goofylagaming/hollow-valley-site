@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Your Isle Evrima dino storage.">
   <title>My dinos | Herby Death Squad</title>
-  <link rel="stylesheet" href="assets/styles.css?v=12">
+  <link rel="stylesheet" href="assets/styles.css?v=13">
 </head>
 <body>
   <div class="app-shell">
@@ -19,6 +19,7 @@
       <section class="roster-section">
         <div id="mydinos-guard"><p class="section-intro">Log in with Discord to view your storage.</p></div>
         <div id="mydinos-content" hidden>
+          <div id="active-character-card" style="margin-bottom: 24px;"></div>
           <div class="filter-row" role="group" aria-label="Filter by species">
             <button class="filter active" data-filter="all">All species</button>
             <span class="roster-count" id="mydinos-count">0 in storage</span>
@@ -43,7 +44,7 @@
     <div class="form-row"><input type="number" id="list-price" placeholder="Price in Valley Coin" min="1"></div>
     <div class="form-row"><button class="small-button" id="list-confirm">List on marketplace</button></div>
   </dialog>
-  <script src="assets/common.js?v=8"></script>
-  <script src="assets/mydinos.js"></script>
+  <script src="assets/common.js?v=9"></script>
+  <script src="assets/mydinos.js?v=2"></script>
 </body>
 </html>

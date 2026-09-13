@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Hollow Valley community events from Discord.">
+  <title>Events | Hollow Valley</title>
+  <link rel="stylesheet" href="assets/styles.css?v=13">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main>
+      <section class="page-header">
+        <p class="overline green">COMMUNITY CALENDAR</p>
+        <h1>Hollow Valley events.</h1>
+        <p class="section-intro">Upcoming community events are published from our Discord server.</p>
+      </section>
+      <section class="roster-section">
+        <div class="calendar-header">
+          <button class="small-button" id="calendar-previous" aria-label="Previous month">?</button>
+          <h2 id="calendar-title">Loading calendar?</h2>
+          <button class="small-button" id="calendar-next" aria-label="Next month">?</button>
+        </div>
+        <div class="calendar-weekdays" aria-hidden="true"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>
+        <div class="calendar-grid" id="calendar-grid"></div>
+        <div class="list-heading" style="margin-top:40px"><span>UPCOMING EVENTS</span></div>
+        <div class="event-list" id="event-list"><div class="empty-roster"><strong>Loading events?</strong></div></div>
+      </section>
+    </main>
+    <footer><span>? 2026 Herby Death Squad Games</span><span>ISLE EVRIMA COMMUNITY SERVER</span><a href="/">Back to command ?</a></footer>
+  </div>
+  <script src="assets/common.js?v=9"></script>
+  <script src="assets/events.js?v=1"></script>
+</body>
+</html>

@@ -36,7 +36,7 @@ function renderCatalog() {
         <div class="dino-art ${species.art}"><span>${species.name.toUpperCase()}</span></div>
         <div class="dino-info"><div><small>${(species.role || "").toUpperCase()}</small><h3>${escapeHtml(species.name)}</h3></div></div>
         <div class="dino-meta"><span>${entry.price.toLocaleString()} Valley Coin</span><span>Size ${entry.size_percent}%</span></div>
-        <div class="actions" style="padding:0 15px 15px"><button class="small-button buy-catalog-btn" data-id="${entry.id}">Buy</button></div>
+        <div class="actions" style="padding:0 15px 15px"><button class="small-button buy-catalog-btn" data-id="${entry.id}">Buy (${entry.size_percent}% Size)</button></div>
       </article>`;
     })
     .join("");
@@ -44,12 +44,18 @@ function renderCatalog() {
   grid.querySelectorAll(".buy-catalog-btn").forEach((btn) =>
     btn.addEventListener("click", async () => {
       const me = await window.HDS.loadMe();
-      if (!me.loggedIn) return alert("Log in with Discord to buy a dino.");
+      if (!me.loggedIn) return alert("Log in with Discord or Steam to buy a dino.");
+      const origText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = "Purchasing...";
       try {
         await api(`/api/marketplace/catalog/${btn.dataset.id}/buy`, { method: "POST" });
-        alert("Purchased! Check My Dinos to see it in storage.");
+        alert("Purchased! Your dino (75% Size) has been placed in your 'My Dinos' storage and can be redeemed in-game at any time.");
+        window.location.href = "/mydinos";
       } catch (err) {
-        alert(err.message);
+        alert(err.message || "Failed to purchase dino");
+        btn.disabled = false;
+        btn.textContent = origText;
       }
     })
   );
@@ -68,7 +74,7 @@ async function loadListings() {
         const species = speciesById[listing.species_id] || { name: listing.species_id };
         return `<div class="storage-card">
           <h3>${escapeHtml(listing.nickname || species.name)}</h3>
-          <small>Sold by ${escapeHtml(listing.seller_username)} • Size ${listing.size_percent}%</small>
+          <small>Sold by ${escapeHtml(listing.seller_username)} ? Size ${listing.size_percent}%</small>
           <div class="stat-row"><span>${listing.price.toLocaleString()} Valley Coin</span></div>
           <div class="actions"><button class="small-button buy-listing-btn" data-id="${listing.id}">Buy</button></div>
         </div>`;
@@ -77,13 +83,18 @@ async function loadListings() {
     grid.querySelectorAll(".buy-listing-btn").forEach((btn) =>
       btn.addEventListener("click", async () => {
         const me = await window.HDS.loadMe();
-        if (!me.loggedIn) return alert("Log in with Discord to buy a dino.");
+        if (!me.loggedIn) return alert("Log in with Discord or Steam to buy a dino.");
+        const origText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = "Purchasing...";
         try {
           await api(`/api/marketplace/listings/${btn.dataset.id}/buy`, { method: "POST" });
-          alert("Purchased! Check My Dinos to see it in storage.");
-          await loadListings();
+          alert("Purchased! The dino has been transferred straight to your 'My Dinos' storage and can be redeemed in-game at any time.");
+          window.location.href = "/mydinos";
         } catch (err) {
-          alert(err.message);
+          alert(err.message || "Failed to buy listing");
+          btn.disabled = false;
+          btn.textContent = origText;
         }
       })
     );

@@ -1,0 +1,1183 @@
+#cfg	name_X	Lat
+#cfg	min_X	-607
+#cfg	max_X	509
+#cfg	name_Y	Long
+#cfg	min_Y	-505
+#cfg	max_Y	607
+#cfg	axis_X	H
+#cfg	start_X	0
+#cfg	start_Y	0
+#cfg	scale	2.5
+#cfg	mapname	Gateway_v0.21.7
+#---
+layer	water	water_image
+#---
+dir	Area
+#---
+text	area	Delta	large
+33,177,Delta,
+#---
+text	area	Delta Bay	ocean
+175,298,Delta Bay,
+#---
+text	area	East Coast
+-131,564,East<br>Coast,
+#---
+text	area	Eastern Lake	large
+-157,398,Eastern<br>Jungle,
+#---
+text	area	Forks Plains	small user
+-119,246,Forks<br>Plains,
+#---
+text	area	Highland	large
+-127,-80,Highland,
+#---
+text	area	Central Jungle	large
+-49,71,Central<br>Jungle,
+#---
+text	area	Lagoon	user
+334,-87,Lagoon,
+#---
+text	area	Mudflats	ocean user small
+101,-394,West Bay<br>(Mudflats),
+#---
+text	area	NE Cape	user
+-460,433,NE. Cape,
+#---
+text	area	Northern Beach	user small
+-379,114,Northern Beach,
+#---
+text	area	North Plains	large
+-345,353,North Plains,
+#---
+text	area	Northern Jungle	large
+-321,166,Northern<bR>Jungle,
+#---
+text	area	NW. Ridge
+-248,-153,Ridges,
+#---
+text	area	Port	large
+-308,548,Port<s>(East port)</s>,
+#---
+text	area	Rail Beach	user small
+6,-388,Rail Beach,
+#---
+text	area	Sandbank Bay	ocean small user
+74,399,Sandbank Bay,
+#---
+text	area	Shallows	user small
+270,225,Shallows,
+#---
+text	area	South Plains	large
+250,-302,South Plains,
+#---
+text	area	Southern Beach	small user
+397,130,Southern Beach,
+#---
+text	area	Southern Strait	user small
+238,-211,Southern Strait,
+#---
+text	area	Spiky Isle	user small
+-379,-295,Spiky Isle,
+#---
+text	area	Swamps	large
+273,74,Swamps,
+#---
+text	area	The Pit	large
+329,-394,The Pit,
+#---
+text	area	West Rail	large
+-4,-238,West Rail,
+#---
+text	area	Water Access	large
+-214,87,Water<br>Access,
+#---
+dirEnd	Area
+#---
+dir	Water
+#---
+text	water	Cascades
+-171,175,Cascades,
+#---
+text	water	Coastal Pond	small
+50,330,Coastal<Br>Pond,
+#---
+text	water	Dam Lake
+-267,79,Dam<br>Lake,
+#---
+text	water	Delta
+43,189,Delta,
+#---
+text	water	Delta River
+-88,237,Delta River,
+#---
+text	water	East Lake	large
+-137,460,East<br>Lake,
+#---
+text	water	Forks Pond	small
+-171,246,Forks<br>Pond,
+#---
+text	water	Gorge River
+135,-198,Gorge<br>River,
+#---
+text	water	Highland Lake - north
+-135,-22,Highland Lake<s>(north side)</s>,
+#---
+text	water	Highland Lake - south
+-92,-65,Highland Lake<s>(south side)</s>,
+#---
+text	water	Hollow Falls
+-171,344,Hollow<br>Falls,
+#---
+text	water	Jungle Pond
+-2,82,Jungle Pond,
+#---
+text	water	Landslid Lake
+-80,-226,Landslid Lake,
+#---
+text	water	North Lake
+-374,324,North<br>Lake,
+#---
+text	water	Pit Pond
+281,-332,Pit Pond,
+#---
+text	water	Plains River
+-290,368,Plains<br>River,
+#---
+text	water	Pygmy's puddle (temp)	small
+82,-244,Pygmy's puddle,
+#---
+text	water	Rock Pond
+319,-252,Rock Pond,
+#---
+text	water	Endorheic	small
+199,179,Endorheic,
+#---
+text	water	South Puddle	small
+200,-352,South Puddle,
+#---
+text	water	Swamp East
+254,106,Swamp<br>East,
+#---
+text	water	Swamp West
+276,-30,Swamp<br>West,
+#---
+text	water	Verdant Pond
+-276,156,Verdant<br>Pond,
+#---
+text	water	Volcano Cave	small
+-258,285,Volcano Cave,
+#---
+text	water	Volcano Chamber	small
+-283,256,Volcano<br>Chamber,
+#---
+text	water	West Pond
+20,-277,West Pond,
+#---
+text	water	Shade puddle (temp)	small
+90,-128,Shade puddle,
+#---
+dirEnd	Water
+#---
+dir	Locations
+#---
+dir	Landmarks
+#---
+text	land	Central Dome (Hexagon)	large
+104,-43,Central Dome<s>(Hexagon)</s>,
+#---
+text	land	:Central Dome:comment	cR small dev
+120,-41,[Now can't enter here],
+#---
+text	land	Dam
+-286,72,Dam,
+#---
+text	land	Estuary Weir
+141,240,Estuary<br>Weir,
+#---
+text	land	Highland Bridge	small
+-211,9,Highland<br>Bridge,
+#---
+text	land	Log Bridge	small
+-221,360,Log Bridge,-222,358
+#---
+text	land	Mad Grotto
+-45,213,Mad<br>Grotto,
+#---
+text	land	Pipes
+191,47,Pipes,
+#---
+text	land	Pit's Antenna	small
+313,-431,Pit's Antenna,
+#---
+text	land	Radio Tower	small
+-221,543,Radio Tower,
+#---
+text	land	Volcano (Extinct)	mt
+-268,250,<s>Extinct</s>Volcano,
+#---
+dirEnd	Landmarks
+#---
+dir	Site (Human Base)
+#---
+text	land	Site C14 - Derelict Base
+-429,201,<l>Site C14</l>(Derelict Base),
+#---
+text	land	Site E12 - Dam lab
+-309,92,<l>Site E12</l>(Dam Lab),
+#---
+text	land	Site E15 - Volcano Notrh
+-333,246,<l>Site E15</l>(Volc.Notrh),
+#---
+text	land	Site F11 - Lakeport
+-239,37,<l>Site F11</l>(Lake-port),
+#---
+text	land	Site F16 - Volcano East
+-255,329,<l>Site F16</l>(Volc.East),
+#---
+text	land	Site F19 - Port
+-263,501,<l>Site F19</l>(Port),
+#---
+text	land	Site G15 - Volcano South
+-222,269,<l>Site G15</l>(Volc.South),
+#---
+text	land	Site G20 - Radio Base
+-204,538,<l>Site G20</l>(Radio Base),
+#---
+text	land	Storage G19	small
+-200,483,Storage<br>G19,
+#---
+text	land	Site I12 - RS
+-109,81,<l>Site I12</l>(RS),
+#---
+text	land	Site I19 - Water Treatment
+-83,488,<l>Site I19</l>(Water Treatment),
+#---
+text	land	Site J17
+-26,362,Site J17,
+#---
+text	land	Site K15 - Delta side
+26,245,<l>Site K15</l>(Delta side),
+#---
+text	land	Site L11 - Hex's Entrance
+87,30,<l>Site L11</l>(Entrance),
+#---
+text	land	Site P04 - ThePit
+293,-374,<l>Site P04</l>(the Pit),
+#---
+dirEnd	Site (Human Base)
+#---
+dir	Tunnel
+#---
+path	cave	TN.E15 - Volc N	B1 bold
+-325.9,242.1,M,exit
+-323.9,246,
+-324.6,241.5,M,exit
+-322.8,245.5,
+-325,248.2,M,
+-327,249.1,
+-326.5,250.3,M
+-324.5,249.4,
+#---
+path	cave	:TN.E15	B1 fill
+-322.1,245.2,M,
+-324.6,246.3,
+-324.4,247,
+-325.1,247.6,
+-324,249.9,
+-322,249.3,
+-322.3,249.6,
+-322.1,250.2,
+-321.6,250,
+-321.2,250.1,
+-320.3,252,
+-319.9,251.8,
+-320.1,251.2,
+-319.8,251,
+-320,250.2,
+-320.4,250.3,
+-320.6,250,
+-320.9,249,
+-321.4,249.1,
+-320.4,248.7,
+-321.6,245.7,
+-322.1,245.2,
+#---
+path	cave	TN.F14 - Volc W	B1 bold
+-245,196.5,M,exit
+-247,198.7,
+#---
+path	cave	TN.F16 - Volc E	B1 bold
+-253,339.7,M,exit
+-256.9,337.8,
+-252.7,338.4,M,exit
+-256.4,336.6,
+#---
+path	cave	:Site F16:in	B1 fill
+-259.9,335,M
+-260.5,334.7,
+-260.7,335.1,
+-261,335.2,
+-261.3,335.8,
+-260.5,336.2,
+-260.3,335.8,
+-260.7,337,
+-257.6,338.3,
+-257,338,
+-256.4,336.5,
+-256.8,335.8,
+-256.4,334.9,
+-259.2,333.7,
+-259.9,335,
+#---
+path	cave	TN.F19 - Port SE	B1 bold
+-250.3,516.6,M,exit
+-246.6,515.8,
+-250.6,514.3,M,exit
+-247,513.5,
+-246.8,512.8,M,fill
+-244.4,512.4,
+-242.8,520.5,
+-245.3,520.9,
+-246.8,512.8,
+#---
+path	cave	TN.G15 - Volc S	B1 bold
+-224.3,285.5,M,exit
+-227.5,285.4,
+#---
+path	cave	TN.F19 - Port SW	B1 bold
+-252.8,489,M,exit
+-246,491.6,
+-252,487,M,exit
+-245.6,489.4,
+#---
+path	cave	TN.G18 - Port hill	B1 bold
+-218.6,458,M,exit
+-219.5,463,
+-217,458.4,M,exit
+-218,462,
+-219,459.5,M
+-217.5,460,
+#---
+text	land	TN.F20 - Port Tunnel	small
+-233,535,Port<br>Tunnel,
+#---
+path	cave	:TN.F20	B1 bold
+-211,533,M,exit
+-214,535,Q
+-221,533,
+-234,528,
+-240,537,
+-244,541,
+-248,542,,exit
+-233,532,M,fill
+-233.3,530,
+-229.3,529.5,
+-229,531.5,
+-233,532,
+#---
+path	cave	TN.H19 - East Lake	B1 bold
+-147,471,M,exit
+-141,471,
+#---
+path	cave	TN.I06 - Lansllake	B1 bold
+-68,-253,M,exit
+-66.9,-250,
+#---
+path	cave	TN.K07 - West Rail 1	B1 bold
+8.7,-214.5,M,exit
+7.2,-213.1,
+#---
+path	cave	TN.K08 - West Rail 2	B1 bold
+10,-165.9,M,exit
+12,-164.2,
+#---
+path	cave	TN.K08.g1 - Gorge hill	B1 bold
+54.2,-164,M,exit
+52.2,-162.6,
+#---
+path	cave	TN.K08.g2 - Gorge Riv	B1 bold
+45.2,-117.8,M,exit
+43,-116.4,
+#---
+path	cave	TN.K16 - Delta Jungle	B1 bold
+9,335,M,exit
+10,332,
+#---
+path	cave	TN.M09 - Swamp NW	B1 bold
+213,-66,M,exit
+207,-70,
+#---
+text	land	TN.M13 - Swamp Tunnel
+136,123,Swamp<br>Tunnel,
+#---
+path	cave	:TN.M13	B1 bold
+121,120,M,exit
+136,115,Q
+155,121,,exit
+121,119,M
+136,114,Q
+155,120,
+#---
+dirEnd	Tunnel
+#---
+dir	Fence
+#---
+dir	Delta East
+#---
+text	land	Gate J16	small
+-37,297,<s>gate<br>J16</s>,
+#---
+text	land	Gate K15	small
+4,275,<s>gate<br>K15</s>,
+#---
+text	land	Gate L15	small
+63,270,<s>gate<br>L15</s>,
+#---
+dirEnd	Delta East
+#---
+dir	Delta West
+#---
+text	land	Gate L12	small
+69,65,<s>gate<br>L12</s>,
+#---
+text	land	Gate K12	small
+24,80,<s>gate<br>K12</s>,
+#---
+dirEnd	Delta West Jungle
+#---
+dir	East Plains
+#---
+text	land	Collapsed point F17	small
+-246,386,<s>broken<br>F17</s>,
+#---
+text	land	Gate G17	small
+-210,402,<s>gate<br>G17</s>,
+#---
+text	land	Collapsed point G18	small
+-195,450,<s>broken<br>G18</s>,
+#---
+text	land	Collapsed point G19	small
+-199,508,<s>broken<br>G19</s>,
+#---
+text	land	Gate H19	small
+-160,505,<s>gate<br>H19</s>,
+#---
+text	land	Gate I18	small
+-82,439,<s>gate<br>I18</s>,
+#---
+dirEnd	East Plains
+#---
+dir	Hallow Falls
+#---
+text	land	Gate H16	small
+-164,305,<s>gate<br>H16</s>,
+#---
+dirEnd	Hallow Falls
+#---
+dir	North Plains
+#---
+text	land	Gate D14	small
+-381,216,<s>gate<br>D14</s>,
+#---
+text	land	Gate C14	small
+-426,230,<s>gate<br>C14</s>,
+#---
+text	land	Gate C15	small
+-451,263,<s>gate<br>C15</s>,
+#---
+text	land	Collapsed point C16	small
+-419,320,<s>broken<br>C16</s>,
+#---
+text	land	Gate C17	small
+-412,355,<s>gate<br>C17</s>,
+#---
+text	land	Collapsed point D17	small
+-399,399,<s>broken<br>D17</s>,
+#---
+text	land	Gate D18	small
+-373,412,<s>gate<br>D18</s>,
+#---
+text	land	Collapsed point E17	small
+-316,395,<s>broken<br>E17</s>,
+#---
+text	land	Gate F17	small
+-262,397,<s>gate<br>F17</s>,
+#---
+dirEnd	North Plains
+#---
+dirEnd	Fence
+#---
+dirEnd	Locations
+#---
+dir	Cave
+#---
+path	cave	:Port Swere:B3	B3
+-280.8,492.7,M,exit
+-285,493.9,
+-285.5,494.3,
+-288.1,494.7,
+-288.5,494.5,
+-288.5,494.5,
+-290.6,494.9,
+-289.2,494.6,M
+-289.4,493.2,
+-289.4,493.5,M
+-290.1,493.6,
+-290.5,494,
+-291.1,494.1,
+-291,494.5,M
+-291.4,492.4,
+-291.3,492.9,M
+-292,493,
+-292.4,493.4,
+-293,493.5,
+-293,493.7,M
+-293.5,491.7,
+-293.9,491.3,
+-294.1,490.7,
+-293.5,490.5,M
+-296.9,491.1,
+-297.3,491.5,
+-298.7,491.7,
+-299,492.1,
+-299.8,492.3,
+-300.1,492.6,
+-301,492.8,
+-297.9,491.6,M
+-297.8,492.4,
+-298,492.8,
+-297.8,494,
+-300.8,492.8,M
+-300.6,494.2,
+-300.6,493.9,M
+-298,493.5,
+-299.4,493.7,M
+-299.3,494.4,
+-299.5,494.8,
+-299.2,496.7,
+-301.6,496.8,M,exit
+-300.3,496.6,
+-299.9,496.9,
+-297.3,496.4,
+-297,496,
+-293.7,495.4,
+-295,495.7,M
+-294.4,499.1,
+-294.8,499.2,M
+-292.6,498.8,
+-292.2,499.1,
+-289.6,498.7,
+-289.3,498.3,
+-287.5,498,,up
+-288.6,498.2,M
+-288.8,496.8,
+-288.8,497,M
+-290.2,497.3,
+-290,497.2,M
+-290.4,494.9,
+#---
+path	cave	:Port Swere:B2	B2
+-293.3,492.3,M,dw,穴
+-287.3,498,M,dw
+-280.9,496.9,
+-280.9,496.6,M
+-280.5,499,,up
+-280.7,498,M
+-279.5,497.8,
+-279.5,497.5,M
+-279.3,498.7,,up
+#---
+path	cave	Port Swere:B1	B1
+-293.3,492.3,M,dw,穴
+-280.5,499.2,M,dw,車路側北
+-280.3,500.2,
+-279.2,499.6,M
+-280.3,499.8,
+-279.3,499,M,dw,車路側南
+-278.8,501.5,,exit,道
+#---
+path	cave	:Port Swere:B0	B0
+-293.3,492.3,M,dw,穴
+#---
+path	cave	:Port Swere:2	B1
+-283.5,485.6,M,exit
+-282,487.3,
+-282.2,487.2,M
+-282.6,487.4,
+-282.7,487.8,
+-281.2,489.7,
+-280.8,489.8,
+-280.3,489.5,
+-281.1,488.4,M
+-279,491,,exit
+#---
+path	cave	Verdant Pool	bold B1
+-258,163,M,exit
+-249,168,,exit
+#---
+path	cave	Volcano	B1 bold
+-279.8,283,M,exit
+-279.2,276,
+-278,268,R=8.5
+#---
+path	cave	:Volcano:side	B1
+-253,290,M,exit
+-257.4,295.3,
+-257.7,297.2,
+-259,297.1,
+-259.8,286.6,
+-263.8,287.5,
+-265.9,285.5,
+-265.9,285.5,
+-265.2,283.4,
+-262.2,284.1,
+-259.6,283.5,
+-258.3,282,
+-259.6,281,
+-262.2,280.9,
+-265.2,283.4,R=1
+-258.3,282,M
+-257.6,280.8,
+-260.5,272.2,M
+-259.4,276.3,
+-261.5,278,M
+-262.8,277.4,
+-264,277.8,
+-264,278.5,
+-264,280.4,R=1.7/1.6
+-261.8,268,R=2.7/2/20
+-258.4,271.5,R=1.5/3.5/-10
+-254.6,274.2,R=2.4/1.6
+-256,278,R=1.8/3.3/55
+-269.4,268,M
+-263.5,267.9,
+#---
+path	cave	:Volcano:water	B1 uw
+-285.5,265,R=1.5/2/70
+-283,261,R=1.6/4/45
+-280,259.8,R=1.6/3
+#---
+path	cave	:Volcano cave:water	B1 uw
+-259.2,278,R=1.5/2.2/20
+-260.5,289.8,R=1/0.8
+#---
+dirEnd	Cave
+#---
+dir	Mud
+#---
+circle	extra	Central Jungle:mud	mud
+56,104,1.5,1,0,
+#---
+circle	extra	Dam Lake:mud	mud
+-248,81,1,1,0,
+#---
+circle	extra	East Lake:mud	mud
+-142,434,3,2,45,
+#---
+circle	extra	Gorge Riv (N):mud	mud
+56,-144,1,1,0,
+#---
+circle	extra	Gorge Riv (S):mud	mud
+193,-173,2,2,45,
+#---
+line	extra	Highland:mud	mud
+-170,-95,
+-169,-93,
+-172,-93,
+-170,-90,
+-167,-93,
+-166,-93,
+-165,-94,
+-165,-99,
+-166,-101,
+-167,-96,
+-168,-98,
+-170,-95,
+#---
+circle	extra	Mud Grotto:mud	mud
+-50.5,219.5,2,2,0,
+#---
+circle	extra	North Jungle:mud	mud
+-389,207,1,1,0,
+#---
+circle	extra	North Plains:mud	mud
+-369,367,1,1,0,
+#---
+circle	extra	Pipes:mud	mud
+180,38,1,1,0,
+#---
+circle	extra	Pipes west	mud
+187,23,2,1,-35,
+#---
+path	extra	Port:mud	mud
+-276,503,R=1
+-271.5,504,R=2.5/1.5/10
+#---
+path	extra	Site I21 - WaterTreat:mud	mud
+-97.5,484.5,M,
+-97,486,
+-98,488.5,
+-95,489.5,
+-93.5,486,
+-95,483.5,
+-97.5,484.5,
+-98.5,490,M
+-102,499,
+-99,500,
+-95.5,491,
+-98.5,490,
+#---
+path	extra	Swamp NE:mud	mud
+165,176,R=2.5/2/10
+165,164,R=1
+#---
+circle	extra	West Pond:mud	mud
+9,-294.5,1.5,1,0,
+#---
+dirEnd	Mud
+#---
+dir	Migration
+#---
+path	extra	Delta (MMZ):mz	mz mmz
+-77,185,M,
+-97,220,
+-108,256,
+-101,264,
+-93,265,
+-85,261,
+-63,227,
+-32,192,
+-17,190,
+6,203,
+42,250,
+58,259,
+75,255,
+116,255,
+126,244,
+133,230,
+129,216,
+99,213,
+89,200,
+83,175,
+68,149,
+50,134,
+6,121,
+-24,120,
+-77,185,
+#---
+line	extra	East Jungle:mz	mz
+-97,252,,60,-5,
+-97,326,
+69,326,
+69,252,
+-97,252,
+#---
+line	extra	Highland (MMZ):mz	mz mmz
+-233,0,M
+-230,25,
+-125,50,
+-69,25,
+-100,-19,
+-51,-103,
+14,-60,
+-11,-147,
+-89,-130,
+-124,-142,
+-172,-140,
+-225,-91,
+-236,-58,
+-182,-49,
+-165,-35,
+-181,13,
+-191,14,
+-214,1,
+-233,0,
+#---
+circle	extra	Mudflats:mz	mz
+154,-290,65,70,5,
+#---
+line	extra	NE Cape:mz	mz
+-552,367,M
+-552,516,
+-383,516,
+-383,367,
+-552,367,
+#---
+circle	extra	North Lake (MMZ):mz	mz mmz
+-358,354,89,85,-35,
+#---
+line	extra	Northern Jungle:mz	mz
+-393,175,,65,13,
+-336,297,
+-182,226,
+-240,102,
+-393,175,
+#---
+line	extra	South Plains (MMZ):mz	mz mmz
+200,-370,
+187,-346,
+185,-320,
+207,-307,
+230,-298,
+242,-276,
+236,-251,
+252,-231,
+296,-215,
+350,-203,
+364,-219,
+304,-316,
+270,-344,
+226,-370,
+200,-370,
+#---
+line	extra	Lagoon	mz mmz
+395,-181,
+391,-200,
+381,-211,
+338,-185,
+332,-177,
+307,-177,
+301,-171,
+301,-156,
+296,-150,
+296,-128,
+291,-101,,N
+326,-26,
+348,-4,
+400,11,
+420,9,
+405,-10,
+385,-22,
+381,-38,
+360,-111,
+380,-149,
+395,-181,
+#---
+line	extra	Swamp:mz	mz
+227,-30,
+227,140,
+361,140,
+361,-30,
+227,-30,
+#---
+circle	extra	Tide Beach:mz	mz
+-40,450,60,60,0,
+#---
+circle	extra	West Rail Access:mz	mz
+31,-227,85,85,19,
+#---
+dirEnd	Migration
+#---
+dir	PatrolZone
+#---
+path	extra	Center Jungle:pz	pz
+-104,46,M,
+-104,69,
+-54,69,
+-54,47,
+-104,46,
+#---
+path	extra	Delta:pz	pz
+-44,174,R=14/25/46
+79,206,R=15
+-5,163,M
+-6,185,
+32,188,
+33,166,
+-5,163,
+21,186,M
+7,196,
+42,251,
+56,242,
+21,186,
+-21,121,M,#5
+-22,140,
+30,143,
+31,124,
+-21,121,
+#---
+path	extra	Delta River:pz	pz
+-128,301,M
+-110,318,
+-86,290,
+-104,273,
+-128,301,
+#---
+path	extra	East Coast:pz	pz
+-162,540,R=28
+-90,503,R=25/28
+#---
+path	extra	Fork Plains:pz	pz
+-201,256,M
+-201,298,
+-161,298,
+-161,256,
+-201,256,
+-119,191,M
+-119,222,
+-70,223,
+-66,214,
+-64,193,
+-119,191,
+#---
+path	extra	Highlands:pz	pz
+-163,-7,R=15
+-182,-53,M
+-162,-36,
+-149,-51,
+-170,-69,
+-182,-53,
+-143,-112,R=13
+-52,-132,R=13
+#---
+circle	extra	Mudflats:pz	pz
+146,-295,15,15,0,
+#---
+path	extra	NE Cape:pz	pz
+-515,436,M
+-508,463,
+-414,438,
+-424,410,
+-515,436,
+#---
+path	extra	NE Cape-2:pz	pz question
+-475,418,R=20
+-432,457,R=22
+#---
+path	extra	North Plains:pz	pz
+-458,291,R=12
+-344,344,R=12
+-314,363,R=12
+-430,237,M
+-430,279,
+-398,280,
+-394,274,
+-394,237,
+-430,237,
+#---
+path	extra	Northern Jungle:pz	pz
+-349,106,M
+-349,147,
+-311,147,
+-311,106,
+-349,106,
+-304,108,M
+-304,149,
+-264,149,
+-264,108,
+-304,108,
+#---
+path	extra	Pits:pz	pz
+182,-367,R=20
+213,-348,R=16
+235,-316,R=16
+254,-261,R=21
+288,-279,R=16
+284,-225,R=21
+349,-250,R=16
+406,-239,R=23
+348,-289,R=18/14
+372,-365,R=23
+320,-443,R=23
+#---
+circle	extra	Port hill:pz	pz
+-304,440,11,11,0,
+#---
+circle	extra	Radio Tower:pz	pz
+-207,530,16,16,0,
+#---
+path	extra	Sandbank Bay:pz	pz
+-18,378,M
+-2,434,
+15,430,
+0,374,
+-18,378,
+-20,332,M
+-23,351,
+36,360,
+39,341,
+-20,332,
+30,337,M
+42,354,
+95,319,
+82,302,
+30,337,
+#---
+path	extra	South Plains:pz	pz
+153,-252,R=20
+267,-195,R=21
+#---
+path	extra	Southern Beach:pz	pz
+310,-95,R=23
+334,3,M
+369,40,
+392,16,
+357,-21,
+334,3,
+345,-63,M
+403,12,
+429,-10,
+369,-84,
+345,-63,
+#---
+path	extra	Swamps:pz	pz
+189,125,M
+189,161,
+241,161,
+241,124,
+189,124,
+208,40,M
+208,74,
+261,74,
+261,40,
+208,40,
+211,-46,M
+240,-1,
+270,-20,
+241,-66,
+211,-46,
+#---
+path	extra	Swamps-q:pz	pz
+304,10,R=21
+322,54,R=16
+293,114,R=29
+247,6,R=25
+234,31,R=16
+234,143,R=16
+#---
+path	extra	West Rail:pz	pz
+25,-323,R=20
+-12,-287,R=20
+26,-248,R=16
+6,-226,R=17
+-65,-385,M
+-65,-345,
+15,-345,
+15,-385,
+-65,-385,
+#---
+dirEnd	PatrolZone
+#---
+dir	Sanctuary
+#---
+circle	extra	Delta side:sanc	sanc
+-18,228,11,11,0,
+#---
+circle	extra	EastLake:sanc	sanc
+-173,436,8,11,-9,
+#---
+path	extra	Highland:sanc	sanc
+-67,-164,R=15/6/-10,8,0,
+-45,-172,R=10/6/-20
+#---
+circle	extra	Mudflats:sanc	sanc
+171,-329,10,8,0,
+#---
+circle	extra	South Plains:sanc	sanc
+229,-176,7,10,-20,
+#---
+circle	extra	Swamp:sanc	sanc
+282,28,10,8,16,
+#---
+circle	extra	Verdant Forest:sanc	sanc
+-241,171,8,8,0,
+#---
+dirEnd	Sanctuary
+#---
+dir	_AirCurrent_
+#---
+path	sky	Cascades	FL1 bold
+-171,217,M,up,7:30-20:00
+-196,124,M,up,9:30-20:00
+-252,106,M
+-195,173,C
+-184,168,
+-153,168,
+-167,181,M
+-153,168,
+-167,154,
+#---
+path	sky	EastCoast	FL1
+-36,513,M,up,6:00-19:30
+-157,558,M,up,6:00-19:30
+-211,582,M,up,6:00-19:30
+-241,558,M,up,6:00-19:30
+#---
+path	sky	East Plains	FL1
+-102,384,M,up,7:30-20:00
+#---
+path	sky	Delta	FL1
+-1,156,M,up,7:00-20:00
+101,199,M,up,7:00-20:00
+45,291,M,up,7:00-20:00
+#---
+path	sky	Delta River	FL1 bold
+-79,222,M
+-97,240,Q
+-100,280,
+-110,264.5,M
+-100,280,
+-86,269,
+#---
+path	sky	South Plains	FL1 bold
+58,-108,M,
+45,-158,Q
+120,-184,
+104,-190,M
+120,-184,
+112,-167,
+163,-201,M
+185,-185,Q
+224,-193,
+212,-202,M
+224,-193,
+215,-180,
+263,-182,M
+291,-82,
+274,-92,M
+291,-82,
+300,-98,
+116,-135,M,up,9:30-20:00
+240,-131,M,up,9:30-20:00
+#---
+path	sky	North Plains	FL1
+-376,176,M,up,9:30-20:00
+-382,225,M,up,9:30-20:00
+#---
+path	sky	Ridge	FL1
+-142,-200,M,up,8:00-21:00
+-213,-203,M,up,8:00-21:00
+-309,-198,M,up,8:00-21:00
+#---
+path	sky	Southern Beach	FL1
+424,31,M,up,7:00-20:00
+#---
+path	sky	Volcano	FL1
+-277,268,M,up,(always)
+#---
+path	sky	Highlands	FL1 bold
+-79,-129,M,to Ridge
+-148,-164,Q
+-189,-203,
+-168,-203,M
+-189,-203,
+-187.5,-182,
+-74,-91,M,Center
+-87,-57,Q
+-110,-32,
+-111,-49,M
+-110,-32,
+-94,-34,
+-173,19,M,to Dam
+-213,48,Q
+-275,72,
+-268,55,M
+-275,72,
+-258,79,
+-277,33,M,up,7:30-20:00
+#---
+path	sky	West Coast	FL1
+34,-391,M,up,12:00-22:00
+#---
+dirEnd	_AirCurrent_

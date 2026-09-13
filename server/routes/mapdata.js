@@ -1,164 +1,272 @@
 // Static Gateway map layers (salt licks, sanctuaries, migration and patrol
-// zones, named locations). The community dataset is Vulnona's Gateway v0.21
-// POI export converted to Unreal centimetres, which is exactly the coordinate
-// space our own RCON positions use - so everything is projected here with the
-// same project() the live player markers go through.
+// zones, named locations, water, wallows, caves).
 //
-// The upstream file is ~650KB of data we mostly don't need, so it's fetched
-// server-side, normalised down to projected percentages and cached. The browser
-// only ever sees the small result, and never has to make a cross-origin call.
+// The community dataset is parsed directly from Vulnona's official Gateway
+// cartography definitions (data_1.txt and data_2.txt). Vulnona encodes zones
+// with multi-polygon sequences (M commands) and individual ellipse nodes
+// (R=radius/rot commands), which produce the exact 60 patrol zone areas,
+// 12 migration corridors, and 8 sanctuaries matching the in-game map.
 const express = require("express");
-const { project, BOUNDS } = require("../evrimaMap");
+const fs = require("fs");
+const path = require("path");
+const { BOUNDS } = require("../evrimaMap");
 
 const router = express.Router();
 
-const SOURCE_URL =
-  process.env.MAP_DATA_URL ||
-  "https://raw.githubusercontent.com/aguirretim/isle-overlay/main/web/pois.json";
+const VULNONA_DATA1_URL =
+  process.env.VULNONA_DATA1_URL ||
+  "https://vulnona.com/game/map/map/Gateway_v0.21.7/data_1.txt";
+
+const VULNONA_DATA2_URL =
+  process.env.VULNONA_DATA2_URL ||
+  "https://vulnona.com/game/map/map/Gateway_v0.21.7/data_2.txt";
+
+const LOCAL_DATA1_PATH = path.join(__dirname, "../data/vulnona_data_1.txt");
+const LOCAL_DATA2_PATH = path.join(__dirname, "../data/vulnona_data_2.txt");
 
 const CACHE_MS = 6 * 60 * 60 * 1000;
-const REQUEST_TIMEOUT_MS = 20_000;
+const REQUEST_TIMEOUT_MS = 15_000;
 
-const WIDTH_UNITS = BOUNDS.maxY - BOUNDS.minY;
-const HEIGHT_UNITS = BOUNDS.maxX - BOUNDS.minX;
-
-// Vulnona stores radii in "simple code" units, i.e. world centimetres / 1000.
-const RADIUS_SCALE = 1000;
+const WIDTH_UNITS = BOUNDS.maxY - BOUNDS.minY;   // 1,112,000
+const HEIGHT_UNITS = BOUNDS.maxX - BOUNDS.minX;  // 1,116,000
 
 let cache = null;
 let cachedAt = 0;
 let inflight = null;
 
-function toPoint(entry) {
-  const position = project(Number(entry.x), Number(entry.y));
-  if (!position) return null;
-  return { name: String(entry.name || "Unnamed"), left: position.left, top: position.top };
+function projectLatLong(lat, long) {
+  const left = (long * 1000 - BOUNDS.minY) / WIDTH_UNITS;
+  const top = (lat * 1000 - BOUNDS.minX) / HEIGHT_UNITS;
+  const clamp = (n) => Math.min(1, Math.max(0, n));
+  return { left: clamp(left), top: clamp(top) };
 }
 
-function toPoints(list) {
-  return (Array.isArray(list) ? list : []).map(toPoint).filter(Boolean);
-}
+function parseVulnonaFile(text) {
+  const lines = text.split(/\r?\n/);
+  const sections = {};
+  let currentDir = "";
+  let currentItem = null;
+  let currentCoords = [];
 
-function projectPolyline(polyline) {
-  return (Array.isArray(polyline) ? polyline : [])
-    .map(([x, y]) => project(Number(x), Number(y)))
-    .filter(Boolean)
-    .map((p) => [p.left, p.top]);
-}
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const parts = trimmed.split("\t");
 
-/**
- * Zones come in three upstream flavours and all three need to render as filled
- * areas rather than outlines:
- *
- *   kind "circle" - centre plus rx/ry radii and a rotation, i.e. an ellipse.
- *   kind "line"   - already a closed 5-point rectangle ring.
- *   kind "path"   - a polygon ring, except when it has exactly two points, in
- *                   which case Vulnona is describing the opposite corners of a
- *                   rectangle rather than a line segment.
- *
- * The first version of this route only handled polylines, so every
- * circle-shaped zone (6 of the 10 migration zones and 4 patrol zones) silently
- * rendered as nothing at all.
- */
-function toZone(entry) {
-  const anchor = toPoint(entry);
-  if (!anchor) return null;
-
-  const radii = entry.radii || {};
-  let rx = Number(radii.rx);
-  let ry = Number(radii.ry);
-  let rot = Number.isFinite(Number(radii.rot)) ? Number(radii.rot) : 0;
-
-  if (!Number.isFinite(rx) && Number.isFinite(Number(entry.radius))) {
-    rx = Number(entry.radius);
-    ry = Number(entry.radius);
+    if (parts[0] === "dir") {
+      currentDir = parts[1] || "";
+    } else if (parts[0] === "dirEnd") {
+      if (currentItem && currentDir) {
+        (sections[currentDir] = sections[currentDir] || []).push({ item: currentItem, coords: currentCoords });
+      }
+      currentItem = null;
+      currentCoords = [];
+      currentDir = "";
+    } else if (!trimmed.startsWith("-") && !/^\d/.test(trimmed) && parts.length >= 2) {
+      if (currentItem && currentDir) {
+        (sections[currentDir] = sections[currentDir] || []).push({ item: currentItem, coords: currentCoords });
+      }
+      currentItem = parts;
+      currentCoords = [];
+    } else {
+      currentCoords.push(trimmed);
+    }
   }
 
-  if (Number.isFinite(rx) && Number.isFinite(ry)) {
-    return {
-      ...anchor,
-      shape: "ellipse",
-      rx: (rx * RADIUS_SCALE) / WIDTH_UNITS,
-      ry: (ry * RADIUS_SCALE) / HEIGHT_UNITS,
-      rotation: rot,
-    };
+  if (currentItem && currentDir) {
+    (sections[currentDir] = sections[currentDir] || []).push({ item: currentItem, coords: currentCoords });
   }
 
-  const points = projectPolyline(entry.polyline);
+  return sections;
+}
 
-  if (points.length === 2) {
-    const [[l1, t1], [l2, t2]] = points;
-    return {
-      ...anchor,
-      shape: "polygon",
-      points: [
-        [l1, t1],
-        [l2, t1],
-        [l2, t2],
-        [l1, t2],
-      ],
-    };
+function parsePoints(items) {
+  const pts = [];
+  for (const { item, coords } of items || []) {
+    const rawName = item[2] || item[1] || "Location";
+    const cleanName = rawName.split(":")[0].replace(/<s>.*?<\/s>/gi, "").replace(/<br\s*\/?>/gi, " ").trim();
+    for (const c of coords) {
+      const parts = c.split(",").map((s) => s.trim()).filter(Boolean);
+      if (parts.length >= 2 && !isNaN(parseFloat(parts[0])) && !isNaN(parseFloat(parts[1]))) {
+        const lat = parseFloat(parts[0]);
+        const long = parseFloat(parts[1]);
+        const pos = projectLatLong(lat, long);
+        pts.push({ name: cleanName, left: pos.left, top: pos.top });
+        break;
+      }
+    }
   }
+  return pts;
+}
 
-  if (points.length >= 3) {
-    return { ...anchor, shape: "polygon", points };
+function parsePaths(items) {
+  const paths = [];
+  for (const { item, coords } of items || []) {
+    const rawName = item[2] || item[1] || "Path";
+    const cleanName = rawName.split(":")[0].replace(/<s>.*?<\/s>/gi, "").replace(/<br\s*\/?>/gi, " ").trim();
+    const points = [];
+    for (const c of coords) {
+      const parts = c.split(",").map((s) => s.trim()).filter(Boolean);
+      if (parts.length >= 2 && !isNaN(parseFloat(parts[0])) && !isNaN(parseFloat(parts[1]))) {
+        const lat = parseFloat(parts[0]);
+        const long = parseFloat(parts[1]);
+        const pos = projectLatLong(lat, long);
+        points.push([pos.left, pos.top]);
+      }
+    }
+    if (points.length >= 2) {
+      paths.push({ name: cleanName, points });
+    }
   }
-
-  return null;
+  return paths;
 }
 
-function toZones(list) {
-  return (Array.isArray(list) ? list : []).map(toZone).filter(Boolean);
+function parseZones(items) {
+  const shapes = [];
+  for (const { item, coords } of items || []) {
+    const kind = item[0];
+    const rawName = item[2] || item[1] || "Zone";
+    const cleanName = rawName.split(":")[0].replace(/<s>.*?<\/s>/gi, "").replace(/<br\s*\/?>/gi, " ").trim();
+
+    if (kind === "circle") {
+      for (const c of coords) {
+        const nums = c.split(/[,/]/).map((s) => s.trim()).filter(Boolean);
+        if (nums.length >= 2) {
+          const lat = parseFloat(nums[0]);
+          const long = parseFloat(nums[1]);
+          const rx = parseFloat(nums[2]) || 15;
+          const ry = parseFloat(nums[3]) || rx;
+          const rot = parseFloat(nums[4]) || 0;
+          const pos = projectLatLong(lat, long);
+          shapes.push({
+            name: cleanName,
+            shape: "ellipse",
+            left: pos.left,
+            top: pos.top,
+            rx: (rx * 1000) / WIDTH_UNITS,
+            ry: (ry * 1000) / HEIGHT_UNITS,
+            rotation: rot,
+          });
+        }
+      }
+      continue;
+    }
+
+    let currentPoly = [];
+    for (const c of coords) {
+      const rMatch = c.match(/R=([\d\.]+)(?:\/([\d\.]+))?(?:\/(-?[\d\.]+))?/);
+      if (rMatch) {
+        if (currentPoly.length >= 3) {
+          shapes.push({ name: cleanName, shape: "polygon", points: currentPoly });
+        }
+        currentPoly = [];
+
+        const parts = c.split(",").map((s) => s.trim()).filter(Boolean);
+        const lat = parseFloat(parts[0]);
+        const long = parseFloat(parts[1]);
+        const rx = parseFloat(rMatch[1]) || 15;
+        const ry = parseFloat(rMatch[2]) || rx;
+        const rot = parseFloat(rMatch[3]) || 0;
+        const pos = projectLatLong(lat, long);
+        shapes.push({
+          name: cleanName,
+          shape: "ellipse",
+          left: pos.left,
+          top: pos.top,
+          rx: (rx * 1000) / WIDTH_UNITS,
+          ry: (ry * 1000) / HEIGHT_UNITS,
+          rotation: rot,
+        });
+      } else {
+        const parts = c.split(",").map((s) => s.trim()).filter(Boolean);
+        if (parts.length >= 2 && !isNaN(parseFloat(parts[0])) && !isNaN(parseFloat(parts[1]))) {
+          if (parts.includes("M") && currentPoly.length >= 3) {
+            shapes.push({ name: cleanName, shape: "polygon", points: currentPoly });
+            currentPoly = [];
+          }
+          const lat = parseFloat(parts[0]);
+          const long = parseFloat(parts[1]);
+          const pos = projectLatLong(lat, long);
+          currentPoly.push([pos.left, pos.top]);
+        }
+      }
+    }
+
+    if (currentPoly.length >= 3) {
+      shapes.push({ name: cleanName, shape: "polygon", points: currentPoly });
+    }
+  }
+  return shapes;
 }
 
-// Caves stay as open outlines - they trace passages, not areas to shade in.
-function toPaths(list) {
-  return (Array.isArray(list) ? list : [])
-    .map((entry) => {
-      const anchor = toPoint(entry);
-      if (!anchor) return null;
-      const points = projectPolyline(entry.polyline);
-      if (points.length < 2) return null;
-      return { ...anchor, points };
-    })
-    .filter(Boolean);
-}
-
-function normalise(raw) {
-  const meta = raw && raw._meta ? raw._meta : {};
+function buildPayload(sec1, sec2) {
   return {
-    mapVersion: meta.map_version || "Gateway",
-    fetchedAt: meta.fetched_utc || null,
+    mapVersion: "Gateway_v0.21.7",
+    fetchedAt: new Date().toISOString(),
     layers: {
-      areas: toPoints(raw.areas),
-      landmarks: toPoints(raw.landmarks),
-      saltLicks: toPoints(raw.salt_licks),
-      water: toPoints(raw.drinking_water_river_pond),
-      wallows: toPoints(raw.wallows),
-      caves: toPaths(raw.caves),
-      migrations: toZones(raw.migrations),
-      patrolZones: toZones(raw.patrol_zones),
-      sanctuaries: toZones(raw.sanctuaries),
+      areas: parsePoints(sec1["Area"]),
+      landmarks: [...parsePoints(sec1["Landmarks"]), ...parsePoints(sec1["Site (Human Base)"])],
+      saltLicks: parsePoints(sec2["SaltRock"]),
+      water: parsePoints(sec1["Water"]),
+      wallows: parsePoints(sec1["Mud"]),
+      caves: parsePaths(sec1["Cave"]),
+      migrations: parseZones(sec1["Migration"]),
+      patrolZones: parseZones(sec1["PatrolZone"]),
+      sanctuaries: parseZones(sec1["Sanctuary"]),
     },
   };
 }
 
-async function fetchMapData() {
+async function fetchFromNetwork() {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-    const response = await fetch(SOURCE_URL, { signal: controller.signal });
-    if (!response.ok) throw new Error(`Map data request failed: ${response.status}`);
-    return normalise(await response.json());
+    const [res1, res2] = await Promise.all([
+      fetch(VULNONA_DATA1_URL, {
+        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
+        signal: controller.signal,
+      }),
+      fetch(VULNONA_DATA2_URL, {
+        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
+        signal: controller.signal,
+      }),
+    ]);
+    if (!res1.ok || !res2.ok) {
+      throw new Error(`Vulnona fetch failed: data1=${res1.status}, data2=${res2.status}`);
+    }
+    const [txt1, txt2] = await Promise.all([res1.text(), res2.text()]);
+
+    // Save fallback copies locally if possible
+    try {
+      fs.writeFileSync(LOCAL_DATA1_PATH, txt1, "utf8");
+      fs.writeFileSync(LOCAL_DATA2_PATH, txt2, "utf8");
+    } catch (_) {}
+
+    return buildPayload(parseVulnonaFile(txt1), parseVulnonaFile(txt2));
   } finally {
     clearTimeout(timer);
   }
 }
 
+function loadLocalFallback() {
+  if (fs.existsSync(LOCAL_DATA1_PATH) && fs.existsSync(LOCAL_DATA2_PATH)) {
+    const txt1 = fs.readFileSync(LOCAL_DATA1_PATH, "utf8");
+    const txt2 = fs.readFileSync(LOCAL_DATA2_PATH, "utf8");
+    return buildPayload(parseVulnonaFile(txt1), parseVulnonaFile(txt2));
+  }
+  return null;
+}
+
 async function getMapData() {
   if (cache && Date.now() - cachedAt < CACHE_MS) return cache;
   if (!inflight) {
-    inflight = fetchMapData()
+    inflight = fetchFromNetwork()
+      .catch((err) => {
+        console.warn("[mapdata] Vulnona network fetch failed, using local fallback:", err.message);
+        const fallback = loadLocalFallback();
+        if (fallback) return fallback;
+        throw err;
+      })
       .then((data) => {
         cache = data;
         cachedAt = Date.now();
@@ -176,8 +284,9 @@ router.get("/", async (_req, res) => {
     res.json(await getMapData());
   } catch (err) {
     console.error("[mapdata] failed to load Gateway map layers:", err.message);
-    // A stale copy is far more useful than an error - the data barely changes.
     if (cache) return res.json(cache);
+    const fallback = loadLocalFallback();
+    if (fallback) return res.json(fallback);
     res.status(502).json({ error: "Gateway map data is unavailable right now." });
   }
 });

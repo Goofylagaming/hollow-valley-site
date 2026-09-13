@@ -16,11 +16,56 @@ async function loadMySkins() {
   });
 }
 
+async function loadActiveCharacter() {
+  const container = document.getElementById("active-character-card");
+  if (!container) return;
+
+  try {
+    const res = await api("/api/mydinos/active-character");
+    if (res && res.active && res.character) {
+      const char = res.character;
+      const growthPct = Math.round((char.growth || 1) * 100);
+      container.innerHTML = `
+        <div class="active-char-banner">
+          <div class="active-char-info">
+            <span class="tag-pill active-tag">LIVE IN GAME</span>
+            <h3>${escapeHtml(char.species || "Unknown")} (${growthPct}% Growth)${char.isPrime ? " • PRIME" : ""}</h3>
+            <small>Playing in-game on Hollow Valley as ${escapeHtml(char.name || "Survivor")}</small>
+          </div>
+          <button id="park-active-btn" class="primary-button green">Park Current In-Game Dino</button>
+        </div>
+      `;
+      container.hidden = false;
+
+      document.getElementById("park-active-btn")?.addEventListener("click", async () => {
+        const btn = document.getElementById("park-active-btn");
+        btn.disabled = true;
+        btn.textContent = "Parking dino...";
+        try {
+          await api("/api/mydinos/park-active", { method: "POST" });
+          alert("Dino parked to website storage!");
+          await refresh();
+        } catch (err) {
+          alert(err.message || "Failed to park active character");
+          btn.disabled = false;
+          btn.textContent = "Park Current In-Game Dino";
+        }
+      });
+    } else {
+      container.innerHTML = "";
+      container.hidden = true;
+    }
+  } catch (err) {
+    container.innerHTML = "";
+    container.hidden = true;
+  }
+}
+
 function renderStorage(roster) {
   const grid = document.getElementById("storage-grid");
   document.getElementById("mydinos-count").textContent = `${roster.length} in storage`;
   if (!roster.length) {
-    grid.innerHTML = `<div class="empty-roster"><b>◇</b><strong>Storage is empty</strong><span>Buy a dino from the Marketplace to get started.</span></div>`;
+    grid.innerHTML = `<div class="empty-roster"><b>◇</b><strong>Storage is empty</strong><span>Buy a dino from the Marketplace or park your active in-game dino above.</span></div>`;
     return;
   }
   grid.innerHTML = roster
@@ -138,6 +183,7 @@ document.getElementById("list-confirm")?.addEventListener("click", async () => {
 });
 
 async function refresh() {
+  await loadActiveCharacter();
   const roster = await api("/api/mydinos");
   renderStorage(roster);
 }

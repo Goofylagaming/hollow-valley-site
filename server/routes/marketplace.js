@@ -29,7 +29,7 @@ function debitWallet(userId, amount, reason) {
   return creditWallet(userId, -amount, reason);
 }
 
-// Official server catalog — fixed price dinos, bought with Valley Coin.
+// Official server catalog ? fixed price dinos, bought with Valley Coin.
 router.get("/catalog", (req, res) => {
   res.json(getMarketplaceCatalog());
 });
@@ -39,7 +39,7 @@ router.post("/catalog/:id/buy", requireAuth, (req, res) => {
   if (!entry) return res.status(404).json({ error: "Listing not found" });
   const wallet = debitWallet(req.user.id, entry.price, `Bought ${entry.species_id} from marketplace`);
   if (!wallet) return res.status(402).json({ error: "Not enough Valley Coin" });
-  const dino = addRosterDino(req.user.id, entry.species_id, entry.size_percent);
+  const dino = addRosterDino(req.user.id, entry.species_id, entry.size_percent || 75, 0, "parked");
   res.json({ ok: true, wallet, dino });
 });
 

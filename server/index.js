@@ -20,6 +20,8 @@ const skinsRouter = require("./routes/skins");
 const supporterRouter = require("./routes/supporter");
 const dailyBonusRouter = require("./routes/dailybonus");
 const serverStatusRouter = require("./routes/serverStatus");
+const eventsRouter = require("./routes/events");
+const mapdataRouter = require("./routes/mapdata");
 const serverStatusService = require("./services/serverStatus");
 const herbyBot = require("./herbyBot");
 
@@ -91,11 +93,13 @@ app.use("/api/skins", skinsRouter);
 app.use("/api/supporter", supporterRouter);
 app.use("/api/daily-bonus", dailyBonusRouter);
 app.use("/api/server-status", serverStatusRouter);
+app.use("/api/events", eventsRouter);
+app.use("/api/mapdata", mapdataRouter);
 
 app.use(express.static(path.join(__dirname, "..", "public")));
 
 // Clean URLs for each page (e.g. /dashboard -> public/dashboard.html).
-const PAGE_ROUTES = ["dashboard", "mydinos", "marketplace", "skins", "livemap", "leaderboard", "supporter"];
+const PAGE_ROUTES = ["dashboard", "mydinos", "marketplace", "skins", "livemap", "leaderboard", "supporter", "events"];
 for (const page of PAGE_ROUTES) {
   app.get(`/${page}`, (req, res) => {
     res.sendFile(path.join(__dirname, "..", "public", `${page}.html`));
