@@ -3,16 +3,24 @@
 <head>
     <title>My Dinos</title>
     <script src="script.js"></script>
+    <style>
+      body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #f8fafc; padding: 24px; margin: 0; }
+      h1 { color: #38bdf8; margin-bottom: 16px; }
+      pre { background: #1e293b; padding: 16px; border-radius: 8px; border: 1px solid #334155; overflow-x: auto; color: #e2e8f0; }
+      button { background: #0284c7; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+      button:hover { background: #0369a1; }
+      .badge { display: inline-block; background: #334155; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-bottom: 12px; }
+    </style>
 </head>
 <body>
 
 <h1>Your Dinosaurs</h1>
 
-<div id="dino-list"></div>
+<div id="dino-list"><p>Loading dinosaur data…</p></div>
 
 <script>
 async function loadDinos() {
-    let steamid = "{{steamid}}"; // Replace with your auth system
+    let steamid = "{{steamid}}";
     if (steamid.includes("{{")) {
         try {
             const meRes = await fetch("/api/me");
@@ -23,20 +31,28 @@ async function loadDinos() {
         } catch (e) {}
     }
 
-    const res = await fetch(`/api/playerdata?steamid=${steamid}`);
-    const data = await res.json();
-
     const container = document.getElementById("dino-list");
 
-    if (!data.success) {
-        container.innerHTML = `<p style="color:red">Error: ${data.error || "Could not fetch dino data"}</p>`;
-        return;
-    }
+    try {
+        const res = await fetch(`/api/playerdata?steamid=${steamid}`);
+        const data = await res.json();
 
-    container.innerHTML = `
-        <pre>${data.data || "No active character data"}</pre>
-        <button onclick="parkDino('${steamid}')">Park Dino</button>
-    `;
+        if (!data.success) {
+            container.innerHTML = `<p style="color:#ef4444">Error: ${data.error || "Could not fetch dino data"}</p>`;
+            return;
+        }
+
+        const renderContent = typeof data.data === "object" ? JSON.stringify(data.data, null, 2) : String(data.data || "No active character data");
+        const sourceLabel = data.source ? `<div class="badge">Source: ${data.source}</div>` : "";
+
+        container.innerHTML = `
+            ${sourceLabel}
+            <pre>${renderContent}</pre>
+            <button onclick="parkDino('${steamid}')">Park Dino</button>
+        `;
+    } catch (err) {
+        container.innerHTML = `<p style="color:#ef4444">Failed to load dinosaur data: ${err.message}</p>`;
+    }
 }
 
 loadDinos();
