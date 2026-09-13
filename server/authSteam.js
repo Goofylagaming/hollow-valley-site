@@ -1,5 +1,6 @@
 const express = require("express");
 const { findOrCreateUserBySteam } = require("./db");
+const { fetchSteamProfile } = require("./services/steamProfile");
 
 const router = express.Router();
 
@@ -94,27 +95,10 @@ router.get("/callback", async (req, res) => {
     if (!match) throw new Error(`Unexpected claimed_id format: ${claimedId}`);
     const steamId = match[1];
 
-    let username = `Survivor${steamId.slice(-5)}`;
-    let avatar = null;
-    let hasRealProfile = false;
-    if (STEAM_API_KEY) {
-      try {
-        const profileResponse = await fetch(
-          `https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${STEAM_API_KEY}&steamids=${steamId}`
-        );
-        if (profileResponse.ok) {
-          const data = await profileResponse.json();
-          const player = data?.response?.players?.[0];
-          if (player) {
-            username = player.personaname || username;
-            avatar = player.avatarfull || null;
-            hasRealProfile = true;
-          }
-        }
-      } catch (err) {
-        console.error("Steam profile fetch error:", err);
-      }
-    }
+    const profile = await fetchSteamProfile(steamId);
+    const hasRealProfile = Boolean(profile.ok && profile.personaName);
+    const username = hasRealProfile ? profile.personaName : (profile.fallbackName || `Survivor${steamId.slice(-5)}`);
+    const avatar = profile.avatar || null;
 
     const user = findOrCreateUserBySteam({
       currentUserId: req.session.userId,

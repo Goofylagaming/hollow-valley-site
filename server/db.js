@@ -226,7 +226,12 @@ function findOrCreateUserBySteam({ currentUserId, steamId, username, avatar, has
         db.prepare("DELETE FROM player_stats WHERE user_id = ?").run(sourceId);
         db.prepare("DELETE FROM users WHERE id = ?").run(sourceId);
       }
-      const newName = (hasRealProfile || !currentUser.username) ? username : currentUser.username;
+      let newName = currentUser.username;
+      if (hasRealProfile && username) {
+        newName = username;
+      } else if (!newName || /^Survivor\d+$/i.test(newName)) {
+        newName = username || `Survivor${steamId.slice(-5)}`;
+      }
       const newAvatar = avatar || currentUser.avatar;
       db.prepare("UPDATE users SET steam_id = ?, username = ?, avatar = ? WHERE id = ?").run(steamId, newName, newAvatar, currentUser.id);
       return db.prepare("SELECT * FROM users WHERE id = ?").get(currentUser.id);
@@ -234,8 +239,12 @@ function findOrCreateUserBySteam({ currentUserId, steamId, username, avatar, has
   }
 
   if (existingSteamUser) {
-    if (hasRealProfile) {
-      db.prepare("UPDATE users SET username = ?, avatar = ? WHERE id = ?").run(username, avatar, existingSteamUser.id);
+    if (hasRealProfile && username) {
+      db.prepare("UPDATE users SET username = ?, avatar = COALESCE(?, avatar) WHERE id = ?").run(username, avatar, existingSteamUser.id);
+    } else if (!existingSteamUser.username || /^Survivor\d+$/i.test(existingSteamUser.username)) {
+      if (username) {
+        db.prepare("UPDATE users SET username = ?, avatar = COALESCE(?, avatar) WHERE id = ?").run(username, avatar, existingSteamUser.id);
+      }
     }
     return db.prepare("SELECT * FROM users WHERE id = ?").get(existingSteamUser.id);
   }

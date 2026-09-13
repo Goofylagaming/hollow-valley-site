@@ -23,6 +23,7 @@ const serverStatusRouter = require("./routes/serverStatus");
 const eventsRouter = require("./routes/events");
 const mapdataRouter = require("./routes/mapdata");
 const serverStatusService = require("./services/serverStatus");
+const { syncSteamProfiles } = require("./services/steamProfile");
 const herbyBot = require("./herbyBot");
 
 const app = express();
@@ -114,4 +115,12 @@ app.listen(PORT, () => {
   console.log(`Herby Death Squad portal running on port ${PORT}`);
   serverStatusService.start();
   herbyBot.start();
+  // Automatically synchronize profiles for linked Steam users who have placeholder usernames
+  syncSteamProfiles(db).then((res) => {
+    if (res.updated > 0) {
+      console.log(`[Steam Profile Sync] Successfully synchronized ${res.updated}/${res.total} Steam user profiles.`);
+    }
+  }).catch((err) => {
+    console.warn("[Steam Profile Sync] Background sync warning:", err.message);
+  });
 });
