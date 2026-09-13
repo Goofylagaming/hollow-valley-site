@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Live positions on the Herby Death Squad Isle Evrima server.">
-  <title>Live map | Herby Death Squad</title>
-  <link rel="stylesheet" href="assets/styles.css?v=12">
+  <meta name="description" content="Live Gateway map with survivor tracking, salt licks, migration zones and sanctuaries.">
+  <title>Live map | Hollow Valley</title>
+  <link rel="stylesheet" href="assets/styles.css?v=18">
 </head>
 <body>
   <div class="app-shell">
@@ -13,27 +13,56 @@
     <main>
       <section class="page-header">
         <p class="overline green">LIVE POSITIONS</p>
-        <h1>Live map.</h1>
-        <p class="section-intro">Your in-game character, linked to your Steam account and refreshed live from the server. Positions are shown on a schematic map drawn from community coordinate data.</p>
+        <h1>Live Gateway map.</h1>
+        <p class="section-intro">The full Gateway island with live survivor positions from the Hollow Valley game server, plus salt licks, migration corridors, patrol zones and sanctuaries.</p>
       </section>
-      <section class="roster-section">
-        <div id="my-character" class="char-panel"><div class="empty-roster"><strong>Loading&hellip;</strong><span>Checking the server for your character.</span></div></div>
-        <div class="map-canvas-wrap">
-          <div class="map-plane">
-            <div class="map-base" id="map-base"></div>
-            <div class="map-grid" id="map-grid"></div>
-            <div class="map-layer" id="map-markers"></div>
+      <section class="roster-section live-tracker-section">
+        <div class="section-top"><div><p class="overline green">HOLLOW VALLEY TRACKER</p><h2>Live survivor positions.</h2></div><p class="section-intro">Live positions refresh every 30 seconds. Map layers are static Gateway v0.21 data.</p></div>
+        <div id="tracker-character" class="char-panel"><div class="empty-roster"><strong>Loading&hellip;</strong><span>Checking the server for your character.</span></div></div>
+        <div class="tracker-grid">
+          <div class="map-canvas-wrap">
+            <div class="map-viewport" id="map-viewport">
+              <div class="map-controls">
+                <button type="button" class="map-control" id="zoom-in" title="Zoom in" aria-label="Zoom in">+</button>
+                <button type="button" class="map-control" id="zoom-out" title="Zoom out" aria-label="Zoom out">−</button>
+                <button type="button" class="map-control" id="zoom-reset" title="Reset view" aria-label="Reset view">⌂</button>
+              </div>
+              <div class="zoom-label" id="zoom-label">100%</div>
+              <div class="map-world" id="map-world">
+                <div class="map-plane gateway-live-plane">
+                  <img class="gateway-live-base" src="assets/gateway-map.webp?v=1" alt="Gateway island map" draggable="false">
+                  <svg class="map-layer map-shapes" id="tracker-shapes" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
+                  <div class="map-layer" id="tracker-pois"></div>
+                  <div class="map-layer" id="tracker-labels"></div>
+                  <div class="map-layer" id="tracker-markers"></div>
+                </div>
+              </div>
+            </div>
+            <p class="map-credit" id="tracker-credit">Gateway island map with live positions from the Hollow Valley server. Static layer data: Gateway v0.21 community POI export.</p>
+            <p class="map-status" id="tracker-status">Checking live connection&hellip;</p>
           </div>
-          <p class="map-credit" id="map-credit"></p>
-          <p class="map-status" id="map-status">Checking connection…</p>
+          <aside class="map-layers-panel">
+            <p class="overline green">MAP LAYERS</p>
+            <label class="layer-toggle"><input type="checkbox" id="layer-players" checked><span class="layer-swatch player"></span>Player tracking</label>
+            <label class="layer-toggle"><input type="checkbox" id="layer-areas" checked><span class="layer-swatch area"></span>Region names</label>
+            <label class="layer-toggle"><input type="checkbox" id="layer-landmarks"><span class="layer-swatch landmark"></span>Landmarks</label>
+            <label class="layer-toggle"><input type="checkbox" id="layer-saltLicks" checked><span class="layer-swatch salt"></span>Salt licks</label>
+            <label class="layer-toggle"><input type="checkbox" id="layer-water"><span class="layer-swatch water"></span>Fresh water</label>
+            <label class="layer-toggle"><input type="checkbox" id="layer-wallows"><span class="layer-swatch wallow"></span>Wallows</label>
+            <label class="layer-toggle"><input type="checkbox" id="layer-caves"><span class="layer-swatch cave"></span>Caves</label>
+            <label class="layer-toggle"><input type="checkbox" id="layer-migrations" checked><span class="layer-swatch migration"></span>Migration zones</label>
+            <label class="layer-toggle"><input type="checkbox" id="layer-patrolZones"><span class="layer-swatch patrol"></span>Patrol zones</label>
+            <label class="layer-toggle"><input type="checkbox" id="layer-sanctuaries" checked><span class="layer-swatch sanctuary"></span>Sanctuaries</label>
+            <p class="layer-note" id="layer-note">Loading Gateway map data&hellip;</p>
+          </aside>
         </div>
         <div class="list-heading" style="margin-top:24px"><span>OTHER SURVIVORS ONLINE</span></div>
-        <div id="contacts-list" class="activity-list"><div class="empty-roster"><strong>No contacts</strong><span>The live map goes active once the server is connected.</span></div></div>
+        <div id="tracker-contacts" class="activity-list"><div class="empty-roster"><strong>Loading survivors&hellip;</strong></div></div>
       </section>
     </main>
-    <footer><span>© 2026 Herby Death Squad Games</span><span>ISLE EVRIMA COMMUNITY SERVER</span><a href="/">Back to command ↑</a></footer>
+    <footer><span>&copy; 2026 Herby Death Squad Games</span><span>ISLE EVRIMA COMMUNITY SERVER</span><a href="/">Back to command &rarr;</a></footer>
   </div>
-  <script src="assets/common.js?v=8"></script>
-  <script src="assets/livemap.js?v=3"></script>
+  <script src="assets/common.js?v=9"></script>
+  <script src="assets/livemap.js?v=10"></script>
 </body>
 </html>
