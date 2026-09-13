@@ -1,13 +1,53 @@
+version: "3.9"
+
 services:
   web:
     build: .
     container_name: hollowvalley-web
     restart: unless-stopped
     env_file: .env
-    ports:
-      - "3000:3000"
     volumes:
       - hollowvalley-data:/app/data
+    networks:
+      - hvnet
+
+  api:
+    build:
+      context: ./server
+    container_name: hollowvalley-api
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - hollowvalley-data:/app/data
+    networks:
+      - hvnet
+
+  mydinos:
+    build:
+      context: ./mydinos
+    container_name: hollowvalley-mydinos
+    restart: unless-stopped
+    env_file: .env
+    networks:
+      - hvnet
+
+  nginx:
+    image: nginx:latest
+    container_name: hollowvalley-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx:/etc/nginx/conf.d
+    depends_on:
+      - web
+      - api
+      - mydinos
+    networks:
+      - hvnet
 
 volumes:
   hollowvalley-data:
+
+networks:
+  hvnet:
