@@ -1,47 +1,29 @@
-const rcon = require("./rcon");
+const { sendRcon } = require("./rcon.js");
 
-const ALLOWED_COMMAND_PATTERNS = [
-  /^listparked$/i,
-  /^players$/i,
-  /^playerlist$/i,
-  /^getplayerdata\s+\d{17}$/i,
-];
-
+/**
+ * Endpoint for running admin RCON commands.
+ */
 async function handler(req, res) {
   try {
-    if (!req.user) {
-      return res.status(401).json({ success: false, error: "Login required" });
-    }
+    const command = req.body?.command || req.query?.command;
 
-    if (!req.user.is_admin) {
-      return res.status(403).json({ success: false, error: "Admin access required" });
-    }
-
-    const { command } = req.body || {};
     if (!command) {
       return res.status(400).json({ success: false, error: "Missing command" });
     }
 
-    const normalizedCommand = String(command).trim();
-    if (/[\r\n]/.test(normalizedCommand)) {
-      return res.status(400).json({
-        success: false,
-        error: "Unsupported admin command",
-      });
-    }
+    const result = await sendRcon(command);
 
-    if (!ALLOWED_COMMAND_PATTERNS.some((pattern) => pattern.test(normalizedCommand))) {
-      return res.status(400).json({
-      success: false,
-      error: "Unsupported admin command",
-      });
-    }
-
-    const result = await rcon.sendRcon(normalizedCommand);
-    return res.json({ success: true, rcon: result });
+    res.json({
+      success: true,
+      rcon: result,
+    });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({
+      success: false,
+      error: err.message,
+    });
   }
 }
 
 module.exports = handler;
+module.exports.default = handler;
