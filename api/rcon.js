@@ -12,17 +12,33 @@ function sendRcon(command) {
     }
 
     const rcon = new Rcon(host, port, password);
+    let settled = false;
 
-    rcon.on("auth", () => {
+    const settle = (fn, value) => {
+      if (settled) return;
+      settled = true;
+      rcon.removeListener("auth", onAuth);
+      rcon.removeListener("response", onResponse);
+      rcon.removeListener("error", onError);
+      fn(value);
+    };
+
+    const onAuth = () => {
       rcon.send(command);
-    });
+    };
 
-    rcon.on("response", (str) => {
-      resolve(str);
+    const onResponse = (str) => {
       rcon.disconnect();
-    });
+      settle(resolve, str);
+    };
 
-    rcon.on("error", reject);
+    const onError = (err) => {
+      settle(reject, err);
+    };
+
+    rcon.on("auth", onAuth);
+    rcon.on("response", onResponse);
+    rcon.on("error", onError);
 
     rcon.connect();
   });

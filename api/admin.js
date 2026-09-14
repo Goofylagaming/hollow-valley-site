@@ -1,4 +1,4 @@
-const { sendRcon } = require("./rcon");
+const rcon = require("./rcon");
 
 const ALLOWED_COMMAND_PATTERNS = [
   /^listparked$/i,
@@ -37,7 +37,7 @@ async function handler(req, res) {
       });
     }
 
-    const result = await sendRcon(normalizedCommand);
+    const result = await rcon.sendRcon(normalizedCommand);
     return res.json({ success: true, rcon: result });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
