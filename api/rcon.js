@@ -1,24 +1,47 @@
-import Rcon from 'rcon';
+const Rcon = require("rcon");
 
-export function sendRcon(command) {
-    return new Promise((resolve, reject) => {
-        const rcon = new Rcon(
-            process.env.RCON_IP,
-            parseInt(process.env.RCON_PORT),
-            process.env.RCON_PASSWORD
-        );
+function sendRcon(command) {
+  return new Promise((resolve, reject) => {
+    const host = process.env.RCON_HOST || process.env.RCON_IP;
+    const port = Number.parseInt(process.env.RCON_PORT, 10);
+    const password = process.env.RCON_PASSWORD;
 
-        rcon.on('auth', () => {
-            rcon.send(command);
-        });
+    if (!host || !Number.isFinite(port) || !password) {
+      reject(new Error("RCON is not configured"));
+      return;
+    }
 
-        rcon.on('response', (str) => {
-            resolve(str);
-            rcon.disconnect();
-        });
+    const rcon = new Rcon(host, port, password);
+    let settled = false;
 
-        rcon.on('error', reject);
+    const settle = (fn, value) => {
+      if (settled) return;
+      settled = true;
+      rcon.removeListener("auth", onAuth);
+      rcon.removeListener("response", onResponse);
+      rcon.removeListener("error", onError);
+      fn(value);
+    };
 
-        rcon.connect();
-    });
+    const onAuth = () => {
+      rcon.send(command);
+    };
+
+    const onResponse = (str) => {
+      rcon.disconnect();
+      settle(resolve, str);
+    };
+
+    const onError = (err) => {
+      settle(reject, err);
+    };
+
+    rcon.on("auth", onAuth);
+    rcon.on("response", onResponse);
+    rcon.on("error", onError);
+
+    rcon.connect();
+  });
 }
+
+module.exports = { sendRcon };

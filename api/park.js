@@ -1,13 +1,17 @@
-import { sendRcon } from './rcon.js';
+const { sendRcon } = require("./rcon");
 
-export default async function handler(req, res) {
-    try {
-        const { steamid } = req.body;
-
-        const result = await sendRcon(`park ${steamid}`);
-
-        res.json({ success: true, rcon: result });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
+async function handler(req, res) {
+  try {
+    const { steamid } = req.body || {};
+    if (!steamid) {
+      return res.status(400).json({ success: false, error: "Missing SteamID" });
     }
+
+    const result = await sendRcon(`park ${steamid}`);
+    return res.json({ success: true, rcon: result });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
 }
+
+module.exports = handler;
