@@ -11,8 +11,10 @@ const POLL_INTERVAL_MS = 30_000;
 // the MAX_PLAYERS env var if the server's slot count changes.
 const DEFAULT_MAX_PLAYERS = Number(process.env.MAX_PLAYERS) || 100;
 
+const RCON_HOST = process.env.RCON_HOST || process.env.RCON_IP;
+
 const state = {
-  configured: Boolean(process.env.RCON_HOST && process.env.RCON_PORT && process.env.RCON_PASSWORD),
+  configured: Boolean(RCON_HOST && process.env.RCON_PORT && process.env.RCON_PASSWORD),
   online: false,
   playerCount: 0,
   maxPlayers: DEFAULT_MAX_PLAYERS,
@@ -26,7 +28,7 @@ async function poll() {
   if (!state.configured) return;
   try {
     const { players, characters, maxPlayers } = await fetchServerStatus({
-      host: process.env.RCON_HOST,
+      host: RCON_HOST,
       port: Number(process.env.RCON_PORT),
       password: process.env.RCON_PASSWORD,
     });
@@ -43,13 +45,14 @@ async function poll() {
     state.players = [];
     state.characters = [];
     state.lastError = err.message;
+    console.warn(`[server-status] RCON poll failed: ${err.message}`);
   }
   state.lastChecked = new Date().toISOString();
 }
 
 function start() {
   if (!state.configured) {
-    console.log("[server-status] RCON_HOST/RCON_PORT/RCON_PASSWORD not set - live status disabled");
+    console.log("[server-status] RCON_HOST or RCON_IP / RCON_PORT / RCON_PASSWORD not set - live status disabled");
     return;
   }
   poll();
