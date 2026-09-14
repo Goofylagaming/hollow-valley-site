@@ -14,9 +14,14 @@ try {
  */
 function sendRcon(command) {
   return new Promise((resolve, reject) => {
-    const ip = process.env.RCON_IP || process.env.RCON_HOST || "103.193.81.65";
-    const port = Number.parseInt(process.env.RCON_PORT || "5569", 10);
-    const password = process.env.RCON_PASSWORD || "testingrconpassword";
+    const ip = process.env.RCON_IP || process.env.RCON_HOST;
+    const port = Number.parseInt(process.env.RCON_PORT || "", 10);
+    const password = process.env.RCON_PASSWORD;
+
+    if (!ip || !Number.isFinite(port) || !password) {
+      reject(new Error("RCON is not configured"));
+      return;
+    }
 
     if (RconModule) {
       const rcon = new RconModule(ip, port, password, { tcp: true, challenge: false });
