@@ -1,6 +1,11 @@
 const { executeGameAction } = require("../server/services/sftpBridge");
 const { sendRcon } = require("./rcon.js");
 
+function isRconFailure(result) {
+  const normalized = String(result || "").trim().toLowerCase();
+  return !normalized || ["error", "failed", "permission", "unknown command", "invalid command"].some((token) => normalized.includes(token));
+}
+
 /**
  * Endpoint to park a player's active dinosaur via RCON command `park <steamid>` with SFTP bridge fallback.
  */
@@ -15,6 +20,10 @@ async function handler(req, res) {
     // 1. Try RCON command first
     try {
       const result = await sendRcon(`park ${steamid}`);
+      if (isRconFailure(result)) {
+        throw new Error(typeof result === "string" && result.trim() ? result.trim() : "RCON park command failed");
+      }
+
       return res.json({
         success: true,
         message: "Dino parked successfully via RCON",

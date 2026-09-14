@@ -1,6 +1,11 @@
 const { executeGameAction } = require("../server/services/sftpBridge");
 const { sendRcon } = require("./rcon.js");
 
+function isRconFailure(result) {
+  const normalized = String(result || "").trim().toLowerCase();
+  return !normalized || ["error", "failed", "permission", "unknown command", "invalid command"].some((token) => normalized.includes(token));
+}
+
 /**
  * Endpoint to list parked dinosaurs via RCON `listparked` with SFTP bridge fallback.
  */
@@ -8,7 +13,7 @@ async function handler(req, res) {
   try {
     try {
       const result = await sendRcon("listparked");
-      if (result && !result.toLowerCase().includes("unknown command")) {
+      if (!isRconFailure(result)) {
         return res.json({ success: true, data: result });
       }
     } catch (e) {
@@ -20,9 +25,9 @@ async function handler(req, res) {
       return res.json({ success: true, data: bridgeResult.data || bridgeResult });
     }
 
-    res.json({
-      success: true,
-      data: "No parked dinosaur data available from game server.",
+    return res.status(502).json({
+      success: false,
+      error: bridgeResult.error || "No parked dinosaur data available from game server.",
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

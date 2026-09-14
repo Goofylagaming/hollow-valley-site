@@ -2,6 +2,11 @@ const { getState } = require("../server/services/serverStatus");
 const { executeGameAction } = require("../server/services/sftpBridge");
 const { sendRcon } = require("./rcon.js");
 
+function isRconFailure(result) {
+  const normalized = String(result || "").trim().toLowerCase();
+  return !normalized || ["error", "failed", "permission", "unknown command", "invalid command"].some((token) => normalized.includes(token));
+}
+
 /**
  * Endpoint to fetch a player's dinosaur data via live server status, SFTP bridge, or RCON.
  */
@@ -28,7 +33,7 @@ async function handler(req, res) {
     // 2. Try RCON command
     try {
       const rconResult = await sendRcon(`getplayerdata ${steamid}`);
-      if (rconResult && !rconResult.includes("Error")) {
+      if (!isRconFailure(rconResult)) {
         return res.json({
           success: true,
           source: "rcon",
@@ -54,8 +59,8 @@ async function handler(req, res) {
     }
 
     // Return current status summary if offline/not spawned
-    res.json({
-      success: true,
+    return res.status(404).json({
+      success: false,
       source: "status_summary",
       data: {
         steamId: steamid,
@@ -66,7 +71,7 @@ async function handler(req, res) {
       },
     });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: err.message });
   }
 }
 
