@@ -69,6 +69,8 @@ services:
         sync: false
       - key: BODYDROP_SHARED_SECRET
         sync: false
+      - key: BODYDROP_INBOX_PATH
+        value: Mods/HollowValleyBodyDrop/Saved/inbox.ndjson
       - key: BODYDROP_COOLDOWN_SECONDS
         value: 900
       - key: BODYDROP_TYPES

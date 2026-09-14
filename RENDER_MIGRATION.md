@@ -35,6 +35,7 @@ dashboard, which removes that whole class of problem.
    - `RCON_HOST` / `RCON_PORT` / `RCON_PASSWORD` — same values currently on the droplet
    - `SFTP_HOST` / `SFTP_PORT` / `SFTP_USER` / `SFTP_PASSWORD` / `SFTP_BASE_PATH` — same values currently on the droplet
    - `BODYDROP_SHARED_SECRET` — a new long random shared secret that must also be configured in the Qonzer BodyDrop agent/mod
+   - `BODYDROP_INBOX_PATH` — defaults to `Mods/HollowValleyBodyDrop/Saved/inbox.ndjson`, matching the Qonzer `config.lua`
    - `BODYDROP_COOLDOWN_SECONDS` — defaults to `900` (15 minutes)
    - `BODYDROP_TYPES` — optional comma-separated drop definitions, e.g. `small:Small body:A small emergency food drop`
    - Discord/Stripe vars if/when you use them
@@ -73,10 +74,26 @@ dashboard, which removes that whole class of problem.
 ## Body Drop bridge notes
 
 The website stores Body Drop requests in SQLite, validates Steam login and
-cooldowns, then writes a signed request into the existing SFTP bridge. The
-Qonzer-side `HollowValleyBodyDrop` mod/agent must read those requests, verify
-the `signature` with the same `BODYDROP_SHARED_SECRET`, perform the in-game
-drop, and write the result file back to the bridge results folder.
+cooldowns, then appends a signed NDJSON request into the Qonzer mod inbox:
+
+```text
+TheIsle/Binaries/Win64/ue4ss/Mods/HollowValleyBodyDrop/Saved/inbox.ndjson
+```
+
+This matches the BodyDrop `config.lua` shape:
+
+```lua
+return {
+  logDebug=true,
+  inboxPath="Mods/HollowValleyBodyDrop/Saved/inbox.ndjson",
+  ragdollSeconds=3600,
+  maxJobsPerTick=5
+}
+```
+
+The Qonzer-side `HollowValleyBodyDrop` mod/agent should read those requests,
+verify the `signature` with the same `BODYDROP_SHARED_SECRET` if it supports
+signature checking, perform the in-game drop, and log/write its own result.
 
 Do not expose `BODYDROP_SHARED_SECRET`, RCON passwords, or SFTP passwords in
 browser JavaScript or screenshots.

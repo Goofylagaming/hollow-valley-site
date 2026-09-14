@@ -22,6 +22,34 @@ function getBaseRemotePath() {
   return `/${basePath}/TheIsle/Binaries/Win64/ue4ss/Mods/HollowValleyPark/Saved`;
 }
 
+function getBodyDropInboxRemotePath() {
+  if (process.env.BODYDROP_INBOX_PATH?.startsWith("/")) {
+    return process.env.BODYDROP_INBOX_PATH;
+  }
+  const basePath = process.env.SFTP_BASE_PATH || "103.193.81.65_5565";
+  const inboxPath = process.env.BODYDROP_INBOX_PATH || "Mods/HollowValleyBodyDrop/Saved/inbox.ndjson";
+  return `/${basePath}/TheIsle/Binaries/Win64/ue4ss/${inboxPath.replace(/^\/+/, "")}`;
+}
+
+async function appendTextFile(sftp, remotePath, text) {
+  const directory = remotePath.slice(0, remotePath.lastIndexOf("/"));
+  if (directory) {
+    await sftp.mkdir(directory, true).catch(() => {});
+  }
+
+  if (typeof sftp.append === "function") {
+    await sftp.append(Buffer.from(text), remotePath);
+    return;
+  }
+
+  let existing = "";
+  if (await sftp.exists(remotePath)) {
+    const existingBuffer = await sftp.get(remotePath);
+    existing = existingBuffer.toString("utf8");
+  }
+  await sftp.put(Buffer.from(existing + text), remotePath);
+}
+
 function signPayload(payload) {
   const secret = process.env.BODYDROP_SHARED_SECRET || process.env.BRIDGE_SHARED_SECRET || process.env.SESSION_SECRET;
   if (!secret) return null;
@@ -64,6 +92,17 @@ async function executeGameAction({ action, steamId, species, growth, prime, drop
   try {
     await sftp.connect(getSftpConfig());
 
+    if (action === "body_drop") {
+      await appendTextFile(sftp, getBodyDropInboxRemotePath(), `${payload}\n`);
+      await sftp.end();
+      return {
+        ok: true,
+        requestId,
+        queued: true,
+        message: "Body drop request queued for the game server.",
+      };
+    }
+
     // Upload request JSON
     await sftp.put(Buffer.from(payload), reqPath);
 
@@ -105,4 +144,5 @@ async function executeGameAction({ action, steamId, species, growth, prime, drop
 
 module.exports = {
   executeGameAction,
+  getBodyDropInboxRemotePath,
 };

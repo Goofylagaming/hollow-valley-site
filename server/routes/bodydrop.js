@@ -131,12 +131,12 @@ router.post("/", requireAuth, async (req, res) => {
     return res.status(400).json({ error: failed.error, request: failed });
   }
 
-  const completed = updateBodyDropRequest(request.id, {
-    status: "completed",
+  const queued = updateBodyDropRequest(request.id, {
+    status: result.queued ? "queued" : "completed",
     bridgeRequestId: result.requestId,
   });
 
-  res.json({ ok: true, request: completed, result });
+  res.json({ ok: true, request: queued, result });
 });
 
 module.exports = router;

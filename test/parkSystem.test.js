@@ -6,6 +6,7 @@ const redeemHandler = require("../api/redeem");
 const adminHandler = require("../api/admin");
 const express = require("express");
 const bodydropRouter = require("../server/routes/bodydrop");
+const sftpBridge = require("../server/services/sftpBridge");
 
 async function requestBodydrop({ method = "GET", path = "/api/bodydrop", user, body } = {}) {
   const app = express();
@@ -276,4 +277,23 @@ test("api/bodydrop rejects requests while server status is offline", async () =>
   });
   assert.strictEqual(response.status, 503);
   assert.strictEqual(response.body.error, "The Isle server is not online or RCON is not synced yet.");
+});
+
+test("bodydrop bridge defaults to the UE4SS inbox.ndjson path from config.lua", () => {
+  const originalBase = process.env.SFTP_BASE_PATH;
+  const originalInbox = process.env.BODYDROP_INBOX_PATH;
+  process.env.SFTP_BASE_PATH = "103.193.81.65_5565";
+  delete process.env.BODYDROP_INBOX_PATH;
+
+  try {
+    assert.strictEqual(
+      sftpBridge.getBodyDropInboxRemotePath(),
+      "/103.193.81.65_5565/TheIsle/Binaries/Win64/ue4ss/Mods/HollowValleyBodyDrop/Saved/inbox.ndjson"
+    );
+  } finally {
+    if (originalBase === undefined) delete process.env.SFTP_BASE_PATH;
+    else process.env.SFTP_BASE_PATH = originalBase;
+    if (originalInbox === undefined) delete process.env.BODYDROP_INBOX_PATH;
+    else process.env.BODYDROP_INBOX_PATH = originalInbox;
+  }
 });
