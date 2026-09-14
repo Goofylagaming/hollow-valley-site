@@ -111,9 +111,6 @@ app.all("/api/redeem", redeemHandler);
 app.all("/api/parked", parkedHandler);
 app.all("/api/admin", adminHandler);
 
-app.use("/mydinos", express.static(path.join(__dirname, "..", "mydinos")));
-app.use(express.static(path.join(__dirname, "..", "public")));
-
 // Clean URLs for each page (e.g. /dashboard -> public/dashboard.html).
 const PAGE_ROUTES = ["dashboard", "mydinos", "marketplace", "skins", "livemap", "leaderboard", "supporter", "events"];
 for (const page of PAGE_ROUTES) {
@@ -121,6 +118,13 @@ for (const page of PAGE_ROUTES) {
     res.sendFile(path.join(__dirname, "..", "public", `${page}.html`));
   });
 }
+
+app.get("/mydinos/", (req, res) => {
+  res.sendFile(path.join(__dirname, "..", "public", "mydinos.html"));
+});
+
+app.use("/mydinos", express.static(path.join(__dirname, "..", "mydinos"), { index: false }));
+app.use(express.static(path.join(__dirname, "..", "public")));
 
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "..", "public", "index.html"));
