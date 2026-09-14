@@ -1,0 +1,69 @@
+# Render Blueprint for Hollow Valley
+# Docs: https://render.com/docs/blueprint-spec
+#
+# This deploys the site as a single Docker web service using the existing
+# Dockerfile, with a persistent disk for the SQLite database.
+#
+# To use: push this file to the repo, then in Render dashboard choose
+# "New +" -> "Blueprint" and point it at this repo/branch. Render will read
+# this file and create the service. Environment variables marked
+# `sync: false` must be filled in manually in the Render dashboard (they are
+# secrets and are intentionally not stored in git).
+
+services:
+  - type: web
+    name: hollow-valley-site
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter # upgrade if you need more RAM/CPU; starter is fine to begin
+    autoDeploy: true
+    healthCheckPath: /
+    disk:
+      name: hollowvalley-data
+      mountPath: /app/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: DB_PATH
+        value: /app/data/hollowvalley.sqlite
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: STEAM_RETURN_URL
+        sync: false
+      - key: STEAM_REALM
+        sync: false
+      - key: STEAM_API_KEY
+        sync: false
+      - key: DISCORD_CLIENT_ID
+        sync: false
+      - key: DISCORD_CLIENT_SECRET
+        sync: false
+      - key: DISCORD_REDIRECT_URI
+        sync: false
+      - key: DISCORD_BOT_TOKEN
+        sync: false
+      - key: ADMIN_DISCORD_IDS
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: RCON_HOST
+        sync: false
+      - key: RCON_PORT
+        sync: false
+      - key: RCON_PASSWORD
+        sync: false
+      - key: MAX_PLAYERS
+        value: 100
+      - key: SFTP_HOST
+        sync: false
+      - key: SFTP_PORT
+        value: 8822
+      - key: SFTP_USER
+        sync: false
+      - key: SFTP_PASSWORD
+        sync: false
+      - key: SFTP_BASE_PATH
+        sync: false
