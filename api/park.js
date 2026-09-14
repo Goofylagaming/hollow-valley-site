@@ -3,7 +3,7 @@ const { sendRcon } = require("./rcon.js");
 
 function isRconFailure(result) {
   const normalized = String(result || "").trim().toLowerCase();
-  return !normalized || ["error", "unknown command", "invalid command"].some((token) => normalized.includes(token));
+  return !normalized || ["error", "failed", "permission", "unknown command", "invalid command"].some((token) => normalized.includes(token));
 }
 
 /**

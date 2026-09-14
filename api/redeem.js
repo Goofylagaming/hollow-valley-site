@@ -1,6 +1,11 @@
 const { executeGameAction } = require("../server/services/sftpBridge");
 const { sendRcon } = require("./rcon.js");
 
+function isRconFailure(result) {
+  const normalized = String(result || "").trim().toLowerCase();
+  return !normalized || ["error", "failed", "permission", "unknown command", "invalid command"].some((token) => normalized.includes(token));
+}
+
 /**
  * Endpoint to redeem/unpark a player's dinosaur.
  * Auto-detects supported command: spawnparked, loadparked, restore, or spawn, with SFTP bridge fallback.
@@ -27,7 +32,7 @@ async function handler(req, res) {
     for (const cmd of candidateCommands) {
       try {
         const result = await sendRcon(cmd);
-        if (result && !result.toLowerCase().includes("unknown command") && !result.toLowerCase().includes("invalid command")) {
+        if (!isRconFailure(result)) {
           return res.json({
             success: true,
             message: "Dino redeemed successfully via RCON",
