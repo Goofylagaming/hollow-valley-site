@@ -279,6 +279,27 @@ test("api/bodydrop rejects requests while server status is offline", async () =>
   assert.strictEqual(response.body.error, "The Isle server is not online or RCON is not synced yet.");
 });
 
+test("api/bodydrop requires the player to be spawned in-game", async () => {
+  const serverStatus = require("../server/services/serverStatus");
+  const state = serverStatus.getState();
+  const original = { online: state.online, characters: state.characters };
+  state.online = true;
+  state.characters = [];
+
+  try {
+    const response = await requestBodydrop({
+      method: "POST",
+      user: { id: 999003, steam_id: "76561198000000001" },
+      body: { dropType: "small" },
+    });
+    assert.strictEqual(response.status, 400);
+    assert.strictEqual(response.body.error, "You must be spawned in-game to request a body drop.");
+  } finally {
+    state.online = original.online;
+    state.characters = original.characters;
+  }
+});
+
 test("bodydrop bridge defaults to the UE4SS inbox.ndjson path from config.lua", () => {
   const originalBase = process.env.SFTP_BASE_PATH;
   const originalInbox = process.env.BODYDROP_INBOX_PATH;

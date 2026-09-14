@@ -73,8 +73,9 @@ dashboard, which removes that whole class of problem.
 
 ## Body Drop bridge notes
 
-The website stores Body Drop requests in SQLite, validates Steam login and
-cooldowns, then appends a signed NDJSON request into the Qonzer mod inbox:
+The website stores Body Drop requests in SQLite, validates Steam login,
+cooldowns, and that the player is currently spawned in-game (needed for
+location), then appends a signed NDJSON job into the Qonzer mod inbox:
 
 ```text
 TheIsle/Binaries/Win64/ue4ss/Mods/HollowValleyBodyDrop/Saved/inbox.ndjson
@@ -91,9 +92,45 @@ return {
 }
 ```
 
-The Qonzer-side `HollowValleyBodyDrop` mod/agent should read those requests,
-verify the `signature` with the same `BODYDROP_SHARED_SECRET` if it supports
-signature checking, perform the in-game drop, and log/write its own result.
+The actual `main.lua` on the game server only processes inbox lines shaped
+exactly like this (confirmed from the real mod source):
+
+```json
+{"id":"...","action":"spawn","species":"Compsognathus","growth":1,"x":123.4,"y":-567.8,"z":90.1,"steamId":"765..."}
+```
+
+Key points learned from `main.lua`:
+- `action` **must** be `"spawn"` — any other value is silently ignored.
+- `species` must exactly match a key in the mod's own `SPECIES` table
+  (`Allosaurus`, `Beipiaosaurus`, `Carnotaurus`, `Ceratosaurus`,
+  `Compsognathus`, `Deinosuchus`, `Diabloceratops`, `Dilophosaurus`,
+  `Dryosaurus`, `Gallimimus`, `Herrerasaurus`, `Hypsilophodon`, `Maiasaura`,
+  `Omniraptor`, `Pachycephalosaurus`, `Pteranodon`, `Stegosaurus`,
+  `Tenontosaurus`, `Triceratops`, `Troodon`, `Tyrannosaurus`) — there is no
+  generic "small/medium/large" concept on the mod side.
+- `x`/`y`/`z` are required raw Unreal world units; the mod has no fallback
+  spawn point, so the website looks up the requesting player's live RCON
+  location and rejects the request with 400 if they aren't currently
+  spawned in-game.
+- `main.lua` does **not** verify any signature (its `config.lua` has no
+  secret field) — the website still signs the payload for future-proofing,
+  but it currently has no effect on the game-server side.
+
+The website's `BODYDROP_TYPES` env var maps each UI tier (small/medium/large,
+or your own custom set) to one `species`/`growth` pair, since the mod itself
+only understands species names. Defaults if unset:
+
+- `small` → Compsognathus
+- `medium` → Dryosaurus
+- `large` → Triceratops
+
+Override with a comma-separated list of `id:name:description:species:growth`,
+e.g.:
+
+```text
+small:Small body:A small food drop.:Compsognathus:1,medium:Medium body:A mid-size drop.:Maiasaura:1,large:Large body:A big drop for a pack.:Tyrannosaurus:1
+```
 
 Do not expose `BODYDROP_SHARED_SECRET`, RCON passwords, or SFTP passwords in
 browser JavaScript or screenshots.
+

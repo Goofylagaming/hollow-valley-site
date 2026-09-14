@@ -11,10 +11,13 @@ const serverStatus = require("../services/serverStatus");
 
 const router = express.Router();
 
+// species must exactly match a key in the HollowValleyBodyDrop mod's SPECIES
+// table (main.lua) or the game server will reject the job as
+// "species-not-allowed". growth is 0..1 and scales the spawned corpse size.
 const DEFAULT_DROP_TYPES = [
-  { id: "small", name: "Small body", description: "A small emergency food drop." },
-  { id: "medium", name: "Medium body", description: "A balanced body drop for a small group." },
-  { id: "large", name: "Large body", description: "A larger drop for bigger carnivores or packs." },
+  { id: "small", name: "Small body", description: "A small emergency food drop.", species: "Compsognathus", growth: 1 },
+  { id: "medium", name: "Medium body", description: "A balanced body drop for a small group.", species: "Dryosaurus", growth: 1 },
+  { id: "large", name: "Large body", description: "A larger drop for bigger carnivores or packs.", species: "Triceratops", growth: 1 },
 ];
 
 function getCooldownSeconds() {
@@ -26,15 +29,20 @@ function getDropTypes() {
   const raw = process.env.BODYDROP_TYPES;
   if (!raw) return DEFAULT_DROP_TYPES;
 
+  // Format: id:name:description:species:growth
   const parsed = raw
     .split(",")
     .map((entry) => {
-      const [id, name, description] = entry.split(":").map((part) => part?.trim());
+      const [id, name, description, species, growth] = entry.split(":").map((part) => part?.trim());
       if (!/^[a-z0-9_-]{2,32}$/i.test(id || "")) return null;
+      if (!species) return null;
+      const growthNum = Number(growth);
       return {
         id,
         name: name || id,
         description: description || "Body drop request.",
+        species,
+        growth: Number.isFinite(growthNum) && growthNum > 0 ? Math.min(1, growthNum) : 1,
       };
     })
     .filter(Boolean);
@@ -109,6 +117,19 @@ router.post("/", requireAuth, async (req, res) => {
     });
   }
 
+  // The mod spawns the corpse at a fixed world location, so the requesting
+  // player must currently be spawned in-game (their RCON character record has
+  // a live X/Y/Z). Use the raw RCON location, NOT the swapped/projected
+  // coordinates used for the map display - the mod places actors using the
+  // same raw Unreal world units RCON reports.
+  const character = state.characters.find((c) => c.steamId === req.user.steam_id);
+  const location = character?.location;
+  if (!location || !Number.isFinite(location.x) || !Number.isFinite(location.y) || !Number.isFinite(location.z)) {
+    return res.status(400).json({ error: "You must be spawned in-game to request a body drop." });
+  }
+
+  const selected = options.find((option) => option.id === dropType);
+
   const request = createBodyDropRequest({
     userId: req.user.id,
     steamId: req.user.steam_id,
@@ -118,8 +139,11 @@ router.post("/", requireAuth, async (req, res) => {
   const result = await executeGameAction({
     action: "body_drop",
     steamId: req.user.steam_id,
+    species: selected.species,
+    growth: selected.growth,
     dropType,
     bodyDropRequestId: request.id,
+    location,
   });
 
   if (!result.ok) {

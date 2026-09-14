@@ -74,4 +74,4 @@ services:
       - key: BODYDROP_COOLDOWN_SECONDS
         value: 900
       - key: BODYDROP_TYPES
-        value: small:Small body:A small emergency food drop,medium:Medium body:A balanced body drop for a small group,large:Large body:A larger drop for bigger carnivores or packs
+        value: "small:Small body:A small emergency food drop:Compsognathus:1,medium:Medium body:A balanced body drop for a small group:Dryosaurus:1,large:Large body:A larger drop for bigger carnivores or packs:Triceratops:1"

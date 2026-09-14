@@ -59,7 +59,7 @@ function signPayload(payload) {
     .digest("hex");
 }
 
-async function executeGameAction({ action, steamId, species, growth, prime, dropType, bodyDropRequestId }) {
+async function executeGameAction({ action, steamId, species, growth, prime, dropType, bodyDropRequestId, location }) {
   if (!SftpClient) {
     return {
       ok: false,
@@ -73,27 +73,33 @@ async function executeGameAction({ action, steamId, species, growth, prime, drop
   const reqPath = `${baseDir}/requests/${requestId}.json`;
   const resPath = `${baseDir}/results/${requestId}.json`;
 
-  const payloadBody = {
-    requestId,
-    action,
-    steamId: String(steamId),
-    species,
-    growth,
-    prime: Boolean(prime),
-    dropType,
-    bodyDropRequestId,
-    requestedAt: new Date().toISOString(),
-  };
-  const payload = JSON.stringify({
-    ...payloadBody,
-    signature: signPayload(payloadBody),
-  });
-
   try {
     await sftp.connect(getSftpConfig());
 
     if (action === "body_drop") {
-      await appendTextFile(sftp, getBodyDropInboxRemotePath(), `${payload}\n`);
+      // The HollowValleyBodyDrop mod's main.lua reads its own job schema from
+      // the inbox.ndjson queue - it does NOT understand our "body_drop"
+      // action name, dropType tiers, or bodyDropRequestId field. It only
+      // processes lines where action=="spawn" and expects id/species/x/y/z.
+      // Signing is included for future-proofing but the current mod doesn't
+      // verify it (config.lua has no secret field).
+      const jobBody = {
+        id: bodyDropRequestId,
+        action: "spawn",
+        steamId: String(steamId),
+        species,
+        growth,
+        prime: Boolean(prime),
+        x: location?.x,
+        y: location?.y,
+        z: location?.z,
+        requestedAt: new Date().toISOString(),
+      };
+      const job = JSON.stringify({
+        ...jobBody,
+        signature: signPayload(jobBody),
+      });
+      await appendTextFile(sftp, getBodyDropInboxRemotePath(), `${job}\n`);
       await sftp.end();
       return {
         ok: true,
@@ -102,6 +108,22 @@ async function executeGameAction({ action, steamId, species, growth, prime, drop
         message: "Body drop request queued for the game server.",
       };
     }
+
+    const payloadBody = {
+      requestId,
+      action,
+      steamId: String(steamId),
+      species,
+      growth,
+      prime: Boolean(prime),
+      dropType,
+      bodyDropRequestId,
+      requestedAt: new Date().toISOString(),
+    };
+    const payload = JSON.stringify({
+      ...payloadBody,
+      signature: signPayload(payloadBody),
+    });
 
     // Upload request JSON
     await sftp.put(Buffer.from(payload), reqPath);
