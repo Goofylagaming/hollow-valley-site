@@ -34,6 +34,9 @@ dashboard, which removes that whole class of problem.
    - `STEAM_API_KEY` (optional, blank is fine)
    - `RCON_HOST` / `RCON_PORT` / `RCON_PASSWORD` — same values currently on the droplet
    - `SFTP_HOST` / `SFTP_PORT` / `SFTP_USER` / `SFTP_PASSWORD` / `SFTP_BASE_PATH` — same values currently on the droplet
+   - `BODYDROP_SHARED_SECRET` — a new long random shared secret that must also be configured in the Qonzer BodyDrop agent/mod
+   - `BODYDROP_COOLDOWN_SECONDS` — defaults to `900` (15 minutes)
+   - `BODYDROP_TYPES` — optional comma-separated drop definitions, e.g. `small:Small body:A small emergency food drop`
    - Discord/Stripe vars if/when you use them
 4. Deploy. Render builds the existing `Dockerfile` — no changes needed there,
    since the app already binds to `process.env.PORT`.
@@ -66,3 +69,14 @@ dashboard, which removes that whole class of problem.
 - If you still want a safety net, you can keep the droplet paused (not
   destroyed) for a couple of weeks before cancelling it, in case a rollback
   is ever needed.
+
+## Body Drop bridge notes
+
+The website stores Body Drop requests in SQLite, validates Steam login and
+cooldowns, then writes a signed request into the existing SFTP bridge. The
+Qonzer-side `HollowValleyBodyDrop` mod/agent must read those requests, verify
+the `signature` with the same `BODYDROP_SHARED_SECRET`, perform the in-game
+drop, and write the result file back to the bridge results folder.
+
+Do not expose `BODYDROP_SHARED_SECRET`, RCON passwords, or SFTP passwords in
+browser JavaScript or screenshots.

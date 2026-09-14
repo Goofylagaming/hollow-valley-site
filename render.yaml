@@ -67,3 +67,9 @@ services:
         sync: false
       - key: SFTP_BASE_PATH
         sync: false
+      - key: BODYDROP_SHARED_SECRET
+        sync: false
+      - key: BODYDROP_COOLDOWN_SECONDS
+        value: 900
+      - key: BODYDROP_TYPES
+        value: small:Small body:A small emergency food drop,medium:Medium body:A balanced body drop for a small group,large:Large body:A larger drop for bigger carnivores or packs

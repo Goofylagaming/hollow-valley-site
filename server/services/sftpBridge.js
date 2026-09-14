@@ -1,3 +1,5 @@
+const crypto = require("node:crypto");
+
 let SftpClient = null;
 try {
   SftpClient = require("ssh2-sftp-client");
@@ -20,7 +22,16 @@ function getBaseRemotePath() {
   return `/${basePath}/TheIsle/Binaries/Win64/ue4ss/Mods/HollowValleyPark/Saved`;
 }
 
-async function executeGameAction({ action, steamId, species, growth, prime }) {
+function signPayload(payload) {
+  const secret = process.env.BODYDROP_SHARED_SECRET || process.env.BRIDGE_SHARED_SECRET || process.env.SESSION_SECRET;
+  if (!secret) return null;
+  return crypto
+    .createHmac("sha256", secret)
+    .update(JSON.stringify(payload))
+    .digest("hex");
+}
+
+async function executeGameAction({ action, steamId, species, growth, prime, dropType, bodyDropRequestId }) {
   if (!SftpClient) {
     return {
       ok: false,
@@ -34,13 +45,20 @@ async function executeGameAction({ action, steamId, species, growth, prime }) {
   const reqPath = `${baseDir}/requests/${requestId}.json`;
   const resPath = `${baseDir}/results/${requestId}.json`;
 
-  const payload = JSON.stringify({
+  const payloadBody = {
     requestId,
     action,
     steamId: String(steamId),
     species,
     growth,
     prime: Boolean(prime),
+    dropType,
+    bodyDropRequestId,
+    requestedAt: new Date().toISOString(),
+  };
+  const payload = JSON.stringify({
+    ...payloadBody,
+    signature: signPayload(payloadBody),
   });
 
   try {

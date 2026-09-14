@@ -125,6 +125,18 @@ db.exec(`
     claimed_at TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE(user_id, period_key)
   );
+
+  CREATE TABLE IF NOT EXISTS body_drop_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    steam_id TEXT NOT NULL,
+    drop_type TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    bridge_request_id TEXT,
+    error TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    completed_at TEXT
+  );
 `);
 
 // Migration for databases created before Steam login existed: the old schema
@@ -494,6 +506,39 @@ function recordDailyBonusClaim(userId, periodKey, amount) {
   );
 }
 
+// ---------- Body drops ----------
+function createBodyDropRequest({ userId, steamId, dropType }) {
+  const info = db
+    .prepare("INSERT INTO body_drop_requests (user_id, steam_id, drop_type) VALUES (?, ?, ?)")
+    .run(userId, steamId, dropType);
+  return getBodyDropRequest(Number(info.lastInsertRowid));
+}
+
+function getBodyDropRequest(id) {
+  return db.prepare("SELECT * FROM body_drop_requests WHERE id = ?").get(id);
+}
+
+function updateBodyDropRequest(id, { status, bridgeRequestId = null, error = null }) {
+  db.prepare(
+    `UPDATE body_drop_requests
+     SET status = ?, bridge_request_id = COALESCE(?, bridge_request_id), error = ?, completed_at = CASE WHEN ? IN ('completed', 'failed') THEN datetime('now') ELSE completed_at END
+     WHERE id = ?`
+  ).run(status, bridgeRequestId, error, status, id);
+  return getBodyDropRequest(id);
+}
+
+function getLatestBodyDropRequest(userId) {
+  return db
+    .prepare("SELECT * FROM body_drop_requests WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT 1")
+    .get(userId) || null;
+}
+
+function getRecentBodyDropRequests(userId, limit = 5) {
+  return db
+    .prepare("SELECT * FROM body_drop_requests WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT ?")
+    .all(userId, limit);
+}
+
 // ---------- Dashboard ----------
 function getDashboardSummary(userId) {
   const wallet = getWallet(userId);
@@ -546,5 +591,9 @@ module.exports = {
   cancelSupporterAutoRenew,
   hasDailyBonusClaim,
   recordDailyBonusClaim,
+  createBodyDropRequest,
+  updateBodyDropRequest,
+  getLatestBodyDropRequest,
+  getRecentBodyDropRequests,
   getDashboardSummary,
 };

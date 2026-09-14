@@ -20,6 +20,16 @@
         <div id="mydinos-guard"><p class="section-intro">Sign in with Steam to view your storage.</p></div>
         <div id="mydinos-content" hidden>
           <div id="active-character-card" style="margin-bottom: 24px;"></div>
+          <section class="bodydrop-panel" id="bodydrop-panel" aria-labelledby="bodydrop-heading">
+            <div>
+              <p class="overline green">BODY DROP</p>
+              <h2 id="bodydrop-heading">Call in a body drop.</h2>
+              <p class="section-intro">Request an admin-safe food drop through the Hollow Valley bridge. You must be signed in with Steam and online on the server.</p>
+            </div>
+            <div id="bodydrop-content" class="bodydrop-content">
+              <p class="section-intro">Loading body drop status…</p>
+            </div>
+          </section>
           <div class="filter-row" role="group" aria-label="Filter by species">
             <button class="filter active" data-filter="all">All species</button>
             <span class="roster-count" id="mydinos-count">0 in storage</span>
@@ -45,6 +55,6 @@
     <div class="form-row"><button class="small-button" id="list-confirm">List on marketplace</button></div>
   </dialog>
   <script src="assets/common.js?v=10"></script>
-  <script src="assets/mydinos.js?v=2"></script>
+  <script src="assets/mydinos.js?v=3"></script>
 </body>
 </html>

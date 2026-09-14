@@ -61,6 +61,82 @@ async function loadActiveCharacter() {
   }
 }
 
+function formatCooldown(seconds) {
+  if (seconds === null || seconds === undefined) return "pending";
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  if (mins <= 0) return `${secs}s`;
+  return `${mins}m ${String(secs).padStart(2, "0")}s`;
+}
+
+function renderBodyDropStatus(data) {
+  const container = document.getElementById("bodydrop-content");
+  if (!container) return;
+
+  const status = !data.steamLinked
+    ? "Sign in with Steam first"
+    : !data.serverOnline
+      ? "Server sync offline"
+      : data.cooldown?.active
+        ? data.cooldown.reason === "pending"
+          ? "Request pending"
+          : `Cooldown ${formatCooldown(data.cooldown.remainingSeconds)}`
+        : "Available now";
+
+  const disabled = !data.steamLinked || !data.serverOnline || data.cooldown?.active;
+  const options = (data.options || [])
+    .map((option) => `
+      <button class="bodydrop-option" data-drop-type="${escapeHtml(option.id)}" ${disabled ? "disabled" : ""}>
+        <strong>${escapeHtml(option.name)}</strong>
+        <span>${escapeHtml(option.description)}</span>
+      </button>
+    `)
+    .join("");
+
+  const recent = (data.recent || [])
+    .slice(0, 3)
+    .map((request) => `<li><b>${escapeHtml(request.drop_type)}</b><span>${escapeHtml(request.status)}</span><small>${escapeHtml(request.created_at)}</small></li>`)
+    .join("");
+
+  container.innerHTML = `
+    <div class="bodydrop-status ${disabled ? "blocked" : "ready"}">
+      <b>${escapeHtml(status)}</b>
+      <span>${data.cooldownSeconds ? `Cooldown: ${Math.round(data.cooldownSeconds / 60)} minutes` : "No cooldown"}</span>
+    </div>
+    <div class="bodydrop-options">${options}</div>
+    ${recent ? `<ul class="bodydrop-history">${recent}</ul>` : ""}
+  `;
+
+  container.querySelectorAll(".bodydrop-option").forEach((button) => {
+    button.addEventListener("click", async () => {
+      if (!confirm("Request this body drop on the live server?")) return;
+      button.disabled = true;
+      button.querySelector("strong").textContent = "Requesting...";
+      try {
+        await api("/api/bodydrop", {
+          method: "POST",
+          body: JSON.stringify({ dropType: button.dataset.dropType }),
+        });
+        alert("Body drop requested!");
+        await loadBodyDropStatus();
+      } catch (err) {
+        alert(err.message || "Failed to request body drop");
+        await loadBodyDropStatus();
+      }
+    });
+  });
+}
+
+async function loadBodyDropStatus() {
+  const container = document.getElementById("bodydrop-content");
+  if (!container) return;
+  try {
+    renderBodyDropStatus(await api("/api/bodydrop"));
+  } catch (err) {
+    container.innerHTML = `<p class="section-intro" style="color:#ef9a8a;">${escapeHtml(err.message || "Body Drop is unavailable right now.")}</p>`;
+  }
+}
+
 function renderStorage(roster) {
   const grid = document.getElementById("storage-grid");
   document.getElementById("mydinos-count").textContent = `${roster.length} in storage`;
@@ -184,6 +260,7 @@ document.getElementById("list-confirm")?.addEventListener("click", async () => {
 
 async function refresh() {
   await loadActiveCharacter();
+  await loadBodyDropStatus();
   const roster = await api("/api/mydinos");
   renderStorage(roster);
 }
