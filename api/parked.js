@@ -1,11 +1,12 @@
-import { sendRcon } from './rcon.js';
+const { sendRcon } = require("./rcon");
 
-export default async function handler(req, res) {
-    try {
-        const result = await sendRcon("listparked");
-
-        res.json({ success: true, data: result });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
+async function handler(req, res) {
+  try {
+    const result = await sendRcon("listparked");
+    return res.json({ success: true, data: result });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
 }
+
+module.exports = handler;
