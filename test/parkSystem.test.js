@@ -136,3 +136,27 @@ test("api/admin rejects unsupported commands", async () => {
   assert.strictEqual(statusCode, 400);
   assert.strictEqual(jsonResult.error, "Unsupported admin command");
 });
+
+test("api/admin rejects newline-delimited commands", async () => {
+  let statusCode = 0;
+  let jsonResult = null;
+
+  const req = {
+    user: { is_admin: 1 },
+    body: { command: "listparked\nplayers" },
+  };
+  const res = {
+    status(code) {
+      statusCode = code;
+      return this;
+    },
+    json(data) {
+      jsonResult = data;
+      return this;
+    },
+  };
+
+  await adminHandler(req, res);
+  assert.strictEqual(statusCode, 400);
+  assert.strictEqual(jsonResult.error, "Unsupported admin command");
+});
