@@ -1,8 +1,45 @@
-<h1>Admin Dino Tools</h1>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Admin Dinosaur Tools.">
+  <title>Admin Dino Tools | Herby Death Squad</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=14">
+  <script src="admin.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main>
+      <section class="page-header">
+        <p class="overline green">ADMINISTRATION</p>
+        <h1>Admin Dino Tools.</h1>
+        <p class="section-intro">Execute server RCON management commands.</p>
+      </section>
 
-<input id="cmd" placeholder="Enter RCON command">
-<button onclick="runAdmin()">Run</button>
+      <section class="roster-section" style="max-width: 1000px; margin: 0 auto;">
+        <div class="dino-card-v2">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <a href="/mydinos/" class="btn-dino-action dark">← Back to My Dinos</a>
+          </div>
 
-<pre id="output"></pre>
+          <div style="display:flex; gap:12px; margin-bottom:20px;">
+            <input id="cmd" placeholder="Enter RCON command (e.g. listparked)" style="flex:1; background:#0f172a; border:1px solid #334155; color:#f8fafc; padding:12px; border-radius:6px; font-family:monospace;">
+            <button onclick="runAdmin()" class="btn-dino-action prime">Run Command</button>
+          </div>
 
-<script src="admin.js"></script>
+          <pre id="output" style="background:#0f172a; padding:16px; border-radius:8px; border:1px solid #334155; overflow-x:auto; color:#e2e8f0; font-family:monospace; min-height:100px; margin:0;">Output will appear here...</pre>
+        </div>
+      </section>
+    </main>
+    <footer>
+      <span>© 2026 Herby Death Squad Games</span>
+      <span>ISLE EVRIMA COMMUNITY SERVER</span>
+      <a href="/">Back to command ↑</a>
+    </footer>
+  </div>
+
+  <script src="/assets/common.js?v=10"></script>
+</body>
+</html>

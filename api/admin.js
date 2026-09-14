@@ -1,4 +1,4 @@
-const rcon = require("./rcon");
+const rcon = require("./rcon.js");
 
 const ALLOWED_COMMAND_PATTERNS = [
   /^listparked$/i,
@@ -17,24 +17,17 @@ async function handler(req, res) {
       return res.status(403).json({ success: false, error: "Admin access required" });
     }
 
-    const { command } = req.body || {};
+    const command = req.body?.command || req.query?.command;
     if (!command) {
       return res.status(400).json({ success: false, error: "Missing command" });
     }
 
     const normalizedCommand = String(command).trim();
-    if (/[\r\n]/.test(normalizedCommand)) {
-      return res.status(400).json({
-        success: false,
-        error: "Unsupported admin command",
-      });
-    }
-
-    if (!ALLOWED_COMMAND_PATTERNS.some((pattern) => pattern.test(normalizedCommand))) {
-      return res.status(400).json({
-      success: false,
-      error: "Unsupported admin command",
-      });
+    if (
+      /[\r\n]/.test(normalizedCommand) ||
+      !ALLOWED_COMMAND_PATTERNS.some((pattern) => pattern.test(normalizedCommand))
+    ) {
+      return res.status(400).json({ success: false, error: "Unsupported admin command" });
     }
 
     const result = await rcon.sendRcon(normalizedCommand);
@@ -45,3 +38,4 @@ async function handler(req, res) {
 }
 
 module.exports = handler;
+module.exports.default = handler;

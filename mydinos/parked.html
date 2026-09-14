@@ -1,14 +1,61 @@
-<h1>Parked Dinosaurs</h1>
-<div id="parked"></div>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="View parked dinosaurs.">
+  <title>Parked Dinosaurs | Herby Death Squad</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=14">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main>
+      <section class="page-header">
+        <p class="overline green">DINOSAUR MANAGEMENT</p>
+        <h1>Parked Dinosaurs.</h1>
+        <p class="section-intro">View dinosaurs currently parked on the server.</p>
+      </section>
 
-<script>
-async function loadParked() {
-    const res = await fetch('/api/parked');
-    const data = await res.json();
+      <section class="roster-section" style="max-width: 1000px; margin: 0 auto;">
+        <div class="dino-card-v2">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <a href="/mydinos/" class="btn-dino-action dark">← Back to My Dinos</a>
+          </div>
+          <div id="parked">
+            <p class="section-intro">Loading parked dinosaurs…</p>
+          </div>
+        </div>
+      </section>
+    </main>
+    <footer>
+      <span>© 2026 Herby Death Squad Games</span>
+      <span>ISLE EVRIMA COMMUNITY SERVER</span>
+      <a href="/">Back to command ↑</a>
+    </footer>
+  </div>
 
-    document.getElementById("parked").innerHTML =
-        `<pre>${data.data}</pre>`;
-}
+  <script src="/assets/common.js?v=10"></script>
+  <script>
+    async function loadParked() {
+      const container = document.getElementById("parked");
+      try {
+        const res = await fetch('/api/parked');
+        const data = await res.json();
 
-loadParked();
-</script>
+        if (!data.success) {
+          container.innerHTML = `<p style="color:#ef4444">Error: ${escapeHtml(data.error || "Could not fetch parked dinos")}</p>`;
+          return;
+        }
+
+        const content = typeof data.data === "object" ? JSON.stringify(data.data, null, 2) : String(data.data || "No parked dinosaurs found.");
+        container.innerHTML = `<pre style="background:#0f172a; padding:16px; border-radius:8px; border:1px solid #334155; overflow-x:auto; color:#e2e8f0; font-family:monospace;">${escapeHtml(content)}</pre>`;
+      } catch (err) {
+        container.innerHTML = `<p style="color:#ef4444">Failed to load parked dinosaurs: ${escapeHtml(err.message)}</p>`;
+      }
+    }
+
+    loadParked();
+  </script>
+</body>
+</html>
