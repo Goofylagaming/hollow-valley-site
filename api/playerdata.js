@@ -59,8 +59,8 @@ async function handler(req, res) {
     }
 
     // Return current status summary if offline/not spawned
-    res.json({
-      success: true,
+    return res.status(404).json({
+      success: false,
       source: "status_summary",
       data: {
         steamId: steamid,
@@ -71,7 +71,7 @@ async function handler(req, res) {
       },
     });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: err.message });
   }
 }
 

@@ -36,6 +36,7 @@ function sendRcon(command) {
     const timer = setTimeout(() => {
       if (settled) return;
       settled = true;
+      clearTimer(timer);
       try { rcon.disconnect(); } catch (e) {}
       reject(new Error("RCON execution timeout"));
     }, 10000);
