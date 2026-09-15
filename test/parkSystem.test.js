@@ -327,6 +327,15 @@ test("queued body drops remain locked until the request is completed or failed",
   assert.equal(cooldown.remainingSeconds, null);
 });
 
+test("api/bodydrop rejects releasing a request when none is queued", async () => {
+  const response = await requestBodydrop({
+    method: "DELETE",
+    user: { id: 999004 },
+  });
+  assert.equal(response.status, 409);
+  assert.equal(response.body.error, "There is no uploaded Body Drop request awaiting reconciliation.");
+});
+
 test("bodydrop bridge builds the UE4SS spawn job with raw player coordinates", () => {
   const job = sftpBridge.buildBodyDropJob({
     bodyDropRequestId: 42,
