@@ -150,14 +150,14 @@ function createApp() {
 function startServer() {
   const app = createApp();
   return app.listen(PORT, () => {
-  console.log(`Herby Death Squad portal running on port ${PORT}`);
-  serverStatusService.start();
-  herbyBot.start();
-  // Automatically synchronize profiles for linked Steam users who have placeholder usernames
-  syncSteamProfiles(db).then((res) => {
-    if (res.updated > 0) {
-      console.log(`[Steam Profile Sync] Successfully synchronized ${res.updated}/${res.total} Steam user profiles.`);
-    }
+    console.log(`Herby Death Squad portal running on port ${PORT}`);
+    serverStatusService.start();
+    herbyBot.start();
+    // Automatically synchronize profiles for linked Steam users who have placeholder usernames
+    syncSteamProfiles(db).then((res) => {
+      if (res.updated > 0) {
+        console.log(`[Steam Profile Sync] Successfully synchronized ${res.updated}/${res.total} Steam user profiles.`);
+      }
     }).catch((err) => {
       console.warn("[Steam Profile Sync] Background sync warning:", err.message);
     });
