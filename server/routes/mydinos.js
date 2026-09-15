@@ -15,6 +15,7 @@ const {
 const { requireAuth } = require("../middleware/requireAuth");
 const { executeGameAction } = require("../services/sftpBridge");
 const serverStatus = require("../services/serverStatus");
+const { runDinoStorageAction } = require("../services/dinoStorage");
 
 const router = express.Router();
 
@@ -59,32 +60,8 @@ router.post("/park-active", requireAuth, async (req, res) => {
     return res.status(400).json({ error: "Your Steam account is not linked. Please sign in with Steam first." });
   }
 
-  const result = await executeGameAction({
-    action: "park",
-    steamId,
-  });
-
-  if (!result.ok) {
-    return res.status(400).json({ error: result.error || "Failed to park active character in game" });
-  }
-
-  let speciesId = "Unknown";
-  let sizePercent = 100;
-  let isPrime = false;
-
-  if (result.data) {
-    try {
-      const data = typeof result.data === "string" ? JSON.parse(result.data) : result.data;
-      if (data.species) speciesId = data.species;
-      if (data.growth) sizePercent = Math.round(data.growth * 100);
-      if (data.isPrime !== undefined) isPrime = Boolean(data.isPrime);
-    } catch (e) {
-      console.error("Failed to parse park result data", e);
-    }
-  }
-
-  const dino = addRosterDino(req.user.id, speciesId, sizePercent, isPrime, "parked");
-  res.json({ ok: true, dino });
+  const result = await runDinoStorageAction("store", steamId);
+  res.json({ ok: true, result });
 });
 
 router.post("/:id/redeem", requireAuth, async (req, res) => {
@@ -92,20 +69,12 @@ router.post("/:id/redeem", requireAuth, async (req, res) => {
   if (!dino) return;
 
   const steamId = req.user.steam_id;
-  if (steamId) {
-    const result = await executeGameAction({
-      action: "redeem",
-      steamId,
-      species: dino.species_id,
-      growth: (dino.size_percent || 100) / 100,
-      prime: dino.is_prime,
-    });
-    if (!result.ok) {
-      return res.status(400).json({ error: result.error || "Failed to redeem dino in game" });
-    }
+  if (!steamId) {
+    return res.status(400).json({ error: "Your Steam account is not linked. Please sign in with Steam first." });
   }
 
-  res.json(setRosterStatus(dino.id, "active"));
+  const result = await runDinoStorageAction("redeem", steamId);
+  res.json({ ok: true, result });
 });
 
 router.post("/:id/park", requireAuth, async (req, res) => {
@@ -113,17 +82,12 @@ router.post("/:id/park", requireAuth, async (req, res) => {
   if (!dino) return;
 
   const steamId = req.user.steam_id;
-  if (steamId) {
-    const result = await executeGameAction({
-      action: "park",
-      steamId,
-    });
-    if (!result.ok) {
-      return res.status(400).json({ error: result.error || "Failed to park dino in game" });
-    }
+  if (!steamId) {
+    return res.status(400).json({ error: "Your Steam account is not linked. Please sign in with Steam first." });
   }
 
-  res.json(setRosterStatus(dino.id, "parked"));
+  const result = await runDinoStorageAction("store", steamId);
+  res.json({ ok: true, result });
 });
 
 router.post("/:id/set-prime", requireAuth, async (req, res) => {

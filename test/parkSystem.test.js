@@ -7,6 +7,7 @@ const adminHandler = require("../api/admin");
 const express = require("express");
 const bodydropRouter = require("../server/routes/bodydrop");
 const sftpBridge = require("../server/services/sftpBridge");
+const dinoStorage = require("../server/services/dinoStorage");
 
 async function requestBodydrop({ method = "GET", path = "/api/bodydrop", user, body } = {}) {
   const app = express();
@@ -56,6 +57,26 @@ test("api/park returns 400 when steamid is missing", async () => {
   await parkHandler(req, res);
   assert.strictEqual(statusCode, 400);
   assert.strictEqual(jsonResult.error, "Missing SteamID");
+});
+
+test("DinoStorage commands substitute Steam IDs without accepting newlines", () => {
+  assert.equal(
+    dinoStorage.buildCommand("DINOSTORAGE_STORE_COMMAND", "!store", "76561198000000000"),
+    "!store"
+  );
+  process.env.DINOSTORAGE_STORE_COMMAND = "!store {steamId}";
+  try {
+    assert.equal(
+      dinoStorage.buildCommand("DINOSTORAGE_STORE_COMMAND", "!store", "76561198000000000"),
+      "!store 76561198000000000"
+    );
+    assert.throws(
+      () => dinoStorage.buildCommand("DINOSTORAGE_STORE_COMMAND", "!store", "76561198000000000\nplayers"),
+      /valid Steam ID/
+    );
+  } finally {
+    delete process.env.DINOSTORAGE_STORE_COMMAND;
+  }
 });
 
 test("api/redeem returns 400 when steamid is missing", async () => {

@@ -1,5 +1,4 @@
-const { executeGameAction } = require("../server/services/sftpBridge");
-const { sendRcon } = require("./rcon.js");
+const { runDinoStorageAction } = require("../server/services/dinoStorage");
 
 function isRconFailure(result) {
   const normalized = String(result || "").trim().toLowerCase();
@@ -7,8 +6,7 @@ function isRconFailure(result) {
 }
 
 /**
- * Endpoint to redeem/unpark a player's dinosaur.
- * Auto-detects supported command: spawnparked, loadparked, restore, or spawn, with SFTP bridge fallback.
+ * Endpoint to redeem a player's dinosaur through DinoStorage.
  */
 async function handler(req, res) {
   try {
@@ -18,51 +16,11 @@ async function handler(req, res) {
       return res.status(400).json({ error: "Missing SteamID" });
     }
 
-    const candidateCommands = [
-      `spawnparked ${steamid}`,
-      `loadparked ${steamid}`,
-      `restore ${steamid}`,
-      `spawn ${steamid}`,
-    ];
-
-    let lastRconError = null;
-    let rconResult = null;
-
-    // 1. Try RCON candidates sequentially
-    for (const cmd of candidateCommands) {
-      try {
-        const result = await sendRcon(cmd);
-        if (!isRconFailure(result)) {
-          return res.json({
-            success: true,
-            message: "Dino redeemed successfully via RCON",
-            command: cmd,
-            rcon: result,
-          });
-        }
-        rconResult = result;
-      } catch (rconErr) {
-        lastRconError = rconErr;
-      }
-    }
-
-    // 2. Try SFTP Bridge fallback
-    const bridgeResult = await executeGameAction({
-      action: "redeem",
-      steamId: steamid,
-    });
-
-    if (bridgeResult.ok) {
-      return res.json({
-        success: true,
-        message: "Dino redeemed successfully via SFTP bridge",
-        data: bridgeResult,
-      });
-    }
-
-    res.status(400).json({
-      success: false,
-      error: bridgeResult.error || (rconResult ? `RCON response: ${rconResult}` : lastRconError?.message || "Failed to redeem dinosaur on game server."),
+    const result = await runDinoStorageAction("redeem", steamid);
+    return res.json({
+      success: true,
+      message: "DinoStorage redeem command sent.",
+      data: result,
     });
   } catch (err) {
     res.status(500).json({
