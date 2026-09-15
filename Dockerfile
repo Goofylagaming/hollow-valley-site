@@ -8,6 +8,7 @@ RUN npm install --omit=dev
 COPY server ./server
 COPY public ./public
 COPY api ./api
+COPY landing ./landing
 COPY mydinos ./mydinos
 
 ENV NODE_ENV=production
