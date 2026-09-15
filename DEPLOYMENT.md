@@ -145,6 +145,12 @@ The `landing/` folder is a plain static page (no Node/Docker involved) that
 lists your projects with a button into Hollow Valley. To serve it at the bare
 root domain:
 
+> If the root domain points at the same app/container as
+> `hollowvalley.herbydeathsquadgames.com`, the Express app now serves this
+> landing page automatically on `/` and redirects any other path to the Hollow
+> Valley subdomain. The Nginx config below is only needed if you want host
+> Nginx to serve the static landing page directly.
+
 1. Add a Cloudflare DNS record for the root domain:
 
    ```
