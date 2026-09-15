@@ -32,10 +32,10 @@ dashboard, which removes that whole class of problem.
    - `STEAM_RETURN_URL` = `https://hollowvalley.herbydeathsquadgames.com/auth/steam/callback`
    - `STEAM_REALM` = `https://hollowvalley.herbydeathsquadgames.com/`
    - `STEAM_API_KEY` (optional, blank is fine)
-   - `RCON_HOST` / `RCON_PORT` / `RCON_PASSWORD` — same values currently on the droplet
-   - `SFTP_HOST` / `SFTP_PORT` / `SFTP_USER` / `SFTP_PASSWORD` / `SFTP_BASE_PATH` — same values currently on the droplet
-   - `BODYDROP_SHARED_SECRET` — a new long random shared secret that must also be configured in the Qonzer BodyDrop agent/mod
-   - `BODYDROP_INBOX_PATH` — defaults to `Mods/HollowValleyBodyDrop/Saved/inbox.ndjson`, matching the Qonzer `config.lua`
+   - `RCON_HOST` / `RCON_PORT` / `RCON_PASSWORD` — from your current game host's RCON panel
+   - `SFTP_HOST` / `SFTP_PORT` / `SFTP_USER` / `SFTP_PASSWORD` / `SFTP_BASE_PATH` — from your current game host's file access panel
+   - `BODYDROP_SHARED_SECRET` — a new long random shared secret that must also be configured in the BodyDrop agent/mod
+   - `BODYDROP_INBOX_PATH` — defaults to `Mods/HollowValleyBodyDrop/Saved/inbox.ndjson`, matching the game-server `config.lua`
    - `BODYDROP_COOLDOWN_SECONDS` — defaults to `900` (15 minutes)
    - `BODYDROP_TYPES` — optional comma-separated drop definitions, e.g. `small:Small body:A small emergency food drop`
    - Discord/Stripe vars if/when you use them
@@ -134,3 +134,35 @@ small:Small body:A small food drop.:Compsognathus:1,medium:Medium body:A mid-siz
 Do not expose `BODYDROP_SHARED_SECRET`, RCON passwords, or SFTP passwords in
 browser JavaScript or screenshots.
 
+## Moving the game server to VeryGames
+
+The website code is host-agnostic. To point it at a new VeryGames Isle server,
+update only the Render environment variables and reinstall the game-server mod
+files on VeryGames:
+
+1. In Render → `hollow-valley-site` → **Environment**, replace:
+   - `RCON_HOST`
+   - `RCON_PORT`
+   - `RCON_PASSWORD`
+   - `SFTP_HOST`
+   - `SFTP_PORT`
+   - `SFTP_USER`
+   - `SFTP_PASSWORD`
+   - `SFTP_BASE_PATH`
+2. `SFTP_BASE_PATH` must be the folder prefix that contains
+   `TheIsle/Binaries/Win64`. It is host-specific; do not reuse the old Qonzer
+   value.
+3. Reinstall or upload UE4SS on VeryGames, then upload:
+   - `ue4ss/Mods/HollowValleyPark`
+   - `ue4ss/Mods/HollowValleyBodyDrop`
+4. Confirm `HollowValleyBodyDrop/Scripts/config.lua` uses:
+
+```lua
+inboxPath="ue4ss/Mods/HollowValleyBodyDrop/Saved/inbox.ndjson"
+```
+
+5. Restart the game server after changing UE4SS or any Lua mod file.
+
+The SFTP bridge intentionally has no hardcoded fallback host, username,
+password, or base path. If a VeryGames value is missing, bridge actions fail
+clearly instead of writing to the previous host by accident.

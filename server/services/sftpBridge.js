@@ -8,17 +8,35 @@ try {
 }
 
 function getSftpConfig() {
+  const port = Number(process.env.SFTP_PORT);
+  const missing = [];
+  if (!process.env.SFTP_HOST) missing.push("SFTP_HOST");
+  if (!Number.isFinite(port)) missing.push("SFTP_PORT");
+  if (!process.env.SFTP_USER) missing.push("SFTP_USER");
+  if (!process.env.SFTP_PASSWORD) missing.push("SFTP_PASSWORD");
+
+  if (missing.length) {
+    throw new Error(`SFTP bridge is not configured. Missing: ${missing.join(", ")}`);
+  }
+
   return {
-    host: process.env.SFTP_HOST || "103.193.81.65",
-    port: Number(process.env.SFTP_PORT) || 8822,
-    username: process.env.SFTP_USER || "Goofy",
-    password: process.env.SFTP_PASSWORD || "Squishyhollow!1987",
+    host: process.env.SFTP_HOST,
+    port,
+    username: process.env.SFTP_USER,
+    password: process.env.SFTP_PASSWORD,
     readyTimeout: 10000,
   };
 }
 
+function getSftpBasePath() {
+  if (!process.env.SFTP_BASE_PATH) {
+    throw new Error("SFTP bridge is not configured. Missing: SFTP_BASE_PATH");
+  }
+  return process.env.SFTP_BASE_PATH.replace(/^\/+|\/+$/g, "");
+}
+
 function getBaseRemotePath() {
-  const basePath = process.env.SFTP_BASE_PATH || "103.193.81.65_5565";
+  const basePath = getSftpBasePath();
   return `/${basePath}/TheIsle/Binaries/Win64/ue4ss/Mods/HollowValleyPark/Saved`;
 }
 
@@ -26,7 +44,7 @@ function getBodyDropInboxRemotePath() {
   if (process.env.BODYDROP_INBOX_PATH?.startsWith("/")) {
     return process.env.BODYDROP_INBOX_PATH;
   }
-  const basePath = process.env.SFTP_BASE_PATH || "103.193.81.65_5565";
+  const basePath = getSftpBasePath();
   const inboxPath = process.env.BODYDROP_INBOX_PATH || "Mods/HollowValleyBodyDrop/Saved/inbox.ndjson";
   return `/${basePath}/TheIsle/Binaries/Win64/ue4ss/${inboxPath.replace(/^\/+/, "")}`;
 }

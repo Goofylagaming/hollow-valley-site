@@ -60,7 +60,7 @@ services:
       - key: SFTP_HOST
         sync: false
       - key: SFTP_PORT
-        value: 8822
+        sync: false
       - key: SFTP_USER
         sync: false
       - key: SFTP_PASSWORD
