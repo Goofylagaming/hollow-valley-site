@@ -6,7 +6,7 @@ const {
   getRecentBodyDropRequests,
 } = require("../db");
 const { requireAuth } = require("../middleware/requireAuth");
-const { executeGameAction } = require("../services/sftpBridge");
+const { executeBodyDrop } = require("../services/bodyDrop");
 const serverStatus = require("../services/serverStatus");
 
 const router = express.Router();
@@ -136,8 +136,7 @@ router.post("/", requireAuth, async (req, res) => {
     dropType,
   });
 
-  const result = await executeGameAction({
-    action: "body_drop",
+  const result = await executeBodyDrop({
     steamId: req.user.steam_id,
     species: selected.species,
     growth: selected.growth,
@@ -146,7 +145,7 @@ router.post("/", requireAuth, async (req, res) => {
     location,
   });
 
-  if (!result.ok) {
+  if (!result.ok && !result.queued) {
     const failed = updateBodyDropRequest(request.id, {
       status: "failed",
       bridgeRequestId: result.requestId,
@@ -158,9 +157,10 @@ router.post("/", requireAuth, async (req, res) => {
   const queued = updateBodyDropRequest(request.id, {
     status: result.queued ? "queued" : "completed",
     bridgeRequestId: result.requestId,
+    error: result.queued ? result.message : null,
   });
 
-  res.json({ ok: true, request: queued, result });
+  res.status(result.queued ? 202 : 200).json({ ok: result.ok, request: queued, result });
 });
 
 router.delete("/", requireAuth, (req, res) => {
@@ -169,11 +169,7 @@ router.delete("/", requireAuth, (req, res) => {
     return res.status(409).json({ error: "There is no uploaded Body Drop request awaiting reconciliation." });
   }
 
-  const cancelled = updateBodyDropRequest(latest.id, {
-    status: "failed",
-    error: "Player confirmed that no body spawned; request released for a retry.",
-  });
-  res.json({ ok: true, request: cancelled });
+  res.status(409).json({ error: "The uploaded command may still execute. An operator must reconcile its queues and results before releasing this request." });
 });
 
 module.exports = router;

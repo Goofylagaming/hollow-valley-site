@@ -15,7 +15,7 @@ const {
 const { requireAuth } = require("../middleware/requireAuth");
 const { executeGameAction } = require("../services/sftpBridge");
 const serverStatus = require("../services/serverStatus");
-const { runDinoStorageAction } = require("../services/dinoStorage");
+const { respondToDinoStorageAction } = require("../services/dinoStorage");
 
 const router = express.Router();
 
@@ -55,39 +55,21 @@ router.get("/active-character", requireAuth, (req, res) => {
 });
 
 router.post("/park-active", requireAuth, async (req, res) => {
-  const steamId = req.user.steam_id;
-  if (!steamId) {
-    return res.status(400).json({ error: "Your Steam account is not linked. Please sign in with Steam first." });
-  }
-
-  const result = await runDinoStorageAction("store", steamId);
-  res.json({ ok: true, result });
+  return respondToDinoStorageAction(req, res, "store");
 });
 
 router.post("/:id/redeem", requireAuth, async (req, res) => {
   const dino = ownedOr404(req, res);
   if (!dino) return;
 
-  const steamId = req.user.steam_id;
-  if (!steamId) {
-    return res.status(400).json({ error: "Your Steam account is not linked. Please sign in with Steam first." });
-  }
-
-  const result = await runDinoStorageAction("redeem", steamId);
-  res.json({ ok: true, result });
+  res.status(409).json({ error: "Website roster entries are not DinoStorage slots. Use the separate DinoStorage default-slot controls." });
 });
 
 router.post("/:id/park", requireAuth, async (req, res) => {
   const dino = ownedOr404(req, res);
   if (!dino) return;
 
-  const steamId = req.user.steam_id;
-  if (!steamId) {
-    return res.status(400).json({ error: "Your Steam account is not linked. Please sign in with Steam first." });
-  }
-
-  const result = await runDinoStorageAction("store", steamId);
-  res.json({ ok: true, result });
+  res.status(409).json({ error: "Website roster entries are not DinoStorage slots. Use the separate DinoStorage default-slot controls." });
 });
 
 router.post("/:id/set-prime", requireAuth, async (req, res) => {

@@ -55,12 +55,14 @@ services:
         sync: false
       - key: RCON_PASSWORD
         sync: false
-      - key: DINOSTORAGE_RCON_PREFIX
-        value: ""
-      - key: DINOSTORAGE_STORE_COMMAND
-        value: "!store"
-      - key: DINOSTORAGE_REDEEM_COMMAND
-        value: "!redeem"
+      - key: COMMAND_BRIDGE_ENABLED
+        value: false
+      - key: COMMAND_BRIDGE_SAVED_PATH
+        value: Mods/CommandBridge/Saved
+      - key: COMMAND_BRIDGE_TIMEOUT_MS
+        value: 20000
+      - key: BODYDROP_BRIDGE_MODE
+        value: commandbridge
       - key: MAX_PLAYERS
         value: 100
       - key: GAME_FILE_PROTOCOL

@@ -35,8 +35,9 @@ dashboard, which removes that whole class of problem.
    - `RCON_HOST` / `RCON_PORT` / `RCON_PASSWORD` — from your current game host's RCON panel
    - `GAME_FILE_PROTOCOL` — `sftp` by default, or `ftp` for hosts that only provide plain FTP
    - `SFTP_HOST` / `SFTP_PORT` / `SFTP_USER` / `SFTP_PASSWORD` / `SFTP_BASE_PATH` — from your current game host's file access panel; these names are used for both SFTP and FTP
-   - `BODYDROP_SHARED_SECRET` — signs jobs; the current mod does not verify signatures, so this is not an authentication or delivery check
-   - `BODYDROP_INBOX_PATH` — defaults to `Mods/HollowValleyBodyDrop/Saved/inbox.ndjson`, matching the game-server `config.lua`
+   - `COMMAND_BRIDGE_ENABLED` — keep `false` until the compatible mods and paths below are verified
+   - `COMMAND_BRIDGE_SAVED_PATH` — defaults to `Mods/CommandBridge/Saved`, relative to `ue4ss`
+   - `BODYDROP_BRIDGE_MODE` — `commandbridge` by default; `legacy` only for the custom HollowValleyBodyDrop schema
    - `BODYDROP_COOLDOWN_SECONDS` — defaults to `900` (15 minutes)
    - `BODYDROP_TYPES` — optional comma-separated drop definitions, e.g. `small:Small body:A small emergency food drop:Compsognathus:1`
    - Discord/Stripe vars if/when you use them
@@ -72,180 +73,183 @@ dashboard, which removes that whole class of problem.
   destroyed) for a couple of weeks before cancelling it, in case a rollback
   is ever needed.
 
-## Body Drop bridge notes
+## CommandBridge: DinoStorage and Body Drop
 
-The website stores Body Drop requests in SQLite, validates Steam login,
-cooldowns, and that the player is currently spawned in-game (needed for
-location), then appends a signed NDJSON job into the Qonzer mod inbox:
+**Repository changes do not install mods or change a live game server.** Plan
+any mod installation/restart separately during an approved maintenance window.
+Do not blindly upload the reference Lua files to an online server.
+
+Contracts inspected:
+
+- [DinoStorage architecture](https://github.com/diplomatic-tendencies/evrima-dev-knowledge/blob/main/EVRIMA_DinoStorage_Architecture.md):
+  `!store`/`!redeem` are **player chat hooks**, not RCON commands. The sender
+  controller supplies Steam identity. Store saves state then schedules death;
+  redeem transforms a naturally spawned same-species pawn.
+- [BodyDrop architecture](https://github.com/diplomatic-tendencies/evrima-dev-knowledge/blob/main/EVRIMA_BodyDrop_Architecture.md):
+  upstream BodyDrop accepts token-array commands through CommandBridge, not
+  the old custom HollowValleyBodyDrop `action:"spawn"` object.
+- [CommandBridge reference source](https://github.com/squeaky-joe/final-ancestor-bot/blob/306174b08332609adeb839391b912a4207ea813f/mods/CommandBridge/Scripts/main.lua),
+  [DinoStorage implementation](https://github.com/squeaky-joe/final-ancestor-bot/blob/306174b08332609adeb839391b912a4207ea813f/mods/DinoStorage/Scripts/main.lua),
+  and [BodyDrop implementation](https://github.com/squeaky-joe/final-ancestor-bot/blob/306174b08332609adeb839391b912a4207ea813f/mods/BodyDrop/Scripts/main.lua)
+  define the concrete IPC contract used here. A mod with the same name is not
+  sufficient: verify the installed version supports this schema and results.
+
+The old website sent literal `!store` via the generic Source RCON library,
+omitted player identity by default, and treated any reply as success. Evrima's
+working status reader (`server/rcon.js`) uses a different binary RCON protocol.
+Neither transport impersonates a player chat sender. The website no longer
+uses raw RCON for DinoStorage, and `DINOSTORAGE_RCON_PREFIX`,
+`DINOSTORAGE_STORE_COMMAND`, and `DINOSTORAGE_REDEEM_COMMAND` are unused.
+
+### Wire contract and acknowledgement limits
+
+The website appends one complete line to `CommandBridge/Saved/commands.ndjson`
+using FTP `APPE` or SFTP append. It never rewrites the live queue or creates
+missing mod directory trees. Examples (IDs are illustrative; real IDs are UUIDs):
+
+```jsonl
+{"id":"request-1","ts":1789480800,"verb":"dino_store","steam":"76561198000000000","args":{"args":["default"]}}
+{"id":"request-2","ts":1789480800,"verb":"dino_retrieve","steam":"76561198000000000","args":{"args":["default"]}}
+{"id":"request-3","ts":1789480800,"verb":"bd","steam":"76561198000000000","args":{"args":["spawn","Dryosaurus","12.5","-9","44","0.75","76561198000000000"]}}
+```
+
+CommandBridge routes `dino_store`/`dino_retrieve` into
+`Mods/DinoStorage/Saved/cmd.flag` as `[id] store <steam> default` or
+`[id] retrieve <steam> default`. `bd` routes to
+`Mods/BodyDrop/Saved/inbox.ndjson` with a top-level `args` token array.
+BodyDrop gets raw Unreal coordinates and the requesting Steam as the last
+token, so the compatible mod resolves the player's current location itself.
+Growth is a fraction, not a percentage.
+
+All responses append to `Mods/CommandBridge/Saved/results.ndjson`. The first
+reply may be a routing ACK (`ok:true,msg:"queued"`, no `source`), not completion.
+The website ignores positive routing ACKs and waits for the same `id`, `steam`,
+and `source:"DinoStorage"` or `source:"BodyDrop"`. Routing rejection or a
+sub-mod `ok:false` is surfaced as failure; duplicate ACKs cannot become success.
+Partial final lines are deferred; malformed complete lines fail explicitly.
+Result reads are bounded at 8 MiB; archive/rotate larger logs with the bridge
+stopped, never delete active queues/results while requests are in flight.
+
+**A DinoStorage result is not proof that the dino died or restoration finished.**
+The reference stores state, emits success, then later calls `SetHealth(0)` in
+a protected Lua callback. Retrieval also acknowledges before deferred apply.
+The website cannot repair an engine/mod failure after that ACK. Verify the
+per-slot file and in-game outcome; do not add a separate website kill, which
+could kill before a durable snapshot exists. The reference requires 75% growth
+to store and a live same-species pawn to retrieve. Its `!store` chat hook is
+not enabled (the bot fork is IPC-only), unlike the architecture's chat lineage.
+
+Only the mod's `default` slot is exposed here. The SQLite marketplace roster
+is **not** the mod's `stored/<steam>/<slot>.json` index. Roster card Park/Redeem
+actions are disabled instead of pretending to target a slot. Stored files
+are not deleted automatically after retrieve: acknowledgement precedes actual
+restore, so deleting then risks losing the only recoverable state.
+
+**A BodyDrop sub-mod result means the mod reports spawn success**, not that a
+player necessarily sees a safe edible body. The reference fork still uses
+blind `Z + 1500` and `bAlwaysRelevant=true`. The newer architecture explicitly
+replaces those with ground tracing/water rejection and normal relevancy:
+older builds can put bodies below terrain or cause client load-in crashes.
+Review/fix the installed Lua separately; this website does not patch it.
+
+After an attempted write, transfer ambiguity, read failure, or result timeout
+returns HTTP 202 with `queued:true,confirmed:false`, a request ID and an
+explicit **do not retry** message. The job may already be executing. Body Drop
+stays locked; a player saying "nothing spawned" cannot clear a live command.
+There is no background late-result watcher: an operator must reconcile a late
+result and queued database record. DinoStorage callers must likewise keep
+the request ID and avoid a second store/retrieve until reconciliation.
+Append and Lua rename/read/delete polling do not provide exactly-once delivery.
+
+### Exact Render configuration (apply only when approved)
+
+Keep the feature disabled until the compatible mod installation is verified:
 
 ```text
-TheIsle/Binaries/Win64/ue4ss/Mods/HollowValleyBodyDrop/Saved/inbox.ndjson
+COMMAND_BRIDGE_ENABLED=false
+COMMAND_BRIDGE_SAVED_PATH=Mods/CommandBridge/Saved
+COMMAND_BRIDGE_TIMEOUT_MS=20000
+BODYDROP_BRIDGE_MODE=commandbridge
+GAME_FILE_PROTOCOL=ftp
+FTP_SECURE=false
+SFTP_BASE_PATH=/
 ```
 
-For a mod resolving relative paths from the `ue4ss` directory, the
-BodyDrop `config.lua` shape is:
+Use `ftp` only for an FTP endpoint, `sftp` for SFTP/SSH. `FTP_SECURE=true`
+enables explicit FTPS/TLS only when supported/required by the host. Set
+`SFTP_HOST`, `SFTP_PORT`, `SFTP_USER`, `SFTP_PASSWORD` from the **file-access**
+panel, not RCON. These variable names are used for both protocols.
+RCON status settings remain separate and are still needed for live-player
+location checks. Successful RCON status says nothing about FTP or mod health.
 
-```lua
-return {
-  logDebug=true,
-  inboxPath="Mods/HollowValleyBodyDrop/Saved/inbox.ndjson",
-  ragdollSeconds=3600,
-  maxJobsPerTick=5
-}
+`SFTP_BASE_PATH=/` means `TheIsle` is directly at the file-access root, resolving:
+
+```text
+/TheIsle/Binaries/Win64/ue4ss/Mods/CommandBridge/Saved/commands.ndjson
+/TheIsle/Binaries/Win64/ue4ss/Mods/CommandBridge/Saved/results.ndjson
 ```
 
-The actual `main.lua` on the game server only processes inbox lines shaped
-exactly like this (confirmed from the real mod source):
+If the visible root contains `games/isle/TheIsle`, set
+`SFTP_BASE_PATH=/games/isle`. Alternatively set `COMMAND_BRIDGE_SAVED_PATH`
+to the exact absolute FTP/SFTP-visible `.../CommandBridge/Saved` directory.
+Do not copy a native Windows drive path or prefix a relative path with
+`ue4ss/` again. Both command and result files must refer to the same active
+game instance.
+
+The reference Lua uses relative `Mods/...` paths. If its effective working
+directory is `Win64`, those differ from a website destination under
+`Win64/ue4ss/Mods`. Verify the actual paths on disk/logs; use an absolute
+FTP-visible override or adjust the installed Lua's path configuration in
+maintenance. Do not guess its working directory.
+
+Confirm `CommandBridge`, `DinoStorage`, and `BodyDrop` are enabled via the
+installed UE4SS mechanism (`mods.txt` or equivalent), their startup logs show
+successful load/polling, and all three `Saved` folders exist and are writable.
+The website needs append permission for commands and list/read permission for
+results. After those checks, set `COMMAND_BRIDGE_ENABLED=true` on Render.
+No shared secret is present in the documented CommandBridge job schema;
+restrict file-access credentials. Never expose credentials in browser code
+or shared logs.
+
+### Live checks by failure stage
+
+| Evidence | Check next |
+| --- | --- |
+| `configuration` error | Explicit enable flag, file-access protocol/port and resolved paths |
+| `connect` error | FTP/SFTP authentication, host firewall/passive data connection, TLS mode |
+| `read results preflight` error | Results directory/list/read permissions, malformed or oversized results log |
+| `append command` ambiguity | Logged request ID in commands and `.processing`; do not send a duplicate |
+| Upload but no routing ACK | Correct CommandBridge instance/path, enabled flag, polling loop and UE4SS errors |
+| Routing `ok:false` | Its `msg`, especially missing/wrong `Mods/DinoStorage/Saved` or `Mods/BodyDrop/Saved` |
+| ACK only, no matching `source` | Correct sub-mod version/IPC support, `cmd.flag` or BodyDrop inbox, `.processing` and sub-mod load errors |
+| DinoStorage `ok:false` | Snapshot write permission, 75% growth, online live pawn, slot existence or same-species rule |
+| DinoStorage `ok:true` but no death/restore | Saved `stored/<steam>/default.json`, deferred callback, pawn lookup and Lua setter errors; ACK precedes engine mutation |
+| BodyDrop `ok:false` | Species/class lookup, game mode/world, player location and spawn failures in `msg` |
+| BodyDrop reports spawned, no visible body | Installed ground-trace/replication implementation, terrain/water and actual location; website cannot fix an old Lua spawn recipe |
+
+Correlate the exact UUID, Steam and source in `results.ndjson`. Do not treat a
+positive CommandBridge `queued` ACK as either a stored dino or spawned corpse.
+Preserve queue/result evidence when reconciling; absence from an inbox alone
+does not prove failure. No credentials need to be shared to compare redacted
+paths, log stages and matching result records.
+
+### Legacy HollowValleyBodyDrop compatibility
+
+Only set `BODYDROP_BRIDGE_MODE=legacy` if the installed **custom**
+`HollowValleyBodyDrop` mod really accepts:
 
 ```json
-{"id":"...","action":"spawn","species":"Compsognathus","growth":1,"x":123.4,"y":-567.8,"z":90.1,"steamId":"765..."}
+{"id":42,"action":"spawn","species":"Compsognathus","growth":1,"x":123.4,"y":-567.8,"z":90.1,"steamId":"76561198000000000"}
 ```
 
-Key points learned from `main.lua`:
-- `action` **must** be `"spawn"` — any other value is silently ignored.
-- `species` must exactly match a key in the mod's own `SPECIES` table
-  (`Allosaurus`, `Beipiaosaurus`, `Carnotaurus`, `Ceratosaurus`,
-  `Compsognathus`, `Deinosuchus`, `Diabloceratops`, `Dilophosaurus`,
-  `Dryosaurus`, `Gallimimus`, `Herrerasaurus`, `Hypsilophodon`, `Maiasaura`,
-  `Omniraptor`, `Pachycephalosaurus`, `Pteranodon`, `Stegosaurus`,
-  `Tenontosaurus`, `Triceratops`, `Troodon`, `Tyrannosaurus`) — there is no
-  generic "small/medium/large" concept on the mod side.
-- `x`/`y`/`z` are required raw Unreal world units; the mod has no fallback
-  spawn point, so the website looks up the requesting player's live RCON
-  location and rejects the request with 400 if they aren't currently
-  spawned in-game.
-- `main.lua` does **not** verify any signature (its `config.lua` has no
-  secret field) — the website still signs the payload for future-proofing,
-  but it currently has no effect on the game-server side.
-- A request remains locked while its database status is `pending` or `queued`;
-  this prevents duplicate drops while the UE4SS mod consumes the inbox line.
-  **There is currently no Body Drop result reader or callback in this website.**
-  Uploading changes the status to `queued`, not `completed`, and even a
-  successful spawn will not automatically release that lock. Do not clear
-  queued requests or retry until an operator has reconciled the inbox and
-  game logs; blindly retrying can spawn duplicate bodies.
-- If VeryGames uses a different mod folder, set `BODYDROP_INBOX_PATH` to a path
-  relative to `TheIsle/Binaries/Win64/ue4ss/` (for example
-  `Mods/HollowValleyBodyDrop/Saved/inbox.ndjson`). Do not include `..` path
-  segments. An absolute FTP/SFTP path overrides the derived path for Body Drop
-  only. The destination directory must already exist: the bridge intentionally
-  does not create mod directories, which could hide an incorrect host prefix.
-  FTP uses `APPE`, not a download/rewrite of the live queue. The FTP server
-  must support append; failures are reported rather than falling back to a
-  potentially destructive overwrite. This does not guarantee coordination
-  with any Lua-side queue truncation; that requires a shared queue protocol.
+That mode uses `BODYDROP_INBOX_PATH` (default
+`Mods/HollowValleyBodyDrop/Saved/inbox.ndjson`, relative to `ue4ss`, or an
+absolute FTP/SFTP path) and optional `BODYDROP_SHARED_SECRET` signing. Its
+legacy Lua does not verify the signature and has no documented result
+contract; upload remains unconfirmed/queued. These settings are ignored by
+CommandBridge mode. Changing only the folder name does not translate schemas.
 
-The website's `BODYDROP_TYPES` env var maps each UI tier (small/medium/large,
-or your own custom set) to one `species`/`growth` pair, since the mod itself
-only understands species names. Defaults if unset:
-
-- `small` → Compsognathus
-- `medium` → Dryosaurus
-- `large` → Triceratops
-
-Override with a comma-separated list of `id:name:description:species:growth`,
-e.g.:
-
-```text
-small:Small body:A small food drop.:Compsognathus:1,medium:Medium body:A mid-size drop.:Maiasaura:1,large:Large body:A big drop for a pack.:Tyrannosaurus:1
-```
-
-Do not expose `BODYDROP_SHARED_SECRET`, RCON passwords, or SFTP passwords in
-browser JavaScript or screenshots.
-
-## DinoStorage integration
-
-The website now treats the UE4SS DinoStorage mod as the source of truth for
-store/redeem. It sends the configured `!store` and `!redeem` chat-hook commands
-through RCON instead of writing a second website roster state.
-
-Configure these Render variables:
-
-```text
-DINOSTORAGE_RCON_PREFIX=
-DINOSTORAGE_STORE_COMMAND=!store
-DINOSTORAGE_REDEEM_COMMAND=!redeem
-```
-
-If the server's RCON bridge requires a console prefix to reach the chat hook,
-set `DINOSTORAGE_RCON_PREFIX` accordingly. The architecture document describes
-chat-hook commands, but the exact RCON-to-chat prefix depends on the installed
-server bridge and must be verified in-game. The store flow intentionally kills
-the current dino; players must respawn naturally before `!redeem` can restore
-the saved state. Do not run the old Park/Redeem file bridge alongside
-DinoStorage for the same player.
-
-## Moving the game server to VeryGames
-
-The website code is host-agnostic. To point it at a new VeryGames Isle server,
-update only the Render environment variables and reinstall the game-server mod
-files on VeryGames:
-
-1. In Render → `hollow-valley-site` → **Environment**, replace:
-   - `RCON_HOST`
-   - `RCON_PORT`
-   - `RCON_PASSWORD`
-   - `GAME_FILE_PROTOCOL` (`ftp` if VeryGames only gives FTP access, `sftp` if it gives SFTP)
-   - `SFTP_HOST`
-   - `SFTP_PORT`
-   - `SFTP_USER`
-   - `SFTP_PASSWORD`
-   - `SFTP_BASE_PATH`
-   - `FTP_SECURE` (`false` for standard FTP; `true` only if VeryGames says FTPS/TLS is required)
-2. `SFTP_BASE_PATH` must be the folder prefix that contains
-   `TheIsle/Binaries/Win64`. It is host-specific; do not reuse the old Qonzer
-   value. Use `/` if `TheIsle` is directly under the file-access root.
-   These are paths visible through the FTP/SFTP account, not the Windows
-   server's drive paths. For example, with `SFTP_BASE_PATH=/games/isle`,
-   the default website destination is
-   `/games/isle/TheIsle/Binaries/Win64/ue4ss/Mods/HollowValleyBodyDrop/Saved/inbox.ndjson`.
-3. Reinstall or upload UE4SS on VeryGames, then upload:
-   - `ue4ss/Mods/HollowValleyPark`
-   - `ue4ss/Mods/HollowValleyBodyDrop`
-4. Ensure `HollowValleyBodyDrop/Saved` already exists and is writable.
-   Configure `HollowValleyBodyDrop/Scripts/config.lua` to read the **same physical
-   file** the website writes. The correct Lua relative path depends on the
-   mod's path-resolution code and game process working directory:
-
-   | Lua path base | Lua `inboxPath` |
-   | --- | --- |
-   | `TheIsle/Binaries/Win64/ue4ss` | `Mods/HollowValleyBodyDrop/Saved/inbox.ndjson` |
-   | `TheIsle/Binaries/Win64` | `ue4ss/Mods/HollowValleyBodyDrop/Saved/inbox.ndjson` |
-
-   The website's relative `BODYDROP_INBOX_PATH` is **always based at `ue4ss`**;
-   do not copy the second Lua value into it or it would duplicate `ue4ss`.
-   The Lua source is not included in this repository, so verify its actual
-   resolution and logs rather than assuming either working directory.
-
-5. Restart the game server after changing UE4SS or any Lua mod file.
-
-### Diagnosing a failed live Body Drop without sharing credentials
-
-- A `configuration` error means the protocol, port, or path is invalid.
-  Select `GAME_FILE_PROTOCOL=ftp` for FTP access; the default is SFTP, which
-  cannot speak to an FTP endpoint. Use the file-access port, not RCON's port.
-- A `connect` error means authentication/network/protocol negotiation failed.
-  Successful RCON sync proves none of these file-access settings.
-- An `append inbox` error includes a request ID in the response and logs the
-  resolved destination in the website's server logs. Check that exact folder
-  exists, is writable, and is the active game instance's mod directory.
-- `uploaded; spawn unconfirmed` proves only that the file service accepted the
-  append. Compare its logged `remotePath` with the mod's actual inbox. Then
-  check UE4SS startup logs for the mod being enabled/loaded and inspect the
-  mod's job/spawn errors. A line still present is a clue, not definitive proof
-  of non-consumption, because the Lua reader may retain processed lines.
-- A permanently `queued` request is also explained by the missing result
-  integration above; it is not evidence that the spawn succeeded or failed.
-
-The earlier migration instructions gave a Lua path with an extra `ue4ss/`
-prefix without specifying its working directory. That can make the website
-and mod use different inboxes even when FTP upload succeeds. Logs or the
-installed Lua source are needed to confirm this on a particular server.
-No production credentials are needed to compare these paths and log stages;
-keep credentials out of shared logs and screenshots.
-
-The file bridge intentionally has no hardcoded fallback host, username,
-password, or base path. If a VeryGames value is missing, bridge actions fail
-clearly instead of writing to the previous host by accident. The env var names
-remain `SFTP_*` for backwards compatibility, but they are also used when
-`GAME_FILE_PROTOCOL=ftp`.
+In either mode, `BODYDROP_TYPES` maps UI tiers to
+`id:name:description:species:growth`. Defaults are Compsognathus, Dryosaurus
+and Triceratops at growth 1. Verify those species exist in the installed mod's
+catalog. `BODYDROP_COOLDOWN_SECONDS` defaults to 900.
