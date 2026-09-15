@@ -163,5 +163,18 @@ router.post("/", requireAuth, async (req, res) => {
   res.json({ ok: true, request: queued, result });
 });
 
+router.delete("/", requireAuth, (req, res) => {
+  const latest = getLatestBodyDropRequest(req.user.id);
+  if (!latest || latest.status !== "queued") {
+    return res.status(409).json({ error: "There is no uploaded Body Drop request awaiting reconciliation." });
+  }
+
+  const cancelled = updateBodyDropRequest(latest.id, {
+    status: "failed",
+    error: "Player confirmed that no body spawned; request released for a retry.",
+  });
+  res.json({ ok: true, request: cancelled });
+});
+
 module.exports = router;
 module.exports._private = { cooldownFor, getDropTypes };

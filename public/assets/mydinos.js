@@ -106,8 +106,24 @@ function renderBodyDropStatus(data) {
       <span>${data.cooldownSeconds ? `Cooldown: ${Math.round(data.cooldownSeconds / 60)} minutes` : "No cooldown"}</span>
     </div>
     <div class="bodydrop-options">${options}</div>
+    ${data.latest?.status === "queued" ? `
+      <button class="small-button bodydrop-release" type="button">
+        I confirm no body spawned - release request
+      </button>
+      <small class="section-intro">Only use this after checking the game and UE4SS logs. Releasing a request that did spawn can create a duplicate.</small>
+    ` : ""}
     ${recent ? `<ul class="bodydrop-history">${recent}</ul>` : ""}
   `;
+
+  container.querySelector(".bodydrop-release")?.addEventListener("click", async () => {
+    if (!confirm("Confirm that no body spawned from the previous upload?")) return;
+    try {
+      await api("/api/bodydrop", { method: "DELETE" });
+      await loadBodyDropStatus();
+    } catch (err) {
+      alert(err.message || "Failed to release the Body Drop request");
+    }
+  });
 
   container.querySelectorAll(".bodydrop-option").forEach((button) => {
     button.addEventListener("click", async () => {
