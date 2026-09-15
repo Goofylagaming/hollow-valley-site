@@ -318,3 +318,28 @@ test("bodydrop bridge defaults to the UE4SS inbox.ndjson path from config.lua", 
     else process.env.BODYDROP_INBOX_PATH = originalInbox;
   }
 });
+
+test("file bridge defaults to SFTP and supports FTP protocol selection", () => {
+  const originalProtocol = process.env.GAME_FILE_PROTOCOL;
+  const originalLegacyProtocol = process.env.FILE_BRIDGE_PROTOCOL;
+  delete process.env.GAME_FILE_PROTOCOL;
+  delete process.env.FILE_BRIDGE_PROTOCOL;
+
+  try {
+    assert.strictEqual(sftpBridge.getFileBridgeProtocol(), "sftp");
+    process.env.GAME_FILE_PROTOCOL = "ftp";
+    assert.strictEqual(sftpBridge.getFileBridgeProtocol(), "ftp");
+    process.env.GAME_FILE_PROTOCOL = "sftp";
+    assert.strictEqual(sftpBridge.getFileBridgeProtocol(), "sftp");
+    process.env.GAME_FILE_PROTOCOL = "bogus";
+    assert.throws(
+      () => sftpBridge.getFileBridgeProtocol(),
+      /Unsupported game file bridge protocol: bogus/
+    );
+  } finally {
+    if (originalProtocol === undefined) delete process.env.GAME_FILE_PROTOCOL;
+    else process.env.GAME_FILE_PROTOCOL = originalProtocol;
+    if (originalLegacyProtocol === undefined) delete process.env.FILE_BRIDGE_PROTOCOL;
+    else process.env.FILE_BRIDGE_PROTOCOL = originalLegacyProtocol;
+  }
+});

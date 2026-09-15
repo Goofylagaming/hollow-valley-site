@@ -33,7 +33,8 @@ dashboard, which removes that whole class of problem.
    - `STEAM_REALM` = `https://hollowvalley.herbydeathsquadgames.com/`
    - `STEAM_API_KEY` (optional, blank is fine)
    - `RCON_HOST` / `RCON_PORT` / `RCON_PASSWORD` — from your current game host's RCON panel
-   - `SFTP_HOST` / `SFTP_PORT` / `SFTP_USER` / `SFTP_PASSWORD` / `SFTP_BASE_PATH` — from your current game host's file access panel
+   - `GAME_FILE_PROTOCOL` — `sftp` by default, or `ftp` for hosts that only provide plain FTP
+   - `SFTP_HOST` / `SFTP_PORT` / `SFTP_USER` / `SFTP_PASSWORD` / `SFTP_BASE_PATH` — from your current game host's file access panel; these names are used for both SFTP and FTP
    - `BODYDROP_SHARED_SECRET` — a new long random shared secret that must also be configured in the BodyDrop agent/mod
    - `BODYDROP_INBOX_PATH` — defaults to `Mods/HollowValleyBodyDrop/Saved/inbox.ndjson`, matching the game-server `config.lua`
    - `BODYDROP_COOLDOWN_SECONDS` — defaults to `900` (15 minutes)
@@ -144,11 +145,13 @@ files on VeryGames:
    - `RCON_HOST`
    - `RCON_PORT`
    - `RCON_PASSWORD`
+   - `GAME_FILE_PROTOCOL` (`ftp` if VeryGames only gives FTP access, `sftp` if it gives SFTP)
    - `SFTP_HOST`
    - `SFTP_PORT`
    - `SFTP_USER`
    - `SFTP_PASSWORD`
    - `SFTP_BASE_PATH`
+   - `FTP_SECURE` (`false` for standard FTP; `true` only if VeryGames says FTPS/TLS is required)
 2. `SFTP_BASE_PATH` must be the folder prefix that contains
    `TheIsle/Binaries/Win64`. It is host-specific; do not reuse the old Qonzer
    value.
@@ -163,6 +166,8 @@ inboxPath="ue4ss/Mods/HollowValleyBodyDrop/Saved/inbox.ndjson"
 
 5. Restart the game server after changing UE4SS or any Lua mod file.
 
-The SFTP bridge intentionally has no hardcoded fallback host, username,
+The file bridge intentionally has no hardcoded fallback host, username,
 password, or base path. If a VeryGames value is missing, bridge actions fail
-clearly instead of writing to the previous host by accident.
+clearly instead of writing to the previous host by accident. The env var names
+remain `SFTP_*` for backwards compatibility, but they are also used when
+`GAME_FILE_PROTOCOL=ftp`.

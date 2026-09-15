@@ -1,4 +1,5 @@
 const crypto = require("node:crypto");
+const { Readable, Writable } = require("node:stream");
 
 let SftpClient = null;
 try {
@@ -7,7 +8,22 @@ try {
   console.warn("[SFTP Bridge] ssh2-sftp-client module not available, SFTP actions will be disabled.");
 }
 
-function getSftpConfig() {
+let FtpClient = null;
+try {
+  FtpClient = require("basic-ftp").Client;
+} catch (e) {
+  console.warn("[File Bridge] basic-ftp module not available, FTP actions will be disabled.");
+}
+
+function getFileBridgeProtocol() {
+  const protocol = (process.env.GAME_FILE_PROTOCOL || process.env.FILE_BRIDGE_PROTOCOL || "sftp").trim().toLowerCase();
+  if (!["sftp", "ftp"].includes(protocol)) {
+    throw new Error(`Unsupported game file bridge protocol: ${protocol}`);
+  }
+  return protocol;
+}
+
+function getFileBridgeConfig() {
   const port = Number(process.env.SFTP_PORT);
   const missing = [];
   if (!process.env.SFTP_HOST) missing.push("SFTP_HOST");
@@ -22,10 +38,110 @@ function getSftpConfig() {
   return {
     host: process.env.SFTP_HOST,
     port,
-    username: process.env.SFTP_USER,
+    user: process.env.SFTP_USER,
     password: process.env.SFTP_PASSWORD,
     readyTimeout: 10000,
   };
+}
+
+function bufferWritable() {
+  const chunks = [];
+  const stream = new Writable({
+    write(chunk, encoding, callback) {
+      chunks.push(Buffer.from(chunk));
+      callback();
+    },
+  });
+  stream.toBuffer = () => Buffer.concat(chunks);
+  return stream;
+}
+
+function createSftpBridgeClient() {
+  const client = new SftpClient();
+  return {
+    async connect(config) {
+      await client.connect({
+        ...config,
+        username: config.user,
+      });
+    },
+    async mkdir(remotePath, recursive) {
+      return client.mkdir(remotePath, recursive);
+    },
+    async append(buffer, remotePath) {
+      return client.append(buffer, remotePath);
+    },
+    async exists(remotePath) {
+      return client.exists(remotePath);
+    },
+    async get(remotePath) {
+      return client.get(remotePath);
+    },
+    async put(buffer, remotePath) {
+      return client.put(buffer, remotePath);
+    },
+    async delete(remotePath) {
+      return client.delete(remotePath);
+    },
+    async end() {
+      return client.end();
+    },
+  };
+}
+
+function createFtpBridgeClient() {
+  const client = new FtpClient();
+  return {
+    async connect(config) {
+      await client.access({
+        host: config.host,
+        port: config.port,
+        user: config.user,
+        password: config.password,
+        secure: (process.env.FTP_SECURE || process.env.GAME_FILE_SECURE || "").toLowerCase() === "true",
+      });
+    },
+    async mkdir(remotePath) {
+      await client.ensureDir(remotePath);
+      await client.cd("/");
+    },
+    async exists(remotePath) {
+      try {
+        await client.size(remotePath);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    },
+    async get(remotePath) {
+      const writable = bufferWritable();
+      await client.downloadTo(writable, remotePath);
+      return writable.toBuffer();
+    },
+    async put(buffer, remotePath) {
+      await client.uploadFrom(Readable.from([buffer]), remotePath);
+    },
+    async delete(remotePath) {
+      await client.remove(remotePath);
+    },
+    async end() {
+      client.close();
+    },
+  };
+}
+
+function createFileBridgeClient() {
+  const protocol = getFileBridgeProtocol();
+  if (protocol === "ftp") {
+    if (!FtpClient) {
+      throw new Error("FTP bridge client is not installed or configured on this server.");
+    }
+    return createFtpBridgeClient();
+  }
+  if (!SftpClient) {
+    throw new Error("SFTP bridge client is not installed or configured on this server.");
+  }
+  return createSftpBridgeClient();
 }
 
 function getSftpBasePath() {
@@ -78,21 +194,12 @@ function signPayload(payload) {
 }
 
 async function executeGameAction({ action, steamId, species, growth, prime, dropType, bodyDropRequestId, location }) {
-  if (!SftpClient) {
-    return {
-      ok: false,
-      error: "SFTP bridge client is not installed or configured on this server.",
-    };
-  }
-
-  const sftp = new SftpClient();
+  let fileClient = null;
   const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-  const baseDir = getBaseRemotePath();
-  const reqPath = `${baseDir}/requests/${requestId}.json`;
-  const resPath = `${baseDir}/results/${requestId}.json`;
 
   try {
-    await sftp.connect(getSftpConfig());
+    fileClient = createFileBridgeClient();
+    await fileClient.connect(getFileBridgeConfig());
 
     if (action === "body_drop") {
       // The HollowValleyBodyDrop mod's main.lua reads its own job schema from
@@ -117,8 +224,8 @@ async function executeGameAction({ action, steamId, species, growth, prime, drop
         ...jobBody,
         signature: signPayload(jobBody),
       });
-      await appendTextFile(sftp, getBodyDropInboxRemotePath(), `${job}\n`);
-      await sftp.end();
+      await appendTextFile(fileClient, getBodyDropInboxRemotePath(), `${job}\n`);
+      await fileClient.end();
       return {
         ok: true,
         requestId,
@@ -127,6 +234,9 @@ async function executeGameAction({ action, steamId, species, growth, prime, drop
       };
     }
 
+    const baseDir = getBaseRemotePath();
+    const reqPath = `${baseDir}/requests/${requestId}.json`;
+    const resPath = `${baseDir}/results/${requestId}.json`;
     const payloadBody = {
       requestId,
       action,
@@ -144,7 +254,9 @@ async function executeGameAction({ action, steamId, species, growth, prime, drop
     });
 
     // Upload request JSON
-    await sftp.put(Buffer.from(payload), reqPath);
+    await fileClient.mkdir(`${baseDir}/requests`, true).catch(() => {});
+    await fileClient.mkdir(`${baseDir}/results`, true).catch(() => {});
+    await fileClient.put(Buffer.from(payload), reqPath);
 
     // Poll for result
     const startTime = Date.now();
@@ -152,11 +264,11 @@ async function executeGameAction({ action, steamId, species, growth, prime, drop
 
     while (Date.now() - startTime < timeoutMs) {
       await new Promise((r) => setTimeout(r, 1000));
-      const exists = await sftp.exists(resPath);
+      const exists = await fileClient.exists(resPath);
       if (exists) {
-        const resBuffer = await sftp.get(resPath);
-        await sftp.delete(resPath).catch(() => {});
-        await sftp.end();
+        const resBuffer = await fileClient.get(resPath);
+        await fileClient.delete(resPath).catch(() => {});
+        await fileClient.end();
 
         const resultText = resBuffer.toString("utf8");
         const parsed = JSON.parse(resultText);
@@ -165,19 +277,19 @@ async function executeGameAction({ action, steamId, species, growth, prime, drop
     }
 
     // Clean up unhandled request file on timeout
-    await sftp.delete(reqPath).catch(() => {});
-    await sftp.end();
+    await fileClient.delete(reqPath).catch(() => {});
+    await fileClient.end();
 
     return {
       ok: false,
       error: "Game server did not process request in time. Please ensure you are spawned in-game on the server.",
     };
   } catch (err) {
-    await sftp.end().catch(() => {});
-    console.error("[SFTP Bridge Error]", err);
+    await fileClient?.end().catch(() => {});
+    console.error("[File Bridge Error]", err);
     return {
       ok: false,
-      error: `SFTP Bridge error: ${err.message}`,
+      error: `File bridge error: ${err.message}`,
     };
   }
 }
@@ -185,4 +297,5 @@ async function executeGameAction({ action, steamId, species, growth, prime, drop
 module.exports = {
   executeGameAction,
   getBodyDropInboxRemotePath,
+  getFileBridgeProtocol,
 };
