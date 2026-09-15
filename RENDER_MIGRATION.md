@@ -35,10 +35,10 @@ dashboard, which removes that whole class of problem.
    - `RCON_HOST` / `RCON_PORT` / `RCON_PASSWORD` — from your current game host's RCON panel
    - `GAME_FILE_PROTOCOL` — `sftp` by default, or `ftp` for hosts that only provide plain FTP
    - `SFTP_HOST` / `SFTP_PORT` / `SFTP_USER` / `SFTP_PASSWORD` / `SFTP_BASE_PATH` — from your current game host's file access panel; these names are used for both SFTP and FTP
-   - `BODYDROP_SHARED_SECRET` — a new long random shared secret that must also be configured in the BodyDrop agent/mod
+   - `BODYDROP_SHARED_SECRET` — signs jobs; the current mod does not verify signatures, so this is not an authentication or delivery check
    - `BODYDROP_INBOX_PATH` — defaults to `Mods/HollowValleyBodyDrop/Saved/inbox.ndjson`, matching the game-server `config.lua`
    - `BODYDROP_COOLDOWN_SECONDS` — defaults to `900` (15 minutes)
-   - `BODYDROP_TYPES` — optional comma-separated drop definitions, e.g. `small:Small body:A small emergency food drop`
+   - `BODYDROP_TYPES` — optional comma-separated drop definitions, e.g. `small:Small body:A small emergency food drop:Compsognathus:1`
    - Discord/Stripe vars if/when you use them
 4. Deploy. Render builds the existing `Dockerfile` — no changes needed there,
    since the app already binds to `process.env.PORT`.
@@ -82,7 +82,8 @@ location), then appends a signed NDJSON job into the Qonzer mod inbox:
 TheIsle/Binaries/Win64/ue4ss/Mods/HollowValleyBodyDrop/Saved/inbox.ndjson
 ```
 
-This matches the BodyDrop `config.lua` shape:
+For a mod resolving relative paths from the `ue4ss` directory, the
+BodyDrop `config.lua` shape is:
 
 ```lua
 return {
@@ -118,10 +119,21 @@ Key points learned from `main.lua`:
   but it currently has no effect on the game-server side.
 - A request remains locked while its database status is `pending` or `queued`;
   this prevents duplicate drops while the UE4SS mod consumes the inbox line.
+  **There is currently no Body Drop result reader or callback in this website.**
+  Uploading changes the status to `queued`, not `completed`, and even a
+  successful spawn will not automatically release that lock. Do not clear
+  queued requests or retry until an operator has reconciled the inbox and
+  game logs; blindly retrying can spawn duplicate bodies.
 - If VeryGames uses a different mod folder, set `BODYDROP_INBOX_PATH` to a path
   relative to `TheIsle/Binaries/Win64/ue4ss/` (for example
   `Mods/HollowValleyBodyDrop/Saved/inbox.ndjson`). Do not include `..` path
-  segments.
+  segments. An absolute FTP/SFTP path overrides the derived path for Body Drop
+  only. The destination directory must already exist: the bridge intentionally
+  does not create mod directories, which could hide an incorrect host prefix.
+  FTP uses `APPE`, not a download/rewrite of the live queue. The FTP server
+  must support append; failures are reported rather than falling back to a
+  potentially destructive overwrite. This does not guarantee coordination
+  with any Lua-side queue truncation; that requires a shared queue protocol.
 
 The website's `BODYDROP_TYPES` env var maps each UI tier (small/medium/large,
 or your own custom set) to one `species`/`growth` pair, since the mod itself
@@ -160,17 +172,55 @@ files on VeryGames:
    - `FTP_SECURE` (`false` for standard FTP; `true` only if VeryGames says FTPS/TLS is required)
 2. `SFTP_BASE_PATH` must be the folder prefix that contains
    `TheIsle/Binaries/Win64`. It is host-specific; do not reuse the old Qonzer
-   value.
+   value. Use `/` if `TheIsle` is directly under the file-access root.
+   These are paths visible through the FTP/SFTP account, not the Windows
+   server's drive paths. For example, with `SFTP_BASE_PATH=/games/isle`,
+   the default website destination is
+   `/games/isle/TheIsle/Binaries/Win64/ue4ss/Mods/HollowValleyBodyDrop/Saved/inbox.ndjson`.
 3. Reinstall or upload UE4SS on VeryGames, then upload:
    - `ue4ss/Mods/HollowValleyPark`
    - `ue4ss/Mods/HollowValleyBodyDrop`
-4. Confirm `HollowValleyBodyDrop/Scripts/config.lua` uses:
+4. Ensure `HollowValleyBodyDrop/Saved` already exists and is writable.
+   Configure `HollowValleyBodyDrop/Scripts/config.lua` to read the **same physical
+   file** the website writes. The correct Lua relative path depends on the
+   mod's path-resolution code and game process working directory:
 
-```lua
-inboxPath="ue4ss/Mods/HollowValleyBodyDrop/Saved/inbox.ndjson"
-```
+   | Lua path base | Lua `inboxPath` |
+   | --- | --- |
+   | `TheIsle/Binaries/Win64/ue4ss` | `Mods/HollowValleyBodyDrop/Saved/inbox.ndjson` |
+   | `TheIsle/Binaries/Win64` | `ue4ss/Mods/HollowValleyBodyDrop/Saved/inbox.ndjson` |
+
+   The website's relative `BODYDROP_INBOX_PATH` is **always based at `ue4ss`**;
+   do not copy the second Lua value into it or it would duplicate `ue4ss`.
+   The Lua source is not included in this repository, so verify its actual
+   resolution and logs rather than assuming either working directory.
 
 5. Restart the game server after changing UE4SS or any Lua mod file.
+
+### Diagnosing a failed live Body Drop without sharing credentials
+
+- A `configuration` error means the protocol, port, or path is invalid.
+  Select `GAME_FILE_PROTOCOL=ftp` for FTP access; the default is SFTP, which
+  cannot speak to an FTP endpoint. Use the file-access port, not RCON's port.
+- A `connect` error means authentication/network/protocol negotiation failed.
+  Successful RCON sync proves none of these file-access settings.
+- An `append inbox` error includes a request ID in the response and logs the
+  resolved destination in the website's server logs. Check that exact folder
+  exists, is writable, and is the active game instance's mod directory.
+- `uploaded; spawn unconfirmed` proves only that the file service accepted the
+  append. Compare its logged `remotePath` with the mod's actual inbox. Then
+  check UE4SS startup logs for the mod being enabled/loaded and inspect the
+  mod's job/spawn errors. A line still present is a clue, not definitive proof
+  of non-consumption, because the Lua reader may retain processed lines.
+- A permanently `queued` request is also explained by the missing result
+  integration above; it is not evidence that the spawn succeeded or failed.
+
+The earlier migration instructions gave a Lua path with an extra `ue4ss/`
+prefix without specifying its working directory. That can make the website
+and mod use different inboxes even when FTP upload succeeds. Logs or the
+installed Lua source are needed to confirm this on a particular server.
+No production credentials are needed to compare these paths and log stages;
+keep credentials out of shared logs and screenshots.
 
 The file bridge intentionally has no hardcoded fallback host, username,
 password, or base path. If a VeryGames value is missing, bridge actions fail

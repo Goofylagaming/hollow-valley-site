@@ -27,12 +27,12 @@ function getFileBridgeConfig() {
   const port = Number(process.env.SFTP_PORT);
   const missing = [];
   if (!process.env.SFTP_HOST) missing.push("SFTP_HOST");
-  if (!Number.isFinite(port)) missing.push("SFTP_PORT");
+  if (!Number.isInteger(port) || port < 1 || port > 65535) missing.push("SFTP_PORT (integer 1-65535)");
   if (!process.env.SFTP_USER) missing.push("SFTP_USER");
   if (!process.env.SFTP_PASSWORD) missing.push("SFTP_PASSWORD");
 
   if (missing.length) {
-    throw new Error(`SFTP bridge is not configured. Missing: ${missing.join(", ")}`);
+    throw new Error(`File bridge is not configured. Missing or invalid: ${missing.join(", ")}`);
   }
 
   return {
@@ -105,6 +105,9 @@ function createFtpBridgeClient() {
       await client.ensureDir(remotePath);
       await client.cd("/");
     },
+    async append(buffer, remotePath) {
+      return client.appendFrom(Readable.from([buffer]), remotePath);
+    },
     async exists(remotePath) {
       try {
         await client.size(remotePath);
@@ -144,29 +147,48 @@ function createFileBridgeClient() {
   return createSftpBridgeClient();
 }
 
-function getSftpBasePath() {
-  if (!process.env.SFTP_BASE_PATH) {
-    throw new Error("SFTP bridge is not configured. Missing: SFTP_BASE_PATH");
+function normalizeRemotePath(value, name) {
+  const normalized = value.trim().replace(/\\/g, "/").replace(/\/+/g, "/");
+  if (!normalized || /[\x00-\x1f\x7f]/.test(normalized) || /^[a-z]:/i.test(normalized)) {
+    throw new Error(`${name} must be a path in the FTP/SFTP file manager, not a Windows drive path`);
   }
-  return process.env.SFTP_BASE_PATH.replace(/^\/+|\/+$/g, "");
+  if (normalized.split("/").some((part) => part === ".." || part === ".")) {
+    throw new Error(`${name} cannot contain current- or parent-directory segments`);
+  }
+  return normalized;
+}
+
+function getSftpBasePath() {
+  if (!process.env.SFTP_BASE_PATH?.trim()) {
+    throw new Error("File bridge is not configured. Missing: SFTP_BASE_PATH (use / when TheIsle is at the file-access root)");
+  }
+  return normalizeRemotePath(process.env.SFTP_BASE_PATH, "SFTP_BASE_PATH").replace(/^\/+|\/+$/g, "");
+}
+
+function getUe4ssRemotePath() {
+  const basePath = getSftpBasePath();
+  return `${basePath ? `/${basePath}` : ""}/TheIsle/Binaries/Win64/ue4ss`;
 }
 
 function getBaseRemotePath() {
-  const basePath = getSftpBasePath();
-  return `/${basePath}/TheIsle/Binaries/Win64/ue4ss/Mods/HollowValleyPark/Saved`;
+  return `${getUe4ssRemotePath()}/Mods/HollowValleyPark/Saved`;
 }
 
 function getBodyDropInboxRemotePath() {
-  const configuredPath = (process.env.BODYDROP_INBOX_PATH || "Mods/HollowValleyBodyDrop/Saved/inbox.ndjson").trim();
+  const configuredPath = normalizeRemotePath(
+    process.env.BODYDROP_INBOX_PATH || "Mods/HollowValleyBodyDrop/Saved/inbox.ndjson",
+    "BODYDROP_INBOX_PATH"
+  );
+  if (configuredPath.endsWith("/")) {
+    throw new Error("BODYDROP_INBOX_PATH must include the inbox filename");
+  }
   if (configuredPath.startsWith("/")) {
-    return configuredPath.replace(/\/+/g, "/");
+    return configuredPath;
   }
-  const basePath = getSftpBasePath();
-  const inboxPath = configuredPath.replace(/^\/+/, "");
-  if (inboxPath.split("/").some((part) => part === "..")) {
-    throw new Error("BODYDROP_INBOX_PATH cannot contain parent-directory segments");
+  if (/^(ue4ss|TheIsle)\//i.test(configuredPath)) {
+    throw new Error("BODYDROP_INBOX_PATH is relative to ue4ss: use Mods/HollowValleyBodyDrop/Saved/inbox.ndjson, or an absolute FTP/SFTP path");
   }
-  return `/${basePath}/TheIsle/Binaries/Win64/ue4ss/${inboxPath}`;
+  return `${getUe4ssRemotePath()}/${configuredPath}`;
 }
 
 function buildBodyDropJob({ bodyDropRequestId, steamId, species, growth, prime, location }) {
@@ -191,25 +213,6 @@ function buildBodyDropJob({ bodyDropRequestId, steamId, species, growth, prime, 
   };
 }
 
-async function appendTextFile(sftp, remotePath, text) {
-  const directory = remotePath.slice(0, remotePath.lastIndexOf("/"));
-  if (directory) {
-    await sftp.mkdir(directory, true).catch(() => {});
-  }
-
-  if (typeof sftp.append === "function") {
-    await sftp.append(Buffer.from(text), remotePath);
-    return;
-  }
-
-  let existing = "";
-  if (await sftp.exists(remotePath)) {
-    const existingBuffer = await sftp.get(remotePath);
-    existing = existingBuffer.toString("utf8");
-  }
-  await sftp.put(Buffer.from(existing + text), remotePath);
-}
-
 function signPayload(payload) {
   const secret = process.env.BODYDROP_SHARED_SECRET || process.env.BRIDGE_SHARED_SECRET || process.env.SESSION_SECRET;
   if (!secret) return null;
@@ -222,12 +225,20 @@ function signPayload(payload) {
 async function executeGameAction({ action, steamId, species, growth, prime, dropType, bodyDropRequestId, location }) {
   let fileClient = null;
   const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  let stage = "configuration";
+  let protocol;
+  let remotePath;
 
   try {
+    protocol = getFileBridgeProtocol();
+    const config = getFileBridgeConfig();
+    remotePath = action === "body_drop" ? getBodyDropInboxRemotePath() : getBaseRemotePath();
     fileClient = createFileBridgeClient();
-    await fileClient.connect(getFileBridgeConfig());
+    stage = "connect";
+    await fileClient.connect(config);
 
     if (action === "body_drop") {
+      stage = "build job";
       // The HollowValleyBodyDrop mod's main.lua reads its own job schema from
       // the inbox.ndjson queue - it does NOT understand our "body_drop"
       // action name, dropType tiers, or bodyDropRequestId field. It only
@@ -239,17 +250,25 @@ async function executeGameAction({ action, steamId, species, growth, prime, drop
         ...jobBody,
         signature: signPayload(jobBody),
       });
-      await appendTextFile(fileClient, getBodyDropInboxRemotePath(), `${job}\n`);
-      await fileClient.end();
+      stage = "append inbox";
+      // Do not create a parallel mod tree when the host prefix is wrong.
+      await fileClient.append(Buffer.from(`${job}\n`), remotePath);
+      console.info("[Body Drop Bridge] uploaded; spawn unconfirmed", {
+        requestId, bodyDropRequestId, protocol, remotePath,
+      });
+      await fileClient.end().catch((err) => {
+        console.warn("[Body Drop Bridge] connection cleanup failed after upload", { requestId, error: err.message });
+      });
       return {
         ok: true,
         requestId,
         queued: true,
-        message: "Body drop request queued for the game server.",
+        message: "Body drop uploaded to the game-server inbox. In-game spawning is not yet confirmed.",
       };
     }
 
-    const baseDir = getBaseRemotePath();
+    stage = "request/result exchange";
+    const baseDir = remotePath;
     const reqPath = `${baseDir}/requests/${requestId}.json`;
     const resPath = `${baseDir}/results/${requestId}.json`;
     const payloadBody = {
@@ -301,10 +320,11 @@ async function executeGameAction({ action, steamId, species, growth, prime, drop
     };
   } catch (err) {
     await fileClient?.end().catch(() => {});
-    console.error("[File Bridge Error]", err);
+    console.error("[File Bridge Error]", { requestId, action, protocol, stage, remotePath, error: err.message });
     return {
       ok: false,
-      error: `File bridge error: ${err.message}`,
+      requestId,
+      error: `File bridge error (${stage}): ${err.message}${stage === "append inbox" ? " Check the server log destination, existing Saved folder, and file-write permissions." : ""}`,
     };
   }
 }

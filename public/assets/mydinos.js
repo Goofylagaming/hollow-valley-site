@@ -79,7 +79,9 @@ function renderBodyDropStatus(data) {
       ? "Server sync offline"
       : data.cooldown?.active
         ? data.cooldown.reason === "pending"
-          ? "Request pending"
+          ? data.latest?.status === "queued"
+            ? "Uploaded; spawn unconfirmed"
+            : "Request pending"
           : `Cooldown ${formatCooldown(data.cooldown.remainingSeconds)}`
         : "Available now";
 
@@ -113,11 +115,11 @@ function renderBodyDropStatus(data) {
       button.disabled = true;
       button.querySelector("strong").textContent = "Requesting...";
       try {
-        await api("/api/bodydrop", {
+        const response = await api("/api/bodydrop", {
           method: "POST",
           body: JSON.stringify({ dropType: button.dataset.dropType }),
         });
-        alert("Body drop requested!");
+        alert(response.result.message);
         await loadBodyDropStatus();
       } catch (err) {
         alert(err.message || "Failed to request body drop");
