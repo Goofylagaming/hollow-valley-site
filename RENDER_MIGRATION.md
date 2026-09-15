@@ -116,6 +116,12 @@ Key points learned from `main.lua`:
 - `main.lua` does **not** verify any signature (its `config.lua` has no
   secret field) — the website still signs the payload for future-proofing,
   but it currently has no effect on the game-server side.
+- A request remains locked while its database status is `pending` or `queued`;
+  this prevents duplicate drops while the UE4SS mod consumes the inbox line.
+- If VeryGames uses a different mod folder, set `BODYDROP_INBOX_PATH` to a path
+  relative to `TheIsle/Binaries/Win64/ue4ss/` (for example
+  `Mods/HollowValleyBodyDrop/Saved/inbox.ndjson`). Do not include `..` path
+  segments.
 
 The website's `BODYDROP_TYPES` env var maps each UI tier (small/medium/large,
 or your own custom set) to one `species`/`growth` pair, since the mod itself

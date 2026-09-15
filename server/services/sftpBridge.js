@@ -157,12 +157,38 @@ function getBaseRemotePath() {
 }
 
 function getBodyDropInboxRemotePath() {
-  if (process.env.BODYDROP_INBOX_PATH?.startsWith("/")) {
-    return process.env.BODYDROP_INBOX_PATH;
+  const configuredPath = (process.env.BODYDROP_INBOX_PATH || "Mods/HollowValleyBodyDrop/Saved/inbox.ndjson").trim();
+  if (configuredPath.startsWith("/")) {
+    return configuredPath.replace(/\/+/g, "/");
   }
   const basePath = getSftpBasePath();
-  const inboxPath = process.env.BODYDROP_INBOX_PATH || "Mods/HollowValleyBodyDrop/Saved/inbox.ndjson";
-  return `/${basePath}/TheIsle/Binaries/Win64/ue4ss/${inboxPath.replace(/^\/+/, "")}`;
+  const inboxPath = configuredPath.replace(/^\/+/, "");
+  if (inboxPath.split("/").some((part) => part === "..")) {
+    throw new Error("BODYDROP_INBOX_PATH cannot contain parent-directory segments");
+  }
+  return `/${basePath}/TheIsle/Binaries/Win64/ue4ss/${inboxPath}`;
+}
+
+function buildBodyDropJob({ bodyDropRequestId, steamId, species, growth, prime, location }) {
+  if (!bodyDropRequestId) throw new Error("Body Drop request ID is required");
+  if (!steamId) throw new Error("Steam ID is required");
+  if (!species) throw new Error("Body Drop species is required");
+  if (!location || !["x", "y", "z"].every((axis) => Number.isFinite(location[axis]))) {
+    throw new Error("Body Drop location must contain finite x, y, and z coordinates");
+  }
+
+  return {
+    id: bodyDropRequestId,
+    action: "spawn",
+    steamId: String(steamId),
+    species,
+    growth: Number.isFinite(Number(growth)) ? Math.max(0, Math.min(1, Number(growth))) : 1,
+    prime: Boolean(prime),
+    x: location.x,
+    y: location.y,
+    z: location.z,
+    requestedAt: new Date().toISOString(),
+  };
 }
 
 async function appendTextFile(sftp, remotePath, text) {
@@ -208,18 +234,7 @@ async function executeGameAction({ action, steamId, species, growth, prime, drop
       // processes lines where action=="spawn" and expects id/species/x/y/z.
       // Signing is included for future-proofing but the current mod doesn't
       // verify it (config.lua has no secret field).
-      const jobBody = {
-        id: bodyDropRequestId,
-        action: "spawn",
-        steamId: String(steamId),
-        species,
-        growth,
-        prime: Boolean(prime),
-        x: location?.x,
-        y: location?.y,
-        z: location?.z,
-        requestedAt: new Date().toISOString(),
-      };
+      const jobBody = buildBodyDropJob({ bodyDropRequestId, steamId, species, growth, prime, location });
       const job = JSON.stringify({
         ...jobBody,
         signature: signPayload(jobBody),
@@ -296,6 +311,7 @@ async function executeGameAction({ action, steamId, species, growth, prime, drop
 
 module.exports = {
   executeGameAction,
+  buildBodyDropJob,
   getBodyDropInboxRemotePath,
   getFileBridgeProtocol,
 };

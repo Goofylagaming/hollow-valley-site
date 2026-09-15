@@ -319,6 +319,46 @@ test("bodydrop bridge defaults to the UE4SS inbox.ndjson path from config.lua", 
   }
 });
 
+test("queued body drops remain locked until the request is completed or failed", () => {
+  const { cooldownFor } = bodydropRouter._private;
+  const cooldown = cooldownFor({ status: "queued", created_at: new Date().toISOString() });
+  assert.equal(cooldown.active, true);
+  assert.equal(cooldown.reason, "pending");
+  assert.equal(cooldown.remainingSeconds, null);
+});
+
+test("bodydrop bridge builds the UE4SS spawn job with raw player coordinates", () => {
+  const job = sftpBridge.buildBodyDropJob({
+    bodyDropRequestId: 42,
+    steamId: "76561198000000000",
+    species: "Dryosaurus",
+    growth: 1,
+    location: { x: 12.5, y: -8, z: 44 },
+  });
+
+  assert.equal(job.id, 42);
+  assert.equal(job.action, "spawn");
+  assert.equal(job.species, "Dryosaurus");
+  assert.deepEqual({ x: job.x, y: job.y, z: job.z }, { x: 12.5, y: -8, z: 44 });
+  assert.equal(job.steamId, "76561198000000000");
+});
+
+test("bodydrop bridge rejects unsafe relative inbox paths", () => {
+  const originalBase = process.env.SFTP_BASE_PATH;
+  const originalInbox = process.env.BODYDROP_INBOX_PATH;
+  process.env.SFTP_BASE_PATH = "verygames-root";
+  process.env.BODYDROP_INBOX_PATH = "Mods/../outside/inbox.ndjson";
+
+  try {
+    assert.throws(() => sftpBridge.getBodyDropInboxRemotePath(), /parent-directory segments/);
+  } finally {
+    if (originalBase === undefined) delete process.env.SFTP_BASE_PATH;
+    else process.env.SFTP_BASE_PATH = originalBase;
+    if (originalInbox === undefined) delete process.env.BODYDROP_INBOX_PATH;
+    else process.env.BODYDROP_INBOX_PATH = originalInbox;
+  }
+});
+
 test("file bridge defaults to SFTP and supports FTP protocol selection", () => {
   const originalProtocol = process.env.GAME_FILE_PROTOCOL;
   const originalLegacyProtocol = process.env.FILE_BRIDGE_PROTOCOL;

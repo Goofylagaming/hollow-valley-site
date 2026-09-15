@@ -58,7 +58,7 @@ function toDate(value) {
 
 function cooldownFor(latest, now = new Date()) {
   if (!latest) return { active: false, nextAvailableAt: null, remainingSeconds: 0 };
-  if (latest.status === "pending") {
+  if (latest.status === "pending" || latest.status === "queued") {
     return { active: true, reason: "pending", nextAvailableAt: null, remainingSeconds: null };
   }
 
