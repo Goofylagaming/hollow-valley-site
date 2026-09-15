@@ -20,6 +20,7 @@ const skinsRouter = require("./routes/skins");
 const supporterRouter = require("./routes/supporter");
 const dailyBonusRouter = require("./routes/dailybonus");
 const bodydropRouter = require("./routes/bodydrop");
+const dinoStorageRouter = require("./routes/dinoStorage");
 const serverStatusRouter = require("./routes/serverStatus");
 const eventsRouter = require("./routes/events");
 const mapdataRouter = require("./routes/mapdata");
@@ -115,6 +116,7 @@ function createApp() {
   app.use("/api/supporter", supporterRouter);
   app.use("/api/daily-bonus", dailyBonusRouter);
   app.use("/api/bodydrop", bodydropRouter);
+  app.use("/api/dinostorage", dinoStorageRouter);
   app.use("/api/server-status", serverStatusRouter);
   app.use("/api/events", eventsRouter);
   app.use("/api/mapdata", mapdataRouter);

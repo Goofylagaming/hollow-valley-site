@@ -55,6 +55,12 @@ services:
         sync: false
       - key: RCON_PASSWORD
         sync: false
+      - key: DINOSTORAGE_RCON_PREFIX
+        value: ""
+      - key: DINOSTORAGE_STORE_COMMAND
+        value: "!store"
+      - key: DINOSTORAGE_REDEEM_COMMAND
+        value: "!redeem"
       - key: MAX_PLAYERS
         value: 100
       - key: GAME_FILE_PROTOCOL

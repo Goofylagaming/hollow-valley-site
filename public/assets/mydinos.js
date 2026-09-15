@@ -32,7 +32,7 @@ async function loadActiveCharacter() {
             <h3>${escapeHtml(char.species || "Unknown")} (${growthPct}% Growth)${char.isPrime ? " • PRIME" : ""}</h3>
             <small>Playing in-game on Hollow Valley as ${escapeHtml(char.name || "Survivor")}</small>
           </div>
-          <button id="park-active-btn" class="primary-button green">Park Current In-Game Dino</button>
+          <button id="park-active-btn" class="primary-button green">Store Current In-Game Dino</button>
         </div>
       `;
       container.hidden = false;
@@ -40,15 +40,15 @@ async function loadActiveCharacter() {
       document.getElementById("park-active-btn")?.addEventListener("click", async () => {
         const btn = document.getElementById("park-active-btn");
         btn.disabled = true;
-        btn.textContent = "Parking dino...";
+        btn.textContent = "Sending store command...";
         try {
           await api("/api/mydinos/park-active", { method: "POST" });
-          alert("Dino parked to website storage!");
+          alert("DinoStorage store command sent. Follow the in-game respawn steps before redeeming.");
           await refresh();
         } catch (err) {
           alert(err.message || "Failed to park active character");
           btn.disabled = false;
-          btn.textContent = "Park Current In-Game Dino";
+          btn.textContent = "Store Current In-Game Dino";
         }
       });
     } else {
@@ -195,10 +195,10 @@ function renderStorage(roster) {
 
 function wireCardActions() {
   document.querySelectorAll(".redeem-btn").forEach((btn) =>
-    btn.addEventListener("click", () => runAction(btn.dataset.id, "redeem"))
+    btn.addEventListener("click", () => runDinoStorageRedeem())
   );
   document.querySelectorAll(".park-btn").forEach((btn) =>
-    btn.addEventListener("click", () => runAction(btn.dataset.id, "park"))
+    btn.addEventListener("click", () => runDinoStorageStore())
   );
   document.querySelectorAll(".prime-btn").forEach((btn) =>
     btn.addEventListener("click", async () => {
@@ -230,6 +230,26 @@ function wireCardActions() {
       listDialog.showModal();
     })
   );
+}
+
+async function runDinoStorageRedeem() {
+  try {
+    const response = await api("/api/dinostorage/redeem", { method: "POST" });
+    alert(response.message);
+    await refresh();
+  } catch (err) {
+    alert(err.message || "DinoStorage redeem failed");
+  }
+
+  async function runDinoStorageStore() {
+    try {
+      const response = await api("/api/dinostorage/store", { method: "POST" });
+      alert(response.message);
+      await refresh();
+    } catch (err) {
+      alert(err.message || "DinoStorage store failed");
+    }
+  }
 }
 
 async function runAction(id, action, body) {

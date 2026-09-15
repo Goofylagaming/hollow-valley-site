@@ -1,13 +1,7 @@
-const { executeGameAction } = require("../server/services/sftpBridge");
-const { sendRcon } = require("./rcon.js");
-
-function isRconFailure(result) {
-  const normalized = String(result || "").trim().toLowerCase();
-  return !normalized || ["error", "failed", "permission", "unknown command", "invalid command"].some((token) => normalized.includes(token));
-}
+const { runDinoStorageAction } = require("../server/services/dinoStorage");
 
 /**
- * Endpoint to park a player's active dinosaur via RCON command `park <steamid>` with SFTP bridge fallback.
+ * Endpoint to store a player's active dinosaur through DinoStorage.
  */
 async function handler(req, res) {
   try {
@@ -17,39 +11,11 @@ async function handler(req, res) {
       return res.status(400).json({ error: "Missing SteamID" });
     }
 
-    // 1. Try RCON command first
-    try {
-      const result = await sendRcon(`park ${steamid}`);
-      if (isRconFailure(result)) {
-        throw new Error(typeof result === "string" && result.trim() ? result.trim() : "RCON park command failed");
-      }
-
-      return res.json({
-        success: true,
-        message: "Dino parked successfully via RCON",
-        rcon: result,
-      });
-    } catch (rconErr) {
-      console.warn("[Park API] RCON failed, attempting SFTP bridge fallback:", rconErr.message);
-    }
-
-    // 2. Try SFTP Bridge fallback
-    const bridgeResult = await executeGameAction({
-      action: "park",
-      steamId: steamid,
-    });
-
-    if (bridgeResult.ok) {
-      return res.json({
-        success: true,
-        message: "Dino parked successfully via SFTP bridge",
-        data: bridgeResult,
-      });
-    }
-
-    res.status(400).json({
-      success: false,
-      error: bridgeResult.error || "Failed to park dino on game server. Ensure player is spawned in-game.",
+    const result = await runDinoStorageAction("store", steamid);
+    return res.json({
+      success: true,
+      message: "DinoStorage store command sent.",
+      data: result,
     });
   } catch (err) {
     res.status(500).json({

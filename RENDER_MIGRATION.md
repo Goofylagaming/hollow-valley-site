@@ -153,6 +153,28 @@ small:Small body:A small food drop.:Compsognathus:1,medium:Medium body:A mid-siz
 Do not expose `BODYDROP_SHARED_SECRET`, RCON passwords, or SFTP passwords in
 browser JavaScript or screenshots.
 
+## DinoStorage integration
+
+The website now treats the UE4SS DinoStorage mod as the source of truth for
+store/redeem. It sends the configured `!store` and `!redeem` chat-hook commands
+through RCON instead of writing a second website roster state.
+
+Configure these Render variables:
+
+```text
+DINOSTORAGE_RCON_PREFIX=
+DINOSTORAGE_STORE_COMMAND=!store
+DINOSTORAGE_REDEEM_COMMAND=!redeem
+```
+
+If the server's RCON bridge requires a console prefix to reach the chat hook,
+set `DINOSTORAGE_RCON_PREFIX` accordingly. The architecture document describes
+chat-hook commands, but the exact RCON-to-chat prefix depends on the installed
+server bridge and must be verified in-game. The store flow intentionally kills
+the current dino; players must respawn naturally before `!redeem` can restore
+the saved state. Do not run the old Park/Redeem file bridge alongside
+DinoStorage for the same player.
+
 ## Moving the game server to VeryGames
 
 The website code is host-agnostic. To point it at a new VeryGames Isle server,
