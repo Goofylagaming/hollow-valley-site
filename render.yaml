@@ -56,7 +56,7 @@ services:
       - key: RCON_PASSWORD
         sync: false
       - key: COMMAND_BRIDGE_ENABLED
-        value: false
+        value: true
       - key: COMMAND_BRIDGE_SAVED_PATH
         value: Mods/CommandBridge/Saved
       - key: COMMAND_BRIDGE_TIMEOUT_MS
