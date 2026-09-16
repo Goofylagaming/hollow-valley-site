@@ -3,11 +3,12 @@ const commandBridge = require("./commandBridge");
 async function runDinoStorageAction(action, steamId) {
   const verbs = { store: "dino_store", redeem: "dino_retrieve" };
   if (!Object.hasOwn(verbs, action)) throw new Error("Unsupported DinoStorage action");
-  const result = await commandBridge.executeCommand(verbs[action], String(steamId || ""), ["default"]);
+  const resultMode = (process.env.DINOSTORAGE_RESULT_MODE || "submod").trim();
+  const result = await commandBridge.executeCommand(verbs[action], String(steamId || ""), ["default"], { resultMode });
   if (result.ok && !result.queued) {
     result.message = `${result.message} DinoStorage accepted the action; its deferred in-game ${action === "store" ? "kill" : "restore"} is not independently confirmed.`;
   }
-  return { ...result, action };
+  return { ...result, action, completionConfirmed: false };
 }
 
 async function respondToDinoStorageAction(req, res, action) {

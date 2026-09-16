@@ -31,6 +31,7 @@ function configure(t, extra = {}) {
     COMMAND_BRIDGE_ENABLED: "true",
     COMMAND_BRIDGE_SAVED_PATH: "Mods/CommandBridge/Saved",
     COMMAND_BRIDGE_TIMEOUT_MS: "1000",
+    DINOSTORAGE_RESULT_MODE: "submod",
     SFTP_BASE_PATH: "/",
     SFTP_HOST: "host.invalid",
     SFTP_PORT: "21",
@@ -82,6 +83,7 @@ test("CommandBridge commands match documented envelope and default slot", async 
   assert.equal(sent().steam, steam);
   assert.deepEqual(sent().args, { args: ["default"] });
   assert.equal(result.confirmed, true);
+  assert.equal(result.completionConfirmed, false);
   assert.match(result.message, /deferred in-game kill is not independently confirmed/);
   await storage.runDinoStorageAction("redeem", steam);
   assert.equal(sent().verb, "dino_retrieve");
@@ -157,6 +159,102 @@ test("only routing ACK times out as unknown, without re-uploading", async (t) =>
   assert.match(result.message, /routed.*BodyDrop.*Do not retry/);
   assert.equal(client.append.mock.callCount(), 1);
   assert.equal(client.end.mock.callCount(), 1);
+});
+
+test("v002 routing ACK opt-in returns HTTP202 without waiting for a kill result", async (t) => {
+  configure(t, { DINOSTORAGE_RESULT_MODE: "bridge_ack" });
+  const { client, sent } = fixture(t, (job) => ndjson({ ...job, ok: true, msg: "queued" }));
+  const response = await request(t, "/api/dinostorage/store");
+  assert.equal(response.status, 202);
+  assert.equal(response.body.ok, false);
+  const result = response.body.result;
+  assert.equal(result.accepted, true);
+  assert.equal(result.queued, true);
+  assert.equal(result.acknowledged, true);
+  assert.equal(result.confirmed, false);
+  assert.equal(result.completionConfirmed, false);
+  assert.equal(result.source, "CommandBridge");
+  assert.equal(result.requestId, sent().id);
+  assert.match(result.message, /cmd.flag/);
+  assert.match(result.message, /not confirmed.*Do not retry/);
+  assert.equal(sent().verb, "dino_store");
+  assert.deepEqual(sent().args, { args: ["default"] });
+  assert.equal(client.get.mock.callCount(), 2, "preflight and one response read; no timeout polling");
+  assert.equal(client.append.mock.callCount(), 1);
+  assert.equal(client.end.mock.callCount(), 1);
+});
+
+test("compatibility mode prioritizes v002 sub-mod results over routing ACKs", async (t) => {
+  configure(t, { DINOSTORAGE_RESULT_MODE: "bridge_ack" });
+  const { sent } = fixture(t, (job) => ndjson(
+    { ...job, ok: true, msg: "queued" },
+    { id: job.id, steam: job.steam, source: "DinoStorage", args: [job.steam, "default"], ok: false, msg: "You need a live dino to park." }
+  ));
+  const result = await storage.runDinoStorageAction("store", steam);
+  assert.equal(result.ok, false);
+  assert.equal(result.queued, false);
+  assert.equal(result.source, "DinoStorage");
+  assert.equal(result.requestId, sent().id);
+  assert.match(result.error, /live dino/);
+  assert.equal(result.completionConfirmed, false);
+});
+
+test("compatibility rejects routing failures and supports retrieve without flag rewrites", async (t) => {
+  configure(t, { DINOSTORAGE_RESULT_MODE: "bridge_ack" });
+  const { client, sent } = fixture(t, (job) => ndjson({ ...job, ok: false, msg: "cmd.flag write failed" }));
+  const response = await request(t, "/api/dinostorage/redeem");
+  assert.equal(response.status, 502);
+  assert.match(response.body.error, /cmd.flag write failed/);
+  assert.equal(sent().verb, "dino_retrieve");
+  assert.equal(client.append.mock.callCount(), 1);
+});
+
+test("compatibility cannot accept wrong ID, Steam, verb or source", async (t) => {
+  configure(t, { DINOSTORAGE_RESULT_MODE: "bridge_ack" });
+  fixture(t, (job) => ndjson(
+    { ...job, id: "other", ok: true, msg: "queued" },
+    { ...job, steam: "76561198000000001", ok: true, msg: "queued" },
+    { ...job, verb: "bd", ok: true, msg: "queued" },
+    { ...job, source: "BodyDrop", ok: true, msg: "spawned" }
+  ));
+  const result = await storage.runDinoStorageAction("store", steam);
+  assert.equal(result.queued, true);
+  assert.equal(result.acknowledged, false);
+  assert.equal(result.accepted, undefined);
+  assert.match(result.message, /No matching CommandBridge acknowledgement/);
+});
+
+test("strict DinoStorage remains default and invalid modes fail before connecting", async (t) => {
+  configure(t);
+  delete process.env.DINOSTORAGE_RESULT_MODE;
+  const { client } = fixture(t, (job) => ndjson({ ...job, ok: true, msg: "queued" }));
+  const result = await storage.runDinoStorageAction("store", steam);
+  assert.equal(result.accepted, undefined);
+  assert.equal(result.queued, true);
+  assert.equal(result.acknowledged, true);
+  assert.match(result.message, /did not return a matching result before timeout/);
+  const connects = client.connect.mock.callCount();
+  process.env.DINOSTORAGE_RESULT_MODE = "invalid";
+  const invalid = await storage.runDinoStorageAction("store", steam);
+  assert.equal(invalid.ok, false);
+  assert.equal(invalid.queued, false);
+  assert.match(invalid.error, /result mode/);
+  assert.equal(client.connect.mock.callCount(), connects);
+});
+
+test("DinoStorage ACK mode cannot weaken BodyDrop confirmation", async (t) => {
+  configure(t, { DINOSTORAGE_RESULT_MODE: "bridge_ack" });
+  const { client } = fixture(t, (job) => ndjson({ ...job, ok: true, msg: "queued" }));
+  const result = await bodyDrop.executeBodyDrop({
+    bodyDropRequestId: 123, steamId: steam, species: "Dryosaurus", growth: 1, location: { x: 1, y: 2, z: 3 },
+  });
+  assert.equal(result.accepted, undefined);
+  assert.equal(result.queued, true);
+  assert.match(result.message, /BodyDrop did not return/);
+  const connects = client.connect.mock.callCount();
+  const invalid = await bridge.executeCommand("bd", steam, [], { resultMode: "bridge_ack" });
+  assert.equal(invalid.queued, false);
+  assert.equal(client.connect.mock.callCount(), connects);
 });
 
 test("sub-mod rejection is not transport success", async (t) => {
