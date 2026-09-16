@@ -27,30 +27,34 @@ jobs:
 
           path = Path("server/services/sftpBridge.js")
           text = path.read_text()
-          old = '''    // VeryGames accepts the directory through CWD but rejects absolute STOR/RNFR
-    // paths. Once inside Saved, use filename-only operations for the queue.
-    await client.cd(directory);
-    enteredDirectory = true;
-'''
-          new = '''    // VeryGames normally accepts the full absolute CWD, but some remote
-    // connections are routed through an FTP frontend that rejects the same
-    // absolute path. Fall back to walking from / one segment at a time.
-    try {
-      await client.cd(directory);
-    } catch (absoluteCwdError) {
-      await client.cd("/");
-      const segments = directory.split("/").filter(Boolean);
-      try {
-        for (const segment of segments) {
-          await client.cd(segment);
-        }
-      } catch (relativeCwdError) {
-        relativeCwdError.message = `${relativeCwdError.message} (absolute CWD also failed: ${absoluteCwdError.message})`;
-        throw relativeCwdError;
-      }
-    }
-    enteredDirectory = true;
-'''
+          old = "\n".join([
+              "    // VeryGames accepts the directory through CWD but rejects absolute STOR/RNFR",
+              "    // paths. Once inside Saved, use filename-only operations for the queue.",
+              "    await client.cd(directory);",
+              "    enteredDirectory = true;",
+              "",
+          ])
+          new = "\n".join([
+              "    // VeryGames normally accepts the full absolute CWD, but some remote",
+              "    // connections are routed through an FTP frontend that rejects the same",
+              "    // absolute path. Fall back to walking from / one segment at a time.",
+              "    try {",
+              "      await client.cd(directory);",
+              "    } catch (absoluteCwdError) {",
+              "      await client.cd(\"/\");",
+              "      const segments = directory.split(\"/\").filter(Boolean);",
+              "      try {",
+              "        for (const segment of segments) {",
+              "          await client.cd(segment);",
+              "        }",
+              "      } catch (relativeCwdError) {",
+              "        relativeCwdError.message = String(relativeCwdError.message || relativeCwdError) + \" (absolute CWD also failed: \" + String(absoluteCwdError.message || absoluteCwdError) + \")\";",
+              "        throw relativeCwdError;",
+              "      }",
+              "    }",
+              "    enteredDirectory = true;",
+              "",
+          ])
           if old not in text:
               raise SystemExit("Expected CommandBridge CWD block not found; refusing to patch blindly")
           path.write_text(text.replace(old, new, 1))
@@ -74,7 +78,7 @@ jobs:
               throw missing(path);
             });
             t.mock.method(FtpClient.prototype, "uploadFrom", async (stream, path) => {
-              assert.match(path, /^commands\\.ndjson\\.upload-[0-9a-f-]{36}$/);
+              assert.match(path, /^commands\.ndjson\.upload-[0-9a-f-]{36}$/);
               for await (const _chunk of stream) { /* drain */ }
             });
             t.mock.method(FtpClient.prototype, "rename", async () => {});
@@ -82,7 +86,7 @@ jobs:
 
             const client = files.createFileBridgeClient();
             await client.connect(files.getFileBridgeConfig());
-            await client.append(Buffer.from('{"id":"test"}\\n'), queuePath);
+            await client.append(Buffer.from('{"id":"test"}\n'), queuePath);
 
             assert.deepEqual(cdCalls, [queueDirectory, "/", ...expectedSegments, "/"]);
           });
