@@ -168,13 +168,15 @@ function createFtpBridgeClient() {
   const client = new FtpClient();
   return {
     async connect(config) {
-      await client.access({
-        host: config.host,
-        port: config.port,
-        user: config.user,
-        password: config.password,
-        secure: (process.env.FTP_SECURE || process.env.GAME_FILE_SECURE || "").toLowerCase() === "true",
-      });
+      const secure = (process.env.FTP_SECURE || process.env.GAME_FILE_SECURE || "").toLowerCase() === "true";
+    await client.access({
+      host: config.host,
+      port: config.port,
+      user: config.user,
+      password: config.password,
+      secure,
+      secureOptions: secure ? { rejectUnauthorized: false } : undefined,
+    });
     },
     async mkdir(remotePath) {
       await client.ensureDir(remotePath);
