@@ -1,6 +1,7 @@
 const { Client: FtpClient } = require("basic-ftp");
 const { Writable } = require("node:stream");
 const fileBridge = require("./sftpBridge");
+const commandBridge = require("./commandBridge");
 
 const MAX_STORED_DINO_BYTES = 512 * 1024;
 const SLOT_RE = /^[A-Za-z0-9_-]{1,80}$/;
@@ -82,7 +83,25 @@ function storedDirectory(steamId) {
   return `${fileBridge.getUe4ssRemotePath()}/Mods/DinoStorage/Saved/stored/${steam}`;
 }
 
-async function listStoredDinos(steamId) {
+async function listStoredDinosViaCommandBridge(steamId) {
+  const steam = validateSteamId(steamId);
+  const result = await commandBridge.executeCommand("dino_list", steam, [], { resultMode: "submod" });
+  if (!result.ok) {
+    throw new Error(result.error || result.message || "DinoStorage list command failed");
+  }
+  let states;
+  try {
+    states = JSON.parse(result.message || "[]");
+  } catch (err) {
+    throw new Error(`DinoStorage list returned invalid JSON: ${err.message}`);
+  }
+  if (!Array.isArray(states)) throw new Error("DinoStorage list returned a non-array result");
+  const dinos = states.map((state) => normalizeStoredDino(state, state?.slot || "default"));
+  dinos.sort((a, b) => Number(b.capturedAt || 0) - Number(a.capturedAt || 0));
+  return dinos;
+}
+
+async function listStoredDinosViaFtp(steamId) {
   const directory = storedDirectory(steamId);
   const client = await connectFtp();
   try {
@@ -122,8 +141,16 @@ async function listStoredDinos(steamId) {
   }
 }
 
+async function listStoredDinos(steamId) {
+  if (commandBridge.getTransport() === "http_pull") {
+    return listStoredDinosViaCommandBridge(steamId);
+  }
+  return listStoredDinosViaFtp(steamId);
+}
+
 module.exports = {
   listStoredDinos,
+  listStoredDinosViaCommandBridge,
   validateSlot,
   validateSteamId,
   speciesFromClassPath,
