@@ -1,0 +1,49 @@
+name: Backup VeryGames Server
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/backup-verygames.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install lftp
+        run: sudo apt-get update -qq && sudo apt-get install -y lftp
+
+      - name: Download complete VeryGames FTP tree
+        shell: bash
+        env:
+          FTP_HOST: ${{ secrets.VERYGAMES_FTP_HOST }}
+          FTP_PORT: ${{ secrets.VERYGAMES_FTP_PORT }}
+          FTP_USER: ${{ secrets.VERYGAMES_FTP_USERNAME }}
+          FTP_PASS: ${{ secrets.VERYGAMES_FTP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          mkdir -p verygames-snapshot
+          lftp -c "
+            set cmd:fail-exit yes;
+            set ssl:verify-certificate no;
+            set net:max-retries 3;
+            open -p \"$FTP_PORT\" -u \"$FTP_USER\",\"$FTP_PASS\" \"$FTP_HOST\";
+            mirror --verbose --parallel=4 ./ verygames-snapshot/;
+            bye;
+          "
+          echo "Downloaded VeryGames snapshot."
+          du -sh verygames-snapshot || true
+
+      - name: Upload snapshot to GitHub
+        uses: actions/upload-artifact@v4
+        with:
+          name: verygames-full-backup-2026-09-16
+          path: verygames-snapshot/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 90
