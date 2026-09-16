@@ -171,3 +171,29 @@ test("FTP append for non-CommandBridge files keeps APPE semantics", async (t) =>
   assert.equal(uploadFrom.mock.callCount(), 0);
   assert.equal(cd.mock.callCount(), 0);
 });
+
+test("FTP CommandBridge publish falls back to walking the Saved path when absolute CWD is rejected", async (t) => {
+  configureFtp(t);
+  const expectedSegments = ["TheIsle", "Binaries", "Win64", "ue4ss", "Mods", "CommandBridge", "Saved"];
+  const cdCalls = [];
+  t.mock.method(FtpClient.prototype, "cd", async (path) => {
+    cdCalls.push(path);
+    if (path === queueDirectory) throw missing(path);
+  });
+  t.mock.method(FtpClient.prototype, "size", async (path) => {
+    assert.equal(path, queueName);
+    throw missing(path);
+  });
+  t.mock.method(FtpClient.prototype, "uploadFrom", async (stream, path) => {
+    assert.match(path, /^commands\.ndjson\.upload-[0-9a-f-]{36}$/);
+    for await (const _chunk of stream) { /* drain */ }
+  });
+  t.mock.method(FtpClient.prototype, "rename", async () => {});
+  t.mock.method(FtpClient.prototype, "remove", async () => {});
+
+  const client = files.createFileBridgeClient();
+  await client.connect(files.getFileBridgeConfig());
+  await client.append(Buffer.from('{"id":"test"}\n'), queuePath);
+
+  assert.deepEqual(cdCalls, [queueDirectory, "/", ...expectedSegments, "/"]);
+});

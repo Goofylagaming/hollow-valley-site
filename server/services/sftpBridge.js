@@ -131,9 +131,23 @@ async function publishFtpCommand(client, buffer, remotePath) {
   let tempMayExist = false;
 
   try {
-    // VeryGames accepts the directory through CWD but rejects absolute STOR/RNFR
-    // paths. Once inside Saved, use filename-only operations for the queue.
-    await client.cd(directory);
+    // VeryGames normally accepts the full absolute CWD, but some remote
+    // connections are routed through an FTP frontend that rejects the same
+    // absolute path. Fall back to walking from / one segment at a time.
+    try {
+      await client.cd(directory);
+    } catch (absoluteCwdError) {
+      await client.cd("/");
+      const segments = directory.split("/").filter(Boolean);
+      try {
+        for (const segment of segments) {
+          await client.cd(segment);
+        }
+      } catch (relativeCwdError) {
+        relativeCwdError.message = String(relativeCwdError.message || relativeCwdError) + " (absolute CWD also failed: " + String(absoluteCwdError.message || absoluteCwdError) + ")";
+        throw relativeCwdError;
+      }
+    }
     enteredDirectory = true;
 
     if (await ftpPathExists(client, queueName)) {
