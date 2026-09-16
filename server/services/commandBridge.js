@@ -1,8 +1,25 @@
 const { randomUUID } = require("node:crypto");
 const fileBridge = require("./sftpBridge");
+const httpBridge = require("./commandBridgeHttp");
 
 const SOURCES = { dino_store: "DinoStorage", dino_retrieve: "DinoStorage", bd: "BodyDrop" };
 const MAX_RESULTS_BYTES = 8 * 1024 * 1024;
+
+function getTimeoutMs() {
+  const timeoutMs = Number(process.env.COMMAND_BRIDGE_TIMEOUT_MS || 20000);
+  if (!Number.isInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 60000) {
+    throw new Error("COMMAND_BRIDGE_TIMEOUT_MS must be an integer from 1000 to 60000");
+  }
+  return timeoutMs;
+}
+
+function getTransport() {
+  const transport = String(process.env.COMMAND_BRIDGE_TRANSPORT || "file").trim().toLowerCase();
+  if (!["file", "http_pull"].includes(transport)) {
+    throw new Error("COMMAND_BRIDGE_TRANSPORT must be file or http_pull");
+  }
+  return transport;
+}
 
 function getConfig() {
   if (process.env.COMMAND_BRIDGE_ENABLED !== "true") {
@@ -16,11 +33,7 @@ function getConfig() {
     throw new Error("COMMAND_BRIDGE_SAVED_PATH must be relative to ue4ss or an absolute FTP/SFTP directory");
   }
   const saved = configured.startsWith("/") ? configured : `${fileBridge.getUe4ssRemotePath()}/${configured}`;
-  const timeoutMs = Number(process.env.COMMAND_BRIDGE_TIMEOUT_MS || 20000);
-  if (!Number.isInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 60000) {
-    throw new Error("COMMAND_BRIDGE_TIMEOUT_MS must be an integer from 1000 to 60000");
-  }
-  return { commandsPath: `${saved}/commands.ndjson`, resultsPath: `${saved}/results.ndjson`, timeoutMs };
+  return { commandsPath: `${saved}/commands.ndjson`, resultsPath: `${saved}/results.ndjson`, timeoutMs: getTimeoutMs() };
 }
 
 function buildCommand(verb, steam, tokens = []) {
@@ -33,7 +46,6 @@ function buildCommand(verb, steam, tokens = []) {
 }
 
 function findResult(text, command) {
-  // An incomplete final line may still be being written by the game process.
   const lines = text.slice(0, text.lastIndexOf("\n") + 1).split("\n");
   let acknowledged = false;
   for (const line of lines) {
@@ -67,19 +79,45 @@ async function readResult(client, path, command) {
   return findResult(buffer.toString("utf8"), command);
 }
 
+function validateResultMode(verb, resultMode) {
+  if (!["submod", "bridge_ack"].includes(resultMode) ||
+      (resultMode === "bridge_ack" && SOURCES[verb] !== "DinoStorage")) {
+    throw new Error("DinoStorage result mode must be submod or bridge_ack; other actions require submod results");
+  }
+}
+
 async function executeCommand(verb, steam, tokens = [], { resultMode = "submod" } = {}) {
-  let client;
   let command;
+  try {
+    command = buildCommand(verb, steam, tokens);
+    validateResultMode(verb, resultMode);
+    if (process.env.COMMAND_BRIDGE_ENABLED !== "true") {
+      throw new Error("CommandBridge is disabled");
+    }
+
+    if (getTransport() === "http_pull") {
+      return await httpBridge.execute(command, SOURCES[verb], {
+        resultMode,
+        timeoutMs: getTimeoutMs(),
+      });
+    }
+  } catch (err) {
+    console.error("[CommandBridge HTTP]", { requestId: command?.id, verb, error: err.message });
+    return {
+      ok: false,
+      queued: false,
+      confirmed: false,
+      requestId: command?.id,
+      error: `CommandBridge HTTP error: ${err.message}`,
+    };
+  }
+
+  let client;
   let config;
   let stage = "configuration";
   let uploadAttempted = false;
   let acknowledged = false;
   try {
-    command = buildCommand(verb, steam, tokens);
-    if (!["submod", "bridge_ack"].includes(resultMode) ||
-        (resultMode === "bridge_ack" && SOURCES[verb] !== "DinoStorage")) {
-      throw new Error("DinoStorage result mode must be submod or bridge_ack; other actions require submod results");
-    }
     config = getConfig();
     const credentials = fileBridge.getFileBridgeConfig();
     client = fileBridge.createFileBridgeClient();
@@ -142,4 +180,4 @@ async function executeCommand(verb, steam, tokens = [], { resultMode = "submod" 
   }
 }
 
-module.exports = { executeCommand, buildCommand, findResult, getConfig };
+module.exports = { executeCommand, buildCommand, findResult, getConfig, getTransport };
