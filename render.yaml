@@ -68,7 +68,7 @@ services:
       - key: MAX_PLAYERS
         value: 100
       - key: GAME_FILE_PROTOCOL
-        value: sftp
+        value: ftp
       - key: SFTP_HOST
         sync: false
       - key: SFTP_PORT

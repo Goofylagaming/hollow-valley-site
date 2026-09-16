@@ -35,6 +35,11 @@ function getFileBridgeConfig() {
     throw new Error(`File bridge is not configured. Missing or invalid: ${missing.join(", ")}`);
   }
 
+  const protocol = getFileBridgeProtocol();
+  if (protocol === "sftp" && port === 21) {
+    throw new Error("SFTP is configured on FTP port 21. Set GAME_FILE_PROTOCOL=ftp for this plain-FTP server.");
+  }
+
   return {
     host: process.env.SFTP_HOST,
     port,
