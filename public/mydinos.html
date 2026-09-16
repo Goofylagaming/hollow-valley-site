@@ -14,53 +14,36 @@
       <section class="page-header">
         <p class="overline green">STORAGE</p>
         <h1>My dinos.</h1>
-        <p class="section-intro">Redeem, park, sell or gift the dinos in your storage.</p>
+        <p class="section-intro">Store your live dinosaur and redeem the same dino later with its growth, mutations, prime state, skin and diet preserved.</p>
       </section>
       <section class="roster-section">
         <div id="mydinos-guard"><p class="section-intro">Sign in with Steam to view your storage.</p></div>
         <div id="mydinos-content" hidden>
           <div id="active-character-card" style="margin-bottom: 24px;"></div>
+
+          <div class="filter-row" role="group" aria-label="Filter stored dinosaurs">
+            <button class="filter active" data-filter="all">All species</button>
+            <button class="filter" data-filter="prime">Prime</button>
+            <span class="roster-count" id="mydinos-count">0 in storage</span>
+          </div>
+          <div class="storage-grid" id="storage-grid"><p class="section-intro">Loading storage…</p></div>
+
           <section class="bodydrop-panel" id="bodydrop-panel" aria-labelledby="bodydrop-heading">
             <div>
               <p class="overline green">BODY DROP</p>
               <h2 id="bodydrop-heading">Call in a body drop.</h2>
-              <p class="section-intro">Request an admin-safe food drop through the Hollow Valley bridge. You must be signed in with Steam and online on the server.</p>
+              <p class="section-intro">Body Drop rules are the next system being wired to your live carnivore.</p>
             </div>
             <div id="bodydrop-content" class="bodydrop-content">
               <p class="section-intro">Loading body drop status…</p>
             </div>
           </section>
-          <section class="panel">
-            <h2>DinoStorage default slot</h2>
-            <p class="section-intro">Store snapshots your live dino before the mod schedules its death. To redeem, first respawn as the same species. These actions use the mod's default slot, not a website roster entry. A mod acknowledgement does not prove the deferred kill or restore completed.</p>
-            <button class="small-button" id="dinostorage-store">Store current dino</button>
-            <button class="small-button" id="dinostorage-redeem">Redeem default slot</button>
-          </section>
-          <div class="filter-row" role="group" aria-label="Filter by species">
-            <button class="filter active" data-filter="all">All species</button>
-            <span class="roster-count" id="mydinos-count">0 in storage</span>
-          </div>
-          <div class="storage-grid" id="storage-grid"><p class="section-intro">Loading storage…</p></div>
         </div>
       </section>
     </main>
     <footer><span>© 2026 Herby Death Squad Games</span><span>ISLE EVRIMA COMMUNITY SERVER</span><a href="/">Back to command ↑</a></footer>
   </div>
-  <dialog class="dino-dialog" id="gift-dialog">
-    <button class="dialog-close" aria-label="Close">×</button>
-    <p class="overline green">GIFT DINO</p>
-    <h2>Send to a survivor</h2>
-    <div class="form-row"><input type="text" id="gift-username" placeholder="Recipient's site username"></div>
-    <div class="form-row"><button class="small-button" id="gift-confirm">Send gift</button></div>
-  </dialog>
-  <dialog class="dino-dialog" id="list-dialog">
-    <button class="dialog-close" aria-label="Close">×</button>
-    <p class="overline green">LIST FOR SALE</p>
-    <h2>Set a price</h2>
-    <div class="form-row"><input type="number" id="list-price" placeholder="Price in Valley Coin" min="1"></div>
-    <div class="form-row"><button class="small-button" id="list-confirm">List on marketplace</button></div>
-  </dialog>
   <script src="/assets/common.js?v=10"></script>
-  <script src="/assets/mydinos.js?v=4"></script>
+  <script src="/assets/mydinos.js?v=5"></script>
 </body>
 </html>

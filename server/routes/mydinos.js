@@ -1,35 +1,23 @@
 const express = require("express");
-const {
-  getRoster,
-  getRosterEntry,
-  addRosterDino,
-  setRosterStatus,
-  setRosterPrime,
-  removeRosterDino,
-  transferRosterDino,
-  creditWallet,
-  getUserByUsername,
-  applySkinToRoster,
-  getSkinEntry,
-} = require("../db");
 const { requireAuth } = require("../middleware/requireAuth");
-const { executeGameAction } = require("../services/sftpBridge");
 const serverStatus = require("../services/serverStatus");
-const { respondToDinoStorageAction } = require("../services/dinoStorage");
+const {
+  createSlotId,
+  listStoredDinos,
+  respondToDinoStorageAction,
+} = require("../services/dinoStorage");
+const { validateSlot } = require("../services/dinoStorageFiles");
 
 const router = express.Router();
 
-function ownedOr404(req, res) {
-  const dino = getRosterEntry(Number(req.params.id));
-  if (!dino || dino.user_id !== req.user.id) {
-    res.status(404).json({ error: "Dino not found in your storage" });
-    return null;
+router.get("/", requireAuth, async (req, res) => {
+  if (!req.user.steam_id) return res.json([]);
+  try {
+    res.json(await listStoredDinos(req.user.steam_id));
+  } catch (err) {
+    console.error("[My Dinos] failed to list DinoStorage files", { error: err.message });
+    res.status(502).json({ error: `Could not read DinoStorage: ${err.message}` });
   }
-  return dino;
-}
-
-router.get("/", requireAuth, (req, res) => {
-  res.json(getRoster(req.user.id));
 });
 
 router.get("/active-character", requireAuth, (req, res) => {
@@ -47,86 +35,31 @@ router.get("/active-character", requireAuth, (req, res) => {
     character: {
       name: char.name,
       species: char.species,
+      gender: char.gender,
       growth: char.growth,
       health: char.health,
+      stamina: char.stamina,
+      hunger: char.hunger,
+      thirst: char.thirst,
       isPrime: char.isPrime,
+      mutations: char.mutations || [],
+      location: char.location,
     },
   });
 });
 
 router.post("/park-active", requireAuth, async (req, res) => {
-  return respondToDinoStorageAction(req, res, "store");
+  return respondToDinoStorageAction(req, res, "store", createSlotId());
 });
 
-router.post("/:id/redeem", requireAuth, async (req, res) => {
-  const dino = ownedOr404(req, res);
-  if (!dino) return;
-
-  res.status(409).json({ error: "Website roster entries are not DinoStorage slots. Use the separate DinoStorage default-slot controls." });
-});
-
-router.post("/:id/park", requireAuth, async (req, res) => {
-  const dino = ownedOr404(req, res);
-  if (!dino) return;
-
-  res.status(409).json({ error: "Website roster entries are not DinoStorage slots. Use the separate DinoStorage default-slot controls." });
-});
-
-router.post("/:id/set-prime", requireAuth, async (req, res) => {
-  const dino = ownedOr404(req, res);
-  if (!dino) return;
-
-  const isPrime = Boolean(req.body?.prime);
-  const steamId = req.user.steam_id;
-  if (steamId) {
-    const result = await executeGameAction({
-      action: "set_prime",
-      steamId,
-      prime: isPrime,
-    });
-    if (!result.ok) {
-      return res.status(400).json({ error: result.error || "Failed to update prime status in game" });
-    }
+router.post("/stored/:slot/redeem", requireAuth, async (req, res) => {
+  let slot;
+  try {
+    slot = validateSlot(req.params.slot);
+  } catch (err) {
+    return res.status(400).json({ error: err.message });
   }
-
-  res.json(setRosterPrime(dino.id, isPrime));
-});
-
-router.post("/:id/sell", requireAuth, (req, res) => {
-  const dino = ownedOr404(req, res);
-  if (!dino) return;
-  const scrapValue = Math.max(10, Math.round((dino.size_percent || 10) * 8));
-  removeRosterDino(dino.id);
-  const wallet = creditWallet(req.user.id, scrapValue, `Scrapped ${dino.species_id}`);
-  res.json({ ok: true, wallet, scrapValue });
-});
-
-router.post("/:id/gift", requireAuth, (req, res) => {
-  const dino = ownedOr404(req, res);
-  if (!dino) return;
-  const { username } = req.body || {};
-  if (!username) return res.status(400).json({ error: "Recipient username is required" });
-  const recipient = getUserByUsername(username);
-  if (!recipient) return res.status(404).json({ error: "No user found with that username" });
-  if (recipient.id === req.user.id) return res.status(400).json({ error: "You already own this dino" });
-  const updated = transferRosterDino(dino.id, recipient.id);
-  res.json({ ok: true, dino: updated });
-});
-
-router.post("/:id/apply-skin", requireAuth, (req, res) => {
-  const dino = ownedOr404(req, res);
-  if (!dino) return;
-  const skinId = req.body?.skinId ?? null;
-  if (skinId !== null) {
-    const skin = getSkinEntry(Number(skinId));
-    if (!skin || skin.species_id !== dino.species_id) {
-      return res.status(400).json({ error: "That skin does not fit this species" });
-    }
-    if (!skin.is_premium && skin.owner_user_id !== req.user.id) {
-      return res.status(403).json({ error: "You do not own that skin" });
-    }
-  }
-  res.json(applySkinToRoster(dino.id, skinId));
+  return respondToDinoStorageAction(req, res, "redeem", slot);
 });
 
 module.exports = router;

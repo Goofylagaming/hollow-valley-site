@@ -1,0 +1,95 @@
++        string.format('  "maxBlood": %s,', numStr(state.maxBlood)),
++        string.format('  "maxOxygen": %s,', numStr(state.maxOxygen)),
+         string.format('  "maxHunger": %s,', numStr(state.maxHunger)),
+         string.format('  "maxFoodValue": %s,', numStr(state.maxFoodValue)),
+         string.format('  "maxThirst": %s,', numStr(state.maxThirst)),
+@@ -447,10 +460,14 @@
+         string.format('    "body": %s,', colorJson(skin.body)),
+         string.format('    "flank": %s,', colorJson(skin.flank)),
+         string.format('    "underbelly": %s,', colorJson(skin.underbelly)),
++        string.format('    "teeth": %s,', colorJson(skin.teeth)),
++        string.format('    "mouth": %s,', colorJson(skin.mouth)),
++        string.format('    "claws": %s,', colorJson(skin.claws)),
+         string.format('    "detail1": %s,', colorJson(skin.detail1)),
+         string.format('    "eyes": %s,', colorJson(skin.eyes)),
+         string.format('    "skinVariation": %s,', numStr(skin.skinVariation, "%.6f")),
+-        string.format('    "patternIndex": %d', math.floor(skin.patternIndex or 0)),
++        string.format('    "patternIndex": %d,', math.floor(skin.patternIndex or 0)),
++        string.format('    "themeIndex": %d', math.floor(skin.themeIndex or 0)),
+         '  },',
+         string.format('  "location": {"x":%.4f,"y":%.4f,"z":%.4f},', loc.x, loc.y, loc.z),
+         string.format('  "rotation": {"pitch":%.4f,"yaw":%.4f,"roll":%.4f}', rot.pitch, rot.yaw, rot.roll),
+@@ -479,6 +496,9 @@
+     state.food       = jsonReadNumber(body, "food")
+     state.waterLevel = jsonReadNumber(body, "waterLevel")
+     state.rottenValue = jsonReadNumber(body, "rottenValue")
++    state.maxHealth  = jsonReadNumber(body, "maxHealth")
++    state.maxBlood   = jsonReadNumber(body, "maxBlood")
++    state.maxOxygen  = jsonReadNumber(body, "maxOxygen")
+     state.maxHunger  = jsonReadNumber(body, "maxHunger")
+     state.maxFoodValue = jsonReadNumber(body, "maxFoodValue")
+     state.maxThirst  = jsonReadNumber(body, "maxThirst")
+@@ -568,11 +588,15 @@
+             markings   = parseColor("markings"),
+             flank      = parseColor("flank"),
+             underbelly = parseColor("underbelly"),
++            teeth      = parseColor("teeth"),
++            mouth      = parseColor("mouth"),
++            claws      = parseColor("claws"),
+             detail1    = parseColor("detail1"),
+             eyes       = parseColor("eyes"),
+             maleDisplay = parseColor("maleDisplay"),
+             skinVariation = jsonReadNumber(skinBlock,"skinVariation"),
+             patternIndex  = math.floor(jsonReadNumber(skinBlock,"patternIndex") or 0),
++            themeIndex    = math.floor(jsonReadNumber(skinBlock,"themeIndex") or 0),
+         }
+     end
+ 
+@@ -583,6 +607,11 @@
+ -- Storage file operations
+ -- ============================================================
+ 
++local function validSlotName(slot)
++    if type(slot) ~= "string" or slot == "" or #slot > 80 then return false end
++    return slot:match("^[%w_-]+$") ~= nil
++end
++
+ local function playerDir(steam)
+     return STORED_DIR .. "/" .. tostring(steam)
+ end
+@@ -665,7 +694,6 @@
+ local function applyColor(cdata, field, c)
+     if c == nil then return end
+     local r, g, b = c.r or 0, c.g or 0, c.b or 0
+-    if r == 0 and g == 0 and b == 0 then r, g, b = 0.01, 0.01, 0.01 end
+     pcall(function()
+         cdata[field].R = r
+         cdata[field].G = g
+@@ -674,7 +702,7 @@
+     end)
+ end
+ 
+-local function applyState(pawn, steam, state)
++local function applyState(pawn, steam, state, slot)
+     if pawn == nil or state == nil then return false, "nil pawn or state" end
+ 
+     -- 1. Growth (first pass) — will wipe vitals but we re-apply later
+@@ -728,19 +756,17 @@
+         local nutrStruct; pcall(function() nutrStruct = pawn.NutrientsStruct end)
+         if nutrStruct ~= nil then
+             pcall(function()
+-                -- Apply captured values first
+-                nutrStruct.CarbValue        = nutr.carbValue or 0
+-                nutrStruct.ProteinValue     = nutr.proteinValue or 0
+-                nutrStruct.LipidValue       = nutr.lipidValue or 0
+-                nutrStruct.BonesValue       = nutr.bonesValue or 0
+-                nutrStruct.MagyValue        = nutr.magyValue or 0
+-                nutrStruct.MushroomsValue   = nutr.mushroomsValue or 0
+-                
+-                -- CRITICAL FIX: Always zero debuff-causing nutrients immediately on restore to prevent vomit sickness and muscle spasms
+-                nutrStruct.CannibalValue    = 0.0
+-                nutrStruct.RottenFleshValue = 0.0
+-                nutrStruct.bMalnutrition    = false
+-                
++                -- Restore the captured diet exactly; storage must not act as a
++                -- free food/diet refill or silently cure an existing condition.

@@ -1,0 +1,95 @@
+--- a/server-mods/DinoStorage/Scripts/main.lua
++++ b/server-mods/DinoStorage/Scripts/main.lua
+@@ -1,12 +1,12 @@
+--- DinoStorage v002
++-- DinoStorage v003
+ -- Store/retrieve dino state across respawns.
+ -- All commands are Discord-only via IPC (cmd.flag).
+ -- IPC verbs: store, retrieve, delete, list
+ --
+--- Fix for vomit sickness debuff when retrieving dinos by properly handling nutrient values
++-- Website-backed multi-slot storage with exact state round-tripping.
+ 
+ local MOD_NAME    = "DinoStorage"
+-local MOD_VERSION = "v002"
++local MOD_VERSION = "v003"
+ 
+ local SAVED_DIR     = "Mods/DinoStorage/Saved"
+ local STORED_DIR    = SAVED_DIR .. "/stored"
+@@ -234,14 +234,18 @@
+     pcall(function() state.waterLevel = pawn:GetWaterLevel() end)
+     pcall(function() state.rottenValue = pawn:GetRottenValue() end)
+ 
+-    -- Max vitals
+-    pcall(function() state.maxHunger   = pawn:GetMaxHunger() end)
+-    pcall(function() state.maxThirst   = pawn:GetMaxThirst() end)
+-    pcall(function() state.maxStamina  = pawn:GetMaxStamina() end)
++    -- Max vitals. Health/Blood/Oxygen maxima are capture-only and are used
++    -- by the website for percentage displays; growth derives them on restore.
++    pcall(function() state.maxHealth    = pawn:GetMaxHealth() end)
++    pcall(function() state.maxBlood     = pawn:GetMaxBlood() end)
++    pcall(function() state.maxOxygen    = pawn:GetMaxOxygen() end)
++    pcall(function() state.maxHunger    = pawn:GetMaxHunger() end)
++    pcall(function() state.maxThirst    = pawn:GetMaxThirst() end)
++    pcall(function() state.maxStamina   = pawn:GetMaxStamina() end)
+     pcall(function() state.maxFoodValue = pawn:GetMaxFoodValue() end)
+ 
+     -- Gender
+-    pcall(function() state.isFemale = pawn.bIsFemale end)
++    pcall(function() state.isFemale = pawn:IsFemale() end)
+ 
+     -- Class path
+     local fullName
+@@ -323,8 +327,10 @@
+         }
+     end
+ 
+-    -- Skin
+-    local cdata; pcall(function() cdata = pawn:GetCustomizerData() end)
++    -- Skin/customizer. On current EVRIMA builds use the live CustomizerData
++    -- property directly; Get/SetCustomizerData crosses the enlarged struct by
++    -- value and is unreliable after the skin overhaul. Only POD fields are read.
++    local cdata; pcall(function() cdata = pawn.CustomizerData end)
+     if cdata ~= nil then
+         local function col(f)
+             local c = cdata[f]
+@@ -332,15 +338,19 @@
+             return { r=c.R, g=c.G, b=c.B, a=c.A }
+         end
+         state.skin = {
+-            body       = col("BodyColor"),
+-            markings   = col("MarkingsColor"),
+-            flank      = col("FlankColor"),
+-            underbelly = col("UnderbellyColor"),
+-            detail1    = col("Detail1Color"),
+-            eyes       = col("EyesColor"),
++            body        = col("BodyColor"),
++            markings    = col("MarkingsColor"),
++            flank       = col("FlankColor"),
++            underbelly  = col("UnderbellyColor"),
++            teeth       = col("TeethColor"),
++            mouth       = col("MouthColor"),
++            claws       = col("ClawsColor"),
++            detail1     = col("Detail1Color"),
++            eyes        = col("EyesColor"),
+             maleDisplay = col("MaleDisplayColor"),
+             skinVariation = cdata.SkinVariation,
+             patternIndex  = cdata.PatternIndex,
++            themeIndex    = cdata.ThemeIndex,
+         }
+     end
+ 
+@@ -388,7 +398,7 @@
+ 
+     local lines = {
+         '{',
+-        string.format('  "version": 1,'),
++        string.format('  "version": 2,'),
+         string.format('  "slot": "%s",', jsonEscape(slot or "default")),
+         string.format('  "capturedAt": %d,', state.capturedAt or 0),
+         string.format('  "classPath": "%s",', jsonEscape(state.classPath or "")),
+@@ -403,6 +413,9 @@
+         string.format('  "food": %s,', numStr(state.food)),
+         string.format('  "waterLevel": %s,', numStr(state.waterLevel)),
+         string.format('  "rottenValue": %s,', numStr(state.rottenValue)),
++        string.format('  "maxHealth": %s,', numStr(state.maxHealth)),

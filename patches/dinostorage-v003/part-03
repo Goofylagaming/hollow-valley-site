@@ -1,0 +1,95 @@
+-                if nutr ~= nil then
++                -- Final exact current-value pass after all growth/mutation writes.
++                if state.hunger       ~= nil then pcallLog("SetHunger",       function() pawn3:SetHunger(state.hunger) end) end
++                if state.thirst       ~= nil then pcallLog("SetThirst",       function() pawn3:SetThirst(state.thirst) end) end
++                if state.food         ~= nil then pcallLog("SetFoodValue",    function() pawn3:SetFoodValue(state.food) end) end
++                if state.blood        ~= nil then pcallLog("SetBlood",        function() pawn3:SetBlood(state.blood) end) end
++                if state.lockedDamage ~= nil then pcallLog("SetLockedDamage", function() pawn3:SetLockedDamage(state.lockedDamage) end) end
++                if state.rottenValue  ~= nil then pcallLog("SetRottenValue",  function() pawn3:SetRottenValue(state.rottenValue) end) end
++
++                local liveNutrients; pcall(function() liveNutrients = pawn3.NutrientsStruct end)
++                local savedNutrients = state.nutrients
++                if liveNutrients ~= nil and savedNutrients ~= nil then
+                     pcallLog("SetNutrientsStruct", function()
+-                        -- Fill normal diet nutrients to max
+-                        nutr.CarbValue        = 9999.0
+-                        nutr.ProteinValue     = 9999.0
+-                        nutr.LipidValue       = 9999.0
+-                        nutr.BonesValue       = 9999.0
+-                        nutr.MagyValue        = 9999.0
+-                        nutr.MushroomsValue   = 9999.0
+-                        -- CRITICAL FIX: Zero debuff-causing nutrients (rotten flesh = food poisoning, cannibal = spasms/infertility)
+-                        nutr.RottenFleshValue = 0.0
+-                        nutr.CannibalValue    = 0.0
+-                        nutr.bMalnutrition    = false
+-                        pawn3:SetNutrientsStruct(nutr, true)
++                        liveNutrients.CarbValue        = savedNutrients.carbValue or 0
++                        liveNutrients.ProteinValue     = savedNutrients.proteinValue or 0
++                        liveNutrients.LipidValue       = savedNutrients.lipidValue or 0
++                        liveNutrients.BonesValue       = savedNutrients.bonesValue or 0
++                        liveNutrients.CannibalValue    = savedNutrients.cannibalValue or 0
++                        liveNutrients.MagyValue        = savedNutrients.magyValue or 0
++                        liveNutrients.RottenFleshValue = savedNutrients.rottenFleshValue or 0
++                        liveNutrients.MushroomsValue   = savedNutrients.mushroomsValue or 0
++                        liveNutrients.bMalnutrition    = savedNutrients.bMalnutrition == true
++                        pawn3:SetNutrientsStruct(liveNutrients, true)
+                     end)
+-                else
+-                    log("Retrieve fill FAILED (NutrientsStruct): could not read pawn3.NutrientsStruct")
+                 end
+ 
+-                -- Fill blood to max, zero locked damage and rotten value to prevent muscle spasms/vomiting
+-                pcallLog("SetBlood",       function() pawn3:SetBlood(9999.0) end)
+-                pcallLog("SetLockedDamage",function() pawn3:SetLockedDamage(0.0) end)
+-                pcallLog("SetRottenValue", function() pawn3:SetRottenValue(0.0) end)
+-
+                 -- Log actual post-fill values so a clamp-against-stale-max (or a wrong
+                 -- UFunction name swallowed by pcall) is visible in the mod log instead of
+                 -- silently failing.
+@@ -1000,10 +1024,13 @@
+                 pcall(function() mh = pawn3:GetMaxHunger() end)
+                 pcall(function() mt = pawn3:GetMaxThirst() end)
+                 log(string.format(
+-                    "Post-fill check for %s: hunger=%s/%s thirst=%s/%s food=%s water=%s",
++                    "Post-restore check for %s: hunger=%s/%s thirst=%s/%s food=%s water=%s",
+                     steamSnap, tostring(h), tostring(mh), tostring(t), tostring(mt), tostring(f), tostring(w)))
+ 
+-                queueNotify(steamSnap, "Dino restored! Stats, hunger, thirst, and diets filled.")
++                if slot ~= nil and validSlotName(slot) then
++                    deleteSlot(steamSnap, slot)
++                end
++                queueNotify(steamSnap, "Dino restored with its stored growth, stats, mutations, prime state, skin and diet.")
+             end)
+         end)
+     end
+@@ -1018,6 +1045,7 @@
+ -- Returns (ok, msg) so IPC callers get a real status.
+ local function cmdStore(steam, slot)
+     slot = slot or "default"
++    if not validSlotName(slot) then return false, "Invalid storage slot name." end
+     local gm = findGameMode()
+     if gm == nil then return false, "Server not ready." end
+     local ctrl; pcall(function() ctrl = gm:GetControllerBySteamId(steam) end)
+@@ -1025,13 +1053,10 @@
+     local pawn = livePawnFromCtrl(ctrl)
+     if pawn == nil then return false, "You need a live dino to park." end
+ 
+-    -- Growth gate: 75%+ required
++    -- Any growth may be stored. Growth is part of the snapshot and is restored
++    -- exactly; storage is not restricted to adults.
+     local growth = 0
+     pcall(function() growth = pawn:GetGrowth() end)
+-    if growth < 0.75 then
+-        local pct = math.floor(growth * 100)
+-        return false, string.format("Your dino must be at least 75%% growth to park. Currently %d%%.", pct)
+-    end
+ 
+     local state = captureState(pawn, steam)
+     if state.classPath == nil then
+@@ -1067,6 +1092,7 @@
+ -- Returns (ok, msg) so IPC callers get a real status.
+ local function cmdRetrieve(steam, slot)
+     slot = slot or "default"
++    if not validSlotName(slot) then return false, "Invalid storage slot name." end
+ 
+     -- Check player is online before queuing

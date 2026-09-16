@@ -1,0 +1,55 @@
+     local gm = findGameMode()
+@@ -1094,12 +1120,22 @@
+         return false, string.format("Species mismatch: you are playing as %s but this slot contains %s.", liveSpecies, storedSpecies)
+     end
+ 
++    -- Gender has no safe setter. Preserve it by requiring the player to spawn
++    -- the same sex before redeeming the stored dino.
++    local liveFemale; pcall(function() liveFemale = pawn:IsFemale() end)
++    if state.isFemale ~= nil and liveFemale ~= nil and state.isFemale ~= liveFemale then
++        return false, string.format("Gender mismatch: spawn a %s %s before redeeming this dino.",
++            state.isFemale and "female" or "male",
++            (storedClass:match("BP_(.-)%.") or "dino"):gsub("_C$",""))
++    end
++
+     local species = (state.classPath and state.classPath:match("BP_(.-)%.") or "dino"):gsub("_C$","")
+     queueNotify(steam, string.format("Retrieving %s from slot '%s'. Spawn the same species now!", species, slot))
+ 
+     -- Deferred apply
+     if LoopInGameThreadWithDelay ~= nil then
+         local steamSnap = tostring(steam)
++        local slotSnap = tostring(slot)
+         local retrieveHandle
+         retrieveHandle = LoopInGameThreadWithDelay(RETRIEVE_DELAY_MS, function()
+             if retrieveHandle ~= nil and CancelDelayedAction ~= nil then
+@@ -1113,7 +1149,7 @@
+                 queueNotify(steamSnap, "No live dino found — spawn your " .. species .. " first.")
+                 return
+             end
+-            applyState(pawn2, steamSnap, state)
++            applyState(pawn2, steamSnap, state, slotSnap)
+         end)
+     end
+ 
+@@ -1189,13 +1225,17 @@
+                 ok = ok == true
+             elseif verb == "delete" then
+                 local slot = extraArgs[1] or "default"
+-                deleteSlot(steam, slot)
+-                ok = true; msg = "slot deleted"
++                if not validSlotName(slot) then
++                    ok = false; msg = "invalid slot name"
++                else
++                    deleteSlot(steam, slot)
++                    ok = true; msg = "slot deleted"
++                end
+             elseif verb == "rename" then
+                 local oldSlot = extraArgs[1] or "default"
+                 local newSlot = extraArgs[2]
+-                if newSlot == nil or newSlot == "" then
+-                    ok = false; msg = "missing new slot name"
++                if not validSlotName(oldSlot) or newSlot == nil or newSlot == "" or not validSlotName(newSlot) then
++                    ok = false; msg = "invalid or missing slot name"
+                 else
+                     local oldPath = slotFile(steam, oldSlot)
+                     if not fileExists(oldPath) then

@@ -1,19 +1,68 @@
 const { api, escapeHtml } = window.HDS;
 
-let speciesById = {};
-let mySkinsBySpecies = {};
+let speciesByName = {};
+let activeCharacter = null;
+let storedDinos = [];
+let currentFilter = "all";
+
+function pct(value, max, fallback = 0) {
+  const n = Number(value);
+  const m = Number(max);
+  if (!Number.isFinite(n)) return fallback;
+  if (Number.isFinite(m) && m > 0) return Math.max(0, Math.min(100, Math.round((n / m) * 100)));
+  if (n >= 0 && n <= 1) return Math.round(n * 100);
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
+
+function growthPct(dino) {
+  const n = Number(dino?.growth);
+  if (!Number.isFinite(n)) return 0;
+  return n <= 1 ? Math.round(n * 100) : Math.round(n);
+}
+
+function speciesInfo(name) {
+  return speciesByName[String(name || "").toLowerCase()] || null;
+}
+
+function dietLabel(name) {
+  const info = speciesInfo(name);
+  if (!info?.category) return "Unknown diet";
+  return info.category.charAt(0).toUpperCase() + info.category.slice(1);
+}
 
 async function loadSpeciesMap() {
   const list = await api("/api/species");
-  speciesById = Object.fromEntries(list.map((s) => [s.id, s]));
+  speciesByName = {};
+  for (const species of list) {
+    speciesByName[String(species.name || "").toLowerCase()] = species;
+    speciesByName[String(species.id || "").toLowerCase()] = species;
+  }
 }
 
-async function loadMySkins() {
-  const skins = await api("/api/skins/mine");
-  mySkinsBySpecies = {};
-  skins.forEach((skin) => {
-    (mySkinsBySpecies[skin.species_id] ||= []).push(skin);
-  });
+function sameSpecies(a, b) {
+  return String(a || "").toLowerCase() === String(b || "").toLowerCase();
+}
+
+function redeemEligibility(dino) {
+  if (!activeCharacter) return { ok: false, reason: "Spawn in-game as this species first" };
+  if (!sameSpecies(activeCharacter.species, dino.species)) {
+    return { ok: false, reason: `Spawn as ${dino.species} first` };
+  }
+  if (dino.gender && activeCharacter.gender && dino.gender !== activeCharacter.gender) {
+    return { ok: false, reason: `Spawn as a ${dino.gender.toLowerCase()} ${dino.species}` };
+  }
+  return { ok: true, reason: "Redeem this dino" };
+}
+
+async function runDinoStorageStore() {
+  try {
+    const response = await api("/api/mydinos/park-active", { method: "POST" });
+    alert(response.message || `Stored in ${response.slot}`);
+    return response;
+  } catch (err) {
+    alert(err.message || "Failed to store active dinosaur");
+    return null;
+  }
 }
 
 async function loadActiveCharacter() {
@@ -22,105 +71,168 @@ async function loadActiveCharacter() {
 
   try {
     const res = await api("/api/mydinos/active-character");
-    if (res && res.active && res.character) {
-      const char = res.character;
-      const growthPct = Math.round((char.growth || 1) * 100);
-      container.innerHTML = `
-        <div class="active-char-banner">
-          <div class="active-char-info">
-            <span class="tag-pill active-tag">LIVE IN GAME</span>
-            <h3>${escapeHtml(char.species || "Unknown")} (${growthPct}% Growth)${char.isPrime ? " • PRIME" : ""}</h3>
-            <small>Playing in-game on Hollow Valley as ${escapeHtml(char.name || "Survivor")}</small>
-          </div>
-          <button id="park-active-btn" class="primary-button green">Store Current In-Game Dino</button>
-        </div>
-      `;
-      container.hidden = false;
-
-      document.getElementById("park-active-btn")?.addEventListener("click", async () => {
-        const btn = document.getElementById("park-active-btn");
-        btn.disabled = true;
-        btn.textContent = "Sending store command...";
-        try {
-          const response = await api("/api/mydinos/park-active", { method: "POST" });
-          alert(response.message);
-          await refresh();
-        } catch (err) {
-          alert(err.message || "Failed to park active character");
-          btn.disabled = false;
-          btn.textContent = "Store Current In-Game Dino";
-        }
-      });
-    } else {
-      container.innerHTML = "";
-      container.hidden = true;
+    activeCharacter = res?.active ? res.character : null;
+    if (!activeCharacter) {
+      const reason = res?.reason === "server_offline"
+        ? "Game server is offline. Your stored dinos are still available to view."
+        : "Spawn in-game when you are ready to store or redeem a dinosaur.";
+      container.innerHTML = `<div class="panel"><p class="overline green">LIVE DINO</p><p class="section-intro">${escapeHtml(reason)}</p></div>`;
+      return;
     }
+
+    const growth = growthPct(activeCharacter);
+    container.innerHTML = `
+      <div class="active-char-banner">
+        <div class="active-char-info">
+          <span class="tag-pill active-tag">LIVE IN GAME</span>
+          <h3>${escapeHtml(activeCharacter.species || "Unknown")} · ${growth}% growth${activeCharacter.isPrime ? " · PRIME" : ""}</h3>
+          <small>${escapeHtml(activeCharacter.gender || "Unknown gender")} · ${escapeHtml(activeCharacter.name || "Survivor")}</small>
+        </div>
+        <button id="park-active-btn" class="primary-button green">Store Current In-Game Dino</button>
+      </div>
+    `;
+
+    document.getElementById("park-active-btn")?.addEventListener("click", async () => {
+      const btn = document.getElementById("park-active-btn");
+      if (!confirm("Store your current live dino? The mod will save its state, then return you to the spawn screen.")) return;
+      btn.disabled = true;
+      btn.textContent = "Storing...";
+      const response = await runDinoStorageStore();
+      if (response) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        await refresh();
+      } else {
+        btn.disabled = false;
+        btn.textContent = "Store Current In-Game Dino";
+      }
+    });
   } catch (err) {
-    container.innerHTML = "";
-    container.hidden = true;
+    activeCharacter = null;
+    container.innerHTML = `<div class="panel"><p class="section-intro">Live dino unavailable: ${escapeHtml(err.message)}</p></div>`;
   }
+}
+
+function statBar(label, value, className) {
+  const safe = Math.max(0, Math.min(100, Number(value) || 0));
+  return `
+    <div class="stat-group">
+      <div class="stat-label-row"><span class="stat-name">${escapeHtml(label)}</span><span class="stat-val">${safe}%</span></div>
+      <div class="progress-bg"><div class="progress-fill ${className}" style="width:${safe}%"></div></div>
+    </div>`;
+}
+
+function renderDinoCard(dino) {
+  const growth = growthPct(dino);
+  const health = pct(dino.health, dino.maxHealth, 100);
+  const hunger = pct(dino.hunger, dino.maxHunger, 0);
+  const stamina = pct(dino.stamina, dino.maxStamina, 0);
+  const thirst = pct(dino.thirst, dino.maxThirst, 0);
+  const blood = pct(dino.blood, dino.maxBlood, 100);
+  const eligibility = redeemEligibility(dino);
+  const mutations = Array.isArray(dino.mutationList) ? dino.mutationList : [];
+  const storedAt = dino.capturedAt ? new Date(Number(dino.capturedAt) * 1000).toLocaleString() : "Unknown time";
+
+  return `
+    <article class="dino-card-v2 storage-dino-card" data-prime="${dino.isPrime ? "true" : "false"}">
+      <div class="dino-header">
+        <div class="dino-title-area">
+          <div class="dino-avatar">☠</div>
+          <div class="dino-main-info">
+            <h2>${escapeHtml(dino.species || "Unknown")}</h2>
+            <div class="dino-sub">${escapeHtml(dietLabel(dino.species))} · ${escapeHtml(dino.gender || "Unknown gender")}</div>
+            <div class="dino-loc"><span>Stored ${escapeHtml(storedAt)}</span><span class="growth-highlight">GROWTH ${growth}%</span></div>
+          </div>
+        </div>
+        ${dino.isPrime ? `<div class="prime-badge">♛ PRIME ELDER</div>` : ""}
+      </div>
+      <div class="stats-grid">
+        ${statBar("HEALTH", health, "health")}
+        ${statBar("HUNGER", hunger, "hunger")}
+        ${statBar("STAMINA", stamina, "stamina")}
+        ${statBar("THIRST", thirst, "thirst")}
+        ${statBar("BLOOD", blood, "blood")}
+        ${statBar("SIZE", growth, "size")}
+      </div>
+      ${mutations.length ? `<div class="mutations-row"><span class="stat-name">MUTATIONS</span>${mutations.map((m) => `<span class="mutation-chip">🧬 ${escapeHtml(m)}</span>`).join("")}</div>` : ""}
+      <div class="dino-actions-row">
+        <button class="btn-dino-action redeem stored-redeem" data-slot="${escapeHtml(dino.slot)}" ${eligibility.ok ? "" : "disabled"}>↻ ${escapeHtml(eligibility.reason)}</button>
+      </div>
+    </article>`;
+}
+
+function renderStorage() {
+  const grid = document.getElementById("storage-grid");
+  document.getElementById("mydinos-count").textContent = `${storedDinos.length} in storage`;
+  const filtered = storedDinos.filter((dino) => currentFilter === "all" || (currentFilter === "prime" && dino.isPrime));
+
+  if (!filtered.length) {
+    grid.innerHTML = `<div class="empty-roster"><b>◇</b><strong>${storedDinos.length ? "No dinos match this filter" : "No stored dinos yet"}</strong><span>${storedDinos.length ? "Try another filter." : "Spawn in-game and use Store Current In-Game Dino."}</span></div>`;
+    return;
+  }
+
+  grid.innerHTML = filtered.map(renderDinoCard).join("");
+  grid.querySelectorAll(".stored-redeem").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const slot = button.dataset.slot;
+      const dino = storedDinos.find((item) => item.slot === slot);
+      if (!dino) return;
+      if (!confirm(`Redeem your stored ${dino.species}? This slot is consumed after the restore finishes.`)) return;
+      button.disabled = true;
+      button.textContent = "Redeeming...";
+      try {
+        const response = await api(`/api/mydinos/stored/${encodeURIComponent(slot)}/redeem`, { method: "POST" });
+        alert(response.message || "Redeem started.");
+        await new Promise((resolve) => setTimeout(resolve, 5500));
+        await refresh();
+      } catch (err) {
+        alert(err.message || "DinoStorage redeem failed");
+        await refresh();
+      }
+    });
+  });
+}
+
+function wireFilters() {
+  document.querySelectorAll(".filter[data-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      document.querySelectorAll(".filter[data-filter]").forEach((item) => item.classList.remove("active"));
+      button.classList.add("active");
+      currentFilter = button.dataset.filter;
+      renderStorage();
+    });
+  });
 }
 
 function formatCooldown(seconds) {
   if (seconds === null || seconds === undefined) return "pending";
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
-  if (mins <= 0) return `${secs}s`;
-  return `${mins}m ${String(secs).padStart(2, "0")}s`;
+  return mins <= 0 ? `${secs}s` : `${mins}m ${String(secs).padStart(2, "0")}s`;
 }
 
 function renderBodyDropStatus(data) {
   const container = document.getElementById("bodydrop-content");
   if (!container) return;
-
   const status = !data.steamLinked
     ? "Sign in with Steam first"
     : !data.serverOnline
       ? "Server sync offline"
       : data.cooldown?.active
-        ? data.cooldown.reason === "pending"
-          ? data.latest?.status === "queued"
-            ? "Outcome unconfirmed"
-            : "Request pending"
-          : `Cooldown ${formatCooldown(data.cooldown.remainingSeconds)}`
+        ? data.cooldown.reason === "pending" ? "Request pending" : `Cooldown ${formatCooldown(data.cooldown.remainingSeconds)}`
         : "Available now";
-
   const disabled = !data.steamLinked || !data.serverOnline || data.cooldown?.active;
-  const options = (data.options || [])
-    .map((option) => `
-      <button class="bodydrop-option" data-drop-type="${escapeHtml(option.id)}" ${disabled ? "disabled" : ""}>
-        <strong>${escapeHtml(option.name)}</strong>
-        <span>${escapeHtml(option.description)}</span>
-      </button>
-    `)
-    .join("");
-
-  const recent = (data.recent || [])
-    .slice(0, 3)
-    .map((request) => `<li><b>${escapeHtml(request.drop_type)}</b><span>${escapeHtml(request.status)}</span><small>${escapeHtml(request.created_at)}</small></li>`)
-    .join("");
-
-  container.innerHTML = `
-    <div class="bodydrop-status ${disabled ? "blocked" : "ready"}">
-      <b>${escapeHtml(status)}</b>
-      <span>${data.cooldownSeconds ? `Cooldown: ${Math.round(data.cooldownSeconds / 60)} minutes` : "No cooldown"}</span>
-    </div>
-    <div class="bodydrop-options">${options}</div>
-    ${data.latest?.status === "queued" ? `<small class="section-intro">${escapeHtml(data.latest.error || "Outcome unconfirmed. Ask an operator to reconcile the queued command and results before retrying.")}</small>` : ""}
-    ${recent ? `<ul class="bodydrop-history">${recent}</ul>` : ""}
-  `;
-
+  const options = (data.options || []).map((option) => `
+    <button class="bodydrop-option" data-drop-type="${escapeHtml(option.id)}" ${disabled ? "disabled" : ""}>
+      <strong>${escapeHtml(option.name)}</strong><span>${escapeHtml(option.description)}</span>
+    </button>`).join("");
+  container.innerHTML = `<div class="bodydrop-status ${disabled ? "blocked" : "ready"}"><b>${escapeHtml(status)}</b></div><div class="bodydrop-options">${options}</div>`;
   container.querySelectorAll(".bodydrop-option").forEach((button) => {
     button.addEventListener("click", async () => {
       if (!confirm("Request this body drop on the live server?")) return;
       button.disabled = true;
-      button.querySelector("strong").textContent = "Requesting...";
       try {
-        const response = await api("/api/bodydrop", {
-          method: "POST",
-          body: JSON.stringify({ dropType: button.dataset.dropType }),
-        });
-        alert(response.result.message);
+        const response = await api("/api/bodydrop", { method: "POST", body: JSON.stringify({ dropType: button.dataset.dropType }) });
+        alert(response.result?.message || "Body drop requested.");
         await loadBodyDropStatus();
       } catch (err) {
         alert(err.message || "Failed to request body drop");
@@ -140,157 +252,17 @@ async function loadBodyDropStatus() {
   }
 }
 
-function renderStorage(roster) {
-  const grid = document.getElementById("storage-grid");
-  document.getElementById("mydinos-count").textContent = `${roster.length} in storage`;
-  if (!roster.length) {
-    grid.innerHTML = `<div class="empty-roster"><b>◇</b><strong>Website roster is empty</strong><span>DinoStorage slots are stored by the game mod and are not listed here.</span></div>`;
-    return;
-  }
-  grid.innerHTML = roster
-    .map((dino) => {
-      const species = speciesById[dino.species_id];
-      const name = species ? species.name : dino.species_id;
-      const skinOptions = (mySkinsBySpecies[dino.species_id] || [])
-        .map((skin) => `<option value="${skin.id}" ${dino.skin_id === skin.id ? "selected" : ""}>${escapeHtml(skin.name)}</option>`)
-        .join("");
-      return `<div class="storage-card" data-id="${dino.id}">
-        <span class="tag-pill">${escapeHtml(dino.status)}${dino.is_prime ? " • PRIME" : ""}</span>
-        <h3>${escapeHtml(dino.nickname || name)}</h3>
-        <small>${escapeHtml(name)} • Size ${dino.size_percent}%</small>
-        <div class="stat-row">
-          <span>HP ${dino.health}</span><span>Stamina ${dino.stamina}</span><span>Water ${dino.water}</span>
-          <span>Food ${dino.food}</span><span>Blood ${dino.blood}</span>
-        </div>
-        ${skinOptions ? `<div class="form-row"><select class="skin-select" data-id="${dino.id}"><option value="">No skin</option>${skinOptions}</select></div>` : ""}
-        <div class="actions">
-          <button class="small-button prime-btn" data-id="${dino.id}">${dino.is_prime ? "Unset prime" : "Set prime"}</button>
-          <button class="small-button sell-btn" data-id="${dino.id}">Scrap for coin</button>
-          <button class="small-button list-btn" data-id="${dino.id}">List for sale</button>
-          <button class="small-button gift-btn" data-id="${dino.id}">Gift</button>
-        </div>
-      </div>`;
-    })
-    .join("");
-
-  wireCardActions();
-}
-
-function wireCardActions() {
-  document.querySelectorAll(".prime-btn").forEach((btn) =>
-    btn.addEventListener("click", async () => {
-      const isCurrentlyPrime = btn.textContent.includes("Unset");
-      await runAction(btn.dataset.id, "set-prime", { prime: !isCurrentlyPrime });
-    })
-  );
-  document.querySelectorAll(".sell-btn").forEach((btn) =>
-    btn.addEventListener("click", () => {
-      if (confirm("Scrap this dino for Valley Coin? This cannot be undone.")) runAction(btn.dataset.id, "sell");
-    })
-  );
-  document.querySelectorAll(".skin-select").forEach((select) =>
-    select.addEventListener("change", () => runAction(select.dataset.id, "apply-skin", { skinId: select.value || null }))
-  );
-
-  const giftDialog = document.getElementById("gift-dialog");
-  document.querySelectorAll(".gift-btn").forEach((btn) =>
-    btn.addEventListener("click", () => {
-      giftDialog.dataset.rosterId = btn.dataset.id;
-      giftDialog.showModal();
-    })
-  );
-
-  const listDialog = document.getElementById("list-dialog");
-  document.querySelectorAll(".list-btn").forEach((btn) =>
-    btn.addEventListener("click", () => {
-      listDialog.dataset.rosterId = btn.dataset.id;
-      listDialog.showModal();
-    })
-  );
-}
-
-async function runDinoStorageRedeem() {
-  try {
-    const response = await api("/api/dinostorage/redeem", { method: "POST" });
-    alert(response.message);
-    await refresh();
-  } catch (err) {
-    alert(err.message || "DinoStorage redeem failed");
-  }
-}
-
-async function runDinoStorageStore() {
-  try {
-    const response = await api("/api/dinostorage/store", { method: "POST" });
-    alert(response.message);
-    await refresh();
-  } catch (err) {
-    alert(err.message || "DinoStorage store failed");
-  }
-}
-
-for (const [id, handler] of [["dinostorage-store", runDinoStorageStore], ["dinostorage-redeem", runDinoStorageRedeem]]) {
-  document.getElementById(id)?.addEventListener("click", async (event) => {
-    if (!confirm("Use DinoStorage's default slot? Do not retry an unconfirmed request; ask an operator to check its results first.")) return;
-    const button = event.currentTarget;
-    button.disabled = true;
-    try {
-      await handler();
-    } finally {
-      button.disabled = false;
-    }
-  });
-}
-
-async function runAction(id, action, body) {
-  try {
-    await api(`/api/mydinos/${id}/${action}`, { method: "POST", body: body ? JSON.stringify(body) : undefined });
-    await refresh();
-  } catch (err) {
-    alert(err.message);
-  }
-}
-
-document.querySelectorAll(".dialog-close").forEach((btn) => btn.addEventListener("click", () => btn.closest("dialog").close()));
-
-document.getElementById("gift-confirm")?.addEventListener("click", async () => {
-  const dialog = document.getElementById("gift-dialog");
-  const username = document.getElementById("gift-username").value.trim();
-  if (!username) return;
-  try {
-    await api(`/api/mydinos/${dialog.dataset.rosterId}/gift`, {
-      method: "POST",
-      body: JSON.stringify({ username }),
-    });
-    dialog.close();
-    await refresh();
-  } catch (err) {
-    alert(err.message);
-  }
-});
-
-document.getElementById("list-confirm")?.addEventListener("click", async () => {
-  const dialog = document.getElementById("list-dialog");
-  const price = Number(document.getElementById("list-price").value);
-  if (!price || price <= 0) return alert("Enter a valid price");
-  try {
-    await api("/api/marketplace/listings", {
-      method: "POST",
-      body: JSON.stringify({ rosterId: Number(dialog.dataset.rosterId), price }),
-    });
-    dialog.close();
-    await refresh();
-    alert("Listed on the marketplace.");
-  } catch (err) {
-    alert(err.message);
-  }
-});
-
 async function refresh() {
   await loadActiveCharacter();
+  try {
+    storedDinos = await api("/api/mydinos");
+  } catch (err) {
+    storedDinos = [];
+    document.getElementById("storage-grid").innerHTML = `<div class="empty-roster"><strong>Storage unavailable</strong><span>${escapeHtml(err.message)}</span></div>`;
+    return;
+  }
+  renderStorage();
   await loadBodyDropStatus();
-  const roster = await api("/api/mydinos");
-  renderStorage(roster);
 }
 
 async function init() {
@@ -305,7 +277,7 @@ async function init() {
   guard.hidden = true;
   content.hidden = false;
   await loadSpeciesMap();
-  await loadMySkins();
+  wireFilters();
   await refresh();
 }
 

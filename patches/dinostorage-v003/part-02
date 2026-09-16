@@ -1,0 +1,95 @@
++                nutrStruct.CarbValue         = nutr.carbValue or 0
++                nutrStruct.ProteinValue      = nutr.proteinValue or 0
++                nutrStruct.LipidValue        = nutr.lipidValue or 0
++                nutrStruct.BonesValue        = nutr.bonesValue or 0
++                nutrStruct.CannibalValue     = nutr.cannibalValue or 0
++                nutrStruct.MagyValue         = nutr.magyValue or 0
++                nutrStruct.RottenFleshValue  = nutr.rottenFleshValue or 0
++                nutrStruct.MushroomsValue    = nutr.mushroomsValue or 0
++                nutrStruct.bMalnutrition     = nutr.bMalnutrition == true
+                 pawn:SetNutrientsStruct(nutrStruct, true)
+             end)
+         end
+@@ -813,37 +839,43 @@
+     setVital("SetMaxThirst",    state.maxThirst)
+     setVital("SetMaxStamina",   state.maxStamina)
+     setVital("SetMaxFoodValue", state.maxFoodValue)
+-    -- Fill hunger/thirst/food immediately so there is no window between now and
+-    -- the deferred block where the game can stamp dehydration or starvation conditions.
+-    -- (WaterLevel has no setter — it's capture-only and restores to species default
+-    -- on respawn — so we don't bother calling one here.)
+-    pcall(function() pawn:SetHunger(9999.0) end)
+-    pcall(function() pawn:SetThirst(9999.0) end)
+-    pcall(function() pawn:SetFoodValue(9999.0) end)
+-    -- Fill blood to max, zero locked damage and rotten value to prevent muscle spasms/vomiting
+-    pcall(function() pawn:SetBlood(9999.0) end)
+-    pcall(function() pawn:SetLockedDamage(0.0) end)
+-    pcall(function() pawn:SetRottenValue(0.0) end)
++    -- Restore the captured current values. Storage must preserve state rather
++    -- than refilling the dino. WaterLevel is capture-only (no setter).
++    setVital("SetHunger",       state.hunger)
++    setVital("SetThirst",       state.thirst)
++    setVital("SetFoodValue",    state.food)
++    setVital("SetBlood",        state.blood)
++    setVital("SetLockedDamage", state.lockedDamage)
++    setVital("SetRottenValue",  state.rottenValue)
+ 
+-    -- 8. Skin
++    -- 8. Skin/customizer. Write POD fields directly on the live property; do
++    -- not pass FCustomizerDataBase through SetCustomizerData on current builds.
+     if state.skin ~= nil then
+-        local cdata; pcall(function() cdata = pawn:GetCustomizerData() end)
++        local cdata; pcall(function() cdata = pawn.CustomizerData end)
+         if cdata ~= nil then
+             local sk = state.skin
+-            applyColor(cdata,"BodyColor",       sk.body)
+-            applyColor(cdata,"MarkingsColor",   sk.markings)
+-            applyColor(cdata,"FlankColor",      sk.flank)
+-            applyColor(cdata,"UnderbellyColor", sk.underbelly)
+-            applyColor(cdata,"Detail1Color",    sk.detail1)
+-            applyColor(cdata,"EyesColor",       sk.eyes)
+-            applyColor(cdata,"MaleDisplayColor",sk.maleDisplay)
+-            if sk.skinVariation ~= nil then
+-                pcall(function() cdata.SkinVariation = sk.skinVariation end)
++            applyColor(cdata,"BodyColor",        sk.body)
++            applyColor(cdata,"MarkingsColor",    sk.markings)
++            applyColor(cdata,"FlankColor",       sk.flank)
++            applyColor(cdata,"UnderbellyColor",  sk.underbelly)
++            applyColor(cdata,"TeethColor",       sk.teeth)
++            applyColor(cdata,"MouthColor",       sk.mouth)
++            applyColor(cdata,"ClawsColor",       sk.claws)
++            applyColor(cdata,"Detail1Color",     sk.detail1)
++            applyColor(cdata,"EyesColor",        sk.eyes)
++            applyColor(cdata,"MaleDisplayColor", sk.maleDisplay)
++            if sk.skinVariation ~= nil then pcall(function() cdata.SkinVariation = math.floor(tonumber(sk.skinVariation) or 0) end) end
++            -- The stored PatternIndex came from this same species, so it should
++            -- already be inside that species' pattern table. Reject obviously
++            -- invalid legacy values rather than letting one bad index suppress
++            -- the entire client-side skin rebuild.
++            local patternIndex = tonumber(sk.patternIndex)
++            if patternIndex ~= nil then
++                patternIndex = math.floor(patternIndex)
++                if patternIndex >= 0 then pcall(function() cdata.PatternIndex = patternIndex end) end
+             end
+-            if sk.patternIndex ~= nil then
+-                pcall(function() cdata.PatternIndex = sk.patternIndex end)
+-            end
+-            pcall(function() pawn:SetCustomizerData(cdata) end)
++            if sk.themeIndex ~= nil then pcall(function() cdata.ThemeIndex = math.floor(tonumber(sk.themeIndex) or 0) end) end
++            pcall(function() pawn:ForceNetUpdate() end)
+         end
+     end
+ 
+@@ -956,39 +988,31 @@
+                 if state.maxStamina   ~= nil then pcallLog("SetMaxStamina",   function() pawn3:SetMaxStamina(state.maxStamina) end) end
+                 if state.maxFoodValue ~= nil then pcallLog("SetMaxFoodValue",function() pawn3:SetMaxFoodValue(state.maxFoodValue) end) end
+ 
+-                -- Fill hunger, thirst, and food value to max (game clamps to actual max).
+-                -- WaterLevel has no setter UFunction — it's capture-only and restores to
+-                -- the species default on respawn, so we don't call one here.
+-                pcallLog("SetHunger",    function() pawn3:SetHunger(9999.0) end)
+-                pcallLog("SetThirst",    function() pawn3:SetThirst(9999.0) end)
+-                pcallLog("SetFoodValue", function() pawn3:SetFoodValue(9999.0) end)
+-
+-                -- Fill all diet nutrients to full and clear malnutrition
+-                local nutr; pcall(function() nutr = pawn3.NutrientsStruct end)
