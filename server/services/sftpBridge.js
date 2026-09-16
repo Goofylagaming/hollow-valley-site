@@ -117,9 +117,17 @@ function createFtpBridgeClient() {
       return client.appendFrom(Readable.from([buffer]), remotePath);
     },
     async exists(remotePath) {
-      const slash = remotePath.lastIndexOf("/");
-      const entries = await client.list(remotePath.slice(0, slash) || "/");
-      return entries.some((entry) => entry.name === remotePath.slice(slash + 1) && entry.isFile);
+      try {
+        await client.size(remotePath);
+        return true;
+      } catch (err) {
+        const code = Number(err?.code);
+        const message = String(err?.message || "");
+        if ((code === 450 || code === 550) && /no such file|not found|does not exist/i.test(message)) {
+          return false;
+        }
+        throw err;
+      }
     },
     async size(remotePath) {
       return client.size(remotePath);
