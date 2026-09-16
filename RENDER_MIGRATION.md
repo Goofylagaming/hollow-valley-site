@@ -126,6 +126,9 @@ reply may be a routing ACK (`ok:true,msg:"queued"`, no `source`), not completion
 The website ignores positive routing ACKs and waits for the same `id`, `steam`,
 and `source:"DinoStorage"` or `source:"BodyDrop"`. Routing rejection or a
 sub-mod `ok:false` is surfaced as failure; duplicate ACKs cannot become success.
+This is the default `DINOSTORAGE_RESULT_MODE=submod` policy. DinoStorage alone
+has the opt-in routing-ACK compatibility mode described below; BodyDrop always
+waits for its sub-mod result.
 Partial final lines are deferred; malformed complete lines fail explicitly.
 Result reads are bounded at 8 MiB; archive/rotate larger logs with the bridge
 stopped, never delete active queues/results while requests are in flight.
@@ -161,6 +164,62 @@ result and queued database record. DinoStorage callers must likewise keep
 the request ID and avoid a second store/retrieve until reconciliation.
 Append and Lua rename/read/delete polling do not provide exactly-once delivery.
 
+### DinoStorage v002 routing-ACK compatibility
+
+The pinned `306174b` v002 source already accepts
+`[id] store <steam> default` / `[id] retrieve <steam> default` in `cmd.flag`
+and emits `source:"DinoStorage"` with the same ID and Steam. Thus an ACK-only
+live response does **not** establish a v002 format mismatch. Without the
+installed files/logs, the missing result's exact cause remains unconfirmed.
+
+For an operator-approved compatibility deployment, set this **Render**
+environment variable:
+
+```text
+DINOSTORAGE_RESULT_MODE=bridge_ack
+```
+
+The default remains `submod` when unset. Unknown modes fail before uploading.
+In `bridge_ack` mode a matching positive CommandBridge routing ACK returns
+immediately as **HTTP 202**, with `ok:false`, `accepted:true`, `queued:true`,
+`acknowledged:true`, `confirmed:false`, `source:"CommandBridge"` and the
+request ID. `accepted` means only CommandBridge accepted/routed the command,
+not that DinoStorage stored it. This avoids reporting a missing sub-mod result
+as a timeout when routing acceptance is all this mode is intended to await.
+It does not repair a stalled consumer or missing result writer. A matching
+sub-mod result already present in the same read takes precedence, including
+rejection. Routing rejection remains an error. ACKs with a different UUID,
+Steam or verb, and unrelated sub-mod sources, cannot acknowledge this request.
+BodyDrop and strict DinoStorage behavior are unchanged.
+
+Every DinoStorage service result has `completionConfirmed:false`, including
+positive sub-mod results, because v002 emits its result before the deferred
+kill/restore. No file deletion, separate kill command, flag rewrite or
+automatic retry is performed.
+
+**Reconcile the existing request before retrying**, even after enabling this
+mode. The setting does not cancel the prior command or make retrying safe.
+At the same active game instance, follow its exact UUID:
+
+1. CommandBridge's positive ACK confirms its `appendLine` to
+   `Mods/DinoStorage/Saved/cmd.flag` returned success. Check that this path is
+   also the one the loaded DinoStorage uses, not another mod tree.
+2. v002 polls every 3 seconds, renames `cmd.flag` to `cmd.flag.processing`,
+   reads/processes that file, then removes it. Inspect both files without
+   rewriting them. Do not interpret a missing flag as success or failure.
+   The reference removes an old `.processing` file before the next rename;
+   do not restart/reload merely to retry, as that can discard evidence.
+3. Inspect `[DinoStorage]` startup/poll errors (`safeCall(pollCmdFlag) failed`)
+   and the actual `Mods/CommandBridge/Saved/results.ndjson` output. An exception
+   before `emitResult`, an unwritable results path, or a different working
+   directory can explain a routing ACK with no matching sub-mod result.
+4. Compare `stored/<steam>/default.json` and in-game state. Storage success
+   schedules a kill about 3 seconds later; retrieval requires a live same-species
+   pawn and also defers its mutations. These engine outcomes need separate
+   verification. Do not infer them from the ACK or from flag consumption.
+
+No production setting or game file is changed by this repository patch.
+
 ### Exact Render configuration (apply only when approved)
 
 Keep the feature disabled until the compatible mod installation is verified:
@@ -169,6 +228,7 @@ Keep the feature disabled until the compatible mod installation is verified:
 COMMAND_BRIDGE_ENABLED=false
 COMMAND_BRIDGE_SAVED_PATH=Mods/CommandBridge/Saved
 COMMAND_BRIDGE_TIMEOUT_MS=20000
+DINOSTORAGE_RESULT_MODE=submod
 BODYDROP_BRIDGE_MODE=commandbridge
 GAME_FILE_PROTOCOL=ftp
 FTP_SECURE=false

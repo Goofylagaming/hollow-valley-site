@@ -67,7 +67,7 @@ async function readResult(client, path, command) {
   return findResult(buffer.toString("utf8"), command);
 }
 
-async function executeCommand(verb, steam, tokens = []) {
+async function executeCommand(verb, steam, tokens = [], { resultMode = "submod" } = {}) {
   let client;
   let command;
   let config;
@@ -76,6 +76,10 @@ async function executeCommand(verb, steam, tokens = []) {
   let acknowledged = false;
   try {
     command = buildCommand(verb, steam, tokens);
+    if (!["submod", "bridge_ack"].includes(resultMode) ||
+        (resultMode === "bridge_ack" && SOURCES[verb] !== "DinoStorage")) {
+      throw new Error("DinoStorage result mode must be submod or bridge_ack; other actions require submod results");
+    }
     config = getConfig();
     const credentials = fileBridge.getFileBridgeConfig();
     client = fileBridge.createFileBridgeClient();
@@ -99,7 +103,16 @@ async function executeCommand(verb, steam, tokens = []) {
         console.info("[CommandBridge] result", { requestId: command.id, verb, source: result.source || "CommandBridge", ok: result.ok });
         return {
           ok: result.ok, queued: false, confirmed: Boolean(result.source), requestId: command.id,
+          acknowledged: true,
           source: result.source || "CommandBridge", message: result.msg, error: result.ok ? undefined : result.msg,
+        };
+      }
+      if (acknowledged && resultMode === "bridge_ack") {
+        console.info("[CommandBridge] routed; DinoStorage outcome unconfirmed", { requestId: command.id, verb });
+        return {
+          ok: false, accepted: true, queued: true, confirmed: false, acknowledged: true,
+          requestId: command.id, source: "CommandBridge",
+          message: `CommandBridge accepted request ${command.id} and queued it in DinoStorage's cmd.flag. DinoStorage processing and the deferred in-game kill/restore are not confirmed. Do not retry until an operator reconciles this request in cmd.flag, cmd.flag.processing and results.ndjson.`,
         };
       }
       await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -115,6 +128,7 @@ async function executeCommand(verb, steam, tokens = []) {
     if (uploadAttempted) {
       return {
         ok: false, queued: true, confirmed: false, requestId: command.id,
+        acknowledged,
         message: `Outcome unknown (${stage}): ${err.message}. Do not retry until an operator reconciles request ${command.id} in the queues and results.`,
       };
     }
