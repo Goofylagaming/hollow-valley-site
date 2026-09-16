@@ -1,11 +1,24 @@
--- CommandBridge v002
+-- CommandBridge v003
 -- IPC layer between external systems and server-side mods.
 -- Supports local file input and HTTPS pull input; results can be POSTed back.
 
 local MOD_NAME    = "CommandBridge"
-local MOD_VERSION = "v002"
+local MOD_VERSION = "v003"
 
-local SAVED_DIR      = "Mods/CommandBridge/Saved"
+-- UE4SS does not guarantee that Lua mods run with the ue4ss directory as the
+-- process working directory. Resolve paths from this script file so config,
+-- queues and sub-mod inboxes always point at the real installed Mods tree.
+local function resolveModRoot()
+    local source = ""
+    pcall(function() source = debug.getinfo(1, "S").source or "" end)
+    if source:sub(1, 1) == "@" then source = source:sub(2) end
+    source = source:gsub("\\", "/")
+    return source:match("^(.*)/Scripts/[^/]+$")
+end
+
+local MOD_ROOT = resolveModRoot()
+local MODS_ROOT = MOD_ROOT and MOD_ROOT:match("^(.*)/CommandBridge$") or nil
+local SAVED_DIR      = MOD_ROOT and (MOD_ROOT .. "/Saved") or "Mods/CommandBridge/Saved"
 local COMMANDS_FILE  = SAVED_DIR .. "/commands.ndjson"
 local RESULTS_FILE   = SAVED_DIR .. "/results.ndjson"
 local CONFIG_FILE    = SAVED_DIR .. "/config.json"
@@ -288,7 +301,7 @@ end
 -- ============================================================
 
 local function writeToInbox(modName, cmdId, steam, tokens)
-    local inboxPath = "Mods/" .. modName .. "/Saved/inbox.ndjson"
+    local inboxPath = (MODS_ROOT and (MODS_ROOT .. "/" .. modName .. "/Saved/inbox.ndjson")) or ("Mods/" .. modName .. "/Saved/inbox.ndjson")
     local tokensJson = "["
     for i, t in ipairs(tokens) do
         if i > 1 then tokensJson = tokensJson .. "," end
@@ -312,7 +325,7 @@ end
 
 -- For DinoStorage legacy cmd.flag format
 local function writeToCmdFlag(cmdId, verb, steam, extraArgs)
-    local flagPath = "Mods/DinoStorage/Saved/cmd.flag"
+    local flagPath = (MODS_ROOT and (MODS_ROOT .. "/DinoStorage/Saved/cmd.flag")) or "Mods/DinoStorage/Saved/cmd.flag"
     local line = string.format("[%s] %s %s", tostring(cmdId or ""), verb, tostring(steam))
     if extraArgs and extraArgs ~= "" then
         line = line .. " " .. extraArgs
@@ -383,325 +396,140 @@ local function applyCustomizerBulk(pawn, customizerObj)
     return okSet, okSet and "ok" or "SetCustomizerData failed"
 end
 
-local function applySingleFieldSkin(pawn, fieldAlias, r, g, b)
-    local engineField
-    if fieldAlias == "all" then
-        -- Will be handled by caller iterating all fields
-    else
-        engineField = SKIN_FIELD_ALIASES[fieldAlias] or fieldAlias
-    end
-
+local function applySingleFieldSkin(pawn, fieldAlias, r, g, b, a)
+    local field = SKIN_FIELD_ALIASES[string.lower(tostring(fieldAlias or ""))]
+    if field == nil then return false, "unknown skin field" end
     local cdata
     local ok = pcall(function() cdata = pawn:GetCustomizerData() end)
     if not ok or cdata == nil then return false, "no customizer data" end
-
-    if r == 0 and g == 0 and b == 0 then r, g, b = 0.01, 0.01, 0.01 end
-
-    if fieldAlias == "all" then
-        for _, f in ipairs(ALL_COLOR_FIELDS) do
-            pcall(function()
-                cdata[f].R = r; cdata[f].G = g; cdata[f].B = b; cdata[f].A = 1.0
-            end)
-        end
-    else
-        pcall(function()
-            cdata[engineField].R = r
-            cdata[engineField].G = g
-            cdata[engineField].B = b
-            cdata[engineField].A = 1.0
-        end)
-    end
-
-    local okSet = pcall(function() pawn:SetCustomizerData(cdata) end)
+    local okSet = pcall(function()
+        cdata[field].R = tonumber(r) or 0
+        cdata[field].G = tonumber(g) or 0
+        cdata[field].B = tonumber(b) or 0
+        cdata[field].A = tonumber(a) or 1.0
+        pawn:SetCustomizerData(cdata)
+    end)
     return okSet, okSet and "ok" or "SetCustomizerData failed"
 end
 
 -- ============================================================
--- Direct verb handlers
+-- Dispatch helpers
 -- ============================================================
 
-local function makeText(message)
-    if FText == nil then return message end
-    local ok, ft = pcall(function() return FText(message) end)
-    if ok and ft ~= nil then return ft end
-    return message
+local function splitWords(s)
+    local out = {}
+    for word in string.gmatch(tostring(s or ""), "%S+") do
+        table.insert(out, word)
+    end
+    return out
 end
 
-local function getPlayerPawn(steam)
+local function getControllerBySteam(steam)
     local gm = findGameMode()
-    if gm == nil then return nil, "no game mode" end
+    if gm == nil then return nil end
     local ctrl
-    pcall(function() ctrl = gm:GetControllerBySteamId(steam) end)
-    if ctrl == nil then return nil, "player not online" end
-    local pawn = livePawnFromCtrl(ctrl)
-    if pawn == nil then return nil, "player has no pawn" end
-    return pawn, nil
+    pcall(function() ctrl = gm:GetControllerBySteamId(tostring(steam or "")) end)
+    return ctrl
 end
 
-local handlers = {}
-
-handlers.prime = function(steam, argsLine, cmdId)
-    local pawn, err = getPlayerPawn(steam)
-    if pawn == nil then return false, err end
-
-    local pe
-    local ok = pcall(function() pe = pawn:GetEligiblePrimeElderData() end)
-    if not ok or pe == nil then return false, "could not read prime data" end
-
-    pe.bPrimeCondition1  = true; pe.bPrimeCondition2  = true
-    pe.bPrimeCondition3  = true; pe.bPrimeCondition4  = true
-    pe.bPrimeCondition5  = true; pe.bPrimeCondition6  = true
-    pe.bPrimeCondition7  = true; pe.bPrimeCondition8  = true
-    pe.bPrimeCondition9  = true; pe.bPrimeCondition10 = true
-    pe.bIsEligiblePrime  = true
-
-    local okSet = pcall(function() pawn:SetEligiblePrimeElderData(pe) end)
-    return okSet, okSet and "prime forced" or "SetEligiblePrimeElderData failed"
+local function getPawnBySteam(steam)
+    return livePawnFromCtrl(getControllerBySteam(steam))
 end
 
-handlers.unprime = function(steam, argsLine, cmdId)
-    local pawn, err = getPlayerPawn(steam)
-    if pawn == nil then return false, err end
+local function dispatchCommand(id, verb, steam, argsRaw)
+    local argsObj = argsRaw or "{}"
+    local argsArray = string.match(argsObj, '"args"%s*:%s*(%b[])') or "[]"
+    local args = {}
+    for v in string.gmatch(argsArray, '"([^"]*)"') do table.insert(args, v) end
 
-    local pe
-    local ok = pcall(function() pe = pawn:GetEligiblePrimeElderData() end)
-    if not ok or pe == nil then return false, "could not read prime data" end
-
-    for i = 1, 10 do pe["bPrimeCondition" .. i] = false end
-    pe.bIsEligiblePrime = false
-
-    local okSet = pcall(function() pawn:SetEligiblePrimeElderData(pe) end)
-    return okSet, okSet and "prime cleared" or "SetEligiblePrimeElderData failed"
-end
-
-handlers.skin = function(steam, argsLine, cmdId)
-    local pawn, err = getPlayerPawn(steam)
-    if pawn == nil then return false, err end
-
-    -- Check for bulk customizer mode
-    local customizerBlock = jsonReadObject(argsLine, "customizer")
-    if customizerBlock ~= nil then
-        return applyCustomizerBulk(pawn, customizerBlock)
+    if verb == "ping" then
+        emitResult(id, verb, steam, true, "pong")
+        return
     end
 
-    -- Single-field mode
-    local field = jsonReadString(argsLine, "field")
-    if field == "reset" then
-        -- Delete the SkinMod save file to disable override
-        local skinFile = "Mods/SkinMod/Saved/skins/" .. steam .. ".json"
-        os.remove(skinFile)
-        return true, "skin override removed"
+    if verb == "presence_check" then
+        local rec = presenceRegistry[tostring(steam or "")]
+        local now = os.time()
+        local present = rec ~= nil and rec.lastSeen ~= nil and (now - rec.lastSeen) <= PRESENCE_EXPIRY_SEC
+        emitResult(id, verb, steam, true, present and "online" or "offline")
+        return
     end
 
-    local r = jsonReadNumber(argsLine, "r") or 0
-    local g = jsonReadNumber(argsLine, "g") or 0
-    local b = jsonReadNumber(argsLine, "b") or 0
-
-    return applySingleFieldSkin(pawn, field or "body", r, g, b)
-end
-
-handlers.mutations = function(steam, argsLine, cmdId)
-    local pawn, err = getPlayerPawn(steam)
-    if pawn == nil then return false, err end
-
-    local slots = {
-        jsonReadString(argsLine, "slot1") or jsonReadString(argsLine, "Slot1") or jsonReadString(argsLine, "MutationSlot1"),
-        jsonReadString(argsLine, "slot2") or jsonReadString(argsLine, "Slot2") or jsonReadString(argsLine, "MutationSlot2"),
-        jsonReadString(argsLine, "slot3") or jsonReadString(argsLine, "Slot3") or jsonReadString(argsLine, "MutationSlot3"),
-        jsonReadString(argsLine, "slot4") or jsonReadString(argsLine, "Slot4") or jsonReadString(argsLine, "MutationSlot4"),
-    }
-
-    local liveMut
-    local ok = pcall(function() liveMut = pawn.ReplicatedMutationsData end)
-    if not ok or liveMut == nil then return false, "could not read mutations" end
-
-    local written = 0
-    for i, s in ipairs(slots) do
-        if s ~= nil and s ~= "" and s ~= "None" then
-            local okF, fn = pcall(function() return FName(s) end)
-            if okF and fn ~= nil and type(fn) ~= "string" then
-                local okW = pcall(function() liveMut["MutationSlot" .. i] = fn end)
-                if okW then written = written + 1 end
-            end
+    if verb == "skin_set" then
+        local pawn = getPawnBySteam(steam)
+        if pawn == nil then emitResult(id, verb, steam, false, "player not spawned") return end
+        local customizer = jsonReadObject(argsObj, "customizer")
+        if customizer ~= nil then
+            local ok, msg = applyCustomizerBulk(pawn, customizer)
+            emitResult(id, verb, steam, ok, msg)
+            return
         end
+        if #args >= 4 then
+            local ok, msg = applySingleFieldSkin(pawn, args[1], args[2], args[3], args[4], args[5])
+            emitResult(id, verb, steam, ok, msg)
+            return
+        end
+        emitResult(id, verb, steam, false, "missing customizer or field args")
+        return
     end
 
-    if written > 0 then
-        local okSet = pcall(function() pawn:SetReplicatedMutationsData(liveMut, true) end)
-        return okSet, string.format("wrote %d mutation slots", written)
-    end
-    return true, "no valid mutations provided"
-end
-
-handlers.teleport = function(steam, argsLine, cmdId)
-    local pawn, err = getPlayerPawn(steam)
-    if pawn == nil then return false, err end
-
-    local x = jsonReadNumber(argsLine, "x")
-    local y = jsonReadNumber(argsLine, "y")
-    local z = jsonReadNumber(argsLine, "z")
-    local yaw = jsonReadNumber(argsLine, "yaw") or 0
-
-    if x == nil or y == nil or z == nil then return false, "missing x/y/z" end
-
-    local loc = { X = x, Y = y, Z = z }
-    local rot = { Pitch = 0, Yaw = yaw, Roll = 0 }
-    local ok = pcall(function() pawn:K2_TeleportTo(loc, rot) end)
-    return ok, ok and "teleported" or "teleport failed"
-end
-
-handlers.kill = function(steam, argsLine, cmdId)
-    local pawn, err = getPlayerPawn(steam)
-    if pawn == nil then return false, err end
-    local ok = pcall(function() pawn:SetHealth(0) end)
-    return ok, ok and "killed" or "kill failed"
-end
-
-handlers.heal = function(steam, argsLine, cmdId)
-    local pawn, err = getPlayerPawn(steam)
-    if pawn == nil then return false, err end
-    local maxHp
-    pcall(function() maxHp = pawn:GetMaxHealth() end)
-    local ok = pcall(function() pawn:SetHealth(maxHp or 9999) end)
-    return ok, ok and "healed" or "heal failed"
-end
-
-handlers.setgrowth = function(steam, argsLine, cmdId)
-    local pawn, err = getPlayerPawn(steam)
-    if pawn == nil then return false, err end
-    local v = jsonReadNumber(argsLine, "value")
-    if v == nil then return false, "missing value" end
-    v = math.max(0, math.min(1, v))
-    local ok = pcall(function() pawn:SetGrowth(v) end)
-    return ok, ok and string.format("growth set to %.4f", v) or "setgrowth failed"
-end
-
-handlers.setvital = function(steam, argsLine, cmdId)
-    local pawn, err = getPlayerPawn(steam)
-    if pawn == nil then return false, err end
-    local name = jsonReadString(argsLine, "name")
-    local value = jsonReadNumber(argsLine, "value")
-    if name == nil or value == nil then return false, "missing name or value" end
-
-    local fnMap = {
-        health   = "SetHealth",
-        stamina  = "SetStamina",
-        hunger   = "SetHunger",
-        thirst   = "SetThirst",
-        oxygen   = "SetOxygen",
-        blood    = "SetBloodLoss",
+    local dinoVerbMap = {
+        dino_store = "store",
+        dino_redeem = "redeem",
+        dino_delete = "delete",
+        dino_list = "list",
     }
-    local fn = fnMap[name:lower()]
-    if fn == nil then return false, "unknown vital: " .. name end
-    local ok = pcall(function() pawn[fn](pawn, value) end)
-    return ok, ok and string.format("%s set to %.2f", name, value) or (fn .. " failed")
-end
+    local dv = dinoVerbMap[verb]
+    if dv ~= nil then
+        local extra = table.concat(args, " ")
+        local ok, msg = writeToCmdFlag(id, dv, steam, extra)
+        if not ok then emitResult(id, verb, steam, false, msg) end
+        return
+    end
 
-handlers.notify = function(steam, argsLine, cmdId)
-    local gm = findGameMode()
-    if gm == nil then return false, "no game mode" end
-    local ctrl
-    pcall(function() ctrl = gm:GetControllerBySteamId(steam) end)
-    if ctrl == nil then return false, "player not online" end
-    local msg = jsonReadString(argsLine, "message") or ""
-    local text = makeText(msg)
-    local ok = pcall(function() ctrl:ClientShowNotification(text) end)
-    return ok, ok and "notified" or "ClientShowNotification failed"
+    local bodyVerbMap = {
+        bodydrop = true,
+        body_drop = true,
+        drop_body = true,
+    }
+    if bodyVerbMap[verb] then
+        local ok, msg = writeToInbox("BodyDrop", id, steam, args)
+        if not ok then emitResult(id, verb, steam, false, msg) end
+        return
+    end
+
+    emitResult(id, verb, steam, false, "unknown verb")
 end
 
 -- ============================================================
--- Sub-mod routing handlers
+-- NDJSON parsing
 -- ============================================================
-
-handlers.bd        = function(steam, argsLine, cmdId)
-    local tokensBlock = string.match(argsLine, '"args"%s*:%s*%[([^%]]*)%]')
-    local tokens = {}
-    if tokensBlock then
-        for s in string.gmatch(tokensBlock, '"([^"]*)"') do tokens[#tokens+1] = s end
-    end
-    return writeToInbox("BodyDrop", cmdId, steam, tokens)
-end
-handlers.bodydrop  = handlers.bd
-
-handlers.ps        = function(steam, argsLine, cmdId)
-    local tokensBlock = string.match(argsLine, '"args"%s*:%s*%[([^%]]*)%]')
-    local tokens = {}
-    if tokensBlock then
-        for s in string.gmatch(tokensBlock, '"([^"]*)"') do tokens[#tokens+1] = s end
-    end
-    return writeToInbox("PlayerStats", cmdId, steam, tokens)
-end
-handlers.playerstats = handlers.ps
-
-handlers.prime_progress = function(steam, argsLine, cmdId)
-    return writeToInbox("PrimeNotify", cmdId, steam, {})
-end
-
-handlers.server_stats = function(steam, argsLine, cmdId)
-    return writeToInbox("ServerStats", cmdId, steam, {})
-end
-
-local DINO_STORAGE_VERBS = {
-    dino_store=true, dino_retrieve=true, dino_delete=true, dino_list=true,
-    dino_setmax=true, dino_clearmax=true, dino_getmax=true,
-    dino_connected=true, dino_rename=true,
-}
-local function dinoStorageHandler(steam, argsLine, cmdId, verb)
-    -- Extract optional args array
-    local tokensBlock = string.match(argsLine, '"args"%s*:%s*%[([^%]]*)%]')
-    local tokens = {}
-    if tokensBlock then
-        for s in string.gmatch(tokensBlock, '"([^"]*)"') do tokens[#tokens+1] = s end
-    end
-    -- Map verb to cmd.flag short verb
-    local shortVerb = verb
-        :gsub("^dino_", "")
-    local extra = table.concat(tokens, " ")
-    return writeToCmdFlag(cmdId, shortVerb, steam, extra)
-end
-
-for verb, _ in pairs(DINO_STORAGE_VERBS) do
-    local v = verb
-    handlers[v] = function(steam, argsLine, cmdId)
-        return dinoStorageHandler(steam, argsLine, cmdId, v)
-    end
-end
-
--- ============================================================
--- Command parser and dispatcher
--- ============================================================
-
-local function parseCommand(line)
-    local id    = jsonReadString(line, "id")
-    local verb  = jsonReadString(line, "verb")
-    local steam = jsonReadString(line, "steam") or ""
-    -- argsLine is the full line so handlers can extract nested objects
-    return id, verb, steam, line
-end
-
-local lastPollAt = 0
 
 local function processInputBody(body)
-    if body == nil or body == "" then return end
-    for line in body:gmatch("[^\n]+") do
-        local id, verb, steam, argsLine = parseCommand(line)
-        if verb ~= nil then
-            local handler = handlers[verb]
-            if handler ~= nil then
-                local callOk, hok, hmsg = pcall(handler, steam, argsLine, id)
-                if callOk then
-                    emitResult(id, verb, steam, hok == true, tostring(hmsg or ""))
-                else
-                    emitResult(id, verb, steam, false, "error: " .. tostring(hok))
-                end
-            else
-                emitResult(id, verb, steam, false, "unknown verb: " .. tostring(verb))
-            end
+    for line in string.gmatch(tostring(body or "") .. "\n", "([^\r\n]+)\r?\n") do
+        local id = jsonReadString(line, "id")
+        local verb = jsonReadString(line, "verb")
+        local steam = jsonReadString(line, "steam")
+        local argsRaw = jsonReadObject(line, "args") or "{}"
+        if id ~= nil and verb ~= nil then
+            dispatchCommand(id, verb, steam, argsRaw)
+        else
+            log("Ignoring malformed command line")
         end
     end
 end
 
-local function startHttpFetch()
+-- ============================================================
+-- HTTP input polling
+-- ============================================================
+
+local function pollHttpInput()
+    if config.inputUrl == nil or config.inputUrl == "" then return end
+    if httpFetchedBody ~= nil then
+        local body = httpFetchedBody
+        httpFetchedBody = nil
+        if body ~= "" then processInputBody(body) end
+    end
     if httpFetchBusy then return end
     if ExecuteAsync == nil then
         if os.time() - httpLastErrorAt >= 30 then
@@ -713,49 +541,40 @@ local function startHttpFetch()
     httpFetchBusy = true
     ExecuteAsync(function()
         local body, err = curlGet(config.inputUrl, config.inputAuthHeader)
-        if body ~= nil then
+        if err ~= nil then
+            if os.time() - httpLastErrorAt >= 30 then
+                httpLastErrorAt = os.time()
+                log("HTTP input poll failed: " .. tostring(err))
+            end
+        else
             httpFetchedBody = body
-        elseif os.time() - httpLastErrorAt >= 30 then
-            httpLastErrorAt = os.time()
-            log("HTTP input fetch failed: " .. tostring(err))
         end
         httpFetchBusy = false
     end)
 end
 
+-- ============================================================
+-- Sub-mod result forwarding
+-- ============================================================
+
 local function forwardSubmodResults()
     if config.resultUrl == nil or config.resultUrl == "" then return end
     local body = readAll(RESULTS_FILE)
     if body == nil or body == "" then return end
-    for line in body:gmatch("[^\n]+") do
-        local source = jsonReadString(line, "source")
+    for line in string.gmatch(body .. "\n", "([^\r\n]+)\r?\n") do
         local id = jsonReadString(line, "id")
-        if source ~= nil and id ~= nil and id ~= "" then
-            local key = id .. "|" .. source
-            if not forwardedResults[key] then
-                forwardedResults[key] = true
-                postResultLine(line)
-            end
+        if id ~= nil and not forwardedResults[id] then
+            forwardedResults[id] = true
+            postResultLine(line)
         end
     end
 end
 
-local function pollInput()
-    if not config.enabled then return end
-    local now = os.time()
-    if (now - lastPollAt) < config.inputPollSeconds then return end
-    lastPollAt = now
+-- ============================================================
+-- File input polling
+-- ============================================================
 
-    if config.inputMode == "http" then
-        if httpFetchedBody ~= nil then
-            local body = httpFetchedBody
-            httpFetchedBody = nil
-            processInputBody(body)
-        end
-        startHttpFetch()
-        return
-    end
-
+local function pollFileInput()
     if not fileExists(COMMANDS_FILE) then return end
     local stash = COMMANDS_FILE .. ".processing"
     os.remove(stash)
@@ -766,17 +585,22 @@ local function pollInput()
     os.remove(stash)
 end
 
-local function safeCall(label, fn)
-    local ok, err = pcall(fn)
-    if not ok then log(string.format("safeCall(%s) failed: %s", label, tostring(err))) end
-    return ok, err
+local function pollInput()
+    if config.enabled ~= true then return end
+    if config.inputMode == "http" then pollHttpInput() else pollFileInput() end
 end
 
 -- ============================================================
 -- Boot
 -- ============================================================
 
-log(string.format("Loading; version=%s", MOD_VERSION))
+local function safeCall(label, fn)
+    local ok, err = pcall(fn)
+    if not ok then log(string.format("safeCall(%s) failed: %s", label, tostring(err))) end
+    return ok, err
+end
+
+log(string.format("Loading; version=%s savedDir=%s", MOD_VERSION, SAVED_DIR))
 
 presenceRegisterHook()
 presenceStartRefreshTick()
