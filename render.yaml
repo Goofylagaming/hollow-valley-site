@@ -62,7 +62,7 @@ services:
       - key: COMMAND_BRIDGE_TIMEOUT_MS
         value: 20000
       - key: DINOSTORAGE_RESULT_MODE
-        value: submod
+        value: bridge_ack
       - key: BODYDROP_BRIDGE_MODE
         value: commandbridge
       - key: MAX_PLAYERS
