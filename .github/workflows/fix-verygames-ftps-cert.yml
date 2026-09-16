@@ -24,22 +24,22 @@ jobs:
         run: |
           python3 <<'PY'
           from pathlib import Path
+          import re
 
           path = Path("server/services/sftpBridge.js")
           text = path.read_text()
-          old = '''    async connect(config) {
-              await client.access({
-                host: config.host,
-                port: config.port,
-                user: config.user,
-                password: config.password,
-                secure: (process.env.FTP_SECURE || process.env.GAME_FILE_SECURE || "").toLowerCase() === "true",
-              });
-            },'''
-          # Keep indentation exactly as it exists in the source, not as YAML displays it.
-          old = old.replace("              ", "      ", 1).replace("                ", "        ")
-          new = '''    async connect(config) {
-              const secure = (process.env.FTP_SECURE || process.env.GAME_FILE_SECURE || "").toLowerCase() === "true";
+          pattern = re.compile(
+              r'(function createFtpBridgeClient\(\) \{.*?async connect\(config\) \{\s*)'
+              r'await client\.access\(\{\s*'
+              r'host: config\.host,\s*'
+              r'port: config\.port,\s*'
+              r'user: config\.user,\s*'
+              r'password: config\.password,\s*'
+              r'secure: \(process\.env\.FTP_SECURE \|\| process\.env\.GAME_FILE_SECURE \|\| ""\)\.toLowerCase\(\) === "true",\s*'
+              r'\}\);',
+              re.S,
+          )
+          replacement = r'''\1const secure = (process.env.FTP_SECURE || process.env.GAME_FILE_SECURE || "").toLowerCase() === "true";
               await client.access({
                 host: config.host,
                 port: config.port,
@@ -47,12 +47,11 @@ jobs:
                 password: config.password,
                 secure,
                 secureOptions: secure ? { rejectUnauthorized: false } : undefined,
-              });
-            },'''
-          new = new.replace("              ", "      ", 1).replace("                ", "        ")
-          if old not in text:
-              raise SystemExit("Expected FTP connect block not found; refusing to patch blindly")
-          path.write_text(text.replace(old, new, 1))
+              });'''
+          updated, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f"Expected one FTP connect block, patched {count}")
+          path.write_text(updated)
           PY
 
       - name: Add regression test
@@ -64,7 +63,7 @@ jobs:
           const { Client: FtpClient } = require("basic-ftp");
           const files = require("../server/services/sftpBridge");
 
-          test("explicit FTPS scopes VeryGames certificate override to the FTP client", async (t) => {
+          test("explicit FTPS passes the VeryGames certificate override only to basic-ftp", async (t) => {
             const env = {
               GAME_FILE_PROTOCOL: "ftp",
               SFTP_HOST: "host.invalid",
