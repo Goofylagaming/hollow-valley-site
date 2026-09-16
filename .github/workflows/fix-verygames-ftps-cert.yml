@@ -1,0 +1,111 @@
+name: Fix VeryGames FTPS certificate handling
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/fix-verygames-ftps-cert.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch scoped FTPS certificate handling
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          path = Path("server/services/sftpBridge.js")
+          text = path.read_text()
+          old = '''    async connect(config) {
+              await client.access({
+                host: config.host,
+                port: config.port,
+                user: config.user,
+                password: config.password,
+                secure: (process.env.FTP_SECURE || process.env.GAME_FILE_SECURE || "").toLowerCase() === "true",
+              });
+            },'''
+          # Keep indentation exactly as it exists in the source, not as YAML displays it.
+          old = old.replace("              ", "      ", 1).replace("                ", "        ")
+          new = '''    async connect(config) {
+              const secure = (process.env.FTP_SECURE || process.env.GAME_FILE_SECURE || "").toLowerCase() === "true";
+              await client.access({
+                host: config.host,
+                port: config.port,
+                user: config.user,
+                password: config.password,
+                secure,
+                secureOptions: secure ? { rejectUnauthorized: false } : undefined,
+              });
+            },'''
+          new = new.replace("              ", "      ", 1).replace("                ", "        ")
+          if old not in text:
+              raise SystemExit("Expected FTP connect block not found; refusing to patch blindly")
+          path.write_text(text.replace(old, new, 1))
+          PY
+
+      - name: Add regression test
+        shell: bash
+        run: |
+          cat > test/ftpTls.test.js <<'EOF'
+          const test = require("node:test");
+          const assert = require("node:assert/strict");
+          const { Client: FtpClient } = require("basic-ftp");
+          const files = require("../server/services/sftpBridge");
+
+          test("explicit FTPS scopes VeryGames certificate override to the FTP client", async (t) => {
+            const env = {
+              GAME_FILE_PROTOCOL: "ftp",
+              SFTP_HOST: "host.invalid",
+              SFTP_PORT: "21",
+              SFTP_USER: "test",
+              SFTP_PASSWORD: "test-password",
+              FTP_SECURE: "true",
+            };
+            const original = Object.fromEntries(Object.keys(env).map((key) => [key, process.env[key]]));
+            Object.assign(process.env, env);
+            t.after(() => {
+              for (const [key, value] of Object.entries(original)) {
+                if (value === undefined) delete process.env[key];
+                else process.env[key] = value;
+              }
+            });
+
+            let accessOptions;
+            t.mock.method(FtpClient.prototype, "access", async (options) => { accessOptions = options; });
+            t.mock.method(FtpClient.prototype, "close", () => {});
+
+            const client = files.createFileBridgeClient();
+            await client.connect(files.getFileBridgeConfig());
+            await client.end();
+
+            assert.equal(accessOptions.secure, true);
+            assert.deepEqual(accessOptions.secureOptions, { rejectUnauthorized: false });
+          });
+          EOF
+
+      - name: Run FTP bridge tests
+        run: |
+          npm ci --ignore-scripts
+          node --test test/ftpCommandPublish.test.js test/ftpTls.test.js
+
+      - name: Commit fix and remove bootstrap workflow
+        shell: bash
+        run: |
+          rm -f .github/workflows/fix-verygames-ftps-cert.yml
+          git config user.name "Goofylagaming"
+          git config user.email "goofylagaming@hotmail.com"
+          git add -A
+          git commit -m "Trust VeryGames FTPS certificate for file bridge"
+          git push origin HEAD:master
