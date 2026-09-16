@@ -24,6 +24,7 @@ const dinoStorageRouter = require("./routes/dinoStorage");
 const serverStatusRouter = require("./routes/serverStatus");
 const eventsRouter = require("./routes/events");
 const mapdataRouter = require("./routes/mapdata");
+const commandBridgeInternalRouter = require("./routes/commandBridgeInternal");
 const serverStatusService = require("./services/serverStatus");
 const { syncSteamProfiles } = require("./services/steamProfile");
 const herbyBot = require("./herbyBot");
@@ -42,7 +43,7 @@ const LANDING_PAGE_PATH = path.join(__dirname, "..", "landing", "index.html");
 
 function createApp() {
   const app = express();
-  app.set("trust proxy", 1); // required when running behind an Nginx reverse proxy
+  app.set("trust proxy", 1);
   app.use(express.json());
 
   app.use(
@@ -51,9 +52,7 @@ function createApp() {
       secret: process.env.SESSION_SECRET || "dev-secret-change-me",
       resave: false,
       saveUninitialized: false,
-      rolling: true, // refresh the expiry on every active request, so regular
-      // visitors effectively stay signed in indefinitely instead of being
-      // logged out a fixed number of days after their first login.
+      rolling: true,
       cookie: {
         httpOnly: true,
         secure: IS_PRODUCTION,
@@ -63,9 +62,6 @@ function createApp() {
     })
   );
 
-  // Auth state must never be cached - by the browser, the bfcache, Cloudflare or
-  // any other intermediary - or a stale "logged out" response can be replayed to
-  // a user who actually holds a valid session.
   app.use((req, res, next) => {
     if (req.path.startsWith("/api/") || req.path.startsWith("/auth/")) {
       res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
@@ -74,7 +70,6 @@ function createApp() {
     next();
   });
 
-  // Attach the logged-in user (if any) to every request.
   app.use((req, res, next) => {
     if (req.session.userId) {
       req.user = db.prepare("SELECT id, discord_id, steam_id, username, avatar, is_admin FROM users WHERE id = ?").get(req.session.userId) || null;
@@ -103,6 +98,7 @@ function createApp() {
 
   app.use("/auth", authRouter);
   app.use("/auth/steam", authSteamRouter);
+  app.use("/api/internal/commandbridge", commandBridgeInternalRouter);
   app.use("/api/species", speciesRouter);
   app.use("/api/wallet", walletRouter);
   app.use("/api/quests", questsRouter);
@@ -127,7 +123,6 @@ function createApp() {
   app.all("/api/parked", parkedHandler);
   app.all("/api/admin", adminHandler);
 
-  // Clean URLs for each page (e.g. /dashboard -> public/dashboard.html).
   const PAGE_ROUTES = ["dashboard", "mydinos", "marketplace", "skins", "livemap", "leaderboard", "supporter", "events"];
   for (const page of PAGE_ROUTES) {
     app.get(`/${page}`, (req, res) => {
@@ -155,7 +150,6 @@ function startServer() {
     console.log(`Herby Death Squad portal running on port ${PORT}`);
     serverStatusService.start();
     herbyBot.start();
-    // Automatically synchronize profiles for linked Steam users who have placeholder usernames
     syncSteamProfiles(db).then((res) => {
       if (res.updated > 0) {
         console.log(`[Steam Profile Sync] Successfully synchronized ${res.updated}/${res.total} Steam user profiles.`);
