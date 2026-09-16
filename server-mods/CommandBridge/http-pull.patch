@@ -1,0 +1,224 @@
+--- a/server-mods/CommandBridge/Scripts/main.lua
++++ b/server-mods/CommandBridge/Scripts/main.lua
+@@ -1,9 +1,9 @@
+--- CommandBridge v001
+--- IPC layer between Discord bot and server-side mods.
+--- Polls Saved/commands.ndjson, dispatches verbs, writes Saved/results.ndjson.
++-- CommandBridge v002
++-- IPC layer between external systems and server-side mods.
++-- Supports local file input and HTTPS pull input; results can be POSTed back.
+ 
+ local MOD_NAME    = "CommandBridge"
+-local MOD_VERSION = "v001"
++local MOD_VERSION = "v002"
+ 
+ local SAVED_DIR      = "Mods/CommandBridge/Saved"
+ local COMMANDS_FILE  = SAVED_DIR .. "/commands.ndjson"
+@@ -180,6 +180,10 @@
+ local config = {
+     enabled          = true,
+     inputPollSeconds = INPUT_POLL_SECONDS,
++    inputMode        = "file",
++    inputUrl         = "",
++    inputAuthHeader  = "",
++    resultUrl        = "",
+ }
+ 
+ local function loadConfig()
+@@ -189,8 +193,76 @@
+     if enabled ~= nil then config.enabled = enabled end
+     local ips = jsonReadNumber(body, "inputPollSeconds")
+     if ips ~= nil then config.inputPollSeconds = ips end
+-    log(string.format("Config loaded; enabled=%s pollSec=%s",
+-        tostring(config.enabled), tostring(config.inputPollSeconds)))
++    local mode = jsonReadString(body, "inputMode")
++    if mode == "file" or mode == "http" then config.inputMode = mode end
++    local inputUrl = jsonReadString(body, "inputUrl")
++    if inputUrl ~= nil then config.inputUrl = inputUrl end
++    local auth = jsonReadString(body, "inputAuthHeader")
++    if auth ~= nil then config.inputAuthHeader = auth end
++    local resultUrl = jsonReadString(body, "resultUrl")
++    if resultUrl ~= nil then config.resultUrl = resultUrl end
++    log(string.format("Config loaded; enabled=%s pollSec=%s inputMode=%s http=%s",
++        tostring(config.enabled), tostring(config.inputPollSeconds), tostring(config.inputMode),
++        tostring(config.inputUrl ~= "")))
++end
++
++local httpFetchBusy = false
++local httpFetchedBody = nil
++local httpLastErrorAt = 0
++local forwardedResults = {}
++
++local function shellSafe(value)
++    value = tostring(value or "")
++    if string.find(value, '["\r\n]') then return nil end
++    return value
++end
++
++local function curlGet(url, authHeader)
++    url = shellSafe(url)
++    authHeader = shellSafe(authHeader)
++    if url == nil or url == "" then return nil, "inputUrl is empty or unsafe" end
++    if authHeader == nil then return nil, "inputAuthHeader is unsafe" end
++    local cmd = 'curl.exe --silent --show-error --fail --connect-timeout 3 --max-time 8'
++    if authHeader ~= "" then cmd = cmd .. ' -H "' .. authHeader .. '"' end
++    cmd = cmd .. ' "' .. url .. '"'
++    local pipe = io.popen(cmd, "r")
++    if pipe == nil then return nil, "could not start curl.exe" end
++    local body = pipe:read("*a") or ""
++    local ok, _, code = pipe:close()
++    if ok ~= true and ok ~= 0 then return nil, "curl.exe exited " .. tostring(code or "unknown") end
++    return body, nil
++end
++
++local function postResultLine(line)
++    if config.resultUrl == nil or config.resultUrl == "" then return end
++    if ExecuteAsync == nil then
++        if os.time() - httpLastErrorAt >= 30 then
++            httpLastErrorAt = os.time()
++            log("HTTP result POST unavailable: ExecuteAsync is missing")
++        end
++        return
++    end
++    local url = shellSafe(config.resultUrl)
++    local authHeader = shellSafe(config.inputAuthHeader)
++    if url == nil or authHeader == nil then return end
++    local payload = tostring(line or "")
++    ExecuteAsync(function()
++        local suffix = tostring(os.time()) .. "-" .. tostring(math.random(100000, 999999))
++        local bodyPath = SAVED_DIR .. "/http-result-" .. suffix .. ".json"
++        local f = io.open(bodyPath, "wb")
++        if f == nil then return end
++        f:write(payload); f:close()
++        local winBodyPath = bodyPath:gsub("/", "\\")
++        local cmd = 'curl.exe --silent --show-error --fail --connect-timeout 3 --max-time 8 -X POST -H "Content-Type: application/json"'
++        if authHeader ~= "" then cmd = cmd .. ' -H "' .. authHeader .. '"' end
++        cmd = cmd .. ' --data-binary "@' .. winBodyPath .. '" "' .. url .. '" >nul'
++        local ok = os.execute(cmd)
++        os.remove(bodyPath)
++        if ok ~= true and ok ~= 0 and os.time() - httpLastErrorAt >= 30 then
++            httpLastErrorAt = os.time()
++            log("HTTP result POST failed")
++        end
++    end)
+ end
+ 
+ -- ============================================================
+@@ -208,6 +280,7 @@
+         jsonEscape(tostring(msg or ""))
+     )
+     appendLine(RESULTS_FILE, line)
++    postResultLine(line)
+ end
+ 
+ -- ============================================================
+@@ -608,28 +681,13 @@
+ 
+ local lastPollAt = 0
+ 
+-local function pollInput()
+-    if not config.enabled then return end
+-    local now = os.time()
+-    if (now - lastPollAt) < config.inputPollSeconds then return end
+-    lastPollAt = now
+-
+-    if not fileExists(COMMANDS_FILE) then return end
+-
+-    local stash = COMMANDS_FILE .. ".processing"
+-    os.remove(stash)
+-    os.rename(COMMANDS_FILE, stash)
+-
+-    local body = readAll(stash)
+-    if body == nil or body == "" then os.remove(stash); return end
+-
++local function processInputBody(body)
++    if body == nil or body == "" then return end
+     for line in body:gmatch("[^\n]+") do
+         local id, verb, steam, argsLine = parseCommand(line)
+         if verb ~= nil then
+             local handler = handlers[verb]
+             if handler ~= nil then
+-                -- pcall returns (callSucceeded, ret1, ret2)
+-                -- handler returns (bool ok, string msg)
+                 local callOk, hok, hmsg = pcall(handler, steam, argsLine, id)
+                 if callOk then
+                     emitResult(id, verb, steam, hok == true, tostring(hmsg or ""))
+@@ -641,7 +699,70 @@
+             end
+         end
+     end
++end
+ 
++local function startHttpFetch()
++    if httpFetchBusy then return end
++    if ExecuteAsync == nil then
++        if os.time() - httpLastErrorAt >= 30 then
++            httpLastErrorAt = os.time()
++            log("HTTP input unavailable: ExecuteAsync is missing")
++        end
++        return
++    end
++    httpFetchBusy = true
++    ExecuteAsync(function()
++        local body, err = curlGet(config.inputUrl, config.inputAuthHeader)
++        if body ~= nil then
++            httpFetchedBody = body
++        elseif os.time() - httpLastErrorAt >= 30 then
++            httpLastErrorAt = os.time()
++            log("HTTP input fetch failed: " .. tostring(err))
++        end
++        httpFetchBusy = false
++    end)
++end
++
++local function forwardSubmodResults()
++    if config.resultUrl == nil or config.resultUrl == "" then return end
++    local body = readAll(RESULTS_FILE)
++    if body == nil or body == "" then return end
++    for line in body:gmatch("[^\n]+") do
++        local source = jsonReadString(line, "source")
++        local id = jsonReadString(line, "id")
++        if source ~= nil and id ~= nil and id ~= "" then
++            local key = id .. "|" .. source
++            if not forwardedResults[key] then
++                forwardedResults[key] = true
++                postResultLine(line)
++            end
++        end
++    end
++end
++
++local function pollInput()
++    if not config.enabled then return end
++    local now = os.time()
++    if (now - lastPollAt) < config.inputPollSeconds then return end
++    lastPollAt = now
++
++    if config.inputMode == "http" then
++        if httpFetchedBody ~= nil then
++            local body = httpFetchedBody
++            httpFetchedBody = nil
++            processInputBody(body)
++        end
++        startHttpFetch()
++        return
++    end
++
++    if not fileExists(COMMANDS_FILE) then return end
++    local stash = COMMANDS_FILE .. ".processing"
++    os.remove(stash)
++    os.rename(COMMANDS_FILE, stash)
++    local body = readAll(stash)
++    if body == nil or body == "" then os.remove(stash); return end
++    processInputBody(body)
+     os.remove(stash)
+ end
+ 
+@@ -680,6 +801,7 @@
+     log("Poll tick")
+ 
+     safeCall("pollInput", pollInput)
++    safeCall("forwardSubmodResults", forwardSubmodResults)
+ 
+     local reload = consumeFlag(RELOAD_FLAG)
+     if reload ~= nil and RestartCurrentMod ~= nil then
