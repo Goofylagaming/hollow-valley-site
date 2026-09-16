@@ -2,7 +2,12 @@ const { randomUUID } = require("node:crypto");
 const fileBridge = require("./sftpBridge");
 const httpBridge = require("./commandBridgeHttp");
 
-const SOURCES = { dino_store: "DinoStorage", dino_retrieve: "DinoStorage", bd: "BodyDrop" };
+const SOURCES = {
+  dino_store: "DinoStorage",
+  dino_retrieve: "DinoStorage",
+  dino_list: "DinoStorage",
+  bd: "BodyDrop",
+};
 const MAX_RESULTS_BYTES = 8 * 1024 * 1024;
 
 function getTimeoutMs() {
