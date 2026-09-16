@@ -1,0 +1,104 @@
+name: Fix VeryGames CWD fallback
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/fix-verygames-cwd-fallback.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch CommandBridge FTP CWD handling
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          path = Path("server/services/sftpBridge.js")
+          text = path.read_text()
+          old = '''    // VeryGames accepts the directory through CWD but rejects absolute STOR/RNFR
+    // paths. Once inside Saved, use filename-only operations for the queue.
+    await client.cd(directory);
+    enteredDirectory = true;
+'''
+          new = '''    // VeryGames normally accepts the full absolute CWD, but some remote
+    // connections are routed through an FTP frontend that rejects the same
+    // absolute path. Fall back to walking from / one segment at a time.
+    try {
+      await client.cd(directory);
+    } catch (absoluteCwdError) {
+      await client.cd("/");
+      const segments = directory.split("/").filter(Boolean);
+      try {
+        for (const segment of segments) {
+          await client.cd(segment);
+        }
+      } catch (relativeCwdError) {
+        relativeCwdError.message = `${relativeCwdError.message} (absolute CWD also failed: ${absoluteCwdError.message})`;
+        throw relativeCwdError;
+      }
+    }
+    enteredDirectory = true;
+'''
+          if old not in text:
+              raise SystemExit("Expected CommandBridge CWD block not found; refusing to patch blindly")
+          path.write_text(text.replace(old, new, 1))
+          PY
+
+      - name: Add regression test
+        shell: bash
+        run: |
+          cat >> test/ftpCommandPublish.test.js <<'EOF'
+
+          test("FTP CommandBridge publish falls back to walking the Saved path when absolute CWD is rejected", async (t) => {
+            configureFtp(t);
+            const expectedSegments = ["TheIsle", "Binaries", "Win64", "ue4ss", "Mods", "CommandBridge", "Saved"];
+            const cdCalls = [];
+            t.mock.method(FtpClient.prototype, "cd", async (path) => {
+              cdCalls.push(path);
+              if (path === queueDirectory) throw missing(path);
+            });
+            t.mock.method(FtpClient.prototype, "size", async (path) => {
+              assert.equal(path, queueName);
+              throw missing(path);
+            });
+            t.mock.method(FtpClient.prototype, "uploadFrom", async (stream, path) => {
+              assert.match(path, /^commands\\.ndjson\\.upload-[0-9a-f-]{36}$/);
+              for await (const _chunk of stream) { /* drain */ }
+            });
+            t.mock.method(FtpClient.prototype, "rename", async () => {});
+            t.mock.method(FtpClient.prototype, "remove", async () => {});
+
+            const client = files.createFileBridgeClient();
+            await client.connect(files.getFileBridgeConfig());
+            await client.append(Buffer.from('{"id":"test"}\\n'), queuePath);
+
+            assert.deepEqual(cdCalls, [queueDirectory, "/", ...expectedSegments, "/"]);
+          });
+          EOF
+
+      - name: Run FTP bridge tests
+        run: |
+          npm ci --ignore-scripts
+          node --test test/ftpCommandPublish.test.js test/ftpTls.test.js
+
+      - name: Commit fix and remove bootstrap workflow
+        shell: bash
+        run: |
+          rm -f .github/workflows/fix-verygames-cwd-fallback.yml
+          git config user.name "Goofylagaming"
+          git config user.email "goofylagaming@hotmail.com"
+          git add -A
+          git commit -m "Handle VeryGames FTP absolute CWD rejection"
+          git push origin HEAD:master
