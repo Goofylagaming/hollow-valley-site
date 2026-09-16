@@ -118,30 +118,48 @@ function isCommandBridgeQueue(remotePath) {
 }
 
 async function publishFtpCommand(client, buffer, remotePath) {
-  const tempPath = `${remotePath}.upload-${crypto.randomUUID()}`;
-  if (await ftpPathExists(client, remotePath)) {
-    throw new Error(`FTP command queue already exists at ${remotePath}; refusing to overwrite it`);
+  const normalizedPath = remotePath.replace(/\\/g, "/");
+  const separator = normalizedPath.lastIndexOf("/");
+  if (separator <= 0 || separator === normalizedPath.length - 1) {
+    throw new Error(`Invalid FTP command queue path: ${remotePath}`);
   }
 
-  let staged = false;
+  const directory = normalizedPath.slice(0, separator);
+  const queueName = normalizedPath.slice(separator + 1);
+  const tempName = `${queueName}.upload-${crypto.randomUUID()}`;
+  let enteredDirectory = false;
+  let tempMayExist = false;
+
   try {
-    // STOR the complete command under a unique, non-polled name first. CommandBridge
-    // cannot observe a partially transferred command file.
-    await client.uploadFrom(Readable.from([buffer]), tempPath);
-    staged = true;
+    // VeryGames accepts the directory through CWD but rejects absolute STOR/RNFR
+    // paths. Once inside Saved, use filename-only operations for the queue.
+    await client.cd(directory);
+    enteredDirectory = true;
+
+    if (await ftpPathExists(client, queueName)) {
+      throw new Error(`FTP command queue already exists at ${remotePath}; refusing to overwrite it`);
+    }
+
+    // Mark the temp name as potentially present before STOR so a transfer that
+    // disconnects after server-side creation is cleaned up when possible.
+    tempMayExist = true;
+    await client.uploadFrom(Readable.from([buffer]), tempName);
 
     // Re-check immediately before publication so a command created while this upload
     // was in flight is never deliberately overwritten.
-    if (await ftpPathExists(client, remotePath)) {
+    if (await ftpPathExists(client, queueName)) {
       throw new Error(`FTP command queue appeared while staging ${remotePath}; refusing to overwrite it`);
     }
 
     // RNFR/RNTO publishes the completed file without opening another data socket.
-    await client.rename(tempPath, remotePath);
-    staged = false;
+    await client.rename(tempName, queueName);
+    tempMayExist = false;
   } finally {
-    if (staged) {
-      await client.remove(tempPath).catch(() => {});
+    if (tempMayExist) {
+      await client.remove(tempName).catch(() => {});
+    }
+    if (enteredDirectory) {
+      await client.cd("/").catch(() => {});
     }
   }
 }

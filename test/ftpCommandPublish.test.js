@@ -4,6 +4,8 @@ const { Client: FtpClient } = require("basic-ftp");
 const files = require("../server/services/sftpBridge");
 
 const queuePath = "/TheIsle/Binaries/Win64/ue4ss/Mods/CommandBridge/Saved/commands.ndjson";
+const queueDirectory = "/TheIsle/Binaries/Win64/ue4ss/Mods/CommandBridge/Saved";
+const queueName = "commands.ndjson";
 
 function missing(path) {
   const err = new Error(`550 ${path}: No such file or directory`);
@@ -32,9 +34,13 @@ function configureFtp(t) {
   t.mock.method(FtpClient.prototype, "close", () => {});
 }
 
-test("FTP CommandBridge publish uses STOR to a temp file then rename, never APPE", async (t) => {
+test("FTP CommandBridge publish CWDs into Saved and uses filename-only STOR/RNFR/RNTO", async (t) => {
   configureFtp(t);
-  t.mock.method(FtpClient.prototype, "size", async (path) => { throw missing(path); });
+  const cd = t.mock.method(FtpClient.prototype, "cd", async () => {});
+  t.mock.method(FtpClient.prototype, "size", async (path) => {
+    assert.equal(path, queueName);
+    throw missing(path);
+  });
   let uploadedPath;
   let uploadedBody;
   t.mock.method(FtpClient.prototype, "uploadFrom", async (stream, path) => {
@@ -51,18 +57,26 @@ test("FTP CommandBridge publish uses STOR to a temp file then rename, never APPE
   await client.connect(files.getFileBridgeConfig());
   await client.append(Buffer.from('{"id":"test"}\n'), queuePath);
 
-  assert.match(uploadedPath, /commands\.ndjson\.upload-[0-9a-f-]{36}$/);
+  assert.match(uploadedPath, /^commands\.ndjson\.upload-[0-9a-f-]{36}$/);
+  assert.equal(uploadedPath.includes("/"), false);
   assert.equal(uploadedBody, '{"id":"test"}\n');
   assert.equal(rename.mock.callCount(), 1);
   assert.equal(rename.mock.calls[0].arguments[0], uploadedPath);
-  assert.equal(rename.mock.calls[0].arguments[1], queuePath);
+  assert.equal(rename.mock.calls[0].arguments[1], queueName);
+  assert.equal(cd.mock.callCount(), 2);
+  assert.equal(cd.mock.calls[0].arguments[0], queueDirectory);
+  assert.equal(cd.mock.calls[1].arguments[0], "/");
   assert.equal(appendFrom.mock.callCount(), 0);
   assert.equal(remove.mock.callCount(), 0);
 });
 
 test("FTP CommandBridge publish refuses to overwrite an existing live queue", async (t) => {
   configureFtp(t);
-  t.mock.method(FtpClient.prototype, "size", async () => 42);
+  const cd = t.mock.method(FtpClient.prototype, "cd", async () => {});
+  t.mock.method(FtpClient.prototype, "size", async (path) => {
+    assert.equal(path, queueName);
+    return 42;
+  });
   const uploadFrom = t.mock.method(FtpClient.prototype, "uploadFrom", async () => {});
   const rename = t.mock.method(FtpClient.prototype, "rename", async () => {});
 
@@ -75,12 +89,17 @@ test("FTP CommandBridge publish refuses to overwrite an existing live queue", as
 
   assert.equal(uploadFrom.mock.callCount(), 0);
   assert.equal(rename.mock.callCount(), 0);
+  assert.equal(cd.mock.callCount(), 2);
+  assert.equal(cd.mock.calls[0].arguments[0], queueDirectory);
+  assert.equal(cd.mock.calls[1].arguments[0], "/");
 });
 
 test("FTP CommandBridge publish cleans its temp file if a queue appears during staging", async (t) => {
   configureFtp(t);
+  const cd = t.mock.method(FtpClient.prototype, "cd", async () => {});
   let sizeCalls = 0;
   t.mock.method(FtpClient.prototype, "size", async (path) => {
+    assert.equal(path, queueName);
     sizeCalls += 1;
     if (sizeCalls === 1) throw missing(path);
     return 42;
@@ -103,10 +122,41 @@ test("FTP CommandBridge publish cleans its temp file if a queue appears during s
   assert.equal(rename.mock.callCount(), 0);
   assert.equal(remove.mock.callCount(), 1);
   assert.equal(remove.mock.calls[0].arguments[0], uploadedPath);
+  assert.equal(uploadedPath.includes("/"), false);
+  assert.equal(cd.mock.callCount(), 2);
+  assert.equal(cd.mock.calls[0].arguments[0], queueDirectory);
+  assert.equal(cd.mock.calls[1].arguments[0], "/");
+});
+
+test("FTP CommandBridge publish attempts temp cleanup when STOR itself fails", async (t) => {
+  configureFtp(t);
+  const cd = t.mock.method(FtpClient.prototype, "cd", async () => {});
+  t.mock.method(FtpClient.prototype, "size", async (path) => { throw missing(path); });
+  let attemptedPath;
+  t.mock.method(FtpClient.prototype, "uploadFrom", async (_stream, path) => {
+    attemptedPath = path;
+    throw new Error("read ECONNRESET (data socket)");
+  });
+  const remove = t.mock.method(FtpClient.prototype, "remove", async () => {});
+
+  const client = files.createFileBridgeClient();
+  await client.connect(files.getFileBridgeConfig());
+  await assert.rejects(
+    client.append(Buffer.from('{"id":"test"}\n'), queuePath),
+    /ECONNRESET/
+  );
+
+  assert.match(attemptedPath, /^commands\.ndjson\.upload-[0-9a-f-]{36}$/);
+  assert.equal(remove.mock.callCount(), 1);
+  assert.equal(remove.mock.calls[0].arguments[0], attemptedPath);
+  assert.equal(cd.mock.callCount(), 2);
+  assert.equal(cd.mock.calls[0].arguments[0], queueDirectory);
+  assert.equal(cd.mock.calls[1].arguments[0], "/");
 });
 
 test("FTP append for non-CommandBridge files keeps APPE semantics", async (t) => {
   configureFtp(t);
+  const cd = t.mock.method(FtpClient.prototype, "cd", async () => {});
   const appendFrom = t.mock.method(FtpClient.prototype, "appendFrom", async (stream, path) => {
     assert.equal(path, "/TheIsle/Binaries/Win64/ue4ss/Mods/BodyDrop/Saved/inbox.ndjson");
     for await (const _chunk of stream) { /* drain */ }
@@ -119,4 +169,5 @@ test("FTP append for non-CommandBridge files keeps APPE semantics", async (t) =>
 
   assert.equal(appendFrom.mock.callCount(), 1);
   assert.equal(uploadFrom.mock.callCount(), 0);
+  assert.equal(cd.mock.callCount(), 0);
 });
