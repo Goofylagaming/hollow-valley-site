@@ -97,6 +97,55 @@ function createSftpBridgeClient() {
   };
 }
 
+function isMissingFtpError(err) {
+  const code = Number(err?.code);
+  const message = String(err?.message || "");
+  return (code === 450 || code === 550) && /no such file|not found|does not exist/i.test(message);
+}
+
+async function ftpPathExists(client, remotePath) {
+  try {
+    await client.size(remotePath);
+    return true;
+  } catch (err) {
+    if (isMissingFtpError(err)) return false;
+    throw err;
+  }
+}
+
+function isCommandBridgeQueue(remotePath) {
+  return /\/Mods\/CommandBridge\/Saved\/commands\.ndjson$/i.test(remotePath.replace(/\\/g, "/"));
+}
+
+async function publishFtpCommand(client, buffer, remotePath) {
+  const tempPath = `${remotePath}.upload-${crypto.randomUUID()}`;
+  if (await ftpPathExists(client, remotePath)) {
+    throw new Error(`FTP command queue already exists at ${remotePath}; refusing to overwrite it`);
+  }
+
+  let staged = false;
+  try {
+    // STOR the complete command under a unique, non-polled name first. CommandBridge
+    // cannot observe a partially transferred command file.
+    await client.uploadFrom(Readable.from([buffer]), tempPath);
+    staged = true;
+
+    // Re-check immediately before publication so a command created while this upload
+    // was in flight is never deliberately overwritten.
+    if (await ftpPathExists(client, remotePath)) {
+      throw new Error(`FTP command queue appeared while staging ${remotePath}; refusing to overwrite it`);
+    }
+
+    // RNFR/RNTO publishes the completed file without opening another data socket.
+    await client.rename(tempPath, remotePath);
+    staged = false;
+  } finally {
+    if (staged) {
+      await client.remove(tempPath).catch(() => {});
+    }
+  }
+}
+
 function createFtpBridgeClient() {
   const client = new FtpClient();
   return {
@@ -114,20 +163,13 @@ function createFtpBridgeClient() {
       await client.cd("/");
     },
     async append(buffer, remotePath) {
+      if (isCommandBridgeQueue(remotePath)) {
+        return publishFtpCommand(client, buffer, remotePath);
+      }
       return client.appendFrom(Readable.from([buffer]), remotePath);
     },
     async exists(remotePath) {
-      try {
-        await client.size(remotePath);
-        return true;
-      } catch (err) {
-        const code = Number(err?.code);
-        const message = String(err?.message || "");
-        if ((code === 450 || code === 550) && /no such file|not found|does not exist/i.test(message)) {
-          return false;
-        }
-        throw err;
-      }
+      return ftpPathExists(client, remotePath);
     },
     async size(remotePath) {
       return client.size(remotePath);
