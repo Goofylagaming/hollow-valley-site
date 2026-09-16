@@ -74,6 +74,9 @@ function createSftpBridgeClient() {
     async exists(remotePath) {
       return client.exists(remotePath);
     },
+    async size(remotePath) {
+      return (await client.stat(remotePath)).size;
+    },
     async get(remotePath) {
       return client.get(remotePath);
     },
@@ -109,12 +112,12 @@ function createFtpBridgeClient() {
       return client.appendFrom(Readable.from([buffer]), remotePath);
     },
     async exists(remotePath) {
-      try {
-        await client.size(remotePath);
-        return true;
-      } catch (e) {
-        return false;
-      }
+      const slash = remotePath.lastIndexOf("/");
+      const entries = await client.list(remotePath.slice(0, slash) || "/");
+      return entries.some((entry) => entry.name === remotePath.slice(slash + 1) && entry.isFile);
+    },
+    async size(remotePath) {
+      return client.size(remotePath);
     },
     async get(remotePath) {
       const writable = bufferWritable();
@@ -334,4 +337,8 @@ module.exports = {
   buildBodyDropJob,
   getBodyDropInboxRemotePath,
   getFileBridgeProtocol,
+  createFileBridgeClient,
+  getFileBridgeConfig,
+  getUe4ssRemotePath,
+  normalizeRemotePath,
 };

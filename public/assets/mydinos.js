@@ -42,8 +42,8 @@ async function loadActiveCharacter() {
         btn.disabled = true;
         btn.textContent = "Sending store command...";
         try {
-          await api("/api/mydinos/park-active", { method: "POST" });
-          alert("DinoStorage store command sent. Follow the in-game respawn steps before redeeming.");
+          const response = await api("/api/mydinos/park-active", { method: "POST" });
+          alert(response.message);
           await refresh();
         } catch (err) {
           alert(err.message || "Failed to park active character");
@@ -80,7 +80,7 @@ function renderBodyDropStatus(data) {
       : data.cooldown?.active
         ? data.cooldown.reason === "pending"
           ? data.latest?.status === "queued"
-            ? "Uploaded; spawn unconfirmed"
+            ? "Outcome unconfirmed"
             : "Request pending"
           : `Cooldown ${formatCooldown(data.cooldown.remainingSeconds)}`
         : "Available now";
@@ -106,24 +106,9 @@ function renderBodyDropStatus(data) {
       <span>${data.cooldownSeconds ? `Cooldown: ${Math.round(data.cooldownSeconds / 60)} minutes` : "No cooldown"}</span>
     </div>
     <div class="bodydrop-options">${options}</div>
-    ${data.latest?.status === "queued" ? `
-      <button class="small-button bodydrop-release" type="button">
-        I confirm no body spawned - release request
-      </button>
-      <small class="section-intro">Only use this after checking the game and UE4SS logs. Releasing a request that did spawn can create a duplicate.</small>
-    ` : ""}
+    ${data.latest?.status === "queued" ? `<small class="section-intro">${escapeHtml(data.latest.error || "Outcome unconfirmed. Ask an operator to reconcile the queued command and results before retrying.")}</small>` : ""}
     ${recent ? `<ul class="bodydrop-history">${recent}</ul>` : ""}
   `;
-
-  container.querySelector(".bodydrop-release")?.addEventListener("click", async () => {
-    if (!confirm("Confirm that no body spawned from the previous upload?")) return;
-    try {
-      await api("/api/bodydrop", { method: "DELETE" });
-      await loadBodyDropStatus();
-    } catch (err) {
-      alert(err.message || "Failed to release the Body Drop request");
-    }
-  });
 
   container.querySelectorAll(".bodydrop-option").forEach((button) => {
     button.addEventListener("click", async () => {
@@ -159,7 +144,7 @@ function renderStorage(roster) {
   const grid = document.getElementById("storage-grid");
   document.getElementById("mydinos-count").textContent = `${roster.length} in storage`;
   if (!roster.length) {
-    grid.innerHTML = `<div class="empty-roster"><b>◇</b><strong>Storage is empty</strong><span>Buy a dino from the Marketplace or park your active in-game dino above.</span></div>`;
+    grid.innerHTML = `<div class="empty-roster"><b>◇</b><strong>Website roster is empty</strong><span>DinoStorage slots are stored by the game mod and are not listed here.</span></div>`;
     return;
   }
   grid.innerHTML = roster
@@ -179,8 +164,6 @@ function renderStorage(roster) {
         </div>
         ${skinOptions ? `<div class="form-row"><select class="skin-select" data-id="${dino.id}"><option value="">No skin</option>${skinOptions}</select></div>` : ""}
         <div class="actions">
-          <button class="small-button redeem-btn" data-id="${dino.id}" ${dino.status === "active" ? "disabled" : ""}>Redeem</button>
-          <button class="small-button park-btn" data-id="${dino.id}" ${dino.status === "parked" ? "disabled" : ""}>Park</button>
           <button class="small-button prime-btn" data-id="${dino.id}">${dino.is_prime ? "Unset prime" : "Set prime"}</button>
           <button class="small-button sell-btn" data-id="${dino.id}">Scrap for coin</button>
           <button class="small-button list-btn" data-id="${dino.id}">List for sale</button>
@@ -194,12 +177,6 @@ function renderStorage(roster) {
 }
 
 function wireCardActions() {
-  document.querySelectorAll(".redeem-btn").forEach((btn) =>
-    btn.addEventListener("click", () => runDinoStorageRedeem())
-  );
-  document.querySelectorAll(".park-btn").forEach((btn) =>
-    btn.addEventListener("click", () => runDinoStorageStore())
-  );
   document.querySelectorAll(".prime-btn").forEach((btn) =>
     btn.addEventListener("click", async () => {
       const isCurrentlyPrime = btn.textContent.includes("Unset");
@@ -240,16 +217,29 @@ async function runDinoStorageRedeem() {
   } catch (err) {
     alert(err.message || "DinoStorage redeem failed");
   }
+}
 
-  async function runDinoStorageStore() {
-    try {
-      const response = await api("/api/dinostorage/store", { method: "POST" });
-      alert(response.message);
-      await refresh();
-    } catch (err) {
-      alert(err.message || "DinoStorage store failed");
-    }
+async function runDinoStorageStore() {
+  try {
+    const response = await api("/api/dinostorage/store", { method: "POST" });
+    alert(response.message);
+    await refresh();
+  } catch (err) {
+    alert(err.message || "DinoStorage store failed");
   }
+}
+
+for (const [id, handler] of [["dinostorage-store", runDinoStorageStore], ["dinostorage-redeem", runDinoStorageRedeem]]) {
+  document.getElementById(id)?.addEventListener("click", async (event) => {
+    if (!confirm("Use DinoStorage's default slot? Do not retry an unconfirmed request; ask an operator to check its results first.")) return;
+    const button = event.currentTarget;
+    button.disabled = true;
+    try {
+      await handler();
+    } finally {
+      button.disabled = false;
+    }
+  });
 }
 
 async function runAction(id, action, body) {
