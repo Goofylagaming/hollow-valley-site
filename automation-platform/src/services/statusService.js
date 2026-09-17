@@ -81,7 +81,7 @@ async function getPlatformStatus(options = {}) {
     modules: {
       serverStatus: true,
       bodyDrop: true,
-      dinoStorage: false,
+      dinoStorage: true,
       discordAutomation: false,
     },
     server: {
