@@ -1,0 +1,43 @@
+name: Validate BodyDrop Flow
+
+on:
+  pull_request:
+    paths:
+      - "server-mods/BodyDrop/**"
+      - "server-mods/CommandBridge/**"
+      - "server/routes/bodydrop.js"
+      - "server/services/bodyDrop.js"
+      - "server/services/commandBridge.js"
+      - "public/assets/mydinos.js"
+      - "test/commandBridge.test.js"
+      - ".github/workflows/validate-bodydrop.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run BodyDrop and CommandBridge tests
+        run: node --test test/commandBridge.test.js
+
+      - name: Validate Lua syntax
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y lua5.4
+          luac -p server-mods/CommandBridge/Scripts/main.lua
+          luac -p server-mods/BodyDrop/Scripts/main.lua
