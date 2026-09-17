@@ -171,8 +171,12 @@ async function readResultsText() {
 
 module.exports = {
   getConfig,
+  getUe4ssRemotePath,
   getCommandBridgePaths,
   normalizeRemotePath,
+  isMissingFtpError,
+  bufferWritable,
+  withClient,
   publishCommandLine,
   readResultsText,
 };
