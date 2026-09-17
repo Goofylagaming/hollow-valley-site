@@ -6,6 +6,7 @@ const dinoStorage = require('../services/dinoStorageService');
 const discordAutomation = require('../services/discordAutomationService');
 const scheduler = require('../services/schedulerService');
 const rconControl = require('../services/rconControlService');
+const serverMonitor = require('../services/serverMonitorService');
 const audit = require('../services/auditService');
 const store = require('../services/automationStore');
 
@@ -19,6 +20,7 @@ router.get('/status', async (req, res) => {
       discordAutomation: discordAutomation.getState(),
       scheduler: scheduler.getSchedulerState().summary,
       rconControl: rconControl.getState(),
+      serverMonitor: serverMonitor.getState(),
     });
   } catch (error) {
     console.error('[automation-admin-status]', error);
@@ -82,6 +84,18 @@ router.post('/discord/announce', async (req, res) => {
     res.status(201).json({ ok: true, announcement });
   } catch (error) {
     res.status(400).json({ error: error.message || 'Discord announcement failed.' });
+  }
+});
+
+router.get('/monitor', (_req, res) => {
+  res.json(serverMonitor.getState());
+});
+
+router.post('/monitor/check', async (_req, res) => {
+  try {
+    res.json({ ok: true, ...(await serverMonitor.checkServerMonitor({ force: true })) });
+  } catch (error) {
+    res.status(502).json({ error: error.message || 'Server monitor check failed.' });
   }
 });
 
