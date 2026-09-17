@@ -3,6 +3,7 @@ require('dotenv').config();
 const path = require('node:path');
 const express = require('express');
 const { getPublicStatus } = require('./services/statusService');
+const { requireAdminToken } = require('./middleware/adminAuth');
 const adminRoutes = require('./routes/adminRoutes');
 const websiteRoutes = require('./routes/websiteRoutes');
 const bodyDropRoutes = require('./routes/bodyDropRoutes');
@@ -12,7 +13,7 @@ const { startDinoStorageReconciler } = require('./services/dinoStorageService');
 const { startDiscordAutomation } = require('./services/discordAutomationService');
 const { startScheduler } = require('./services/schedulerService');
 const { startServerMonitor } = require('./services/serverMonitorService');
-const { startPlayerPresence } = require('./services/playerPresenceService');
+const playerPresence = require('./services/playerPresenceService');
 
 const app = express();
 const port = Number(process.env.PORT || 3100);
@@ -46,6 +47,16 @@ app.get(['/status', '/api/status'], async (req, res) => {
   }
 });
 
+app.get('/api/admin/presence/analytics', requireAdminToken, (req, res) => {
+  try {
+    res.set('Cache-Control', 'no-store');
+    const hours = Math.max(1, Math.min(24 * 31, Number(req.query.hours) || 24));
+    res.json({ analytics: playerPresence.getPresenceAnalytics({ hours }) });
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Unable to calculate player presence analytics.' });
+  }
+});
+
 app.use('/api/admin', (_req, res, next) => {
   res.set('Cache-Control', 'no-store');
   next();
@@ -69,7 +80,7 @@ if (require.main === module) {
   startDiscordAutomation();
   startScheduler();
   startServerMonitor();
-  startPlayerPresence();
+  playerPresence.startPlayerPresence();
   app.listen(port, () => {
     console.log(`Hollow Valley automation platform listening on port ${port}`);
   });
