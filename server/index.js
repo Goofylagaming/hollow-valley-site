@@ -96,6 +96,32 @@ function createApp() {
     });
   });
 
+  // Test endpoint for authenticated Steam map tracking.
+  // Uses the SteamID from the verified logged-in session.
+  // The browser does NOT provide the SteamID.
+  app.get("/api/map/me-test", (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({
+        ok: false,
+        error: "Login required"
+      });
+    }
+
+    if (!req.user.steam_id) {
+      return res.status(403).json({
+        ok: false,
+        error: "Steam account is not linked"
+      });
+    }
+
+    return res.json({
+      ok: true,
+      authenticated: true,
+      steamId: req.user.steam_id,
+      username: req.user.username
+    });
+  });
+
   app.use("/auth", authRouter);
   app.use("/auth/steam", authSteamRouter);
   app.use("/api/internal/commandbridge", commandBridgeInternalRouter);
