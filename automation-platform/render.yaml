@@ -47,6 +47,14 @@ services:
       - key: PLAYER_PRESENCE_INTERVAL_MS
         value: 60000
 
+      # Read-only uptime/player-count history is also opt-in.
+      - key: SERVER_HEALTH_HISTORY_ENABLED
+        value: false
+      - key: SERVER_HEALTH_HISTORY_INTERVAL_MS
+        value: 60000
+      - key: SERVER_HEALTH_HISTORY_RETENTION_HOURS
+        value: 720
+
       # Server monitoring remains disabled until Discord alerts are verified.
       - key: SERVER_MONITOR_ENABLED
         value: false
