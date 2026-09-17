@@ -169,6 +169,44 @@ async function readResultsText() {
   });
 }
 
+async function getBridgeHealth() {
+  if (process.env.COMMAND_BRIDGE_ENABLED !== 'true') {
+    return { enabled: false, configured: false, connected: false, queueBusy: false, resultsBytes: 0, error: null };
+  }
+
+  try {
+    getConfig();
+    const paths = getCommandBridgePaths();
+    return await withClient(async (client) => {
+      const queueBusy = await exists(client, paths.commands);
+      const resultsPresent = await exists(client, paths.results);
+      const resultsBytes = resultsPresent ? await client.size(paths.results) : 0;
+      return {
+        enabled: true,
+        configured: true,
+        connected: true,
+        queueBusy,
+        resultsPresent,
+        resultsBytes,
+        resultsOversize: resultsBytes > MAX_RESULTS_BYTES,
+        paths,
+        error: null,
+      };
+    });
+  } catch (error) {
+    return {
+      enabled: true,
+      configured: false,
+      connected: false,
+      queueBusy: false,
+      resultsPresent: false,
+      resultsBytes: 0,
+      resultsOversize: false,
+      error: error.message,
+    };
+  }
+}
+
 module.exports = {
   getConfig,
   getUe4ssRemotePath,
@@ -179,4 +217,5 @@ module.exports = {
   withClient,
   publishCommandLine,
   readResultsText,
+  getBridgeHealth,
 };
