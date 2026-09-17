@@ -76,4 +76,9 @@
   loadAudit();
   setInterval(loadAudit, 15_000);
   window.addEventListener('storage', loadAudit);
+
+  const monitorScript = document.createElement('script');
+  monitorScript.src = '/assets/monitor-panel.js?v=1';
+  monitorScript.defer = true;
+  document.body.appendChild(monitorScript);
 })();
