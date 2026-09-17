@@ -63,6 +63,13 @@ function cooldownFor(latest, now = new Date()) {
     return { active: true, reason: "pending", nextAvailableAt: null, remainingSeconds: null };
   }
 
+  // Failed requests never consume a player's cooldown. A cooldown should only
+  // protect successful body drops; transport/mod/placement errors should be
+  // immediately retryable after the underlying issue is fixed.
+  if (latest.status === "failed") {
+    return { active: false, reason: null, nextAvailableAt: null, remainingSeconds: 0 };
+  }
+
   const createdAt = toDate(latest.created_at);
   if (!createdAt) return { active: false, nextAvailableAt: null, remainingSeconds: 0 };
 
