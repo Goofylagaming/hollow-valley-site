@@ -24,13 +24,36 @@ db.exec(`
     ON automation_requests(kind, status, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_automation_requests_steam_kind
     ON automation_requests(steam_id, kind, created_at DESC);
+
+  CREATE TABLE IF NOT EXISTS automation_jobs (
+    id TEXT PRIMARY KEY,
+    type TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'scheduled',
+    run_at TEXT NOT NULL,
+    recurrence TEXT NOT NULL DEFAULT 'none',
+    payload_json TEXT NOT NULL DEFAULT '{}',
+    attempts INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT,
+    last_run_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_automation_jobs_due
+    ON automation_jobs(status, run_at);
 `);
+
+function parseJson(value) {
+  try { return JSON.parse(value || '{}'); } catch { return {}; }
+}
 
 function parseRow(row) {
   if (!row) return null;
-  let details = {};
-  try { details = JSON.parse(row.details_json || '{}'); } catch {}
-  return { ...row, details };
+  return { ...row, details: parseJson(row.details_json) };
+}
+
+function parseJob(row) {
+  if (!row) return null;
+  return { ...row, payload: parseJson(row.payload_json) };
 }
 
 function createRequest({ id, kind, steamId = null, status = 'queued', commandId = null, details = {}, message = null, error = null }) {
@@ -89,6 +112,69 @@ function getLatestForSteam(steamId, kind) {
   `).get(steamId, kind));
 }
 
+function createJob({ id, type, runAt, recurrence = 'none', payload = {} }) {
+  db.prepare(`
+    INSERT INTO automation_jobs (id, type, status, run_at, recurrence, payload_json)
+    VALUES (?, ?, 'scheduled', ?, ?, ?)
+  `).run(id, type, runAt, recurrence, JSON.stringify(payload));
+  return getJob(id);
+}
+
+function getJob(id) {
+  return parseJob(db.prepare('SELECT * FROM automation_jobs WHERE id = ?').get(id));
+}
+
+function updateJob(id, fields = {}) {
+  const current = getJob(id);
+  if (!current) return null;
+  const next = {
+    status: fields.status ?? current.status,
+    runAt: fields.runAt ?? current.run_at,
+    recurrence: fields.recurrence ?? current.recurrence,
+    payload: fields.payload ?? current.payload,
+    attempts: fields.attempts ?? current.attempts,
+    lastError: fields.lastError === undefined ? current.last_error : fields.lastError,
+    lastRunAt: fields.lastRunAt === undefined ? current.last_run_at : fields.lastRunAt,
+  };
+  db.prepare(`
+    UPDATE automation_jobs
+    SET status = ?, run_at = ?, recurrence = ?, payload_json = ?, attempts = ?, last_error = ?, last_run_at = ?, updated_at = datetime('now')
+    WHERE id = ?
+  `).run(next.status, next.runAt, next.recurrence, JSON.stringify(next.payload), next.attempts, next.lastError, next.lastRunAt, id);
+  return getJob(id);
+}
+
+function listJobs({ statuses = null, limit = 100 } = {}) {
+  const safeLimit = Math.max(1, Math.min(500, Number(limit) || 100));
+  const clauses = [];
+  const params = [];
+  if (Array.isArray(statuses) && statuses.length) {
+    clauses.push(`status IN (${statuses.map(() => '?').join(',')})`);
+    params.push(...statuses);
+  }
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+  return db.prepare(`SELECT * FROM automation_jobs ${where} ORDER BY run_at ASC LIMIT ?`)
+    .all(...params, safeLimit)
+    .map(parseJob);
+}
+
+function listDueJobs(nowIso = new Date().toISOString(), limit = 25) {
+  const safeLimit = Math.max(1, Math.min(100, Number(limit) || 25));
+  return db.prepare(`
+    SELECT * FROM automation_jobs
+    WHERE status = 'scheduled' AND run_at <= ?
+    ORDER BY run_at ASC LIMIT ?
+  `).all(nowIso, safeLimit).map(parseJob);
+}
+
+function recoverInterruptedJobs() {
+  return db.prepare(`
+    UPDATE automation_jobs
+    SET status = 'scheduled', last_error = 'Recovered after service restart before completion', updated_at = datetime('now')
+    WHERE status = 'running'
+  `).run().changes;
+}
+
 module.exports = {
   dbPath,
   createRequest,
@@ -96,4 +182,10 @@ module.exports = {
   updateRequest,
   listRequests,
   getLatestForSteam,
+  createJob,
+  getJob,
+  updateJob,
+  listJobs,
+  listDueJobs,
+  recoverInterruptedJobs,
 };
