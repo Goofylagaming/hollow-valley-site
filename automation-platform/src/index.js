@@ -4,6 +4,7 @@ const path = require('node:path');
 const express = require('express');
 const { getPublicStatus } = require('./services/statusService');
 const adminRoutes = require('./routes/adminRoutes');
+const websiteRoutes = require('./routes/websiteRoutes');
 const bodyDropRoutes = require('./routes/bodyDropRoutes');
 const dinoStorageRoutes = require('./routes/dinoStorageRoutes');
 const { startBodyDropReconciler } = require('./services/bodyDropService');
@@ -48,6 +49,12 @@ app.use('/api/admin', (_req, res, next) => {
   res.set('Cache-Control', 'no-store');
   next();
 }, adminRoutes);
+
+app.use('/api/website', (_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+}, websiteRoutes);
+
 app.use('/api/bodydrop', bodyDropRoutes);
 app.use('/api/dinostorage', dinoStorageRoutes);
 
