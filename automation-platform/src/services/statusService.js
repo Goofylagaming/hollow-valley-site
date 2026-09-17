@@ -63,6 +63,16 @@ async function getServerSnapshot({ force = false } = {}) {
 async function getPlatformStatus(options = {}) {
   const integrations = integrationConfig();
   const server = await getServerSnapshot(options);
+  const charactersBySteamId = new Map(server.characters.map((character) => [character.steamId, character]));
+  const publicPlayers = server.players.map(({ steamId, name }) => {
+    const character = charactersBySteamId.get(steamId);
+    return {
+      name,
+      species: character?.species || null,
+      growth: Number.isFinite(character?.growth) ? character.growth : null,
+    };
+  });
+
   return {
     ok: true,
     service: 'hollow-valley-automation-platform',
@@ -77,10 +87,9 @@ async function getPlatformStatus(options = {}) {
     server: {
       online: server.online,
       configured: server.configured,
-      playerCount: server.players.length,
+      playerCount: publicPlayers.length,
       maxPlayers: server.maxPlayers,
-      players: server.players.map(({ steamId, name }) => ({ steamId, name })),
-      characters: server.characters,
+      players: publicPlayers,
       checkedAt: server.checkedAt || null,
       error: server.error || null,
     },
