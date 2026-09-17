@@ -5,6 +5,8 @@ const express = require('express');
 const { getPublicStatus } = require('./services/statusService');
 const { getMigrationReadiness } = require('./services/migrationReadinessService');
 const { requireAdminToken } = require('./middleware/adminAuth');
+const audit = require('./services/auditService');
+const backupService = require('./services/backupService');
 const adminRoutes = require('./routes/adminRoutes');
 const websiteRoutes = require('./routes/websiteRoutes');
 const bodyDropRoutes = require('./routes/bodyDropRoutes');
@@ -74,6 +76,22 @@ app.get('/api/admin/migration-readiness', requireAdminToken, (_req, res) => {
   res.json({ readiness: getMigrationReadiness() });
 });
 
+app.get('/api/admin/backups', requireAdminToken, (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ backups: backupService.getBackupState() });
+});
+
+app.post('/api/admin/backups', requireAdminToken, async (_req, res) => {
+  try {
+    const result = await audit.run('backup', 'create_snapshot', {},
+      async () => backupService.createBackup(),
+      (value) => ({ fileName: value.fileName || null, size: value.size || 0, retained: value.retained || 0 }));
+    res.status(result.skipped ? 202 : 201).json({ ok: true, backup: result });
+  } catch (error) {
+    res.status(503).json({ error: error.message || 'Automation backup failed.' });
+  }
+});
+
 app.use('/api/admin', (_req, res, next) => {
   res.set('Cache-Control', 'no-store');
   next();
@@ -99,6 +117,7 @@ if (require.main === module) {
   startServerMonitor();
   playerPresence.startPlayerPresence();
   serverHealthHistory.startServerHealthHistory();
+  backupService.startBackups();
   app.listen(port, () => {
     console.log(`Hollow Valley automation platform listening on port ${port}`);
   });
