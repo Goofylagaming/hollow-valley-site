@@ -89,3 +89,33 @@ test('presence normalizes player list and character species without exposing loc
   });
   assert.deepEqual(result, [{ steamId: '76561198000000000', name: 'Alpha', species: 'Triceratops' }]);
 });
+
+test('presence analytics calculate unique players, tracked time and peak concurrency', (t) => {
+  const fixture = loadPresence({ snapshot: { configured: true, online: true, players: [], characters: [] } });
+  t.after(fixture.cleanup);
+  const p = fixture.presence;
+
+  p.reconcilePresence([
+    { steamId: '76561198000000000', name: 'Alpha', species: 'Triceratops' },
+  ], '2026-09-18T00:00:00.000Z');
+  p.reconcilePresence([
+    { steamId: '76561198000000000', name: 'Alpha', species: 'Triceratops' },
+    { steamId: '76561198000000001', name: 'Beta', species: 'Utahraptor' },
+  ], '2026-09-18T00:30:00.000Z');
+  p.reconcilePresence([
+    { steamId: '76561198000000001', name: 'Beta', species: 'Utahraptor' },
+  ], '2026-09-18T01:00:00.000Z');
+  p.reconcilePresence([], '2026-09-18T01:30:00.000Z');
+
+  const analytics = p.getPresenceAnalytics({
+    hours: 24,
+    nowMs: Date.parse('2026-09-18T02:00:00.000Z'),
+  });
+
+  assert.equal(analytics.uniquePlayers, 2);
+  assert.equal(analytics.sessions, 2);
+  assert.equal(analytics.trackedMinutes, 120);
+  assert.equal(analytics.peakConcurrent, 2);
+  assert.equal(analytics.topPlayers.length, 2);
+  assert.equal(analytics.topPlayers[0].trackedMinutes, 60);
+});
