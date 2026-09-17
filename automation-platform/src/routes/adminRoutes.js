@@ -5,6 +5,7 @@ const bodyDrop = require('../services/bodyDropService');
 const dinoStorage = require('../services/dinoStorageService');
 const discordAutomation = require('../services/discordAutomationService');
 const scheduler = require('../services/schedulerService');
+const rconControl = require('../services/rconControlService');
 const store = require('../services/automationStore');
 
 const router = express.Router();
@@ -16,6 +17,7 @@ router.get('/status', async (req, res) => {
       ...(await getAdminStatus({ force: req.query.force === '1' })),
       discordAutomation: discordAutomation.getState(),
       scheduler: scheduler.getSchedulerState().summary,
+      rconControl: rconControl.getState(),
     });
   } catch (error) {
     console.error('[automation-admin-status]', error);
@@ -94,5 +96,28 @@ router.post('/jobs/run-due', async (_req, res) => {
     res.status(503).json({ error: error.message || 'Scheduler run failed.' });
   }
 });
+
+router.get('/rcon', (_req, res) => {
+  res.json(rconControl.getState());
+});
+
+async function runRcon(res, action, payload = {}) {
+  try {
+    const result = await rconControl.execute(action, payload);
+    res.json({ ok: true, result });
+  } catch (error) {
+    if (error.code === 'RCON_WRITE_DISABLED') return res.status(503).json({ error: error.message });
+    if (/required|valid|between|confirm|240 characters|control characters/i.test(error.message || '')) {
+      return res.status(400).json({ error: error.message });
+    }
+    res.status(502).json({ error: error.message || 'RCON control action failed.' });
+  }
+}
+
+router.post('/rcon/announce', (req, res) => runRcon(res, 'announce', req.body || {}));
+router.post('/rcon/direct-message', (req, res) => runRcon(res, 'directMessage', req.body || {}));
+router.post('/rcon/save', (_req, res) => runRcon(res, 'save'));
+router.post('/rcon/wipe-corpses', (req, res) => runRcon(res, 'wipeCorpses', req.body || {}));
+router.post('/rcon/ai-density', (req, res) => runRcon(res, 'aiDensity', req.body || {}));
 
 module.exports = router;
