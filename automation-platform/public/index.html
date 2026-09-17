@@ -6,7 +6,7 @@
   <meta name="description" content="Hollow Valley server automation control center.">
   <title>Automation Center | Herby Death Squad</title>
   <link rel="stylesheet" href="https://hollowvalley.herbydeathsquadgames.com/assets/styles.css?v=12">
-  <link rel="stylesheet" href="/assets/automation.css?v=3">
+  <link rel="stylesheet" href="/assets/automation.css?v=4">
 </head>
 <body>
   <div class="app-shell">
@@ -116,6 +116,25 @@
             </div>
           </article>
 
+          <article class="automation-panel scheduler-panel">
+            <div class="panel-heading"><div><small>SCHEDULER</small><h3>Scheduled automation</h3></div><span class="panel-pill" id="scheduler-health">0 scheduled</span></div>
+            <div class="scheduler-grid">
+              <form id="scheduler-form" class="scheduler-form">
+                <label for="scheduler-message">Discord announcement</label>
+                <textarea id="scheduler-message" maxlength="1900" rows="4" placeholder="Announcement to send…" required></textarea>
+                <div class="scheduler-fields">
+                  <label>Run at<input id="scheduler-run-at" type="datetime-local" required></label>
+                  <label>Repeat<select id="scheduler-recurrence"><option value="none">Once</option><option value="daily">Daily</option><option value="weekly">Weekly</option></select></label>
+                </div>
+                <button class="small-button" type="submit">Schedule announcement</button>
+                <div class="automation-notice" id="scheduler-action-status" hidden></div>
+              </form>
+              <div id="scheduler-list" class="automation-list">
+                <div class="empty-roster"><strong>No scheduled jobs</strong><span>Future automation jobs will appear here.</span></div>
+              </div>
+            </div>
+          </article>
+
           <article class="automation-panel request-panel">
             <div class="panel-heading"><div><small>COMMAND BRIDGE</small><h3>Recent automation requests</h3></div><span class="panel-pill" id="request-total">0 tracked</span></div>
             <div id="request-list" class="automation-list">
@@ -130,6 +149,6 @@
 
     <footer><span>© 2026 Herby Death Squad Games</span><span>HOLLOW VALLEY AUTOMATION PLATFORM</span><a href="https://hollowvalley.herbydeathsquadgames.com/">Back to command ↑</a></footer>
   </div>
-  <script src="/assets/automation.js?v=3"></script>
+  <script src="/assets/automation.js?v=4"></script>
 </body>
 </html>
