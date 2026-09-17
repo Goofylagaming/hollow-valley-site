@@ -21,6 +21,10 @@ function statusChannelConfigured() {
   return configured() && Boolean(String(process.env.DISCORD_STATUS_CHANNEL_ID || '').trim());
 }
 
+function alertConfigured() {
+  return configured() && Boolean(String(process.env.DISCORD_ALERT_CHANNEL_ID || '').trim());
+}
+
 function cleanMessage(value) {
   const message = String(value || '').trim();
   if (!message) throw new Error('Discord announcement message is required');
@@ -61,9 +65,9 @@ async function discordRequest(path, { method = 'GET', body } = {}) {
   return payload;
 }
 
-async function sendAnnouncement(message, { nonce = null } = {}) {
-  const channelId = String(process.env.DISCORD_ANNOUNCEMENT_CHANNEL_ID || '').trim();
-  if (!channelId) throw new Error('DISCORD_ANNOUNCEMENT_CHANNEL_ID is not configured');
+async function sendChannelMessage(channelId, message, { nonce = null } = {}) {
+  const target = String(channelId || '').trim();
+  if (!target) throw new Error('Discord channel ID is not configured');
   const content = cleanMessage(message);
   const body = {
     content,
@@ -73,11 +77,23 @@ async function sendAnnouncement(message, { nonce = null } = {}) {
     body.nonce = String(nonce);
     body.enforce_nonce = true;
   }
-  const result = await discordRequest(`/channels/${encodeURIComponent(channelId)}/messages`, {
+  const result = await discordRequest(`/channels/${encodeURIComponent(target)}/messages`, {
     method: 'POST',
     body,
   });
-  return { id: result?.id || null, channelId, content };
+  return { id: result?.id || null, channelId: target, content };
+}
+
+async function sendAnnouncement(message, { nonce = null } = {}) {
+  const channelId = String(process.env.DISCORD_ANNOUNCEMENT_CHANNEL_ID || '').trim();
+  if (!channelId) throw new Error('DISCORD_ANNOUNCEMENT_CHANNEL_ID is not configured');
+  return sendChannelMessage(channelId, message, { nonce });
+}
+
+async function sendAlert(message, { nonce = null } = {}) {
+  const channelId = String(process.env.DISCORD_ALERT_CHANNEL_ID || '').trim();
+  if (!channelId) throw new Error('DISCORD_ALERT_CHANNEL_ID is not configured');
+  return sendChannelMessage(channelId, message, { nonce });
 }
 
 async function syncStatusChannel({ force = false } = {}) {
@@ -112,6 +128,7 @@ function getState() {
     configured: configured(),
     announcementConfigured: announcementConfigured(),
     statusChannelConfigured: statusChannelConfigured(),
+    alertConfigured: alertConfigured(),
     lastStatusChannelName,
     lastSyncAt,
     lastError,
@@ -133,9 +150,12 @@ module.exports = {
   configured,
   announcementConfigured,
   statusChannelConfigured,
+  alertConfigured,
   cleanMessage,
   formatStatusChannelName,
+  sendChannelMessage,
   sendAnnouncement,
+  sendAlert,
   syncStatusChannel,
   getState,
   startDiscordAutomation,
