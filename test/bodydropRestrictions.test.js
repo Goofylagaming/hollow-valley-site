@@ -12,7 +12,8 @@ test("bodydrop growth converts fractions and percentages", () => {
   assert.equal(growthPercent(0.6), 60);
   assert.equal(growthPercent(60), 60);
   assert.equal(growthPercent(1), 100);
-  assert.equal(growthPercent(null), 0);
+  assert.equal(growthPercent(null), null);
+  assert.equal(growthPercent(undefined), null);
 });
 
 test("bodydrop recognizes supported carnivore species and rejects herbivores", () => {
@@ -42,4 +43,10 @@ test("bodydrop rejects non-carnivores regardless of growth", () => {
   const result = bodyDropEligibility({ species: "Tenontosaurus", growth: 0.25 });
   assert.equal(result.eligible, false);
   assert.match(result.reason, /only available to carnivores/);
+});
+
+test("bodydrop rejects requests when live growth is unavailable", () => {
+  const result = bodyDropEligibility({ species: "Carnotaurus", growth: null });
+  assert.equal(result.eligible, false);
+  assert.match(result.reason, /growth could not be verified/);
 });
