@@ -18,6 +18,27 @@ test('buildCommand validates Steam IDs and token content', () => {
   assert.throws(() => bridge.buildCommand('unknown', steamId), /Unsupported/);
 });
 
+test('CommandBridge publishing requires an explicit sole-publisher acknowledgement', (t) => {
+  const previousEnabled = process.env.COMMAND_BRIDGE_ENABLED;
+  const previousAck = process.env.COMMAND_BRIDGE_SINGLE_PUBLISHER_ACK;
+  t.after(() => {
+    if (previousEnabled === undefined) delete process.env.COMMAND_BRIDGE_ENABLED;
+    else process.env.COMMAND_BRIDGE_ENABLED = previousEnabled;
+    if (previousAck === undefined) delete process.env.COMMAND_BRIDGE_SINGLE_PUBLISHER_ACK;
+    else process.env.COMMAND_BRIDGE_SINGLE_PUBLISHER_ACK = previousAck;
+  });
+
+  process.env.COMMAND_BRIDGE_ENABLED = 'false';
+  delete process.env.COMMAND_BRIDGE_SINGLE_PUBLISHER_ACK;
+  assert.throws(() => bridge.assertPublisherReady(), /COMMAND_BRIDGE_ENABLED/);
+
+  process.env.COMMAND_BRIDGE_ENABLED = 'true';
+  assert.throws(() => bridge.assertPublisherReady(), /sole-publisher|single-publisher|publishing is locked/i);
+
+  process.env.COMMAND_BRIDGE_SINGLE_PUBLISHER_ACK = bridge.PUBLISHER_ACK;
+  assert.equal(bridge.assertPublisherReady(), true);
+});
+
 test('bridge acknowledgement remains unconfirmed until the sub-mod reports', () => {
   const command = bridge.buildCommand('bd', steamId);
   const outcome = bridge.findOutcome(line({
