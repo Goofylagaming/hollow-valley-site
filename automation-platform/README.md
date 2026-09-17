@@ -2,7 +2,7 @@
 
 This folder is intentionally isolated from the live Hollow Valley website code. Development happens on the `automation-platform` branch and nothing here is merged into or deployed from `master` automatically.
 
-The service is a control plane for Hollow Valley: it connects the operator console to Evrima RCON, VeryGames FTP/CommandBridge, BodyDrop, DinoStorage and future Discord/scheduled automation while keeping the current Hollow Valley visual language.
+The service is a control plane for Hollow Valley: it connects the operator console to Evrima RCON, VeryGames FTP/CommandBridge, BodyDrop, DinoStorage and Discord automation while keeping the current Hollow Valley visual language.
 
 ## Current milestone
 
@@ -19,11 +19,11 @@ Built on the isolated branch:
 - Local SQLite automation request ledger.
 - Automatic BodyDrop and DinoStorage reconcilers.
 - Bridge diagnostics for busy command queues and oversized result logs.
+- Discord REST automation for status-channel naming and protected announcements.
 - Branch-only GitHub Actions tests.
 
 Still intentionally not built/connected:
 
-- Discord automation.
 - Scheduled announcements/events/rewards.
 - Production deployment for this isolated service.
 - Player-facing calls from the live Hollow Valley website into this service.
@@ -46,6 +46,14 @@ CommandBridge work is conservative by design:
 - Missing results become `unknown`; they are not retried automatically.
 - The FTP publisher refuses to overwrite an existing unconsumed command queue.
 - An oversized `results.ndjson` (>8 MiB) blocks normal result processing until an operator rotates it.
+
+Discord automation is also deliberately narrow:
+
+- It uses Discord REST rather than opening a second gateway session alongside the existing HerbyBot.
+- Status-channel renaming is rate-limited to a minimum five-minute cadence.
+- Announcements can only be sent to the configured announcement channel.
+- `allowed_mentions` is disabled for automated announcements so message text cannot trigger mass mentions accidentally.
+- All Discord control routes require the automation admin token.
 
 ## Layout
 
@@ -72,10 +80,12 @@ automation-platform/
       bodyDropService.js
       commandBridgeService.js
       dinoStorageService.js
+      discordAutomationService.js
       statusService.js
   test/
     adminAuth.test.js
     commandBridge.test.js
+    discordAutomation.test.js
     statusPrivacy.test.js
   .env.example
   package.json
@@ -94,7 +104,7 @@ npm start
 
 Open `http://localhost:3100`.
 
-For UI-only/local status work, leave `COMMAND_BRIDGE_ENABLED=false`. RCON and FTP values can also remain blank; the console should show them as not configured rather than attempting live game actions.
+For UI-only/local status work, leave `COMMAND_BRIDGE_ENABLED=false`. RCON, FTP and Discord values can also remain blank; the console should show them as not configured rather than attempting live actions.
 
 Run tests with:
 
@@ -113,6 +123,7 @@ Start from `.env.example`. The important groups are:
 - `COMMAND_BRIDGE_ENABLED`: keep `false` until the isolated service is deliberately connected.
 - `COMMAND_BRIDGE_SAVED_PATH`: normally `Mods/CommandBridge/Saved`, relative to the UE4SS directory.
 - `BODYDROP_*` and `DINOSTORAGE_*`: cooldown/reconciliation controls.
+- `DISCORD_BOT_TOKEN`, `DISCORD_STATUS_CHANNEL_ID`, `DISCORD_ANNOUNCEMENT_CHANNEL_ID`: optional Discord automation configuration.
 
 ## API overview
 
@@ -127,6 +138,9 @@ Admin token required:
 - `GET /api/admin/status`
 - `GET /api/admin/requests`
 - `POST /api/admin/reconcile`
+- `GET /api/admin/discord`
+- `POST /api/admin/discord/sync-status`
+- `POST /api/admin/discord/announce`
 - `GET /api/bodydrop/requests`
 - `GET /api/bodydrop/cooldown/:steamId`
 - `POST /api/bodydrop/request`
@@ -148,7 +162,8 @@ Before deploying this branch as a separate service:
 5. Deploy initially with `COMMAND_BRIDGE_ENABLED=false`.
 6. Confirm `/health`, `/api/status`, admin authentication and RCON status first.
 7. Verify the FTP paths and CommandBridge diagnostics read correctly.
-8. Enable CommandBridge only when the existing live consumer is known to be compatible and there is no competing publisher writing the same single-file queue.
-9. Test with controlled BodyDrop/DinoStorage requests before connecting the live player website.
+8. Add Discord credentials/channel IDs and verify status sync before allowing announcements.
+9. Enable CommandBridge only when the existing live consumer is known to be compatible and there is no competing publisher writing the same single-file queue.
+10. Test with controlled BodyDrop/DinoStorage requests before connecting the live player website.
 
 The current live `master` branch remains the source of truth for the public Hollow Valley site until an integration is deliberately reviewed and merged.
