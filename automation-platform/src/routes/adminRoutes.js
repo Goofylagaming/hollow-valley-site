@@ -7,6 +7,7 @@ const discordAutomation = require('../services/discordAutomationService');
 const scheduler = require('../services/schedulerService');
 const rconControl = require('../services/rconControlService');
 const serverMonitor = require('../services/serverMonitorService');
+const playerPresence = require('../services/playerPresenceService');
 const audit = require('../services/auditService');
 const store = require('../services/automationStore');
 
@@ -21,6 +22,7 @@ router.get('/status', async (req, res) => {
       scheduler: scheduler.getSchedulerState().summary,
       rconControl: rconControl.getState(),
       serverMonitor: serverMonitor.getState(),
+      playerPresence: playerPresence.getPresenceSummary(),
     });
   } catch (error) {
     console.error('[automation-admin-status]', error);
@@ -38,6 +40,31 @@ router.get('/audit', (req, res) => {
   const limit = Math.max(1, Math.min(500, Number(req.query.limit) || 100));
   const category = String(req.query.category || '').trim() || null;
   res.json({ audit: store.listAudit({ category, limit }) });
+});
+
+router.get('/presence', (req, res) => {
+  try {
+    const steamId = String(req.query.steamId || '').trim() || null;
+    const activeOnly = String(req.query.active || '') === '1';
+    const limit = Math.max(1, Math.min(500, Number(req.query.limit) || 100));
+    res.json({
+      summary: playerPresence.getPresenceSummary(),
+      sessions: playerPresence.listSessions({ steamId, activeOnly, limit }),
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Unable to read player presence history.' });
+  }
+});
+
+router.post('/presence/sample', async (_req, res) => {
+  try {
+    const result = await audit.run('presence', 'manual_sample', {},
+      () => playerPresence.samplePresence({ force: true }),
+      (value) => ({ skipped: Boolean(value.skipped), opened: value.opened || 0, updated: value.updated || 0, closed: value.closed || 0 }));
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    res.status(502).json({ error: error.message || 'Player presence sample failed.' });
+  }
 });
 
 router.post('/reconcile', async (_req, res) => {
