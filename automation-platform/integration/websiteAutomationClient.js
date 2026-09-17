@@ -94,10 +94,7 @@ function getRequestStatus(requestId, steamId, options = {}) {
 }
 
 function sleep(ms) {
-  return new Promise((resolve) => {
-    const timer = setTimeout(resolve, ms);
-    timer.unref?.();
-  });
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function waitForRequestStatus(requestId, steamId, {
