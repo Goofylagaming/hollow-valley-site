@@ -9,7 +9,7 @@ async function executeBodyDrop(options) {
     const job = fileBridge.buildBodyDropJob(options);
     return await commandBridge.executeCommand("bd", job.steamId, [
       "spawn", job.species, String(job.x), String(job.y), String(job.z), String(job.growth), job.steamId,
-    ]);
+    ], { onPrepared: options.onPrepared });
   } catch (err) {
     console.error("[Body Drop]", { error: err.message });
     return { ok: false, error: err.message };

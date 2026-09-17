@@ -7,6 +7,7 @@ const {
 } = require("../db");
 const { requireAuth } = require("../middleware/requireAuth");
 const { executeBodyDrop } = require("../services/bodyDrop");
+const commandBridge = require("../services/commandBridge");
 const serverStatus = require("../services/serverStatus");
 
 const router = express.Router();
@@ -77,19 +78,38 @@ function cooldownFor(latest, now = new Date()) {
   };
 }
 
-router.get("/", requireAuth, (req, res) => {
-  const latest = getLatestBodyDropRequest(req.user.id);
-  const state = serverStatus.getState();
-  res.json({
-    enabled: Boolean(req.user.steam_id),
-    steamLinked: Boolean(req.user.steam_id),
-    serverOnline: state.online,
-    cooldownSeconds: getCooldownSeconds(),
-    cooldown: cooldownFor(latest),
-    options: getDropTypes(),
-    latest,
-    recent: getRecentBodyDropRequests(req.user.id),
-  });
+router.get("/", requireAuth, async (req, res, next) => {
+  try {
+    let latest = getLatestBodyDropRequest(req.user.id);
+    if (latest && ["pending", "queued"].includes(latest.status) && latest.bridge_request_id &&
+        (process.env.BODYDROP_BRIDGE_MODE || "commandbridge").trim() === "commandbridge") {
+      try {
+        const result = await commandBridge.inspectBodyDropResult(latest.bridge_request_id, latest.steam_id);
+        const current = getLatestBodyDropRequest(req.user.id);
+        if (result && current?.id === latest.id && ["pending", "queued"].includes(current.status)) {
+          updateBodyDropRequest(latest.id, {
+            status: result.ok ? "completed" : "failed",
+            bridgeRequestId: latest.bridge_request_id,
+            error: result.ok ? null : result.msg,
+          });
+        }
+      } catch (err) {
+        console.warn("[Body Drop] reconciliation deferred", { requestId: latest.bridge_request_id, error: err.message });
+      }
+      latest = getLatestBodyDropRequest(req.user.id);
+    }
+    const state = serverStatus.getState();
+    res.json({
+      enabled: Boolean(req.user.steam_id),
+      steamLinked: Boolean(req.user.steam_id),
+      serverOnline: state.online,
+      cooldownSeconds: getCooldownSeconds(),
+      cooldown: cooldownFor(latest),
+      options: getDropTypes(),
+      latest,
+      recent: getRecentBodyDropRequests(req.user.id),
+    });
+  } catch (err) { next(err); }
 });
 
 router.post("/", requireAuth, async (req, res) => {
@@ -143,6 +163,9 @@ router.post("/", requireAuth, async (req, res) => {
     dropType,
     bodyDropRequestId: request.id,
     location,
+    onPrepared: (command) => updateBodyDropRequest(request.id, {
+      status: "pending", bridgeRequestId: command.id,
+    }),
   });
 
   if (!result.ok && !result.queued) {
