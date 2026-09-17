@@ -7,6 +7,7 @@ const SOURCES = {
   dino_retrieve: 'DinoStorage',
   dino_list: 'DinoStorage',
 };
+const PUBLISHER_ACK = 'automation-platform-is-sole-publisher';
 
 function buildCommand(verb, steamId, tokens = []) {
   if (!Object.hasOwn(SOURCES, verb)) throw new Error(`Unsupported CommandBridge verb: ${verb}`);
@@ -23,10 +24,18 @@ function buildCommand(verb, steamId, tokens = []) {
   };
 }
 
-async function queueCommand(command) {
+function assertPublisherReady() {
   if (process.env.COMMAND_BRIDGE_ENABLED !== 'true') {
     throw new Error('COMMAND_BRIDGE_ENABLED must be true before queueing game actions');
   }
+  if (String(process.env.COMMAND_BRIDGE_SINGLE_PUBLISHER_ACK || '').trim() !== PUBLISHER_ACK) {
+    throw new Error(`CommandBridge publishing is locked until COMMAND_BRIDGE_SINGLE_PUBLISHER_ACK=${PUBLISHER_ACK}. Confirm the live website no longer publishes directly to commands.ndjson before setting it.`);
+  }
+  return true;
+}
+
+async function queueCommand(command) {
+  assertPublisherReady();
   await fileBridge.publishCommandLine(JSON.stringify(command));
   return command;
 }
@@ -87,7 +96,9 @@ async function readOutcome(command) {
 
 module.exports = {
   SOURCES,
+  PUBLISHER_ACK,
   buildCommand,
+  assertPublisherReady,
   queueCommand,
   readOutcome,
   findOutcome,
