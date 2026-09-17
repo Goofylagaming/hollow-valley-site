@@ -12,6 +12,7 @@ const { startDinoStorageReconciler } = require('./services/dinoStorageService');
 const { startDiscordAutomation } = require('./services/discordAutomationService');
 const { startScheduler } = require('./services/schedulerService');
 const { startServerMonitor } = require('./services/serverMonitorService');
+const { startPlayerPresence } = require('./services/playerPresenceService');
 
 const app = express();
 const port = Number(process.env.PORT || 3100);
@@ -68,6 +69,7 @@ if (require.main === module) {
   startDiscordAutomation();
   startScheduler();
   startServerMonitor();
+  startPlayerPresence();
   app.listen(port, () => {
     console.log(`Hollow Valley automation platform listening on port ${port}`);
   });
