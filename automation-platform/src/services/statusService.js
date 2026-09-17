@@ -1,4 +1,6 @@
 const { fetchServerStatus } = require('../adapters/evrimaRcon');
+const fileBridge = require('../adapters/fileBridge');
+const store = require('./automationStore');
 
 const CACHE_MS = 10_000;
 let cachedAt = 0;
@@ -60,40 +62,99 @@ async function getServerSnapshot({ force = false } = {}) {
   }
 }
 
-async function getPlatformStatus(options = {}) {
+function moduleState() {
+  return {
+    serverStatus: true,
+    bodyDrop: true,
+    dinoStorage: true,
+    discordAutomation: false,
+  };
+}
+
+function requestSummary() {
+  const requests = store.listRequests({ limit: 500 });
+  const summary = {
+    total: requests.length,
+    pending: 0,
+    confirmed: 0,
+    failed: 0,
+    unknown: 0,
+    bodyDrop: 0,
+    dinoStorage: 0,
+  };
+  for (const request of requests) {
+    if (request.kind === 'bodydrop') summary.bodyDrop += 1;
+    if (request.kind === 'dinostorage') summary.dinoStorage += 1;
+    if (['preparing', 'queued', 'acknowledged'].includes(request.status)) summary.pending += 1;
+    if (['confirmed', 'accepted'].includes(request.status)) summary.confirmed += 1;
+    if (request.status === 'failed') summary.failed += 1;
+    if (request.status === 'unknown') summary.unknown += 1;
+  }
+  return summary;
+}
+
+async function getPublicStatus(options = {}) {
   const integrations = integrationConfig();
   const server = await getServerSnapshot(options);
-  const charactersBySteamId = new Map(server.characters.map((character) => [character.steamId, character]));
-  const publicPlayers = server.players.map(({ steamId, name }) => {
-    const character = charactersBySteamId.get(steamId);
-    return {
-      name,
-      species: character?.species || null,
-      growth: Number.isFinite(character?.growth) ? character.growth : null,
-    };
-  });
-
   return {
     ok: true,
     service: 'hollow-valley-automation-platform',
     time: new Date().toISOString(),
     integrations,
-    modules: {
-      serverStatus: true,
-      bodyDrop: true,
-      dinoStorage: true,
-      discordAutomation: false,
-    },
+    modules: moduleState(),
     server: {
       online: server.online,
       configured: server.configured,
-      playerCount: publicPlayers.length,
+      playerCount: server.players.length,
       maxPlayers: server.maxPlayers,
-      players: publicPlayers,
+      checkedAt: server.checkedAt || null,
+      error: server.error ? 'Server status check failed' : null,
+    },
+  };
+}
+
+async function getAdminStatus(options = {}) {
+  const integrations = integrationConfig();
+  const server = await getServerSnapshot(options);
+  const charactersBySteamId = new Map(server.characters.map((character) => [character.steamId, character]));
+  const players = server.players.map(({ steamId, name }) => {
+    const character = charactersBySteamId.get(steamId);
+    return {
+      steamId,
+      name,
+      species: character?.species || null,
+      growth: Number.isFinite(character?.growth) ? character.growth : null,
+      health: Number.isFinite(character?.health) ? character.health : null,
+      stamina: Number.isFinite(character?.stamina) ? character.stamina : null,
+      location: character?.location || null,
+    };
+  });
+
+  const bridge = await fileBridge.getBridgeHealth();
+  return {
+    ok: true,
+    service: 'hollow-valley-automation-platform',
+    time: new Date().toISOString(),
+    integrations,
+    modules: moduleState(),
+    requests: requestSummary(),
+    bridge,
+    server: {
+      online: server.online,
+      configured: server.configured,
+      playerCount: players.length,
+      maxPlayers: server.maxPlayers,
+      players,
       checkedAt: server.checkedAt || null,
       error: server.error || null,
     },
   };
 }
 
-module.exports = { getPlatformStatus, getServerSnapshot, integrationConfig };
+module.exports = {
+  getPublicStatus,
+  getAdminStatus,
+  getServerSnapshot,
+  integrationConfig,
+  requestSummary,
+};
