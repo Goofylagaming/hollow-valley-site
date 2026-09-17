@@ -11,8 +11,8 @@ function configured(name) {
 
 function integrationConfig() {
   return {
-    rcon: configured('EVRIMA_RCON_HOST') && configured('EVRIMA_RCON_PORT') && configured('EVRIMA_RCON_PASSWORD'),
-    commandBridge: configured('GAME_FTP_HOST') && configured('GAME_FTP_USER') && configured('GAME_FTP_PASSWORD') && configured('COMMAND_BRIDGE_INBOX_PATH'),
+    rcon: configured('RCON_HOST') && configured('RCON_PORT') && configured('RCON_PASSWORD'),
+    commandBridge: process.env.COMMAND_BRIDGE_ENABLED === 'true' && configured('SFTP_HOST') && configured('SFTP_PORT') && configured('SFTP_USER') && configured('SFTP_PASSWORD') && configured('SFTP_BASE_PATH'),
     discord: configured('DISCORD_BOT_TOKEN'),
     database: configured('DATABASE_URL'),
   };
@@ -31,10 +31,10 @@ async function getServerSnapshot({ force = false } = {}) {
 
   try {
     const result = await fetchServerStatus({
-      host: process.env.EVRIMA_RCON_HOST,
-      port: Number(process.env.EVRIMA_RCON_PORT),
-      password: process.env.EVRIMA_RCON_PASSWORD,
-      timeoutMs: Number(process.env.EVRIMA_RCON_TIMEOUT_MS || 6000),
+      host: process.env.RCON_HOST,
+      port: Number(process.env.RCON_PORT),
+      password: process.env.RCON_PASSWORD,
+      timeoutMs: Number(process.env.RCON_TIMEOUT_MS || 6000),
     });
     cachedAt = Date.now();
     cachedError = null;
