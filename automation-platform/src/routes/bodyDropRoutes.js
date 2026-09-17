@@ -1,6 +1,7 @@
 const express = require('express');
 const { requireAdminToken } = require('../middleware/adminAuth');
 const bodyDrop = require('../services/bodyDropService');
+const audit = require('../services/auditService');
 const store = require('../services/automationStore');
 
 const router = express.Router();
@@ -25,11 +26,14 @@ router.get('/cooldown/:steamId', requireAdminToken, (req, res) => {
 });
 
 router.post('/request', requireAdminToken, async (req, res) => {
+  const dropType = String(req.body?.dropType || '').trim();
   try {
-    const request = await bodyDrop.requestBodyDrop({
-      steamId: req.body?.steamId,
-      dropType: req.body?.dropType,
-    });
+    const request = await audit.run('bodydrop', 'request', { dropType },
+      () => bodyDrop.requestBodyDrop({
+        steamId: req.body?.steamId,
+        dropType,
+      }),
+      (value) => ({ requestId: value.id, status: value.status }));
     res.status(202).json({ ok: true, request });
   } catch (error) {
     if (error.code === 'BODYDROP_COOLDOWN') {
@@ -42,7 +46,10 @@ router.post('/request', requireAdminToken, async (req, res) => {
 
 router.post('/reconcile', requireAdminToken, async (_req, res) => {
   try {
-    res.json({ ok: true, ...(await bodyDrop.reconcileBodyDrops()) });
+    const result = await audit.run('bodydrop', 'manual_reconcile', {},
+      () => bodyDrop.reconcileBodyDrops(),
+      (value) => ({ checked: value.checked || 0, changed: value.changed || 0 }));
+    res.json({ ok: true, ...result });
   } catch (error) {
     res.status(503).json({ error: error.message || 'BodyDrop reconciliation failed.' });
   }
