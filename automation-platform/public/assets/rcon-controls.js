@@ -143,3 +143,8 @@ document.getElementById('rcon-wipe-form')?.addEventListener('submit', async (eve
 setRconControlsEnabled(false);
 setTimeout(loadRconState, 500);
 setInterval(loadRconState, 15_000);
+
+const auditScript = document.createElement('script');
+auditScript.src = '/assets/audit-panel.js?v=1';
+auditScript.defer = true;
+document.body.appendChild(auditScript);
