@@ -29,6 +29,17 @@ services:
       - key: AUTOMATION_SCHEDULER_INTERVAL_MS
         value: 15000
 
+      # Consistent SQLite snapshots use the same persistent disk. Enable only
+      # after the disk has been verified to survive redeploys.
+      - key: AUTOMATION_BACKUP_ENABLED
+        value: false
+      - key: AUTOMATION_BACKUP_DIR
+        value: /var/data/backups
+      - key: AUTOMATION_BACKUP_INTERVAL_MS
+        value: 21600000
+      - key: AUTOMATION_BACKUP_RETENTION
+        value: 20
+
       # RCON read access can be configured without enabling writes.
       - key: RCON_HOST
         sync: false
