@@ -41,6 +41,12 @@ services:
       - key: RCON_WRITE_ENABLED
         value: false
 
+      # Read-only player session history is opt-in after RCON verification.
+      - key: PLAYER_PRESENCE_ENABLED
+        value: false
+      - key: PLAYER_PRESENCE_INTERVAL_MS
+        value: 60000
+
       # Server monitoring remains disabled until Discord alerts are verified.
       - key: SERVER_MONITOR_ENABLED
         value: false
