@@ -21,6 +21,78 @@ const DEFAULT_DROP_TYPES = [
   { id: "large", name: "Large body", description: "A larger drop for bigger carnivores or packs.", species: "Triceratops", growth: 1 },
 ];
 
+const BODYDROP_MAX_GROWTH_PERCENT = 60;
+const CARNIVORE_SPECIES = [
+  "Allosaurus",
+  "Austroraptor",
+  "Baryonyx",
+  "Carnotaurus",
+  "Ceratosaurus",
+  "Compsognathus",
+  "Deinosuchus",
+  "Dilophosaurus",
+  "Herrerasaurus",
+  "Omniraptor",
+  "Omnoraptor",
+  "Pteranodon",
+  "Troodon",
+  "Tyrannosaurus",
+  "Utahraptor",
+];
+
+function normalizeSpecies(value) {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function isCarnivoreSpecies(value) {
+  const normalized = normalizeSpecies(value);
+  if (!normalized) return false;
+  return CARNIVORE_SPECIES.some((species) => normalized.includes(normalizeSpecies(species)));
+}
+
+function growthPercent(value) {
+  const growth = Number(value);
+  if (!Number.isFinite(growth) || growth < 0) return null;
+  return growth <= 1 ? growth * 100 : growth;
+}
+
+function bodyDropEligibility(character) {
+  if (!character) {
+    return { eligible: false, reason: "You must be spawned in-game to request a body drop." };
+  }
+
+  const species = String(character.species || "Unknown");
+  if (!isCarnivoreSpecies(species)) {
+    return { eligible: false, reason: "Body drops are only available to carnivores.", species };
+  }
+
+  const percent = growthPercent(character.growth);
+  if (percent === null) {
+    return {
+      eligible: false,
+      reason: "Your dinosaur growth could not be verified. Try again after the next server sync.",
+      species,
+    };
+  }
+
+  if (percent > BODYDROP_MAX_GROWTH_PERCENT) {
+    return {
+      eligible: false,
+      reason: `Body drops are only available at ${BODYDROP_MAX_GROWTH_PERCENT}% growth or below. Your ${species} is ${Math.round(percent)}%.`,
+      species,
+      growthPercent: percent,
+    };
+  }
+
+  return {
+    eligible: true,
+    reason: null,
+    species,
+    growthPercent: percent,
+    maxGrowthPercent: BODYDROP_MAX_GROWTH_PERCENT,
+  };
+}
+
 function getCooldownSeconds() {
   const value = Number(process.env.BODYDROP_COOLDOWN_SECONDS);
   return Number.isFinite(value) && value >= 0 ? value : 900;
@@ -105,13 +177,26 @@ router.get("/", requireAuth, async (req, res, next) => {
       }
       latest = getLatestBodyDropRequest(req.user.id);
     }
+
     const state = serverStatus.getState();
+    const character = req.user.steam_id
+      ? (state.characters || []).find((c) => c.steamId === req.user.steam_id)
+      : null;
+    const eligibility = req.user.steam_id && state.online
+      ? bodyDropEligibility(character)
+      : { eligible: false, reason: null };
+
     res.json({
       enabled: Boolean(req.user.steam_id),
       steamLinked: Boolean(req.user.steam_id),
       serverOnline: state.online,
       cooldownSeconds: getCooldownSeconds(),
       cooldown: cooldownFor(latest),
+      eligibility,
+      restrictions: {
+        carnivoreOnly: true,
+        maxGrowthPercent: BODYDROP_MAX_GROWTH_PERCENT,
+      },
       options: getDropTypes(),
       latest,
       recent: getRecentBodyDropRequests(req.user.id),
@@ -144,15 +229,18 @@ router.post("/", requireAuth, async (req, res) => {
     });
   }
 
-  // The mod spawns the corpse at a fixed world location, so the requesting
-  // player must currently be spawned in-game (their RCON character record has
-  // a live X/Y/Z). Use the raw RCON location, NOT the swapped/projected
-  // coordinates used for the map display - the mod places actors using the
-  // same raw Unreal world units RCON reports.
-  const character = state.characters.find((c) => c.steamId === req.user.steam_id);
+  // The requesting player must currently be spawned in-game. The mod resolves
+  // the live pawn again before spawning, but the RCON record is also used here
+  // to enforce BodyDrop eligibility and provide the bridge with raw coordinates.
+  const character = (state.characters || []).find((c) => c.steamId === req.user.steam_id);
   const location = character?.location;
   if (!location || !Number.isFinite(location.x) || !Number.isFinite(location.y) || !Number.isFinite(location.z)) {
     return res.status(400).json({ error: "You must be spawned in-game to request a body drop." });
+  }
+
+  const eligibility = bodyDropEligibility(character);
+  if (!eligibility.eligible) {
+    return res.status(403).json({ error: eligibility.reason, eligibility });
   }
 
   const selected = options.find((option) => option.id === dropType);
@@ -203,4 +291,10 @@ router.delete("/", requireAuth, (req, res) => {
 });
 
 module.exports = router;
-module.exports._private = { cooldownFor, getDropTypes };
+module.exports._private = {
+  cooldownFor,
+  getDropTypes,
+  bodyDropEligibility,
+  growthPercent,
+  isCarnivoreSpecies,
+};
