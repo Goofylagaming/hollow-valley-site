@@ -45,7 +45,7 @@
           <div class="summary-tile"><small>RCON</small><b id="rcon-state">Checking</b><span>Evrima control channel</span></div>
           <div class="summary-tile"><small>COMMAND BRIDGE</small><b id="bridge-state">Checking</b><span>VeryGames FTP queue</span></div>
           <div class="summary-tile"><small>DISCORD</small><b id="discord-state">Checking</b><span>Bot automation</span></div>
-          <div class="summary-tile"><small>DATABASE</small><b id="database-state">Checking</b><span>Persistent automation state</span></div>
+          <div class="summary-tile"><small>DATABASE</small><b id="database-state">Checking</b><span>Automation request ledger</span></div>
         </div>
 
         <div class="automation-grid">
@@ -57,12 +57,12 @@
           </article>
 
           <article class="automation-panel">
-            <div class="panel-heading"><div><small>SERVICES</small><h3>Automation modules</h3></div><span class="panel-pill">Phase 1</span></div>
+            <div class="panel-heading"><div><small>SERVICES</small><h3>Automation modules</h3></div><span class="panel-pill">Phase 2</span></div>
             <div class="module-list">
-              <div class="module-row"><span class="module-icon">◎</span><div><b>Server status worker</b><small>RCON player count, capacity and character snapshot</small></div><span class="module-state ready">Built</span></div>
-              <div class="module-row"><span class="module-icon">◌</span><div><b>BodyDrop worker</b><small>CommandBridge queue + confirmed result reconciliation</small></div><span class="module-state next">Next</span></div>
-              <div class="module-row"><span class="module-icon">▣</span><div><b>DinoStorage worker</b><small>Store, redeem and deferred acknowledgement tracking</small></div><span class="module-state next">Next</span></div>
-              <div class="module-row"><span class="module-icon">◇</span><div><b>Discord automation</b><small>Announcements, commands and scheduled events</small></div><span class="module-state queued">Queued</span></div>
+              <div class="module-row"><span class="module-icon">◎</span><div><b>Server status worker</b><small>RCON player count, capacity and character snapshot</small></div><span class="module-state ready" id="module-server">Built</span></div>
+              <div class="module-row"><span class="module-icon">◌</span><div><b>BodyDrop worker</b><small>CommandBridge queue + confirmed result reconciliation</small></div><span class="module-state ready" id="module-bodydrop">Built</span></div>
+              <div class="module-row"><span class="module-icon">▣</span><div><b>DinoStorage worker</b><small>Store, redeem and deferred acknowledgement tracking</small></div><span class="module-state next" id="module-dinostorage">Next</span></div>
+              <div class="module-row"><span class="module-icon">◇</span><div><b>Discord automation</b><small>Announcements, commands and scheduled events</small></div><span class="module-state queued" id="module-discord">Queued</span></div>
             </div>
           </article>
         </div>
@@ -73,6 +73,6 @@
 
     <footer><span>© 2026 Herby Death Squad Games</span><span>HOLLOW VALLEY AUTOMATION PLATFORM</span><a href="https://hollowvalley.herbydeathsquadgames.com/">Back to command ↑</a></footer>
   </div>
-  <script src="/assets/automation.js?v=1"></script>
+  <script src="/assets/automation.js?v=2"></script>
 </body>
 </html>
