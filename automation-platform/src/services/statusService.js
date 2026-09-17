@@ -1,5 +1,6 @@
 const { fetchServerStatus } = require('../adapters/evrimaRcon');
 const fileBridge = require('../adapters/fileBridge');
+const { PUBLISHER_ACK } = require('./commandBridgeService');
 const store = require('./automationStore');
 
 const CACHE_MS = 10_000;
@@ -11,10 +12,15 @@ function configured(name) {
   return Boolean(String(process.env[name] || '').trim());
 }
 
+function commandBridgePublisherReady() {
+  return process.env.COMMAND_BRIDGE_ENABLED === 'true' &&
+    String(process.env.COMMAND_BRIDGE_SINGLE_PUBLISHER_ACK || '').trim() === PUBLISHER_ACK;
+}
+
 function integrationConfig() {
   return {
     rcon: configured('RCON_HOST') && configured('RCON_PORT') && configured('RCON_PASSWORD'),
-    commandBridge: process.env.COMMAND_BRIDGE_ENABLED === 'true' && configured('SFTP_HOST') && configured('SFTP_PORT') && configured('SFTP_USER') && configured('SFTP_PASSWORD') && configured('SFTP_BASE_PATH'),
+    commandBridge: commandBridgePublisherReady() && configured('SFTP_HOST') && configured('SFTP_PORT') && configured('SFTP_USER') && configured('SFTP_PASSWORD') && configured('SFTP_BASE_PATH'),
     discord: configured('DISCORD_BOT_TOKEN'),
     database: true,
   };
@@ -130,7 +136,18 @@ async function getAdminStatus(options = {}) {
     };
   });
 
-  const bridge = await fileBridge.getBridgeHealth();
+  const rawBridge = await fileBridge.getBridgeHealth();
+  const publisherReady = commandBridgePublisherReady();
+  const publisherAckRequired = process.env.COMMAND_BRIDGE_ENABLED === 'true' && !publisherReady;
+  const bridge = {
+    ...rawBridge,
+    publisherReady,
+    publisherAckRequired,
+    error: publisherAckRequired
+      ? 'Publishing locked: confirm the automation platform is the sole CommandBridge publisher before activation.'
+      : rawBridge.error,
+  };
+
   return {
     ok: true,
     service: 'hollow-valley-automation-platform',
@@ -156,5 +173,6 @@ module.exports = {
   getAdminStatus,
   getServerSnapshot,
   integrationConfig,
+  commandBridgePublisherReady,
   requestSummary,
 };
