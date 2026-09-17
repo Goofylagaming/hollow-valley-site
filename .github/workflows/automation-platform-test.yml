@@ -32,3 +32,5 @@ jobs:
         run: npm install --ignore-scripts --no-audit --no-fund
       - name: Run tests
         run: npm test
+      - name: Build automation Docker image
+        run: docker build -t hollow-valley-automation-ci .
