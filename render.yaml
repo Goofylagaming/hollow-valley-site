@@ -57,6 +57,8 @@ services:
         sync: false
       - key: COMMAND_BRIDGE_ENABLED
         value: true
+      - key: COMMAND_BRIDGE_TRANSPORT
+        value: file
       - key: COMMAND_BRIDGE_SAVED_PATH
         value: Mods/CommandBridge/Saved
       - key: COMMAND_BRIDGE_TIMEOUT_MS
