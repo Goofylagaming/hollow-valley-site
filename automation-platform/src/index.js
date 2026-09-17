@@ -2,7 +2,8 @@ require('dotenv').config();
 
 const path = require('node:path');
 const express = require('express');
-const { getPlatformStatus } = require('./services/statusService');
+const { getPublicStatus } = require('./services/statusService');
+const adminRoutes = require('./routes/adminRoutes');
 const bodyDropRoutes = require('./routes/bodyDropRoutes');
 const dinoStorageRoutes = require('./routes/dinoStorageRoutes');
 const { startBodyDropReconciler } = require('./services/bodyDropService');
@@ -17,6 +18,7 @@ app.use(express.json({ limit: '64kb' }));
 app.use(express.static(publicDir, { extensions: ['html'] }));
 
 app.get('/health', (_req, res) => {
+  res.set('Cache-Control', 'no-store');
   res.json({
     ok: true,
     service: 'hollow-valley-automation-platform',
@@ -26,8 +28,8 @@ app.get('/health', (_req, res) => {
 
 app.get(['/status', '/api/status'], async (req, res) => {
   try {
-    const status = await getPlatformStatus({ force: req.query.force === '1' });
-    res.json(status);
+    res.set('Cache-Control', 'no-store');
+    res.json(await getPublicStatus({ force: req.query.force === '1' }));
   } catch (error) {
     console.error('[automation-status]', error);
     res.status(503).json({
@@ -39,6 +41,10 @@ app.get(['/status', '/api/status'], async (req, res) => {
   }
 });
 
+app.use('/api/admin', (_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+}, adminRoutes);
 app.use('/api/bodydrop', bodyDropRoutes);
 app.use('/api/dinostorage', dinoStorageRoutes);
 
