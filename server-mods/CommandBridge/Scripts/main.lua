@@ -1,12 +1,12 @@
--- CommandBridge v006
+-- CommandBridge v006.1
 -- Hollow Valley / HDS
--- Focus: HTTP pull/result bridge for DinoStorage and BodyDrop on VeryGames under Wine.
+-- Focus: file bridge for DinoStorage and BodyDrop on VeryGames, with optional HTTP fallback.
 --
 -- This build probes several Wine/host launch paths and caches the first one that
 -- can run curl. It never logs the configured authorization header.
 
 local MOD_NAME = "CommandBridge"
-local MOD_VERSION = "v006"
+local MOD_VERSION = "v006.1"
 
 local function log(msg)
     print(string.format("[%s] %s\n", MOD_NAME, tostring(msg)))
@@ -228,6 +228,7 @@ local CURL_LAUNCHERS = {
 
 local function cleanDiagnostic(s)
     s = tostring(s or "")
+    s = s:gsub("Authorization:%s*Bearer%s+[%w%._%-]+", "Authorization: Bearer [redacted]")
     s = s:gsub("[\r\n]+", " ")
     if #s > 240 then s = s:sub(1, 240) .. "..." end
     return s
@@ -502,10 +503,10 @@ local function processInputBody(body)
 
         if id ~= nil and verb ~= nil then
             count = count + 1
-            log(string.format("HTTP command received id=%s verb=%s", tostring(id), tostring(verb)))
+            log(string.format("Command received id=%s verb=%s", tostring(id), tostring(verb)))
             dispatchCommand(id, verb, steam, args)
         else
-            log("Ignoring malformed HTTP command line")
+            log("Ignoring malformed command line")
         end
     end
 
@@ -631,7 +632,11 @@ if LoopInGameThreadWithDelay ~= nil then
 
         safeCall("loadConfig", loadConfig)
 
-        log("HTTP transport: multi-launcher probe enabled")
+        if config.inputMode == "http" then
+            log("Transport active: HTTP pull with multi-launcher probe")
+        else
+            log("Transport active: file queue")
+        end
 
         if bootHandle ~= nil and CancelDelayedAction ~= nil then
             pcall(function()
@@ -647,9 +652,14 @@ if LoopInGameThreadWithDelay ~= nil then
         safeCall("forwardSubmodResults", forwardSubmodResults)
 
         local reload = consumeFlag(RELOAD_FLAG)
-        if reload ~= nil and RestartCurrentMod ~= nil then
-            log("RELOAD; token=" .. tostring(reload))
-            RestartCurrentMod()
+        if reload ~= nil then
+            if RestartCurrentMod ~= nil then
+                log("RELOAD; token=" .. tostring(reload))
+                RestartCurrentMod()
+            else
+                log("RELOAD fallback; applying config in place; token=" .. tostring(reload))
+                safeCall("reloadConfig", loadConfig)
+            end
         end
     end)
 
