@@ -3,6 +3,7 @@ require('dotenv').config();
 const path = require('node:path');
 const express = require('express');
 const { getPublicStatus } = require('./services/statusService');
+const { getMigrationReadiness } = require('./services/migrationReadinessService');
 const { requireAdminToken } = require('./middleware/adminAuth');
 const adminRoutes = require('./routes/adminRoutes');
 const websiteRoutes = require('./routes/websiteRoutes');
@@ -55,6 +56,11 @@ app.get('/api/admin/presence/analytics', requireAdminToken, (req, res) => {
   } catch (error) {
     res.status(400).json({ error: error.message || 'Unable to calculate player presence analytics.' });
   }
+});
+
+app.get('/api/admin/migration-readiness', requireAdminToken, (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ readiness: getMigrationReadiness() });
 });
 
 app.use('/api/admin', (_req, res, next) => {
