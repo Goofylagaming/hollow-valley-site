@@ -4,7 +4,7 @@
 -- IPC: bodydrop commands routed from CommandBridge
 
 local MOD_NAME    = "BodyDrop"
-local MOD_VERSION = "v003.1"
+local MOD_VERSION = "v003.2"
 
 local function resolveModRoot()
     local source = debug.getinfo(1, "S").source or ""
@@ -161,7 +161,7 @@ local function findGameMode()
     return nil
 end
 
-local function getPlayerLocation(steam)
+local function getPlayerPlacement(steam)
     if steam == nil or steam == "" then
         return nil, "no steam id"
     end
@@ -202,23 +202,45 @@ local function getPlayerLocation(steam)
         return nil, "could not read pawn location"
     end
 
-    return loc, nil
+    local forward = { X = 1, Y = 0, Z = 0 }
+
+    pcall(function()
+        local value = pawn:GetActorForwardVector()
+        if value ~= nil and tonumber(value.X) ~= nil and tonumber(value.Y) ~= nil then
+            local length = math.sqrt((value.X * value.X) + (value.Y * value.Y))
+            if length > 0.001 then
+                forward = {
+                    X = value.X / length,
+                    Y = value.Y / length,
+                    Z = 0,
+                }
+            end
+        end
+    end)
+
+    return loc, nil, forward
 end
 
 -- ============================================================
 -- Corpse spawner
 -- ============================================================
 
-local SCATTER_OFFSETS = {
-    { 3000,  3000, 0 },
-    { -3000, 3000, 0 },
-    { 3000, -3000, 0 },
-    { -3000, -3000, 0 },
-    { 4000, 0, 0 },
-    { -4000, 0, 0 },
-    { 0, 4000, 0 },
-    { 0, -4000, 0 },
-}
+local function buildSpawnOffsets(forward)
+    local fx = tonumber(forward and forward.X) or 1
+    local fy = tonumber(forward and forward.Y) or 0
+    local rightX = -fy
+    local rightY = fx
+
+    -- Unreal units are centimetres. Keep every candidate close and visible:
+    -- three to five metres ahead, one metre above the player's live location.
+    return {
+        { fx * 300, fy * 300, 100 },
+        { fx * 500, fy * 500, 100 },
+        { (fx * 300) + (rightX * 200), (fy * 300) + (rightY * 200), 100 },
+        { (fx * 300) - (rightX * 200), (fy * 300) - (rightY * 200), 100 },
+        { 0, 0, 100 },
+    }
+end
 
 local function tryPawnCall(label, fn)
     local ok, result = pcall(fn)
@@ -242,7 +264,7 @@ local function tryPawnCall(label, fn)
     return false, result
 end
 
-local function spawnCorpse(speciesName, location, growthFraction)
+local function spawnCorpse(speciesName, location, growthFraction, forward)
     local classPath = SPECIES_PATHS[speciesName]
 
     if classPath == nil then
@@ -275,14 +297,24 @@ local function spawnCorpse(speciesName, location, growthFraction)
         return false, "no world"
     end
 
-    for i = 0, #SCATTER_OFFSETS do
-        local offset = SCATTER_OFFSETS[i] or { 0, 0, 0 }
+    local spawnOffsets = buildSpawnOffsets(forward)
+
+    for i, offset in ipairs(spawnOffsets) do
 
         local loc = {
             X = location.X + offset[1],
             Y = location.Y + offset[2],
-            Z = location.Z + offset[3] + 1500,
+            Z = location.Z + offset[3],
         }
+
+        log(string.format(
+            "Spawn attempt=%d species=%s X=%.3f Y=%.3f Z=%.3f",
+            i,
+            tostring(speciesName),
+            tonumber(loc.X) or 0,
+            tonumber(loc.Y) or 0,
+            tonumber(loc.Z) or 0
+        ))
 
         local pawn
 
@@ -347,7 +379,12 @@ local function spawnCorpse(speciesName, location, growthFraction)
                 pawn:ForceNetUpdate()
             end)
 
-            return true, "spawned"
+            return true, string.format(
+                "spawned at X=%.3f Y=%.3f Z=%.3f",
+                tonumber(loc.X) or 0,
+                tonumber(loc.Y) or 0,
+                tonumber(loc.Z) or 0
+            )
         end
     end
 
@@ -409,9 +446,10 @@ local function handleCommand(steam, tokens)
         end
 
         local location
+        local forward
 
         if target ~= nil and target ~= "" then
-            local loc, err = getPlayerLocation(target)
+            local loc, err, facing = getPlayerPlacement(target)
 
             if loc == nil then
                 return false,
@@ -419,6 +457,7 @@ local function handleCommand(steam, tokens)
             end
 
             location = loc
+            forward = facing
 
         elseif x ~= nil and y ~= nil and z ~= nil then
             location = {
@@ -433,7 +472,7 @@ local function handleCommand(steam, tokens)
         end
 
         local ok, msg =
-            spawnCorpse(species, location, growth)
+            spawnCorpse(species, location, growth, forward)
 
         return ok, msg
 
