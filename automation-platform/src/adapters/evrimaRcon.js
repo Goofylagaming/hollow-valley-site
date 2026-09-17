@@ -110,6 +110,13 @@ function parsePlayerData(response) {
       species: fields.Class || null,
       growth: numeric('Growth'),
       health: numeric('Health'),
+      stamina: numeric('Stamina'),
+      hunger: numeric('Hunger'),
+      thirst: numeric('Thirst'),
+      location: (() => {
+        const match = /X=(-?[\d.]+)\s+Y=(-?[\d.]+)\s+Z=(-?[\d.]+)/.exec(fields.Location || '');
+        return match ? { x: Number(match[1]), y: Number(match[2]), z: Number(match[3]) } : null;
+      })(),
     });
   }
   return players;
@@ -163,4 +170,49 @@ async function fetchServerStatus({ host, port, password, timeoutMs = 6000 }) {
   });
 }
 
-module.exports = { fetchServerStatus };
+async function executeRconCommand({ host, port, password, code, params = '', timeoutMs = 6000 }) {
+  if (!Number.isInteger(code) || code < 0 || code > 255) throw new Error('Invalid RCON command code');
+  if (typeof params !== 'string' || /[\x00\r\n]/.test(params)) throw new Error('Invalid RCON command parameters');
+
+  return new Promise((resolve, reject) => {
+    const socket = new net.Socket();
+    let settled = false;
+    const fail = (error) => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      reject(error);
+    };
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      resolve(value);
+    };
+
+    socket.setTimeout(timeoutMs * 3, () => fail(new Error('RCON connection timeout')));
+    socket.once('error', fail);
+    socket.connect(port, host, async () => {
+      try {
+        const authPacket = `${String.fromCharCode(AUTH_PREFIX)}${password}${String.fromCharCode(TERMINATOR)}`;
+        const authResponse = await sendAndReceive(socket, authPacket, timeoutMs);
+        if (!authResponse.includes(AUTH_SUCCESS)) throw new Error('RCON authentication failed');
+
+        try {
+          const response = await sendAndReceive(socket, commandPacket(code, params), timeoutMs);
+          finish({ sent: true, confirmed: true, response });
+        } catch (error) {
+          if (error.message === 'RCON response timeout') {
+            finish({ sent: true, confirmed: false, response: null, warning: 'Command was sent but the server returned no confirmation before timeout. Do not retry automatically.' });
+            return;
+          }
+          throw error;
+        }
+      } catch (error) {
+        fail(error);
+      }
+    });
+  });
+}
+
+module.exports = { fetchServerStatus, executeRconCommand, commandPacket, parsePlayerData };
