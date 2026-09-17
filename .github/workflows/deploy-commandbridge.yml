@@ -25,7 +25,7 @@ jobs:
           sudo apt-get install -y lua5.4 lftp
           luac -p server-mods/CommandBridge/Scripts/main.lua
 
-      - name: Backup and deploy CommandBridge HTTP config
+      - name: Backup and deploy CommandBridge file config
         shell: bash
         env:
           FTP_HOST: ${{ secrets.VERYGAMES_FTP_HOST }}
@@ -35,8 +35,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p predeploy-backup
-          TOKEN=$(FTP_PASS="$FTP_PASS" node -e 'const c=require("node:crypto");process.stdout.write(c.createHash("sha256").update("hds-commandbridge-http-v1\0").update(process.env.FTP_PASS).digest("hex"))')
-          printf '%s\n' "{\"enabled\":true,\"inputPollSeconds\":1,\"inputMode\":\"http\",\"inputUrl\":\"https://hollowvalley.herbydeathsquadgames.com/api/internal/commandbridge/poll\",\"inputAuthHeader\":\"Authorization: Bearer $TOKEN\",\"resultUrl\":\"https://hollowvalley.herbydeathsquadgames.com/api/internal/commandbridge/result\"}" > /tmp/commandbridge-config.json
+          printf '%s\n' '{"enabled":true,"inputPollSeconds":1,"inputMode":"file","inputUrl":"","inputAuthHeader":"","resultUrl":""}' > /tmp/commandbridge-config.json
           date +%s > /tmp/reload.flag
           lftp -c "
             set cmd:fail-exit yes;
