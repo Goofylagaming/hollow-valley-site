@@ -14,7 +14,7 @@ function integrationConfig() {
     rcon: configured('RCON_HOST') && configured('RCON_PORT') && configured('RCON_PASSWORD'),
     commandBridge: process.env.COMMAND_BRIDGE_ENABLED === 'true' && configured('SFTP_HOST') && configured('SFTP_PORT') && configured('SFTP_USER') && configured('SFTP_PASSWORD') && configured('SFTP_BASE_PATH'),
     discord: configured('DISCORD_BOT_TOKEN'),
-    database: configured('DATABASE_URL'),
+    database: true,
   };
 }
 
@@ -68,6 +68,12 @@ async function getPlatformStatus(options = {}) {
     service: 'hollow-valley-automation-platform',
     time: new Date().toISOString(),
     integrations,
+    modules: {
+      serverStatus: true,
+      bodyDrop: true,
+      dinoStorage: false,
+      discordAutomation: false,
+    },
     server: {
       online: server.online,
       configured: server.configured,
@@ -81,4 +87,4 @@ async function getPlatformStatus(options = {}) {
   };
 }
 
-module.exports = { getPlatformStatus };
+module.exports = { getPlatformStatus, getServerSnapshot, integrationConfig };
