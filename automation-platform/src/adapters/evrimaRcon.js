@@ -81,6 +81,15 @@ function parseMaxPlayers(response) {
   return null;
 }
 
+function parseMutationList(raw) {
+  if (!raw) return [];
+  return raw
+    .replace(/^\[|\]$/g, '')
+    .split(',')
+    .map((entry) => entry.replace(/^\d+=/, '').trim())
+    .filter((entry) => entry && entry.toLowerCase() !== 'none');
+}
+
 function parsePlayerData(response) {
   const players = [];
   for (const rawLine of response.split('\n')) {
@@ -107,12 +116,15 @@ function parsePlayerData(response) {
     players.push({
       steamId: fields.PlayerID,
       name: fields.Name || 'Unknown',
+      gender: fields.Gender || null,
       species: fields.Class || null,
       growth: numeric('Growth'),
       health: numeric('Health'),
       stamina: numeric('Stamina'),
       hunger: numeric('Hunger'),
       thirst: numeric('Thirst'),
+      isPrime: String(fields.PrimeElder).toLowerCase() === 'true',
+      mutations: parseMutationList(fields.MutationSlots),
       location: (() => {
         const match = /X=(-?[\d.]+)\s+Y=(-?[\d.]+)\s+Z=(-?[\d.]+)/.exec(fields.Location || '');
         return match ? { x: Number(match[1]), y: Number(match[2]), z: Number(match[3]) } : null;
