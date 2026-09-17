@@ -51,6 +51,7 @@ function isCarnivoreSpecies(value) {
 }
 
 function growthPercent(value) {
+  if (value === null || value === undefined || value === "") return null;
   const growth = Number(value);
   if (!Number.isFinite(growth) || growth < 0) return null;
   return growth <= 1 ? growth * 100 : growth;
