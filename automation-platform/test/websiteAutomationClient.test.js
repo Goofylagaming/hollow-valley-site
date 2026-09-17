@@ -78,3 +78,31 @@ test('website client preserves automation HTTP errors for the live backend to ha
     );
   });
 });
+
+test('status polling only reads request state and stops on an unknown outcome', async () => {
+  await withEnv({
+    AUTOMATION_SERVICE_URL: 'https://automation.example.test',
+    HOLLOW_VALLEY_API_TOKEN: 'website-secret',
+  }, async () => {
+    const client = loadClient();
+    const statuses = ['queued', 'acknowledged', 'unknown'];
+    const calls = [];
+    const fetchImpl = async (url, options) => {
+      calls.push({ url, method: options.method });
+      const status = statuses.shift() || 'unknown';
+      return response(200, { request: { id: 'request_12345678', status } });
+    };
+
+    const result = await client.waitForRequestStatus('request_12345678', '76561198000000000', {
+      fetchImpl,
+      intervalMs: 250,
+      maxWaitMs: 2000,
+    });
+
+    assert.equal(result.terminal, true);
+    assert.equal(result.requiresOperator, true);
+    assert.equal(result.request.status, 'unknown');
+    assert.equal(calls.length, 3);
+    assert.ok(calls.every((entry) => entry.method === 'GET'));
+  });
+});
