@@ -8,6 +8,7 @@ const bodyDropRoutes = require('./routes/bodyDropRoutes');
 const dinoStorageRoutes = require('./routes/dinoStorageRoutes');
 const { startBodyDropReconciler } = require('./services/bodyDropService');
 const { startDinoStorageReconciler } = require('./services/dinoStorageService');
+const { startDiscordAutomation } = require('./services/discordAutomationService');
 
 const app = express();
 const port = Number(process.env.PORT || 3100);
@@ -55,6 +56,7 @@ app.get('*', (_req, res) => {
 if (require.main === module) {
   startBodyDropReconciler();
   startDinoStorageReconciler();
+  startDiscordAutomation();
   app.listen(port, () => {
     console.log(`Hollow Valley automation platform listening on port ${port}`);
   });
