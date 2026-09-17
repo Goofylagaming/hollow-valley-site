@@ -6,7 +6,7 @@
   <meta name="description" content="Hollow Valley server automation control center.">
   <title>Automation Center | Herby Death Squad</title>
   <link rel="stylesheet" href="https://hollowvalley.herbydeathsquadgames.com/assets/styles.css?v=12">
-  <link rel="stylesheet" href="/assets/automation.css?v=4">
+  <link rel="stylesheet" href="/assets/automation.css?v=5">
 </head>
 <body>
   <div class="app-shell">
@@ -95,6 +95,36 @@
             </article>
           </div>
 
+          <article class="automation-panel rcon-panel">
+            <div class="panel-heading"><div><small>EVRIMA RCON</small><h3>Server controls</h3></div><span class="panel-pill" id="rcon-write-health">Write locked</span></div>
+            <div class="rcon-warning" id="rcon-write-warning">RCON write commands are disabled until RCON_WRITE_ENABLED=true is explicitly configured.</div>
+            <div class="rcon-control-grid">
+              <form class="rcon-control" id="rcon-announcement-form">
+                <label for="rcon-announcement">IN-GAME ANNOUNCEMENT</label>
+                <textarea id="rcon-announcement" maxlength="240" rows="4" placeholder="Message shown to every player…"></textarea>
+                <button class="small-button" type="submit">Send in-game announcement</button>
+              </form>
+              <div class="rcon-control">
+                <small>SERVER MAINTENANCE</small>
+                <p>Trigger a manual game-data save. A response timeout is shown as unconfirmed and is never automatically retried.</p>
+                <button class="small-button" id="rcon-save" type="button">Save server data</button>
+              </div>
+              <form class="rcon-control" id="rcon-ai-form">
+                <label for="rcon-ai-density">AI DENSITY</label>
+                <input id="rcon-ai-density" type="number" min="0" max="1" step="0.05" value="0.5">
+                <small>Allowed range: 0.00–1.00</small>
+                <button class="small-button" type="submit">Set AI density</button>
+              </form>
+              <form class="rcon-control danger-control" id="rcon-wipe-form" autocomplete="off">
+                <label for="rcon-wipe-confirm">WIPE CORPSES</label>
+                <p>This removes dead bodies from the game world. Type <b>WIPE CORPSES</b> to enable the action.</p>
+                <input id="rcon-wipe-confirm" type="text" autocomplete="off" placeholder="WIPE CORPSES">
+                <button class="small-button danger-button" type="submit">Wipe corpses</button>
+              </form>
+            </div>
+            <div class="automation-notice" id="rcon-action-status" hidden></div>
+          </article>
+
           <article class="automation-panel discord-panel">
             <div class="panel-heading"><div><small>DISCORD</small><h3>Community automation</h3></div><span class="panel-pill" id="discord-health">Not configured</span></div>
             <div class="discord-grid">
@@ -149,6 +179,6 @@
 
     <footer><span>© 2026 Herby Death Squad Games</span><span>HOLLOW VALLEY AUTOMATION PLATFORM</span><a href="https://hollowvalley.herbydeathsquadgames.com/">Back to command ↑</a></footer>
   </div>
-  <script src="/assets/automation.js?v=4"></script>
+  <script src="/assets/automation.js?v=5"></script>
 </body>
 </html>
