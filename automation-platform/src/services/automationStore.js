@@ -55,6 +55,12 @@ db.exec(`
     ON automation_audit(created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_automation_audit_category_action
     ON automation_audit(category, action, created_at DESC);
+
+  CREATE TABLE IF NOT EXISTS automation_state (
+    key TEXT PRIMARY KEY,
+    value_json TEXT NOT NULL DEFAULT '{}',
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
 `);
 
 function parseJson(value) {
@@ -245,6 +251,27 @@ function listAudit({ category = null, action = null, statuses = null, limit = 10
     .map(parseAudit);
 }
 
+function getState(key, fallback = null) {
+  const row = db.prepare('SELECT value_json, updated_at FROM automation_state WHERE key = ?').get(String(key));
+  if (!row) return fallback;
+  return { value: parseJson(row.value_json), updatedAt: row.updated_at };
+}
+
+function setState(key, value) {
+  const name = String(key || '').trim();
+  if (!name) throw new Error('State key is required');
+  db.prepare(`
+    INSERT INTO automation_state (key, value_json, updated_at)
+    VALUES (?, ?, datetime('now'))
+    ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json, updated_at = datetime('now')
+  `).run(name, JSON.stringify(value ?? {}));
+  return getState(name);
+}
+
+function deleteState(key) {
+  return db.prepare('DELETE FROM automation_state WHERE key = ?').run(String(key)).changes;
+}
+
 module.exports = {
   dbPath,
   createRequest,
@@ -262,4 +289,7 @@ module.exports = {
   getAudit,
   updateAudit,
   listAudit,
+  getState,
+  setState,
+  deleteState,
 };
