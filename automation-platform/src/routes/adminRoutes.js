@@ -4,6 +4,7 @@ const { getAdminStatus } = require('../services/statusService');
 const bodyDrop = require('../services/bodyDropService');
 const dinoStorage = require('../services/dinoStorageService');
 const discordAutomation = require('../services/discordAutomationService');
+const scheduler = require('../services/schedulerService');
 const store = require('../services/automationStore');
 
 const router = express.Router();
@@ -14,6 +15,7 @@ router.get('/status', async (req, res) => {
     res.json({
       ...(await getAdminStatus({ force: req.query.force === '1' })),
       discordAutomation: discordAutomation.getState(),
+      scheduler: scheduler.getSchedulerState().summary,
     });
   } catch (error) {
     console.error('[automation-admin-status]', error);
@@ -57,6 +59,39 @@ router.post('/discord/announce', async (req, res) => {
     res.status(201).json({ ok: true, announcement });
   } catch (error) {
     res.status(400).json({ error: error.message || 'Discord announcement failed.' });
+  }
+});
+
+router.get('/jobs', (_req, res) => {
+  res.json(scheduler.getSchedulerState());
+});
+
+router.post('/jobs/discord-announcement', (req, res) => {
+  try {
+    const job = scheduler.createDiscordAnnouncementJob({
+      message: req.body?.message,
+      runAt: req.body?.runAt,
+      recurrence: req.body?.recurrence,
+    });
+    res.status(201).json({ ok: true, job });
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Unable to schedule Discord announcement.' });
+  }
+});
+
+router.post('/jobs/:id/cancel', (req, res) => {
+  try {
+    res.json({ ok: true, job: scheduler.cancelJob(req.params.id) });
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Unable to cancel scheduled job.' });
+  }
+});
+
+router.post('/jobs/run-due', async (_req, res) => {
+  try {
+    res.json({ ok: true, ...(await scheduler.runDueJobs()) });
+  } catch (error) {
+    res.status(503).json({ error: error.message || 'Scheduler run failed.' });
   }
 });
 
