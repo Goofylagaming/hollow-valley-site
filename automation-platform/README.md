@@ -1,123 +1,111 @@
 # Hollow Valley Automation Platform
 
-This folder is intentionally isolated from the live Hollow Valley website code. Development happens on the `automation-platform` branch and nothing here is merged into or deployed from `master` automatically.
+This folder is intentionally isolated from the live Hollow Valley website. Development happens on the `automation-platform` branch; nothing here is merged into or deployed from `master` automatically.
 
-The service is a separate Hollow Valley control plane: it connects the HDS-style operator console to Evrima RCON, VeryGames FTP/CommandBridge, BodyDrop, DinoStorage, Discord and persisted scheduling while preserving the current portal's visual language.
+The project is a separate Hollow Valley control plane that keeps the existing HDS dark/gold/Cinzel-style visual language while moving server automation into an independently deployable service.
 
-## Current milestone
+## What is built
 
-Built on the isolated branch:
+### Operator console
 
-- Hollow Valley-style Automation Center UI using the existing dark/gold HDS design language.
-- Public aggregate server-health endpoint with privileged player/location data removed.
-- Admin-token-protected operator console and privileged APIs.
-- Native Evrima RCON status/player-data client.
-- Gated RCON write controls for server announcements, direct messages, save, corpse wipe and AI density.
-- `RCON_WRITE_ENABLED=false` safety switch so write controls fail closed until deliberately enabled.
-- VeryGames plain-FTP CommandBridge adapter with atomic command publication.
-- CommandBridge acknowledgement/result correlation and unknown-outcome handling.
-- BodyDrop worker using live RCON position data, cooldowns and result reconciliation.
-- DinoStorage list/store/redeem worker with deferred-result safety messaging.
-- SQLite request, scheduler-job and operator-audit ledgers.
-- Automatic BodyDrop and DinoStorage reconcilers.
-- Bridge diagnostics for busy command queues and oversized result logs.
-- Discord REST automation for status-channel naming and protected announcements.
-- Persisted one-time/daily/weekly Discord announcement scheduling with restart recovery.
-- Read-only operator audit feed with secret-field redaction.
-- Branch-only GitHub Actions regression tests.
+- Hollow Valley-style Automation Center.
+- Public aggregate status with player identities and positions removed.
+- Admin-token-protected detailed console.
+- Live player/RCON status.
+- CommandBridge queue and reconciliation diagnostics.
+- BodyDrop/DinoStorage request ledger.
+- RCON control panel with server-side write kill switch.
+- Discord status/announcement controls.
+- Persisted scheduler UI.
+- Player Activity panel for read-only tracked sessions/analytics.
+- Migration Readiness panel showing setup, safety and publisher-cutover state.
 
-Still intentionally not connected to production:
+### Evrima and game-server integration
 
-- The isolated automation service itself.
-- CommandBridge publishing from this second service.
-- RCON write controls.
-- Discord channel automation from this second service.
-- Player-facing calls from the live Hollow Valley website into this service.
+- Native Evrima RCON protocol client.
+- Player list, character data, growth/vitals/location and server slot reads.
+- Gated RCON actions for announcement, direct message, save, corpse wipe and AI density.
+- VeryGames plain-FTP adapter.
+- Atomic CommandBridge publication that refuses to overwrite a busy queue.
+- Strict bridge acknowledgement vs. sub-mod completion handling.
+- BodyDrop worker using live RCON coordinates, cooldowns and reconciliation.
+- DinoStorage file reads plus store/redeem request/reconciliation flows.
 
-`master` remains untouched by this work.
+### Automation and persistence
+
+- SQLite request ledger.
+- Scheduled-job ledger.
+- Operator audit ledger with secret-field redaction.
+- Persisted server-monitor state.
+- Persisted read-only player-presence sessions.
+- Automatic BodyDrop/DinoStorage reconcilers.
+- Discord REST status-channel sync and announcements.
+- One-time/daily/weekly Discord announcement scheduler.
+- Multi-failure server outage/recovery monitor.
+- Presence analytics: unique players, tracked player-minutes, tracked peak concurrency and top tracked players.
+
+### Website integration
+
+- Dedicated `HOLLOW_VALLEY_API_TOKEN`, separate from the operator token.
+- Private `/api/website/*` server-to-server endpoints.
+- `integration/websiteAutomationClient.js` for the eventual live backend connection.
+- `integration/liveRouteAdapters.js` to preserve the current My Dinos/BodyDrop response shapes and minimize frontend changes.
+- Request-status polling that never replays the original game action.
+
+### Deployment safety
+
+- Separate `automation-platform/render.yaml` for a new Render service.
+- `autoDeploy: false` by default.
+- Persistent `/var/data` SQLite disk configuration.
+- `RCON_WRITE_ENABLED=false` by default.
+- `COMMAND_BRIDGE_ENABLED=false` by default.
+- `PLAYER_PRESENCE_ENABLED=false` by default.
+- `SERVER_MONITOR_ENABLED=false` by default.
+- CommandBridge requires an additional exact sole-publisher acknowledgement before it can publish:
+
+```text
+COMMAND_BRIDGE_SINGLE_PUBLISHER_ACK=automation-platform-is-sole-publisher
+```
+
+That acknowledgement must remain unset until the existing live website has stopped publishing directly to the same CommandBridge queue.
 
 ## Safety model
 
-`GET /health` and `GET /api/status` are public but expose only aggregate information such as server online status, player count and max slots. They do not expose Steam IDs, player names, locations, bridge paths, queues, stored dinos or audit records.
+Public endpoints only expose aggregate health. Steam IDs, names, locations, stored dino data, queues, audit history, presence history and migration diagnostics are protected.
 
-Privileged endpoints require `AUTOMATION_ADMIN_TOKEN` through `Authorization: Bearer <token>` (or `x-automation-token`). If no admin token is configured, privileged APIs fail closed with HTTP 503. The browser console keeps a supplied token in `sessionStorage` only.
+`AUTOMATION_ADMIN_TOKEN` protects operator/admin APIs.
 
-CommandBridge behavior is conservative:
+`HOLLOW_VALLEY_API_TOKEN` protects the live website's server-to-server integration. Never expose it to browser JavaScript and never reuse the operator token.
 
-- A positive routing acknowledgement is not a BodyDrop completion.
-- BodyDrop becomes `confirmed` only from a correlated `source: BodyDrop` result.
-- DinoStorage reports accepted sub-mod work separately from the deferred in-game kill/restore outcome.
-- Missing results become `unknown`; they are never automatically replayed.
-- The FTP publisher refuses to overwrite an existing unconsumed command queue.
-- A `results.ndjson` file over 8 MiB blocks normal result processing until it is rotated by an operator.
+Game actions remain conservative:
 
-RCON writes have an additional server-side gate:
+- queue/routing acknowledgement is not completion;
+- BodyDrop becomes confirmed only from the correlated BodyDrop result;
+- DinoStorage acceptance is separate from its deferred in-game kill/restore lifecycle;
+- unknown outcomes are never automatically replayed;
+- a busy single-file command queue is a stop condition;
+- RCON writes reported as sent-but-unconfirmed are not retried automatically.
 
-- `RCON_WRITE_ENABLED` defaults to `false`.
-- The UI remains disabled until RCON is configured and that flag is explicitly enabled.
-- Only allowlisted commands are exposed.
-- Messages, Steam IDs and AI density values are validated before a packet is built.
-- Corpse wipe requires the exact confirmation text `WIPE CORPSES`.
-- If a command is written to the socket but no response arrives, it is reported as **sent but unconfirmed** and is not automatically retried.
-
-Discord automation is deliberately narrow:
-
-- It uses Discord REST rather than opening a second gateway session alongside the existing HerbyBot.
-- Status-channel renaming has a minimum five-minute cadence.
-- Announcements can only target the configured announcement channel.
-- `allowed_mentions` is disabled for automated announcements.
-- Scheduled announcements use the job ID as a Discord nonce for duplicate mitigation.
-
-The operator audit ledger stores category, action, status, timestamps and limited metadata. Keys containing names such as token, password, secret, authorization, cookie or credential are automatically redacted. BodyDrop/DinoStorage audit entries intentionally do not store Steam IDs.
-
-## Layout
+## Important directories
 
 ```text
 automation-platform/
-  public/
-    index.html
-    assets/
-      automation.css
-      automation.js
-      rcon-controls.css
-      rcon-controls.js
-      audit-panel.js
+  public/                     # HDS-style Automation Center
   src/
-    index.js
-    adapters/
-      evrimaRcon.js
-      fileBridge.js
-    middleware/
-      adminAuth.js
-    routes/
-      adminRoutes.js
-      bodyDropRoutes.js
-      dinoStorageRoutes.js
-    services/
-      auditService.js
-      automationStore.js
-      bodyDropService.js
-      commandBridgeService.js
-      dinoStorageService.js
-      discordAutomationService.js
-      rconControlService.js
-      schedulerService.js
-      statusService.js
-  test/
-    adminAuth.test.js
-    audit.test.js
-    commandBridge.test.js
-    discordAutomation.test.js
-    rconControl.test.js
-    scheduler.test.js
-    statusPrivacy.test.js
+    adapters/                 # Evrima RCON + VeryGames FTP
+    middleware/               # admin + website auth
+    routes/                   # admin/player-service endpoints
+    services/                 # workers, reconciliation, scheduler, analytics
+  integration/                # future live-site backend adapter/client
+  test/                       # regression/privacy/safety tests
   .env.example
-  package.json
+  Dockerfile
+  render.yaml
+  WEBSITE_INTEGRATION.md
+  DEPLOYMENT.md
 ```
 
 ## Local run
-
-From the repository root:
 
 ```bash
 cd automation-platform
@@ -128,7 +116,14 @@ npm start
 
 Open `http://localhost:3100`.
 
-For UI/local testing, keep both `COMMAND_BRIDGE_ENABLED=false` and `RCON_WRITE_ENABLED=false`. RCON, FTP and Discord credentials may remain blank; the console reports integrations as not configured instead of attempting live actions.
+For safe local/UI testing leave these disabled:
+
+```text
+COMMAND_BRIDGE_ENABLED=false
+RCON_WRITE_ENABLED=false
+PLAYER_PRESENCE_ENABLED=false
+SERVER_MONITOR_ENABLED=false
+```
 
 Run tests with:
 
@@ -136,20 +131,9 @@ Run tests with:
 npm test
 ```
 
-## Important environment groups
+The branch GitHub Actions workflow also runs the test suite and Docker build after pushes.
 
-- `AUTOMATION_ADMIN_TOKEN`: long random operator secret required by privileged APIs.
-- `AUTOMATION_DB_PATH`: SQLite request/job/audit database. Production requires persistent storage.
-- `AUTOMATION_SCHEDULER_INTERVAL_MS`: scheduler poll interval.
-- `RCON_HOST`, `RCON_PORT`, `RCON_PASSWORD`: existing Evrima RCON connection settings.
-- `RCON_WRITE_ENABLED`: explicit kill switch for write commands; default `false`.
-- `GAME_FILE_PROTOCOL=ftp` and `SFTP_*`: existing VeryGames file-access settings. The historical `SFTP_*` names are retained for compatibility even though this host uses plain FTP.
-- `COMMAND_BRIDGE_ENABLED`: keep `false` until this separate service is deliberately connected.
-- `COMMAND_BRIDGE_SAVED_PATH`: normally `Mods/CommandBridge/Saved`, relative to UE4SS.
-- `BODYDROP_*` / `DINOSTORAGE_*`: cooldown and reconciliation controls.
-- `DISCORD_BOT_TOKEN`, `DISCORD_STATUS_CHANNEL_ID`, `DISCORD_ANNOUNCEMENT_CHANNEL_ID`: optional Discord automation.
-
-## API overview
+## API groups
 
 Public:
 
@@ -157,50 +141,34 @@ Public:
 - `GET /api/status`
 - `GET /api/bodydrop/options`
 
-Admin-token protected:
+Operator/admin protected:
 
 - `GET /api/admin/status`
 - `GET /api/admin/requests`
 - `GET /api/admin/audit`
+- `GET /api/admin/presence`
+- `GET /api/admin/presence/analytics`
+- `POST /api/admin/presence/sample`
+- `GET /api/admin/migration-readiness`
 - `POST /api/admin/reconcile`
-- `GET /api/admin/discord`
-- `POST /api/admin/discord/sync-status`
-- `POST /api/admin/discord/announce`
-- `GET /api/admin/jobs`
-- `POST /api/admin/jobs/discord-announcement`
-- `POST /api/admin/jobs/:id/cancel`
-- `POST /api/admin/jobs/run-due`
-- `GET /api/admin/rcon`
-- `POST /api/admin/rcon/announce`
-- `POST /api/admin/rcon/direct-message`
-- `POST /api/admin/rcon/save`
-- `POST /api/admin/rcon/wipe-corpses`
-- `POST /api/admin/rcon/ai-density`
-- `GET /api/bodydrop/requests`
-- `GET /api/bodydrop/cooldown/:steamId`
-- `POST /api/bodydrop/request`
-- `POST /api/bodydrop/reconcile`
-- `GET /api/dinostorage/requests`
-- `GET /api/dinostorage/:steamId`
-- `POST /api/dinostorage/store`
-- `POST /api/dinostorage/redeem`
-- `POST /api/dinostorage/reconcile`
+- Discord controls
+- scheduler controls
+- server-monitor controls
+- RCON controls
 
-## Production activation order
+Website server-to-server protected:
 
-When this branch is eventually deployed as a **separate** service:
+- `GET /api/website/bodydrop/cooldown/:steamId`
+- `POST /api/website/bodydrop`
+- `GET /api/website/dinostorage/:steamId`
+- `POST /api/website/dinostorage/store`
+- `POST /api/website/dinostorage/redeem`
+- `GET /api/website/requests/:requestId?steamId=...`
 
-1. Create a new Render service rooted at `automation-platform`; do not repoint the live Hollow Valley service.
-2. Add a persistent disk and set `AUTOMATION_DB_PATH` to it.
-3. Generate a long random `AUTOMATION_ADMIN_TOKEN` in Render secrets.
-4. Add RCON credentials but keep `RCON_WRITE_ENABLED=false`.
-5. Add FTP credentials but keep `COMMAND_BRIDGE_ENABLED=false`.
-6. Verify `/health`, `/api/status`, admin login, public privacy behavior and RCON read-only status.
-7. Verify FTP/CommandBridge diagnostics without publishing commands.
-8. Add Discord credentials and verify status-channel sync/manual announcements in a controlled channel.
-9. Exercise the scheduler with a harmless test announcement and confirm the audit log.
-10. Enable CommandBridge only after confirming the existing UE4SS consumer and single-file queue are compatible with a second publisher.
-11. Test controlled BodyDrop/DinoStorage requests and reconcile every result.
-12. Enable `RCON_WRITE_ENABLED=true` only after controlled read-only/Discord/CommandBridge verification and test one harmless server announcement first.
+See `WEBSITE_INTEGRATION.md` for the live-site contract and `DEPLOYMENT.md` for the staged rollout/cutover procedure.
 
-The live `master` branch remains the source of truth for the public Hollow Valley site until integration is deliberately reviewed and merged.
+## Production status
+
+This work remains intentionally disconnected from production. The automation service has not been deployed, the live website has not been switched to the new integration client, CommandBridge publishing is disabled, and RCON writes remain disabled.
+
+The live `master` branch stays the source of truth until integration is deliberately reviewed and merged.
