@@ -1,3 +1,4 @@
+# Diagnostic trigger after live server restart: 2026-09-18
 name: VeryGames CommandBridge Diagnostic
 
 on:
