@@ -1,7 +1,12 @@
 const { randomUUID } = require('node:crypto');
 const fileBridge = require('../adapters/fileBridge');
 
-const SOURCES = { bd: 'BodyDrop' };
+const SOURCES = {
+  bd: 'BodyDrop',
+  dino_store: 'DinoStorage',
+  dino_retrieve: 'DinoStorage',
+  dino_list: 'DinoStorage',
+};
 
 function buildCommand(verb, steamId, tokens = []) {
   if (!Object.hasOwn(SOURCES, verb)) throw new Error(`Unsupported CommandBridge verb: ${verb}`);
@@ -81,6 +86,7 @@ async function readOutcome(command) {
 }
 
 module.exports = {
+  SOURCES,
   buildCommand,
   queueCommand,
   readOutcome,
