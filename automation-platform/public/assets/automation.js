@@ -83,8 +83,33 @@ function renderRequests(requests) {
   }).join('');
 }
 
+function renderDiscordAutomation(state = {}) {
+  const ready = state.statusChannelConfigured && state.announcementConfigured;
+  const partial = state.configured && !ready;
+  const health = state.lastError ? 'Needs attention' : ready ? 'Ready' : partial ? 'Partial setup' : 'Not configured';
+  $('discord-health').textContent = health;
+  $('discord-status-channel').textContent = state.statusChannelConfigured
+    ? state.lastStatusChannelName ? `Last synced: ${state.lastStatusChannelName}` : 'Configured · waiting for first sync'
+    : 'Not configured';
+  $('discord-announcement-channel').textContent = state.announcementConfigured ? 'Announcement channel configured' : 'Announcement channel not configured';
+
+  const sync = $('discord-sync-status');
+  if (sync) sync.disabled = !state.statusChannelConfigured;
+  const message = $('discord-message');
+  const submit = document.querySelector('#discord-announcement-form button[type="submit"]');
+  if (message) message.disabled = !state.announcementConfigured;
+  if (submit) submit.disabled = !state.announcementConfigured;
+
+  const notice = $('discord-action-status');
+  if (state.lastError && notice) {
+    notice.hidden = false;
+    notice.classList.add('error');
+    notice.textContent = state.lastError;
+  }
+}
+
 function renderAdminStatus(status) {
-  const { server, integrations, modules = {}, bridge = {}, requests = {} } = status;
+  const { server, integrations, modules = {}, bridge = {}, requests = {}, discordAutomation = {} } = status;
   setHeader(server);
   setState('server-state', server.online ? 'Online' : server.configured ? 'Offline' : 'Not set', server.online ? 'online' : 'offline');
   $('server-detail').textContent = server.online ? 'Evrima RCON responding' : server.error || 'RCON configuration required';
@@ -126,6 +151,7 @@ function renderAdminStatus(status) {
   errorBox.hidden = !problems.length;
   errorBox.textContent = problems.join(' ');
   renderPlayers(server);
+  renderDiscordAutomation(discordAutomation);
 }
 
 async function fetchJson(url, options = {}) {
@@ -140,10 +166,11 @@ async function fetchJson(url, options = {}) {
   return body;
 }
 
-function adminHeaders() {
+function adminHeaders(json = false) {
   return {
     Accept: 'application/json',
     Authorization: `Bearer ${adminToken}`,
+    ...(json ? { 'Content-Type': 'application/json' } : {}),
   };
 }
 
@@ -211,6 +238,14 @@ function lockConsole(message = '') {
   if ($('admin-token')) $('admin-token').value = '';
 }
 
+function showDiscordNotice(message, isError = false) {
+  const notice = $('discord-action-status');
+  if (!notice) return;
+  notice.hidden = !message;
+  notice.textContent = message || '';
+  notice.classList.toggle('error', Boolean(isError));
+}
+
 $('admin-login-form')?.addEventListener('submit', async (event) => {
   event.preventDefault();
   const token = $('admin-token').value.trim();
@@ -241,6 +276,46 @@ $('reconcile-all')?.addEventListener('click', async () => {
   } finally {
     button.disabled = false;
     button.textContent = 'Reconcile queues';
+  }
+});
+
+$('discord-sync-status')?.addEventListener('click', async () => {
+  const button = $('discord-sync-status');
+  button.disabled = true;
+  button.textContent = 'Syncing…';
+  showDiscordNotice('');
+  try {
+    const result = await fetchJson('/api/admin/discord/sync-status', { method: 'POST', headers: adminHeaders() });
+    showDiscordNotice(result.changed ? `Discord status channel updated to ${result.name}.` : `Discord status channel already matches ${result.name}.`);
+    await loadAdminStatus(false);
+  } catch (error) {
+    showDiscordNotice(error.message, true);
+  } finally {
+    button.textContent = 'Sync status now';
+  }
+});
+
+$('discord-announcement-form')?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const message = $('discord-message')?.value.trim();
+  if (!message) return;
+  const button = event.currentTarget.querySelector('button[type="submit"]');
+  button.disabled = true;
+  button.textContent = 'Sending…';
+  showDiscordNotice('');
+  try {
+    await fetchJson('/api/admin/discord/announce', {
+      method: 'POST',
+      headers: adminHeaders(true),
+      body: JSON.stringify({ message }),
+    });
+    $('discord-message').value = '';
+    showDiscordNotice('Announcement sent to Discord.');
+  } catch (error) {
+    showDiscordNotice(error.message, true);
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Send announcement';
   }
 });
 
