@@ -215,14 +215,18 @@ function formatCooldown(seconds) {
 function renderBodyDropStatus(data) {
   const container = document.getElementById("bodydrop-content");
   if (!container) return;
+
+  const eligibilityBlocked = data.eligibility?.eligible === false && Boolean(data.eligibility?.reason);
   const status = !data.steamLinked
     ? "Sign in with Steam first"
     : !data.serverOnline
       ? "Server sync offline"
       : data.cooldown?.active
         ? data.cooldown.reason === "pending" ? "Request pending" : `Cooldown ${formatCooldown(data.cooldown.remainingSeconds)}`
-        : "Available now";
-  const disabled = !data.steamLinked || !data.serverOnline || data.cooldown?.active;
+        : eligibilityBlocked
+          ? data.eligibility.reason
+          : "Available now · carnivores at 60% growth or below";
+  const disabled = !data.steamLinked || !data.serverOnline || data.cooldown?.active || eligibilityBlocked;
   const options = (data.options || []).map((option) => `
     <button class="bodydrop-option" data-drop-type="${escapeHtml(option.id)}" ${disabled ? "disabled" : ""}>
       <strong>${escapeHtml(option.name)}</strong><span>${escapeHtml(option.description)}</span>
