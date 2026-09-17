@@ -73,6 +73,10 @@ services:
         value: false
       - key: COMMAND_BRIDGE_ENABLED
         value: false
+      # Set manually only after the old website publisher is disabled. Expected
+      # value: automation-platform-is-sole-publisher
+      - key: COMMAND_BRIDGE_SINGLE_PUBLISHER_ACK
+        sync: false
       - key: COMMAND_BRIDGE_SAVED_PATH
         value: Mods/CommandBridge/Saved
       - key: COMMAND_BRIDGE_TIMEOUT_MS
