@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 const express = require("express");
+process.env.DB_PATH = ":memory:";
 const bridge = require("../server/services/commandBridge");
 const files = require("../server/services/sftpBridge");
 const storage = require("../server/services/dinoStorage");
@@ -25,6 +26,84 @@ const command = { id: "test-id", verb: "bd", steam };
 const ack = { ...command, ok: true, msg: "queued" };
 const final = { id: command.id, steam, source: "BodyDrop", ok: true, msg: "spawned" };
 const ndjson = (...rows) => rows.map((row) => JSON.stringify(row) + "\n").join("");
+
+test("BodyDrop reconciliation reads the existing ID without any command upload", async (t) => {
+  configure(t);
+  const { client } = fixture(t);
+  client.get = async () => Buffer.from(ndjson(ack, final));
+  assert.deepEqual(await bridge.inspectBodyDropResult(command.id, steam), final);
+  assert.equal(client.append.mock.callCount(), 0);
+  assert.equal(client.end.mock.callCount(), 1);
+});
+
+test("BodyDrop reconciliation retains pending on ACK, mismatches and unreadable results", async (t) => {
+  configure(t);
+  const { client } = fixture(t);
+  for (const row of [ack, { ...final, id: "other" }, { ...final, steam: "76561198000000001" }, { ...final, source: "DinoStorage" }]) {
+    client.get = async () => Buffer.from(ndjson(row));
+    assert.equal(await bridge.inspectBodyDropResult(command.id, steam), null);
+  }
+  client.get = async () => { throw new Error("read failed"); };
+  await assert.rejects(bridge.inspectBodyDropResult(command.id, steam), /read failed/);
+  assert.equal(client.append.mock.callCount(), 0);
+});
+
+test("BodyDrop GET reconciles late success and failure and keeps uncertain requests locked", async (t) => {
+  configure(t);
+  for (const [index, result] of [final, { ...final, ok: false, msg: "not spawned" }, null].entries()) {
+    const user = db.findOrCreateUser({ discordId: `reconcile-${index}`, username: "test", avatar: null });
+    const row = db.createBodyDropRequest({ userId: user.id, steamId: steam, dropType: "large" });
+    db.updateBodyDropRequest(row.id, { status: "queued", bridgeRequestId: command.id });
+    const inspect = t.mock.method(bridge, "inspectBodyDropResult", async (id, owner) => {
+      assert.equal(id, command.id); assert.equal(owner, steam); return result;
+    });
+    const execute = t.mock.method(bridge, "executeCommand", async () => assert.fail("must not requeue"));
+    const response = await request(t, "/api/bodydrop", { method: "GET", user: { ...user, steam_id: steam } });
+    assert.equal(response.status, 200);
+    assert.equal(response.body.latest.status, result ? (result.ok ? "completed" : "failed") : "queued");
+    assert.equal(response.body.latest.bridge_request_id, command.id);
+    assert.equal(execute.mock.callCount(), 0);
+    inspect.mock.restore(); execute.mock.restore();
+  }
+});
+
+test("BodyDrop HTTP reconciliation accepts only matching terminal results", async (t) => {
+  configure(t, { COMMAND_BRIDGE_TRANSPORT: "http_pull" });
+  const http = require("../server/services/commandBridgeHttp");
+  let row = { id: command.id, verb: "bd", steam, status: "completed", result_json: JSON.stringify(final) };
+  t.mock.method(http, "getRequest", () => row);
+  t.mock.method(http, "execute", async () => assert.fail("must not enqueue"));
+  assert.deepEqual(await bridge.inspectBodyDropResult(command.id, steam), final);
+  row = { ...row, status: "acknowledged" };
+  assert.equal(await bridge.inspectBodyDropResult(command.id, steam), null);
+  row = { ...row, status: "completed", steam: "76561198000000001" };
+  assert.equal(await bridge.inspectBodyDropResult(command.id, steam), null);
+});
+
+test("BodyDrop correlation is persisted before publishing and persistence failure prevents publication", async (t) => {
+  configure(t);
+  const { client } = fixture(t);
+  let prepared;
+  const append = client.append;
+  client.append = async (...args) => {
+    assert.equal(JSON.parse(args[0]).id, prepared.id);
+    return append(...args);
+  };
+  const outcome = await bodyDrop.executeBodyDrop({
+    bodyDropRequestId: 123,
+    steamId: steam, species: "Triceratops", growth: 1, location: { x: 1, y: 2, z: 3 },
+    onPrepared: (value) => { prepared = value; },
+  });
+  assert.equal(outcome.requestId, prepared.id);
+  const uploads = append.mock.callCount();
+  const failed = await bodyDrop.executeBodyDrop({
+    bodyDropRequestId: 124,
+    steamId: steam, species: "Triceratops", growth: 1, location: { x: 1, y: 2, z: 3 },
+    onPrepared: () => { throw new Error("database write failed"); },
+  });
+  assert.equal(failed.queued, false);
+  assert.equal(append.mock.callCount(), uploads);
+});
 
 function configure(t, extra = {}) {
   const env = {

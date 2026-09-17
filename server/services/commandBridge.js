@@ -91,7 +91,7 @@ function validateResultMode(verb, resultMode) {
   }
 }
 
-async function executeCommand(verb, steam, tokens = [], { resultMode = "submod" } = {}) {
+async function executeCommand(verb, steam, tokens = [], { resultMode = "submod", onPrepared } = {}) {
   let command;
   try {
     command = buildCommand(verb, steam, tokens);
@@ -99,6 +99,7 @@ async function executeCommand(verb, steam, tokens = [], { resultMode = "submod" 
     if (process.env.COMMAND_BRIDGE_ENABLED !== "true") {
       throw new Error("CommandBridge is disabled");
     }
+    if (onPrepared) await onPrepared(command);
 
     if (getTransport() === "http_pull") {
       return await httpBridge.execute(command, SOURCES[verb], {
@@ -185,4 +186,23 @@ async function executeCommand(verb, steam, tokens = [], { resultMode = "submod" 
   }
 }
 
-module.exports = { executeCommand, buildCommand, findResult, getConfig, getTransport };
+// Inspect an existing BodyDrop request only. Never enqueue or append here.
+async function inspectBodyDropResult(id, steam) {
+  if (!id || !/^\d{17}$/.test(steam)) throw new Error("Invalid BodyDrop correlation");
+  const command = { id, steam, verb: "bd" };
+  if (getTransport() === "http_pull") {
+    const row = httpBridge.getRequest(id);
+    if (!row || row.verb !== "bd" || row.steam !== steam || row.status !== "completed" || !row.result_json) return null;
+    return findResult(`${row.result_json}\n`, command).result;
+  }
+  const config = getConfig();
+  const client = fileBridge.createFileBridgeClient();
+  try {
+    await client.connect(fileBridge.getFileBridgeConfig());
+    return (await readResult(client, config.resultsPath, command)).result;
+  } finally {
+    await client.end().catch(() => {});
+  }
+}
+
+module.exports = { executeCommand, buildCommand, findResult, getConfig, getTransport, inspectBodyDropResult };

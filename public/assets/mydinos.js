@@ -4,6 +4,8 @@ let speciesByName = {};
 let activeCharacter = null;
 let storedDinos = [];
 let currentFilter = "all";
+let bodyDropRefreshTimer;
+let bodyDropStatusBusy = false;
 
 function pct(value, max, fallback = 0) {
   const n = Number(value);
@@ -243,12 +245,22 @@ function renderBodyDropStatus(data) {
 }
 
 async function loadBodyDropStatus() {
+  if (bodyDropStatusBusy) return;
+  clearTimeout(bodyDropRefreshTimer);
   const container = document.getElementById("bodydrop-content");
   if (!container) return;
+  bodyDropStatusBusy = true;
   try {
-    renderBodyDropStatus(await api("/api/bodydrop"));
+    const data = await api("/api/bodydrop");
+    renderBodyDropStatus(data);
+    if (data.cooldown?.reason === "pending") {
+      bodyDropRefreshTimer = setTimeout(loadBodyDropStatus, 10000);
+    }
   } catch (err) {
     container.innerHTML = `<p class="section-intro" style="color:#ef9a8a;">${escapeHtml(err.message || "Body Drop is unavailable right now.")}</p>`;
+    bodyDropRefreshTimer = setTimeout(loadBodyDropStatus, 30000);
+  } finally {
+    bodyDropStatusBusy = false;
   }
 }
 
