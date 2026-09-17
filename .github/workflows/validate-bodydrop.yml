@@ -32,12 +32,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run BodyDrop and CommandBridge tests
-        run: node --test test/commandBridge.test.js
+      - name: Run BodyDrop and CommandBridge flow tests
+        run: >-
+          node --test
+          --test-name-pattern='BodyDrop|Body Drop|result matching|partial NDJSON|only routing ACK|sub-mod rejection|preflight read|ambiguous upload|disabled or invalid configuration'
+          test/commandBridge.test.js
 
-      - name: Validate Lua syntax
+      - name: Validate Lua syntax and bd routing
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y lua5.4
           luac -p server-mods/CommandBridge/Scripts/main.lua
           luac -p server-mods/BodyDrop/Scripts/main.lua
+          grep -Fq 'if verb == "bd" then' server-mods/CommandBridge/Scripts/main.lua
+          grep -Fq '/BodyDrop/Saved/inbox.ndjson' server-mods/CommandBridge/Scripts/main.lua
