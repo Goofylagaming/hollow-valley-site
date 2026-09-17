@@ -1,40 +1,154 @@
 # Hollow Valley Automation Platform
 
-This folder is intentionally isolated from the live Hollow Valley website code.
+This folder is intentionally isolated from the live Hollow Valley website code. Development happens on the `automation-platform` branch and nothing here is merged into or deployed from `master` automatically.
 
-It is the dedicated home for the automation/control-plane work that will connect the website, Discord, database, Evrima RCON, VeryGames/FTP, BodyDrop, DinoStorage, scheduled jobs, and future server automation.
+The service is a control plane for Hollow Valley: it connects the operator console to Evrima RCON, VeryGames FTP/CommandBridge, BodyDrop, DinoStorage and future Discord/scheduled automation while keeping the current Hollow Valley visual language.
 
-## Isolation rules
+## Current milestone
 
-- Build and test automation work on the `automation-platform` branch.
-- Do not change the live website or `master` branch unless a feature is ready to integrate.
-- Keep game-server credentials and secrets out of Git; use environment variables only.
-- Treat website/API integration as an explicit interface rather than importing live-site internals directly.
+Built on the isolated branch:
 
-## Planned structure
+- Hollow Valley-style Automation Center UI.
+- Public aggregate server health endpoint.
+- Admin-token-protected operator console and privileged APIs.
+- Native Evrima RCON status/player-data client.
+- VeryGames plain-FTP CommandBridge adapter with atomic command publication.
+- CommandBridge acknowledgement/result correlation.
+- BodyDrop worker using live RCON position data, cooldowns and result reconciliation.
+- DinoStorage list/store/redeem worker with deferred-result safety messaging.
+- Local SQLite automation request ledger.
+- Automatic BodyDrop and DinoStorage reconcilers.
+- Bridge diagnostics for busy command queues and oversized result logs.
+- Branch-only GitHub Actions tests.
+
+Still intentionally not built/connected:
+
+- Discord automation.
+- Scheduled announcements/events/rewards.
+- Production deployment for this isolated service.
+- Player-facing calls from the live Hollow Valley website into this service.
+
+## Safety model
+
+The service deliberately separates public health information from privileged data.
+
+`GET /health` and `GET /api/status` are public but expose only aggregate state such as online status and player count. They do not return Steam IDs, player names, locations, bridge paths or automation queues.
+
+Privileged endpoints require `AUTOMATION_ADMIN_TOKEN` using `Authorization: Bearer <token>` (or `x-automation-token`). If no token is configured, privileged APIs fail closed with HTTP 503.
+
+The operator page stores a supplied admin token only in browser `sessionStorage`, so closing the browser tab/session removes it. Do not put the real token in Git or frontend source.
+
+CommandBridge work is conservative by design:
+
+- A positive CommandBridge routing acknowledgement is **not** treated as a BodyDrop completion.
+- BodyDrop becomes `confirmed` only when a correlated `source: BodyDrop` result arrives.
+- DinoStorage reports an accepted sub-mod result separately from the deferred in-game kill/restore outcome.
+- Missing results become `unknown`; they are not retried automatically.
+- The FTP publisher refuses to overwrite an existing unconsumed command queue.
+- An oversized `results.ndjson` (>8 MiB) blocks normal result processing until an operator rotates it.
+
+## Layout
 
 ```text
 automation-platform/
+  public/
+    index.html                 # HDS-style operator console
+    assets/
+      automation.css
+      automation.js
   src/
-    index.js              # automation service entrypoint
-    adapters/             # RCON, FTP, Discord, website/API integrations
-    jobs/                 # scheduled and recurring automation
-    services/             # BodyDrop, DinoStorage, player/server logic
-    storage/              # persistence/database layer
+    index.js                   # Express service entrypoint
+    adapters/
+      evrimaRcon.js            # Evrima-specific TCP RCON protocol
+      fileBridge.js            # VeryGames FTP + CommandBridge files
+    middleware/
+      adminAuth.js             # Constant-time admin token check
+    routes/
+      adminRoutes.js
+      bodyDropRoutes.js
+      dinoStorageRoutes.js
+    services/
+      automationStore.js       # SQLite request ledger
+      bodyDropService.js
+      commandBridgeService.js
+      dinoStorageService.js
+      statusService.js
+  test/
+    adminAuth.test.js
+    commandBridge.test.js
+    statusPrivacy.test.js
   .env.example
   package.json
-  README.md
 ```
 
-## First milestone
+## Local run
 
-1. Health/status service
-2. Evrima RCON connection layer
-3. VeryGames/CommandBridge adapter
-4. Reliable command queue + acknowledgements
-5. BodyDrop worker
-6. DinoStorage worker
-7. Discord integration
-8. Scheduled automation and monitoring
+From the repository root:
 
-Nothing in this folder is deployed to production automatically unless we explicitly wire it into Render or another host.
+```bash
+cd automation-platform
+npm install
+cp .env.example .env
+npm start
+```
+
+Open `http://localhost:3100`.
+
+For UI-only/local status work, leave `COMMAND_BRIDGE_ENABLED=false`. RCON and FTP values can also remain blank; the console should show them as not configured rather than attempting live game actions.
+
+Run tests with:
+
+```bash
+npm test
+```
+
+## Environment configuration
+
+Start from `.env.example`. The important groups are:
+
+- `AUTOMATION_ADMIN_TOKEN`: long random operator secret; required for all privileged APIs.
+- `AUTOMATION_DB_PATH`: SQLite request ledger location. Production needs persistent storage.
+- `RCON_HOST`, `RCON_PORT`, `RCON_PASSWORD`: same Evrima RCON settings used by the current site.
+- `GAME_FILE_PROTOCOL=ftp` and `SFTP_*`: same VeryGames file-access settings used by the existing CommandBridge deployment. The historical `SFTP_*` variable names are retained for compatibility even though VeryGames uses plain FTP on port 21.
+- `COMMAND_BRIDGE_ENABLED`: keep `false` until the isolated service is deliberately connected.
+- `COMMAND_BRIDGE_SAVED_PATH`: normally `Mods/CommandBridge/Saved`, relative to the UE4SS directory.
+- `BODYDROP_*` and `DINOSTORAGE_*`: cooldown/reconciliation controls.
+
+## API overview
+
+Public:
+
+- `GET /health`
+- `GET /api/status`
+- `GET /api/bodydrop/options`
+
+Admin token required:
+
+- `GET /api/admin/status`
+- `GET /api/admin/requests`
+- `POST /api/admin/reconcile`
+- `GET /api/bodydrop/requests`
+- `GET /api/bodydrop/cooldown/:steamId`
+- `POST /api/bodydrop/request`
+- `POST /api/bodydrop/reconcile`
+- `GET /api/dinostorage/requests`
+- `GET /api/dinostorage/:steamId`
+- `POST /api/dinostorage/store`
+- `POST /api/dinostorage/redeem`
+- `POST /api/dinostorage/reconcile`
+
+## Production checklist
+
+Before deploying this branch as a separate service:
+
+1. Create a separate Render service/root directory for `automation-platform`; do not repoint the live Hollow Valley service.
+2. Generate a long random `AUTOMATION_ADMIN_TOKEN` in Render secrets.
+3. Attach persistent storage and set `AUTOMATION_DB_PATH` to that disk.
+4. Add RCON and FTP credentials as Render secrets.
+5. Deploy initially with `COMMAND_BRIDGE_ENABLED=false`.
+6. Confirm `/health`, `/api/status`, admin authentication and RCON status first.
+7. Verify the FTP paths and CommandBridge diagnostics read correctly.
+8. Enable CommandBridge only when the existing live consumer is known to be compatible and there is no competing publisher writing the same single-file queue.
+9. Test with controlled BodyDrop/DinoStorage requests before connecting the live player website.
+
+The current live `master` branch remains the source of truth for the public Hollow Valley site until an integration is deliberately reviewed and merged.
