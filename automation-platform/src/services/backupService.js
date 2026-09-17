@@ -40,6 +40,10 @@ function timestampName(now = new Date()) {
   return now.toISOString().replace(/[:.]/g, '-');
 }
 
+function sqliteLiteral(value) {
+  return `'${String(value).replaceAll("'", "''")}'`;
+}
+
 function listBackups() {
   const directory = path.resolve(backupDir());
   if (!fs.existsSync(directory)) return [];
@@ -72,16 +76,19 @@ function createBackup({ now = new Date() } = {}) {
     const directory = path.resolve(backupDir());
     fs.mkdirSync(directory, { recursive: true });
 
+    const fileName = `automation-${timestampName(now)}.sqlite`;
+    const destination = path.join(directory, fileName);
+    if (fs.existsSync(destination)) throw new Error(`Backup already exists: ${fileName}`);
+
     const db = new DatabaseSync(source);
     try {
-      db.exec('PRAGMA wal_checkpoint(FULL);');
+      // VACUUM INTO creates a transactionally consistent standalone snapshot,
+      // including data that may currently live in the source database's WAL.
+      db.exec(`VACUUM INTO ${sqliteLiteral(destination)}`);
     } finally {
       db.close();
     }
 
-    const fileName = `automation-${timestampName(now)}.sqlite`;
-    const destination = path.join(directory, fileName);
-    fs.copyFileSync(source, destination, fs.constants.COPYFILE_EXCL);
     const size = fs.statSync(destination).size;
     const removed = pruneBackups();
     return {
@@ -133,6 +140,7 @@ module.exports = {
   backupDir,
   intervalMs,
   retentionCount,
+  sqliteLiteral,
   listBackups,
   pruneBackups,
   createBackup,
