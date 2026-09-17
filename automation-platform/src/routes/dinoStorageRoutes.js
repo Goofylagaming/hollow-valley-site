@@ -1,6 +1,7 @@
 const express = require('express');
 const { requireAdminToken } = require('../middleware/adminAuth');
 const dinoStorage = require('../services/dinoStorageService');
+const audit = require('../services/auditService');
 const store = require('../services/automationStore');
 
 const router = express.Router();
@@ -26,12 +27,15 @@ router.get('/:steamId', async (req, res) => {
 });
 
 async function action(req, res, actionName) {
+  const slot = String(req.body?.slot || 'default').trim();
   try {
-    const request = await dinoStorage.requestDinoStorageAction({
-      action: actionName,
-      steamId: req.body?.steamId,
-      slot: req.body?.slot || 'default',
-    });
+    const request = await audit.run('dinostorage', actionName, { slot },
+      () => dinoStorage.requestDinoStorageAction({
+        action: actionName,
+        steamId: req.body?.steamId,
+        slot,
+      }),
+      (value) => ({ requestId: value.id, status: value.status }));
     res.status(202).json({ ok: true, completionConfirmed: false, request });
   } catch (error) {
     if (error.code === 'DINOSTORAGE_PENDING') {
@@ -46,7 +50,10 @@ router.post('/redeem', (req, res) => action(req, res, 'redeem'));
 
 router.post('/reconcile', async (_req, res) => {
   try {
-    res.json({ ok: true, ...(await dinoStorage.reconcileDinoStorage()) });
+    const result = await audit.run('dinostorage', 'manual_reconcile', {},
+      () => dinoStorage.reconcileDinoStorage(),
+      (value) => ({ checked: value.checked || 0, changed: value.changed || 0 }));
+    res.json({ ok: true, ...result });
   } catch (error) {
     res.status(503).json({ error: error.message || 'DinoStorage reconciliation failed.' });
   }
