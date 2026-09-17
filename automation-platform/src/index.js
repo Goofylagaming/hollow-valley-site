@@ -1,11 +1,16 @@
 require('dotenv').config();
 
+const path = require('node:path');
 const express = require('express');
+const { getPlatformStatus } = require('./services/statusService');
 
 const app = express();
 const port = Number(process.env.PORT || 3100);
+const publicDir = path.join(__dirname, '..', 'public');
 
-app.use(express.json());
+app.disable('x-powered-by');
+app.use(express.json({ limit: '64kb' }));
+app.use(express.static(publicDir, { extensions: ['html'] }));
 
 app.get('/health', (_req, res) => {
   res.json({
@@ -15,18 +20,29 @@ app.get('/health', (_req, res) => {
   });
 });
 
-app.get('/status', (_req, res) => {
-  res.json({
-    ok: true,
-    integrations: {
-      rcon: Boolean(process.env.EVRIMA_RCON_HOST && process.env.EVRIMA_RCON_PORT),
-      commandBridge: Boolean(process.env.GAME_FTP_HOST && process.env.COMMAND_BRIDGE_INBOX_PATH),
-      discord: Boolean(process.env.DISCORD_BOT_TOKEN),
-      database: Boolean(process.env.DATABASE_URL),
-    },
-  });
+app.get(['/status', '/api/status'], async (req, res) => {
+  try {
+    const status = await getPlatformStatus({ force: req.query.force === '1' });
+    res.json(status);
+  } catch (error) {
+    console.error('[automation-status]', error);
+    res.status(503).json({
+      ok: false,
+      service: 'hollow-valley-automation-platform',
+      time: new Date().toISOString(),
+      error: 'Status service unavailable',
+    });
+  }
 });
 
-app.listen(port, () => {
-  console.log(`Hollow Valley automation platform listening on port ${port}`);
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(publicDir, 'index.html'));
 });
+
+if (require.main === module) {
+  app.listen(port, () => {
+    console.log(`Hollow Valley automation platform listening on port ${port}`);
+  });
+}
+
+module.exports = { app };
