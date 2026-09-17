@@ -40,6 +40,21 @@ db.exec(`
   );
   CREATE INDEX IF NOT EXISTS idx_automation_jobs_due
     ON automation_jobs(status, run_at);
+
+  CREATE TABLE IF NOT EXISTS automation_audit (
+    id TEXT PRIMARY KEY,
+    category TEXT NOT NULL,
+    action TEXT NOT NULL,
+    status TEXT NOT NULL,
+    details_json TEXT NOT NULL DEFAULT '{}',
+    message TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_automation_audit_created
+    ON automation_audit(created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_automation_audit_category_action
+    ON automation_audit(category, action, created_at DESC);
 `);
 
 function parseJson(value) {
@@ -54,6 +69,11 @@ function parseRow(row) {
 function parseJob(row) {
   if (!row) return null;
   return { ...row, payload: parseJson(row.payload_json) };
+}
+
+function parseAudit(row) {
+  if (!row) return null;
+  return { ...row, details: parseJson(row.details_json) };
 }
 
 function createRequest({ id, kind, steamId = null, status = 'queued', commandId = null, details = {}, message = null, error = null }) {
@@ -175,6 +195,56 @@ function recoverInterruptedJobs() {
   `).run().changes;
 }
 
+function createAudit({ id, category, action, status = 'started', details = {}, message = null }) {
+  db.prepare(`
+    INSERT INTO automation_audit (id, category, action, status, details_json, message)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(id, category, action, status, JSON.stringify(details), message);
+  return getAudit(id);
+}
+
+function getAudit(id) {
+  return parseAudit(db.prepare('SELECT * FROM automation_audit WHERE id = ?').get(id));
+}
+
+function updateAudit(id, fields = {}) {
+  const current = getAudit(id);
+  if (!current) return null;
+  const next = {
+    status: fields.status ?? current.status,
+    details: fields.details ?? current.details,
+    message: fields.message === undefined ? current.message : fields.message,
+  };
+  db.prepare(`
+    UPDATE automation_audit
+    SET status = ?, details_json = ?, message = ?, updated_at = datetime('now')
+    WHERE id = ?
+  `).run(next.status, JSON.stringify(next.details), next.message, id);
+  return getAudit(id);
+}
+
+function listAudit({ category = null, action = null, statuses = null, limit = 100 } = {}) {
+  const safeLimit = Math.max(1, Math.min(500, Number(limit) || 100));
+  const clauses = [];
+  const params = [];
+  if (category) {
+    clauses.push('category = ?');
+    params.push(category);
+  }
+  if (action) {
+    clauses.push('action = ?');
+    params.push(action);
+  }
+  if (Array.isArray(statuses) && statuses.length) {
+    clauses.push(`status IN (${statuses.map(() => '?').join(',')})`);
+    params.push(...statuses);
+  }
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+  return db.prepare(`SELECT * FROM automation_audit ${where} ORDER BY created_at DESC LIMIT ?`)
+    .all(...params, safeLimit)
+    .map(parseAudit);
+}
+
 module.exports = {
   dbPath,
   createRequest,
@@ -188,4 +258,8 @@ module.exports = {
   listJobs,
   listDueJobs,
   recoverInterruptedJobs,
+  createAudit,
+  getAudit,
+  updateAudit,
+  listAudit,
 };
