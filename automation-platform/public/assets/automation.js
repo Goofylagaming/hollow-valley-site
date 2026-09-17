@@ -60,9 +60,10 @@ function renderPlayers(server) {
 }
 
 function requestStatusClass(status) {
-  if (['confirmed', 'accepted'].includes(status)) return 'ready';
+  if (['confirmed', 'accepted', 'completed'].includes(status)) return 'ready';
   if (status === 'failed') return 'failed';
   if (status === 'unknown') return 'unknown';
+  if (status === 'cancelled') return 'cancelled';
   return 'pending';
 }
 
@@ -100,6 +101,11 @@ function renderDiscordAutomation(state = {}) {
   if (message) message.disabled = !state.announcementConfigured;
   if (submit) submit.disabled = !state.announcementConfigured;
 
+  const schedulerForm = $('scheduler-form');
+  if (schedulerForm) {
+    for (const field of schedulerForm.querySelectorAll('textarea,input,select,button')) field.disabled = !state.announcementConfigured;
+  }
+
   const notice = $('discord-action-status');
   if (state.lastError && notice) {
     notice.hidden = false;
@@ -108,8 +114,27 @@ function renderDiscordAutomation(state = {}) {
   }
 }
 
+function renderScheduler(jobs = [], summary = {}) {
+  const list = $('scheduler-list');
+  if (!list) return;
+  $('scheduler-health').textContent = `${summary.scheduled || 0} scheduled`;
+  if (!jobs.length) {
+    list.innerHTML = '<div class="empty-roster"><strong>No scheduled jobs</strong><span>Future automation jobs will appear here.</span></div>';
+    return;
+  }
+
+  list.innerHTML = jobs.slice(0, 50).map((job) => {
+    const runAt = job.run_at ? new Date(job.run_at).toLocaleString() : 'No run time';
+    const message = job.payload?.message || job.type;
+    const repeat = job.recurrence && job.recurrence !== 'none' ? ` · repeats ${job.recurrence}` : '';
+    const error = job.last_error ? `<span>${escapeHtml(job.last_error)}</span>` : '';
+    const cancellable = ['scheduled', 'failed'].includes(job.status);
+    return `<div class="request-row scheduler-row"><div><b>${escapeHtml(message)}</b><small>${escapeHtml(runAt)}${escapeHtml(repeat)}</small>${error}</div><div class="scheduler-row-actions"><strong class="request-status ${requestStatusClass(job.status)}">${escapeHtml(job.status)}</strong>${cancellable ? `<button class="small-button subtle-button cancel-job" type="button" data-job-id="${escapeHtml(job.id)}">Cancel</button>` : ''}</div></div>`;
+  }).join('');
+}
+
 function renderAdminStatus(status) {
-  const { server, integrations, modules = {}, bridge = {}, requests = {}, discordAutomation = {} } = status;
+  const { server, integrations, modules = {}, bridge = {}, requests = {}, discordAutomation = {}, scheduler = {} } = status;
   setHeader(server);
   setState('server-state', server.online ? 'Online' : server.configured ? 'Offline' : 'Not set', server.online ? 'online' : 'offline');
   $('server-detail').textContent = server.online ? 'Evrima RCON responding' : server.error || 'RCON configuration required';
@@ -125,6 +150,7 @@ function renderAdminStatus(status) {
   $('pending-count').textContent = String(requests.pending || 0);
   $('pending-detail').textContent = requests.pending ? 'Awaiting bridge/sub-mod result' : 'No queued work';
   $('unknown-count').textContent = String(requests.unknown || 0);
+  $('scheduler-health').textContent = `${scheduler.scheduled || 0} scheduled`;
 
   const moduleMap = [
     ['module-server', modules.serverStatus],
@@ -192,6 +218,12 @@ async function loadRequests() {
   renderRequests(result.requests || []);
 }
 
+async function loadJobs() {
+  if (!adminToken) return;
+  const result = await fetchJson('/api/admin/jobs', { headers: adminHeaders() });
+  renderScheduler(result.jobs || [], result.summary || {});
+}
+
 async function loadAdminStatus(force = false) {
   if (!adminToken) return false;
   const refresh = $('refresh-status');
@@ -204,7 +236,7 @@ async function loadAdminStatus(force = false) {
     $('admin-gate').hidden = true;
     $('admin-console').hidden = false;
     renderAdminStatus(status);
-    await loadRequests();
+    await Promise.all([loadRequests(), loadJobs()]);
     return true;
   } catch (error) {
     if (error.status === 401 || error.status === 503) {
@@ -244,6 +276,19 @@ function showDiscordNotice(message, isError = false) {
   notice.hidden = !message;
   notice.textContent = message || '';
   notice.classList.toggle('error', Boolean(isError));
+}
+
+function showSchedulerNotice(message, isError = false) {
+  const notice = $('scheduler-action-status');
+  if (!notice) return;
+  notice.hidden = !message;
+  notice.textContent = message || '';
+  notice.classList.toggle('error', Boolean(isError));
+}
+
+function localDateTimeValue(date) {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
 }
 
 $('admin-login-form')?.addEventListener('submit', async (event) => {
@@ -319,6 +364,53 @@ $('discord-announcement-form')?.addEventListener('submit', async (event) => {
   }
 });
 
+$('scheduler-form')?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const message = $('scheduler-message')?.value.trim();
+  const localRunAt = $('scheduler-run-at')?.value;
+  const recurrence = $('scheduler-recurrence')?.value || 'none';
+  if (!message || !localRunAt) return;
+  const button = event.currentTarget.querySelector('button[type="submit"]');
+  button.disabled = true;
+  button.textContent = 'Scheduling…';
+  showSchedulerNotice('');
+  try {
+    const runAt = new Date(localRunAt).toISOString();
+    await fetchJson('/api/admin/jobs/discord-announcement', {
+      method: 'POST',
+      headers: adminHeaders(true),
+      body: JSON.stringify({ message, runAt, recurrence }),
+    });
+    $('scheduler-message').value = '';
+    $('scheduler-run-at').value = localDateTimeValue(new Date(Date.now() + 30 * 60_000));
+    showSchedulerNotice('Announcement scheduled.');
+    await loadAdminStatus(false);
+  } catch (error) {
+    showSchedulerNotice(error.message, true);
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Schedule announcement';
+  }
+});
+
+$('scheduler-list')?.addEventListener('click', async (event) => {
+  const button = event.target.closest('.cancel-job');
+  if (!button) return;
+  button.disabled = true;
+  showSchedulerNotice('');
+  try {
+    await fetchJson(`/api/admin/jobs/${encodeURIComponent(button.dataset.jobId)}/cancel`, {
+      method: 'POST',
+      headers: adminHeaders(),
+    });
+    showSchedulerNotice('Scheduled job cancelled.');
+    await loadAdminStatus(false);
+  } catch (error) {
+    showSchedulerNotice(error.message, true);
+    button.disabled = false;
+  }
+});
+
 const menuToggle = document.querySelector('.menu-toggle');
 const nav = document.querySelector('.main-nav');
 menuToggle?.addEventListener('click', () => {
@@ -327,6 +419,9 @@ menuToggle?.addEventListener('click', () => {
   nav?.classList.toggle('automation-mobile-open', !open);
 });
 
+if ($('scheduler-run-at') && !$('scheduler-run-at').value) {
+  $('scheduler-run-at').value = localDateTimeValue(new Date(Date.now() + 30 * 60_000));
+}
 loadPublicStatus();
 if (adminToken) loadAdminStatus(false);
 setInterval(() => {
