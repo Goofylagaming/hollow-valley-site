@@ -1,9 +1,9 @@
--- BodyDrop v003.3
+-- BodyDrop v003.4
 -- Admin-only corpse spawner. Bodies are only dropped when explicitly requested.
 -- IPC: bodydrop commands routed from CommandBridge.
 
 local MOD_NAME    = "BodyDrop"
-local MOD_VERSION = "v003.3"
+local MOD_VERSION = "v003.4"
 
 local function resolveModRoot()
     local source = debug.getinfo(1, "S").source or ""
@@ -25,10 +25,6 @@ local POLL_INTERVAL_MS = 2000
 local function log(msg)
     print(string.format("[%s] %s\n", MOD_NAME, tostring(msg)))
 end
-
--- ============================================================
--- Species catalog
--- ============================================================
 
 local SPECIES_PATHS = {
     Tyrannosaurus      = "/Game/TheIsle/Core/Characters/Dinosaurs/Tyrannosaurus/BP_Tyrannosaurus.BP_Tyrannosaurus_C",
@@ -56,10 +52,6 @@ local SPECIES_PATHS = {
     Austroraptor       = "/Game/TheIsle/Core/Characters/Dinosaurs/Austroraptor/BP_Austroraptor.BP_Austroraptor_C",
 }
 
--- ============================================================
--- File helpers
--- ============================================================
-
 local function fileExists(path)
     local f = io.open(path, "rb")
     if f == nil then return false end
@@ -86,12 +78,9 @@ end
 local function consumeFlag(path)
     local f = io.open(path, "rb")
     if f == nil then return nil end
-
     local body = f:read("*all") or ""
     f:close()
-
     os.remove(path)
-
     body = body:gsub("^%s+", ""):gsub("%s+$", "")
     return body ~= "" and body or nil
 end
@@ -101,42 +90,20 @@ local function ensureDir(path)
     os.execute('mkdir "' .. winPath .. '" 2>nul')
 end
 
--- ============================================================
--- JSON helpers
--- ============================================================
-
 local function jsonEscape(s)
     if s == nil then return "" end
-
     s = tostring(s)
     s = s:gsub("\\", "\\\\")
         :gsub('"', '\\"')
         :gsub("\n", "\\n")
         :gsub("\r", "\\r")
         :gsub("\t", "\\t")
-
     return s
 end
 
 local function jsonReadString(body, key)
-    return string.match(
-        body or "",
-        '"' .. key .. '"%s*:%s*"([^"]*)"'
-    )
+    return string.match(body or "", '"' .. key .. '"%s*:%s*"([^"]*)"')
 end
-
-local function jsonReadNumber(body, key)
-    return tonumber(
-        string.match(
-            body or "",
-            '"' .. key .. '"%s*:%s*(-?%d+%.?%d*)'
-        )
-    )
-end
-
--- ============================================================
--- Game helpers
--- ============================================================
 
 local function findGameMode()
     local candidates = {
@@ -148,82 +115,44 @@ local function findGameMode()
 
     for _, name in ipairs(candidates) do
         local gm
-
-        pcall(function()
-            gm = FindFirstOf(name)
-        end)
-
-        if gm ~= nil then
-            return gm
-        end
+        pcall(function() gm = FindFirstOf(name) end)
+        if gm ~= nil then return gm end
     end
 
     return nil
 end
 
 local function getPlayerPlacement(steam)
-    if steam == nil or steam == "" then
-        return nil, "no steam id"
-    end
+    if steam == nil or steam == "" then return nil, "no steam id" end
 
     local gm = findGameMode()
-
-    if gm == nil then
-        return nil, "no game mode"
-    end
+    if gm == nil then return nil, "no game mode" end
 
     local ctrl
-
-    pcall(function()
-        ctrl = gm:GetControllerBySteamId(steam)
-    end)
-
-    if ctrl == nil then
-        return nil, "player not found or not online"
-    end
+    pcall(function() ctrl = gm:GetControllerBySteamId(steam) end)
+    if ctrl == nil then return nil, "player not found or not online" end
 
     local pawn
-
-    pcall(function()
-        pawn = ctrl:K2_GetPawn()
-    end)
-
-    if pawn == nil then
-        return nil, "player has no pawn (not spawned)"
-    end
+    pcall(function() pawn = ctrl:K2_GetPawn() end)
+    if pawn == nil then return nil, "player has no pawn (not spawned)" end
 
     local loc
-
-    pcall(function()
-        loc = pawn:K2_GetActorLocation()
-    end)
-
-    if loc == nil then
-        return nil, "could not read pawn location"
-    end
+    pcall(function() loc = pawn:K2_GetActorLocation() end)
+    if loc == nil then return nil, "could not read pawn location" end
 
     local forward = { X = 1, Y = 0, Z = 0 }
-
     pcall(function()
         local value = pawn:GetActorForwardVector()
         if value ~= nil and tonumber(value.X) ~= nil and tonumber(value.Y) ~= nil then
             local length = math.sqrt((value.X * value.X) + (value.Y * value.Y))
             if length > 0.001 then
-                forward = {
-                    X = value.X / length,
-                    Y = value.Y / length,
-                    Z = 0,
-                }
+                forward = { X = value.X / length, Y = value.Y / length, Z = 0 }
             end
         end
     end)
 
-    return loc, nil, forward
+    return loc, nil, forward, pawn
 end
-
--- ============================================================
--- Corpse spawner
--- ============================================================
 
 local function buildSpawnOffsets(forward)
     local fx = tonumber(forward and forward.X) or 1
@@ -231,8 +160,6 @@ local function buildSpawnOffsets(forward)
     local rightX = -fy
     local rightY = fx
 
-    -- XY only. Z is resolved from a terrain trace at every candidate so we
-    -- never trust a blind player-Z offset on slopes, cliffs or uneven ground.
     return {
         { fx * 300, fy * 300 },
         { fx * 500, fy * 500 },
@@ -245,45 +172,49 @@ end
 
 local function tryPawnCall(label, fn)
     local ok, result = pcall(fn)
-
     if ok then
-        log(string.format(
-            "BODYDROP DIAG | %s | OK | result=%s",
-            tostring(label),
-            tostring(result)
-        ))
-
+        log(string.format("BODYDROP DIAG | %s | OK | result=%s", tostring(label), tostring(result)))
         return true, result
     end
 
-    log(string.format(
-        "BODYDROP DIAG | %s | FAILED | error=%s",
-        tostring(label),
-        tostring(result)
-    ))
-
+    log(string.format("BODYDROP DIAG | %s | FAILED | error=%s", tostring(label), tostring(result)))
     return false, result
 end
 
-local function traceGround(worldContext, x, y, anchorZ)
-    if GetKismetSystemLibrary == nil then
-        return nil, "GetKismetSystemLibrary unavailable"
-    end
+local kismetSystemLibrary = nil
 
-    local systemLibrary
-    local libOk, libErr = pcall(function()
-        systemLibrary = GetKismetSystemLibrary()
+local function getKismetSystemLibrary()
+    if kismetSystemLibrary ~= nil then return kismetSystemLibrary end
+
+    local ok, obj = pcall(function()
+        return StaticFindObject("/Script/Engine.Default__KismetSystemLibrary")
     end)
 
-    if not libOk or systemLibrary == nil then
-        return nil, "KismetSystemLibrary unavailable: " .. tostring(libErr)
+    if not ok or obj == nil then
+        return nil, "StaticFindObject Default__KismetSystemLibrary failed: " .. tostring(obj)
     end
+
+    local valid = true
+    pcall(function()
+        if obj.IsValid ~= nil then valid = obj:IsValid() end
+    end)
+
+    if valid == false then return nil, "Default__KismetSystemLibrary is invalid" end
+
+    kismetSystemLibrary = obj
+    return obj, nil
+end
+
+local function traceGround(worldContext, x, y, anchorZ, actorToIgnore)
+    local systemLibrary, libErr = getKismetSystemLibrary()
+    if systemLibrary == nil then return nil, libErr end
 
     local baseZ = tonumber(anchorZ) or 0
     local traceStart = { X = x, Y = y, Z = baseZ + 100000 }
     local traceEnd = { X = x, Y = y, Z = baseZ - 100000 }
     local hitResult = {}
     local actorsToIgnore = {}
+    if actorToIgnore ~= nil then actorsToIgnore[1] = actorToIgnore end
     local clearColor = { R = 0, G = 0, B = 0, A = 0 }
     local wasHit = false
 
@@ -304,56 +235,30 @@ local function traceGround(worldContext, x, y, anchorZ)
         )
     end)
 
-    if not traceOk then
-        return nil, "ground trace call failed: " .. tostring(traceErr)
-    end
-
-    if not wasHit then
-        return nil, "ground trace found no blocking surface"
-    end
+    if not traceOk then return nil, "ground trace call failed: " .. tostring(traceErr) end
+    if not wasHit then return nil, "ground trace found no blocking surface" end
 
     local hitLocation = hitResult.Location or hitResult.ImpactPoint
     local z = hitLocation and tonumber(hitLocation.Z) or nil
-
-    if z == nil then
-        return nil, "ground trace returned no hit Z"
-    end
+    if z == nil then return nil, "ground trace returned no hit Z" end
 
     return z, nil
 end
 
-local function spawnCorpse(speciesName, location, growthFraction, forward)
+local function spawnCorpse(speciesName, location, growthFraction, forward, playerPawn)
     local classPath = SPECIES_PATHS[speciesName]
-
-    if classPath == nil then
-        return false, "unknown species: " .. tostring(speciesName)
-    end
+    if classPath == nil then return false, "unknown species: " .. tostring(speciesName) end
 
     local pawnCls
-
-    pcall(function()
-        pawnCls = StaticFindObject(classPath)
-    end)
-
-    if pawnCls == nil then
-        return false, "class not found: " .. classPath
-    end
+    pcall(function() pawnCls = StaticFindObject(classPath) end)
+    if pawnCls == nil then return false, "class not found: " .. classPath end
 
     local gm = findGameMode()
-
-    if gm == nil then
-        return false, "no game mode"
-    end
+    if gm == nil then return false, "no game mode" end
 
     local world
-
-    pcall(function()
-        world = gm:GetWorld()
-    end)
-
-    if world == nil then
-        return false, "no world"
-    end
+    pcall(function() world = gm:GetWorld() end)
+    if world == nil then return false, "no world" end
 
     local spawnOffsets = buildSpawnOffsets(forward)
     local lastPlacementError = nil
@@ -361,32 +266,17 @@ local function spawnCorpse(speciesName, location, growthFraction, forward)
     for i, offset in ipairs(spawnOffsets) do
         local x = (tonumber(location.X) or 0) + offset[1]
         local y = (tonumber(location.Y) or 0) + offset[2]
-        local groundZ, groundErr = traceGround(gm, x, y, location.Z)
+        local groundZ, groundErr = traceGround(gm, x, y, location.Z, playerPawn)
 
         if groundZ == nil then
             lastPlacementError = groundErr
-            log(string.format(
-                "BODYDROP DIAG | ground trace | attempt=%d | FAILED | %s",
-                i,
-                tostring(groundErr)
-            ))
+            log(string.format("BODYDROP DIAG | ground trace | attempt=%d | FAILED | %s", i, tostring(groundErr)))
         else
-            -- Spawn three metres above the actual terrain. Ragdoll physics then
-            -- settles the body onto the surface instead of burying it in a slope.
-            local loc = {
-                X = x,
-                Y = y,
-                Z = groundZ + 300,
-            }
-
+            local loc = { X = x, Y = y, Z = groundZ + 300 }
             log(string.format(
                 "Spawn attempt=%d species=%s X=%.3f Y=%.3f groundZ=%.3f spawnZ=%.3f",
-                i,
-                tostring(speciesName),
-                tonumber(loc.X) or 0,
-                tonumber(loc.Y) or 0,
-                tonumber(groundZ) or 0,
-                tonumber(loc.Z) or 0
+                i, tostring(speciesName), tonumber(loc.X) or 0, tonumber(loc.Y) or 0,
+                tonumber(groundZ) or 0, tonumber(loc.Z) or 0
             ))
 
             local pawn
@@ -394,11 +284,7 @@ local function spawnCorpse(speciesName, location, growthFraction, forward)
                 pawn = world:SpawnActor(
                     pawnCls,
                     loc,
-                    {
-                        Pitch = 0,
-                        Yaw = 0,
-                        Roll = 0
-                    }
+                    { Pitch = 0, Yaw = 0, Roll = 0 }
                 )
             end)
 
@@ -407,21 +293,13 @@ local function spawnCorpse(speciesName, location, growthFraction, forward)
                 log("BODYDROP DIAG | SpawnActor | FAILED | " .. tostring(spawnErr))
             else
                 local addr
-
-                if pawn ~= nil then
-                    pcall(function()
-                        addr = pawn:GetAddress()
-                    end)
-                end
+                if pawn ~= nil then pcall(function() addr = pawn:GetAddress() end) end
 
                 if pawn == nil or addr == nil or addr == 0 then
                     lastPlacementError = "SpawnActor returned invalid/null pawn"
                     log("BODYDROP DIAG | SpawnActor | FAILED | invalid/null pawn")
                 else
-                    log(string.format(
-                        "BODYDROP DIAG | SpawnActor | OK | address=%s",
-                        tostring(addr)
-                    ))
+                    log(string.format("BODYDROP DIAG | SpawnActor | OK | address=%s", tostring(addr)))
 
                     local failedSteps = {}
                     local function corpseStep(label, fn)
@@ -429,109 +307,51 @@ local function spawnCorpse(speciesName, location, growthFraction, forward)
                         if not ok then failedSteps[#failedSteps + 1] = label end
                     end
 
-                    -- Current verified EVRIMA corpse transition sequence.
-                    -- Do not mark bAlwaysRelevant; native relevancy is sufficient
-                    -- and avoids forcing every corpse into every client's load burst.
-                    corpseStep("SetReplicates", function()
-                        pawn:SetReplicates(true)
-                    end)
-
-                    corpseStep("SetGrowth", function()
-                        pawn:SetGrowth(growthFraction or 1.0)
-                    end)
-
-                    corpseStep("SetHealth(0)", function()
-                        pawn:SetHealth(0)
-                    end)
-
-                    corpseStep("bIsDead=true", function()
-                        pawn.bIsDead = true
-                    end)
-
-                    corpseStep("OnRep_IsNowDead", function()
-                        pawn:OnRep_IsNowDead()
-                    end)
-
-                    corpseStep("ToggleServerRagdoll", function()
-                        pawn:ToggleServerRagdoll(true)
-                    end)
-
-                    corpseStep("ActivateDeadbody", function()
-                        pawn:ActivateDeadbody(false, 3600)
-                    end)
-
-                    corpseStep("ForceNetUpdate", function()
-                        pawn:ForceNetUpdate()
-                    end)
+                    corpseStep("SetReplicates", function() pawn:SetReplicates(true) end)
+                    corpseStep("SetGrowth", function() pawn:SetGrowth(growthFraction or 1.0) end)
+                    corpseStep("SetHealth(0)", function() pawn:SetHealth(0) end)
+                    corpseStep("bIsDead=true", function() pawn.bIsDead = true end)
+                    corpseStep("OnRep_IsNowDead", function() pawn:OnRep_IsNowDead() end)
+                    corpseStep("ToggleServerRagdoll", function() pawn:ToggleServerRagdoll(true) end)
+                    corpseStep("ActivateDeadbody", function() pawn:ActivateDeadbody(false, 3600) end)
+                    corpseStep("ForceNetUpdate", function() pawn:ForceNetUpdate() end)
 
                     if #failedSteps > 0 then
-                        -- Do not attempt to destroy or re-use this pawn. If a native
-                        -- corpse transition partly executed, touching it again later
-                        -- is less safe than returning an explicit diagnostic failure.
-                        return false,
-                            "actor spawned but corpse transition failed at: " ..
-                            table.concat(failedSteps, ", ")
+                        return false, "actor spawned but corpse transition failed at: " .. table.concat(failedSteps, ", ")
                     end
 
                     return true, string.format(
                         "corpse confirmed at X=%.3f Y=%.3f Z=%.3f (ground %.3f)",
-                        tonumber(loc.X) or 0,
-                        tonumber(loc.Y) or 0,
-                        tonumber(loc.Z) or 0,
-                        tonumber(groundZ) or 0
+                        tonumber(loc.X) or 0, tonumber(loc.Y) or 0, tonumber(loc.Z) or 0, tonumber(groundZ) or 0
                     )
                 end
             end
         end
     end
 
-    return false,
-        "no safe corpse spawn position found" ..
+    return false, "no safe corpse spawn position found" ..
         (lastPlacementError and (": " .. tostring(lastPlacementError)) or "")
 end
 
--- ============================================================
--- IPC
--- ============================================================
-
 local function buildResult(id, steam, tokens, ok, msg)
     local tokensJson = "["
-
     for i, t in ipairs(tokens) do
-        if i > 1 then
-            tokensJson = tokensJson .. ","
-        end
-
-        tokensJson =
-            tokensJson ..
-            '"' .. jsonEscape(t) .. '"'
+        if i > 1 then tokensJson = tokensJson .. "," end
+        tokensJson = tokensJson .. '"' .. jsonEscape(t) .. '"'
     end
-
     tokensJson = tokensJson .. "]"
 
-    local line = string.format(
+    return string.format(
         '{"id":"%s","ts":%d,"source":"BodyDrop","steam":"%s","args":%s,"ok":%s,"msg":"%s"}',
-        jsonEscape(tostring(id or "")),
-        os.time(),
-        jsonEscape(tostring(steam)),
-        tokensJson,
-        tostring(ok == true),
-        jsonEscape(tostring(msg or ""))
+        jsonEscape(tostring(id or "")), os.time(), jsonEscape(tostring(steam)), tokensJson,
+        tostring(ok == true), jsonEscape(tostring(msg or ""))
     )
-
-    return line
 end
 
 local function handleCommand(steam, tokens)
     local verb = tokens[1] or ""
 
     if verb == "spawn" then
-        -- tokens:
-        -- spawn <Species> <x> <y> <z> [growthFraction] [targetSteam]
-        --
-        -- If targetSteam is supplied, coordinates are ignored and the
-        -- live player's location is used instead.
-
         local species = tokens[2]
         local x       = tonumber(tokens[3])
         local y       = tonumber(tokens[4])
@@ -540,78 +360,42 @@ local function handleCommand(steam, tokens)
         local target  = tokens[7]
 
         if species == nil then
-            return false,
-                "usage: spawn <Species> <x> <y> <z> [growth] [targetSteam]"
+            return false, "usage: spawn <Species> <x> <y> <z> [growth] [targetSteam]"
         end
 
         local location
         local forward
+        local playerPawn
 
         if target ~= nil and target ~= "" then
-            local loc, err, facing = getPlayerPlacement(target)
-
-            if loc == nil then
-                return false,
-                    "cannot locate target: " .. tostring(err)
-            end
-
+            local loc, err, facing, pawn = getPlayerPlacement(target)
+            if loc == nil then return false, "cannot locate target: " .. tostring(err) end
             location = loc
             forward = facing
-
+            playerPawn = pawn
         elseif x ~= nil and y ~= nil and z ~= nil then
-            location = {
-                X = x,
-                Y = y,
-                Z = z
-            }
-
+            location = { X = x, Y = y, Z = z }
         else
-            return false,
-                "provide coordinates or a target steam64"
+            return false, "provide coordinates or a target steam64"
         end
 
-        local ok, msg =
-            spawnCorpse(species, location, growth, forward)
-
-        return ok, msg
+        return spawnCorpse(species, location, growth, forward, playerPawn)
 
     elseif verb == "status" then
-        return true,
-            string.format(
-                "BodyDrop %s | ready",
-                MOD_VERSION
-            )
+        return true, string.format("BodyDrop %s | ready", MOD_VERSION)
 
     elseif verb == "diag" then
-        local species =
-            tokens[2] or "Triceratops"
-
-        if SPECIES_PATHS[species] == nil then
-            return false,
-                "unknown species: " .. species
-        end
+        local species = tokens[2] or "Triceratops"
+        if SPECIES_PATHS[species] == nil then return false, "unknown species: " .. species end
 
         local cls
-
-        pcall(function()
-            cls =
-                StaticFindObject(
-                    SPECIES_PATHS[species]
-                )
-        end)
-
-        return cls ~= nil,
-            cls ~= nil
-                and "class found"
-                or "class NOT found on this server"
+        pcall(function() cls = StaticFindObject(SPECIES_PATHS[species]) end)
+        return cls ~= nil, cls ~= nil and "class found" or "class NOT found on this server"
     end
 
-    return false,
-        "unknown verb: " .. tostring(verb)
+    return false, "unknown verb: " .. tostring(verb)
 end
 
--- One persistent claim per ID, written before any game-side effect.
--- A crash after claiming remains unknown; it must never trigger a second spawn.
 local delivered = {}
 
 local function processRecord(line)
@@ -644,11 +428,9 @@ local function processRecord(line)
         return false
     end
 
-    -- Respect results produced before this version introduced claims.
     local previous = readAll(RESULTS_FILE) or ""
     for result in previous:gmatch("([^\n]+)\n") do
-        if jsonReadString(result, "id") == id and
-            jsonReadString(result, "source") == "BodyDrop" then
+        if jsonReadString(result, "id") == id and jsonReadString(result, "source") == "BodyDrop" then
             if jsonReadString(result, "steam") ~= steam then return false end
             delivered[id] = steam
             return true
@@ -658,18 +440,14 @@ local function processRecord(line)
     local argsBlock = line:match('"args"%s*:%s*%[([^%]]*)%]')
     local tokens = {}
     if argsBlock then
-        for value in argsBlock:gmatch('"([^"]*)"') do
-            tokens[#tokens + 1] = value
-        end
+        for value in argsBlock:gmatch('"([^"]*)"') do tokens[#tokens + 1] = value end
     end
 
     if not appendLine(statePath .. ".started", line) then return false end
-
     log("Processing id=" .. id .. " verb=" .. tostring(tokens[1]))
 
     local callOk, r1, r2 = pcall(handleCommand, steam, tokens)
     if not callOk then
-        -- A thrown error may follow spawning. Preserve the claim and require reconciliation.
         log("Outcome unknown after handler error id=" .. id)
         return false
     end
@@ -692,7 +470,6 @@ local function pollInbox()
     end
 
     local body = readAll(stash)
-
     if body == nil then return end
     if body == "" then
         os.remove(stash)
@@ -700,105 +477,52 @@ local function pollInbox()
     end
 
     local complete = body:sub(-1) == "\n"
-
     for line in body:gmatch("([^\n]+)\n") do
-        if line:match("%S") and not processRecord(line) then
-            complete = false
-        end
+        if line:match("%S") and not processRecord(line) then complete = false end
     end
 
     if complete then os.remove(stash) end
 end
 
--- ============================================================
--- Boot
--- ============================================================
-
 local function safeCall(label, fn)
     local ok, err = pcall(fn)
-
-    if not ok then
-        log(string.format(
-            "safeCall(%s) failed: %s",
-            label,
-            tostring(err)
-        ))
-    end
-
+    if not ok then log(string.format("safeCall(%s) failed: %s", label, tostring(err))) end
     return ok, err
 end
 
-log(string.format(
-    "Loading; version=%s",
-    MOD_VERSION
-))
+log(string.format("Loading; version=%s", MOD_VERSION))
 
 if LoopInGameThreadWithDelay ~= nil then
     local bootHandle
 
-    bootHandle =
-        LoopInGameThreadWithDelay(
-            5000,
-            function()
-                log(string.format(
-                    "Boot; version=%s",
-                    MOD_VERSION
-                ))
+    bootHandle = LoopInGameThreadWithDelay(5000, function()
+        log(string.format("Boot; version=%s", MOD_VERSION))
+        ensureDir(SAVED_DIR)
+        ensureDir(REQUESTS_DIR)
+        log("Inbox=" .. INBOX_PATH .. " results=" .. RESULTS_FILE)
 
-                ensureDir(SAVED_DIR)
-                ensureDir(REQUESTS_DIR)
-                log("Inbox=" .. INBOX_PATH .. " results=" .. RESULTS_FILE)
-
-                local tf =
-                    io.open(
-                        SAVED_DIR .. "/.keep",
-                        "wb"
-                    )
-
-                if tf then
-                    tf:write("")
-                    tf:close()
-                else
-                    log(
-                        "WARNING: cannot write to " ..
-                        SAVED_DIR
-                    )
-                end
-
-                if bootHandle ~= nil
-                    and CancelDelayedAction ~= nil
-                then
-                    pcall(function()
-                        CancelDelayedAction(
-                            bootHandle
-                        )
-                    end)
-                end
-            end
-        )
-
-    LoopInGameThreadWithDelay(
-        POLL_INTERVAL_MS,
-        function()
-            safeCall(
-                "pollInbox",
-                pollInbox
-            )
-
-            local reload =
-                consumeFlag(RELOAD_FLAG)
-
-            if reload ~= nil
-                and RestartCurrentMod ~= nil
-            then
-                log("RELOAD")
-                RestartCurrentMod()
-            end
+        local tf = io.open(SAVED_DIR .. "/.keep", "wb")
+        if tf then
+            tf:write("")
+            tf:close()
+        else
+            log("WARNING: cannot write to " .. SAVED_DIR)
         end
-    )
+
+        if bootHandle ~= nil and CancelDelayedAction ~= nil then
+            pcall(function() CancelDelayedAction(bootHandle) end)
+        end
+    end)
+
+    LoopInGameThreadWithDelay(POLL_INTERVAL_MS, function()
+        safeCall("pollInbox", pollInbox)
+
+        local reload = consumeFlag(RELOAD_FLAG)
+        if reload ~= nil and RestartCurrentMod ~= nil then
+            log("RELOAD")
+            RestartCurrentMod()
+        end
+    end)
 end
 
-log(string.format(
-    "Loaded; version=%s",
-    MOD_VERSION
-))
+log(string.format("Loaded; version=%s", MOD_VERSION))
