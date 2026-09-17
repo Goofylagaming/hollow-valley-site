@@ -6,7 +6,7 @@
   <meta name="description" content="Hollow Valley server automation control center.">
   <title>Automation Center | Herby Death Squad</title>
   <link rel="stylesheet" href="https://hollowvalley.herbydeathsquadgames.com/assets/styles.css?v=12">
-  <link rel="stylesheet" href="/assets/automation.css?v=1">
+  <link rel="stylesheet" href="/assets/automation.css?v=2">
 </head>
 <body>
   <div class="app-shell">
@@ -30,44 +30,80 @@
       <section class="page-header automation-header">
         <p class="overline green">AUTOMATION CENTER</p>
         <h1>Hollow Valley control plane.</h1>
-        <p class="section-intro">Live server health and the automation services that connect the portal to Evrima, CommandBridge and Discord.</p>
+        <p class="section-intro">Server health, CommandBridge reconciliation and the automation services connecting the portal to Evrima.</p>
       </section>
 
       <section class="roster-section automation-section">
-        <div class="section-top compact-section-top">
-          <div><p class="overline green">LIVE STATUS</p><h2>Server <em>overview.</em></h2></div>
-          <button class="small-button" id="refresh-status" type="button">Refresh status</button>
+        <div class="summary-grid automation-summary-grid public-summary-grid">
+          <div class="summary-tile"><small>GAME SERVER</small><b id="public-server-state">Checking</b><span id="public-server-detail">Waiting for status</span></div>
+          <div class="summary-tile"><small>ONLINE PLAYERS</small><b id="public-player-count">—</b><span id="public-player-capacity">Capacity unknown</span></div>
+          <div class="summary-tile"><small>AUTOMATION</small><b id="public-automation-state">Checking</b><span>Control-plane health</span></div>
         </div>
 
-        <div class="summary-grid automation-summary-grid">
-          <div class="summary-tile"><small>GAME SERVER</small><b id="server-state">Checking</b><span id="server-detail">Waiting for RCON</span></div>
-          <div class="summary-tile"><small>ONLINE PLAYERS</small><b id="player-count">—</b><span id="player-capacity">Capacity unknown</span></div>
-          <div class="summary-tile"><small>RCON</small><b id="rcon-state">Checking</b><span>Evrima control channel</span></div>
-          <div class="summary-tile"><small>COMMAND BRIDGE</small><b id="bridge-state">Checking</b><span>VeryGames FTP queue</span></div>
-          <div class="summary-tile"><small>DISCORD</small><b id="discord-state">Checking</b><span>Bot automation</span></div>
-          <div class="summary-tile"><small>DATABASE</small><b id="database-state">Checking</b><span>Automation request ledger</span></div>
+        <div class="automation-access" id="admin-gate">
+          <div>
+            <p class="overline green">OPERATOR ACCESS</p>
+            <h2>Admin console.</h2>
+            <p class="section-intro">Detailed player data, bridge paths, request queues and game-control actions require the automation admin token.</p>
+          </div>
+          <form id="admin-login-form" class="admin-login-form" autocomplete="off">
+            <label for="admin-token">Automation admin token</label>
+            <div class="admin-token-row">
+              <input id="admin-token" name="token" type="password" autocomplete="off" spellcheck="false" placeholder="Enter token" required>
+              <button class="small-button" type="submit">Unlock console</button>
+            </div>
+            <small>The token is kept only in this browser tab's session storage.</small>
+            <div class="automation-error" id="admin-login-error" hidden></div>
+          </form>
         </div>
 
-        <div class="automation-grid">
-          <article class="automation-panel">
-            <div class="panel-heading"><div><small>EVRIMA</small><h3>Live players</h3></div><span class="panel-pill" id="last-checked">Not checked</span></div>
-            <div id="players-list" class="automation-list">
-              <div class="empty-roster"><strong>Waiting for server data</strong><span>The player list will appear here once RCON is configured.</span></div>
+        <div id="admin-console" hidden>
+          <div class="section-top compact-section-top console-toolbar">
+            <div><p class="overline green">LIVE STATUS</p><h2>Server <em>overview.</em></h2></div>
+            <div class="toolbar-actions">
+              <button class="small-button" id="reconcile-all" type="button">Reconcile queues</button>
+              <button class="small-button" id="refresh-status" type="button">Refresh status</button>
+              <button class="small-button subtle-button" id="lock-console" type="button">Lock</button>
+            </div>
+          </div>
+
+          <div class="summary-grid automation-summary-grid">
+            <div class="summary-tile"><small>GAME SERVER</small><b id="server-state">Checking</b><span id="server-detail">Waiting for RCON</span></div>
+            <div class="summary-tile"><small>ONLINE PLAYERS</small><b id="player-count">—</b><span id="player-capacity">Capacity unknown</span></div>
+            <div class="summary-tile"><small>RCON</small><b id="rcon-state">Checking</b><span>Evrima control channel</span></div>
+            <div class="summary-tile"><small>COMMAND BRIDGE</small><b id="bridge-state">Checking</b><span id="bridge-detail">VeryGames FTP queue</span></div>
+            <div class="summary-tile"><small>PENDING REQUESTS</small><b id="pending-count">0</b><span id="pending-detail">No queued work</span></div>
+            <div class="summary-tile"><small>UNKNOWN OUTCOMES</small><b id="unknown-count">0</b><span>Require operator reconciliation</span></div>
+          </div>
+
+          <div class="automation-grid">
+            <article class="automation-panel">
+              <div class="panel-heading"><div><small>EVRIMA</small><h3>Live players</h3></div><span class="panel-pill" id="last-checked">Not checked</span></div>
+              <div id="players-list" class="automation-list">
+                <div class="empty-roster"><strong>Waiting for server data</strong><span>The player list will appear after admin authentication.</span></div>
+              </div>
+            </article>
+
+            <article class="automation-panel">
+              <div class="panel-heading"><div><small>SERVICES</small><h3>Automation modules</h3></div><span class="panel-pill">Phase 1</span></div>
+              <div class="module-list">
+                <div class="module-row"><span class="module-icon">◎</span><div><b>Server status worker</b><small>RCON player count, capacity and character snapshot</small></div><span class="module-state ready" id="module-server">Built</span></div>
+                <div class="module-row"><span class="module-icon">◌</span><div><b>BodyDrop worker</b><small>Live position lookup, queueing and result reconciliation</small></div><span class="module-state ready" id="module-bodydrop">Built</span></div>
+                <div class="module-row"><span class="module-icon">▣</span><div><b>DinoStorage worker</b><small>Store, redeem, slot reads and acknowledgement tracking</small></div><span class="module-state ready" id="module-dinostorage">Built</span></div>
+                <div class="module-row"><span class="module-icon">◇</span><div><b>Discord automation</b><small>Announcements, commands and scheduled events</small></div><span class="module-state queued" id="module-discord">Queued</span></div>
+              </div>
+            </article>
+          </div>
+
+          <article class="automation-panel request-panel">
+            <div class="panel-heading"><div><small>COMMAND BRIDGE</small><h3>Recent automation requests</h3></div><span class="panel-pill" id="request-total">0 tracked</span></div>
+            <div id="request-list" class="automation-list">
+              <div class="empty-roster"><strong>No automation requests yet</strong><span>BodyDrop and DinoStorage requests will appear here.</span></div>
             </div>
           </article>
 
-          <article class="automation-panel">
-            <div class="panel-heading"><div><small>SERVICES</small><h3>Automation modules</h3></div><span class="panel-pill">Phase 2</span></div>
-            <div class="module-list">
-              <div class="module-row"><span class="module-icon">◎</span><div><b>Server status worker</b><small>RCON player count, capacity and character snapshot</small></div><span class="module-state ready" id="module-server">Built</span></div>
-              <div class="module-row"><span class="module-icon">◌</span><div><b>BodyDrop worker</b><small>CommandBridge queue + confirmed result reconciliation</small></div><span class="module-state ready" id="module-bodydrop">Built</span></div>
-              <div class="module-row"><span class="module-icon">▣</span><div><b>DinoStorage worker</b><small>Store, redeem and deferred acknowledgement tracking</small></div><span class="module-state next" id="module-dinostorage">Next</span></div>
-              <div class="module-row"><span class="module-icon">◇</span><div><b>Discord automation</b><small>Announcements, commands and scheduled events</small></div><span class="module-state queued" id="module-discord">Queued</span></div>
-            </div>
-          </article>
+          <div id="status-error" class="automation-error" hidden></div>
         </div>
-
-        <div id="status-error" class="automation-error" hidden></div>
       </section>
     </main>
 
