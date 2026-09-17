@@ -68,11 +68,14 @@ test('backup retention removes oldest snapshots beyond configured count', (t) =>
   const last = f.service.createBackup({ now: new Date('2026-09-18T02:00:00.000Z') });
 
   const backups = f.service.listBackups();
-  assert.equal(backups.length, 2);
-  assert.equal(last.removed.length, 1);
-  assert.ok(backups.some((item) => item.name.includes('02-00-00')));
-  assert.ok(backups.some((item) => item.name.includes('01-00-00')));
-  assert.ok(!backups.some((item) => item.name.includes('00-00-00')));
+  const names = backups.map((item) => item.name).sort();
+  assert.deepEqual(names, [
+    'automation-2026-09-18T01-00-00-000Z.sqlite',
+    'automation-2026-09-18T02-00-00-000Z.sqlite',
+  ]);
+  assert.deepEqual(last.removed, [
+    'automation-2026-09-18T00-00-00-000Z.sqlite',
+  ]);
 });
 
 test('backups fail closed for in-memory databases', (t) => {
