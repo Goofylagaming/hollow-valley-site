@@ -61,16 +61,21 @@ async function discordRequest(path, { method = 'GET', body } = {}) {
   return payload;
 }
 
-async function sendAnnouncement(message) {
+async function sendAnnouncement(message, { nonce = null } = {}) {
   const channelId = String(process.env.DISCORD_ANNOUNCEMENT_CHANNEL_ID || '').trim();
   if (!channelId) throw new Error('DISCORD_ANNOUNCEMENT_CHANNEL_ID is not configured');
   const content = cleanMessage(message);
+  const body = {
+    content,
+    allowed_mentions: { parse: [] },
+  };
+  if (nonce) {
+    body.nonce = String(nonce);
+    body.enforce_nonce = true;
+  }
   const result = await discordRequest(`/channels/${encodeURIComponent(channelId)}/messages`, {
     method: 'POST',
-    body: {
-      content,
-      allowed_mentions: { parse: [] },
-    },
+    body,
   });
   return { id: result?.id || null, channelId, content };
 }
