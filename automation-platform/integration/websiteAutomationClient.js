@@ -93,6 +93,48 @@ function getRequestStatus(requestId, steamId, options = {}) {
   return call(`/requests/${encodeURIComponent(id)}?steamId=${encodeURIComponent(steam)}`, options);
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    timer.unref?.();
+  });
+}
+
+async function waitForRequestStatus(requestId, steamId, {
+  fetchImpl = globalThis.fetch,
+  intervalMs = 2000,
+  maxWaitMs = 30000,
+} = {}) {
+  const id = validateRequestId(requestId);
+  const steam = validateSteamId(steamId);
+  const pollEvery = Math.max(250, Math.min(10000, Number(intervalMs) || 2000));
+  const deadline = Date.now() + Math.max(1000, Math.min(120000, Number(maxWaitMs) || 30000));
+  const terminal = new Set(['confirmed', 'accepted', 'completed', 'failed', 'unknown', 'cancelled']);
+  let latest = null;
+
+  while (Date.now() <= deadline) {
+    const payload = await getRequestStatus(id, steam, { fetchImpl });
+    latest = payload?.request || null;
+    if (!latest) throw new Error('Automation service returned no request state');
+    if (terminal.has(latest.status)) {
+      return {
+        request: latest,
+        terminal: true,
+        requiresOperator: latest.status === 'unknown',
+      };
+    }
+    if (Date.now() + pollEvery > deadline) break;
+    await sleep(pollEvery);
+  }
+
+  return {
+    request: latest,
+    terminal: false,
+    timedOut: true,
+    requiresOperator: false,
+  };
+}
+
 module.exports = {
   validateSteamId,
   validateRequestId,
@@ -101,4 +143,5 @@ module.exports = {
   listStoredDinos,
   requestDinoAction,
   getRequestStatus,
+  waitForRequestStatus,
 };
