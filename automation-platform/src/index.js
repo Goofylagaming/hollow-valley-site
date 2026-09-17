@@ -15,6 +15,7 @@ const { startDiscordAutomation } = require('./services/discordAutomationService'
 const { startScheduler } = require('./services/schedulerService');
 const { startServerMonitor } = require('./services/serverMonitorService');
 const playerPresence = require('./services/playerPresenceService');
+const serverHealthHistory = require('./services/serverHealthHistoryService');
 
 const app = express();
 const port = Number(process.env.PORT || 3100);
@@ -58,6 +59,16 @@ app.get('/api/admin/presence/analytics', requireAdminToken, (req, res) => {
   }
 });
 
+app.get('/api/admin/server-health/analytics', requireAdminToken, (req, res) => {
+  try {
+    res.set('Cache-Control', 'no-store');
+    const hours = Math.max(1, Math.min(24 * 31, Number(req.query.hours) || 24));
+    res.json({ analytics: serverHealthHistory.getHealthAnalytics({ hours }) });
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Unable to calculate server health analytics.' });
+  }
+});
+
 app.get('/api/admin/migration-readiness', requireAdminToken, (_req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ readiness: getMigrationReadiness() });
@@ -87,6 +98,7 @@ if (require.main === module) {
   startScheduler();
   startServerMonitor();
   playerPresence.startPlayerPresence();
+  serverHealthHistory.startServerHealthHistory();
   app.listen(port, () => {
     console.log(`Hollow Valley automation platform listening on port ${port}`);
   });
