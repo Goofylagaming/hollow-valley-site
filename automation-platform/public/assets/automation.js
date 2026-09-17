@@ -11,6 +11,15 @@ function integrationLabel(configured) {
   return configured ? 'Configured' : 'Not set';
 }
 
+function setModuleState(id, enabled, enabledLabel = 'Built', disabledLabel = 'Next') {
+  const el = $(id);
+  if (!el) return;
+  el.textContent = enabled ? enabledLabel : disabledLabel;
+  el.classList.toggle('ready', Boolean(enabled));
+  el.classList.toggle('next', !enabled);
+  el.classList.remove('queued');
+}
+
 function renderPlayers(server) {
   const list = $('players-list');
   if (!list) return;
@@ -28,11 +37,9 @@ function renderPlayers(server) {
     return;
   }
 
-  const charactersBySteamId = new Map((server.characters || []).map((character) => [character.steamId, character]));
   list.innerHTML = server.players.map((player) => {
-    const character = charactersBySteamId.get(player.steamId);
-    const species = character?.species || 'Character data pending';
-    const growth = Number.isFinite(character?.growth) ? `${Math.round(character.growth * 100)}% growth` : player.steamId;
+    const species = player.species || 'Character data pending';
+    const growth = Number.isFinite(player.growth) ? `${Math.round(player.growth * 100)}% growth` : 'Online';
     return `<div class="player-row"><div><b>${escapeHtml(player.name)}</b><small>${escapeHtml(growth)}</small></div><span class="player-species">${escapeHtml(species)}</span></div>`;
   }).join('');
 }
@@ -49,6 +56,7 @@ function escapeHtml(value) {
 function renderStatus(status) {
   const server = status.server;
   const integrations = status.integrations;
+  const modules = status.modules || {};
   const headerDot = $('header-dot');
   const errorBox = $('status-error');
 
@@ -60,7 +68,18 @@ function renderStatus(status) {
   setState('rcon-state', integrationLabel(integrations.rcon), integrations.rcon ? 'online' : 'offline');
   setState('bridge-state', integrationLabel(integrations.commandBridge), integrations.commandBridge ? 'online' : 'offline');
   setState('discord-state', integrationLabel(integrations.discord), integrations.discord ? 'online' : 'offline');
-  setState('database-state', integrationLabel(integrations.database), integrations.database ? 'online' : 'offline');
+  setState('database-state', integrations.database ? 'Ready' : 'Unavailable', integrations.database ? 'online' : 'offline');
+
+  setModuleState('module-server', modules.serverStatus, 'Built', 'Pending');
+  setModuleState('module-bodydrop', modules.bodyDrop, 'Built', 'Next');
+  setModuleState('module-dinostorage', modules.dinoStorage, 'Built', 'Next');
+  const discordModule = $('module-discord');
+  if (discordModule) {
+    discordModule.textContent = modules.discordAutomation ? 'Built' : 'Queued';
+    discordModule.classList.toggle('ready', Boolean(modules.discordAutomation));
+    discordModule.classList.toggle('queued', !modules.discordAutomation);
+    discordModule.classList.remove('next');
+  }
 
   $('header-status').textContent = server.online ? 'Server online' : server.configured ? 'Server check failed' : 'Setup required';
   headerDot.classList.toggle('online', server.online);
