@@ -151,6 +151,80 @@ function getPresenceSummary() {
   return { enabled: enabled(), active, sessions24h, uniquePlayers24h: unique24h };
 }
 
+function getPresenceAnalytics({ hours = 24, nowMs = Date.now() } = {}) {
+  const safeHours = Math.max(1, Math.min(24 * 31, Number(hours) || 24));
+  const windowStartMs = nowMs - safeHours * 60 * 60 * 1000;
+  const windowStartIso = new Date(windowStartMs).toISOString();
+  const nowIso = new Date(nowMs).toISOString();
+  const rows = db.prepare(`
+    SELECT steam_id, player_name, species, started_at, last_seen_at, ended_at
+    FROM player_presence_sessions
+    WHERE started_at <= ? AND COALESCE(ended_at, last_seen_at) >= ?
+    ORDER BY started_at ASC
+  `).all(nowIso, windowStartIso);
+
+  const unique = new Set();
+  const perPlayer = new Map();
+  const events = [];
+  let trackedMs = 0;
+
+  for (const row of rows) {
+    const rawStart = Date.parse(row.started_at);
+    const rawEnd = Date.parse(row.ended_at || row.last_seen_at);
+    if (!Number.isFinite(rawStart) || !Number.isFinite(rawEnd)) continue;
+    const start = Math.max(windowStartMs, rawStart);
+    const end = Math.min(nowMs, rawEnd);
+    if (end < start) continue;
+
+    unique.add(row.steam_id);
+    const durationMs = Math.max(0, end - start);
+    trackedMs += durationMs;
+    const current = perPlayer.get(row.steam_id) || {
+      steamId: row.steam_id,
+      name: row.player_name || 'Unknown',
+      trackedMs: 0,
+      sessions: 0,
+    };
+    current.name = row.player_name || current.name;
+    current.trackedMs += durationMs;
+    current.sessions += 1;
+    perPlayer.set(row.steam_id, current);
+
+    events.push([start, 1]);
+    events.push([end, -1]);
+  }
+
+  events.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  let concurrent = 0;
+  let peakConcurrent = 0;
+  for (const [, delta] of events) {
+    concurrent += delta;
+    peakConcurrent = Math.max(peakConcurrent, concurrent);
+  }
+
+  const topPlayers = [...perPlayer.values()]
+    .sort((a, b) => b.trackedMs - a.trackedMs || a.name.localeCompare(b.name))
+    .slice(0, 20)
+    .map((player) => ({
+      steamId: player.steamId,
+      name: player.name,
+      sessions: player.sessions,
+      trackedMinutes: Math.round(player.trackedMs / 60000),
+    }));
+
+  return {
+    enabled: enabled(),
+    hours: safeHours,
+    uniquePlayers: unique.size,
+    sessions: rows.length,
+    trackedMinutes: Math.round(trackedMs / 60000),
+    peakConcurrent,
+    topPlayers,
+    windowStart: windowStartIso,
+    windowEnd: nowIso,
+  };
+}
+
 function startPlayerPresence() {
   if (!enabled()) return null;
   samplePresence({ force: false }).catch((error) => console.warn('[player-presence]', error.message));
@@ -169,5 +243,6 @@ module.exports = {
   samplePresence,
   listSessions,
   getPresenceSummary,
+  getPresenceAnalytics,
   startPlayerPresence,
 };
