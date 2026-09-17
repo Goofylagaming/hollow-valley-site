@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Hollow Valley server automation control center.">
+  <title>Automation Center | Herby Death Squad</title>
+  <link rel="stylesheet" href="https://hollowvalley.herbydeathsquadgames.com/assets/styles.css?v=12">
+  <link rel="stylesheet" href="/assets/automation.css?v=1">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="https://hollowvalley.herbydeathsquadgames.com/dashboard">
+        <span class="brand-mark">HDS</span>
+        <span><b>HERBY DEATH SQUAD</b><small>EVRIMA SURVIVAL PORTAL</small></span>
+      </a>
+      <nav class="main-nav">
+        <a href="https://hollowvalley.herbydeathsquadgames.com/">Command</a>
+        <a href="https://hollowvalley.herbydeathsquadgames.com/dashboard">Dashboard</a>
+        <a href="https://hollowvalley.herbydeathsquadgames.com/mydinos">My dinos</a>
+        <a href="https://hollowvalley.herbydeathsquadgames.com/livemap">Live map</a>
+        <a href="/" class="automation-nav-active">Automation</a>
+      </nav>
+      <div class="automation-badge"><span class="status-dot" id="header-dot"></span><span id="header-status">Checking</span></div>
+      <button class="menu-toggle" aria-label="Toggle navigation" aria-expanded="false"><span></span><span></span></button>
+    </header>
+
+    <main>
+      <section class="page-header automation-header">
+        <p class="overline green">AUTOMATION CENTER</p>
+        <h1>Hollow Valley control plane.</h1>
+        <p class="section-intro">Live server health and the automation services that connect the portal to Evrima, CommandBridge and Discord.</p>
+      </section>
+
+      <section class="roster-section automation-section">
+        <div class="section-top compact-section-top">
+          <div><p class="overline green">LIVE STATUS</p><h2>Server <em>overview.</em></h2></div>
+          <button class="small-button" id="refresh-status" type="button">Refresh status</button>
+        </div>
+
+        <div class="summary-grid automation-summary-grid">
+          <div class="summary-tile"><small>GAME SERVER</small><b id="server-state">Checking</b><span id="server-detail">Waiting for RCON</span></div>
+          <div class="summary-tile"><small>ONLINE PLAYERS</small><b id="player-count">—</b><span id="player-capacity">Capacity unknown</span></div>
+          <div class="summary-tile"><small>RCON</small><b id="rcon-state">Checking</b><span>Evrima control channel</span></div>
+          <div class="summary-tile"><small>COMMAND BRIDGE</small><b id="bridge-state">Checking</b><span>VeryGames FTP queue</span></div>
+          <div class="summary-tile"><small>DISCORD</small><b id="discord-state">Checking</b><span>Bot automation</span></div>
+          <div class="summary-tile"><small>DATABASE</small><b id="database-state">Checking</b><span>Persistent automation state</span></div>
+        </div>
+
+        <div class="automation-grid">
+          <article class="automation-panel">
+            <div class="panel-heading"><div><small>EVRIMA</small><h3>Live players</h3></div><span class="panel-pill" id="last-checked">Not checked</span></div>
+            <div id="players-list" class="automation-list">
+              <div class="empty-roster"><strong>Waiting for server data</strong><span>The player list will appear here once RCON is configured.</span></div>
+            </div>
+          </article>
+
+          <article class="automation-panel">
+            <div class="panel-heading"><div><small>SERVICES</small><h3>Automation modules</h3></div><span class="panel-pill">Phase 1</span></div>
+            <div class="module-list">
+              <div class="module-row"><span class="module-icon">◎</span><div><b>Server status worker</b><small>RCON player count, capacity and character snapshot</small></div><span class="module-state ready">Built</span></div>
+              <div class="module-row"><span class="module-icon">◌</span><div><b>BodyDrop worker</b><small>CommandBridge queue + confirmed result reconciliation</small></div><span class="module-state next">Next</span></div>
+              <div class="module-row"><span class="module-icon">▣</span><div><b>DinoStorage worker</b><small>Store, redeem and deferred acknowledgement tracking</small></div><span class="module-state next">Next</span></div>
+              <div class="module-row"><span class="module-icon">◇</span><div><b>Discord automation</b><small>Announcements, commands and scheduled events</small></div><span class="module-state queued">Queued</span></div>
+            </div>
+          </article>
+        </div>
+
+        <div id="status-error" class="automation-error" hidden></div>
+      </section>
+    </main>
+
+    <footer><span>© 2026 Herby Death Squad Games</span><span>HOLLOW VALLEY AUTOMATION PLATFORM</span><a href="https://hollowvalley.herbydeathsquadgames.com/">Back to command ↑</a></footer>
+  </div>
+  <script src="/assets/automation.js?v=1"></script>
+</body>
+</html>
