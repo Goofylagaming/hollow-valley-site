@@ -4,7 +4,9 @@ const path = require('node:path');
 const express = require('express');
 const { getPlatformStatus } = require('./services/statusService');
 const bodyDropRoutes = require('./routes/bodyDropRoutes');
+const dinoStorageRoutes = require('./routes/dinoStorageRoutes');
 const { startBodyDropReconciler } = require('./services/bodyDropService');
+const { startDinoStorageReconciler } = require('./services/dinoStorageService');
 
 const app = express();
 const port = Number(process.env.PORT || 3100);
@@ -38,6 +40,7 @@ app.get(['/status', '/api/status'], async (req, res) => {
 });
 
 app.use('/api/bodydrop', bodyDropRoutes);
+app.use('/api/dinostorage', dinoStorageRoutes);
 
 app.get('*', (_req, res) => {
   res.sendFile(path.join(publicDir, 'index.html'));
@@ -45,6 +48,7 @@ app.get('*', (_req, res) => {
 
 if (require.main === module) {
   startBodyDropReconciler();
+  startDinoStorageReconciler();
   app.listen(port, () => {
     console.log(`Hollow Valley automation platform listening on port ${port}`);
   });
