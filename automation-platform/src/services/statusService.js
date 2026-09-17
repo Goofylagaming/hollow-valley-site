@@ -67,7 +67,7 @@ function moduleState() {
     serverStatus: true,
     bodyDrop: true,
     dinoStorage: true,
-    discordAutomation: false,
+    discordAutomation: true,
   };
 }
 
