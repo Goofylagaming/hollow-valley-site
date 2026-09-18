@@ -1,7 +1,7 @@
 const fileBridge = require('../adapters/fileBridge');
 const commandBridge = require('./commandBridgeService');
 const store = require('./automationStore');
-const { getServerSnapshot } = require('./statusService');
+const statusService = require('./statusService');
 
 const DEFAULT_DROP_TYPES = [
   { id: 'small', name: 'Small body', description: 'A small emergency food drop.', species: 'Compsognathus', growth: 1 },
@@ -129,6 +129,38 @@ function getCooldown(steamId, now = Date.now()) {
   };
 }
 
+async function getBodyDropState(steamId) {
+  steamId = String(steamId || '').trim();
+  if (!/^\d{17}$/.test(steamId)) throw new Error('A valid 17-digit Steam ID is required');
+
+  const cooldown = getCooldown(steamId);
+  const snapshot = await statusService.getServerSnapshot({ force: true });
+  if (!snapshot.online) {
+    return {
+      steamId,
+      serverOnline: false,
+      cooldown,
+      eligibility: { eligible: false, reason: null },
+      restrictions: {
+        carnivoreOnly: true,
+        maxGrowthPercent: BODYDROP_MAX_GROWTH_PERCENT,
+      },
+    };
+  }
+
+  const character = snapshot.characters.find((entry) => entry.steamId === steamId);
+  return {
+    steamId,
+    serverOnline: true,
+    cooldown,
+    eligibility: bodyDropEligibility(character),
+    restrictions: {
+      carnivoreOnly: true,
+      maxGrowthPercent: BODYDROP_MAX_GROWTH_PERCENT,
+    },
+  };
+}
+
 async function requestBodyDrop({ steamId, dropType }) {
   steamId = String(steamId || '').trim();
   if (!/^\d{17}$/.test(steamId)) throw new Error('A valid 17-digit Steam ID is required');
@@ -144,7 +176,7 @@ async function requestBodyDrop({ steamId, dropType }) {
     throw error;
   }
 
-  const snapshot = await getServerSnapshot({ force: true });
+  const snapshot = await statusService.getServerSnapshot({ force: true });
   if (!snapshot.online) throw new Error(snapshot.error || 'The Isle server is not online or RCON is unavailable');
   const character = snapshot.characters.find((entry) => entry.steamId === steamId);
   const eligibility = bodyDropEligibility(character);
@@ -257,6 +289,7 @@ module.exports = {
   isCarnivoreSpecies,
   getCooldown,
   getDropTypes,
+  getBodyDropState,
   requestBodyDrop,
   reconcileBodyDrops,
   startBodyDropReconciler,
