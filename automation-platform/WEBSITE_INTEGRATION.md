@@ -33,6 +33,44 @@ Responses are marked `Cache-Control: no-store`.
 
 ## Supported calls
 
+### Wallet
+
+```http
+GET /api/website/wallet/:steamId
+```
+
+Returns the Steam-keyed Valley Coin balance, recent immutable ledger transactions and five-minute earning progress/state. The wallet can exist before the player visits the website because earning identity follows Steam.
+
+### Marketplace catalog
+
+```http
+GET /api/website/marketplace/catalog
+```
+
+Returns active automation-owned catalog items.
+
+### Marketplace orders
+
+```http
+GET /api/website/marketplace/orders/:steamId
+```
+
+Returns that Steam account's recent marketplace order state.
+
+### Marketplace purchase
+
+```http
+POST /api/website/marketplace/catalog/:catalogId/buy
+Content-Type: application/json
+
+{
+  "steamId": "7656119...",
+  "idempotencyKey": "website-marketplace:..."
+}
+```
+
+Payment and pending-order creation are atomic. HTTP 402 means insufficient Valley Coin. A successful purchase is **not** proof of DinoStorage fulfillment; the order remains pending until the fulfillment layer confirms delivery. Repeating the same idempotency key returns the original order without charging again.
+
 ### BodyDrop cooldown
 
 ```http
@@ -101,6 +139,9 @@ The isolated `integration/liveRouteAdapters.js` now covers every request used by
 
 | Current live route | Adapter function | Automation call |
 | --- | --- | --- |
+| `GET /api/wallet` | `getWallet` | Steam-keyed Valley Coin wallet + earning progress |
+| `GET /api/marketplace/catalog` | `listMarketplaceCatalog` | official marketplace catalog |
+| `POST /api/marketplace/catalog/:id/buy` | `buyMarketplaceCatalogItem` | atomic debit + pending marketplace order |
 | `GET /api/mydinos` | `listDinos` | DinoStorage slot list |
 | `GET /api/mydinos/active-character` | `getActiveCharacter` | read-only active character |
 | `POST /api/mydinos/park-active` | `parkActive` | DinoStorage store |
@@ -111,6 +152,8 @@ The isolated `integration/liveRouteAdapters.js` now covers every request used by
 Compatibility behavior intentionally preserved:
 
 - the website backend remains the source of Steam identity;
+- wallet/playtime rewards follow linked Steam identity rather than a browser-supplied user or Steam ID;
+- marketplace purchases use backend-generated idempotency keys and are returned as accepted/pending until DinoStorage fulfillment is confirmed;
 - logged-in users without a linked Steam account still receive the existing harmless read-only states;
 - BodyDrop remains carnivore-only and limited to 60% growth or below;
 - failed BodyDrop requests do not consume cooldown;
@@ -138,6 +181,12 @@ Keep this integration disconnected until the automation platform is deployed as 
 4. Verify unauthorized website calls return 401 and missing configuration returns 503.
 5. Verify backend-authenticated read-only DinoStorage list and active-character calls.
 6. Enable CommandBridge only after confirming the single-file queue consumer is ready for this publisher.
-7. Test one controlled BodyDrop or DinoStorage request and follow its request ID through reconciliation before enabling the player-facing UI.
+7. Verify wallet and marketplace catalog reads with the reward switch still disabled.
+8. Migrate/reconcile existing wallet balances before switching the live Wallet page.
+9. Test one controlled marketplace purchase only after its DinoStorage fulfillment worker exists.
+10. Test one controlled BodyDrop or DinoStorage request and follow its request ID through reconciliation before enabling the player-facing UI.
 
 The live `master` site remains unchanged until this integration is deliberately connected and reviewed.
+
+
+See `ECONOMY_MARKETPLACE.md` for the Valley Coin earning, wallet ledger, marketplace order, DinoStorage fulfillment and legacy-wallet migration schematic.
