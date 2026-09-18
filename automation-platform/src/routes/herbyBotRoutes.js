@@ -1,7 +1,7 @@
 const express = require('express');
 const { requireHerbyBotToken } = require('../middleware/herbyBotAuth');
 const herbyBot = require('../services/herbyBotOutboxService');
-const { getPublicStatus } = require('../services/statusService');
+const { getPublicStatus, getServerSnapshot, requestSummary } = require('../services/statusService');
 
 const router = express.Router();
 router.use(requireHerbyBotToken);
@@ -22,6 +22,38 @@ router.get('/status', async (_req, res) => {
     });
   } catch (error) {
     res.status(503).json({ error: error.message || 'HerbyBot bridge status unavailable.' });
+  }
+});
+
+router.get('/staff-overview', async (_req, res) => {
+  try {
+    const snapshot = await getServerSnapshot();
+    const charactersBySteamId = new Map(
+      (snapshot.characters || []).map((character) => [character.steamId, character])
+    );
+    const players = (snapshot.players || []).map((player) => {
+      const character = charactersBySteamId.get(player.steamId);
+      return {
+        name: player.name || 'Unknown player',
+        species: character?.species || null,
+        growth: Number.isFinite(character?.growth) ? character.growth : null,
+      };
+    });
+
+    res.json({
+      server: {
+        online: Boolean(snapshot.online),
+        configured: snapshot.configured !== false,
+        playerCount: players.length,
+        maxPlayers: snapshot.maxPlayers ?? null,
+        checkedAt: snapshot.checkedAt || null,
+        players,
+      },
+      requests: requestSummary(),
+      outbox: herbyBot.getState().outbox,
+    });
+  } catch (error) {
+    res.status(503).json({ error: error.message || 'HerbyBot staff overview unavailable.' });
   }
 });
 
