@@ -41,8 +41,9 @@ function mapAutomationError(error, fallback = 'Automation service request failed
 }
 
 async function getActiveCharacter(req, res) {
-  const steamId = requireLoggedInSteam(req, res);
-  if (!steamId) return;
+  if (!req.user) return res.status(401).json({ error: 'Not logged in' });
+  if (!req.user.steam_id) return res.json({ active: false, reason: 'steam_not_linked' });
+  const steamId = String(req.user.steam_id);
 
   try {
     const result = await automation.getActiveCharacter(steamId);
@@ -54,8 +55,9 @@ async function getActiveCharacter(req, res) {
 }
 
 async function listDinos(req, res) {
-  const steamId = requireLoggedInSteam(req, res);
-  if (!steamId) return;
+  if (!req.user) return res.status(401).json({ error: 'Not logged in' });
+  if (!req.user.steam_id) return res.json([]);
+  const steamId = String(req.user.steam_id);
   try {
     const result = await automation.listStoredDinos(steamId);
     return res.json(result.dinos || []);
@@ -105,8 +107,22 @@ function redeemStored(req, res, slot) {
 }
 
 async function getBodyDropState(req, res, { options = [] } = {}) {
-  const steamId = requireLoggedInSteam(req, res);
-  if (!steamId) return;
+  if (!req.user) return res.status(401).json({ error: 'Not logged in' });
+  if (!req.user.steam_id) {
+    return res.json({
+      enabled: false,
+      steamLinked: false,
+      serverOnline: false,
+      cooldownSeconds: Number(process.env.BODYDROP_COOLDOWN_SECONDS || 900),
+      cooldown: { active: false, nextAvailableAt: null, remainingSeconds: 0 },
+      eligibility: { eligible: false, reason: null },
+      restrictions: { carnivoreOnly: true, maxGrowthPercent: 60 },
+      options,
+      latest: null,
+      recent: [],
+    });
+  }
+  const steamId = String(req.user.steam_id);
 
   try {
     const cooldownResult = await automation.getBodyDropCooldown(steamId);
