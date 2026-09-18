@@ -160,6 +160,20 @@ function cancelDinoMarketplaceListing({ steamId, listingId }) {
   });
 }
 
+function buyDinoMarketplaceListing({ steamId, listingId, idempotencyKey }) {
+  const id = String(listingId || '').trim();
+  const key = String(idempotencyKey || '').trim();
+  if (!/^[A-Za-z0-9_-]{8,128}$/.test(id)) throw new Error('Invalid marketplace listing ID');
+  if (!/^[A-Za-z0-9:_-]{8,160}$/.test(key)) throw new Error('Invalid marketplace idempotency key');
+  return call(`/marketplace/listings/${encodeURIComponent(id)}/buy`, {
+    method: 'POST',
+    body: {
+      steamId: validateSteamId(steamId),
+      idempotencyKey: key,
+    },
+  });
+}
+
 module.exports = {
   getActiveCharacter,
   listStoredDinos,
@@ -175,4 +189,5 @@ module.exports = {
   listMyDinoMarketplaceListings,
   createDinoMarketplaceListing,
   cancelDinoMarketplaceListing,
+  buyDinoMarketplaceListing,
 };
