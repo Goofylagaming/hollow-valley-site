@@ -24,6 +24,9 @@ function getMigrationReadiness() {
   const playtimeRewardsEnabled = process.env.WALLET_PLAYTIME_REWARDS_ENABLED === 'true';
   const playtimeRewardCoins = Number(process.env.WALLET_PLAYTIME_COINS_PER_5_MINUTES || 0);
   const playtimeRewardsSafe = !playtimeRewardsEnabled || (presenceEnabled && Number.isSafeInteger(playtimeRewardCoins) && playtimeRewardCoins > 0);
+  const marketplaceWritesEnabled = process.env.MARKETPLACE_WRITE_ENABLED === 'true';
+  const parkedDinoEditsEnabled = process.env.PARKED_DINO_EDIT_ENABLED === 'true';
+  const skinSystemEnabled = process.env.SKIN_SYSTEM_ENABLED === 'true';
 
   const checks = [
     check('admin-token', 'Operator admin token', configured('AUTOMATION_ADMIN_TOKEN'), configured('AUTOMATION_ADMIN_TOKEN') ? 'Admin API is protected.' : 'Set AUTOMATION_ADMIN_TOKEN before exposing the operator console.'),
@@ -54,6 +57,15 @@ function getMigrationReadiness() {
         ? `Rewards are enabled at ${playtimeRewardCoins} Valley Coin per verified 5 minutes.`
         : 'Rewards are enabled without both presence tracking and a positive integer coin rate. Disable rewards or complete the configuration.'
       : 'Playtime rewards are disabled, which is correct until the economy rate and presence sampling are approved.', 'safety'),
+    check('marketplace-writes', 'Marketplace writes remain disabled', !marketplaceWritesEnabled, marketplaceWritesEnabled
+      ? 'Marketplace buying/selling is enabled. Use only after wallet migration and DinoStorage escrow testing.'
+      : 'Official and player-to-player marketplace writes are disabled.', 'safety'),
+    check('parked-dino-edits', 'Parked dino edits remain disabled', !parkedDinoEditsEnabled, parkedDinoEditsEnabled
+      ? 'Mutation/skin writes to parked DinoStorage JSON are enabled.'
+      : 'Parked dinosaur mutation/skin writes remain locked.', 'safety'),
+    check('skin-system', 'Skin system remains disabled', !skinSystemEnabled, skinSystemEnabled
+      ? 'Skin preset creation/application is enabled.'
+      : 'Skin preset system is disabled until controlled validation.', 'safety'),
     check('monitor', 'Server outage monitoring', monitorEnabled, monitorEnabled ? 'Persistent outage/recovery monitoring is enabled and alerts are queued for HerbyBot.' : 'Optional: enable after the HerbyBot bridge and RCON stability are verified.', 'optional'),
   ];
 
