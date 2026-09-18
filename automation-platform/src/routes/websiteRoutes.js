@@ -4,6 +4,7 @@ const bodyDrop = require('../services/bodyDropService');
 const dinoStorage = require('../services/dinoStorageService');
 const audit = require('../services/auditService');
 const store = require('../services/automationStore');
+const statusService = require('../services/statusService');
 
 const router = express.Router();
 router.use(requireWebsiteToken);
@@ -40,6 +41,36 @@ router.post('/bodydrop', async (req, res) => {
     }
     const unavailable = /server|rcon|connection|timeout/i.test(error.message || '');
     res.status(unavailable ? 503 : 400).json({ error: error.message || 'BodyDrop request failed.' });
+  }
+});
+
+router.get('/dinostorage/active-character/:steamId', async (req, res) => {
+  try {
+    const steamId = validateSteamId(req.params.steamId);
+    const snapshot = await statusService.getServerSnapshot({ force: true });
+    if (!snapshot.online) return res.json({ active: false, reason: 'server_offline' });
+
+    const character = (snapshot.characters || []).find((entry) => entry.steamId === steamId);
+    if (!character) return res.json({ active: false, reason: 'not_in_game' });
+
+    res.json({
+      active: true,
+      character: {
+        name: character.name || null,
+        species: character.species || null,
+        gender: character.gender || null,
+        growth: Number.isFinite(character.growth) ? character.growth : null,
+        health: Number.isFinite(character.health) ? character.health : null,
+        stamina: Number.isFinite(character.stamina) ? character.stamina : null,
+        hunger: Number.isFinite(character.hunger) ? character.hunger : null,
+        thirst: Number.isFinite(character.thirst) ? character.thirst : null,
+        isPrime: character.isPrime === true,
+        mutations: Array.isArray(character.mutations) ? character.mutations : [],
+        location: character.location || null,
+      },
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Unable to read active character.' });
   }
 });
 
