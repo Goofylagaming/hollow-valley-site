@@ -26,9 +26,14 @@ function response() {
   };
 }
 
-test('wallet adapter derives Steam identity from authenticated backend user', async (t) => {
+test('wallet adapter migrates legacy balance using authenticated backend identity before read', async (t) => {
   let seen = null;
+  let migrated = null;
   const fixture = loadWithClientStubs({
+    migrateLegacyWallet: async (input) => {
+      migrated = input;
+      return { duplicate: false };
+    },
     getWallet: async (steamId) => {
       seen = steamId;
       return { balance: 120, transactions: [{ amount: 10, kind: 'playtime_reward' }] };
@@ -38,27 +43,49 @@ test('wallet adapter derives Steam identity from authenticated backend user', as
 
   const res = response();
   await fixture.adapters.getWallet({
-    user: { steam_id: '76561198000000011' },
+    user: { id: 7, steam_id: '76561198000000011' },
     query: { steamId: '76561198999999999' },
-  }, res);
+  }, res, {
+    legacyWallet: { balance: 90, transactions: [{ amount: 90, reason: 'legacy' }] },
+  });
 
+  assert.deepEqual(migrated, {
+    steamId: '76561198000000011',
+    legacyUserId: 7,
+    balance: 90,
+  });
   assert.equal(seen, '76561198000000011');
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.balance, 120);
   assert.equal(res.body.steamLinked, true);
+  assert.equal(res.body.migrationPending, false);
 });
 
-test('unlinked wallet read returns zero without contacting automation', async (t) => {
+test('unlinked wallet preserves legacy balance without contacting automation', async (t) => {
   let calls = 0;
   const fixture = loadWithClientStubs({
+    migrateLegacyWallet: async () => { calls += 1; return {}; },
     getWallet: async () => { calls += 1; return {}; },
   });
   t.after(fixture.restore);
 
+  const legacyWallet = {
+    balance: 345,
+    transactions: [{ id: 1, amount: 345, reason: 'Legacy balance' }],
+  };
   const res = response();
-  await fixture.adapters.getWallet({ user: { steam_id: null } }, res);
+  await fixture.adapters.getWallet({
+    user: { id: 8, steam_id: null },
+  }, res, { legacyWallet });
+
   assert.equal(calls, 0);
-  assert.deepEqual(res.body, { balance: 0, transactions: [], steamLinked: false });
+  assert.deepEqual(res.body, {
+    balance: 345,
+    transactions: legacyWallet.transactions,
+    steamLinked: false,
+    migrationPending: true,
+    earning: null,
+  });
 });
 
 test('marketplace catalog adapter preserves current frontend catalog shape', async (t) => {
