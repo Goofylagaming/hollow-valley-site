@@ -4,6 +4,18 @@ const files = require('./parkedDinoFileService');
 
 const ACTIVE_STATUSES = new Set(['escrowing', 'active', 'reserved', 'transfer_uncertain', 'cancelling']);
 
+function writeEnabled() {
+  return String(process.env.MARKETPLACE_WRITE_ENABLED || '').toLowerCase() === 'true';
+}
+
+function assertWriteEnabled() {
+  if (!writeEnabled()) {
+    const error = new Error('Marketplace writes are disabled');
+    error.code = 'MARKETPLACE_WRITE_DISABLED';
+    throw error;
+  }
+}
+
 function validateKey(value, name) {
   const key = String(value || '').trim();
   if (!/^[A-Za-z0-9:_-]{8,160}$/.test(key)) throw new Error(`${name} is invalid`);
@@ -57,6 +69,7 @@ function buyerSlotForListing(listingId) {
 }
 
 async function createDinoListing({ sellerSteamId, slot, price, idempotencyKey }) {
+  assertWriteEnabled();
   const seller = store.validateSteamId(sellerSteamId);
   const selectedSlot = files.validateSlot(slot);
   const listingPrice = validatePrice(price);
@@ -120,6 +133,7 @@ async function createDinoListing({ sellerSteamId, slot, price, idempotencyKey })
 }
 
 async function cancelDinoListing({ sellerSteamId, listingId }) {
+  assertWriteEnabled();
   const seller = store.validateSteamId(sellerSteamId);
   let listing = getListing(listingId);
   if (listing.seller_steam_id !== seller) {
@@ -328,6 +342,7 @@ function finalizeSale(listingId) {
 }
 
 async function buyDinoListing({ buyerSteamId, listingId, idempotencyKey }) {
+  assertWriteEnabled();
   const reservation = reservePurchase({
     buyerSteamId,
     listingId,
@@ -387,6 +402,8 @@ function listSellerListings(sellerSteamId, { limit = 100 } = {}) {
 
 module.exports = {
   ACTIVE_STATUSES,
+  writeEnabled,
+  assertWriteEnabled,
   validatePrice,
   publicSnapshot,
   buyerSlotForListing,
