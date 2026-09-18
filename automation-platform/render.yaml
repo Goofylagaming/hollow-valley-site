@@ -82,6 +82,14 @@ services:
         value: 20
       - key: WALLET_QUEST_MAX_TOTAL_BOOST_PERCENT
         value: 100
+      - key: MARKETPLACE_WRITE_ENABLED
+        value: false
+      - key: PARKED_DINO_EDIT_ENABLED
+        value: false
+      - key: SKIN_SYSTEM_ENABLED
+        value: false
+      - key: SKIN_PRESET_CREATE_COST
+        value: 500
 
       # Read-only uptime/player-count history is also opt-in.
       - key: SERVER_HEALTH_HISTORY_ENABLED
