@@ -1,0 +1,39 @@
+name: Portal Tests
+
+on:
+  push:
+    branches:
+      - automation-platform
+    paths:
+      - 'server/**'
+      - 'public/**'
+      - 'test/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/portal-tests.yml'
+  pull_request:
+    paths:
+      - 'server/**'
+      - 'public/**'
+      - 'test/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/portal-tests.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Run portal tests
+        run: npm test
