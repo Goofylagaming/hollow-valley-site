@@ -75,7 +75,13 @@ router.post("/catalog/:id/buy", requireAuth, async (req, res) => {
 router.get("/state", async (_req, res) => {
   try {
     const state = await automation.getDinoMarketplaceState();
-    res.json({ ...state, p2pWritesEnabled: false });
+    res.json({
+      ...state,
+      p2pWritesEnabled: true,
+      p2pCreateEnabled: true,
+      p2pBuyEnabled: false,
+      p2pCancelEnabled: false,
+    });
   } catch (error) {
     const mapped = mapAutomationError(error, "Could not read marketplace state.");
     res.status(mapped.status).json(mapped.body);
@@ -105,11 +111,32 @@ router.get("/listings/mine", requireAuth, async (req, res) => {
   }
 });
 
+router.post("/listings", requireAuth, async (req, res) => {
+  if (!req.user?.steam_id) {
+    return res.status(400).json({ error: "Your Steam account is not linked. Please sign in with Steam first." });
+  }
+  try {
+    const result = await automation.createDinoMarketplaceListing({
+      steamId: String(req.user.steam_id),
+      slot: req.body?.slot,
+      price: req.body?.price,
+      idempotencyKey: `website-p2p-list:${randomUUID()}`,
+    });
+    return res.status(result.duplicate ? 200 : 201).json({
+      ok: true,
+      duplicate: Boolean(result.duplicate),
+      listing: result.listing ? mapListing(result.listing) : null,
+    });
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Unable to list parked dinosaur.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
 function writesDisabled(_req, res) {
-  return res.status(503).json({ error: "Marketplace P2P writes are not enabled yet." });
+  return res.status(503).json({ error: "Marketplace P2P buying and cancellation are not enabled yet." });
 }
 
-router.post("/listings", requireAuth, writesDisabled);
 router.post("/listings/:id/buy", requireAuth, writesDisabled);
 router.post("/listings/:id/cancel", requireAuth, writesDisabled);
 
