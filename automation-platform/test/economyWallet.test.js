@@ -80,3 +80,75 @@ test('wallet follows Steam identity before website linkage', (t) => {
   assert.equal(wallet.balance, 25);
   assert.equal(wallet.transactions[0].kind, 'playtime_reward');
 });
+
+
+test('legacy wallet migration credits a Steam wallet exactly once', (t) => {
+  const fixture = loadEconomy();
+  t.after(fixture.cleanup);
+  const { store } = fixture;
+  const steamId = '76561198000000021';
+
+  const first = store.migrateLegacyWallet({
+    legacyUserId: 42,
+    steamId,
+    balance: 875,
+  });
+  assert.equal(first.duplicate, false);
+  assert.equal(first.wallet.balance, 875);
+  assert.equal(first.wallet.transactions.length, 1);
+  assert.equal(first.wallet.transactions[0].kind, 'legacy_wallet_migration');
+
+  const duplicate = store.migrateLegacyWallet({
+    legacyUserId: 42,
+    steamId,
+    balance: 875,
+  });
+  assert.equal(duplicate.duplicate, true);
+  assert.equal(duplicate.wallet.balance, 875);
+  assert.equal(duplicate.wallet.transactions.length, 1);
+});
+
+test('zero legacy balance still records migration completion', (t) => {
+  const fixture = loadEconomy();
+  t.after(fixture.cleanup);
+  const { store } = fixture;
+  const steamId = '76561198000000022';
+
+  const result = store.migrateLegacyWallet({
+    legacyUserId: 43,
+    steamId,
+    balance: 0,
+  });
+  assert.equal(result.duplicate, false);
+  assert.equal(result.wallet.balance, 0);
+  assert.equal(result.wallet.transactions.length, 0);
+
+  const duplicate = store.migrateLegacyWallet({
+    legacyUserId: 43,
+    steamId,
+    balance: 0,
+  });
+  assert.equal(duplicate.duplicate, true);
+});
+
+test('same Steam wallet cannot be credited from another legacy user', (t) => {
+  const fixture = loadEconomy();
+  t.after(fixture.cleanup);
+  const { store } = fixture;
+  const steamId = '76561198000000023';
+
+  store.migrateLegacyWallet({
+    legacyUserId: 44,
+    steamId,
+    balance: 100,
+  });
+
+  assert.throws(() => store.migrateLegacyWallet({
+    legacyUserId: 45,
+    steamId,
+    balance: 100,
+  }), (error) => error.code === 'LEGACY_WALLET_MIGRATION_CONFLICT');
+
+  assert.equal(store.getWallet(steamId).balance, 100);
+  assert.equal(store.getWallet(steamId).transactions.length, 1);
+});
