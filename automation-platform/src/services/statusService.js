@@ -3,7 +3,11 @@ const fileBridge = require('../adapters/fileBridge');
 const { PUBLISHER_ACK } = require('./commandBridgeService');
 const store = require('./automationStore');
 
-const CACHE_MS = 10_000;
+function cacheMs() {
+  const value = Number(process.env.RCON_STATUS_CACHE_MS || 30000);
+  return Math.max(15000, Math.min(120000, Number.isFinite(value) ? value : 30000));
+}
+
 let cachedAt = 0;
 let cachedServer = null;
 let cachedError = null;
@@ -35,7 +39,7 @@ async function getServerSnapshot({ force = false } = {}) {
   }
 
   const now = Date.now();
-  if (!force && cachedServer && now - cachedAt < CACHE_MS) {
+  if (!force && cachedServer && now - cachedAt < cacheMs()) {
     return { ...cachedServer, configured: true, cached: true, error: cachedError };
   }
 
