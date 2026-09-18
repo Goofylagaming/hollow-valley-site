@@ -122,3 +122,44 @@ test('BodyDrop state exposes live-compatible restrictions and eligibility', asyn
   assert.equal(state.eligibility.growthPercent, 40);
   assert.deepEqual(state.restrictions, { carnivoreOnly: true, maxGrowthPercent: 60 });
 });
+
+
+test('failed or cancelled BodyDrop requests do not consume cooldown', (t) => {
+  const fixture = loadService();
+  t.after(fixture.restore);
+  const { cooldownForRequest } = fixture.service;
+  const now = Date.parse('2026-09-18T00:10:00.000Z');
+
+  for (const status of ['failed', 'cancelled']) {
+    const result = cooldownForRequest({
+      id: 'request-test',
+      status,
+      created_at: '2026-09-18 00:09:30',
+    }, now);
+    assert.equal(result.active, false);
+    assert.equal(result.remainingSeconds, 0);
+  }
+});
+
+test('confirmed BodyDrop still consumes the configured cooldown window', (t) => {
+  const fixture = loadService();
+  t.after(fixture.restore);
+  const { cooldownForRequest } = fixture.service;
+  const previous = process.env.BODYDROP_COOLDOWN_SECONDS;
+  process.env.BODYDROP_COOLDOWN_SECONDS = '900';
+
+  try {
+    const result = cooldownForRequest({
+      id: 'request-test',
+      status: 'confirmed',
+      created_at: '2026-09-18 00:09:30',
+    }, Date.parse('2026-09-18T00:10:00.000Z'));
+
+    assert.equal(result.active, true);
+    assert.equal(result.reason, 'cooldown');
+    assert.equal(result.remainingSeconds, 870);
+  } finally {
+    if (previous === undefined) delete process.env.BODYDROP_COOLDOWN_SECONDS;
+    else process.env.BODYDROP_COOLDOWN_SECONDS = previous;
+  }
+});
