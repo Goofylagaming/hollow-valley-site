@@ -114,3 +114,56 @@ test('marketplace buy uses authenticated Steam identity and backend-generated id
   assert.equal(res.body.fulfilled, false);
   assert.equal(res.body.order.status, 'pending');
 });
+
+
+test('quest adapter derives Steam identity and exposes automatic boost progress', async (t) => {
+  let seen = null;
+  const fixture = loadWithClientStubs({
+    getQuests: async (steamId) => {
+      seen = steamId;
+      return {
+        activeBoostPercent: 25,
+        quests: [{
+          id: 'daily-total-3h',
+          title: 'Three Hour Survivor',
+          cadence: 'daily',
+          thresholdSeconds: 10800,
+          progressSeconds: 10800,
+          completed: true,
+          boostPercent: 15,
+        }],
+      };
+    },
+  });
+  t.after(fixture.restore);
+
+  const res = response();
+  await fixture.adapters.getQuests({
+    user: { steam_id: '76561198000000013' },
+  }, res);
+
+  assert.equal(seen, '76561198000000013');
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.steamLinked, true);
+  assert.equal(res.body.activeBoostPercent, 25);
+  assert.equal(res.body.quests[0].claimed, true);
+  assert.equal(res.body.quests[0].rewardType, 'playtime_boost_percent');
+  assert.equal(res.body.quests[0].reward, null);
+});
+
+test('unlinked quest read returns harmless empty state without automation call', async (t) => {
+  let calls = 0;
+  const fixture = loadWithClientStubs({
+    getQuests: async () => { calls += 1; return {}; },
+  });
+  t.after(fixture.restore);
+
+  const res = response();
+  await fixture.adapters.getQuests({ user: { steam_id: null } }, res);
+  assert.equal(calls, 0);
+  assert.deepEqual(res.body, {
+    steamLinked: false,
+    activeBoostPercent: 0,
+    quests: [],
+  });
+});
