@@ -257,6 +257,7 @@ async function transferEscrowToStored({ listingId, buyerSteamId, buyerSlot }) {
 
     const state = await readJson(client, escrow);
     state.slot = validateSlot(buyerSlot);
+    delete state.marketplaceReturn;
     state.marketplaceTransfer = { listingId: validateListingId(listingId) };
     await writeJsonExclusive(client, target, state);
 
