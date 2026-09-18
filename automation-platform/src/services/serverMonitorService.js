@@ -102,10 +102,15 @@ async function checkServerMonitor({ force = true } = {}) {
     try {
       await audit.run('monitor', `server_${next.transition}`, {
         consecutiveFailures: next.state.consecutiveFailures,
-      }, () => discord.sendAlert(
-        alertText(next.transition, snapshot, next.state.consecutiveFailures),
-        { nonce: `hollow-valley-server-${next.transition}-${Date.parse(nowIso)}` }
-      ), (value) => ({ outboxEventId: value.id || null, queued: Boolean(value.queued) }));
+      }, () => {
+        const transitionNonce = next.transition === 'offline'
+          ? `hollow-valley-server:offline:${next.state.consecutiveFailures}`
+          : `hollow-valley-server:recovered:${previous.lastChangedAt || 'offline'}`;
+        return discord.sendAlert(
+          alertText(next.transition, snapshot, next.state.consecutiveFailures),
+          { nonce: transitionNonce }
+        );
+      }, (value) => ({ outboxEventId: value.id || null, queued: Boolean(value.queued) }));
       next.state.lastAlertAt = nowIso;
       store.setState(STATE_KEY, next.state);
       return { skipped: false, transition: next.transition, alerted: true, ...getState() };
