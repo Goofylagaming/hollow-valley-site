@@ -58,7 +58,10 @@ router.get('/wallet/:steamId', (req, res) => {
 router.get('/quests/:steamId', (req, res) => {
   try {
     const steamId = validateSteamId(req.params.steamId);
-    res.json(questBoosts.getQuestStatus(steamId));
+    res.json({
+      ...questBoosts.getQuestStatus(steamId),
+      trackingEnabled: String(process.env.PLAYER_PRESENCE_ENABLED || '').toLowerCase() === 'true',
+    });
   } catch (error) {
     res.status(400).json({ error: error.message || 'Unable to read playtime quests.' });
   }
