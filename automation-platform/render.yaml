@@ -60,6 +60,15 @@ services:
       - key: PLAYER_PRESENCE_RETENTION_HOURS
         value: 744
 
+      # Valley Coin playtime rewards remain locked until the rate is deliberately
+      # chosen and read-only presence tracking has been verified.
+      - key: WALLET_PLAYTIME_REWARDS_ENABLED
+        value: false
+      - key: WALLET_PLAYTIME_COINS_PER_5_MINUTES
+        value: 0
+      - key: WALLET_PLAYTIME_MAX_SAMPLE_GAP_SECONDS
+        value: 90
+
       # Read-only uptime/player-count history is also opt-in.
       - key: SERVER_HEALTH_HISTORY_ENABLED
         value: false
