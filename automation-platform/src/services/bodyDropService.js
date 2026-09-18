@@ -136,6 +136,20 @@ function getCooldown(steamId, now = Date.now()) {
   return cooldownForRequest(store.getLatestForSteam(steamId, 'bodydrop'), now);
 }
 
+function assertBodyDropAvailable(steamId) {
+  const cooldown = getCooldown(steamId);
+  if (!cooldown.active) return cooldown;
+
+  const error = new Error(
+    cooldown.reason === 'pending'
+      ? 'A body drop request is already awaiting reconciliation'
+      : 'Body drop is still on cooldown'
+  );
+  error.code = 'BODYDROP_COOLDOWN';
+  error.cooldown = cooldown;
+  throw error;
+}
+
 async function getBodyDropState(steamId) {
   steamId = String(steamId || '').trim();
   if (!/^\d{17}$/.test(steamId)) throw new Error('A valid 17-digit Steam ID is required');
@@ -175,13 +189,7 @@ async function requestBodyDrop({ steamId, dropType }) {
   const option = getDropTypes().find((item) => item.id === String(dropType || '').trim());
   if (!option) throw new Error('Unknown body drop type');
 
-  const cooldown = getCooldown(steamId);
-  if (cooldown.active) {
-    const error = new Error(cooldown.reason === 'pending' ? 'A body drop request is already awaiting reconciliation' : 'Body drop is still on cooldown');
-    error.code = 'BODYDROP_COOLDOWN';
-    error.cooldown = cooldown;
-    throw error;
-  }
+  assertBodyDropAvailable(steamId);
 
   const snapshot = await statusService.getServerSnapshot({ force: true });
   if (!snapshot.online) throw new Error(snapshot.error || 'The Isle server is not online or RCON is unavailable');
@@ -198,6 +206,11 @@ async function requestBodyDrop({ steamId, dropType }) {
   if (!location || !['x', 'y', 'z'].every((axis) => Number.isFinite(location[axis]))) {
     throw new Error('Player must be spawned in-game with a live RCON position before requesting a body drop');
   }
+
+  // RCON lookup is asynchronous. Re-check immediately before creating the
+  // ledger entry so two simultaneous requests cannot both pass the first
+  // cooldown check and publish duplicate drops.
+  assertBodyDropAvailable(steamId);
 
   const command = commandBridge.buildCommand('bd', steamId, [
     'spawn',
@@ -291,6 +304,7 @@ function startBodyDropReconciler() {
 
 module.exports = {
   BODYDROP_MAX_GROWTH_PERCENT,
+  assertBodyDropAvailable,
   bodyDropEligibility,
   cooldownForRequest,
   growthPercent,
