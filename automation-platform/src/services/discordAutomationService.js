@@ -1,35 +1,28 @@
 const { getServerSnapshot } = require('./statusService');
+const herbyBot = require('./herbyBotOutboxService');
 
-const API_BASE = 'https://discord.com/api/v10';
 let lastStatusChannelName = null;
 let lastSyncAt = null;
 let lastError = null;
 
-function token() {
-  return String(process.env.DISCORD_BOT_TOKEN || '').trim();
-}
-
 function configured() {
-  return Boolean(token());
+  return herbyBot.configured();
 }
 
 function announcementConfigured() {
-  return configured() && Boolean(String(process.env.DISCORD_ANNOUNCEMENT_CHANNEL_ID || '').trim());
+  return configured();
 }
 
 function statusChannelConfigured() {
-  return configured() && Boolean(String(process.env.DISCORD_STATUS_CHANNEL_ID || '').trim());
+  return configured();
 }
 
 function alertConfigured() {
-  return configured() && Boolean(String(process.env.DISCORD_ALERT_CHANNEL_ID || '').trim());
+  return configured();
 }
 
 function cleanMessage(value) {
-  const message = String(value || '').trim();
-  if (!message) throw new Error('Discord announcement message is required');
-  if (message.length > 1900) throw new Error('Discord announcement message must be 1900 characters or fewer');
-  return message;
+  return herbyBot.cleanMessage(value);
 }
 
 function formatStatusChannelName(server) {
@@ -40,110 +33,74 @@ function formatStatusChannelName(server) {
   return max ? `🟢-hollow-valley-${count}-${max}-online` : `🟢-hollow-valley-${count}-online`;
 }
 
-async function discordRequest(path, { method = 'GET', body } = {}) {
-  if (!configured()) throw new Error('DISCORD_BOT_TOKEN is not configured');
-  const response = await fetch(`${API_BASE}${path}`, {
-    method,
-    headers: {
-      Authorization: `Bot ${token()}`,
-      'Content-Type': 'application/json',
-      'User-Agent': 'HollowValleyAutomation/1.0',
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-    signal: AbortSignal.timeout(10_000),
-  });
-
-  let payload = null;
-  const text = await response.text();
-  if (text) {
-    try { payload = JSON.parse(text); } catch { payload = text; }
-  }
-  if (!response.ok) {
-    const detail = typeof payload === 'object' && payload?.message ? payload.message : String(payload || response.statusText);
-    throw new Error(`Discord API ${response.status}: ${detail}`);
-  }
-  return payload;
-}
-
-async function sendChannelMessage(channelId, message, { nonce = null } = {}) {
-  const target = String(channelId || '').trim();
-  if (!target) throw new Error('Discord channel ID is not configured');
-  const content = cleanMessage(message);
-  const body = {
-    content,
-    allowed_mentions: { parse: [] },
-  };
-  if (nonce) {
-    body.nonce = String(nonce);
-    body.enforce_nonce = true;
-  }
-  const result = await discordRequest(`/channels/${encodeURIComponent(target)}/messages`, {
-    method: 'POST',
-    body,
-  });
-  return { id: result?.id || null, channelId: target, content };
-}
-
 async function sendAnnouncement(message, { nonce = null } = {}) {
-  const channelId = String(process.env.DISCORD_ANNOUNCEMENT_CHANNEL_ID || '').trim();
-  if (!channelId) throw new Error('DISCORD_ANNOUNCEMENT_CHANNEL_ID is not configured');
-  return sendChannelMessage(channelId, message, { nonce });
-}
-
-async function sendAlert(message, { nonce = null } = {}) {
-  const channelId = String(process.env.DISCORD_ALERT_CHANNEL_ID || '').trim();
-  if (!channelId) throw new Error('DISCORD_ALERT_CHANNEL_ID is not configured');
-  return sendChannelMessage(channelId, message, { nonce });
-}
-
-async function syncStatusChannel({ force = false } = {}) {
-  const channelId = String(process.env.DISCORD_STATUS_CHANNEL_ID || '').trim();
-  if (!channelId) throw new Error('DISCORD_STATUS_CHANNEL_ID is not configured');
-  const server = await getServerSnapshot({ force });
-  const name = formatStatusChannelName(server);
-  if (name === lastStatusChannelName) {
-    lastSyncAt = new Date().toISOString();
-    lastError = null;
-    return { changed: false, name, checkedAt: lastSyncAt };
-  }
-
   try {
-    await discordRequest(`/channels/${encodeURIComponent(channelId)}`, {
-      method: 'PATCH',
-      body: { name },
-    });
-    lastStatusChannelName = name;
-    lastSyncAt = new Date().toISOString();
+    const event = herbyBot.queueAnnouncement(cleanMessage(message), { nonce: nonce || undefined });
     lastError = null;
-    return { changed: true, name, checkedAt: lastSyncAt };
+    return {
+      id: event.id,
+      queued: true,
+      destination: event.destination,
+      nonce: event.nonce,
+      message: event.message,
+    };
   } catch (error) {
-    lastSyncAt = new Date().toISOString();
     lastError = error.message;
     throw error;
   }
 }
 
+async function sendAlert(message, { nonce = null } = {}) {
+  try {
+    const event = herbyBot.queueAlert(cleanMessage(message), { nonce: nonce || undefined });
+    lastError = null;
+    return {
+      id: event.id,
+      queued: true,
+      destination: event.destination,
+      nonce: event.nonce,
+      message: event.message,
+    };
+  } catch (error) {
+    lastError = error.message;
+    throw error;
+  }
+}
+
+async function syncStatusChannel({ force = false } = {}) {
+  const server = await getServerSnapshot({ force });
+  const name = formatStatusChannelName(server);
+  lastStatusChannelName = name;
+  lastSyncAt = new Date().toISOString();
+  lastError = null;
+  return {
+    changed: false,
+    delegated: true,
+    name,
+    checkedAt: lastSyncAt,
+    message: 'Status-channel delivery is owned by the existing HerbyBot client.',
+  };
+}
+
 function getState() {
+  const bridge = herbyBot.getState();
   return {
     configured: configured(),
     announcementConfigured: announcementConfigured(),
     statusChannelConfigured: statusChannelConfigured(),
     alertConfigured: alertConfigured(),
+    deliveryMode: 'herbybot_outbox',
     lastStatusChannelName,
     lastSyncAt,
     lastError,
+    outbox: bridge.outbox,
   };
 }
 
 function startDiscordAutomation() {
-  if (!statusChannelConfigured()) return null;
-  const intervalMs = Math.max(300_000, Number(process.env.DISCORD_STATUS_SYNC_INTERVAL_MS || 300_000));
-  syncStatusChannel({ force: false }).catch((error) => console.warn('[discord-status-sync]', error.message));
-  const timer = setInterval(() => {
-    syncStatusChannel({ force: false }).catch((error) => console.warn('[discord-status-sync]', error.message));
-  }, intervalMs);
-  timer.unref?.();
-  return timer;
+  // The automation service intentionally does not connect to Discord.
+  // Existing HerbyBot owns the single gateway connection and polls the outbox.
+  return null;
 }
 
 module.exports = {
@@ -153,7 +110,6 @@ module.exports = {
   alertConfigured,
   cleanMessage,
   formatStatusChannelName,
-  sendChannelMessage,
   sendAnnouncement,
   sendAlert,
   syncStatusChannel,
