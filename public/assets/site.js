@@ -269,6 +269,12 @@ async function loadQuests() {
     const quests = Array.isArray(result.quests) ? result.quests : [];
     const summary = document.getElementById("quest-active-boost");
     if (summary) summary.textContent = `+${Number(result.activeBoostPercent || 0)}%`;
+    const intro = document.querySelector(".quest-section-intro");
+    if (intro) {
+      intro.textContent = result.trackingEnabled
+        ? "Verified online time completes these automatically. No manual claiming."
+        : "Playtime quest tracking is staged but currently disabled until presence sampling is enabled.";
+    }
 
     const daily = quests.filter((quest) => quest.cadence === "daily");
     const weekly = quests.filter((quest) => quest.cadence === "weekly");
