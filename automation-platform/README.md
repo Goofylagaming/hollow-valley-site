@@ -19,6 +19,7 @@ The project is a separate Hollow Valley control plane that keeps the existing HD
 - Persisted scheduler UI.
 - Player Activity panel for read-only tracked sessions/analytics.
 - Migration Readiness panel showing setup, safety and publisher-cutover state.
+- Admin restore JSON builder with `fullNutrients` support and a separately gated DinoStorage slot uploader.
 
 ### Evrima and game-server integration
 
@@ -30,6 +31,7 @@ The project is a separate Hollow Valley control plane that keeps the existing HD
 - Strict bridge acknowledgement vs. sub-mod completion handling.
 - BodyDrop worker using live RCON coordinates, cooldowns and reconciliation.
 - DinoStorage file reads plus store/redeem request/reconciliation flows.
+- Admin restore slot upload that creates missing player storage directories, stages atomically and refuses to overwrite existing slots.
 
 ### Automation and persistence
 
@@ -61,6 +63,7 @@ The project is a separate Hollow Valley control plane that keeps the existing HD
 - `COMMAND_BRIDGE_ENABLED=false` by default.
 - `PLAYER_PRESENCE_ENABLED=false` by default.
 - `SERVER_MONITOR_ENABLED=false` by default.
+- `ADMIN_RESTORE_WRITE_ENABLED=false` by default; JSON generation remains available while FTP slot writes stay locked.
 - CommandBridge requires an additional exact sole-publisher acknowledgement before it can publish:
 
 ```text
@@ -123,6 +126,7 @@ COMMAND_BRIDGE_ENABLED=false
 RCON_WRITE_ENABLED=false
 PLAYER_PRESENCE_ENABLED=false
 SERVER_MONITOR_ENABLED=false
+ADMIN_RESTORE_WRITE_ENABLED=false
 ```
 
 Run tests with:
@@ -151,6 +155,9 @@ Operator/admin protected:
 - `POST /api/admin/presence/sample`
 - `GET /api/admin/migration-readiness`
 - `POST /api/admin/reconcile`
+- `GET /api/admin/dinostorage/admin-restore`
+- `POST /api/admin/dinostorage/admin-restore-json`
+- `POST /api/admin/dinostorage/admin-restore/upload` (separately write-gated)
 - Discord controls
 - scheduler controls
 - server-monitor controls
