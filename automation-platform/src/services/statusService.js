@@ -7,6 +7,7 @@ const CACHE_MS = 10_000;
 let cachedAt = 0;
 let cachedServer = null;
 let cachedError = null;
+let inFlight = null;
 
 function configured(name) {
   return Boolean(String(process.env[name] || '').trim());
@@ -37,35 +38,43 @@ async function getServerSnapshot({ force = false } = {}) {
     return { ...cachedServer, configured: true, cached: true, error: cachedError };
   }
 
-  try {
-    const result = await fetchServerStatus({
-      host: process.env.RCON_HOST,
-      port: Number(process.env.RCON_PORT),
-      password: process.env.RCON_PASSWORD,
-      timeoutMs: Number(process.env.RCON_TIMEOUT_MS || 6000),
-    });
-    cachedAt = Date.now();
-    cachedError = null;
-    cachedServer = {
-      online: true,
-      players: result.players,
-      characters: result.characters,
-      maxPlayers: result.maxPlayers,
-      checkedAt: new Date(cachedAt).toISOString(),
-    };
-    return { ...cachedServer, configured: true, cached: false, error: null };
-  } catch (error) {
-    cachedAt = Date.now();
-    cachedError = error.message;
-    cachedServer = {
-      online: false,
-      players: [],
-      characters: [],
-      maxPlayers: null,
-      checkedAt: new Date(cachedAt).toISOString(),
-    };
-    return { ...cachedServer, configured: true, cached: false, error: cachedError };
-  }
+  if (inFlight) return inFlight;
+
+  inFlight = (async () => {
+    try {
+      const result = await fetchServerStatus({
+        host: process.env.RCON_HOST,
+        port: Number(process.env.RCON_PORT),
+        password: process.env.RCON_PASSWORD,
+        timeoutMs: Number(process.env.RCON_TIMEOUT_MS || 6000),
+      });
+      cachedAt = Date.now();
+      cachedError = null;
+      cachedServer = {
+        online: true,
+        players: result.players,
+        characters: result.characters,
+        maxPlayers: result.maxPlayers,
+        checkedAt: new Date(cachedAt).toISOString(),
+      };
+      return { ...cachedServer, configured: true, cached: false, error: null };
+    } catch (error) {
+      cachedAt = Date.now();
+      cachedError = error.message;
+      cachedServer = {
+        online: false,
+        players: [],
+        characters: [],
+        maxPlayers: null,
+        checkedAt: new Date(cachedAt).toISOString(),
+      };
+      return { ...cachedServer, configured: true, cached: false, error: cachedError };
+    } finally {
+      inFlight = null;
+    }
+  })();
+
+  return inFlight;
 }
 
 function moduleState() {
