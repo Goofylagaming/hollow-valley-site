@@ -1,4 +1,5 @@
 const automation = require('./herbyBotAutomationClient');
+const { STAFF_COMMAND_DEFINITIONS, isStaffOverviewCommand, handleStaffOverviewCommand } = require('./herbyBotStaffCommands');
 
 const MANAGE_GUILD_PERMISSION = '32';
 
@@ -12,6 +13,7 @@ const COMMANDS = [
     description: 'Show Hollow Valley automation health for staff.',
     default_member_permissions: MANAGE_GUILD_PERMISSION,
   },
+  ...STAFF_COMMAND_DEFINITIONS,
 ];
 
 function commandDefinitions() {
@@ -110,7 +112,8 @@ function createHerbyBotCommandHandler({ api = automation } = {}) {
     if (!interaction?.isChatInputCommand?.()) return false;
     if (!COMMANDS.some((command) => command.name === interaction.commandName)) return false;
 
-    if (interaction.commandName === 'automation' && !hasStaffAccess(interaction)) {
+    const staffCommand = interaction.commandName === 'automation' || isStaffOverviewCommand(interaction.commandName);
+    if (staffCommand && !hasStaffAccess(interaction)) {
       await safeReply(interaction, {
         ephemeral: true,
         content: 'You do not have permission to use this command.',
@@ -118,7 +121,15 @@ function createHerbyBotCommandHandler({ api = automation } = {}) {
       return true;
     }
 
+    if (interaction.deferReply && !interaction.deferred && !interaction.replied) {
+      await interaction.deferReply({ ephemeral: staffCommand });
+    }
+
     try {
+      if (isStaffOverviewCommand(interaction.commandName)) {
+        await safeReply(interaction, await handleStaffOverviewCommand(interaction, api));
+        return true;
+      }
       const status = await api.getStatus();
       if (interaction.commandName === 'server') {
         await safeReply(interaction, serverReply(status));
@@ -131,10 +142,10 @@ function createHerbyBotCommandHandler({ api = automation } = {}) {
       return false;
     } catch (error) {
       await safeReply(interaction, {
-        ephemeral: interaction.commandName === 'automation',
+        ephemeral: staffCommand,
         content: interaction.commandName === 'server'
           ? 'Hollow Valley status is temporarily unavailable.'
-          : `Automation status is unavailable: ${error.message}`,
+          : `Staff automation data is unavailable: ${error.message}`,
       });
       return true;
     }
