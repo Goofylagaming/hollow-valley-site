@@ -56,6 +56,11 @@ function getStaffOverview(options = {}) {
   return call('/staff-overview', options);
 }
 
+function getActivity(hours = 24, options = {}) {
+  const safeHours = Math.max(1, Math.min(24 * 31, Number(hours) || 24));
+  return call(`/activity?hours=${safeHours}`, options);
+}
+
 function queueAnnouncement(message, nonce, options = {}) {
   return call('/commands/announcement', {
     ...options,
@@ -99,6 +104,7 @@ function failMessage(id, error, options = {}) {
 module.exports = {
   getStatus,
   getStaffOverview,
+  getActivity,
   queueAnnouncement,
   scheduleAnnouncement,
   claimMessages,
