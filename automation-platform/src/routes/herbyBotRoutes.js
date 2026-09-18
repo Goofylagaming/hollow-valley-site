@@ -44,6 +44,7 @@ router.post('/commands/announcement', async (req, res) => {
   const message = String(req.body?.message || '');
   const nonce = String(req.body?.nonce || '').trim();
   try {
+    if (!/^slash:[0-9]{8,32}$/.test(nonce)) throw new Error('A valid Discord interaction nonce is required');
     const event = await audit.run('herbybot', 'slash_announcement', {
       messageLength: message.trim().length,
     }, async () => herbyBot.queueAnnouncement(message, { nonce }),
@@ -60,6 +61,7 @@ router.post('/commands/schedule', async (req, res) => {
   const recurrence = req.body?.recurrence || 'none';
   const nonce = String(req.body?.nonce || '').trim();
   try {
+    if (!/^[0-9]{8,32}$/.test(nonce)) throw new Error('A valid Discord interaction nonce is required');
     const job = await audit.run('scheduler', 'herbybot_slash_schedule', {
       messageLength: message.trim().length,
       runAt: runAt || null,
