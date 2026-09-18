@@ -79,7 +79,7 @@ function alertText(transition, snapshot, failures) {
   return `🟢 Hollow Valley server recovered: Evrima RCON is responding again and ${count} player${count === 1 ? '' : 's'} are currently online.`;
 }
 
-async function checkServerMonitor({ force = true } = {}) {
+async function checkServerMonitor({ force = false } = {}) {
   if (checkRunning) return { skipped: true, reason: 'check-already-running', ...getState() };
   if (!enabled()) return { skipped: true, reason: 'disabled', ...getState() };
   if (!discord.alertConfigured()) return { skipped: true, reason: 'herbybot-bridge-not-configured', ...getState() };
@@ -132,9 +132,9 @@ async function checkServerMonitor({ force = true } = {}) {
 function startServerMonitor() {
   if (!enabled()) return null;
   const intervalMs = Math.max(30_000, Number(process.env.SERVER_MONITOR_INTERVAL_MS || 60_000));
-  checkServerMonitor({ force: true }).catch((error) => console.warn('[server-monitor]', error.message));
+  checkServerMonitor().catch((error) => console.warn('[server-monitor]', error.message));
   const timer = setInterval(() => {
-    checkServerMonitor({ force: true }).catch((error) => console.warn('[server-monitor]', error.message));
+    checkServerMonitor().catch((error) => console.warn('[server-monitor]', error.message));
   }, intervalMs);
   timer.unref?.();
   return timer;
