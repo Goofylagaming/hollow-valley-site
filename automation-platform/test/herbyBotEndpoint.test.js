@@ -96,3 +96,93 @@ test('HerbyBot staff overview requires bridge authentication', async (t) => {
   assert.ok(body.requests);
   assert.ok(body.outbox);
 });
+
+
+test('HerbyBot slash announcement endpoint is idempotent by interaction nonce', async (t) => {
+  const server = await listen();
+  t.after(() => close(server));
+  const { port } = server.address();
+  const base = `http://127.0.0.1:${port}/api/herbybot`;
+  const body = JSON.stringify({ message: 'Announcement retry test', nonce: 'slash:123456789012345680' });
+
+  const send = () => fetch(`${base}/commands/announcement`, {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer herbybot-endpoint-secret',
+      'Content-Type': 'application/json',
+    },
+    body,
+  });
+
+  const first = await send();
+  const second = await send();
+  assert.equal(first.status, 202);
+  assert.equal(second.status, 202);
+  const firstBody = await first.json();
+  const secondBody = await second.json();
+  assert.equal(firstBody.event.id, secondBody.event.id);
+});
+
+test('HerbyBot slash schedule endpoint is idempotent by interaction nonce', async (t) => {
+  const server = await listen();
+  t.after(() => close(server));
+  const { port } = server.address();
+  const base = `http://127.0.0.1:${port}/api/herbybot`;
+  const runAt = new Date(Date.now() + 5 * 60_000).toISOString();
+  const body = JSON.stringify({
+    message: 'Scheduled retry test',
+    runAt,
+    recurrence: 'none',
+    nonce: '123456789012345681',
+  });
+
+  const send = () => fetch(`${base}/commands/schedule`, {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer herbybot-endpoint-secret',
+      'Content-Type': 'application/json',
+    },
+    body,
+  });
+
+  const first = await send();
+  const second = await send();
+  assert.equal(first.status, 201);
+  assert.equal(second.status, 201);
+  const firstBody = await first.json();
+  const secondBody = await second.json();
+  assert.equal(firstBody.job.id, secondBody.job.id);
+  assert.equal(firstBody.job.id, 'herbybot:123456789012345681');
+});
+
+test('HerbyBot slash write endpoints reject invalid interaction nonces', async (t) => {
+  const server = await listen();
+  t.after(() => close(server));
+  const { port } = server.address();
+  const base = `http://127.0.0.1:${port}/api/herbybot`;
+
+  const announcement = await fetch(`${base}/commands/announcement`, {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer herbybot-endpoint-secret',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ message: 'Nope', nonce: 'bad' }),
+  });
+  assert.equal(announcement.status, 400);
+
+  const schedule = await fetch(`${base}/commands/schedule`, {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer herbybot-endpoint-secret',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      message: 'Nope',
+      runAt: new Date(Date.now() + 60_000).toISOString(),
+      recurrence: 'none',
+      nonce: 'bad',
+    }),
+  });
+  assert.equal(schedule.status, 400);
+});
