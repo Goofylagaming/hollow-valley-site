@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 
 process.env.AUTOMATION_DB_PATH = ':memory:';
 
-function loadService({ snapshot } = {}) {
+function loadService({ snapshot, snapshotImpl, bridge } = {}) {
   const servicePath = require.resolve('../src/services/bodyDropService');
   const statusPath = require.resolve('../src/services/statusService');
   const bridgePath = require.resolve('../src/services/commandBridgeService');
@@ -13,22 +13,24 @@ function loadService({ snapshot } = {}) {
 
   require.cache[statusPath].exports = {
     ...originalStatus,
-    getServerSnapshot: async () => snapshot || {
+    getServerSnapshot: snapshotImpl || (async () => snapshot || {
       online: true,
       characters: [],
       players: [],
       maxPlayers: null,
-    },
+    }),
   };
-  require.cache[bridgePath].exports = {
-    ...originalBridge,
-    buildCommand() {
-      throw new Error('CommandBridge must not be reached for an ineligible request');
-    },
-    async queueCommand() {
-      throw new Error('CommandBridge must not be reached for an ineligible request');
-    },
-  };
+  require.cache[bridgePath].exports = bridge
+    ? { ...originalBridge, ...bridge }
+    : {
+        ...originalBridge,
+        buildCommand() {
+          throw new Error('CommandBridge must not be reached for an ineligible request');
+        },
+        async queueCommand() {
+          throw new Error('CommandBridge must not be reached for an ineligible request');
+        },
+      };
 
   delete require.cache[servicePath];
   const service = require(servicePath);
@@ -162,4 +164,64 @@ test('confirmed BodyDrop still consumes the configured cooldown window', (t) => 
     if (previous === undefined) delete process.env.BODYDROP_COOLDOWN_SECONDS;
     else process.env.BODYDROP_COOLDOWN_SECONDS = previous;
   }
+});
+
+
+test('simultaneous BodyDrop requests for one player publish only once', async (t) => {
+  const steamId = '76561198000000999';
+  let snapshotCalls = 0;
+  let releaseSnapshot;
+  const gate = new Promise((resolve) => { releaseSnapshot = resolve; });
+  let commandCounter = 0;
+  let queueCalls = 0;
+
+  const snapshot = {
+    online: true,
+    players: [{ steamId, name: 'Young Carno' }],
+    characters: [{
+      steamId,
+      species: 'Carnotaurus',
+      growth: 0.4,
+      location: { x: 10, y: 20, z: 30 },
+    }],
+    maxPlayers: 100,
+  };
+
+  const fixture = loadService({
+    snapshotImpl: async () => {
+      snapshotCalls += 1;
+      if (snapshotCalls === 2) releaseSnapshot();
+      await gate;
+      return snapshot;
+    },
+    bridge: {
+      buildCommand(verb, steam, args) {
+        commandCounter += 1;
+        return {
+          id: `bodydrop-race-${commandCounter}`,
+          ts: new Date().toISOString(),
+          source: 'BodyDrop',
+          verb,
+          steam,
+          args,
+        };
+      },
+      async queueCommand() {
+        queueCalls += 1;
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      },
+    },
+  });
+  t.after(fixture.restore);
+
+  const results = await Promise.allSettled([
+    fixture.service.requestBodyDrop({ steamId, dropType: 'small' }),
+    fixture.service.requestBodyDrop({ steamId, dropType: 'small' }),
+  ]);
+
+  assert.equal(queueCalls, 1);
+  assert.equal(results.filter((result) => result.status === 'fulfilled').length, 1);
+  const rejected = results.find((result) => result.status === 'rejected');
+  assert.equal(rejected.reason.code, 'BODYDROP_COOLDOWN');
+  assert.equal(rejected.reason.cooldown.reason, 'pending');
 });
