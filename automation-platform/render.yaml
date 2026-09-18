@@ -57,6 +57,8 @@ services:
         value: false
       - key: PLAYER_PRESENCE_INTERVAL_MS
         value: 60000
+      - key: PLAYER_PRESENCE_RETENTION_HOURS
+        value: 744
 
       # Read-only uptime/player-count history is also opt-in.
       - key: SERVER_HEALTH_HISTORY_ENABLED
