@@ -60,6 +60,31 @@ async function call(path, { method = 'GET', body, fetchImpl = globalThis.fetch }
   }
 }
 
+function getWallet(steamId, options = {}) {
+  return call(`/wallet/${encodeURIComponent(validateSteamId(steamId))}`, options);
+}
+
+function listMarketplaceCatalog(options = {}) {
+  return call('/marketplace/catalog', options);
+}
+
+function listMarketplaceOrders(steamId, options = {}) {
+  return call(`/marketplace/orders/${encodeURIComponent(validateSteamId(steamId))}`, options);
+}
+
+function purchaseMarketplaceItem({ steamId, catalogId, idempotencyKey }, options = {}) {
+  const validatedSteamId = validateSteamId(steamId);
+  const itemId = String(catalogId || '').trim();
+  const key = String(idempotencyKey || '').trim();
+  if (!/^[A-Za-z0-9:_-]{8,160}$/.test(key)) throw new Error('Invalid marketplace idempotency key');
+  if (!/^[A-Za-z0-9:_-]{2,80}$/.test(itemId)) throw new Error('Invalid marketplace catalog ID');
+  return call(`/marketplace/catalog/${encodeURIComponent(itemId)}/buy`, {
+    ...options,
+    method: 'POST',
+    body: { steamId: validatedSteamId, idempotencyKey: key },
+  });
+}
+
 function getBodyDropCooldown(steamId, options = {}) {
   return call(`/bodydrop/cooldown/${encodeURIComponent(validateSteamId(steamId))}`, options);
 }
@@ -139,6 +164,10 @@ async function waitForRequestStatus(requestId, steamId, {
 module.exports = {
   validateSteamId,
   validateRequestId,
+  getWallet,
+  listMarketplaceCatalog,
+  listMarketplaceOrders,
+  purchaseMarketplaceItem,
   getBodyDropCooldown,
   requestBodyDrop,
   getActiveCharacter,
