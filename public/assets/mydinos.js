@@ -140,6 +140,14 @@ async function loadActiveCharacter() {
   }
 }
 
+function unavailableStat(label) {
+  return `
+    <div class="stat-group stat-unavailable">
+      <div class="stat-label-row"><span class="stat-name">${escapeHtml(label)}</span><span class="stat-val">ON REDEEM</span></div>
+      <div class="progress-bg"><div class="progress-fill" style="width:0%"></div></div>
+    </div>`;
+}
+
 function statBar(label, value, className) {
   const safe = Math.max(0, Math.min(100, Number(value) || 0));
   return `
@@ -151,6 +159,7 @@ function statBar(label, value, className) {
 
 function renderDinoCard(dino) {
   const growth = growthPct(dino);
+  const officialPurchase = Boolean(dino.marketplacePurchase?.orderId);
   const health = pct(dino.health, dino.maxHealth, 100);
   const hunger = pct(dino.hunger, dino.maxHunger, 0);
   const stamina = pct(dino.stamina, dino.maxStamina, 0);
@@ -167,20 +176,21 @@ function renderDinoCard(dino) {
           <div class="dino-avatar">☠</div>
           <div class="dino-main-info">
             <h2>${escapeHtml(dino.species || "Unknown")}</h2>
-            <div class="dino-sub">${escapeHtml(dietLabel(dino.species))} · ${escapeHtml(dino.gender || "Unknown gender")}</div>
+            <div class="dino-sub">${escapeHtml(dietLabel(dino.species))} · ${escapeHtml(dino.gender || (officialPurchase ? "Any gender" : "Unknown gender"))}</div>
             <div class="dino-loc"><span>Stored ${escapeHtml(storedAt)}</span><span class="growth-highlight">GROWTH ${growth}%</span></div>
           </div>
         </div>
         ${dino.isPrime ? `<div class="prime-badge">♛ PRIME ELDER</div>` : ""}
       </div>
       <div class="stats-grid">
-        ${statBar("HEALTH", health, "health")}
-        ${statBar("HUNGER", hunger, "hunger")}
-        ${statBar("STAMINA", stamina, "stamina")}
-        ${statBar("THIRST", thirst, "thirst")}
-        ${statBar("BLOOD", blood, "blood")}
+        ${officialPurchase ? unavailableStat("HEALTH") : statBar("HEALTH", health, "health")}
+        ${officialPurchase ? unavailableStat("HUNGER") : statBar("HUNGER", hunger, "hunger")}
+        ${officialPurchase ? unavailableStat("STAMINA") : statBar("STAMINA", stamina, "stamina")}
+        ${officialPurchase ? unavailableStat("THIRST") : statBar("THIRST", thirst, "thirst")}
+        ${officialPurchase ? unavailableStat("BLOOD") : statBar("BLOOD", blood, "blood")}
         ${statBar("SIZE", growth, "size")}
       </div>
+      ${officialPurchase ? '<div class="parked-tool-note">Official store dino · growth is applied on redeem; uncaptured vitals use the game state produced by the growth change.</div>' : ""}
       ${mutations.length ? `<div class="mutations-row"><span class="stat-name">MUTATIONS</span>${mutations.map((m) => `<span class="mutation-chip">🧬 ${escapeHtml(m)}</span>`).join("")}</div>` : ""}
       ${renderSkinPreview(dino.skin)}
       <div class="dino-actions-row">
