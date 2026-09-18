@@ -323,7 +323,7 @@ function finalizeSale(listingId) {
         `Sold ${listing.snapshot?.species || 'parked dinosaur'} on marketplace`,
         saleKey,
         listing.id,
-        JSON.stringify({ buyerSteamId: listing.buyer_steam_id })
+        JSON.stringify({ listingId: listing.id })
       );
     }
 
