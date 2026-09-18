@@ -23,6 +23,7 @@ function interaction(commandName, { staff = false } = {}) {
       },
     },
     async deferReply(payload) { this.deferred = true; this.deferredPayload = payload; },
+    async deferReply(payload) { this.deferred = true; this.deferredPayload = payload; },
     async reply(payload) { replies.push(payload); this.replied = true; },
     async editReply(payload) { replies.push(payload); },
     replies,
@@ -153,6 +154,34 @@ test('command attachment reuses existing client and never logs in', async () => 
   assert.equal(typeof attached.handler, 'function');
   assert.equal(loginCalls, 0);
   assert.deepEqual(await attached.register(), { skipped: true });
+});
+
+
+test('/players blocks non-staff without contacting staff overview API', async () => {
+  let calls = 0;
+  const api = { async getStaffOverview() { calls += 1; return {}; } };
+  const handle = createHerbyBotCommandHandler({ api });
+  const i = interaction('players', { staff: false });
+
+  assert.equal(await handle(i), true);
+  assert.equal(calls, 0);
+  assert.equal(i.replies[0].ephemeral, true);
+  assert.match(i.replies[0].content, /permission/i);
+});
+
+test('/queue uses deferred ephemeral staff reply', async () => {
+  const api = {
+    async getStaffOverview() {
+      return { server: { online: true, configured: true, players: [] }, requests: {}, outbox: {} };
+    },
+  };
+  const handle = createHerbyBotCommandHandler({ api });
+  const i = interaction('queue', { staff: true });
+
+  assert.equal(await handle(i), true);
+  assert.deepEqual(i.deferredPayload, { ephemeral: true });
+  assert.equal(i.replies[0].ephemeral, true);
+  assert.match(JSON.stringify(i.replies[0]), /Hollow Valley Queues/);
 });
 
 
