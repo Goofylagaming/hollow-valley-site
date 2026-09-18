@@ -47,7 +47,7 @@ router.post('/bodydrop', async (req, res) => {
 router.get('/dinostorage/active-character/:steamId', async (req, res) => {
   try {
     const steamId = validateSteamId(req.params.steamId);
-    const snapshot = await statusService.getServerSnapshot({ force: true });
+    const snapshot = await statusService.getServerSnapshot();
     if (!snapshot.online) return res.json({ active: false, reason: 'server_offline' });
 
     const character = (snapshot.characters || []).find((entry) => entry.steamId === steamId);
