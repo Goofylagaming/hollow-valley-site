@@ -28,7 +28,7 @@ function nextRecurringRun(previousRunAt, recurrence, now = Date.now()) {
 
 function createDiscordAnnouncementJob({ message, runAt, recurrence = 'none' }) {
   if (!discord.announcementConfigured()) {
-    throw new Error('Discord announcement automation is not configured');
+    throw new Error('HerbyBot automation bridge is not configured');
   }
   const clean = discord.cleanMessage(message);
   const scheduledAt = validateRunAt(runAt);
