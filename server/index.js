@@ -18,6 +18,7 @@ const mydinosRouter = require("./routes/mydinos");
 const marketplaceRouter = require("./routes/marketplace");
 const skinsRouter = require("./routes/skins");
 const supporterRouter = require("./routes/supporter");
+const stripeWebhookRouter = require("./routes/stripeWebhook");
 const dailyBonusRouter = require("./routes/dailybonus");
 const bodydropRouter = require("./routes/bodydrop");
 const dinoStorageRouter = require("./routes/dinoStorage");
@@ -44,6 +45,9 @@ const LANDING_PAGE_PATH = path.join(__dirname, "..", "landing", "index.html");
 function createApp() {
   const app = express();
   app.set("trust proxy", 1);
+  // Stripe signature verification requires the exact raw request body, so this
+  // webhook must be mounted before the global JSON parser.
+  app.use("/api/stripe/webhook", stripeWebhookRouter);
   app.use(express.json());
 
   app.use(
