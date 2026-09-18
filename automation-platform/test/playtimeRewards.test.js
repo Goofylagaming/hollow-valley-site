@@ -95,3 +95,51 @@ test('same presence timestamp cannot double-pay a reward interval', (t) => {
   assert.equal(store.getWallet(steamId).balance, 10);
   assert.equal(store.getWallet(steamId).transactions.length, 1);
 });
+
+
+test('quests continue progressing while coin payouts are disabled', (t) => {
+  const fixture = loadRewards();
+  t.after(fixture.cleanup);
+  const { store, rewards } = fixture;
+  const quests = require('../src/services/questBoostService');
+  const steamId = '76561198000000009';
+  const player = [{ steamId }];
+  const start = Date.parse('2026-09-18T00:00:00.000Z');
+
+  process.env.WALLET_PLAYTIME_REWARDS_ENABLED = 'false';
+  process.env.WALLET_QUEST_DAILY_1H_BOOST_PERCENT = '5';
+
+  for (let minute = 0; minute <= 60; minute += 1) {
+    rewards.rewardOnlinePlayers(player, { nowMs: start + minute * 60_000 });
+  }
+
+  const wallet = store.getWallet(steamId);
+  const status = quests.getQuestStatus(steamId, { nowMs: start + 60 * 60_000 });
+  assert.equal(wallet.balance, 0);
+  assert.equal(wallet.transactions.length, 0);
+  assert.equal(status.quests.find((quest) => quest.id === 'daily-consecutive-1h').completed, true);
+  assert.equal(status.activeBoostPercent >= 5, true);
+});
+
+test('disabled reward time is not banked for future Valley Coin payout', (t) => {
+  const fixture = loadRewards();
+  t.after(fixture.cleanup);
+  const { store, rewards } = fixture;
+  const steamId = '76561198000000010';
+  const player = [{ steamId }];
+  const start = Date.parse('2026-09-18T00:00:00.000Z');
+
+  process.env.WALLET_PLAYTIME_REWARDS_ENABLED = 'false';
+  for (let minute = 0; minute <= 10; minute += 1) {
+    rewards.rewardOnlinePlayers(player, { nowMs: start + minute * 60_000 });
+  }
+  assert.equal(store.getWallet(steamId).balance, 0);
+
+  process.env.WALLET_PLAYTIME_REWARDS_ENABLED = 'true';
+  for (let minute = 11; minute <= 15; minute += 1) {
+    rewards.rewardOnlinePlayers(player, { nowMs: start + minute * 60_000 });
+  }
+
+  assert.equal(store.getWallet(steamId).balance, 10);
+  assert.equal(store.getWallet(steamId).transactions.length, 1);
+});
