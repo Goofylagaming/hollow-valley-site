@@ -30,125 +30,14 @@ document.addEventListener("hds:nav-ready", () => {
     });
   });
 
-  const speciesSection = document.getElementById("species");
-  document.querySelectorAll(".species-nav-link").forEach((link) => {
-    link.addEventListener("click", (event) => {
-      if (window.location.pathname !== "/") return;
-      event.preventDefault();
-      revealSection(speciesSection);
-      const targetFilter = document.querySelector(`.filter[data-filter="${link.dataset.filter}"]`);
-      targetFilter?.click();
-      history.replaceState(null, "", "#species");
-    });
-  });
-
-  // Deep-link support: opening index.html#wallet directly reveals that section.
   if (window.location.hash === "#wallet") {
     revealSection(walletSection);
     loadWallet();
   } else if (window.location.hash === "#quests") {
     revealSection(questsSection);
     loadQuests();
-  } else if (window.location.hash === "#species") {
-    revealSection(speciesSection);
   }
 });
-
-// ---------- Species ----------
-let dinoDialogWired = false;
-
-function wireDinoDialog() {
-  const dinoDialog = document.querySelector(".dino-dialog");
-  if (!dinoDialog) return;
-  const dialogTitle = dinoDialog.querySelector("#dialog-title");
-  const dialogRole = dinoDialog.querySelector(".dialog-role");
-  const dialogDescription = dinoDialog.querySelector(".dialog-description");
-  const dialogStatus = dinoDialog.querySelector(".dialog-status");
-  const dialogSocial = dinoDialog.querySelector(".dialog-social strong");
-  const statPack = dinoDialog.querySelector(".stat-pack");
-  const statWeight = dinoDialog.querySelector(".stat-weight");
-  const statBite = dinoDialog.querySelector(".stat-bite");
-  const statGrowth = dinoDialog.querySelector(".stat-growth");
-
-  document.querySelectorAll(".dino-card").forEach((card) => {
-    card.tabIndex = 0;
-    const openDetails = () => {
-      dialogTitle.textContent = card.dataset.dino;
-      dialogRole.textContent = card.dataset.role;
-      dialogDescription.textContent = card.dataset.description;
-      dialogSocial.textContent = card.dataset.social;
-      if (statPack) statPack.textContent = card.dataset.packLimit || "TBD in Evrima";
-      if (statWeight) statWeight.textContent = card.dataset.peakWeight ? `${card.dataset.peakWeight}%` : "TBD in Evrima";
-      if (statBite) statBite.textContent = card.dataset.biteForce || "Not yet documented";
-      if (statGrowth) statGrowth.textContent = card.dataset.growthTime || "Not yet documented";
-      if (dialogStatus) dialogStatus.hidden = card.dataset.released !== "false";
-      dinoDialog.showModal();
-    };
-    card.addEventListener("click", openDetails);
-    card.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        openDetails();
-      }
-    });
-  });
-
-  if (!dinoDialogWired) {
-    dinoDialog.querySelector(".dialog-close")?.addEventListener("click", () => dinoDialog.close());
-    dinoDialog.addEventListener("click", (event) => {
-      if (event.target === dinoDialog) dinoDialog.close();
-    });
-    dinoDialogWired = true;
-  }
-}
-
-function wireSpeciesFilters() {
-  const filters = document.querySelectorAll(".filter");
-  filters.forEach((filter) => {
-    filter.addEventListener("click", () => {
-      const category = filter.dataset.filter;
-      filters.forEach((button) => button.classList.toggle("active", button === filter));
-      document.querySelectorAll(".dino-card").forEach((card) => {
-        card.hidden = category !== "all" && card.dataset.category !== category;
-      });
-    });
-  });
-}
-
-function renderSpecies(list) {
-  const grid = document.getElementById("dino-grid");
-  const count = document.getElementById("roster-count");
-  if (count) count.textContent = `${list.length} / LIVE EVRIMA ROSTER`;
-  if (!grid) return;
-  if (!list.length) {
-    grid.innerHTML = '<p class="section-intro">No species data available.</p>';
-    return;
-  }
-  grid.innerHTML = list
-    .map((dino) => {
-      const featuredClass = dino.featured ? " featured" : "";
-      return `<article class="dino-card${featuredClass}" data-category="${dino.category}" data-dino="${escapeHtml(dino.name)}" data-role="${escapeHtml(dino.role)}" data-description="${escapeHtml(dino.description)}" data-social="${escapeHtml(dino.social)}" data-pack-limit="${escapeHtml(String(dino.packLimit ?? ""))}" data-peak-weight="${escapeHtml(String(dino.peakWeightPercent ?? ""))}" data-bite-force="${escapeHtml(dino.biteForce || "")}" data-growth-time="${escapeHtml(dino.growthTime || "")}" data-released="${dino.releasedInEvrima === false ? "false" : "true"}"
-        <div class="dino-art ${dino.art}"><span>${dino.name.toUpperCase()}</span></div>
-        <div class="dino-info"><div><small>${dino.role.toUpperCase()}</small><h3>${escapeHtml(dino.name)}</h3></div><b class="dino-arrow">↗</b></div>
-        <div class="meter"><span style="width:${dino.threatPercent}%"></span></div>
-        <div class="dino-meta"><span>Threat <i>${dino.threatDots}</i></span><span>${escapeHtml(dino.social)}</span></div>
-      </article>`;
-    })
-    .join("");
-  wireSpeciesFilters();
-  wireDinoDialog();
-}
-
-async function loadSpecies() {
-  try {
-    const list = await api("/api/species");
-    renderSpecies(list);
-  } catch (err) {
-    console.error("Failed to load species", err);
-    const grid = document.getElementById("dino-grid");
-    if (grid) grid.innerHTML = '<p class="section-intro">Could not load species data. Try again shortly.</p>';
-  }
-}
 
 // ---------- Wallet ----------
 async function loadWallet() {
@@ -266,6 +155,5 @@ async function loadMapPositions() {
 }
 
 // ---------- Init ----------
-loadSpecies();
 loadRoster();
 loadMapPositions();
