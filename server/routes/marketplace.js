@@ -41,6 +41,7 @@ router.post("/catalog/:id/buy", requireAuth, (req, res) => {
 
 // Player-to-player selling uses the real parked DinoStorage file through the
 // isolated automation service. No browser-supplied Steam ID is trusted.
+router.get("/state", (req, res) => automationRoutes.getDinoMarketplaceState(req, res));
 router.get("/listings", (req, res) => automationRoutes.listDinoMarketplaceListings(req, res));
 router.get("/listings/mine", requireAuth, (req, res) => automationRoutes.listMyDinoMarketplaceListings(req, res));
 router.post("/listings", requireAuth, (req, res) => automationRoutes.createDinoMarketplaceListing(req, res));
