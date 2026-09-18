@@ -368,6 +368,7 @@ function acknowledgeOutboxEvent(id, deliveredAt = new Date().toISOString()) {
 function failOutboxEvent(id, error, { terminal = false } = {}) {
   const current = getOutboxEvent(id);
   if (!current) return null;
+  if (current.status === 'delivered' || current.status === 'failed') return current;
   db.prepare(`
     UPDATE herbybot_outbox
     SET status = ?,
