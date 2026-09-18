@@ -22,6 +22,7 @@ function interaction(commandName, { staff = false } = {}) {
         return ['Administrator', 'ManageGuild', BigInt(8), BigInt(32)].includes(permission);
       },
     },
+    async deferReply(payload) { this.deferred = true; this.deferredPayload = payload; },
     async reply(payload) { replies.push(payload); this.replied = true; },
     async editReply(payload) { replies.push(payload); },
     replies,
@@ -47,11 +48,11 @@ const status = {
   },
 };
 
-test('HerbyBot command definitions expose public /server and staff /automation', () => {
+test('HerbyBot command definitions expose public /server and staff commands', () => {
   const commands = commandDefinitions();
-  assert.deepEqual(commands.map((item) => item.name), ['server', 'automation']);
+  assert.deepEqual(commands.map((item) => item.name), ['server', 'automation', 'players', 'queue']);
   assert.equal(commands[0].default_member_permissions, undefined);
-  assert.equal(commands[1].default_member_permissions, '32');
+  assert.ok(commands.slice(1).every((item) => item.default_member_permissions === '32'));
 });
 
 test('/server response exposes aggregate status only', () => {
@@ -130,8 +131,8 @@ test('command registration uses guild scope when DISCORD_GUILD_ID is configured'
   try {
     const result = await registerHerbyBotCommands(client);
     assert.equal(result.scope, 'guild');
-    assert.equal(result.count, 2);
-    assert.equal(registered.length, 2);
+    assert.equal(result.count, 4);
+    assert.equal(registered.length, 4);
   } finally {
     if (previous === undefined) delete process.env.DISCORD_GUILD_ID;
     else process.env.DISCORD_GUILD_ID = previous;
@@ -152,4 +153,32 @@ test('command attachment reuses existing client and never logs in', async () => 
   assert.equal(typeof attached.handler, 'function');
   assert.equal(loginCalls, 0);
   assert.deepEqual(await attached.register(), { skipped: true });
+});
+
+
+test('/players blocks non-staff without contacting staff overview API', async () => {
+  let calls = 0;
+  const api = { async getStaffOverview() { calls += 1; return {}; } };
+  const handle = createHerbyBotCommandHandler({ api });
+  const i = interaction('players', { staff: false });
+
+  assert.equal(await handle(i), true);
+  assert.equal(calls, 0);
+  assert.equal(i.replies[0].ephemeral, true);
+  assert.match(i.replies[0].content, /permission/i);
+});
+
+test('/queue uses deferred ephemeral staff reply', async () => {
+  const api = {
+    async getStaffOverview() {
+      return { server: { online: true, configured: true, players: [] }, requests: {}, outbox: {} };
+    },
+  };
+  const handle = createHerbyBotCommandHandler({ api });
+  const i = interaction('queue', { staff: true });
+
+  assert.equal(await handle(i), true);
+  assert.deepEqual(i.deferredPayload, { ephemeral: true });
+  assert.equal(i.replies[0].ephemeral, true);
+  assert.match(JSON.stringify(i.replies[0]), /Hollow Valley Queues/);
 });
