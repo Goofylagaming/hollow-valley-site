@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Create and browse custom dino skins.">
   <title>Skins | Herby Death Squad</title>
-  <link rel="stylesheet" href="assets/styles.css?v=12">
+  <link rel="stylesheet" href="assets/styles.css?v=14">
 </head>
 <body>
   <div class="app-shell">
@@ -14,26 +14,25 @@
       <section class="page-header">
         <p class="overline green">COSMETICS</p>
         <h1>Skins.</h1>
-        <p class="section-intro">Create your own skin design for 500 Valley Coin, or use one of the free premium skins from the admin team. Apply skins to your active dino from My Dinos.</p>
+        <p class="section-intro">Save the real captured skin from a parked dinosaur as a reusable preset, then apply it to another parked dino of the same species.</p>
       </section>
       <section class="roster-section">
-        <div id="skins-guard"><p class="section-intro">Sign in with Steam to create a skin.</p></div>
-        <div id="skins-create" hidden>
-          <div class="list-heading"><span>CREATE A SKIN</span></div>
-          <div class="form-row">
-            <select id="skin-species"></select>
-            <input type="text" id="skin-name" placeholder="Skin name" maxlength="40">
-            <button class="small-button" id="skin-create-btn">Create (500 Valley Coin)</button>
+        <div id="skins-guard"><p class="section-intro">Sign in with Steam to view your saved skin presets.</p></div>
+        <div id="skins-content" hidden>
+          <div class="panel" style="margin-bottom:24px">
+            <p class="overline green">REAL DINO SKINS</p>
+            <h2 style="margin:10px 0 12px;font:600 30px Cinzel">Captured from DinoStorage.</h2>
+            <p class="section-intro" style="max-width:680px">Skin presets store the actual body colors, markings, pattern, variation and theme from a parked dinosaur. Create or apply them from that dino’s card in My Dinos.</p>
+            <div style="margin-top:18px"><a class="primary-button" href="/mydinos">Open My Dinos <b>→</b></a></div>
           </div>
+          <div class="list-heading"><span>YOUR SKIN PRESETS</span><small id="skins-cost-note"></small></div>
+          <div id="skins-library" class="storage-grid"><p class="section-intro">Loading skins…</p></div>
         </div>
-
-        <div class="list-heading" style="margin-top:40px"><span>SKIN LIBRARY</span></div>
-        <div id="skins-library" class="storage-grid"><p class="section-intro">Loading skins…</p></div>
       </section>
     </main>
     <footer><span>© 2026 Herby Death Squad Games</span><span>ISLE EVRIMA COMMUNITY SERVER</span><a href="/">Back to command ↑</a></footer>
   </div>
   <script src="assets/common.js?v=10"></script>
-  <script src="assets/skins.js"></script>
+  <script src="assets/skins.js?v=2"></script>
 </body>
 </html>
