@@ -1,5 +1,6 @@
 const { randomUUID } = require('node:crypto');
 const store = require('./economyStore');
+const quests = require('./questBoostService');
 
 const db = store.db;
 
@@ -52,7 +53,14 @@ function rewardOnlinePlayers(players, { nowMs = Date.now() } = {}) {
       store.ensureWallet(steamId);
       const prior = db.prepare('SELECT * FROM economy_playtime_progress WHERE steam_id = ?').get(steamId);
       const elapsedMs = prior ? Math.max(0, Number(nowMs) - Number(prior.last_seen_ms)) : 0;
-      const countElapsed = prior && elapsedMs <= maxGapMs ? elapsedMs : 0;
+      const continuous = Boolean(prior && elapsedMs > 0 && elapsedMs <= maxGapMs);
+      const countElapsed = continuous ? elapsedMs : 0;
+      const questProgress = quests.updateQuestProgress(steamId, {
+        elapsedSeconds: Math.floor(countElapsed / 1000),
+        continuous,
+        nowMs,
+      });
+      const activeBoostPercent = Number(questProgress.quests.activeBoostPercent || 0);
       const accruedMs = Math.max(0, Number(prior?.accrued_ms || 0)) + countElapsed;
       const due = Math.floor(accruedMs / intervalMs);
       const remainder = accruedMs % intervalMs;
@@ -64,8 +72,10 @@ function rewardOnlinePlayers(players, { nowMs = Date.now() } = {}) {
           const key = `playtime:${steamId}:${sequence}`;
           const existing = db.prepare('SELECT id FROM economy_wallet_ledger WHERE idempotency_key = ?').get(key);
           if (!existing) {
+            const bonusCoins = Math.floor((coins * activeBoostPercent) / 100);
+            const payoutCoins = coins + bonusCoins;
             const wallet = db.prepare('SELECT balance FROM economy_wallets WHERE steam_id = ?').get(steamId);
-            const nextBalance = Number(wallet.balance) + coins;
+            const nextBalance = Number(wallet.balance) + payoutCoins;
             db.prepare('UPDATE economy_wallets SET balance = ?, updated_at = datetime(\'now\') WHERE steam_id = ?')
               .run(nextBalance, steamId);
             db.prepare(`
@@ -75,13 +85,22 @@ function rewardOnlinePlayers(players, { nowMs = Date.now() } = {}) {
             `).run(
               randomUUID(),
               steamId,
-              coins,
-              `Online playtime reward: ${coins} Valley Coin per 5 minutes`,
+              payoutCoins,
+              activeBoostPercent > 0
+                ? `Online playtime reward: ${coins} base + ${activeBoostPercent}% quest boost`
+                : `Online playtime reward: ${coins} Valley Coin per 5 minutes`,
               key,
               String(sequence),
-              JSON.stringify({ intervalSeconds: 300, sequence })
+              JSON.stringify({
+                intervalSeconds: 300,
+                sequence,
+                baseCoins: coins,
+                boostPercent: activeBoostPercent,
+                bonusCoins,
+                payoutCoins,
+              })
             );
-            coinsAwarded += coins;
+            coinsAwarded += payoutCoins;
             intervalsAwarded += 1;
           }
           rewardedIntervals = sequence;
