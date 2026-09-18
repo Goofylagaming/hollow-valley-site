@@ -162,6 +162,8 @@ Rules:
 - Completed daily and weekly boosts stack additively.
 - The combined boost is limited by `WALLET_QUEST_MAX_TOTAL_BOOST_PERCENT` (100% default safety cap).
 - A quest boost affects future 5-minute payouts only. It does not retroactively increase earlier payouts.
+- Quest progress is independent from whether Valley Coin payouts are enabled; it follows successful presence samples whenever `PLAYER_PRESENCE_ENABLED=true`.
+- Time observed while coin payouts are disabled is **not** banked for future Valley Coin back-pay.
 - Each achievement is persisted for its daily/weekly period so restarts cannot remove it.
 - The boost percentage is snapshotted at achievement time for that period.
 
