@@ -33,9 +33,9 @@ function state() {
 }
 
 function rewardOnlinePlayers(players, { nowMs = Date.now() } = {}) {
-  if (!enabled()) return { skipped: true, reason: 'disabled', rewardedPlayers: 0, coinsAwarded: 0 };
+  const rewardEnabled = enabled();
   const coins = coinsPerInterval();
-  if (coins <= 0) return { skipped: true, reason: 'coins-not-configured', rewardedPlayers: 0, coinsAwarded: 0 };
+  const payoutsEnabled = rewardEnabled && coins > 0;
 
   const ids = [...new Set((players || [])
     .map((player) => String(player?.steamId || '').trim())
@@ -61,12 +61,14 @@ function rewardOnlinePlayers(players, { nowMs = Date.now() } = {}) {
         nowMs,
       });
       const activeBoostPercent = Number(questProgress.quests.activeBoostPercent || 0);
-      const accruedMs = Math.max(0, Number(prior?.accrued_ms || 0)) + countElapsed;
-      const due = Math.floor(accruedMs / intervalMs);
-      const remainder = accruedMs % intervalMs;
+      const accruedMs = payoutsEnabled
+        ? Math.max(0, Number(prior?.accrued_ms || 0)) + countElapsed
+        : 0;
+      const due = payoutsEnabled ? Math.floor(accruedMs / intervalMs) : 0;
+      const remainder = payoutsEnabled ? accruedMs % intervalMs : 0;
       let rewardedIntervals = Number(prior?.rewarded_intervals || 0);
 
-      if (due > 0) {
+      if (payoutsEnabled && due > 0) {
         for (let index = 0; index < due; index += 1) {
           const sequence = rewardedIntervals + 1;
           const key = `playtime:${steamId}:${sequence}`;
@@ -126,8 +128,10 @@ function rewardOnlinePlayers(players, { nowMs = Date.now() } = {}) {
   }
 
   return {
-    skipped: false,
+    skipped: !payoutsEnabled,
+    reason: payoutsEnabled ? null : rewardEnabled ? 'coins-not-configured' : 'disabled',
     onlinePlayers: ids.length,
+    trackedPlayers: ids.length,
     rewardedPlayers,
     intervalsAwarded,
     coinsAwarded,
