@@ -84,6 +84,8 @@ services:
         value: 100
       - key: MARKETPLACE_WRITE_ENABLED
         value: false
+      - key: MARKETPLACE_RECONCILE_INTERVAL_MS
+        value: 15000
       - key: PARKED_DINO_EDIT_ENABLED
         value: false
       - key: SKIN_SYSTEM_ENABLED
