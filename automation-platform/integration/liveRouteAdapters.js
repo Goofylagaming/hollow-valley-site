@@ -216,6 +216,74 @@ async function cancelDinoMarketplaceListing(req, res, listingId) {
   }
 }
 
+async function getParkedDinoMutations(req, res, slot) {
+  const steamId = requireLoggedInSteam(req, res);
+  if (!steamId) return;
+  try {
+    return res.json(await automation.getParkedDinoMutations(steamId, slot));
+  } catch (error) {
+    const mapped = mapAutomationError(error, 'Could not read parked dino mutations.');
+    return res.status(mapped.status).json(mapped.body);
+  }
+}
+
+async function updateParkedDinoMutations(req, res, slot) {
+  const steamId = requireLoggedInSteam(req, res);
+  if (!steamId) return;
+  try {
+    const result = await automation.updateParkedDinoMutations(steamId, slot, req.body?.mutations || {});
+    return res.json(result);
+  } catch (error) {
+    const mapped = mapAutomationError(error, 'Could not update parked dino mutations.');
+    return res.status(mapped.status).json(mapped.body);
+  }
+}
+
+async function listSkinPresets(req, res) {
+  const steamId = requireLoggedInSteam(req, res);
+  if (!steamId) return;
+  try {
+    const species = req.query?.species ? String(req.query.species) : null;
+    return res.json(await automation.listSkinPresets(steamId, { species }));
+  } catch (error) {
+    const mapped = mapAutomationError(error, 'Could not read skin presets.');
+    return res.status(mapped.status).json(mapped.body);
+  }
+}
+
+async function createSkinPreset(req, res) {
+  const steamId = requireLoggedInSteam(req, res);
+  if (!steamId) return;
+  try {
+    const result = await automation.createSkinPreset({
+      steamId,
+      slot: req.body?.slot,
+      name: req.body?.name,
+      idempotencyKey: `website-skin:${randomUUID()}`,
+    });
+    return res.status(result.duplicate ? 200 : 201).json(result);
+  } catch (error) {
+    const mapped = mapAutomationError(error, 'Could not create skin preset.');
+    return res.status(mapped.status).json(mapped.body);
+  }
+}
+
+async function applySkinPreset(req, res, presetId) {
+  const steamId = requireLoggedInSteam(req, res);
+  if (!steamId) return;
+  try {
+    const result = await automation.applySkinPreset({
+      steamId,
+      slot: req.body?.slot,
+      presetId,
+    });
+    return res.json(result);
+  } catch (error) {
+    const mapped = mapAutomationError(error, 'Could not apply skin preset.');
+    return res.status(mapped.status).json(mapped.body);
+  }
+}
+
 async function getActiveCharacter(req, res) {
   if (!req.user) return res.status(401).json({ error: 'Not logged in' });
   if (!req.user.steam_id) return res.json({ active: false, reason: 'steam_not_linked' });
@@ -375,6 +443,11 @@ module.exports = {
   createDinoMarketplaceListing,
   buyDinoMarketplaceListing,
   cancelDinoMarketplaceListing,
+  getParkedDinoMutations,
+  updateParkedDinoMutations,
+  listSkinPresets,
+  createSkinPreset,
+  applySkinPreset,
   getActiveCharacter,
   listDinos,
   parkActive,
