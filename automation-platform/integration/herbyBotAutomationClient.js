@@ -52,6 +52,10 @@ function getStatus(options = {}) {
   return call('/status', options);
 }
 
+function getStaffOverview(options = {}) {
+  return call('/staff-overview', options);
+}
+
 function claimMessages({ limit = 10, leaseSeconds = 60 } = {}, options = {}) {
   return call('/outbox/claim', {
     ...options,
@@ -78,6 +82,7 @@ function failMessage(id, error, options = {}) {
 
 module.exports = {
   getStatus,
+  getStaffOverview,
   claimMessages,
   acknowledgeMessage,
   failMessage,
