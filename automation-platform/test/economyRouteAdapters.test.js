@@ -167,3 +167,125 @@ test('unlinked quest read returns harmless empty state without automation call',
     quests: [],
   });
 });
+
+
+test('P2P listing adapter derives Steam identity from authenticated user', async (t) => {
+  let seen = null;
+  const fixture = loadWithClientStubs({
+    createDinoMarketplaceListing: async (input) => {
+      seen = input;
+      return { listing: { id: 'listing-1', status: 'active' }, duplicate: false };
+    },
+  });
+  t.after(fixture.restore);
+
+  const res = response();
+  await fixture.adapters.createDinoMarketplaceListing({
+    user: { steam_id: '76561198000000401' },
+    body: {
+      steamId: '76561198999999999',
+      slot: 'slot_a',
+      price: 750,
+    },
+  }, res);
+
+  assert.equal(seen.steamId, '76561198000000401');
+  assert.equal(seen.slot, 'slot_a');
+  assert.equal(seen.price, 750);
+  assert.match(seen.idempotencyKey, /^website-listing:/);
+  assert.equal(res.statusCode, 201);
+});
+
+test('P2P purchase adapter derives buyer Steam identity and server idempotency key', async (t) => {
+  let seen = null;
+  const fixture = loadWithClientStubs({
+    buyDinoMarketplaceListing: async (input) => {
+      seen = input;
+      return { listing: { id: input.listingId, status: 'sold' }, wallet: { balance: 250 }, duplicate: false };
+    },
+  });
+  t.after(fixture.restore);
+
+  const res = response();
+  await fixture.adapters.buyDinoMarketplaceListing({
+    user: { steam_id: '76561198000000402' },
+    body: { steamId: '76561198999999999' },
+  }, res, 'listing-2');
+
+  assert.equal(seen.steamId, '76561198000000402');
+  assert.equal(seen.listingId, 'listing-2');
+  assert.match(seen.idempotencyKey, /^website-p2p-buy:/);
+  assert.equal(res.statusCode, 201);
+});
+
+test('parked mutation adapter uses authenticated Steam identity and selected slot only', async (t) => {
+  let seen = null;
+  const fixture = loadWithClientStubs({
+    updateParkedDinoMutations: async (steamId, slot, mutations) => {
+      seen = { steamId, slot, mutations };
+      return { slot, mutations, writeEnabled: true };
+    },
+  });
+  t.after(fixture.restore);
+
+  const res = response();
+  await fixture.adapters.updateParkedDinoMutations({
+    user: { steam_id: '76561198000000403' },
+    body: {
+      steamId: '76561198999999999',
+      mutations: { Slot1: 'Wader', Slot2: '' },
+    },
+  }, res, 'parked_slot');
+
+  assert.deepEqual(seen, {
+    steamId: '76561198000000403',
+    slot: 'parked_slot',
+    mutations: { Slot1: 'Wader', Slot2: '' },
+  });
+  assert.equal(res.statusCode, 200);
+});
+
+test('skin creation adapter uses authenticated Steam identity and backend idempotency key', async (t) => {
+  let seen = null;
+  const fixture = loadWithClientStubs({
+    createSkinPreset: async (input) => {
+      seen = input;
+      return { preset: { id: 'skin-1', name: input.name }, wallet: { balance: 500 }, duplicate: false };
+    },
+  });
+  t.after(fixture.restore);
+
+  const res = response();
+  await fixture.adapters.createSkinPreset({
+    user: { steam_id: '76561198000000404' },
+    body: {
+      steamId: '76561198999999999',
+      slot: 'skin_slot',
+      name: 'Ash Hunter',
+    },
+  }, res);
+
+  assert.equal(seen.steamId, '76561198000000404');
+  assert.equal(seen.slot, 'skin_slot');
+  assert.equal(seen.name, 'Ash Hunter');
+  assert.match(seen.idempotencyKey, /^website-skin:/);
+  assert.equal(res.statusCode, 201);
+});
+
+test('marketplace capability adapter returns read-only gate state', async (t) => {
+  const fixture = loadWithClientStubs({
+    getDinoMarketplaceState: async () => ({
+      writeEnabled: false,
+      reconcileIntervalMs: 15000,
+    }),
+  });
+  t.after(fixture.restore);
+
+  const res = response();
+  await fixture.adapters.getDinoMarketplaceState({}, res);
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body, {
+    writeEnabled: false,
+    reconcileIntervalMs: 15000,
+  });
+});
