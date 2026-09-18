@@ -52,6 +52,25 @@ function sameSpecies(a, b) {
   return String(a || "").toLowerCase() === String(b || "").toLowerCase();
 }
 
+function skinColorSwatch(color) {
+  if (!color || typeof color !== "object") return "";
+  const clamp = (value) => Math.max(0, Math.min(255, Math.round((Number(value) || 0) * 255)));
+  return `rgb(${clamp(color.r)}, ${clamp(color.g)}, ${clamp(color.b)})`;
+}
+
+function renderSkinPreview(skin) {
+  if (!skin || typeof skin !== "object") return "";
+  const colors = ["body", "markings", "flank", "underbelly", "eyes"]
+    .map((key) => skinColorSwatch(skin[key]))
+    .filter(Boolean);
+  if (!colors.length) return "";
+  return `<div class="dino-skin-row">
+    <span class="stat-name">SKIN</span>
+    <div class="dino-skin-swatches">${colors.map((color) => `<i style="background:${escapeHtml(color)}"></i>`).join("")}</div>
+    <small>Pattern ${Number(skin.patternIndex ?? 0)} · Theme ${Number(skin.themeIndex ?? 0)}</small>
+  </div>`;
+}
+
 function redeemEligibility(dino) {
   if (!activeCharacter) return { ok: false, reason: "Spawn in-game as this species first" };
   if (!sameSpecies(activeCharacter.species, dino.species)) {
@@ -163,6 +182,7 @@ function renderDinoCard(dino) {
         ${statBar("SIZE", growth, "size")}
       </div>
       ${mutations.length ? `<div class="mutations-row"><span class="stat-name">MUTATIONS</span>${mutations.map((m) => `<span class="mutation-chip">🧬 ${escapeHtml(m)}</span>`).join("")}</div>` : ""}
+      ${renderSkinPreview(dino.skin)}
       <div class="dino-actions-row">
         <button class="btn-dino-action redeem stored-redeem" data-slot="${escapeHtml(dino.slot)}" ${eligibility.ok ? "" : "disabled"}>↻ ${escapeHtml(eligibility.reason)}</button>
         <button class="btn-dino-action parked-tool" data-tool="mutations" data-slot="${escapeHtml(dino.slot)}">🧬 Mutations</button>
