@@ -63,6 +63,15 @@ GET /api/website/dinostorage/:steamId
 
 Reads the player's DinoStorage slots from the game-server file store.
 
+
+### Active character
+
+```http
+GET /api/website/dinostorage/active-character/:steamId
+```
+
+Returns the same live-character fields currently used by the My Dinos page: species, gender, growth, health, stamina, hunger, thirst, Prime Elder state, mutations and location. This is read-only and lets the existing frontend keep its live-dino card and redeem eligibility checks after migration.
+
 ### DinoStorage store/redeem
 
 ```http
@@ -104,7 +113,7 @@ Keep this integration disconnected until the automation platform is deployed as 
 2. Add it to both Render services as a secret environment variable.
 3. Keep `COMMAND_BRIDGE_ENABLED=false` for the first connectivity test.
 4. Verify unauthorized website calls return 401 and missing configuration returns 503.
-5. Verify a backend-authenticated read-only DinoStorage call.
+5. Verify backend-authenticated read-only DinoStorage list and active-character calls.
 6. Enable CommandBridge only after confirming the single-file queue consumer is ready for this publisher.
 7. Test one controlled BodyDrop or DinoStorage request and follow its request ID through reconciliation before enabling the player-facing UI.
 
