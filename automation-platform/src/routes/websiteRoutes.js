@@ -7,6 +7,7 @@ const store = require('../services/automationStore');
 const statusService = require('../services/statusService');
 const economy = require('../services/economyStore');
 const marketplace = require('../services/marketplaceService');
+const playtimeRewards = require('../services/playtimeRewardsService');
 
 const router = express.Router();
 router.use(requireWebsiteToken);
@@ -20,7 +21,26 @@ function validateSteamId(value) {
 router.get('/wallet/:steamId', (req, res) => {
   try {
     const steamId = validateSteamId(req.params.steamId);
-    res.json(economy.getWallet(steamId));
+    const wallet = economy.getWallet(steamId);
+    const progress = economy.getPlaytimeProgress(steamId);
+    const rewardState = playtimeRewards.state();
+    const intervalMs = rewardState.intervalSeconds * 1000;
+    const accruedMs = Math.max(0, Number(progress?.accrued_ms || 0));
+
+    res.json({
+      ...wallet,
+      earning: {
+        enabled: rewardState.enabled,
+        configured: rewardState.configured,
+        coinsPer5Minutes: rewardState.coinsPer5Minutes,
+        intervalSeconds: rewardState.intervalSeconds,
+        accruedSeconds: Math.floor(accruedMs / 1000),
+        nextRewardInSeconds: rewardState.configured
+          ? Math.max(0, Math.ceil((intervalMs - accruedMs) / 1000))
+          : null,
+        rewardedIntervals: Number(progress?.rewarded_intervals || 0),
+      },
+    });
   } catch (error) {
     res.status(400).json({ error: error.message || 'Unable to read Valley Coin wallet.' });
   }
