@@ -26,15 +26,28 @@ function nextRecurringRun(previousRunAt, recurrence, now = Date.now()) {
   return new Date(next).toISOString();
 }
 
-function createDiscordAnnouncementJob({ message, runAt, recurrence = 'none' }) {
+function createDiscordAnnouncementJob({ message, runAt, recurrence = 'none', jobId = null }) {
   if (!discord.announcementConfigured()) {
     throw new Error('HerbyBot automation bridge is not configured');
   }
   const clean = discord.cleanMessage(message);
   const scheduledAt = validateRunAt(runAt);
   const repeat = validateRecurrence(recurrence);
+  const id = jobId ? String(jobId).trim() : randomUUID();
+  if (!/^[A-Za-z0-9:_-]{8,128}$/.test(id)) throw new Error('Scheduled job ID is invalid');
+
+  const existing = store.getJob(id);
+  if (existing) {
+    const samePayload = existing.type === 'discord_announcement' &&
+      existing.run_at === scheduledAt &&
+      existing.recurrence === repeat &&
+      existing.payload?.message === clean;
+    if (!samePayload) throw new Error('Scheduled job ID already exists with different content');
+    return existing;
+  }
+
   return store.createJob({
-    id: randomUUID(),
+    id,
     type: 'discord_announcement',
     runAt: scheduledAt,
     recurrence: repeat,
