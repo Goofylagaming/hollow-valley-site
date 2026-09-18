@@ -25,6 +25,7 @@ function getMigrationReadiness() {
   const playtimeRewardCoins = Number(process.env.WALLET_PLAYTIME_COINS_PER_5_MINUTES || 0);
   const playtimeRewardsSafe = !playtimeRewardsEnabled || (presenceEnabled && Number.isSafeInteger(playtimeRewardCoins) && playtimeRewardCoins > 0);
   const marketplaceWritesEnabled = process.env.MARKETPLACE_WRITE_ENABLED === 'true';
+  const officialMarketplaceFulfillmentEnabled = process.env.OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED === 'true';
   const parkedDinoEditsEnabled = process.env.PARKED_DINO_EDIT_ENABLED === 'true';
   const skinSystemEnabled = process.env.SKIN_SYSTEM_ENABLED === 'true';
 
@@ -60,6 +61,9 @@ function getMigrationReadiness() {
     check('marketplace-writes', 'Marketplace writes remain disabled', !marketplaceWritesEnabled, marketplaceWritesEnabled
       ? 'Marketplace buying/selling is enabled. Use only after wallet migration and DinoStorage escrow testing.'
       : 'Official and player-to-player marketplace writes are disabled.', 'safety'),
+    check('official-marketplace-fulfillment', 'Official marketplace fulfillment remains disabled', !officialMarketplaceFulfillmentEnabled, officialMarketplaceFulfillmentEnabled
+      ? 'Official catalog fulfillment is enabled and can create DinoStorage files. Use only after controlled FTP tests.'
+      : 'Official catalog DinoStorage fulfillment is locked.', 'safety'),
     check('parked-dino-edits', 'Parked dino edits remain disabled', !parkedDinoEditsEnabled, parkedDinoEditsEnabled
       ? 'Mutation/skin writes to parked DinoStorage JSON are enabled.'
       : 'Parked dinosaur mutation/skin writes remain locked.', 'safety'),
