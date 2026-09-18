@@ -40,6 +40,12 @@ const IS_PRODUCTION = process.env.NODE_ENV === "production";
 const HOLLOW_VALLEY_HOSTNAME = "hollowvalley.herbydeathsquadgames.com";
 const LANDING_HOSTNAMES = new Set(["herbydeathsquadgames.com", "www.herbydeathsquadgames.com"]);
 const LANDING_PAGE_PATH = path.join(__dirname, "..", "landing", "index.html");
+const ADMIN_STEAM_IDS = new Set(
+  String(process.env.ADMIN_STEAM_IDS || "")
+    .split(/[\s,]+/)
+    .map((value) => value.trim())
+    .filter((value) => /^\d{17}$/.test(value))
+);
 
 function createApp() {
   const app = express();
@@ -73,6 +79,12 @@ function createApp() {
   app.use((req, res, next) => {
     if (req.session.userId) {
       req.user = db.prepare("SELECT id, discord_id, steam_id, username, avatar, is_admin FROM users WHERE id = ?").get(req.session.userId) || null;
+      if (req.user && ADMIN_STEAM_IDS.has(String(req.user.steam_id || ""))) {
+        if (!req.user.is_admin) {
+          db.prepare("UPDATE users SET is_admin = 1 WHERE id = ?").run(req.user.id);
+        }
+        req.user.is_admin = 1;
+      }
     }
     next();
   });
