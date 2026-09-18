@@ -3,7 +3,7 @@ const { api, escapeHtml } = window.HDS;
 let speciesById = {};
 let catalog = [];
 let activeFilter = "all";
-let marketplaceState = { writeEnabled: false };
+let marketplaceState = { writeEnabled: false, officialCatalogEnabled: false };
 
 async function loadSpeciesMap() {
   const list = await api("/api/species");
@@ -59,7 +59,7 @@ function renderCatalog() {
         <div class="dino-art ${species.art}"><span>${species.name.toUpperCase()}</span></div>
         <div class="dino-info"><div><small>${(species.role || "").toUpperCase()}</small><h3>${escapeHtml(species.name)}</h3></div></div>
         <div class="dino-meta"><span>${entry.price.toLocaleString()} Valley Coin</span><span>Size ${entry.size_percent}%</span></div>
-        <div class="actions" style="padding:0 15px 15px"><button class="small-button buy-catalog-btn" data-id="${entry.id}">Buy (${entry.size_percent}% Size)</button></div>
+        <div class="actions" style="padding:0 15px 15px"><button class="small-button buy-catalog-btn" data-id="${escapeHtml(entry.id)}" ${marketplaceState.officialCatalogEnabled ? "" : "disabled"}>${marketplaceState.officialCatalogEnabled ? `Buy (${entry.size_percent}% Size)` : "Official store locked"}</button></div>
       </article>`;
     })
     .join("");
@@ -72,9 +72,15 @@ function renderCatalog() {
       btn.disabled = true;
       btn.textContent = "Purchasing...";
       try {
-        await api(`/api/marketplace/catalog/${btn.dataset.id}/buy`, { method: "POST" });
-        alert("Purchased! Your dino (75% Size) has been placed in your 'My Dinos' storage and can be redeemed in-game at any time.");
-        window.location.href = "/mydinos";
+        const result = await api(`/api/marketplace/catalog/${encodeURIComponent(btn.dataset.id)}/buy`, { method: "POST" });
+        if (result.fulfilled || result.order?.status === "fulfilled") {
+          alert("Purchased! The dino is now available in My Dinos.");
+          window.location.href = "/mydinos";
+          return;
+        }
+        alert("Order accepted. Your Valley Coin is reserved and DinoStorage delivery is processing. Track it under Your Store Orders.");
+        btn.textContent = "Order processing";
+        await loadMyOrders();
       } catch (err) {
         alert(err.message || "Failed to purchase dino");
         btn.disabled = false;
@@ -88,7 +94,7 @@ async function loadMarketplaceState() {
   try {
     marketplaceState = await api("/api/marketplace/state");
   } catch {
-    marketplaceState = { writeEnabled: false };
+    marketplaceState = { writeEnabled: false, officialCatalogEnabled: false };
   }
   const notice = document.getElementById("marketplace-write-notice");
   if (notice) {
@@ -142,6 +148,54 @@ async function loadListings() {
     );
   } catch (err) {
     grid.innerHTML = `<div class="empty-roster"><strong>Listings unavailable</strong><span>${escapeHtml(err.message || "Could not load marketplace listings.")}</span></div>`;
+  }
+}
+
+async function loadMyOrders() {
+  const section = document.getElementById("my-orders-section");
+  const grid = document.getElementById("my-orders-grid");
+  if (!section || !grid) return;
+
+  const me = await window.HDS.loadMe();
+  if (!me.loggedIn) {
+    section.hidden = true;
+    return;
+  }
+
+  section.hidden = false;
+  try {
+    const orders = await api("/api/marketplace/orders/mine");
+    if (!Array.isArray(orders) || !orders.length) {
+      grid.innerHTML = `<div class="empty-roster"><strong>No official store orders</strong><span>Official catalog purchases will appear here while DinoStorage delivers them.</span></div>`;
+      return;
+    }
+
+    grid.innerHTML = orders.map((order) => {
+      const item = order.itemSnapshot || {};
+      const payload = item.payload || {};
+      const status = String(order.status || "unknown");
+      const detail = status === "fulfilled"
+        ? `Available in My Dinos${order.fulfillment?.slot ? ` · ${escapeHtml(order.fulfillment.slot)}` : ""}`
+        : status === "pending"
+          ? "DinoStorage delivery processing"
+          : status === "refunded"
+            ? "Valley Coin refunded"
+            : status === "failed"
+              ? escapeHtml(order.error || "Delivery failed")
+              : status;
+
+      return `<div class="storage-card">
+        <h3>${escapeHtml(item.name || payload.species || order.catalog_id || "Official dino")}</h3>
+        <small>${Number(payload.growthPercent ?? payload.sizePercent ?? 75)}% growth</small>
+        <div class="market-listing-meta">
+          <span>${Number(order.price || 0).toLocaleString()} Valley Coin</span>
+          <span class="listing-status-pill">${escapeHtml(status)}</span>
+        </div>
+        <p class="section-intro">${detail}</p>
+      </div>`;
+    }).join("");
+  } catch (error) {
+    grid.innerHTML = `<div class="empty-roster"><strong>Store orders unavailable</strong><span>${escapeHtml(error.message || "Could not load orders.")}</span></div>`;
   }
 }
 
@@ -213,6 +267,7 @@ async function init() {
   catalog = await api("/api/marketplace/catalog");
   renderCatalog();
   await loadListings();
+  await loadMyOrders();
   await loadMyListings();
 }
 
