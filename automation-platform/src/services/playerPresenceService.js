@@ -80,7 +80,7 @@ function recordPresenceSample(onlinePlayers, nowIso = new Date().toISOString()) 
 
 function listPresenceSamples({ hours = 24, nowMs = Date.now(), limit = 5000 } = {}) {
   const safeHours = Math.max(1, Math.min(24 * 31, Number(hours) || 24));
-  const safeLimit = Math.max(1, Math.min(20000, Number(limit) || 5000));
+  const safeLimit = Math.max(1, Math.min(60000, Number(limit) || 5000));
   const startIso = new Date(nowMs - safeHours * 60 * 60 * 1000).toISOString();
   return db.prepare(`
     SELECT sampled_at, player_count, species_counts_json
@@ -213,6 +213,34 @@ function getPresenceSummary() {
   return { enabled: enabled(), active, sessions24h, uniquePlayers24h: unique24h };
 }
 
+function buildActivityTrend(samples, { startMs, endMs, maxBuckets = 48 } = {}) {
+  const safeStart = Number(startMs);
+  const safeEnd = Number(endMs);
+  if (!samples.length || !Number.isFinite(safeStart) || !Number.isFinite(safeEnd) || safeEnd <= safeStart) return [];
+  const bucketCount = Math.max(1, Math.min(maxBuckets, samples.length));
+  const bucketMs = Math.max(60_000, Math.ceil((safeEnd - safeStart) / bucketCount));
+  const buckets = new Map();
+
+  for (const sample of samples) {
+    const at = Date.parse(sample.sampledAt);
+    if (!Number.isFinite(at)) continue;
+    const index = Math.max(0, Math.floor((at - safeStart) / bucketMs));
+    const key = Math.min(bucketCount - 1, index);
+    const current = buckets.get(key) || { sum: 0, count: 0, peak: 0 };
+    current.sum += sample.playerCount;
+    current.count += 1;
+    current.peak = Math.max(current.peak, sample.playerCount);
+    buckets.set(key, current);
+  }
+
+  return [...buckets.entries()].sort((a, b) => a[0] - b[0]).map(([index, value]) => ({
+    startedAt: new Date(safeStart + index * bucketMs).toISOString(),
+    averagePlayers: Math.round((value.sum / value.count) * 10) / 10,
+    peakPlayers: value.peak,
+    samples: value.count,
+  }));
+}
+
 function getPresenceAnalytics({ hours = 24, nowMs = Date.now() } = {}) {
   const safeHours = Math.max(1, Math.min(24 * 31, Number(hours) || 24));
   const windowStartMs = nowMs - safeHours * 60 * 60 * 1000;
@@ -305,7 +333,11 @@ function getPresenceAnalytics({ hours = 24, nowMs = Date.now() } = {}) {
     .map(([species, samplePlayerCount]) => ({ species, samplePlayerCount }))
     .sort((a, b) => b.samplePlayerCount - a.samplePlayerCount || a.species.localeCompare(b.species))
     .slice(0, 10);
-  const activityTrend = samples.map((sample) => ({ sampledAt: sample.sampledAt, playerCount: sample.playerCount }));
+  const activityTrend = buildActivityTrend(samples, {
+    startMs: windowStartMs,
+    endMs: nowMs,
+    maxBuckets: 48,
+  });
 
   return {
     enabled: enabled(),
@@ -346,6 +378,7 @@ module.exports = {
   recordPresenceSample,
   listPresenceSamples,
   prunePresenceSamples,
+  buildActivityTrend,
   reconcilePresence,
   samplePresence,
   listSessions,
