@@ -90,6 +90,7 @@ The first command layer contains:
 - `/automation` — staff-only (Manage Server / Administrator), ephemeral automation health including HerbyBot outbox state and integration readiness.
 - `/players [page]` — staff-only, ephemeral online-player overview with player name, species and growth only. Steam IDs, coordinates and vitals are stripped server-side.
 - `/queue` — staff-only, ephemeral BodyDrop/DinoStorage request counts plus HerbyBot outbox delivery state.
+- `/activity [window]` — staff-only, ephemeral 24h/7d/30d player-activity summary with unique/returning players, tracked sessions, average/peak online counts, top players and top species. Steam IDs and raw trend data are removed before crossing the HerbyBot bridge.
 - `/announce message:` — staff-only, queues an immediate announcement into the durable HerbyBot outbox. It does not bypass the delivery bridge.
 - `/schedule message: minutes: repeat:` — staff-only, creates an idempotent scheduled announcement. The first delivery can be 1–43,200 minutes ahead; recurrence is once, daily or weekly.
 
@@ -147,8 +148,8 @@ Recommended first live bridge test:
 2. Keep CommandBridge and RCON writes disabled.
 3. Attach the combined HerbyBot integration to the existing Discord client.
 4. Register the slash commands and verify `/server` returns aggregate status.
-5. Verify non-staff users cannot use `/automation`, `/players`, `/queue`, `/announce` or `/schedule`.
-6. Test `/automation`, `/players` and `/queue` with a staff account and confirm player output has no Steam IDs or coordinates.
+5. Verify non-staff users cannot use `/automation`, `/players`, `/queue`, `/activity`, `/announce` or `/schedule`.
+6. Test `/automation`, `/players`, `/queue` and `/activity` with a staff account and confirm player/activity output has no Steam IDs or coordinates.
 7. Test one harmless `/announce` and confirm it queues exactly one outbox event.
 8. Test one short-delay `/schedule` and confirm a retry does not create a duplicate job.
 9. Confirm HerbyBot claims the announcement, sends it once, and acknowledges it.
