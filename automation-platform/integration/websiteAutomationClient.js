@@ -64,6 +64,10 @@ function getWallet(steamId, options = {}) {
   return call(`/wallet/${encodeURIComponent(validateSteamId(steamId))}`, options);
 }
 
+function getQuests(steamId, options = {}) {
+  return call(`/quests/${encodeURIComponent(validateSteamId(steamId))}`, options);
+}
+
 function listMarketplaceCatalog(options = {}) {
   return call('/marketplace/catalog', options);
 }
@@ -165,6 +169,7 @@ module.exports = {
   validateSteamId,
   validateRequestId,
   getWallet,
+  getQuests,
   listMarketplaceCatalog,
   listMarketplaceOrders,
   purchaseMarketplaceItem,
