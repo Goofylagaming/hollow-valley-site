@@ -99,11 +99,12 @@ After read-only RCON has been stable, optionally enable:
 ```text
 PLAYER_PRESENCE_ENABLED=true
 PLAYER_PRESENCE_INTERVAL_MS=60000
+PLAYER_PRESENCE_RETENTION_HOURS=744
 ```
 
 Presence tracking only closes a session after a successful RCON snapshot shows that player absent. An RCON outage does not log everybody out.
 
-The admin console can then show 24-hour unique players, tracked playtime, peak tracked concurrency and top tracked players.
+The admin console can then switch between 24-hour, 7-day and 30-day views showing unique/returning players, tracked playtime, average/peak concurrency, session-length metrics, bucketed activity trends, sampled species mix and top tracked players. Aggregate player-count/species samples are retained for 744 hours (31 days) by default; they contain no Steam IDs.
 
 ## Stage 3 — FTP diagnostics only
 
