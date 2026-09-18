@@ -10,6 +10,8 @@ const marketplace = require('../services/marketplaceService');
 const playtimeRewards = require('../services/playtimeRewardsService');
 const questBoosts = require('../services/questBoostService');
 const dinoMarketplace = require('../services/dinoMarketplaceService');
+const parkedDinoMutations = require('../services/parkedDinoMutationService');
+const skinPresets = require('../services/skinPresetService');
 
 const router = express.Router();
 router.use(requireWebsiteToken);
@@ -193,6 +195,106 @@ router.post('/marketplace/listings/:listingId/cancel', async (req, res) => {
       error: error.message || 'Marketplace listing cancellation failed.',
       code: error.code || null,
     });
+  }
+});
+
+router.get('/dinostorage/stored/:steamId/:slot/mutations', async (req, res) => {
+  try {
+    const steamId = validateSteamId(req.params.steamId);
+    res.json(await parkedDinoMutations.getMutationEditor(steamId, req.params.slot));
+  } catch (error) {
+    const status = error.code === 'DINO_FILE_NOT_FOUND' ? 404 : 400;
+    res.status(status).json({ error: error.message || 'Unable to read parked dino mutations.' });
+  }
+});
+
+router.put('/dinostorage/stored/:steamId/:slot/mutations', async (req, res) => {
+  try {
+    const steamId = validateSteamId(req.params.steamId);
+    const result = await audit.run('website', 'parked_dino_mutations', {
+      steamId,
+      slot: req.params.slot,
+    }, async () => parkedDinoMutations.updateMutations({
+      steamId,
+      slot: req.params.slot,
+      mutations: req.body?.mutations || {},
+    }), (value) => ({
+      slot: value.slot,
+      mutationCount: Object.values(value.mutations || {}).filter(Boolean).length,
+    }));
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    const status = error.code === 'PARKED_DINO_EDIT_DISABLED' ? 503 :
+      error.code === 'DINO_FILE_NOT_FOUND' ? 404 :
+      error.code === 'DUPLICATE_MUTATION' || error.code === 'MUTATION_NOT_ALLOWED' ? 400 : 400;
+    res.status(status).json({ error: error.message || 'Unable to update parked dino mutations.', code: error.code || null });
+  }
+});
+
+router.get('/skins/:steamId', (req, res) => {
+  try {
+    const steamId = validateSteamId(req.params.steamId);
+    const species = req.query.species ? String(req.query.species) : null;
+    res.json({
+      systemEnabled: skinPresets.systemEnabled(),
+      applyEnabled: skinPresets.applyEnabled(),
+      createCost: skinPresets.createCost(),
+      presets: skinPresets.listAvailablePresets(steamId, { species }),
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Unable to read skin presets.' });
+  }
+});
+
+router.post('/skins/from-stored', async (req, res) => {
+  try {
+    const steamId = validateSteamId(req.body?.steamId);
+    const result = await audit.run('website', 'skin_preset_create', {
+      steamId,
+      slot: req.body?.slot || null,
+      nameLength: String(req.body?.name || '').trim().length,
+    }, async () => skinPresets.createPresetFromStored({
+      steamId,
+      slot: req.body?.slot,
+      name: req.body?.name,
+      idempotencyKey: req.body?.idempotencyKey,
+    }), (value) => ({
+      presetId: value.preset?.id || null,
+      species: value.preset?.species || null,
+      duplicate: Boolean(value.duplicate),
+      balance: value.wallet?.balance ?? null,
+    }));
+    res.status(result.duplicate ? 200 : 201).json({ ok: true, ...result });
+  } catch (error) {
+    const status = error.code === 'SKIN_SYSTEM_DISABLED' ? 503 :
+      error.code === 'INSUFFICIENT_FUNDS' ? 402 :
+      error.code === 'DINO_FILE_NOT_FOUND' ? 404 : 400;
+    res.status(status).json({ error: error.message || 'Unable to create skin preset.', code: error.code || null });
+  }
+});
+
+router.post('/skins/:presetId/apply', async (req, res) => {
+  try {
+    const steamId = validateSteamId(req.body?.steamId);
+    const result = await audit.run('website', 'skin_preset_apply', {
+      steamId,
+      slot: req.body?.slot || null,
+      presetId: req.params.presetId,
+    }, async () => skinPresets.applyPreset({
+      steamId,
+      slot: req.body?.slot,
+      presetId: req.params.presetId,
+    }), (value) => ({
+      presetId: value.preset?.id || null,
+      slot: value.slot,
+      species: value.species,
+    }));
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    const status = error.code === 'PARKED_DINO_EDIT_DISABLED' ? 503 :
+      error.code === 'SKIN_PRESET_NOT_FOUND' || error.code === 'DINO_FILE_NOT_FOUND' ? 404 :
+      error.code === 'SKIN_SPECIES_MISMATCH' ? 409 : 400;
+    res.status(status).json({ error: error.message || 'Unable to apply skin preset.', code: error.code || null });
   }
 });
 
