@@ -5,6 +5,8 @@ const dinoStorage = require('../services/dinoStorageService');
 const audit = require('../services/auditService');
 const store = require('../services/automationStore');
 const statusService = require('../services/statusService');
+const economy = require('../services/economyStore');
+const marketplace = require('../services/marketplaceService');
 
 const router = express.Router();
 router.use(requireWebsiteToken);
@@ -14,6 +16,58 @@ function validateSteamId(value) {
   if (!/^\d{17}$/.test(steamId)) throw new Error('A valid 17-digit Steam ID is required');
   return steamId;
 }
+
+router.get('/wallet/:steamId', (req, res) => {
+  try {
+    const steamId = validateSteamId(req.params.steamId);
+    res.json(economy.getWallet(steamId));
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Unable to read Valley Coin wallet.' });
+  }
+});
+
+router.get('/marketplace/catalog', (_req, res) => {
+  res.json({ catalog: economy.listCatalog({ activeOnly: true }) });
+});
+
+router.get('/marketplace/orders/:steamId', (req, res) => {
+  try {
+    const steamId = validateSteamId(req.params.steamId);
+    const limit = Math.max(1, Math.min(100, Number(req.query.limit) || 25));
+    res.json({ orders: economy.listOrders({ steamId, limit }) });
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Unable to read marketplace orders.' });
+  }
+});
+
+router.post('/marketplace/catalog/:catalogId/buy', async (req, res) => {
+  const catalogId = String(req.params.catalogId || '').trim();
+  const idempotencyKey = String(req.body?.idempotencyKey || '').trim();
+  try {
+    const steamId = validateSteamId(req.body?.steamId);
+    const result = await audit.run('website', 'marketplace_purchase', {
+      catalogId,
+      steamId,
+    }, async () => marketplace.purchaseCatalogItem({
+      steamId,
+      catalogId,
+      idempotencyKey,
+    }), (value) => ({
+      orderId: value.order?.id || null,
+      duplicate: Boolean(value.duplicate),
+      balance: value.wallet?.balance ?? null,
+    }));
+    res.status(result.duplicate ? 200 : 201).json({ ok: true, ...result });
+  } catch (error) {
+    if (error.code === 'INSUFFICIENT_FUNDS') {
+      return res.status(402).json({ error: error.message });
+    }
+    if (error.code === 'CATALOG_ITEM_UNAVAILABLE') {
+      return res.status(404).json({ error: error.message });
+    }
+    res.status(400).json({ error: error.message || 'Marketplace purchase failed.' });
+  }
+});
 
 router.get('/bodydrop/cooldown/:steamId', async (req, res) => {
   try {
