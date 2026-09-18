@@ -40,6 +40,76 @@ function mapAutomationError(error, fallback = 'Automation service request failed
   return { status: 502, body: { error: error?.message || fallback } };
 }
 
+async function getWallet(req, res) {
+  if (!req.user) return res.status(401).json({ error: 'Not logged in' });
+  if (!req.user.steam_id) return res.json({ balance: 0, transactions: [], steamLinked: false });
+  try {
+    const wallet = await automation.getWallet(String(req.user.steam_id));
+    return res.json({
+      balance: Number(wallet.balance) || 0,
+      transactions: Array.isArray(wallet.transactions) ? wallet.transactions : [],
+      steamLinked: true,
+    });
+  } catch (error) {
+    const mapped = mapAutomationError(error, 'Could not read Valley Coin wallet.');
+    return res.status(mapped.status).json(mapped.body);
+  }
+}
+
+async function listMarketplaceCatalog(_req, res) {
+  try {
+    const result = await automation.listMarketplaceCatalog();
+    const catalog = (result.catalog || []).map((item) => ({
+      id: item.id,
+      species_id: item.payload?.speciesId || item.payload?.species || item.id,
+      price: Number(item.price) || 0,
+      size_percent: Number(item.payload?.sizePercent ?? item.payload?.growthPercent ?? 75),
+      name: item.name || null,
+      item_type: item.item_type || null,
+    }));
+    return res.json(catalog);
+  } catch (error) {
+    const mapped = mapAutomationError(error, 'Could not read marketplace catalog.');
+    return res.status(mapped.status).json(mapped.body);
+  }
+}
+
+async function listMarketplaceOrders(req, res) {
+  const steamId = requireLoggedInSteam(req, res);
+  if (!steamId) return;
+  try {
+    const result = await automation.listMarketplaceOrders(steamId);
+    return res.json(result.orders || []);
+  } catch (error) {
+    const mapped = mapAutomationError(error, 'Could not read marketplace orders.');
+    return res.status(mapped.status).json(mapped.body);
+  }
+}
+
+async function buyMarketplaceCatalogItem(req, res, catalogId) {
+  const steamId = requireLoggedInSteam(req, res);
+  if (!steamId) return;
+  const idempotencyKey = `website-marketplace:${randomUUID()}`;
+
+  try {
+    const result = await automation.purchaseMarketplaceItem({
+      steamId,
+      catalogId,
+      idempotencyKey,
+    });
+    return res.status(result.duplicate ? 200 : 202).json({
+      ok: true,
+      accepted: true,
+      fulfilled: result.order?.status === 'fulfilled',
+      order: result.order || null,
+      wallet: result.wallet || null,
+    });
+  } catch (error) {
+    const mapped = mapAutomationError(error, 'Marketplace purchase failed.');
+    return res.status(mapped.status).json(mapped.body);
+  }
+}
+
 async function getActiveCharacter(req, res) {
   if (!req.user) return res.status(401).json({ error: 'Not logged in' });
   if (!req.user.steam_id) return res.json({ active: false, reason: 'steam_not_linked' });
@@ -189,6 +259,10 @@ async function getAutomationRequest(req, res, requestId) {
 module.exports = {
   createSlotId,
   mapAutomationError,
+  getWallet,
+  listMarketplaceCatalog,
+  listMarketplaceOrders,
+  buyMarketplaceCatalogItem,
   getActiveCharacter,
   listDinos,
   parkActive,
