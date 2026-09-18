@@ -59,7 +59,23 @@ test('website wallet and marketplace APIs are protected and preserve atomic purc
 
   const walletBefore = await fetch(`${base}/wallet/${steamId}`, { headers });
   assert.equal(walletBefore.status, 200);
-  assert.equal((await walletBefore.json()).balance, 1000);
+  const walletBody = await walletBefore.json();
+  assert.equal(walletBody.balance, 1000);
+  assert.equal(walletBody.earning.activeBoostPercent, 0);
+  assert.equal(walletBody.earning.boostedCoinsPer5Minutes, 0);
+
+  const questsResponse = await fetch(`${base}/quests/${steamId}`, { headers });
+  assert.equal(questsResponse.status, 200);
+  const quests = await questsResponse.json();
+  assert.equal(quests.quests.length, 5);
+  assert.equal(quests.activeBoostPercent, 0);
+  assert.deepEqual(quests.quests.map((quest) => quest.id), [
+    'daily-consecutive-1h',
+    'daily-total-3h',
+    'daily-total-6h',
+    'weekly-total-12h',
+    'weekly-total-24h',
+  ]);
 
   const catalogResponse = await fetch(`${base}/marketplace/catalog`, { headers });
   assert.equal(catalogResponse.status, 200);
