@@ -133,7 +133,7 @@ function renderDinoCard(dino) {
   const storedAt = dino.capturedAt ? new Date(Number(dino.capturedAt) * 1000).toLocaleString() : "Unknown time";
 
   return `
-    <article class="dino-card-v2 storage-dino-card" data-prime="${dino.isPrime ? "true" : "false"}">
+    <article class="dino-card-v2 storage-dino-card" data-prime="${dino.isPrime ? "true" : "false"}" data-slot="${escapeHtml(dino.slot)}" data-species="${escapeHtml(dino.species || "")}">
       <div class="dino-header">
         <div class="dino-title-area">
           <div class="dino-avatar">☠</div>
@@ -156,6 +156,9 @@ function renderDinoCard(dino) {
       ${mutations.length ? `<div class="mutations-row"><span class="stat-name">MUTATIONS</span>${mutations.map((m) => `<span class="mutation-chip">🧬 ${escapeHtml(m)}</span>`).join("")}</div>` : ""}
       <div class="dino-actions-row">
         <button class="btn-dino-action redeem stored-redeem" data-slot="${escapeHtml(dino.slot)}" ${eligibility.ok ? "" : "disabled"}>↻ ${escapeHtml(eligibility.reason)}</button>
+        <button class="btn-dino-action parked-tool" data-tool="mutations" data-slot="${escapeHtml(dino.slot)}">🧬 Mutations</button>
+        <button class="btn-dino-action parked-tool" data-tool="skins" data-slot="${escapeHtml(dino.slot)}">◈ Skins</button>
+        <button class="btn-dino-action parked-tool sell-action" data-tool="sell" data-slot="${escapeHtml(dino.slot)}">◇ Sell</button>
       </div>
     </article>`;
 }
@@ -171,7 +174,7 @@ function renderStorage() {
   }
 
   grid.innerHTML = filtered.map(renderDinoCard).join("");
-  grid.querySelectorAll(".stored-redeem").forEach((button) => {
+  wireParkedTools(grid);\n  grid.querySelectorAll(".stored-redeem").forEach((button) => {
     button.addEventListener("click", async () => {
       const slot = button.dataset.slot;
       const dino = storedDinos.find((item) => item.slot === slot);
@@ -188,6 +191,213 @@ function renderStorage() {
         alert(err.message || "DinoStorage redeem failed");
         await refresh();
       }
+    });
+  });
+}
+
+
+function ensureParkedToolsDialog() {
+  let dialog = document.getElementById("parked-dino-tools-dialog");
+  if (dialog) return dialog;
+  dialog = document.createElement("dialog");
+  dialog.id = "parked-dino-tools-dialog";
+  dialog.className = "parked-tools-dialog";
+  dialog.innerHTML = `
+    <div class="parked-tools-shell">
+      <button class="parked-tools-close" type="button" aria-label="Close">×</button>
+      <div id="parked-tools-content"></div>
+    </div>
+  `;
+  document.body.appendChild(dialog);
+  dialog.querySelector(".parked-tools-close").addEventListener("click", () => dialog.close());
+  dialog.addEventListener("click", (event) => {
+    if (event.target === dialog) dialog.close();
+  });
+  return dialog;
+}
+
+function selectedDino(slot) {
+  return storedDinos.find((dino) => dino.slot === slot) || null;
+}
+
+function openDialogWith(title, subtitle, body) {
+  const dialog = ensureParkedToolsDialog();
+  const content = dialog.querySelector("#parked-tools-content");
+  content.innerHTML = `
+    <p class="overline green">PARKED DINO</p>
+    <h2>${escapeHtml(title)}</h2>
+    <p class="section-intro parked-tools-intro">${escapeHtml(subtitle)}</p>
+    <div class="parked-tools-body">${body}</div>
+  `;
+  if (!dialog.open) dialog.showModal();
+  return { dialog, content };
+}
+
+async function openMutationEditor(dino) {
+  const { content } = openDialogWith(
+    "Mutation loadout",
+    `Edit the four active mutation slots on your parked ${dino.species}. Inherited and elder mutations are preserved.`,
+    '<p class="section-intro">Loading mutation data…</p>'
+  );
+  try {
+    const data = await api(`/api/mydinos/stored/${encodeURIComponent(dino.slot)}/mutations`);
+    const options = (selected) => [
+      '<option value="">Empty slot</option>',
+      ...(data.catalog || []).map((name) =>
+        `<option value="${escapeHtml(name)}" ${name === selected ? "selected" : ""}>${escapeHtml(name)}</option>`
+      ),
+    ].join("");
+    content.querySelector(".parked-tools-body").innerHTML = `
+      <form id="mutation-editor-form" class="parked-tool-form">
+        <div class="mutation-editor-grid">
+          ${["Slot1","Slot2","Slot3","Slot4"].map((slotKey, index) => `
+            <label><span>ACTIVE SLOT ${index + 1}</span><select name="${slotKey}">${options(data.mutations?.[slotKey] || "")}</select></label>
+          `).join("")}
+        </div>
+        <div class="parked-tool-note">${data.writeEnabled ? "Changes are written only to this parked DinoStorage slot." : "Mutation editing is currently locked until the parked-dino write gate is enabled."}</div>
+        <button class="primary-button" type="submit" ${data.writeEnabled ? "" : "disabled"}>Save mutations <b>→</b></button>
+      </form>`;
+    content.querySelector("#mutation-editor-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const button = form.querySelector('button[type="submit"]');
+      button.disabled = true;
+      button.textContent = "Saving…";
+      try {
+        await api(`/api/mydinos/stored/${encodeURIComponent(dino.slot)}/mutations`, {
+          method: "PUT",
+          body: JSON.stringify({ mutations: Object.fromEntries(new FormData(form).entries()) }),
+        });
+        alert("Mutation loadout updated on the parked dino.");
+        ensureParkedToolsDialog().close();
+        await refresh();
+      } catch (error) {
+        alert(error.message || "Could not update mutations.");
+        button.disabled = false;
+        button.textContent = "Save mutations →";
+      }
+    });
+  } catch (error) {
+    content.querySelector(".parked-tools-body").innerHTML = `<div class="empty-roster"><strong>Mutation editor unavailable</strong><span>${escapeHtml(error.message)}</span></div>`;
+  }
+}
+
+function skinPresetCard(preset, dino, applyEnabled) {
+  const premium = preset.isPremium || preset.is_premium;
+  return `<div class="skin-preset-row">
+    <div><b>${escapeHtml(preset.name || "Unnamed skin")}${premium ? " ★" : ""}</b><small>${escapeHtml(preset.species || dino.species)} · Pattern ${Number(preset.skin?.patternIndex ?? 0)}</small></div>
+    <button class="small-button apply-skin-preset" type="button" data-preset-id="${escapeHtml(preset.id)}" ${applyEnabled ? "" : "disabled"}>Apply</button>
+  </div>`;
+}
+
+async function openSkinManager(dino) {
+  const { content } = openDialogWith(
+    "Skin presets",
+    `Save the exact captured skin from this parked ${dino.species}, or apply one of your saved ${dino.species} presets.`,
+    '<p class="section-intro">Loading skin presets…</p>'
+  );
+  try {
+    const data = await api(`/api/skins/mine?species=${encodeURIComponent(dino.species || "")}`);
+    const presets = Array.isArray(data.presets) ? data.presets : [];
+    content.querySelector(".parked-tools-body").innerHTML = `
+      <div class="skin-manager-grid">
+        <section>
+          <div class="list-heading"><span>SAVED PRESETS</span><small>${presets.length} available</small></div>
+          <div class="skin-preset-list">${presets.length ? presets.map((preset) => skinPresetCard(preset, dino, data.applyEnabled)).join("") : '<div class="empty-roster"><strong>No saved skins for this species</strong><span>Save this parked dino’s current skin to create your first preset.</span></div>'}</div>
+        </section>
+        <section class="skin-save-panel">
+          <div class="list-heading"><span>SAVE CURRENT SKIN</span><small>${Number(data.createCost || 0).toLocaleString()} Valley Coin</small></div>
+          <form id="skin-save-form" class="parked-tool-form">
+            <label><span>PRESET NAME</span><input name="name" maxlength="60" minlength="2" placeholder="e.g. Ash Hunter" required></label>
+            <p class="parked-tool-note">Saves the real body colors, markings, pattern, variation and theme captured with this parked dino.</p>
+            <button class="primary-button" type="submit" ${data.systemEnabled ? "" : "disabled"}>Save skin <b>→</b></button>
+          </form>
+        </section>
+      </div>`;
+    content.querySelectorAll(".apply-skin-preset").forEach((button) => {
+      button.addEventListener("click", async () => {
+        button.disabled = true;
+        button.textContent = "Applying…";
+        try {
+          await api(`/api/skins/${encodeURIComponent(button.dataset.presetId)}/apply`, {
+            method: "POST",
+            body: JSON.stringify({ slot: dino.slot }),
+          });
+          alert("Skin applied to the parked dino.");
+          ensureParkedToolsDialog().close();
+          await refresh();
+        } catch (error) {
+          alert(error.message || "Could not apply skin.");
+          button.disabled = false;
+          button.textContent = "Apply";
+        }
+      });
+    });
+    content.querySelector("#skin-save-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const button = form.querySelector('button[type="submit"]');
+      button.disabled = true;
+      button.textContent = "Saving…";
+      try {
+        await api("/api/skins/from-stored", {
+          method: "POST",
+          body: JSON.stringify({ slot: dino.slot, name: new FormData(form).get("name") }),
+        });
+        alert("Skin preset saved.");
+        await openSkinManager(dino);
+      } catch (error) {
+        alert(error.message || "Could not save skin preset.");
+        button.disabled = false;
+        button.textContent = "Save skin →";
+      }
+    });
+  } catch (error) {
+    content.querySelector(".parked-tools-body").innerHTML = `<div class="empty-roster"><strong>Skin manager unavailable</strong><span>${escapeHtml(error.message)}</span></div>`;
+  }
+}
+
+function openSellPanel(dino) {
+  const growth = growthPct(dino);
+  const { content } = openDialogWith(
+    "Sell parked dino",
+    `List your ${growth}% ${dino.species} for Valley Coin. While listed it is moved into marketplace escrow and cannot be redeemed or edited.`,
+    `<form id="sell-dino-form" class="parked-tool-form">
+      <label><span>SALE PRICE · VALLEY COIN</span><input name="price" type="number" min="1" step="1" max="100000000" required></label>
+      <div class="parked-tool-note warning">Listing moves the real DinoStorage file into escrow. Cancelling returns it; selling transfers it into the buyer’s My Dinos storage.</div>
+      <button class="primary-button" type="submit">List for sale <b>→</b></button>
+    </form>`
+  );
+  content.querySelector("#sell-dino-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const price = Number(new FormData(form).get("price"));
+    if (!Number.isSafeInteger(price) || price <= 0) return alert("Enter a valid whole-number Valley Coin price.");
+    if (!confirm(`List this ${dino.species} for ${price.toLocaleString()} Valley Coin? It will move into marketplace escrow.`)) return;
+    const button = form.querySelector('button[type="submit"]');
+    button.disabled = true;
+    button.textContent = "Moving to escrow…";
+    try {
+      await api("/api/marketplace/listings", { method: "POST", body: JSON.stringify({ slot: dino.slot, price }) });
+      alert("Dino listed. It is now locked in marketplace escrow.");
+      ensureParkedToolsDialog().close();
+      await refresh();
+    } catch (error) {
+      alert(error.message || "Could not list dino.");
+      button.disabled = false;
+      button.textContent = "List for sale →";
+    }
+  });
+}
+
+function wireParkedTools(grid) {
+  grid.querySelectorAll(".parked-tool").forEach((button) => {
+    button.addEventListener("click", () => {
+      const dino = selectedDino(button.dataset.slot);
+      if (!dino) return;
+      if (button.dataset.tool === "mutations") openMutationEditor(dino);
+      if (button.dataset.tool === "skins") openSkinManager(dino);
+      if (button.dataset.tool === "sell") openSellPanel(dino);
     });
   });
 }
