@@ -64,7 +64,7 @@ test('combined HerbyBot integration reuses one client for commands and outbox de
     assert.equal(result.started, true);
     assert.equal(result.bridge, true);
     assert.equal(result.commands.scope, 'global');
-    assert.deepEqual(registered.map((item) => item.name), ['server', 'automation']);
+    assert.deepEqual(registered.map((item) => item.name), ['server', 'automation', 'players', 'queue']);
     assert.equal(loginCalls, 0);
 
     const repeated = await integration.onReady();
