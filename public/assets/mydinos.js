@@ -6,6 +6,8 @@ let storedDinos = [];
 let currentFilter = "all";
 let bodyDropRefreshTimer;
 let bodyDropStatusBusy = false;
+let marketplaceState = { p2pWritesEnabled: false };
+let myMarketplaceListings = [];
 
 function pct(value, max, fallback = 0) {
   const n = Number(value);
@@ -54,6 +56,11 @@ function redeemEligibility(dino) {
     return { ok: false, reason: `Spawn as a ${dino.gender.toLowerCase()} ${dino.species}` };
   }
   return { ok: true, reason: "Redeem this dino" };
+}
+
+function listingForSlot(slot) {
+  const activeStatuses = new Set(["escrowing", "active", "reserved", "transfer_uncertain", "cancelling"]);
+  return myMarketplaceListings.find((listing) => listing.original_slot === slot && activeStatuses.has(listing.status));
 }
 
 async function runDinoStorageStore() {
@@ -133,6 +140,10 @@ function renderDinoCard(dino) {
   const eligibility = redeemEligibility(dino);
   const mutations = Array.isArray(dino.mutationList) ? dino.mutationList : [];
   const storedAt = dino.capturedAt ? new Date(Number(dino.capturedAt) * 1000).toLocaleString() : "Unknown time";
+  const listing = listingForSlot(dino.slot);
+  const sellAction = listing
+    ? `<button class="btn-dino-action sell" disabled>◇ Listed · ${Number(listing.price).toLocaleString()} Valley Coin</button>`
+    : `<button class="btn-dino-action sell stored-sell" data-slot="${escapeHtml(dino.slot)}" ${marketplaceState.p2pWritesEnabled ? "" : "disabled"}>◇ ${marketplaceState.p2pWritesEnabled ? "List for Sale" : "Player Selling Coming Online"}</button>`;
 
   return `
     <article class="dino-card-v2 storage-dino-card" data-prime="${dino.isPrime ? "true" : "false"}">
@@ -157,22 +168,13 @@ function renderDinoCard(dino) {
       </div>
       ${mutations.length ? `<div class="mutations-row"><span class="stat-name">MUTATIONS</span>${mutations.map((m) => `<span class="mutation-chip">🧬 ${escapeHtml(m)}</span>`).join("")}</div>` : ""}
       <div class="dino-actions-row">
-        <button class="btn-dino-action redeem stored-redeem" data-slot="${escapeHtml(dino.slot)}" ${eligibility.ok ? "" : "disabled"}>↻ ${escapeHtml(eligibility.reason)}</button>
+        <button class="btn-dino-action redeem stored-redeem" data-slot="${escapeHtml(dino.slot)}" ${eligibility.ok || listing ? (listing ? "disabled" : "") : "disabled"}>↻ ${escapeHtml(listing ? "Listed dinos cannot be redeemed" : eligibility.reason)}</button>
+        ${sellAction}
       </div>
     </article>`;
 }
 
-function renderStorage() {
-  const grid = document.getElementById("storage-grid");
-  document.getElementById("mydinos-count").textContent = `${storedDinos.length} in storage`;
-  const filtered = storedDinos.filter((dino) => currentFilter === "all" || (currentFilter === "prime" && dino.isPrime));
-
-  if (!filtered.length) {
-    grid.innerHTML = `<div class="empty-roster"><b>◇</b><strong>${storedDinos.length ? "No dinos match this filter" : "No stored dinos yet"}</strong><span>${storedDinos.length ? "Try another filter." : "Spawn in-game and use Store Current In-Game Dino."}</span></div>`;
-    return;
-  }
-
-  grid.innerHTML = filtered.map(renderDinoCard).join("");
+function wireStorageActions(grid) {
   grid.querySelectorAll(".stored-redeem").forEach((button) => {
     button.addEventListener("click", async () => {
       const slot = button.dataset.slot;
@@ -192,6 +194,49 @@ function renderStorage() {
       }
     });
   });
+
+  grid.querySelectorAll(".stored-sell").forEach((button) => {
+    button.addEventListener("click", async () => {
+      if (!marketplaceState.p2pWritesEnabled) return;
+      const slot = button.dataset.slot;
+      const dino = storedDinos.find((item) => item.slot === slot);
+      if (!dino) return;
+      const raw = prompt(`List your ${dino.species} for how many Valley Coin?`, "1000");
+      if (raw === null) return;
+      const price = Number(raw);
+      if (!Number.isSafeInteger(price) || price <= 0 || price > 100000000) {
+        return alert("Enter a positive whole-number price.");
+      }
+      if (!confirm(`List this ${dino.species} for ${price.toLocaleString()} Valley Coin? It will move into marketplace escrow until sold or cancelled.`)) return;
+      button.disabled = true;
+      button.textContent = "Listing...";
+      try {
+        await api("/api/marketplace/listings", {
+          method: "POST",
+          body: JSON.stringify({ slot, price }),
+        });
+        alert("Dino listed for sale.");
+        await refresh();
+      } catch (err) {
+        alert(err.message || "Failed to list dino");
+        await refresh();
+      }
+    });
+  });
+}
+
+function renderStorage() {
+  const grid = document.getElementById("storage-grid");
+  document.getElementById("mydinos-count").textContent = `${storedDinos.length} in storage`;
+  const filtered = storedDinos.filter((dino) => currentFilter === "all" || (currentFilter === "prime" && dino.isPrime));
+
+  if (!filtered.length) {
+    grid.innerHTML = `<div class="empty-roster"><b>◇</b><strong>${storedDinos.length ? "No dinos match this filter" : "No stored dinos yet"}</strong><span>${storedDinos.length ? "Try another filter." : "Spawn in-game and use Store Current In-Game Dino."}</span></div>`;
+    return;
+  }
+
+  grid.innerHTML = filtered.map(renderDinoCard).join("");
+  wireStorageActions(grid);
 }
 
 function wireFilters() {
@@ -268,6 +313,21 @@ async function loadBodyDropStatus() {
   }
 }
 
+async function loadMarketplaceSellingState() {
+  try {
+    const [state, mine] = await Promise.all([
+      api("/api/marketplace/state"),
+      api("/api/marketplace/listings/mine"),
+    ]);
+    marketplaceState = state || { p2pWritesEnabled: false };
+    myMarketplaceListings = Array.isArray(mine) ? mine : [];
+  } catch (err) {
+    marketplaceState = { p2pWritesEnabled: false };
+    myMarketplaceListings = [];
+    console.warn("Marketplace selling state unavailable", err);
+  }
+}
+
 async function refresh() {
   await loadActiveCharacter();
   try {
@@ -277,6 +337,7 @@ async function refresh() {
     document.getElementById("storage-grid").innerHTML = `<div class="empty-roster"><strong>Storage unavailable</strong><span>${escapeHtml(err.message)}</span></div>`;
     return;
   }
+  await loadMarketplaceSellingState();
   renderStorage();
   await loadBodyDropStatus();
 }
