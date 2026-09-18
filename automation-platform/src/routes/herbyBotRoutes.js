@@ -2,9 +2,10 @@ const express = require('express');
 const { requireHerbyBotToken } = require('../middleware/herbyBotAuth');
 const herbyBot = require('../services/herbyBotOutboxService');
 const { getPublicStatus, getServerSnapshot, requestSummary } = require('../services/statusService');
-const { buildStaffOverview } = require('../services/herbyBotStaffOverviewService');
+const { buildStaffOverview, buildStaffActivityAnalytics } = require('../services/herbyBotStaffOverviewService');
 const scheduler = require('../services/schedulerService');
 const audit = require('../services/auditService');
+const playerPresence = require('../services/playerPresenceService');
 
 const router = express.Router();
 router.use(requireHerbyBotToken);
@@ -37,6 +38,16 @@ router.get('/staff-overview', async (_req, res) => {
     }));
   } catch (error) {
     res.status(503).json({ error: error.message || 'HerbyBot staff overview unavailable.' });
+  }
+});
+
+router.get('/activity', (_req, res) => {
+  try {
+    const hours = Math.max(1, Math.min(24 * 31, Number(_req.query.hours) || 24));
+    const analytics = playerPresence.getPresenceAnalytics({ hours });
+    res.json({ analytics: buildStaffActivityAnalytics(analytics) });
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Unable to read HerbyBot player activity analytics.' });
   }
 });
 
