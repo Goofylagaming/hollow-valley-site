@@ -119,3 +119,95 @@ test('presence analytics calculate unique players, tracked time and peak concurr
   assert.equal(analytics.topPlayers.length, 2);
   assert.equal(analytics.topPlayers[0].trackedMinutes, 60);
 });
+
+
+test('aggregate presence samples drive activity averages, species mix and bucketed trends', (t) => {
+  const fixture = loadPresence({ snapshot: { configured: true, online: true, players: [], characters: [] } });
+  t.after(fixture.cleanup);
+  const p = fixture.presence;
+
+  const alpha = { steamId: '76561198000000000', name: 'Alpha', species: 'Triceratops' };
+  const beta = { steamId: '76561198000000001', name: 'Beta', species: 'Omniraptor' };
+
+  p.reconcilePresence([alpha, beta], '2026-09-18T00:00:00.000Z');
+  p.recordPresenceSample([alpha, beta], '2026-09-18T00:00:00.000Z');
+
+  p.reconcilePresence([beta], '2026-09-18T00:30:00.000Z');
+  p.recordPresenceSample([beta], '2026-09-18T00:30:00.000Z');
+
+  p.reconcilePresence([alpha], '2026-09-18T01:00:00.000Z');
+  p.recordPresenceSample([alpha], '2026-09-18T01:00:00.000Z');
+
+  p.reconcilePresence([], '2026-09-18T01:30:00.000Z');
+  p.recordPresenceSample([], '2026-09-18T01:30:00.000Z');
+
+  const analytics = p.getPresenceAnalytics({
+    hours: 24,
+    nowMs: Date.parse('2026-09-18T02:00:00.000Z'),
+  });
+
+  assert.equal(analytics.uniquePlayers, 2);
+  assert.equal(analytics.sessions, 3);
+  assert.equal(analytics.returningPlayers, 1);
+  assert.equal(analytics.trackedMinutes, 120);
+  assert.equal(analytics.averageSessionMinutes, 40);
+  assert.equal(analytics.medianSessionMinutes, 30);
+  assert.equal(analytics.longestSessionMinutes, 60);
+  assert.equal(analytics.peakConcurrent, 2);
+  assert.equal(analytics.averageOnline, 1);
+  assert.equal(analytics.sampleCount, 4);
+  assert.ok(analytics.activityTrend.length >= 1);
+  assert.ok(analytics.activityTrend.length <= 48);
+  assert.ok(analytics.activityTrend.every((point) => Object.hasOwn(point, 'averagePlayers') && Object.hasOwn(point, 'peakPlayers')));
+  assert.deepEqual(analytics.topSpecies.slice(0, 2), [
+    { species: 'Omniraptor', samplePlayerCount: 2 },
+    { species: 'Triceratops', samplePlayerCount: 2 },
+  ]);
+});
+
+test('presence sample retention prunes old aggregate samples without touching sessions', (t) => {
+  const fixture = loadPresence({ snapshot: { configured: true, online: true, players: [], characters: [] } });
+  t.after(fixture.cleanup);
+  const p = fixture.presence;
+
+  const alpha = { steamId: '76561198000000000', name: 'Alpha', species: 'Triceratops' };
+  p.reconcilePresence([alpha], '2026-09-16T00:00:00.000Z');
+  p.recordPresenceSample([alpha], '2026-09-16T00:00:00.000Z');
+  p.recordPresenceSample([alpha], '2026-09-18T00:00:00.000Z');
+
+  const removed = p.prunePresenceSamples({
+    retentionHours: 24,
+    nowIso: '2026-09-18T01:00:00.000Z',
+  });
+
+  assert.equal(removed, 1);
+  const samples = p.listPresenceSamples({
+    hours: 48,
+    nowMs: Date.parse('2026-09-18T01:00:00.000Z'),
+  });
+  assert.equal(samples.length, 1);
+  assert.equal(samples[0].sampledAt, '2026-09-18T00:00:00.000Z');
+  assert.equal(p.listSessions({ limit: 10 }).length, 1);
+});
+
+test('activity trend buckets many raw samples into a bounded response', (t) => {
+  const fixture = loadPresence({ snapshot: { configured: true, online: true, players: [], characters: [] } });
+  t.after(fixture.cleanup);
+  const p = fixture.presence;
+
+  const start = Date.parse('2026-09-18T00:00:00.000Z');
+  const samples = Array.from({ length: 120 }, (_, index) => ({
+    sampledAt: new Date(start + index * 60_000).toISOString(),
+    playerCount: index % 10,
+    speciesCounts: {},
+  }));
+  const trend = p.buildActivityTrend(samples, {
+    startMs: start,
+    endMs: start + 120 * 60_000,
+    maxBuckets: 24,
+  });
+
+  assert.ok(trend.length <= 24);
+  assert.ok(trend.length > 0);
+  assert.ok(trend.some((point) => point.peakPlayers > 0));
+});
