@@ -40,19 +40,41 @@ function mapAutomationError(error, fallback = 'Automation service request failed
   return { status: 502, body: { error: error?.message || fallback } };
 }
 
-async function getWallet(req, res) {
+async function getWallet(req, res, { legacyWallet = null } = {}) {
   if (!req.user) return res.status(401).json({ error: 'Not logged in' });
-  if (!req.user.steam_id) return res.json({ balance: 0, transactions: [], steamLinked: false });
+
+  const legacy = legacyWallet && typeof legacyWallet === 'object'
+    ? legacyWallet
+    : { balance: 0, transactions: [] };
+
+  if (!req.user.steam_id) {
+    return res.json({
+      balance: Number(legacy.balance) || 0,
+      transactions: Array.isArray(legacy.transactions) ? legacy.transactions : [],
+      steamLinked: false,
+      migrationPending: true,
+      earning: null,
+    });
+  }
+
+  const steamId = String(req.user.steam_id);
   try {
-    const wallet = await automation.getWallet(String(req.user.steam_id));
+    await automation.migrateLegacyWallet({
+      steamId,
+      legacyUserId: req.user.id,
+      balance: Number(legacy.balance) || 0,
+    });
+
+    const wallet = await automation.getWallet(steamId);
     return res.json({
       balance: Number(wallet.balance) || 0,
       transactions: Array.isArray(wallet.transactions) ? wallet.transactions : [],
       earning: wallet.earning || null,
       steamLinked: true,
+      migrationPending: false,
     });
   } catch (error) {
-    const mapped = mapAutomationError(error, 'Could not read Valley Coin wallet.');
+    const mapped = mapAutomationError(error, 'Could not safely migrate/read Valley Coin wallet.');
     return res.status(mapped.status).json(mapped.body);
   }
 }
