@@ -129,6 +129,47 @@ function cancelDinoMarketplaceListing({ steamId, listingId }, options = {}) {
   });
 }
 
+function getParkedDinoMutations(steamId, slot, options = {}) {
+  return call(`/dinostorage/stored/${encodeURIComponent(validateSteamId(steamId))}/${encodeURIComponent(String(slot || '').trim())}/mutations`, options);
+}
+
+function updateParkedDinoMutations(steamId, slot, mutations, options = {}) {
+  return call(`/dinostorage/stored/${encodeURIComponent(validateSteamId(steamId))}/${encodeURIComponent(String(slot || '').trim())}/mutations`, {
+    ...options,
+    method: 'PUT',
+    body: { mutations },
+  });
+}
+
+function listSkinPresets(steamId, { species = null, ...options } = {}) {
+  const query = species ? `?species=${encodeURIComponent(String(species))}` : '';
+  return call(`/skins/${encodeURIComponent(validateSteamId(steamId))}${query}`, options);
+}
+
+function createSkinPreset({ steamId, slot, name, idempotencyKey }, options = {}) {
+  return call('/skins/from-stored', {
+    ...options,
+    method: 'POST',
+    body: {
+      steamId: validateSteamId(steamId),
+      slot: String(slot || '').trim(),
+      name: String(name || '').trim(),
+      idempotencyKey: String(idempotencyKey || '').trim(),
+    },
+  });
+}
+
+function applySkinPreset({ steamId, slot, presetId }, options = {}) {
+  return call(`/skins/${encodeURIComponent(String(presetId || '').trim())}/apply`, {
+    ...options,
+    method: 'POST',
+    body: {
+      steamId: validateSteamId(steamId),
+      slot: String(slot || '').trim(),
+    },
+  });
+}
+
 function getBodyDropCooldown(steamId, options = {}) {
   return call(`/bodydrop/cooldown/${encodeURIComponent(validateSteamId(steamId))}`, options);
 }
@@ -218,6 +259,11 @@ module.exports = {
   createDinoMarketplaceListing,
   buyDinoMarketplaceListing,
   cancelDinoMarketplaceListing,
+  getParkedDinoMutations,
+  updateParkedDinoMutations,
+  listSkinPresets,
+  createSkinPreset,
+  applySkinPreset,
   getBodyDropCooldown,
   requestBodyDrop,
   getActiveCharacter,
