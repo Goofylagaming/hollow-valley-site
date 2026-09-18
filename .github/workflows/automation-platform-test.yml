@@ -6,10 +6,22 @@ on:
       - automation-platform
     paths:
       - 'automation-platform/**'
+      - 'server/routes/bodydrop.js'
+      - 'server/routes/mydinos.js'
+      - 'server/routes/wallet.js'
+      - 'server/routes/quests.js'
+      - 'server/routes/marketplace.js'
+      - 'server/routes/skins.js'
       - '.github/workflows/automation-platform-test.yml'
   pull_request:
     paths:
       - 'automation-platform/**'
+      - 'server/routes/bodydrop.js'
+      - 'server/routes/mydinos.js'
+      - 'server/routes/wallet.js'
+      - 'server/routes/quests.js'
+      - 'server/routes/marketplace.js'
+      - 'server/routes/skins.js'
       - '.github/workflows/automation-platform-test.yml'
 
 permissions:
