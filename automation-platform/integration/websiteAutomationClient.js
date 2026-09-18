@@ -89,6 +89,10 @@ function purchaseMarketplaceItem({ steamId, catalogId, idempotencyKey }, options
   });
 }
 
+function getDinoMarketplaceState(options = {}) {
+  return call('/marketplace/state', options);
+}
+
 function listDinoMarketplaceListings(options = {}) {
   return call('/marketplace/listings', options);
 }
@@ -254,6 +258,7 @@ module.exports = {
   listMarketplaceCatalog,
   listMarketplaceOrders,
   purchaseMarketplaceItem,
+  getDinoMarketplaceState,
   listDinoMarketplaceListings,
   listMyDinoMarketplaceListings,
   createDinoMarketplaceListing,
