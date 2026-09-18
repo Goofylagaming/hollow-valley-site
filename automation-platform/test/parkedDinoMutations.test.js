@@ -9,6 +9,7 @@ function loadService({ enabled = false } = {}) {
   process.env.PARKED_DINO_EDIT_ENABLED = enabled ? 'true' : 'false';
   let state = {
     slot: 'slot_a',
+    isFemale: true,
     mutations: {
       Slot1: 'Cellular Regeneration',
       Slot2: 'Wader',
@@ -39,9 +40,10 @@ function loadService({ enabled = false } = {}) {
       },
       async readStoredDino() { return JSON.parse(JSON.stringify(state)); },
       async updateStoredDino(_steamId, _slot, mutator) {
-        writes += 1;
         const draft = JSON.parse(JSON.stringify(state));
-        state = await mutator(draft, state);
+        const next = await mutator(draft, state);
+        state = next === undefined ? draft : next;
+        writes += 1;
         return JSON.parse(JSON.stringify(state));
       },
     },
@@ -137,4 +139,46 @@ test('mutation names normalize case-insensitively to canonical names', (t) => {
   t.after(fixture.cleanup);
   assert.equal(fixture.service.normalizeMutation('cellular regeneration'), 'Cellular Regeneration');
   assert.equal(fixture.service.normalizeMutation('NONE'), '');
+});
+
+
+test('current mutation rules exclude removed mutation and include reproductive options', async (t) => {
+  const fixture = loadService();
+  t.after(fixture.cleanup);
+  const result = await fixture.service.getMutationEditor('76561198000000201', 'slot_a');
+
+  assert.equal(result.catalog.includes('Traumatic Thrombosis'), false);
+  assert.equal(result.catalog.includes('Sequential Hermaphroditism'), true);
+  assert.equal(result.catalog.includes('Parthenogenesis'), true);
+  assert.equal(result.slotCatalog.Slot1.includes('Parthenogenesis'), false);
+  assert.equal(result.slotCatalog.Slot2.includes('Parthenogenesis'), true);
+  assert.equal(result.slotCatalog.Slot3.includes('Enhanced Digestion'), true);
+  assert.equal(result.slotCatalog.Slot4.includes('Enhanced Digestion'), false);
+});
+
+test('slot-restricted mutation is rejected before file write', async (t) => {
+  const fixture = loadService({ enabled: true });
+  t.after(fixture.cleanup);
+
+  await assert.rejects(() => fixture.service.updateMutations({
+    steamId: '76561198000000201',
+    slot: 'slot_a',
+    mutations: { Slot1: 'Cannibalistic' },
+  }), (error) => error.code === 'MUTATION_SLOT_NOT_ALLOWED');
+
+  assert.equal(fixture.getWrites(), 0);
+});
+
+test('female-only mutation is rejected on a male parked dino', async (t) => {
+  const fixture = loadService({ enabled: true });
+  t.after(fixture.cleanup);
+  fixture.getState().isFemale = false;
+
+  await assert.rejects(() => fixture.service.updateMutations({
+    steamId: '76561198000000201',
+    slot: 'slot_a',
+    mutations: { Slot2: 'Parthenogenesis' },
+  }), (error) => error.code === 'MUTATION_SLOT_NOT_ALLOWED');
+
+  assert.equal(fixture.getWrites(), 0);
 });
