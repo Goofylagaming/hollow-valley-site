@@ -11,6 +11,7 @@ const audit = require('./services/auditService');
 const backupService = require('./services/backupService');
 const adminRoutes = require('./routes/adminRoutes');
 const websiteRoutes = require('./routes/websiteRoutes');
+const websiteAdminWalletRoutes = require('./routes/websiteAdminWalletRoutes');
 const herbyBotRoutes = require('./routes/herbyBotRoutes');
 const bodyDropRoutes = require('./routes/bodyDropRoutes');
 const dinoStorageRoutes = require('./routes/dinoStorageRoutes');
@@ -153,6 +154,11 @@ app.use('/api/admin', (_req, res, next) => {
   res.set('Cache-Control', 'no-store');
   next();
 }, adminRoutes);
+
+app.use('/api/website/admin-wallet', (_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+}, websiteAdminWalletRoutes);
 
 app.use('/api/website', (_req, res, next) => {
   res.set('Cache-Control', 'no-store');
