@@ -425,9 +425,9 @@ menuToggle?.addEventListener('click', () => {
 if ($('scheduler-run-at') && !$('scheduler-run-at').value) {
   $('scheduler-run-at').value = localDateTimeValue(new Date(Date.now() + 30 * 60_000));
 }
-loadPublicStatus();
 if (adminToken) loadAdminStatus(false);
+else loadPublicStatus(false);
 setInterval(() => {
-  loadPublicStatus(false);
   if (adminToken) loadAdminStatus(false);
-}, 15_000);
+  else loadPublicStatus(false);
+}, 30_000);
