@@ -40,6 +40,19 @@ function mapAutomationError(error, fallback = 'Automation service request failed
   return { status: 502, body: { error: error?.message || fallback } };
 }
 
+async function getActiveCharacter(req, res) {
+  const steamId = requireLoggedInSteam(req, res);
+  if (!steamId) return;
+
+  try {
+    const result = await automation.getActiveCharacter(steamId);
+    return res.json(result);
+  } catch (error) {
+    const mapped = mapAutomationError(error, 'Live character state unavailable.');
+    return res.status(mapped.status).json(mapped.body);
+  }
+}
+
 async function listDinos(req, res) {
   const steamId = requireLoggedInSteam(req, res);
   if (!steamId) return;
@@ -160,6 +173,7 @@ async function getAutomationRequest(req, res, requestId) {
 module.exports = {
   createSlotId,
   mapAutomationError,
+  getActiveCharacter,
   listDinos,
   parkActive,
   redeemStored,
