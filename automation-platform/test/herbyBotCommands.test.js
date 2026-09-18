@@ -50,7 +50,7 @@ const status = {
 
 test('HerbyBot command definitions expose public /server and staff commands', () => {
   const commands = commandDefinitions();
-  assert.deepEqual(commands.map((item) => item.name), ['server', 'automation', 'players', 'queue', 'announce', 'schedule']);
+  assert.deepEqual(commands.map((item) => item.name), ['server', 'automation', 'players', 'queue', 'activity', 'announce', 'schedule']);
   assert.equal(commands[0].default_member_permissions, undefined);
   assert.ok(commands.slice(1).every((item) => item.default_member_permissions === '32'));
 });
@@ -131,8 +131,8 @@ test('command registration uses guild scope when DISCORD_GUILD_ID is configured'
   try {
     const result = await registerHerbyBotCommands(client);
     assert.equal(result.scope, 'guild');
-    assert.equal(result.count, 6);
-    assert.equal(registered.length, 6);
+    assert.equal(result.count, 7);
+    assert.equal(registered.length, 7);
   } finally {
     if (previous === undefined) delete process.env.DISCORD_GUILD_ID;
     else process.env.DISCORD_GUILD_ID = previous;
@@ -190,6 +190,19 @@ test('/announce is staff-only before any write API is called', async () => {
   const handle = createHerbyBotCommandHandler({ api });
   const i = interaction('announce', { staff: false });
   i.id = '123456789012345678';
+
+  assert.equal(await handle(i), true);
+  assert.equal(calls, 0);
+  assert.equal(i.replies[0].ephemeral, true);
+  assert.match(i.replies[0].content, /permission/i);
+});
+
+
+test('/activity is staff-only before analytics API is called', async () => {
+  let calls = 0;
+  const api = { async getActivity() { calls += 1; return {}; } };
+  const handle = createHerbyBotCommandHandler({ api });
+  const i = interaction('activity', { staff: false });
 
   assert.equal(await handle(i), true);
   assert.equal(calls, 0);
