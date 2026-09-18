@@ -272,6 +272,7 @@ function listOrders({ steamId = null, statuses = null, limit = 100 } = {}) {
 }
 
 module.exports = {
+  db,
   dbPath,
   validateSteamId,
   ensureWallet,
