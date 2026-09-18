@@ -108,6 +108,17 @@ function purchaseMarketplaceItem({ steamId, catalogId, idempotencyKey }) {
   });
 }
 
+function adminCreditWallet({ steamId, amount }) {
+  const credit = Number(amount);
+  if (!Number.isSafeInteger(credit) || credit <= 0 || credit > 1000000) {
+    throw new Error('Credit amount must be a whole number between 1 and 1,000,000');
+  }
+  return call('/admin-wallet/credit', {
+    method: 'POST',
+    body: { steamId: validateSteamId(steamId), amount: credit },
+  });
+}
+
 function getDinoMarketplaceState() {
   return call('/marketplace/state');
 }
@@ -125,6 +136,7 @@ module.exports = {
   requestBodyDrop,
   listMarketplaceCatalog,
   purchaseMarketplaceItem,
+  adminCreditWallet,
   getDinoMarketplaceState,
   listDinoMarketplaceListings,
 };
