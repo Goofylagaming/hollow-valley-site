@@ -6,8 +6,12 @@ const path = require('node:path');
 
 function loadMarketplace({ transferError = null } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hv-p2p-'));
-  const previous = process.env.AUTOMATION_DB_PATH;
+  const previous = {
+    db: process.env.AUTOMATION_DB_PATH,
+    write: process.env.MARKETPLACE_WRITE_ENABLED,
+  };
   process.env.AUTOMATION_DB_PATH = path.join(dir, 'economy.sqlite');
+  process.env.MARKETPLACE_WRITE_ENABLED = 'true';
 
   const storePath = require.resolve('../src/services/economyStore');
   const filePath = require.resolve('../src/services/parkedDinoFileService');
@@ -102,8 +106,10 @@ function loadMarketplace({ transferError = null } = {}) {
       delete require.cache[storePath];
       delete require.cache[filePath];
       delete require.cache[servicePath];
-      if (previous === undefined) delete process.env.AUTOMATION_DB_PATH;
-      else process.env.AUTOMATION_DB_PATH = previous;
+      if (previous.db === undefined) delete process.env.AUTOMATION_DB_PATH;
+      else process.env.AUTOMATION_DB_PATH = previous.db;
+      if (previous.write === undefined) delete process.env.MARKETPLACE_WRITE_ENABLED;
+      else process.env.MARKETPLACE_WRITE_ENABLED = previous.write;
       fs.rmSync(dir, { recursive: true, force: true });
     },
   };
