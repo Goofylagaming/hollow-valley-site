@@ -144,3 +144,37 @@ test('BodyDrop 403 keeps eligibility details instead of becoming a generic proxy
   assert.equal(res.body.eligibility.eligible, false);
   assert.equal(res.body.eligibility.growthPercent, 72);
 });
+
+
+test('active-character adapter preserves the live My Dinos response shape', async (t) => {
+  const fixture = loadWithClientStubs({
+    getActiveCharacter: async () => ({
+      active: true,
+      character: {
+        name: 'Young Carno',
+        species: 'Carnotaurus',
+        gender: 'Female',
+        growth: 0.42,
+        health: 80,
+        stamina: 70,
+        hunger: 60,
+        thirst: 50,
+        isPrime: false,
+        mutations: ['Truculency'],
+        location: { x: 1, y: 2, z: 3 },
+      },
+    }),
+  });
+  t.after(fixture.restore);
+
+  const req = { user: { steam_id: '76561198000000000' } };
+  const res = response();
+  await fixture.adapters.getActiveCharacter(req, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.active, true);
+  assert.equal(res.body.character.species, 'Carnotaurus');
+  assert.equal(res.body.character.gender, 'Female');
+  assert.equal(res.body.character.growth, 0.42);
+  assert.deepEqual(res.body.character.mutations, ['Truculency']);
+});
