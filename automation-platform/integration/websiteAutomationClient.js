@@ -71,6 +71,10 @@ function requestBodyDrop({ steamId, dropType }, options = {}) {
   return call('/bodydrop', { ...options, method: 'POST', body: { steamId: validatedSteamId, dropType: type } });
 }
 
+function getActiveCharacter(steamId, options = {}) {
+  return call(`/dinostorage/active-character/${encodeURIComponent(validateSteamId(steamId))}`, options);
+}
+
 function listStoredDinos(steamId, options = {}) {
   return call(`/dinostorage/${encodeURIComponent(validateSteamId(steamId))}`, options);
 }
@@ -137,6 +141,7 @@ module.exports = {
   validateRequestId,
   getBodyDropCooldown,
   requestBodyDrop,
+  getActiveCharacter,
   listStoredDinos,
   requestDinoAction,
   getRequestStatus,
