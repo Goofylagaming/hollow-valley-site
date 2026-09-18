@@ -9,6 +9,7 @@ const economy = require('../services/economyStore');
 const marketplace = require('../services/marketplaceService');
 const playtimeRewards = require('../services/playtimeRewardsService');
 const questBoosts = require('../services/questBoostService');
+const dinoMarketplace = require('../services/dinoMarketplaceService');
 
 const router = express.Router();
 router.use(requireWebsiteToken);
@@ -101,6 +102,97 @@ router.post('/marketplace/catalog/:catalogId/buy', async (req, res) => {
       return res.status(404).json({ error: error.message });
     }
     res.status(400).json({ error: error.message || 'Marketplace purchase failed.' });
+  }
+});
+
+router.get('/marketplace/listings', (_req, res) => {
+  res.json({ listings: dinoMarketplace.listPublicListings({ limit: 200 }) });
+});
+
+router.get('/marketplace/listings/mine/:steamId', (req, res) => {
+  try {
+    const steamId = validateSteamId(req.params.steamId);
+    res.json({ listings: dinoMarketplace.listSellerListings(steamId, { limit: 200 }) });
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Unable to read marketplace listings.' });
+  }
+});
+
+router.post('/marketplace/listings', async (req, res) => {
+  try {
+    const steamId = validateSteamId(req.body?.steamId);
+    const result = await audit.run('website', 'marketplace_list_dino', {
+      steamId,
+      slot: req.body?.slot || null,
+      price: Number(req.body?.price) || null,
+    }, async () => dinoMarketplace.createDinoListing({
+      sellerSteamId: steamId,
+      slot: req.body?.slot,
+      price: req.body?.price,
+      idempotencyKey: req.body?.idempotencyKey,
+    }), (value) => ({
+      listingId: value.listing?.id || null,
+      duplicate: Boolean(value.duplicate),
+      status: value.listing?.status || null,
+    }));
+    res.status(result.duplicate ? 200 : 201).json({ ok: true, ...result });
+  } catch (error) {
+    const status = error.code === 'DINO_ALREADY_LISTED' ? 409 :
+      error.code === 'DINO_FILE_NOT_FOUND' ? 404 : 400;
+    res.status(status).json({ error: error.message || 'Unable to list parked dinosaur.' });
+  }
+});
+
+router.post('/marketplace/listings/:listingId/buy', async (req, res) => {
+  try {
+    const steamId = validateSteamId(req.body?.steamId);
+    const result = await audit.run('website', 'marketplace_buy_listing', {
+      listingId: req.params.listingId,
+      buyerSteamId: steamId,
+    }, async () => dinoMarketplace.buyDinoListing({
+      buyerSteamId: steamId,
+      listingId: req.params.listingId,
+      idempotencyKey: req.body?.idempotencyKey,
+    }), (value) => ({
+      listingId: value.listing?.id || null,
+      status: value.listing?.status || null,
+      duplicate: Boolean(value.duplicate),
+      balance: value.wallet?.balance ?? null,
+    }));
+    res.status(result.duplicate ? 200 : 201).json({ ok: true, ...result });
+  } catch (error) {
+    const status = error.code === 'INSUFFICIENT_FUNDS' ? 402 :
+      error.code === 'LISTING_NOT_FOUND' ? 404 :
+      error.code === 'TRANSFER_UNCERTAIN' ? 409 : 400;
+    res.status(status).json({
+      error: error.message || 'Marketplace listing purchase failed.',
+      code: error.code || null,
+    });
+  }
+});
+
+router.post('/marketplace/listings/:listingId/cancel', async (req, res) => {
+  try {
+    const steamId = validateSteamId(req.body?.steamId);
+    const result = await audit.run('website', 'marketplace_cancel_listing', {
+      listingId: req.params.listingId,
+      sellerSteamId: steamId,
+    }, async () => dinoMarketplace.cancelDinoListing({
+      sellerSteamId: steamId,
+      listingId: req.params.listingId,
+    }), (value) => ({
+      listingId: value.listing?.id || null,
+      status: value.listing?.status || null,
+      duplicate: Boolean(value.duplicate),
+    }));
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    const status = error.code === 'LISTING_NOT_FOUND' ? 404 :
+      error.code === 'TRANSFER_UNCERTAIN' ? 409 : 400;
+    res.status(status).json({
+      error: error.message || 'Marketplace listing cancellation failed.',
+      code: error.code || null,
+    });
   }
 });
 
