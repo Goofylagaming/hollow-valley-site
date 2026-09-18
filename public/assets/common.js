@@ -71,6 +71,22 @@ window.HDS = (function () {
     }
   }
 
+  async function claimDailyLoginBonus(me) {
+    if (!me?.loggedIn) return null;
+    try {
+      const result = await api("/api/wallet/daily-login/claim", { method: "POST" });
+      if (!result?.duplicate && Number(result?.amount) > 0) {
+        document.dispatchEvent(new CustomEvent("hds:daily-login-bonus", { detail: result }));
+      }
+      return result;
+    } catch (err) {
+      if (![400, 503].includes(Number(err?.status))) {
+        console.warn("Daily login bonus check failed", err);
+      }
+      return null;
+    }
+  }
+
   function wireNavInteractions() {
     const menuButton = document.querySelector(".menu-toggle");
     const navLinks = document.querySelector(".main-nav");
@@ -113,7 +129,8 @@ window.HDS = (function () {
       return;
     }
     wireNavInteractions();
-    await loadMe();
+    const me = await loadMe();
+    await claimDailyLoginBonus(me);
 
     document.getElementById("auth-area")?.addEventListener("click", (event) => {
       const link = event.target.closest("a");
@@ -150,7 +167,7 @@ window.HDS = (function () {
     }
   }
 
-  return { api, escapeHtml, loadMe, loadServerStatus, initNav };
+  return { api, escapeHtml, loadMe, loadServerStatus, initNav, claimDailyLoginBonus };
 })();
 
 document.addEventListener("DOMContentLoaded", () => {
