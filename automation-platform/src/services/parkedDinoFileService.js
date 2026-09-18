@@ -132,8 +132,17 @@ async function replaceJson(client, remotePath, state) {
       await client.rename(temp, normalized);
       tempExists = false;
     } catch (error) {
-      await client.rename(backup, normalized).catch(() => {});
-      backupExists = false;
+      try {
+        await client.rename(backup, normalized);
+        backupExists = false;
+      } catch (restoreError) {
+        const rollbackError = new Error(
+          `Parked dinosaur update failed and backup restore also failed: ${restoreError.message}`
+        );
+        rollbackError.code = 'DINO_EDIT_ROLLBACK_FAILED';
+        rollbackError.cause = error;
+        throw rollbackError;
+      }
       throw error;
     }
 
