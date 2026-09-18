@@ -12,6 +12,7 @@ const questBoosts = require('../services/questBoostService');
 const dinoMarketplace = require('../services/dinoMarketplaceService');
 const parkedDinoMutations = require('../services/parkedDinoMutationService');
 const skinPresets = require('../services/skinPresetService');
+const officialMarketplaceFulfillment = require('../services/officialMarketplaceFulfillmentService');
 
 const router = express.Router();
 router.use(requireWebsiteToken);
@@ -106,6 +107,9 @@ router.post('/marketplace/catalog/:catalogId/buy', async (req, res) => {
     if (error.code === 'INSUFFICIENT_FUNDS') {
       return res.status(402).json({ error: error.message });
     }
+    if (error.code === 'MARKETPLACE_WRITE_DISABLED' || error.code === 'OFFICIAL_MARKETPLACE_FULFILLMENT_DISABLED') {
+      return res.status(503).json({ error: error.message, code: error.code });
+    }
     if (error.code === 'CATALOG_ITEM_UNAVAILABLE') {
       return res.status(404).json({ error: error.message });
     }
@@ -114,8 +118,11 @@ router.post('/marketplace/catalog/:catalogId/buy', async (req, res) => {
 });
 
 router.get('/marketplace/state', (_req, res) => {
+  const writeEnabled = dinoMarketplace.writeEnabled();
   res.json({
-    writeEnabled: dinoMarketplace.writeEnabled(),
+    writeEnabled,
+    officialCatalogEnabled: writeEnabled && officialMarketplaceFulfillment.enabled(),
+    officialFulfillmentEnabled: officialMarketplaceFulfillment.enabled(),
     reconcileIntervalMs: Math.max(5000, Number(process.env.MARKETPLACE_RECONCILE_INTERVAL_MS || 15000)),
   });
 });
