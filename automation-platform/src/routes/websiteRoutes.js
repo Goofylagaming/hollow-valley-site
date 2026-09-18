@@ -23,6 +23,24 @@ function validateSteamId(value) {
   return steamId;
 }
 
+router.post('/wallet/migrate', (req, res) => {
+  try {
+    const steamId = validateSteamId(req.body?.steamId);
+    const result = economy.migrateLegacyWallet({
+      legacyUserId: req.body?.legacyUserId,
+      steamId,
+      balance: req.body?.balance,
+    });
+    res.status(result.duplicate ? 200 : 201).json({ ok: true, ...result });
+  } catch (error) {
+    const status = error.code === 'LEGACY_WALLET_MIGRATION_CONFLICT' ? 409 : 400;
+    res.status(status).json({
+      error: error.message || 'Unable to migrate legacy Valley Coin wallet.',
+      code: error.code || null,
+    });
+  }
+});
+
 router.get('/wallet/:steamId', (req, res) => {
   try {
     const steamId = validateSteamId(req.params.steamId);
