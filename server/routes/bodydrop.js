@@ -8,6 +8,7 @@ const {
 const { requireAuth } = require("../middleware/requireAuth");
 const { executeBodyDrop } = require("../services/bodyDrop");
 const serverStatus = require("../services/serverStatus");
+const automationRoutes = require("../../automation-platform/integration/liveRouteAdapters");
 
 const router = express.Router();
 
@@ -77,20 +78,9 @@ function cooldownFor(latest, now = new Date()) {
   };
 }
 
-router.get("/", requireAuth, (req, res) => {
-  const latest = getLatestBodyDropRequest(req.user.id);
-  const state = serverStatus.getState();
-  res.json({
-    enabled: Boolean(req.user.steam_id),
-    steamLinked: Boolean(req.user.steam_id),
-    serverOnline: state.online,
-    cooldownSeconds: getCooldownSeconds(),
-    cooldown: cooldownFor(latest),
-    options: getDropTypes(),
-    latest,
-    recent: getRecentBodyDropRequests(req.user.id),
-  });
-});
+// BodyDrop status/eligibility is read from the isolated automation service.
+router.get("/", requireAuth, (req, res) =>
+  automationRoutes.getBodyDropState(req, res, { options: getDropTypes() }));
 
 router.post("/", requireAuth, async (req, res) => {
   if (!req.user.steam_id) {
