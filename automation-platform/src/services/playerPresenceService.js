@@ -104,7 +104,7 @@ function prunePresenceSamples({ retentionHours = 24 * 31, nowIso = new Date().to
   const hours = Math.max(24, Math.min(24 * 365, Number(retentionHours) || 24 * 31));
   return db.prepare(`
     DELETE FROM player_presence_samples
-    WHERE sampled_at < datetime(?, ?)
+    WHERE datetime(sampled_at) < datetime(?, ?)
   `).run(nowIso, `-${hours} hours`).changes;
 }
 
@@ -205,11 +205,11 @@ function getPresenceSummary() {
   const active = db.prepare('SELECT COUNT(*) AS count FROM player_presence_sessions WHERE ended_at IS NULL').get().count;
   const sessions24h = db.prepare(`
     SELECT COUNT(*) AS count FROM player_presence_sessions
-    WHERE started_at >= datetime('now', '-24 hours')
+    WHERE datetime(started_at) >= datetime('now', '-24 hours')
   `).get().count;
   const unique24h = db.prepare(`
     SELECT COUNT(DISTINCT steam_id) AS count FROM player_presence_sessions
-    WHERE started_at >= datetime('now', '-24 hours') OR last_seen_at >= datetime('now', '-24 hours')
+    WHERE datetime(started_at) >= datetime('now', '-24 hours') OR datetime(last_seen_at) >= datetime('now', '-24 hours')
   `).get().count;
   return { enabled: enabled(), active, sessions24h, uniquePlayers24h: unique24h };
 }
