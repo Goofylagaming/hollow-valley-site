@@ -10,6 +10,7 @@ process.env.AUTOMATION_DB_PATH = path.join(dir, 'economy.sqlite');
 process.env.HOLLOW_VALLEY_API_TOKEN = 'economy-website-secret';
 process.env.PLAYER_PRESENCE_ENABLED = 'false';
 process.env.WALLET_PLAYTIME_REWARDS_ENABLED = 'false';
+process.env.MARKETPLACE_WRITE_ENABLED = 'true';
 
 const { app } = require('../src/index');
 const economy = require('../src/services/economyStore');
