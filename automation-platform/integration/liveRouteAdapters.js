@@ -137,6 +137,15 @@ async function buyMarketplaceCatalogItem(req, res, catalogId) {
   }
 }
 
+async function getDinoMarketplaceState(_req, res) {
+  try {
+    return res.json(await automation.getDinoMarketplaceState());
+  } catch (error) {
+    const mapped = mapAutomationError(error, 'Could not read marketplace state.');
+    return res.status(mapped.status).json(mapped.body);
+  }
+}
+
 async function listDinoMarketplaceListings(_req, res) {
   try {
     const result = await automation.listDinoMarketplaceListings();
@@ -438,6 +447,7 @@ module.exports = {
   listMarketplaceCatalog,
   listMarketplaceOrders,
   buyMarketplaceCatalogItem,
+  getDinoMarketplaceState,
   listDinoMarketplaceListings,
   listMyDinoMarketplaceListings,
   createDinoMarketplaceListing,
