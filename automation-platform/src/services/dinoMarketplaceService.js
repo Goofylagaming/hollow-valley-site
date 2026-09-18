@@ -4,13 +4,19 @@ const files = require('./parkedDinoFileService');
 
 const ACTIVE_STATUSES = new Set(['escrowing', 'active', 'reserved', 'transfer_uncertain', 'cancelling']);
 
+// Kept for compatibility with the existing marketplace state endpoint. This is
+// the official-catalog write gate; P2P survivor trading has its own gate below.
 function writeEnabled() {
   return String(process.env.MARKETPLACE_WRITE_ENABLED || '').toLowerCase() === 'true';
 }
 
+function p2pWriteEnabled() {
+  return String(process.env.P2P_MARKETPLACE_WRITE_ENABLED || '').toLowerCase() === 'true';
+}
+
 function assertWriteEnabled() {
-  if (!writeEnabled()) {
-    const error = new Error('Marketplace writes are disabled');
+  if (!p2pWriteEnabled()) {
+    const error = new Error('P2P marketplace writes are disabled');
     error.code = 'MARKETPLACE_WRITE_DISABLED';
     throw error;
   }
@@ -387,7 +393,7 @@ async function buyDinoListing({ buyerSteamId, listingId, idempotencyKey }) {
 }
 
 async function reconcileDinoListings() {
-  if (!writeEnabled()) return { skipped: true, checked: 0, changed: 0 };
+  if (!p2pWriteEnabled()) return { skipped: true, checked: 0, changed: 0 };
   const listings = store.listDinoListings({
     statuses: ['escrowing', 'reserved', 'transfer_uncertain', 'cancelling'],
     limit: 200,
@@ -515,6 +521,7 @@ function listSellerListings(sellerSteamId, { limit = 100 } = {}) {
 module.exports = {
   ACTIVE_STATUSES,
   writeEnabled,
+  p2pWriteEnabled,
   assertWriteEnabled,
   validatePrice,
   publicSnapshot,
