@@ -4,6 +4,7 @@ let speciesByName = {};
 let activeCharacter = null;
 let storedDinos = [];
 let currentFilter = "all";
+let marketplaceState = { writeEnabled: false };
 
 function pct(value, max, fallback = 0) {
   const n = Number(value);
@@ -28,6 +29,14 @@ function dietLabel(name) {
   const info = speciesInfo(name);
   if (!info?.category) return "Unknown diet";
   return info.category.charAt(0).toUpperCase() + info.category.slice(1);
+}
+
+async function loadMarketplaceState() {
+  try {
+    marketplaceState = await api("/api/marketplace/state");
+  } catch {
+    marketplaceState = { writeEnabled: false };
+  }
 }
 
 async function loadSpeciesMap() {
@@ -158,7 +167,7 @@ function renderDinoCard(dino) {
         <button class="btn-dino-action redeem stored-redeem" data-slot="${escapeHtml(dino.slot)}" ${eligibility.ok ? "" : "disabled"}>↻ ${escapeHtml(eligibility.reason)}</button>
         <button class="btn-dino-action parked-tool" data-tool="mutations" data-slot="${escapeHtml(dino.slot)}">🧬 Mutations</button>
         <button class="btn-dino-action parked-tool" data-tool="skins" data-slot="${escapeHtml(dino.slot)}">◈ Skins</button>
-        <button class="btn-dino-action parked-tool sell-action" data-tool="sell" data-slot="${escapeHtml(dino.slot)}">◇ Sell</button>
+        <button class="btn-dino-action parked-tool sell-action" data-tool="sell" data-slot="${escapeHtml(dino.slot)}" ${marketplaceState.writeEnabled ? "" : "disabled"}>${marketplaceState.writeEnabled ? "◇ Sell" : "◇ Selling locked"}</button>
       </div>
     </article>`;
 }
