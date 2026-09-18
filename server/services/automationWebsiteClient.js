@@ -131,6 +131,26 @@ function listMyDinoMarketplaceListings(steamId) {
   return call(`/marketplace/listings/mine/${encodeURIComponent(validateSteamId(steamId))}`);
 }
 
+function createDinoMarketplaceListing({ steamId, slot, price, idempotencyKey }) {
+  const selectedSlot = String(slot || '').trim();
+  const listingPrice = Number(price);
+  const key = String(idempotencyKey || '').trim();
+  if (!/^[A-Za-z0-9_-]{1,80}$/.test(selectedSlot)) throw new Error('Invalid DinoStorage slot');
+  if (!Number.isSafeInteger(listingPrice) || listingPrice <= 0 || listingPrice > 100000000) {
+    throw new Error('Listing price must be a positive whole number');
+  }
+  if (!/^[A-Za-z0-9:_-]{8,160}$/.test(key)) throw new Error('Invalid marketplace idempotency key');
+  return call('/marketplace/listings', {
+    method: 'POST',
+    body: {
+      steamId: validateSteamId(steamId),
+      slot: selectedSlot,
+      price: listingPrice,
+      idempotencyKey: key,
+    },
+  });
+}
+
 module.exports = {
   getActiveCharacter,
   listStoredDinos,
@@ -144,4 +164,5 @@ module.exports = {
   getDinoMarketplaceState,
   listDinoMarketplaceListings,
   listMyDinoMarketplaceListings,
+  createDinoMarketplaceListing,
 };
