@@ -178,3 +178,53 @@ test('active-character adapter preserves the live My Dinos response shape', asyn
   assert.equal(res.body.character.growth, 0.42);
   assert.deepEqual(res.body.character.mutations, ['Truculency']);
 });
+
+
+test('unlinked Steam users keep live read-only My Dinos behavior without contacting automation', async (t) => {
+  let calls = 0;
+  const fixture = loadWithClientStubs({
+    listStoredDinos: async () => { calls += 1; return { dinos: [] }; },
+    getActiveCharacter: async () => { calls += 1; return { active: true }; },
+    getBodyDropCooldown: async () => { calls += 1; return {}; },
+  });
+  t.after(fixture.restore);
+
+  const listRes = response();
+  await fixture.adapters.listDinos({ user: { steam_id: null } }, listRes);
+  assert.equal(listRes.statusCode, 200);
+  assert.deepEqual(listRes.body, []);
+
+  const activeRes = response();
+  await fixture.adapters.getActiveCharacter({ user: { steam_id: null } }, activeRes);
+  assert.equal(activeRes.statusCode, 200);
+  assert.deepEqual(activeRes.body, { active: false, reason: 'steam_not_linked' });
+
+  const bodyRes = response();
+  await fixture.adapters.getBodyDropState({ user: { steam_id: null } }, bodyRes, { options: [{ id: 'small' }] });
+  assert.equal(bodyRes.statusCode, 200);
+  assert.equal(bodyRes.body.enabled, false);
+  assert.equal(bodyRes.body.steamLinked, false);
+  assert.equal(bodyRes.body.cooldown.active, false);
+  assert.deepEqual(bodyRes.body.options, [{ id: 'small' }]);
+
+  assert.equal(calls, 0);
+});
+
+test('unlinked Steam users are still blocked from write actions', async (t) => {
+  let calls = 0;
+  const fixture = loadWithClientStubs({
+    requestBodyDrop: async () => { calls += 1; return {}; },
+    requestDinoAction: async () => { calls += 1; return {}; },
+  });
+  t.after(fixture.restore);
+
+  const bodyRes = response();
+  await fixture.adapters.requestBodyDrop({ user: { steam_id: null }, body: { dropType: 'small' } }, bodyRes);
+  assert.equal(bodyRes.statusCode, 400);
+
+  const dinoRes = response();
+  await fixture.adapters.runDinoAction({ user: { steam_id: null } }, dinoRes, 'store', 'slot');
+  assert.equal(dinoRes.statusCode, 400);
+
+  assert.equal(calls, 0);
+});
