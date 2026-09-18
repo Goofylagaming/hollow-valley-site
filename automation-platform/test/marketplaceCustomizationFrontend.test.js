@@ -91,3 +91,21 @@ test('P2P listing and My Dinos cards expose captured skin previews', () => {
   assert.match(marketplace, /listingSkinPreview\(listing\.skin\)/);
   assert.match(marketplace, /listingSkinPreview\(snapshot\.skin\)/);
 });
+
+
+test('official catalog uses gated automation fulfillment and order status panel', () => {
+  const js = read('public/assets/marketplace.js');
+  const html = read('public/marketplace.html');
+  const routes = read('server/routes/marketplace.js');
+
+  assert.match(routes, /automationRoutes\.listMarketplaceCatalog/);
+  assert.match(routes, /automationRoutes\.buyMarketplaceCatalogItem/);
+  assert.match(routes, /automationRoutes\.listMarketplaceOrders/);
+  assert.equal(routes.includes('addRosterDino'), false);
+  assert.match(js, /officialCatalogEnabled/);
+  assert.match(js, /Order accepted/);
+  assert.match(js, /loadMyOrders/);
+  assert.match(js, /\/api\/marketplace\/orders\/mine/);
+  assert.match(html, /YOUR STORE ORDERS/);
+  assert.match(html, /id="my-orders-section"/);
+});
