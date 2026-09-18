@@ -334,3 +334,32 @@ test('reconciler finishes a cancelling listing after service restart', async (t)
   assert.equal(fixture.filesState.sellerPresent, true);
   assert.equal(fixture.filesState.escrowPresent, false);
 });
+
+
+test('seller sale ledger does not expose buyer Steam identity', async (t) => {
+  const fixture = loadMarketplace();
+  t.after(fixture.cleanup);
+  const seller = '76561198000000110';
+  const buyer = '76561198000000111';
+  const created = await createActive(fixture, seller);
+
+  fixture.store.applyWalletTransaction({
+    steamId: buyer,
+    amount: 1000,
+    kind: 'test_credit',
+    reason: 'Buyer funding',
+    idempotencyKey: 'fund:buyer:privacy',
+  });
+
+  await fixture.service.buyDinoListing({
+    buyerSteamId: buyer,
+    listingId: created.listing.id,
+    idempotencyKey: 'purchase:p2p:privacy',
+  });
+
+  const sale = fixture.store.getWallet(seller).transactions
+    .find((tx) => tx.kind === 'marketplace_p2p_sale');
+  assert.ok(sale);
+  assert.equal(JSON.stringify(sale.metadata).includes(buyer), false);
+  assert.equal(sale.metadata.listingId, created.listing.id);
+});
