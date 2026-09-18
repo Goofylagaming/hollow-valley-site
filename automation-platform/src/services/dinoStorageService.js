@@ -4,6 +4,7 @@ const store = require('./automationStore');
 
 const MAX_STORED_DINO_BYTES = 512 * 1024;
 const SLOT_RE = /^[A-Za-z0-9_-]{1,80}$/;
+const publishingRequests = new Set();
 
 function validateSteamId(steamId) {
   const value = String(steamId || '').trim();
@@ -99,7 +100,56 @@ async function listStoredDinos(steamId) {
 
 function latestPending(steamId) {
   const latest = store.getLatestForSteam(steamId, 'dinostorage');
-  return latest && ['preparing', 'queued', 'acknowledged', 'unknown'].includes(latest.status) ? latest : null;
+  return latest && ['preparing', 'publishing', 'queued', 'acknowledged', 'unknown'].includes(latest.status) ? latest : null;
+}
+
+async function publishDinoStorageRequest(requestId) {
+  const id = String(requestId || '').trim();
+  if (!id || publishingRequests.has(id)) return store.getRequest(id);
+
+  const request = store.getRequest(id);
+  if (!request || request.kind !== 'dinostorage' || request.status !== 'preparing') return request;
+
+  const command = request.details?.command;
+  if (!command) {
+    return store.updateRequest(id, {
+      status: 'unknown',
+      message: 'DinoStorage request is missing its persisted command. Do not retry until an operator reconciles it.',
+      error: 'Persisted command missing',
+    });
+  }
+
+  publishingRequests.add(id);
+  store.updateRequest(id, {
+    status: 'publishing',
+    message: 'DinoStorage request accepted. Publishing to CommandBridge in the background; do not retry.',
+    error: null,
+  });
+
+  try {
+    await commandBridge.queueCommand(command);
+    return store.updateRequest(id, {
+      status: 'queued',
+      message: `DinoStorage ${request.details?.action || 'action'} published to CommandBridge; awaiting routing/result.`,
+      error: null,
+    });
+  } catch (error) {
+    return store.updateRequest(id, {
+      status: 'unknown',
+      message: `DinoStorage publication outcome is uncertain: ${error.message}. Do not retry until this request is reconciled.`,
+      error: error.message,
+    });
+  } finally {
+    publishingRequests.delete(id);
+  }
+}
+
+function scheduleDinoStoragePublication(requestId) {
+  setImmediate(() => {
+    publishDinoStorageRequest(requestId).catch((error) => {
+      console.warn('[dinostorage-publish]', String(requestId), error.message);
+    });
+  });
 }
 
 async function requestDinoStorageAction({ action, steamId, slot = 'default' }) {
@@ -107,6 +157,11 @@ async function requestDinoStorageAction({ action, steamId, slot = 'default' }) {
   const selectedSlot = validateSlot(slot);
   const verbs = { store: 'dino_store', redeem: 'dino_retrieve' };
   if (!Object.hasOwn(verbs, action)) throw new Error('Unsupported DinoStorage action');
+
+  // Fail closed before persisting an accepted request if the sole-publisher gate
+  // is not ready. Once accepted below, publication happens exactly once in the
+  // background and any uncertain outcome is reconciled instead of replayed.
+  commandBridge.assertPublisherReady();
 
   const pending = latestPending(steam);
   if (pending) {
@@ -117,26 +172,30 @@ async function requestDinoStorageAction({ action, steamId, slot = 'default' }) {
   }
 
   const command = commandBridge.buildCommand(verbs[action], steam, [selectedSlot]);
-  store.createRequest({
+  const request = store.createRequest({
     id: command.id,
     kind: 'dinostorage',
     steamId: steam,
     status: 'preparing',
     commandId: command.id,
     details: { action, slot: selectedSlot, command },
+    message: `DinoStorage ${action} accepted for background publication. Do not retry this request.`,
   });
 
-  try {
-    await commandBridge.queueCommand(command);
-    return store.updateRequest(command.id, {
-      status: 'queued',
-      message: `DinoStorage ${action} published to CommandBridge; awaiting routing/result.`,
-      error: null,
+  scheduleDinoStoragePublication(command.id);
+  return request;
+}
+
+function recoverInterruptedDinoStorage() {
+  const interrupted = store.listRequests({ kind: 'dinostorage', statuses: ['preparing', 'publishing'], limit: 500 });
+  for (const request of interrupted) {
+    store.updateRequest(request.id, {
+      status: 'unknown',
+      message: 'Automation restarted while DinoStorage publication was in progress. Outcome is uncertain; do not retry until reconciled.',
+      error: request.error || 'Interrupted during publication',
     });
-  } catch (error) {
-    store.updateRequest(command.id, { status: 'failed', message: null, error: error.message });
-    throw error;
   }
+  return interrupted.length;
 }
 
 function parseSqliteDate(value) {
@@ -203,6 +262,8 @@ module.exports = {
   normalizeStoredDino,
   listStoredDinos,
   requestDinoStorageAction,
+  publishDinoStorageRequest,
+  recoverInterruptedDinoStorage,
   reconcileDinoStorage,
   startDinoStorageReconciler,
 };
