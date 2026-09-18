@@ -201,8 +201,18 @@ Website server-to-server protected:
 
 See `WEBSITE_INTEGRATION.md` for the live-site contract, `ECONOMY_MARKETPLACE.md` for the wallet/marketplace architecture, `HERBYBOT_INTEGRATION.md` for the existing-bot bridge, and `DEPLOYMENT.md` for the staged rollout/cutover procedure.
 
-## Production status
+## Deployment status
 
-This work remains intentionally disconnected from production. The automation service has not been deployed, the live website has not been switched to the new integration client, CommandBridge publishing is disabled, and RCON writes remain disabled.
+The isolated `hollow-valley-automation` Render service is deployed from the `automation-platform` branch with auto-deploy disabled.
 
-The live `master` branch stays the source of truth until integration is deliberately reviewed and merged.
+Verified on September 18, 2026:
+
+- the service boots successfully on port 10000;
+- SQLite is using the persistent `/var/data` disk and retained the same persistence marker across a controlled redeploy;
+- the existing HerbyBot service is successfully polling the durable outbox;
+- RCON and VeryGames FTP are not yet configured on the isolated automation service;
+- CommandBridge publishing and all game/file write gates remain disabled;
+- branch-side Wallet, Quests, Marketplace, My Dinos reads and BodyDrop status reads are prepared to use the automation API;
+- My Dinos Store/Redeem and BodyDrop POST still use the legacy publisher until the deliberate single-publisher cutover.
+
+The live `master` branch remains the production source of truth. Nothing in this branch should be merged or activated until the staged deployment checks in `DEPLOYMENT.md` are satisfied.
