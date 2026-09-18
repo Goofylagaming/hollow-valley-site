@@ -31,6 +31,14 @@ test('safe-mode boot keeps reads available and all game writes fail closed', asy
 
   const health = await fetch(`${base}/health`);
   assert.equal(health.status, 200);
+  const healthBody = await health.json();
+  assert.equal(healthBody.ok, true);
+  assert.equal(healthBody.storage.databasePersistent, false);
+  assert.equal(typeof healthBody.storage.initializedAt, 'string');
+
+  const healthAgain = await fetch(`${base}/health`);
+  const healthAgainBody = await healthAgain.json();
+  assert.equal(healthAgainBody.storage.initializedAt, healthBody.storage.initializedAt);
 
   const publicStatus = await fetch(`${base}/api/status`);
   assert.equal(publicStatus.status, 200);
