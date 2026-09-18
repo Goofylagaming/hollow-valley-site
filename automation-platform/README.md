@@ -50,6 +50,7 @@ The project is a separate Hollow Valley control plane that keeps the existing HD
 - Presence analytics: unique/returning players, tracked playtime, average/median/longest sessions, average/peak concurrency, bucketed activity trend, sampled species mix and top tracked players.
 - Steam-keyed Valley Coin wallets with immutable idempotent ledger transactions.
 - Configurable five-minute verified-online playtime rewards, disabled by default until the economy rate is chosen.
+- Automatic daily/weekly verified-playtime quests with additive percentage boosts on future Valley Coin payouts.
 - Atomic marketplace debit + pending-order creation, with explicit fulfillment/failure/refund states.
 
 ### Website integration
@@ -177,6 +178,7 @@ Operator/admin protected:
 Website server-to-server protected:
 
 - `GET /api/website/wallet/:steamId`
+- `GET /api/website/quests/:steamId`
 - `GET /api/website/marketplace/catalog`
 - `GET /api/website/marketplace/orders/:steamId`
 - `POST /api/website/marketplace/catalog/:catalogId/buy`
