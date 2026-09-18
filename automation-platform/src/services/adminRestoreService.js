@@ -1,3 +1,6 @@
+const { randomUUID } = require('node:crypto');
+const { Readable } = require('node:stream');
+const fileBridge = require('../adapters/fileBridge');
 const SLOT_RE = /^[A-Za-z0-9_-]{1,80}$/;
 const MAX_JSON_BYTES = 128 * 1024;
 const NUMERIC_FIELDS = [
@@ -97,6 +100,41 @@ function validateRestoreState(state) {
   return state;
 }
 
+function validateSteamId(steamId) {
+  const value = String(steamId || '').trim();
+  if (!/^\d{17}$/.test(value)) throw new Error('A valid 17-digit Steam ID is required');
+  return value;
+}
+
+function validateSlot(slot) {
+  const value = String(slot || '').trim();
+  if (!SLOT_RE.test(value)) throw new Error('A valid DinoStorage slot is required');
+  return value;
+}
+
+function isWriteEnabled() {
+  return process.env.ADMIN_RESTORE_WRITE_ENABLED === 'true';
+}
+
+function getAdminRestoreState() {
+  let ftpConfigured = true;
+  let ftpError = null;
+  try {
+    fileBridge.getConfig();
+    fileBridge.getUe4ssRemotePath();
+  } catch (error) {
+    ftpConfigured = false;
+    ftpError = error.message;
+  }
+  return {
+    builderReady: true,
+    writeEnabled: isWriteEnabled(),
+    ftpConfigured,
+    ftpError,
+    autoRedeem: false,
+  };
+}
+
 function buildAdminRestoreJson({ restore, fullNutrients } = {}) {
   const state = validateRestoreState(parseRestoreInput(restore));
 
@@ -113,9 +151,65 @@ function buildAdminRestoreJson({ restore, fullNutrients } = {}) {
   };
 }
 
+async function uploadAdminRestore({ steamId, slot, restore, fullNutrients } = {}, bridge = fileBridge) {
+  if (!isWriteEnabled()) {
+    const error = new Error('Admin restore file uploads are disabled. Set ADMIN_RESTORE_WRITE_ENABLED=true only for controlled operator use.');
+    error.code = 'ADMIN_RESTORE_WRITE_DISABLED';
+    throw error;
+  }
+
+  const steam = validateSteamId(steamId);
+  const built = buildAdminRestoreJson({ restore, fullNutrients });
+  const selectedSlot = validateSlot(slot || built.state.slot);
+  built.state.slot = selectedSlot;
+  const json = JSON.stringify(built.state, null, 2);
+  const directory = `${bridge.getUe4ssRemotePath()}/Mods/DinoStorage/Saved/stored/${steam}`;
+  const fileName = `${selectedSlot}.json`;
+  const tempName = `${fileName}.upload-${randomUUID()}`;
+
+  await bridge.withClient(async (client) => {
+    await client.ensureDir(directory);
+    try {
+      const existing = await client.list();
+      if (existing.some((entry) => entry.name === fileName)) {
+        throw new Error(`DinoStorage slot ${selectedSlot} already exists for this Steam ID; refusing to overwrite it`);
+      }
+
+      await client.uploadFrom(Readable.from([Buffer.from(json, 'utf8')]), tempName);
+      const stagedCheck = await client.list();
+      if (stagedCheck.some((entry) => entry.name === fileName)) {
+        await client.remove(tempName).catch(() => {});
+        throw new Error(`DinoStorage slot ${selectedSlot} appeared while the upload was staged; refusing to overwrite it`);
+      }
+      await client.rename(tempName, fileName);
+    } catch (error) {
+      await client.remove(tempName).catch(() => {});
+      throw error;
+    } finally {
+      await client.cd('/').catch(() => {});
+    }
+  });
+
+  return {
+    steamId: steam,
+    slot: selectedSlot,
+    fileName,
+    remotePath: `${directory}/${fileName}`,
+    bytes: Buffer.byteLength(json, 'utf8'),
+    fullNutrients: built.state.fullNutrients === true,
+    explicitNutrients: Boolean(built.state.nutrients),
+    autoRedeem: false,
+  };
+}
+
 module.exports = {
   MAX_JSON_BYTES,
   buildAdminRestoreJson,
+  getAdminRestoreState,
+  isWriteEnabled,
   parseRestoreInput,
+  uploadAdminRestore,
   validateRestoreState,
+  validateSteamId,
+  validateSlot,
 };
