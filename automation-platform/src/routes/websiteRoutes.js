@@ -8,6 +8,7 @@ const statusService = require('../services/statusService');
 const economy = require('../services/economyStore');
 const marketplace = require('../services/marketplaceService');
 const playtimeRewards = require('../services/playtimeRewardsService');
+const questBoosts = require('../services/questBoostService');
 
 const router = express.Router();
 router.use(requireWebsiteToken);
@@ -24,8 +25,11 @@ router.get('/wallet/:steamId', (req, res) => {
     const wallet = economy.getWallet(steamId);
     const progress = economy.getPlaytimeProgress(steamId);
     const rewardState = playtimeRewards.state();
+    const questState = questBoosts.getQuestStatus(steamId);
     const intervalMs = rewardState.intervalSeconds * 1000;
     const accruedMs = Math.max(0, Number(progress?.accrued_ms || 0));
+    const activeBoostPercent = Number(questState.activeBoostPercent || 0);
+    const bonusCoins = Math.floor((rewardState.coinsPer5Minutes * activeBoostPercent) / 100);
 
     res.json({
       ...wallet,
@@ -33,6 +37,8 @@ router.get('/wallet/:steamId', (req, res) => {
         enabled: rewardState.enabled,
         configured: rewardState.configured,
         coinsPer5Minutes: rewardState.coinsPer5Minutes,
+        activeBoostPercent,
+        boostedCoinsPer5Minutes: rewardState.coinsPer5Minutes + bonusCoins,
         intervalSeconds: rewardState.intervalSeconds,
         accruedSeconds: Math.floor(accruedMs / 1000),
         nextRewardInSeconds: rewardState.configured
@@ -43,6 +49,15 @@ router.get('/wallet/:steamId', (req, res) => {
     });
   } catch (error) {
     res.status(400).json({ error: error.message || 'Unable to read Valley Coin wallet.' });
+  }
+});
+
+router.get('/quests/:steamId', (req, res) => {
+  try {
+    const steamId = validateSteamId(req.params.steamId);
+    res.json(questBoosts.getQuestStatus(steamId));
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Unable to read playtime quests.' });
   }
 });
 
