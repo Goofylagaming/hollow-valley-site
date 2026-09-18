@@ -22,7 +22,8 @@ function integrationConfig() {
   return {
     rcon: configured('RCON_HOST') && configured('RCON_PORT') && configured('RCON_PASSWORD'),
     commandBridge: commandBridgePublisherReady() && configured('SFTP_HOST') && configured('SFTP_PORT') && configured('SFTP_USER') && configured('SFTP_PASSWORD') && configured('SFTP_BASE_PATH'),
-    discord: configured('DISCORD_BOT_TOKEN'),
+    discord: configured('HERBYBOT_AUTOMATION_TOKEN'),
+    herbyBot: configured('HERBYBOT_AUTOMATION_TOKEN'),
     database: true,
   };
 }
