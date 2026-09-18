@@ -61,18 +61,37 @@ The isolated branch includes:
 ```text
 integration/herbyBotAutomationClient.js
 integration/herbyBotBridge.js
+integration/herbyBotCommands.js
+integration/herbyBotIntegration.js
 ```
 
-The bridge accepts the existing discord.js client as an argument:
+The combined integration accepts the existing discord.js client as an argument:
 
 ```js
-const { createHerbyBotAutomationBridge } = require('./integration/herbyBotBridge');
+const { createHerbyBotIntegration } = require('./integration/herbyBotIntegration');
 
-const automationBridge = createHerbyBotAutomationBridge({ client });
-automationBridge.start();
+const automation = createHerbyBotIntegration({ client });
+
+client.once('ready', async () => {
+  // Keep the existing HerbyBot presence/status setup here too.
+  await automation.onReady();
+});
 ```
 
 It does not construct a Discord client and does not call `client.login()`.
+
+## Slash commands
+
+The first command layer contains:
+
+- `/server` — public, aggregate-only Hollow Valley status: online/offline, player count/capacity and automation connectivity.
+- `/automation` — staff-only (Manage Server / Administrator), ephemeral automation health including HerbyBot outbox state and integration readiness.
+
+No Steam IDs, player names, locations or stored-dino data are exposed by `/server`.
+
+Command registration uses `DISCORD_GUILD_ID` when configured so development/test commands appear quickly in the target guild. If no guild ID is configured, HerbyBot registers the commands globally.
+
+The runtime handler also checks staff permissions for `/automation`; Discord command visibility alone is not treated as the security boundary.
 
 The current live `server/herbyBot.js` can keep owning:
 
@@ -120,11 +139,13 @@ Recommended first live bridge test:
 
 1. Configure the shared `HERBYBOT_AUTOMATION_TOKEN`.
 2. Keep CommandBridge and RCON writes disabled.
-3. Start the HerbyBot polling bridge using the existing Discord client.
-4. Queue one harmless operator announcement.
-5. Confirm HerbyBot claims it, sends it once, and acknowledges it.
-6. Verify the event becomes `delivered` in the automation outbox.
-7. Only then enable scheduler delivery.
-8. Enable server-monitor alerts later, after read-only RCON is stable.
+3. Attach the combined HerbyBot integration to the existing Discord client.
+4. Register the slash commands and verify `/server` returns aggregate status.
+5. Verify a non-staff user cannot use `/automation`, then test it with a staff account.
+6. Queue one harmless operator announcement.
+7. Confirm HerbyBot claims it, sends it once, and acknowledges it.
+8. Verify the event becomes `delivered` in the automation outbox.
+9. Only then enable scheduler delivery.
+10. Enable server-monitor alerts later, after read-only RCON is stable.
 
 The live `master` HerbyBot remains untouched until that controlled integration step.
