@@ -8,7 +8,7 @@ const bridge = require('../src/services/commandBridgeService');
 
 const MANAGED = [
   'AUTOMATION_ADMIN_TOKEN', 'HOLLOW_VALLEY_API_TOKEN', 'AUTOMATION_DB_PATH',
-  'RCON_HOST', 'RCON_PORT', 'RCON_PASSWORD', 'RCON_WRITE_ENABLED',
+  'RCON_HOST', 'RCON_PORT', 'RCON_PASSWORD', 'RCON_WRITE_ENABLED', 'ADMIN_RESTORE_WRITE_ENABLED',
   'SFTP_HOST', 'SFTP_PORT', 'SFTP_USER', 'SFTP_PASSWORD', 'SFTP_BASE_PATH',
   'COMMAND_BRIDGE_ENABLED', 'COMMAND_BRIDGE_SINGLE_PUBLISHER_ACK',
   'PLAYER_PRESENCE_ENABLED', 'SERVER_MONITOR_ENABLED',
@@ -35,6 +35,7 @@ function baseReadyEnv() {
     RCON_PORT: '7777',
     RCON_PASSWORD: 'rcon-secret',
     RCON_WRITE_ENABLED: 'false',
+    ADMIN_RESTORE_WRITE_ENABLED: 'false',
     SFTP_HOST: 'ftp.example.test',
     SFTP_PORT: '21',
     SFTP_USER: 'user',
@@ -85,5 +86,16 @@ test('enabling CommandBridge without acknowledgement creates an attention state'
     assert.equal(result.stage, 'attention');
     assert.equal(result.readyForIsolatedDeployment, false);
     assert.equal(result.readyForCommandBridgeMigration, false);
+  });
+});
+
+
+test('enabling admin restore uploads moves isolated readiness to attention', () => {
+  withEnv({ ...baseReadyEnv(), ADMIN_RESTORE_WRITE_ENABLED: 'true' }, () => {
+    const result = readiness.getMigrationReadiness();
+    const check = result.checks.find((item) => item.id === 'admin-restore-writes');
+    assert.equal(check.ready, false);
+    assert.equal(result.stage, 'attention');
+    assert.equal(result.readyForIsolatedDeployment, false);
   });
 });
