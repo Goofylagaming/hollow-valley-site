@@ -14,12 +14,13 @@ function validateSteamId(value) {
   return steamId;
 }
 
-router.get('/bodydrop/cooldown/:steamId', (req, res) => {
+router.get('/bodydrop/cooldown/:steamId', async (req, res) => {
   try {
     const steamId = validateSteamId(req.params.steamId);
-    res.json({ steamId, cooldown: bodyDrop.getCooldown(steamId) });
+    res.json(await bodyDrop.getBodyDropState(steamId));
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    const unavailable = /server|rcon|connection|timeout/i.test(error.message || '');
+    res.status(unavailable ? 503 : 400).json({ error: error.message });
   }
 });
 
