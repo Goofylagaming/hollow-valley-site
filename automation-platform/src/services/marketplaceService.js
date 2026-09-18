@@ -3,7 +3,20 @@ const store = require('./economyStore');
 
 const db = store.db;
 
+function writeEnabled() {
+  return String(process.env.MARKETPLACE_WRITE_ENABLED || '').toLowerCase() === 'true';
+}
+
+function assertWriteEnabled() {
+  if (!writeEnabled()) {
+    const error = new Error('Marketplace writes are disabled');
+    error.code = 'MARKETPLACE_WRITE_DISABLED';
+    throw error;
+  }
+}
+
 function purchaseCatalogItem({ steamId, catalogId, idempotencyKey }) {
+  assertWriteEnabled();
   const buyer = store.validateSteamId(steamId);
   const itemId = String(catalogId || '').trim();
   const key = String(idempotencyKey || '').trim();
@@ -146,6 +159,8 @@ function refundOrder(orderId, reason = 'Marketplace order refund') {
 }
 
 module.exports = {
+  writeEnabled,
+  assertWriteEnabled,
   purchaseCatalogItem,
   markOrderFulfilled,
   markOrderFailed,
