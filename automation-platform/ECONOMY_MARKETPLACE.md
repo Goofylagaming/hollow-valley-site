@@ -208,7 +208,7 @@ A dinosaur catalog payload can contain:
 }
 ```
 
-The existing catalog can be migrated into these stable IDs without changing its prices until the economy rate is approved.
+The automation catalog is now seeded with stable 75% DinoStorage items using the existing Valley Coin prices. Unreleased/unsupported entries are deactivated rather than exposed; the old Deinocheirus seed is intentionally excluded because there is no supported Evrima DinoStorage class path for it.
 
 ---
 
@@ -234,7 +234,7 @@ pending -> fulfilled
 pending -> failed -> refunded
 ```
 
-A future fulfillment worker may add an explicit `fulfilling` state.
+The fulfillment worker intentionally keeps the durable order in `pending` until the stored DinoStorage file is proven present, then changes it to `fulfilled`.
 
 ### Atomic payment
 
@@ -256,27 +256,28 @@ Purchase calls require a unique idempotency key. Replaying the same request retu
 
 ## DinoStorage fulfillment
 
-Payment and fulfillment are intentionally separate.
+Payment and fulfillment are intentionally separate, and the implementation is now staged behind:
 
-Recommended v1 fulfillment:
+```text
+OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED=false
+OFFICIAL_MARKETPLACE_FULFILLMENT_INTERVAL_MS=15000
+```
 
-1. Pending marketplace order is read by the fulfillment worker.
-2. Build a validated DinoStorage state from the purchased catalog payload.
-3. Create a unique stored slot tied to the marketplace order ID.
-4. Write the stored dinosaur safely through the established DinoStorage/FTP path.
-5. Confirm the stored slot exists/was accepted.
-6. Mark the marketplace order `fulfilled`.
-7. The player sees it under **My Dinos** and chooses when to redeem it.
+The official worker:
 
-Marketplace purchases should **not** auto-redeem or replace the player's active dinosaur.
+1. reads pending marketplace orders;
+2. validates the catalog snapshot's class path and growth;
+3. creates a deterministic `shop_<order>` slot in the buyer's real DinoStorage folder;
+4. writes a **minimal** stored state containing class path, 75% growth and an order marker;
+5. deliberately does not fabricate gender, vitals, mutations, Prime state, nutrients or skin;
+6. treats an already-existing slot with the same order marker as restart-safe completion;
+7. marks the order `fulfilled` only after the file is proven present.
 
-If fulfillment fails:
+The player must still spawn the matching species before redeeming, just like normal DinoStorage. Missing gender means either sex can be used. Uncaptured vitals are shown as **On redeem** in My Dinos instead of fake percentages.
 
-1. mark order `failed`;
-2. allow a controlled retry when the failure is known-safe; or
-3. refund exactly once using `marketplace-refund:<order_id>`.
+A deterministic invalid order or conflicting target slot is failed and refunded exactly once. A transient FTP failure leaves the order pending for retry rather than refunding blindly.
 
-A fulfilled order cannot be automatically refunded without a separate return/removal workflow.
+Marketplace purchases never auto-redeem or replace the player's active dinosaur.
 
 ---
 
@@ -403,11 +404,11 @@ Reads can be staged while writes remain disabled. Do not enable P2P buying/selli
 6. Migrate/reconcile existing linked wallet balances.
 7. Connect the website Wallet page read-only.
 8. Connect marketplace catalog read-only.
-9. Test one controlled purchase with fulfillment disabled/pending.
-10. Build and verify DinoStorage purchase fulfillment.
-11. Enable marketplace buying.
-12. Enable playtime rewards last, after economy/pricing review.
-13. Migrate P2P marketplace only after DinoStorage escrow exists.
+9. Keep `MARKETPLACE_WRITE_ENABLED=false` and `OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED=false` for the first deployment.
+10. Controlled-test one official DinoStorage file creation and restart reconciliation.
+11. Controlled-test one P2P escrow listing/cancel/buy flow.
+12. Enable marketplace buying only after both wallet migration and FTP validation.
+13. Enable playtime rewards last, after economy/pricing review.
 
 No live economy switch or wallet migration should occur merely by deploying the isolated automation service.
 
