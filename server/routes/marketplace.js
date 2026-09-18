@@ -80,7 +80,7 @@ router.get("/state", async (_req, res) => {
       p2pWritesEnabled: true,
       p2pCreateEnabled: true,
       p2pBuyEnabled: false,
-      p2pCancelEnabled: false,
+      p2pCancelEnabled: true,
     });
   } catch (error) {
     const mapped = mapAutomationError(error, "Could not read marketplace state.");
@@ -133,11 +133,30 @@ router.post("/listings", requireAuth, async (req, res) => {
   }
 });
 
-function writesDisabled(_req, res) {
-  return res.status(503).json({ error: "Marketplace P2P buying and cancellation are not enabled yet." });
+router.post("/listings/:id/cancel", requireAuth, async (req, res) => {
+  if (!req.user?.steam_id) {
+    return res.status(400).json({ error: "Your Steam account is not linked. Please sign in with Steam first." });
+  }
+  try {
+    const result = await automation.cancelDinoMarketplaceListing({
+      steamId: String(req.user.steam_id),
+      listingId: req.params.id,
+    });
+    return res.status(200).json({
+      ok: true,
+      duplicate: Boolean(result.duplicate),
+      listing: result.listing ? mapListing(result.listing) : null,
+    });
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Unable to cancel marketplace listing.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
+function buyingDisabled(_req, res) {
+  return res.status(503).json({ error: "Marketplace P2P buying is not enabled yet." });
 }
 
-router.post("/listings/:id/buy", requireAuth, writesDisabled);
-router.post("/listings/:id/cancel", requireAuth, writesDisabled);
+router.post("/listings/:id/buy", requireAuth, buyingDisabled);
 
 module.exports = router;
