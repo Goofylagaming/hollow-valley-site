@@ -37,6 +37,10 @@ router.get('/requests', (req, res) => {
   res.json({ requests: store.listRequests({ kind, limit }) });
 });
 
+router.get('/dinostorage/admin-restore', (_req, res) => {
+  res.json({ adminRestore: adminRestore.getAdminRestoreState() });
+});
+
 router.post('/dinostorage/admin-restore-json', async (req, res) => {
   try {
     const restore = await audit.run(
@@ -60,6 +64,39 @@ router.post('/dinostorage/admin-restore-json', async (req, res) => {
     res.json({ ok: true, restore });
   } catch (error) {
     res.status(400).json({ error: error.message || 'Unable to build admin restore JSON.' });
+  }
+});
+
+router.post('/dinostorage/admin-restore/upload', async (req, res) => {
+  try {
+    const upload = await audit.run(
+      'dinostorage',
+      'upload_admin_restore_json',
+      {
+        steamId: String(req.body?.steamId || '').trim(),
+        slot: String(req.body?.slot || '').trim() || null,
+        fullNutrientsRequested: req.body?.fullNutrients === true,
+      },
+      () => adminRestore.uploadAdminRestore({
+        steamId: req.body?.steamId,
+        slot: req.body?.slot,
+        restore: req.body?.restore,
+        fullNutrients: req.body?.fullNutrients,
+      }),
+      (value) => ({
+        steamId: value.steamId,
+        slot: value.slot,
+        bytes: value.bytes,
+        fullNutrients: value.fullNutrients,
+        autoRedeem: value.autoRedeem,
+      })
+    );
+    res.status(201).json({ ok: true, upload });
+  } catch (error) {
+    if (error.code === 'ADMIN_RESTORE_WRITE_DISABLED') {
+      return res.status(503).json({ error: error.message });
+    }
+    res.status(400).json({ error: error.message || 'Unable to upload admin restore JSON.' });
   }
 });
 
