@@ -77,6 +77,19 @@ Verify:
 6. The persistent SQLite path survives a redeploy.
 7. Migration Readiness shows the exact missing setup items.
 
+### Verified checkpoint — September 18, 2026
+
+The separate Render service is live with auto-deploy off. The persistent SQLite check has survived a controlled redeploy with the same initialization marker, and HerbyBot is successfully polling the outbox.
+
+The startup read-only diagnostics currently report:
+
+```text
+rcon configured=false
+ftp configured=false
+```
+
+So Stage 1 persistence is verified, but Stage 2/3 connectivity is intentionally blocked until the RCON and VeryGames FTP settings are copied to the isolated service. Keep every write gate disabled while adding those credentials.
+
 ## Stage 2 — read-only RCON
 
 Configure:
