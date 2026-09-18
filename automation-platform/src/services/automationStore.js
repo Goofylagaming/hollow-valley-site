@@ -6,6 +6,7 @@ const dbPath = process.env.AUTOMATION_DB_PATH || path.join(__dirname, '..', '..'
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
 const db = new DatabaseSync(dbPath);
+db.exec('PRAGMA busy_timeout = 5000;');
 db.exec('PRAGMA journal_mode = WAL;');
 db.exec(`
   CREATE TABLE IF NOT EXISTS automation_requests (
