@@ -9,6 +9,7 @@ const QUESTS = Object.freeze([
     title: 'Stay Alive',
     description: 'Play for 1 consecutive hour today.',
     boostEnv: 'WALLET_QUEST_DAILY_1H_BOOST_PERCENT',
+    defaultBoostPercent: 5,
   },
   {
     id: 'daily-total-3h',
@@ -18,6 +19,7 @@ const QUESTS = Object.freeze([
     title: 'Three Hour Survivor',
     description: 'Accumulate 3 verified hours online today.',
     boostEnv: 'WALLET_QUEST_DAILY_3H_BOOST_PERCENT',
+    defaultBoostPercent: 10,
   },
   {
     id: 'daily-total-6h',
@@ -27,6 +29,7 @@ const QUESTS = Object.freeze([
     title: 'Six Hour Survivor',
     description: 'Accumulate 6 verified hours online today.',
     boostEnv: 'WALLET_QUEST_DAILY_6H_BOOST_PERCENT',
+    defaultBoostPercent: 15,
   },
   {
     id: 'weekly-total-12h',
@@ -36,6 +39,7 @@ const QUESTS = Object.freeze([
     title: 'Weekly Regular',
     description: 'Accumulate 12 verified hours online this week.',
     boostEnv: 'WALLET_QUEST_WEEKLY_12H_BOOST_PERCENT',
+    defaultBoostPercent: 10,
   },
   {
     id: 'weekly-total-24h',
@@ -45,6 +49,7 @@ const QUESTS = Object.freeze([
     title: 'Weekly Veteran',
     description: 'Accumulate 24 verified hours online this week.',
     boostEnv: 'WALLET_QUEST_WEEKLY_24H_BOOST_PERCENT',
+    defaultBoostPercent: 20,
   },
 ]);
 
@@ -53,8 +58,9 @@ function timezone() {
 }
 
 function boostForQuest(quest) {
-  const value = Number(process.env[quest.boostEnv] || 0);
-  if (!Number.isSafeInteger(value)) return 0;
+  const raw = process.env[quest.boostEnv];
+  const value = raw === undefined || raw === '' ? Number(quest.defaultBoostPercent || 0) : Number(raw);
+  if (!Number.isSafeInteger(value)) return Math.max(0, Math.min(500, Number(quest.defaultBoostPercent || 0)));
   return Math.max(0, Math.min(500, value));
 }
 
