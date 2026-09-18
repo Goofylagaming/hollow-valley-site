@@ -3,6 +3,8 @@ const { requireHerbyBotToken } = require('../middleware/herbyBotAuth');
 const herbyBot = require('../services/herbyBotOutboxService');
 const { getPublicStatus, getServerSnapshot, requestSummary } = require('../services/statusService');
 const { buildStaffOverview } = require('../services/herbyBotStaffOverviewService');
+const scheduler = require('../services/schedulerService');
+const audit = require('../services/auditService');
 
 const router = express.Router();
 router.use(requireHerbyBotToken);
@@ -35,6 +37,42 @@ router.get('/staff-overview', async (_req, res) => {
     }));
   } catch (error) {
     res.status(503).json({ error: error.message || 'HerbyBot staff overview unavailable.' });
+  }
+});
+
+router.post('/commands/announcement', async (req, res) => {
+  const message = String(req.body?.message || '');
+  const nonce = String(req.body?.nonce || '').trim();
+  try {
+    const event = await audit.run('herbybot', 'slash_announcement', {
+      messageLength: message.trim().length,
+    }, async () => herbyBot.queueAnnouncement(message, { nonce }),
+    (value) => ({ outboxEventId: value.id, destination: value.destination }));
+    res.status(202).json({ ok: true, event });
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Unable to queue HerbyBot announcement.' });
+  }
+});
+
+router.post('/commands/schedule', async (req, res) => {
+  const message = String(req.body?.message || '');
+  const runAt = req.body?.runAt;
+  const recurrence = req.body?.recurrence || 'none';
+  const nonce = String(req.body?.nonce || '').trim();
+  try {
+    const job = await audit.run('scheduler', 'herbybot_slash_schedule', {
+      messageLength: message.trim().length,
+      runAt: runAt || null,
+      recurrence,
+    }, async () => scheduler.createDiscordAnnouncementJob({
+      message,
+      runAt,
+      recurrence,
+      jobId: `herbybot:${nonce}`,
+    }), (value) => ({ jobId: value.id, status: value.status }));
+    res.status(201).json({ ok: true, job });
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Unable to schedule HerbyBot announcement.' });
   }
 });
 
