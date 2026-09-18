@@ -30,12 +30,11 @@ function mutationList(mutations) {
 function normalizeStoredDino(state, fallbackSlot) {
   const slot = validateSlot(state?.slot || fallbackSlot);
   return {
+    ...state,
     slot,
     species: speciesFromClassPath(state?.classPath),
     gender: state?.isFemale === true ? 'Female' : state?.isFemale === false ? 'Male' : null,
-    growth: Number.isFinite(Number(state?.growth)) ? Number(state.growth) : null,
-    capturedAt: Number.isFinite(Number(state?.capturedAt)) ? Number(state.capturedAt) : null,
-    mutations: mutationList(state?.mutations),
+    mutationList: mutationList(state?.mutations),
   };
 }
 
