@@ -51,7 +51,10 @@ The project is a separate Hollow Valley control plane that keeps the existing HD
 - Steam-keyed Valley Coin wallets with immutable idempotent ledger transactions.
 - Configurable five-minute verified-online playtime rewards, disabled by default until the economy rate is chosen.
 - Automatic daily/weekly verified-playtime quests with approved default boosts of +5%, +10%, +15%, +10% and +20% on future Valley Coin payouts (maximum +60% from the current quest set).
-- Atomic marketplace debit + pending-order creation, with explicit fulfillment/failure/refund states.
+- Atomic official marketplace debit + pending-order creation, with gated real DinoStorage fulfillment and exact-once refunds.
+- Real DinoStorage P2P escrow selling with buyer holds, seller credit after proven transfer, cancellation and restart reconciliation.
+- Parked-dino mutation editor for active slots 1–4 with duplicate/current slot restrictions and inherited/elder preservation.
+- Real captured-skin presets with same-species application and a Valley Coin creation cost.
 
 ### Website integration
 
@@ -70,6 +73,7 @@ The project is a separate Hollow Valley control plane that keeps the existing HD
 - `COMMAND_BRIDGE_ENABLED=false` by default.
 - `PLAYER_PRESENCE_ENABLED=false` by default.
 - `WALLET_PLAYTIME_REWARDS_ENABLED=false` and `WALLET_PLAYTIME_COINS_PER_5_MINUTES=0` by default.
+- `MARKETPLACE_WRITE_ENABLED=false`, `OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED=false`, `PARKED_DINO_EDIT_ENABLED=false` and `SKIN_SYSTEM_ENABLED=false` by default.
 - `SERVER_MONITOR_ENABLED=false` by default.
 - `ADMIN_RESTORE_WRITE_ENABLED=false` by default; JSON generation remains available while FTP slot writes stay locked.
 - CommandBridge requires an additional exact sole-publisher acknowledgement before it can publish:
@@ -182,6 +186,12 @@ Website server-to-server protected:
 - `GET /api/website/marketplace/catalog`
 - `GET /api/website/marketplace/orders/:steamId`
 - `POST /api/website/marketplace/catalog/:catalogId/buy`
+- `GET /api/website/marketplace/state`
+- `GET /api/website/marketplace/listings`
+- `GET /api/website/marketplace/listings/mine/:steamId`
+- P2P listing/create/buy/cancel endpoints
+- parked-dino mutation read/write endpoints
+- skin preset list/create/apply endpoints
 - `GET /api/website/bodydrop/cooldown/:steamId`
 - `POST /api/website/bodydrop`
 - `GET /api/website/dinostorage/:steamId`
