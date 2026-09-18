@@ -178,6 +178,17 @@ async function updateStoredDino(steamId, slot, mutator) {
   });
 }
 
+async function createStoredDino(steamId, slot, state) {
+  const steam = validateSteamId(steamId);
+  const selectedSlot = validateSlot(slot);
+  const next = JSON.parse(JSON.stringify(state || {}));
+  next.slot = selectedSlot;
+  return fileBridge.withClient(async (client) => {
+    await writeJsonExclusive(client, storedPath(steam, selectedSlot), next);
+    return next;
+  });
+}
+
 async function readStoredDino(steamId, slot) {
   return fileBridge.withClient((client) => readJson(client, storedPath(steamId, slot)));
 }
@@ -311,6 +322,7 @@ module.exports = {
   storedPath,
   escrowDirectory,
   escrowPath,
+  createStoredDino,
   readStoredDino,
   updateStoredDino,
   readEscrowDino,
