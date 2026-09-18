@@ -41,6 +41,29 @@ db.exec(`
     FOREIGN KEY (steam_id) REFERENCES economy_wallets(steam_id)
   );
 
+  CREATE TABLE IF NOT EXISTS economy_quest_state (
+    steam_id TEXT PRIMARY KEY,
+    daily_period_key TEXT NOT NULL,
+    daily_total_seconds INTEGER NOT NULL DEFAULT 0,
+    daily_streak_seconds INTEGER NOT NULL DEFAULT 0,
+    weekly_period_key TEXT NOT NULL,
+    weekly_total_seconds INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (steam_id) REFERENCES economy_wallets(steam_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS economy_quest_achievements (
+    steam_id TEXT NOT NULL,
+    quest_id TEXT NOT NULL,
+    period_key TEXT NOT NULL,
+    boost_percent INTEGER NOT NULL DEFAULT 0,
+    achieved_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (steam_id, quest_id, period_key),
+    FOREIGN KEY (steam_id) REFERENCES economy_wallets(steam_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_economy_quest_achievements_steam
+    ON economy_quest_achievements(steam_id, achieved_at DESC);
+
   CREATE TABLE IF NOT EXISTS economy_marketplace_catalog (
     id TEXT PRIMARY KEY,
     item_type TEXT NOT NULL,
@@ -197,6 +220,28 @@ function getPlaytimeProgress(steamId) {
   return db.prepare('SELECT * FROM economy_playtime_progress WHERE steam_id = ?').get(id) || null;
 }
 
+function getQuestState(steamId) {
+  const id = validateSteamId(steamId);
+  return db.prepare('SELECT * FROM economy_quest_state WHERE steam_id = ?').get(id) || null;
+}
+
+function listQuestAchievements(steamId, { periodKeys = null } = {}) {
+  const id = validateSteamId(steamId);
+  const keys = Array.isArray(periodKeys) ? periodKeys.filter(Boolean).map(String) : [];
+  if (!keys.length) {
+    return db.prepare(`
+      SELECT * FROM economy_quest_achievements
+      WHERE steam_id = ?
+      ORDER BY achieved_at DESC
+    `).all(id);
+  }
+  return db.prepare(`
+    SELECT * FROM economy_quest_achievements
+    WHERE steam_id = ? AND period_key IN (${keys.map(() => '?').join(',')})
+    ORDER BY achieved_at DESC
+  `).all(id, ...keys);
+}
+
 function upsertCatalogItem({ id, itemType, name, description = null, price, payload = {}, active = true, sortOrder = 0 }) {
   const catalogId = String(id || '').trim();
   if (!/^[A-Za-z0-9:_-]{2,80}$/.test(catalogId)) throw new Error('Invalid catalog item ID');
@@ -280,6 +325,8 @@ module.exports = {
   getLedgerByIdempotency,
   applyWalletTransaction,
   getPlaytimeProgress,
+  getQuestState,
+  listQuestAchievements,
   upsertCatalogItem,
   getCatalogItem,
   listCatalog,
