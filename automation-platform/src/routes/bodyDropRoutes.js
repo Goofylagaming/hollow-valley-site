@@ -39,6 +39,9 @@ router.post('/request', requireAdminToken, async (req, res) => {
     if (error.code === 'BODYDROP_COOLDOWN') {
       return res.status(429).json({ error: error.message, cooldown: error.cooldown });
     }
+    if (error.code === 'BODYDROP_INELIGIBLE') {
+      return res.status(403).json({ error: error.message, eligibility: error.eligibility });
+    }
     const unavailable = /server|rcon|connection|timeout/i.test(error.message || '');
     res.status(unavailable ? 503 : 400).json({ error: error.message || 'BodyDrop request failed.' });
   }
