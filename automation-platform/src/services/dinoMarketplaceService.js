@@ -386,6 +386,118 @@ async function buyDinoListing({ buyerSteamId, listingId, idempotencyKey }) {
   }
 }
 
+async function reconcileDinoListings() {
+  if (!writeEnabled()) return { skipped: true, checked: 0, changed: 0 };
+  const listings = store.listDinoListings({
+    statuses: ['escrowing', 'reserved', 'transfer_uncertain', 'cancelling'],
+    limit: 200,
+  });
+  let changed = 0;
+  const errors = [];
+
+  for (const listing of listings) {
+    try {
+      if (listing.status === 'escrowing') {
+        const escrowPresent = await files.escrowExists(listing.id);
+        const sellerPresent = await files.storedExists(listing.seller_steam_id, listing.original_slot);
+
+        if (escrowPresent && !sellerPresent) {
+          store.db.prepare(`
+            UPDATE economy_dino_listings
+            SET status = 'active', error = NULL, updated_at = datetime('now')
+            WHERE id = ?
+          `).run(listing.id);
+          changed += 1;
+          continue;
+        }
+
+        if (!escrowPresent && sellerPresent) {
+          await files.moveStoredToEscrow({
+            listingId: listing.id,
+            steamId: listing.seller_steam_id,
+            slot: listing.original_slot,
+          });
+          store.db.prepare(`
+            UPDATE economy_dino_listings
+            SET status = 'active', error = NULL, updated_at = datetime('now')
+            WHERE id = ?
+          `).run(listing.id);
+          changed += 1;
+          continue;
+        }
+
+        const message = escrowPresent && sellerPresent
+          ? 'Both seller and escrow copies exist; operator review required.'
+          : 'Neither seller nor escrow copy exists; operator review required.';
+        store.db.prepare(`
+          UPDATE economy_dino_listings
+          SET error = ?, updated_at = datetime('now')
+          WHERE id = ?
+        `).run(message, listing.id);
+        errors.push({ id: listing.id, error: message });
+        continue;
+      }
+
+      if (listing.status === 'cancelling') {
+        await files.restoreEscrowToSeller({
+          listingId: listing.id,
+          sellerSteamId: listing.seller_steam_id,
+          sellerSlot: listing.original_slot,
+        });
+        store.db.prepare(`
+          UPDATE economy_dino_listings
+          SET status = 'cancelled', error = NULL, cancelled_at = datetime('now'), updated_at = datetime('now')
+          WHERE id = ?
+        `).run(listing.id);
+        changed += 1;
+        continue;
+      }
+
+      if (listing.status === 'reserved' || listing.status === 'transfer_uncertain') {
+        try {
+          await files.transferEscrowToStored({
+            listingId: listing.id,
+            buyerSteamId: listing.buyer_steam_id,
+            buyerSlot: listing.buyer_slot,
+          });
+          finalizeSale(listing.id);
+          changed += 1;
+        } catch (error) {
+          if (error.code === 'DINO_TARGET_EXISTS') {
+            refundReservation(listing, `Marketplace reconciliation refund: ${error.message}`);
+            changed += 1;
+          } else {
+            store.db.prepare(`
+              UPDATE economy_dino_listings
+              SET status = 'transfer_uncertain', error = ?, updated_at = datetime('now')
+              WHERE id = ?
+            `).run(String(error.message).slice(0, 500), listing.id);
+            errors.push({ id: listing.id, error: error.message });
+          }
+        }
+      }
+    } catch (error) {
+      store.db.prepare(`
+        UPDATE economy_dino_listings
+        SET error = ?, updated_at = datetime('now')
+        WHERE id = ?
+      `).run(String(error.message).slice(0, 500), listing.id);
+      errors.push({ id: listing.id, error: error.message });
+    }
+  }
+
+  return { skipped: false, checked: listings.length, changed, errors };
+}
+
+function startDinoMarketplaceReconciler() {
+  const intervalMs = Math.max(5000, Number(process.env.MARKETPLACE_RECONCILE_INTERVAL_MS || 15000));
+  const timer = setInterval(() => {
+    reconcileDinoListings().catch((error) => console.warn('[marketplace-reconcile]', error.message));
+  }, intervalMs);
+  timer.unref?.();
+  return timer;
+}
+
 function listPublicListings({ limit = 100 } = {}) {
   return store.listDinoListings({ statuses: ['active'], limit }).map((listing) => ({
     id: listing.id,
@@ -414,4 +526,6 @@ module.exports = {
   listSellerListings,
   finalizeSale,
   refundReservation,
+  reconcileDinoListings,
+  startDinoMarketplaceReconciler,
 };
