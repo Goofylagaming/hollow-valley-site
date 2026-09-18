@@ -14,6 +14,24 @@ async function loadSpeciesMap() {
   }
 }
 
+function listingSkinColor(color) {
+  if (!color || typeof color !== "object") return "";
+  const clamp = (value) => Math.max(0, Math.min(255, Math.round((Number(value) || 0) * 255)));
+  return `rgb(${clamp(color.r)}, ${clamp(color.g)}, ${clamp(color.b)})`;
+}
+
+function listingSkinPreview(skin) {
+  if (!skin || typeof skin !== "object") return "";
+  const colors = ["body", "markings", "flank", "underbelly", "eyes"]
+    .map((key) => listingSkinColor(skin[key]))
+    .filter(Boolean);
+  if (!colors.length) return "";
+  return `<div class="dino-skin-row market-skin-preview">
+    <div class="dino-skin-swatches">${colors.map((color) => `<i style="background:${escapeHtml(color)}"></i>`).join("")}</div>
+    <small>Pattern ${Number(skin.patternIndex ?? 0)} · Theme ${Number(skin.themeIndex ?? 0)}</small>
+  </div>`;
+}
+
 function sortCatalog(list) {
   const mode = document.getElementById("sort-select").value;
   const copy = [...list];
@@ -95,6 +113,7 @@ async function loadListings() {
           <h3>${escapeHtml(listing.nickname || species.name)}</h3>
           <small>${listing.size_percent || 0}% growth${listing.gender ? ` · ${escapeHtml(listing.gender)}` : ""}${listing.is_prime ? " · PRIME" : ""}</small>
           ${mutations.length ? `<div class="market-listing-meta">${mutations.slice(0,4).map((mutation) => `<span>${escapeHtml(mutation)}</span>`).join("")}</div>` : ""}
+          ${listingSkinPreview(listing.skin)}
           <div class="stat-row"><span>${Number(listing.price || 0).toLocaleString()} Valley Coin</span></div>
           <div class="actions"><button class="small-button buy-listing-btn" data-id="${escapeHtml(listing.id)}" ${marketplaceState.writeEnabled ? "" : "disabled"}>${marketplaceState.writeEnabled ? "Buy" : "Marketplace locked"}</button></div>
         </div>`;
@@ -150,6 +169,7 @@ async function loadMyListings() {
           <span class="listing-status-pill">${escapeHtml(listing.status || "unknown")}</span>
         </div>
         ${(snapshot.mutationList || []).length ? `<div class="market-listing-meta">${snapshot.mutationList.slice(0,4).map((mutation) => `<span>${escapeHtml(mutation)}</span>`).join("")}</div>` : ""}
+        ${listingSkinPreview(snapshot.skin)}
         <div class="actions">${listing.status === "active" ? `<button class="small-button cancel-listing-btn" data-id="${escapeHtml(listing.id)}" ${marketplaceState.writeEnabled ? "" : "disabled"}>${marketplaceState.writeEnabled ? "Cancel listing" : "Marketplace locked"}</button>` : ""}</div>
       </div>`;
     }).join("");
