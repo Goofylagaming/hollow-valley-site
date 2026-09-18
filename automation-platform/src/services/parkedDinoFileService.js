@@ -105,6 +105,70 @@ async function writeJsonExclusive(client, remotePath, state) {
   }
 }
 
+async function replaceJson(client, remotePath, state) {
+  const normalized = fileBridge.normalizeRemotePath(remotePath, 'DinoStorage file path');
+  if (!await exists(client, normalized)) {
+    const error = new Error('Parked dinosaur file no longer exists');
+    error.code = 'DINO_FILE_NOT_FOUND';
+    throw error;
+  }
+
+  const body = Buffer.from(JSON.stringify(state, null, 2) + '\n', 'utf8');
+  if (body.length > MAX_DINO_BYTES) throw new Error('Stored dinosaur JSON exceeds 512 KiB');
+
+  const temp = `${normalized}.edit-${crypto.randomUUID()}`;
+  const backup = `${normalized}.backup-${crypto.randomUUID()}`;
+  let tempExists = false;
+  let backupExists = false;
+
+  try {
+    tempExists = true;
+    await client.uploadFrom(Readable.from([body]), temp);
+
+    await client.rename(normalized, backup);
+    backupExists = true;
+
+    try {
+      await client.rename(temp, normalized);
+      tempExists = false;
+    } catch (error) {
+      await client.rename(backup, normalized).catch(() => {});
+      backupExists = false;
+      throw error;
+    }
+
+    await client.remove(backup);
+    backupExists = false;
+  } finally {
+    if (tempExists) await client.remove(temp).catch(() => {});
+    if (backupExists) {
+      if (!await exists(client, normalized).catch(() => false)) {
+        await client.rename(backup, normalized).catch(() => {});
+      } else {
+        await client.remove(backup).catch(() => {});
+      }
+    }
+  }
+}
+
+async function updateStoredDino(steamId, slot, mutator) {
+  if (typeof mutator !== 'function') throw new Error('Parked dinosaur mutator is required');
+  const remotePath = storedPath(steamId, slot);
+
+  return fileBridge.withClient(async (client) => {
+    const current = await readJson(client, remotePath);
+    const draft = JSON.parse(JSON.stringify(current));
+    const next = await mutator(draft, current);
+    const finalState = next === undefined ? draft : next;
+    if (!finalState || typeof finalState !== 'object' || Array.isArray(finalState)) {
+      throw new Error('Parked dinosaur editor returned invalid state');
+    }
+    finalState.slot = validateSlot(slot);
+    await replaceJson(client, remotePath, finalState);
+    return finalState;
+  });
+}
+
 async function readStoredDino(steamId, slot) {
   return fileBridge.withClient((client) => readJson(client, storedPath(steamId, slot)));
 }
@@ -239,6 +303,7 @@ module.exports = {
   escrowDirectory,
   escrowPath,
   readStoredDino,
+  updateStoredDino,
   readEscrowDino,
   storedExists,
   escrowExists,
