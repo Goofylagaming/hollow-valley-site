@@ -349,26 +349,45 @@ Only then switch the website wallet endpoint to the automation economy.
 
 ---
 
-## Player-to-player marketplace — later phase
+## Player-to-player DinoStorage marketplace
 
-The current live P2P marketplace transfers local roster rows. Once My Dinos is backed by real DinoStorage, P2P trading needs **escrow/locking**.
+Player-to-player selling now has an isolated implementation based on **real DinoStorage file escrow** rather than website roster rows.
 
-A safe listing must prevent the seller from:
+### Listing
 
-- redeeming the listed stored dino;
-- deleting it;
-- listing it twice;
-- changing the stored state after the listing snapshot.
+1. Seller selects a parked DinoStorage slot and Valley Coin price.
+2. A durable listing row is created in `escrowing` state.
+3. The real stored JSON is atomically renamed out of the seller's normal `stored/<steam>/` directory into `marketplace-escrow/<listing-id>.json`.
+4. Once escrow is confirmed, the listing becomes `active`.
 
-Recommended later model:
+Because the JSON is physically absent from normal storage while listed, the seller cannot redeem it, edit its mutations, apply a skin, or list the same slot twice.
+
+### Buying
+
+1. Buyer wallet is checked.
+2. The listing becomes reserved and the buyer price is held with one idempotent ledger debit.
+3. The escrowed JSON is copied into a deterministic buyer storage slot and tagged with the listing ID for restart reconciliation.
+4. Escrow is removed.
+5. Only after transfer is proven does the seller receive the Valley Coin and the listing become `sold`.
+
+Safe transfer failure refunds the buyer once and reactivates the listing. An uncertain transfer does **not** refund or credit either side blindly; it remains `transfer_uncertain` until the reconciler proves where the DinoStorage file exists.
+
+### Cancellation
+
+An active seller can cancel. The escrow file is restored into the original seller slot and the listing becomes `cancelled`. Cancellation also uses a transfer marker so a restart after copy-before-cleanup can finish safely.
+
+### Restart reconciliation
+
+A periodic reconciler handles `escrowing`, `reserved`, `transfer_uncertain` and `cancelling` states. It uses both durable database state and DinoStorage file markers to complete only provable operations.
+
+### Safety gate
 
 ```text
-stored dino -> marketplace escrow/locked slot -> active listing
-active listing -> sold -> ownership transfer to buyer
-active listing -> cancelled -> return/unlock to seller
+MARKETPLACE_WRITE_ENABLED=false
+MARKETPLACE_RECONCILE_INTERVAL_MS=15000
 ```
 
-Do not migrate P2P listings until this escrow model is implemented. Official catalog purchasing can launch independently.
+Reads can be staged while writes remain disabled. Do not enable P2P buying/selling until FTP escrow movement and wallet migration have been controlled-tested.
 
 ---
 
@@ -389,3 +408,32 @@ Do not migrate P2P listings until this escrow model is implemented. Official cat
 13. Migrate P2P marketplace only after DinoStorage escrow exists.
 
 No live economy switch or wallet migration should occur merely by deploying the isolated automation service.
+
+
+---
+
+## Parked dinosaur customization
+
+Two additional DinoStorage-backed tools are staged behind write gates.
+
+### Mutation editor
+
+`PARKED_DINO_EDIT_ENABLED=false` by default.
+
+The player can edit only the four active mutation slots (`Slot1`–`Slot4`) on a parked dinosaur. Parent/inherited and elder mutation fields are preserved unchanged. Mutations are selected from a curated catalog; duplicate active mutations and arbitrary free text are rejected.
+
+A listed dinosaur cannot be edited because its JSON is physically held in marketplace escrow instead of the player's stored folder.
+
+### Real skin presets
+
+```text
+SKIN_SYSTEM_ENABLED=false
+PARKED_DINO_EDIT_ENABLED=false
+SKIN_PRESET_CREATE_COST=500
+```
+
+A player creates a skin preset **from the actual CustomizerData captured in a parked DinoStorage JSON**. The preset stores body/marking/flank/underbelly/teeth/mouth/claw/detail/eye/male-display colors plus skin variation, pattern and theme.
+
+Private presets belong to the Steam account. Premium presets can later be made globally available. A preset can only be applied to a parked dinosaur of the same species. Applying it rewrites only the stored skin data; growth, vitals, mutations, Prime state and nutrients are preserved.
+
+The legacy name-only skin records remain readable during migration, but new player presets use real captured skin data.
