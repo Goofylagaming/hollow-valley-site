@@ -106,3 +106,30 @@ test('status polling only reads request state and stops on an unknown outcome', 
     assert.ok(calls.every((entry) => entry.method === 'GET'));
   });
 });
+
+
+test('website client reads active character state through the protected automation API', async () => {
+  await withEnv({
+    AUTOMATION_SERVICE_URL: 'https://automation.example.test',
+    HOLLOW_VALLEY_API_TOKEN: 'website-secret',
+  }, async () => {
+    const client = loadClient();
+    let request;
+    const fetchImpl = async (url, options) => {
+      request = { url, options };
+      return response(200, {
+        active: true,
+        character: { species: 'Carnotaurus', growth: 0.42 },
+      });
+    };
+
+    const result = await client.getActiveCharacter('76561198000000000', { fetchImpl });
+    assert.equal(result.active, true);
+    assert.equal(result.character.species, 'Carnotaurus');
+    assert.equal(
+      request.url,
+      'https://automation.example.test/api/website/dinostorage/active-character/76561198000000000'
+    );
+    assert.equal(request.options.method, 'GET');
+  });
+});
