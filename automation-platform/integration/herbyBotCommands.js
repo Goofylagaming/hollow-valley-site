@@ -1,5 +1,6 @@
 const automation = require('./herbyBotAutomationClient');
 const { STAFF_COMMAND_DEFINITIONS, isStaffOverviewCommand, handleStaffOverviewCommand } = require('./herbyBotStaffCommands');
+const { STAFF_ACTION_DEFINITIONS, isStaffActionCommand, handleStaffActionCommand } = require('./herbyBotStaffActions');
 
 const MANAGE_GUILD_PERMISSION = '32';
 
@@ -14,6 +15,7 @@ const COMMANDS = [
     default_member_permissions: MANAGE_GUILD_PERMISSION,
   },
   ...STAFF_COMMAND_DEFINITIONS,
+  ...STAFF_ACTION_DEFINITIONS,
 ];
 
 function commandDefinitions() {
@@ -112,7 +114,7 @@ function createHerbyBotCommandHandler({ api = automation } = {}) {
     if (!interaction?.isChatInputCommand?.()) return false;
     if (!COMMANDS.some((command) => command.name === interaction.commandName)) return false;
 
-    const staffCommand = interaction.commandName === 'automation' || isStaffOverviewCommand(interaction.commandName);
+    const staffCommand = interaction.commandName === 'automation' || isStaffOverviewCommand(interaction.commandName) || isStaffActionCommand(interaction.commandName);
     if (staffCommand && !hasStaffAccess(interaction)) {
       await safeReply(interaction, {
         ephemeral: true,
@@ -128,6 +130,10 @@ function createHerbyBotCommandHandler({ api = automation } = {}) {
     try {
       if (isStaffOverviewCommand(interaction.commandName)) {
         await safeReply(interaction, await handleStaffOverviewCommand(interaction, api));
+        return true;
+      }
+      if (isStaffActionCommand(interaction.commandName)) {
+        await safeReply(interaction, await handleStaffActionCommand(interaction, api));
         return true;
       }
       const status = await api.getStatus();
