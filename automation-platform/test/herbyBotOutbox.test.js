@@ -62,3 +62,17 @@ test('delivery failures return to pending until max attempts then become termina
   assert.equal(secondFailure.status, 'failed');
   assert.match(secondFailure.last_error, /second failure/);
 });
+
+
+test('stale failure cannot reopen an already delivered HerbyBot event', () => {
+  const event = outbox.queueAnnouncement('Do not reopen me', { nonce: 'announcement:test:stale-fail' });
+  const claimed = outbox.claimMessages({ limit: 10, leaseSeconds: 60 }).find((item) => item.id === event.id);
+  assert.ok(claimed);
+
+  const delivered = outbox.acknowledgeMessage(event.id);
+  assert.equal(delivered.status, 'delivered');
+
+  const staleFailure = outbox.failMessage(event.id, 'late failure callback');
+  assert.equal(staleFailure.status, 'delivered');
+  assert.equal(staleFailure.last_error, null);
+});
