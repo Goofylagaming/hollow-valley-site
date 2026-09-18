@@ -4,10 +4,23 @@ let speciesById = {};
 let catalog = [];
 let activeFilter = "all";
 let marketplaceState = { p2pBuyEnabled: false };
+let myListingIds = new Set();
 
 async function loadSpeciesMap() {
   const list = await api("/api/species");
   speciesById = Object.fromEntries(list.map((s) => [s.id, s]));
+}
+
+async function loadMyListingIds() {
+  myListingIds = new Set();
+  try {
+    const me = await window.HDS.loadMe();
+    if (!me?.loggedIn) return;
+    const mine = await api("/api/marketplace/listings/mine");
+    myListingIds = new Set((Array.isArray(mine) ? mine : []).map((listing) => String(listing.id)));
+  } catch (err) {
+    console.warn("Could not identify own marketplace listings", err);
+  }
 }
 
 function sortCatalog(list) {
@@ -37,7 +50,7 @@ function renderCatalog() {
         <div class="dino-art ${species.art}"><span>${species.name.toUpperCase()}</span></div>
         <div class="dino-info"><div><small>${(species.role || "").toUpperCase()}</small><h3>${escapeHtml(species.name)}</h3></div></div>
         <div class="dino-meta"><span>${entry.price.toLocaleString()} Valley Coin</span><span>Size ${entry.size_percent}%</span></div>
-        <div class="actions" style="padding:0 15px 15px"><button class="small-button buy-catalog-btn" data-id="${entry.id}">Buy (${entry.size_percent}% Size)</button></div>
+        <div class="actions" style="padding:0 15px 15px"><button class="small-button buy-catalog-btn" data-id="${entry.id}" data-size="${entry.size_percent}">Buy (${entry.size_percent}% Size)</button></div>
       </article>`;
     })
     .join("");
@@ -51,7 +64,7 @@ function renderCatalog() {
       btn.textContent = "Purchasing...";
       try {
         await api(`/api/marketplace/catalog/${btn.dataset.id}/buy`, { method: "POST" });
-        alert("Purchased! Your dino (75% Size) has been placed in your 'My Dinos' storage and can be redeemed in-game at any time.");
+        alert(`Purchased! Your dino (${btn.dataset.size}% Size) has been placed in your 'My Dinos' storage and can be redeemed in-game at any time.`);
         window.location.href = "/mydinos";
       } catch (err) {
         alert(err.message || "Failed to purchase dino");
@@ -73,18 +86,20 @@ async function loadListings() {
     grid.innerHTML = listings
       .map((listing) => {
         const species = speciesById[listing.species_id] || { name: listing.species_id };
-        const buyEnabled = marketplaceState.p2pBuyEnabled === true;
+        const isMine = myListingIds.has(String(listing.id));
+        const buyEnabled = marketplaceState.p2pBuyEnabled === true && !isMine;
+        const buttonText = isMine ? "Your Listing" : marketplaceState.p2pBuyEnabled === true ? "Buy" : "Buying Coming Online";
         return `<div class="storage-card">
           <h3>${escapeHtml(listing.nickname || species.name)}</h3>
           <small>Size ${listing.size_percent}%</small>
           <div class="stat-row"><span>${listing.price.toLocaleString()} Valley Coin</span></div>
-          <div class="actions"><button class="small-button buy-listing-btn" data-id="${listing.id}" ${buyEnabled ? "" : "disabled"}>${buyEnabled ? "Buy" : "Buying Coming Online"}</button></div>
+          <div class="actions"><button class="small-button buy-listing-btn" data-id="${listing.id}" ${buyEnabled ? "" : "disabled"}>${buttonText}</button></div>
         </div>`;
       })
       .join("");
     grid.querySelectorAll(".buy-listing-btn").forEach((btn) =>
       btn.addEventListener("click", async () => {
-        if (!marketplaceState.p2pBuyEnabled) return;
+        if (!marketplaceState.p2pBuyEnabled || myListingIds.has(String(btn.dataset.id))) return;
         const me = await window.HDS.loadMe();
         if (!me.loggedIn) return alert("Log in with Discord or Steam to buy a dino.");
         const origText = btn.textContent;
@@ -123,6 +138,7 @@ async function init() {
   } catch {
     marketplaceState = { p2pBuyEnabled: false };
   }
+  await loadMyListingIds();
   catalog = await api("/api/marketplace/catalog");
   renderCatalog();
   await loadListings();
