@@ -97,6 +97,17 @@ function listMarketplaceCatalog() {
   return call('/marketplace/catalog');
 }
 
+function purchaseMarketplaceItem({ steamId, catalogId, idempotencyKey }) {
+  const itemId = String(catalogId || '').trim();
+  const key = String(idempotencyKey || '').trim();
+  if (!/^[A-Za-z0-9:_-]{2,80}$/.test(itemId)) throw new Error('Invalid marketplace catalog ID');
+  if (!/^[A-Za-z0-9:_-]{8,160}$/.test(key)) throw new Error('Invalid marketplace idempotency key');
+  return call(`/marketplace/catalog/${encodeURIComponent(itemId)}/buy`, {
+    method: 'POST',
+    body: { steamId: validateSteamId(steamId), idempotencyKey: key },
+  });
+}
+
 function getDinoMarketplaceState() {
   return call('/marketplace/state');
 }
@@ -113,6 +124,7 @@ module.exports = {
   getBodyDropCooldown,
   requestBodyDrop,
   listMarketplaceCatalog,
+  purchaseMarketplaceItem,
   getDinoMarketplaceState,
   listDinoMarketplaceListings,
 };
