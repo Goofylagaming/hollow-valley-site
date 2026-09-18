@@ -20,6 +20,7 @@ function getMigrationReadiness() {
   const adminRestoreWritesEnabled = process.env.ADMIN_RESTORE_WRITE_ENABLED === 'true';
   const presenceEnabled = process.env.PLAYER_PRESENCE_ENABLED === 'true';
   const monitorEnabled = process.env.SERVER_MONITOR_ENABLED === 'true';
+  const herbyBotConfigured = configured('HERBYBOT_AUTOMATION_TOKEN');
 
   const checks = [
     check('admin-token', 'Operator admin token', configured('AUTOMATION_ADMIN_TOKEN'), configured('AUTOMATION_ADMIN_TOKEN') ? 'Admin API is protected.' : 'Set AUTOMATION_ADMIN_TOKEN before exposing the operator console.'),
@@ -41,8 +42,11 @@ function getMigrationReadiness() {
     check('admin-restore-writes', 'Admin restore uploads remain disabled', !adminRestoreWritesEnabled, adminRestoreWritesEnabled
       ? 'Admin restore FTP uploads are enabled. Use only during a controlled operator restore window.'
       : 'Admin restore JSON can be built, but FTP slot uploads remain locked.', 'safety'),
+    check('herbybot', 'HerbyBot automation bridge', herbyBotConfigured, herbyBotConfigured
+      ? 'Dedicated HerbyBot server-to-server token is configured; Discord credentials remain on HerbyBot only.'
+      : 'Optional: set HERBYBOT_AUTOMATION_TOKEN to enable durable announcements and alerts through the existing HerbyBot.', 'optional'),
     check('presence', 'Presence tracking', presenceEnabled, presenceEnabled ? 'Read-only session tracking is enabled.' : 'Optional: enable only after stable read-only RCON verification.', 'optional'),
-    check('monitor', 'Server outage monitoring', monitorEnabled, monitorEnabled ? 'Persistent outage/recovery monitoring is enabled.' : 'Optional: enable after Discord alerts and RCON stability are verified.', 'optional'),
+    check('monitor', 'Server outage monitoring', monitorEnabled, monitorEnabled ? 'Persistent outage/recovery monitoring is enabled and alerts are queued for HerbyBot.' : 'Optional: enable after the HerbyBot bridge and RCON stability are verified.', 'optional'),
   ];
 
   const required = checks.filter((item) => item.level === 'required');
