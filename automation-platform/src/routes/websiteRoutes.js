@@ -110,6 +110,13 @@ router.post('/marketplace/catalog/:catalogId/buy', async (req, res) => {
   }
 });
 
+router.get('/marketplace/state', (_req, res) => {
+  res.json({
+    writeEnabled: dinoMarketplace.writeEnabled(),
+    reconcileIntervalMs: Math.max(5000, Number(process.env.MARKETPLACE_RECONCILE_INTERVAL_MS || 15000)),
+  });
+});
+
 router.get('/marketplace/listings', (_req, res) => {
   res.json({ listings: dinoMarketplace.listPublicListings({ limit: 200 }) });
 });
