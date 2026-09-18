@@ -41,6 +41,14 @@ GET /api/website/wallet/:steamId
 
 Returns the Steam-keyed Valley Coin balance, recent immutable ledger transactions and five-minute earning progress/state. The wallet can exist before the player visits the website because earning identity follows Steam.
 
+### Playtime quests
+
+```http
+GET /api/website/quests/:steamId
+```
+
+Returns the five automatic playtime quests, current progress, threshold, completion state, configured boost percentage and combined active boost. Daily progress uses the configured economy timezone; weekly periods reset on Monday.
+
 ### Marketplace catalog
 
 ```http
@@ -140,6 +148,7 @@ The isolated `integration/liveRouteAdapters.js` now covers every request used by
 | Current live route | Adapter function | Automation call |
 | --- | --- | --- |
 | `GET /api/wallet` | `getWallet` | Steam-keyed Valley Coin wallet + earning progress |
+| `GET /api/quests` | `getQuests` | automatic daily/weekly quest progress + active boost |
 | `GET /api/marketplace/catalog` | `listMarketplaceCatalog` | official marketplace catalog |
 | `POST /api/marketplace/catalog/:id/buy` | `buyMarketplaceCatalogItem` | atomic debit + pending marketplace order |
 | `GET /api/mydinos` | `listDinos` | DinoStorage slot list |
@@ -153,6 +162,7 @@ Compatibility behavior intentionally preserved:
 
 - the website backend remains the source of Steam identity;
 - wallet/playtime rewards follow linked Steam identity rather than a browser-supplied user or Steam ID;
+- daily/weekly playtime quests are automatic; no manual claim request is trusted as proof of completion;
 - marketplace purchases use backend-generated idempotency keys and are returned as accepted/pending until DinoStorage fulfillment is confirmed;
 - logged-in users without a linked Steam account still receive the existing harmless read-only states;
 - BodyDrop remains carnivore-only and limited to 60% growth or below;
