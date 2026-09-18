@@ -93,6 +93,10 @@ function requestBodyDrop({ steamId, dropType }) {
   });
 }
 
+function getWallet(steamId) {
+  return call(`/wallet/${encodeURIComponent(validateSteamId(steamId))}`);
+}
+
 function listMarketplaceCatalog() {
   return call('/marketplace/catalog');
 }
@@ -181,6 +185,7 @@ module.exports = {
   getRequestStatus,
   getBodyDropCooldown,
   requestBodyDrop,
+  getWallet,
   listMarketplaceCatalog,
   purchaseMarketplaceItem,
   adminCreditWallet,
