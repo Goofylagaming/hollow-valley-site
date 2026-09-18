@@ -165,7 +165,7 @@ Rules:
 - Each achievement is persisted for its daily/weekly period so restarts cannot remove it.
 - The boost percentage is snapshotted at achievement time for that period.
 
-Suggested starting values, not yet enabled:
+Approved default quest boosts:
 
 | Quest | Suggested boost |
 | --- | ---: |
@@ -178,7 +178,7 @@ Suggested starting values, not yet enabled:
 
 With a 20 Coin base payout, that would progress from 20 Coin/5m to a maximum of 32 Coin/5m when every active daily and weekly boost has been earned.
 
-The actual percentage settings remain `0` until approved.
+These percentage defaults are now configured on the isolated automation branch. Playtime coin earning itself still remains disabled until `WALLET_PLAYTIME_REWARDS_ENABLED=true` and a positive base `WALLET_PLAYTIME_COINS_PER_5_MINUTES` value are deliberately chosen.
 
 ---
 
