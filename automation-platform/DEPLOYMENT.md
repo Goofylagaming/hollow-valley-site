@@ -23,7 +23,9 @@ COMMAND_BRIDGE_ENABLED=false
 COMMAND_BRIDGE_SINGLE_PUBLISHER_ACK=
 RCON_WRITE_ENABLED=false
 PLAYER_PRESENCE_ENABLED=false
+ADMIN_RESTORE_WRITE_ENABLED=false
 SERVER_MONITOR_ENABLED=false
+ADMIN_RESTORE_WRITE_ENABLED=false
 ```
 
 Do not turn these on together during initial deployment.
@@ -114,6 +116,25 @@ COMMAND_BRIDGE_SINGLE_PUBLISHER_ACK=
 ```
 
 Verify the UE4SS and CommandBridge paths. A busy `commands.ndjson` is a stop condition; the service must never overwrite an unconsumed queue file.
+
+
+### Admin restore JSON and slot upload
+
+The operator console can build and validate admin restore JSON while writes remain locked. This includes the optional:
+
+```json
+"fullNutrients": true
+```
+
+which fills Carb, Protein and Lipid during the DinoStorage restore without changing normal stored-dino behavior.
+
+Keep:
+
+```text
+ADMIN_RESTORE_WRITE_ENABLED=false
+```
+
+during normal isolated testing. For a controlled admin restore window, it may be set to `true` only after FTP paths are verified. The uploader creates the player's missing DinoStorage directory if required, refuses to overwrite an existing slot, stages the file before rename, and **does not automatically redeem the dino**. Turn the write gate back off after the slot is prepared.
 
 ## Stage 4 — Discord and scheduler
 
