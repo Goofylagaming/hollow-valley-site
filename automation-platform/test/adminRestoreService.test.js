@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { buildAdminRestoreJson } = require('../src/services/adminRestoreService');
+const { buildAdminRestoreJson, uploadAdminRestore } = require('../src/services/adminRestoreService');
 
 const baseRestore = {
   version: 2,
@@ -70,4 +70,92 @@ test('DinoStorage Lua honors fullNutrients while normal snapshots do not seriali
   const readerStart = lua.indexOf('local function readStateJson');
   assert.ok(writerStart >= 0 && readerStart > writerStart);
   assert.equal(lua.slice(writerStart, readerStart).includes('fullNutrients'), false);
+});
+
+
+test('admin restore upload fails closed unless the dedicated write gate is enabled', async () => {
+  const previous = process.env.ADMIN_RESTORE_WRITE_ENABLED;
+  delete process.env.ADMIN_RESTORE_WRITE_ENABLED;
+  try {
+    await assert.rejects(
+      uploadAdminRestore({
+        steamId: '76561198000000001',
+        slot: 'admin_restore_test',
+        restore: baseRestore,
+        fullNutrients: true,
+      }),
+      (error) => error.code === 'ADMIN_RESTORE_WRITE_DISABLED'
+    );
+  } finally {
+    if (previous === undefined) delete process.env.ADMIN_RESTORE_WRITE_ENABLED;
+    else process.env.ADMIN_RESTORE_WRITE_ENABLED = previous;
+  }
+});
+
+test('admin restore upload stages a new slot without overwriting and never auto-redeems', async () => {
+  const previous = process.env.ADMIN_RESTORE_WRITE_ENABLED;
+  process.env.ADMIN_RESTORE_WRITE_ENABLED = 'true';
+  const calls = [];
+  const client = {
+    async ensureDir(directory) { calls.push(['ensureDir', directory]); },
+    async list() { calls.push(['list']); return []; },
+    async uploadFrom(_source, name) { calls.push(['uploadFrom', name]); },
+    async rename(from, to) { calls.push(['rename', from, to]); },
+    async remove(name) { calls.push(['remove', name]); },
+    async cd(directory) { calls.push(['cd', directory]); },
+  };
+  const bridge = {
+    getUe4ssRemotePath() { return '/game/TheIsle/Binaries/Win64/ue4ss'; },
+    async withClient(callback) { return callback(client); },
+  };
+
+  try {
+    const result = await uploadAdminRestore({
+      steamId: '76561198000000001',
+      slot: 'admin_restore_test',
+      restore: baseRestore,
+      fullNutrients: true,
+    }, bridge);
+
+    assert.equal(result.slot, 'admin_restore_test');
+    assert.equal(result.fullNutrients, true);
+    assert.equal(result.autoRedeem, false);
+    assert.match(result.remotePath, /stored\/76561198000000001\/admin_restore_test\.json$/);
+    assert.ok(calls.some(([name]) => name === 'uploadFrom'));
+    assert.ok(calls.some(([name, , to]) => name === 'rename' && to === 'admin_restore_test.json'));
+  } finally {
+    if (previous === undefined) delete process.env.ADMIN_RESTORE_WRITE_ENABLED;
+    else process.env.ADMIN_RESTORE_WRITE_ENABLED = previous;
+  }
+});
+
+test('admin restore upload refuses to overwrite an existing DinoStorage slot', async () => {
+  const previous = process.env.ADMIN_RESTORE_WRITE_ENABLED;
+  process.env.ADMIN_RESTORE_WRITE_ENABLED = 'true';
+  const client = {
+    async ensureDir() {},
+    async list() { return [{ name: 'admin_restore_test.json' }]; },
+    async uploadFrom() { assert.fail('must not upload over an existing slot'); },
+    async rename() { assert.fail('must not rename over an existing slot'); },
+    async remove() {},
+    async cd() {},
+  };
+  const bridge = {
+    getUe4ssRemotePath() { return '/game/TheIsle/Binaries/Win64/ue4ss'; },
+    async withClient(callback) { return callback(client); },
+  };
+
+  try {
+    await assert.rejects(
+      uploadAdminRestore({
+        steamId: '76561198000000001',
+        slot: 'admin_restore_test',
+        restore: baseRestore,
+      }, bridge),
+      /refusing to overwrite/
+    );
+  } finally {
+    if (previous === undefined) delete process.env.ADMIN_RESTORE_WRITE_ENABLED;
+    else process.env.ADMIN_RESTORE_WRITE_ENABLED = previous;
+  }
 });
