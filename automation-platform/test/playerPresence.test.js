@@ -171,22 +171,22 @@ test('presence sample retention prunes old aggregate samples without touching se
   const p = fixture.presence;
 
   const alpha = { steamId: '76561198000000000', name: 'Alpha', species: 'Triceratops' };
-  p.reconcilePresence([alpha], '2026-09-16T00:00:00.000Z');
-  p.recordPresenceSample([alpha], '2026-09-16T00:00:00.000Z');
-  p.recordPresenceSample([alpha], '2026-09-18T00:00:00.000Z');
+  p.reconcilePresence([alpha], '2026-09-17T01:00:00.000Z');
+  p.recordPresenceSample([alpha], '2026-09-17T01:00:00.000Z');
+  p.recordPresenceSample([alpha], '2026-09-17T13:00:00.000Z');
 
   const removed = p.prunePresenceSamples({
     retentionHours: 24,
-    nowIso: '2026-09-18T01:00:00.000Z',
+    nowIso: '2026-09-18T12:00:00.000Z',
   });
 
   assert.equal(removed, 1);
   const samples = p.listPresenceSamples({
     hours: 48,
-    nowMs: Date.parse('2026-09-18T01:00:00.000Z'),
+    nowMs: Date.parse('2026-09-18T12:00:00.000Z'),
   });
   assert.equal(samples.length, 1);
-  assert.equal(samples[0].sampledAt, '2026-09-18T00:00:00.000Z');
+  assert.equal(samples[0].sampledAt, '2026-09-17T13:00:00.000Z');
   assert.equal(p.listSessions({ limit: 10 }).length, 1);
 });
 
