@@ -28,6 +28,14 @@
           <div class="page-toolbar">
             <button class="small-button" id="claim-daily-bonus">Roll daily bonus</button>
           </div>
+          <div id="admin-wallet-panel" hidden>
+            <div class="list-heading"><span>ADMIN · VALLEY COIN</span></div>
+            <div class="page-toolbar">
+              <input id="admin-wallet-amount" type="number" min="1" max="1000000" step="1" value="10000" aria-label="Valley Coin amount">
+              <button class="small-button" id="admin-wallet-credit">Credit my wallet</button>
+              <span id="admin-wallet-result"></span>
+            </div>
+          </div>
           <div class="list-heading"><span>RECENT ACTIVITY</span></div>
           <div class="activity-list" id="dash-activity"><div class="empty-roster"><strong>No activity yet</strong><span>Play, complete quests or trade to see it here.</span></div></div>
         </div>
@@ -36,6 +44,6 @@
     <footer><span>© 2026 Herby Death Squad Games</span><span>ISLE EVRIMA COMMUNITY SERVER</span><a href="/">Back to command ↑</a></footer>
   </div>
   <script src="assets/common.js?v=10"></script>
-  <script src="assets/dashboard.js?v=2"></script>
+  <script src="assets/dashboard.js?v=3"></script>
 </body>
 </html>
