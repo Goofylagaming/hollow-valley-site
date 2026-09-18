@@ -3,6 +3,7 @@ const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
 const { getServerSnapshot } = require('./statusService');
+const playtimeRewards = require('./playtimeRewardsService');
 
 const dbPath = process.env.AUTOMATION_DB_PATH || path.join(__dirname, '..', '..', 'data', 'automation.sqlite');
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
@@ -174,7 +175,16 @@ async function samplePresence({ force = false } = {}) {
     const reconciliation = reconcilePresence(players, nowIso);
     const sample = recordPresenceSample(players, nowIso);
     prunePresenceSamples({ retentionHours: Number(process.env.PLAYER_PRESENCE_RETENTION_HOURS || 24 * 31) });
-    return { skipped: false, ...reconciliation, sample };
+
+    let rewards;
+    try {
+      rewards = playtimeRewards.rewardOnlinePlayers(players, { nowMs: Date.parse(nowIso) });
+    } catch (error) {
+      console.warn('[playtime-rewards]', error.message);
+      rewards = { skipped: true, reason: 'reward-error', error: error.message };
+    }
+
+    return { skipped: false, ...reconciliation, sample, rewards };
   } finally {
     running = false;
   }
