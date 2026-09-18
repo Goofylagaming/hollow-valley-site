@@ -13,6 +13,9 @@ router.get("/", requireAuth, (req, res) => automationRoutes.listDinos(req, res))
 router.get("/active-character", requireAuth, (req, res) =>
   automationRoutes.getActiveCharacter(req, res));
 
+router.get("/requests/:id", requireAuth, (req, res) =>
+  automationRoutes.getAutomationRequest(req, res, req.params.id));
+
 router.post("/park-active", requireAuth, (req, res) =>
   automationRoutes.parkActive(req, res));
 
