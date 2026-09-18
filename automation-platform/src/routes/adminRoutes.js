@@ -157,24 +157,24 @@ router.get('/discord', (_req, res) => {
 
 router.post('/discord/sync-status', async (_req, res) => {
   try {
-    const result = await audit.run('discord', 'sync_status_channel', {},
+    const result = await audit.run('herbybot', 'check_status_handoff', {},
       () => discordAutomation.syncStatusChannel({ force: true }),
       (value) => ({ changed: Boolean(value.changed), channelName: value.name || null }));
     res.json({ ok: true, ...result });
   } catch (error) {
-    res.status(502).json({ error: error.message || 'Discord status sync failed.' });
+    res.status(502).json({ error: error.message || 'HerbyBot status handoff check failed.' });
   }
 });
 
 router.post('/discord/announce', async (req, res) => {
   const message = String(req.body?.message || '');
   try {
-    const announcement = await audit.run('discord', 'send_announcement', { messageLength: message.trim().length },
+    const announcement = await audit.run('herbybot', 'queue_announcement', { messageLength: message.trim().length },
       () => discordAutomation.sendAnnouncement(message),
-      (value) => ({ discordMessageId: value.id || null }));
-    res.status(201).json({ ok: true, announcement });
+      (value) => ({ outboxEventId: value.id || null, queued: Boolean(value.queued) }));
+    res.status(202).json({ ok: true, announcement });
   } catch (error) {
-    res.status(400).json({ error: error.message || 'Discord announcement failed.' });
+    res.status(400).json({ error: error.message || 'Unable to queue HerbyBot announcement.' });
   }
 });
 
@@ -207,7 +207,7 @@ router.post('/jobs/discord-announcement', async (req, res) => {
     (value) => ({ jobId: value.id, status: value.status }));
     res.status(201).json({ ok: true, job });
   } catch (error) {
-    res.status(400).json({ error: error.message || 'Unable to schedule Discord announcement.' });
+    res.status(400).json({ error: error.message || 'Unable to schedule HerbyBot announcement.' });
   }
 });
 
