@@ -121,6 +121,19 @@ services:
       - key: ADMIN_RESTORE_WRITE_ENABLED
         value: false
 
+      # HerbyBot bridge. This is a server-to-server credential used by the
+      # existing live HerbyBot to claim and acknowledge durable outbox events.
+      - key: HERBYBOT_AUTOMATION_TOKEN
+        generateValue: true
+      - key: HERBYBOT_AUTOMATION_POLL_INTERVAL_MS
+        value: 15000
+      - key: HERBYBOT_AUTOMATION_BATCH_SIZE
+        value: 10
+      - key: HERBYBOT_AUTOMATION_LEASE_SECONDS
+        value: 60
+      - key: HERBYBOT_OUTBOX_MAX_ATTEMPTS
+        value: 5
+
       # Optional Discord REST automation. Leave IDs/tokens unset until the
       # separate service is ready for controlled testing.
       - key: DISCORD_BOT_TOKEN
