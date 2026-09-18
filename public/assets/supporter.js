@@ -4,7 +4,7 @@ async function loadStatus() {
   const me = await window.HDS.loadMe();
   const statusEl = document.getElementById("supporter-status");
   if (!me.loggedIn) {
-    statusEl.innerHTML = `<div class="summary-tile"><small>STATUS</small><b>Log in to see your supporter status</b></div>`;
+    statusEl.innerHTML = `<div class="summary-tile"><small>STATUS</small><b>Log in to see your membership status</b></div>`;
     return;
   }
   try {
@@ -13,15 +13,14 @@ async function loadStatus() {
       statusEl.innerHTML = `<div class="summary-tile"><small>CURRENT TIER</small><b>None</b></div>`;
       return;
     }
+
+    const state = status.stripe_status || "pending";
     statusEl.innerHTML = `
-      <div class="summary-tile"><small>CURRENT TIER</small><b>${escapeHtml(status.tier)}</b></div>
+      <div class="summary-tile"><small>CURRENT TIER</small><b>${escapeHtml(status.tierLabel || status.tier)}</b></div>
+      <div class="summary-tile"><small>STRIPE STATUS</small><b>${escapeHtml(state)}</b></div>
       <div class="summary-tile"><small>AUTO-RENEW</small><b>${status.auto_renew ? "On" : "Off"}</b></div>
-      <div class="summary-tile"><button class="small-button" id="cancel-supporter">Cancel auto-renew</button></div>
+      <div class="summary-tile"><small>BENEFITS</small><b>${status.entitled ? "Membership verified" : "Inactive / pending"}</b></div>
     `;
-    document.getElementById("cancel-supporter")?.addEventListener("click", async () => {
-      await api("/api/supporter/cancel", { method: "POST" });
-      loadStatus();
-    });
   } catch (err) {
     console.error("Failed to load supporter status", err);
   }
@@ -64,6 +63,10 @@ loadTiers().catch(() => {
 const checkoutState = new URLSearchParams(window.location.search).get("checkout");
 if (checkoutState === "success" || checkoutState === "cancelled") {
   document.getElementById("checkout-message").textContent = checkoutState === "success"
-    ? "You returned from sandbox checkout. Membership benefits are not activated during this test."
-    : "Checkout cancelled. You can choose a membership when you are ready.";
+    ? "Payment completed in Stripe Sandbox. Membership status will sync automatically; refresh in a few seconds if it still shows pending."
+    : "Checkout cancelled. No membership was activated.";
+  if (checkoutState === "success") {
+    setTimeout(loadStatus, 1500);
+    setTimeout(loadStatus, 4000);
+  }
 }
