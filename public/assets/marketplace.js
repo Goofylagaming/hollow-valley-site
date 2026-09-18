@@ -3,6 +3,7 @@ const { api, escapeHtml } = window.HDS;
 let speciesById = {};
 let catalog = [];
 let activeFilter = "all";
+let marketplaceState = { p2pBuyEnabled: false };
 
 async function loadSpeciesMap() {
   const list = await api("/api/species");
@@ -72,16 +73,18 @@ async function loadListings() {
     grid.innerHTML = listings
       .map((listing) => {
         const species = speciesById[listing.species_id] || { name: listing.species_id };
+        const buyEnabled = marketplaceState.p2pBuyEnabled === true;
         return `<div class="storage-card">
           <h3>${escapeHtml(listing.nickname || species.name)}</h3>
-          <small>Sold by ${escapeHtml(listing.seller_username)} ? Size ${listing.size_percent}%</small>
+          <small>Size ${listing.size_percent}%</small>
           <div class="stat-row"><span>${listing.price.toLocaleString()} Valley Coin</span></div>
-          <div class="actions"><button class="small-button buy-listing-btn" data-id="${listing.id}">Buy</button></div>
+          <div class="actions"><button class="small-button buy-listing-btn" data-id="${listing.id}" ${buyEnabled ? "" : "disabled"}>${buyEnabled ? "Buy" : "Buying Coming Online"}</button></div>
         </div>`;
       })
       .join("");
     grid.querySelectorAll(".buy-listing-btn").forEach((btn) =>
       btn.addEventListener("click", async () => {
+        if (!marketplaceState.p2pBuyEnabled) return;
         const me = await window.HDS.loadMe();
         if (!me.loggedIn) return alert("Log in with Discord or Steam to buy a dino.");
         const origText = btn.textContent;
@@ -115,6 +118,11 @@ document.getElementById("sort-select")?.addEventListener("change", renderCatalog
 
 async function init() {
   await loadSpeciesMap();
+  try {
+    marketplaceState = await api("/api/marketplace/state");
+  } catch {
+    marketplaceState = { p2pBuyEnabled: false };
+  }
   catalog = await api("/api/marketplace/catalog");
   renderCatalog();
   await loadListings();
