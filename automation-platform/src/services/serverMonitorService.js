@@ -82,7 +82,7 @@ function alertText(transition, snapshot, failures) {
 async function checkServerMonitor({ force = true } = {}) {
   if (checkRunning) return { skipped: true, reason: 'check-already-running', ...getState() };
   if (!enabled()) return { skipped: true, reason: 'disabled', ...getState() };
-  if (!discord.alertConfigured()) return { skipped: true, reason: 'discord-alert-channel-not-configured', ...getState() };
+  if (!discord.alertConfigured()) return { skipped: true, reason: 'herbybot-bridge-not-configured', ...getState() };
 
   checkRunning = true;
   try {
@@ -105,7 +105,7 @@ async function checkServerMonitor({ force = true } = {}) {
       }, () => discord.sendAlert(
         alertText(next.transition, snapshot, next.state.consecutiveFailures),
         { nonce: `hollow-valley-server-${next.transition}-${Date.parse(nowIso)}` }
-      ), (value) => ({ discordMessageId: value.id || null }));
+      ), (value) => ({ outboxEventId: value.id || null, queued: Boolean(value.queued) }));
       next.state.lastAlertAt = nowIso;
       store.setState(STATE_KEY, next.state);
       return { skipped: false, transition: next.transition, alerted: true, ...getState() };
@@ -114,7 +114,7 @@ async function checkServerMonitor({ force = true } = {}) {
         ...next.state,
         confirmed: previous.confirmed,
         lastChangedAt: previous.lastChangedAt,
-        lastError: `Alert delivery failed: ${error.message}`,
+        lastError: `Alert queueing failed: ${error.message}`,
       };
       store.setState(STATE_KEY, retryState);
       throw error;
