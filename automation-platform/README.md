@@ -15,7 +15,7 @@ The project is a separate Hollow Valley control plane that keeps the existing HD
 - CommandBridge queue and reconciliation diagnostics.
 - BodyDrop/DinoStorage request ledger.
 - RCON control panel with server-side write kill switch.
-- Discord status/announcement controls.
+- HerbyBot bridge controls with durable announcement/alert outbox.
 - Persisted scheduler UI.
 - Player Activity panel for read-only tracked sessions/analytics.
 - Migration Readiness panel showing setup, safety and publisher-cutover state.
@@ -41,8 +41,8 @@ The project is a separate Hollow Valley control plane that keeps the existing HD
 - Persisted server-monitor state.
 - Persisted read-only player-presence sessions.
 - Automatic BodyDrop/DinoStorage reconcilers.
-- Discord REST status-channel sync and announcements.
-- One-time/daily/weekly Discord announcement scheduler.
+- Durable HerbyBot outbox for announcements and operational alerts.
+- One-time/daily/weekly HerbyBot announcement scheduler.
 - Multi-failure server outage/recovery monitor.
 - Presence analytics: unique players, tracked player-minutes, tracked peak concurrency and top tracked players.
 
@@ -78,7 +78,7 @@ Public endpoints only expose aggregate health. Steam IDs, names, locations, stor
 
 `AUTOMATION_ADMIN_TOKEN` protects operator/admin APIs.
 
-`HOLLOW_VALLEY_API_TOKEN` protects the live website's server-to-server integration. Never expose it to browser JavaScript and never reuse the operator token.
+`HOLLOW_VALLEY_API_TOKEN` protects the live website's server-to-server integration. Never expose it to browser JavaScript and never reuse the operator token.\n\n`HERBYBOT_AUTOMATION_TOKEN` protects the HerbyBot claim/ack bridge. Discord credentials stay on the existing HerbyBot service; the automation service never receives `DISCORD_BOT_TOKEN`.
 
 Game actions remain conservative:
 
@@ -158,7 +158,7 @@ Operator/admin protected:
 - `GET /api/admin/dinostorage/admin-restore`
 - `POST /api/admin/dinostorage/admin-restore-json`
 - `POST /api/admin/dinostorage/admin-restore/upload` (separately write-gated)
-- Discord controls
+- HerbyBot outbox/announcement controls
 - scheduler controls
 - server-monitor controls
 - RCON controls
@@ -172,7 +172,7 @@ Website server-to-server protected:
 - `POST /api/website/dinostorage/redeem`
 - `GET /api/website/requests/:requestId?steamId=...`
 
-See `WEBSITE_INTEGRATION.md` for the live-site contract and `DEPLOYMENT.md` for the staged rollout/cutover procedure.
+See `WEBSITE_INTEGRATION.md` for the live-site contract, `HERBYBOT_INTEGRATION.md` for the existing-bot bridge, and `DEPLOYMENT.md` for the staged rollout/cutover procedure.
 
 ## Production status
 
