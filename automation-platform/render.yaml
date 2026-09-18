@@ -71,15 +71,15 @@ services:
       - key: ECONOMY_TIMEZONE
         value: Australia/Brisbane
       - key: WALLET_QUEST_DAILY_1H_BOOST_PERCENT
-        value: 0
+        value: 5
       - key: WALLET_QUEST_DAILY_3H_BOOST_PERCENT
-        value: 0
+        value: 10
       - key: WALLET_QUEST_DAILY_6H_BOOST_PERCENT
-        value: 0
+        value: 15
       - key: WALLET_QUEST_WEEKLY_12H_BOOST_PERCENT
-        value: 0
+        value: 10
       - key: WALLET_QUEST_WEEKLY_24H_BOOST_PERCENT
-        value: 0
+        value: 20
       - key: WALLET_QUEST_MAX_TOTAL_BOOST_PERCENT
         value: 100
 
