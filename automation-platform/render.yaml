@@ -134,17 +134,5 @@ services:
       - key: HERBYBOT_OUTBOX_MAX_ATTEMPTS
         value: 5
 
-      # Optional Discord REST automation. Leave IDs/tokens unset until the
-      # separate service is ready for controlled testing.
-      - key: DISCORD_BOT_TOKEN
-        sync: false
-      - key: DISCORD_GUILD_ID
-        sync: false
-      - key: DISCORD_STATUS_CHANNEL_ID
-        sync: false
-      - key: DISCORD_ANNOUNCEMENT_CHANNEL_ID
-        sync: false
-      - key: DISCORD_ALERT_CHANNEL_ID
-        sync: false
-      - key: DISCORD_STATUS_SYNC_INTERVAL_MS
-        value: 300000
+      # Discord bot token and channel IDs intentionally stay on the existing
+      # HerbyBot service. The automation service never logs into Discord.
