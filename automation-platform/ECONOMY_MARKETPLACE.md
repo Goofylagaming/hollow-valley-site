@@ -140,6 +140,48 @@ This should be balanced alongside quests, events, supporter benefits and any fut
 
 ---
 
+## Playtime quest boosts
+
+Quest completion is automatic from the same verified online-time stream used by Valley Coin rewards. There are no manual claim buttons.
+
+| Quest | Cadence | Progress rule | Boost config |
+| --- | --- | --- | --- |
+| 1 hour | Daily | 1 consecutive verified hour | `WALLET_QUEST_DAILY_1H_BOOST_PERCENT` |
+| 3 hours | Daily | 3 total verified hours that day | `WALLET_QUEST_DAILY_3H_BOOST_PERCENT` |
+| 6 hours | Daily | 6 total verified hours that day | `WALLET_QUEST_DAILY_6H_BOOST_PERCENT` |
+| 12 hours | Weekly | 12 total verified hours that week | `WALLET_QUEST_WEEKLY_12H_BOOST_PERCENT` |
+| 24 hours | Weekly | 24 total verified hours that week | `WALLET_QUEST_WEEKLY_24H_BOOST_PERCENT` |
+
+Rules:
+
+- Daily periods use `Australia/Brisbane` by default and reset at the next local day.
+- Weekly periods begin on Monday in the configured economy timezone.
+- The 1-hour quest resets its current streak after a disconnect or unverified sample gap.
+- 3h/6h daily totals survive normal disconnects during the same day.
+- 12h/24h weekly totals accumulate across the week.
+- Completed daily and weekly boosts stack additively.
+- The combined boost is limited by `WALLET_QUEST_MAX_TOTAL_BOOST_PERCENT` (100% default safety cap).
+- A quest boost affects future 5-minute payouts only. It does not retroactively increase earlier payouts.
+- Each achievement is persisted for its daily/weekly period so restarts cannot remove it.
+- The boost percentage is snapshotted at achievement time for that period.
+
+Suggested starting values, not yet enabled:
+
+| Quest | Suggested boost |
+| --- | ---: |
+| Daily 1h consecutive | +5% |
+| Daily 3h total | +10% |
+| Daily 6h total | +15% |
+| Weekly 12h total | +10% |
+| Weekly 24h total | +20% |
+| **Maximum combined** | **+60%** |
+
+With a 20 Coin base payout, that would progress from 20 Coin/5m to a maximum of 32 Coin/5m when every active daily and weekly boost has been earned.
+
+The actual percentage settings remain `0` until approved.
+
+---
+
 ## Official marketplace catalog
 
 ### economy_marketplace_catalog
@@ -242,6 +284,7 @@ Protected server-to-server routes now exist for:
 
 ```text
 GET  /api/website/wallet/:steamId
+GET  /api/website/quests/:steamId
 GET  /api/website/marketplace/catalog
 GET  /api/website/marketplace/orders/:steamId
 POST /api/website/marketplace/catalog/:catalogId/buy
