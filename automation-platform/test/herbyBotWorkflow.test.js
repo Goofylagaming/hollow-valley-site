@@ -26,7 +26,7 @@ test('due scheduled announcement is durably queued for HerbyBot', async () => {
   assert.equal(result.status, 'completed');
 
   const events = store.listOutboxEvents({ limit: 50 });
-  const event = events.find((item) => item.nonce === `${id}:${job.run_at}`);
+  const event = events.find((item) => item.nonce === `${id}:${Date.parse(job.run_at)}`);
   assert.ok(event);
   assert.equal(event.destination, 'announcement');
   assert.equal(event.status, 'pending');
