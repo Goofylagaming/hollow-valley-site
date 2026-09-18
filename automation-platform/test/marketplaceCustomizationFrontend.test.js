@@ -81,3 +81,13 @@ test('marketplace safety gate state controls P2P buy sell and cancel UI', () => 
   assert.match(myDinos, /Selling locked/);
   assert.match(routes, /automationRoutes\.getDinoMarketplaceState/);
 });
+
+
+test('P2P listing and My Dinos cards expose captured skin previews', () => {
+  const myDinos = read('public/assets/mydinos.js');
+  const marketplace = read('public/assets/marketplace.js');
+  assert.match(myDinos, /renderSkinPreview\(dino\.skin\)/);
+  assert.match(myDinos, /dino-skin-swatches/);
+  assert.match(marketplace, /listingSkinPreview\(listing\.skin\)/);
+  assert.match(marketplace, /listingSkinPreview\(snapshot\.skin\)/);
+});
