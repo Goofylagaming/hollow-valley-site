@@ -12,6 +12,9 @@ async function loadDashboard() {
   guard.hidden = true;
   content.hidden = false;
 
+  const adminWalletPanel = document.getElementById("admin-wallet-panel");
+  if (adminWalletPanel) adminWalletPanel.hidden = !Boolean(me.user?.is_admin);
+
   try {
     const summary = await api("/api/dashboard");
     document.getElementById("dash-dino-count").textContent = summary.dinoCount;
@@ -61,6 +64,30 @@ document.getElementById("claim-daily-bonus")?.addEventListener("click", async (e
     button.disabled = false;
     button.textContent = "Roll daily bonus";
     alert(err.message);
+  }
+});
+
+document.getElementById("admin-wallet-credit")?.addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  const input = document.getElementById("admin-wallet-amount");
+  const resultEl = document.getElementById("admin-wallet-result");
+  const amount = Number(input?.value);
+
+  button.disabled = true;
+  resultEl.textContent = "Crediting…";
+  try {
+    const result = await api("/api/wallet/admin-credit", {
+      method: "POST",
+      body: JSON.stringify({ amount }),
+    });
+    const balance = Number(result.wallet?.balance);
+    resultEl.textContent = Number.isFinite(balance)
+      ? `Added ${result.amount} · Marketplace wallet: ${balance}`
+      : `Added ${result.amount} Valley Coin`;
+  } catch (err) {
+    resultEl.textContent = err.message;
+  } finally {
+    button.disabled = false;
   }
 });
 
