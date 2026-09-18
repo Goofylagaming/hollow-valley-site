@@ -97,6 +97,9 @@ router.post('/marketplace/catalog/:catalogId/buy', async (req, res) => {
     }));
     res.status(result.duplicate ? 200 : 201).json({ ok: true, ...result });
   } catch (error) {
+    if (error.code === 'MARKETPLACE_WRITE_DISABLED') {
+      return res.status(503).json({ error: error.message, code: error.code });
+    }
     if (error.code === 'INSUFFICIENT_FUNDS') {
       return res.status(402).json({ error: error.message });
     }
@@ -139,7 +142,8 @@ router.post('/marketplace/listings', async (req, res) => {
     }));
     res.status(result.duplicate ? 200 : 201).json({ ok: true, ...result });
   } catch (error) {
-    const status = error.code === 'DINO_ALREADY_LISTED' ? 409 :
+    const status = error.code === 'MARKETPLACE_WRITE_DISABLED' ? 503 :
+      error.code === 'DINO_ALREADY_LISTED' ? 409 :
       error.code === 'DINO_FILE_NOT_FOUND' ? 404 : 400;
     res.status(status).json({ error: error.message || 'Unable to list parked dinosaur.' });
   }
@@ -163,7 +167,8 @@ router.post('/marketplace/listings/:listingId/buy', async (req, res) => {
     }));
     res.status(result.duplicate ? 200 : 201).json({ ok: true, ...result });
   } catch (error) {
-    const status = error.code === 'INSUFFICIENT_FUNDS' ? 402 :
+    const status = error.code === 'MARKETPLACE_WRITE_DISABLED' ? 503 :
+      error.code === 'INSUFFICIENT_FUNDS' ? 402 :
       error.code === 'LISTING_NOT_FOUND' ? 404 :
       error.code === 'TRANSFER_UNCERTAIN' ? 409 : 400;
     res.status(status).json({
@@ -189,7 +194,8 @@ router.post('/marketplace/listings/:listingId/cancel', async (req, res) => {
     }));
     res.json({ ok: true, ...result });
   } catch (error) {
-    const status = error.code === 'LISTING_NOT_FOUND' ? 404 :
+    const status = error.code === 'MARKETPLACE_WRITE_DISABLED' ? 503 :
+      error.code === 'LISTING_NOT_FOUND' ? 404 :
       error.code === 'TRANSFER_UNCERTAIN' ? 409 : 400;
     res.status(status).json({
       error: error.message || 'Marketplace listing cancellation failed.',
