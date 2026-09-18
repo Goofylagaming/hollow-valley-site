@@ -51,6 +51,8 @@ All endpoints require the HerbyBot token and return `Cache-Control: no-store`.
 - `POST /api/herbybot/outbox/claim` — lease pending events for delivery.
 - `POST /api/herbybot/outbox/:id/ack` — mark a delivered event complete.
 - `POST /api/herbybot/outbox/:id/fail` — release or terminally fail a delivery attempt.
+- `POST /api/herbybot/commands/announcement` — queue a staff slash-command announcement using a Discord interaction nonce.
+- `POST /api/herbybot/commands/schedule` — create an idempotent scheduled announcement using a Discord interaction nonce.
 
 Claims use leases so a crashed HerbyBot process does not permanently lose a message. Every outbox event also has a stable nonce; the HerbyBot bridge sends that nonce with `enforceNonce: true` to reduce duplicate Discord sends if delivery succeeded but acknowledgement was interrupted.
 
@@ -88,12 +90,14 @@ The first command layer contains:
 - `/automation` — staff-only (Manage Server / Administrator), ephemeral automation health including HerbyBot outbox state and integration readiness.
 - `/players [page]` — staff-only, ephemeral online-player overview with player name, species and growth only. Steam IDs, coordinates and vitals are stripped server-side.
 - `/queue` — staff-only, ephemeral BodyDrop/DinoStorage request counts plus HerbyBot outbox delivery state.
+- `/announce message:` — staff-only, queues an immediate announcement into the durable HerbyBot outbox. It does not bypass the delivery bridge.
+- `/schedule message: minutes: repeat:` — staff-only, creates an idempotent scheduled announcement. The first delivery can be 1–43,200 minutes ahead; recurrence is once, daily or weekly.
 
 No Steam IDs, player names, locations or stored-dino data are exposed by `/server`. The staff player view is separately sanitized on the automation service before Discord formatting, so only name/species/growth can cross the HerbyBot bridge.
 
 Command registration uses `DISCORD_GUILD_ID` when configured so development/test commands appear quickly in the target guild. If no guild ID is configured, HerbyBot registers the commands globally.
 
-The runtime handler also checks staff permissions for `/automation`; Discord command visibility alone is not treated as the security boundary.
+The runtime handler checks staff permissions for `/automation`, `/players`, `/queue`, `/announce` and `/schedule`; Discord command visibility alone is not treated as the security boundary. Slash-command write endpoints also require a valid interaction nonce, and retries reuse the same outbox event/job instead of creating duplicates.
 
 The current live `server/herbyBot.js` can keep owning:
 
@@ -143,12 +147,13 @@ Recommended first live bridge test:
 2. Keep CommandBridge and RCON writes disabled.
 3. Attach the combined HerbyBot integration to the existing Discord client.
 4. Register the slash commands and verify `/server` returns aggregate status.
-5. Verify non-staff users cannot use `/automation`, `/players` or `/queue`.
+5. Verify non-staff users cannot use `/automation`, `/players`, `/queue`, `/announce` or `/schedule`.
 6. Test `/automation`, `/players` and `/queue` with a staff account and confirm player output has no Steam IDs or coordinates.
-7. Queue one harmless operator announcement.
-8. Confirm HerbyBot claims it, sends it once, and acknowledges it.
-9. Verify the event becomes `delivered` in the automation outbox.
-10. Only then enable scheduler delivery.
-11. Enable server-monitor alerts later, after read-only RCON is stable.
+7. Test one harmless `/announce` and confirm it queues exactly one outbox event.
+8. Test one short-delay `/schedule` and confirm a retry does not create a duplicate job.
+9. Confirm HerbyBot claims the announcement, sends it once, and acknowledges it.
+10. Verify the event becomes `delivered` in the automation outbox.
+11. Only then enable broader scheduler delivery.
+12. Enable server-monitor alerts later, after read-only RCON is stable.
 
 The live `master` HerbyBot remains untouched until that controlled integration step.
