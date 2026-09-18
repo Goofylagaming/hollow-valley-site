@@ -116,6 +116,10 @@ services:
         value: 60
       - key: DINOSTORAGE_RECONCILE_INTERVAL_MS
         value: 5000
+      # Admin restore JSON generation is always available to authenticated
+      # operators. Actual FTP slot uploads remain separately locked.
+      - key: ADMIN_RESTORE_WRITE_ENABLED
+        value: false
 
       # Optional Discord REST automation. Leave IDs/tokens unset until the
       # separate service is ready for controlled testing.
