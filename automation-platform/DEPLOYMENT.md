@@ -57,11 +57,11 @@ Never commit real values for:
 - `HOLLOW_VALLEY_API_TOKEN`
 - `RCON_PASSWORD`
 - `SFTP_PASSWORD`
-- `DISCORD_BOT_TOKEN`
+- `HERBYBOT_AUTOMATION_TOKEN`
 
 `AUTOMATION_ADMIN_TOKEN` is for the operator console and admin APIs.
 
-`HOLLOW_VALLEY_API_TOKEN` is a different server-to-server credential used only between the live Hollow Valley backend and `/api/website/*`. Do not expose it to browser JavaScript and do not reuse the admin token.
+`HOLLOW_VALLEY_API_TOKEN` is a different server-to-server credential used only between the live Hollow Valley backend and `/api/website/*`. Do not expose it to browser JavaScript and do not reuse the admin token.\n\n`HERBYBOT_AUTOMATION_TOKEN` is another dedicated server-to-server credential. It allows the existing HerbyBot to claim and acknowledge durable automation messages. Keep the actual Discord bot token and Discord channel IDs only on the HerbyBot service.
 
 ## Stage 1 — deploy the isolated service
 
@@ -135,21 +135,26 @@ ADMIN_RESTORE_WRITE_ENABLED=false
 
 during normal isolated testing. For a controlled admin restore window, it may be set to `true` only after FTP paths are verified. The uploader creates the player's missing DinoStorage directory if required, refuses to overwrite an existing slot, stages the file before rename, and **does not automatically redeem the dino**. Turn the write gate back off after the slot is prepared.
 
-## Stage 4 — Discord and scheduler
+## Stage 4 — HerbyBot bridge and scheduler
 
-Configure the required Discord token/channel IDs and test:
+Configure the same dedicated `HERBYBOT_AUTOMATION_TOKEN` on the automation service and the existing HerbyBot host. Do **not** add `DISCORD_BOT_TOKEN` to the automation service.
 
-1. status-channel sync
-2. one harmless announcement
+HerbyBot keeps its existing Discord gateway connection, status presence and channel IDs. The automation service only stores durable outbox events under `/api/herbybot/*`.
+
+Test:
+
+1. authenticated HerbyBot bridge status
+2. claim/ack of one harmless announcement event
 3. audit entry creation
-4. one future scheduled announcement
+4. one future scheduled announcement landing in the outbox
 5. scheduled-job cancellation
+6. one simulated monitor alert landing in the alert outbox
 
-The automation service uses Discord REST and does not open another gateway session alongside the existing HerbyBot.
+The provided `integration/herbyBotAutomationClient.js` and `integration/herbyBotBridge.js` are designed to plug into the existing HerbyBot client without calling `client.login()` or creating a second Discord client.
 
 ## Stage 5 — server monitoring
 
-After the Discord alert channel and read-only RCON are stable, optionally enable:
+After the HerbyBot bridge, HerbyBot alert channel and read-only RCON are stable, optionally enable:
 
 ```text
 SERVER_MONITOR_ENABLED=true
