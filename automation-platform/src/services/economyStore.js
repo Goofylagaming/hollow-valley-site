@@ -123,6 +123,23 @@ db.exec(`
   CREATE UNIQUE INDEX IF NOT EXISTS idx_economy_dino_listings_active_slot
     ON economy_dino_listings(seller_steam_id, original_slot)
     WHERE status IN ('escrowing','active','reserved','transfer_uncertain','cancelling');
+
+  CREATE TABLE IF NOT EXISTS economy_skin_presets (
+    id TEXT PRIMARY KEY,
+    owner_steam_id TEXT,
+    species TEXT NOT NULL,
+    name TEXT NOT NULL,
+    skin_json TEXT NOT NULL,
+    is_premium INTEGER NOT NULL DEFAULT 0,
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (owner_steam_id) REFERENCES economy_wallets(steam_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_economy_skin_presets_owner
+    ON economy_skin_presets(owner_steam_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_economy_skin_presets_species
+    ON economy_skin_presets(species, active, is_premium);
 `);
 
 function validateSteamId(value) {
@@ -308,6 +325,54 @@ function listCatalog({ activeOnly = true } = {}) {
   return rows.map((row) => ({ ...row, payload: parseJson(row.payload_json), active: Boolean(row.active) }));
 }
 
+function getSkinPreset(id) {
+  const row = db.prepare('SELECT * FROM economy_skin_presets WHERE id = ?').get(String(id || '').trim());
+  return row ? {
+    ...row,
+    isPremium: Boolean(row.is_premium),
+    active: Boolean(row.active),
+    skin: parseJson(row.skin_json),
+  } : null;
+}
+
+function listSkinPresets({ ownerSteamId = null, species = null, includePremium = true, activeOnly = true, limit = 200 } = {}) {
+  const clauses = [];
+  const params = [];
+  const safeLimit = Math.max(1, Math.min(500, Number(limit) || 200));
+
+  if (ownerSteamId) {
+    const owner = validateSteamId(ownerSteamId);
+    if (includePremium) {
+      clauses.push('(owner_steam_id = ? OR is_premium = 1)');
+      params.push(owner);
+    } else {
+      clauses.push('owner_steam_id = ?');
+      params.push(owner);
+    }
+  } else if (includePremium) {
+    clauses.push('is_premium = 1');
+  }
+
+  if (species) {
+    clauses.push('lower(species) = lower(?)');
+    params.push(String(species));
+  }
+  if (activeOnly) clauses.push('active = 1');
+
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+  return db.prepare(`
+    SELECT * FROM economy_skin_presets
+    ${where}
+    ORDER BY is_premium DESC, created_at DESC
+    LIMIT ?
+  `).all(...params, safeLimit).map((row) => ({
+    ...row,
+    isPremium: Boolean(row.is_premium),
+    active: Boolean(row.active),
+    skin: parseJson(row.skin_json),
+  }));
+}
+
 function getDinoListing(id) {
   const row = db.prepare('SELECT * FROM economy_dino_listings WHERE id = ?').get(String(id || '').trim());
   return row ? { ...row, snapshot: parseJson(row.snapshot_json) } : null;
@@ -390,6 +455,8 @@ module.exports = {
   upsertCatalogItem,
   getCatalogItem,
   listCatalog,
+  getSkinPreset,
+  listSkinPresets,
   getDinoListing,
   getDinoListingByIdempotency,
   listDinoListings,
