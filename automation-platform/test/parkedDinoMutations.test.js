@@ -1,5 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const filePath = require.resolve('../src/services/parkedDinoFileService');
 const servicePath = require.resolve('../src/services/parkedDinoMutationService');
@@ -181,4 +183,16 @@ test('female-only mutation is rejected on a male parked dino', async (t) => {
   }), (error) => error.code === 'MUTATION_SLOT_NOT_ALLOWED');
 
   assert.equal(fixture.getWrites(), 0);
+});
+
+
+test('mutation editor JSON keys match DinoStorage serializer contract', () => {
+  const lua = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'server-mods', 'DinoStorage', 'Scripts', 'main.lua'),
+    'utf8'
+  );
+
+  assert.match(lua, /"Slot1": "%s", "Slot2": "%s", "Slot3": "%s", "Slot4": "%s"/);
+  assert.match(lua, /jsonReadString\(mutBlock,"Slot1"\)/);
+  assert.match(lua, /MutationSlot1 = jsonReadString\(mutBlock,"Slot1"\)/);
 });
