@@ -50,6 +50,22 @@ function isoFromUnix(value) {
     : null;
 }
 
+function subscriptionPeriodEnd(subscription) {
+  const direct = Number(subscription?.current_period_end) || 0;
+  const itemEnd = subscription?.items?.data?.reduce((latest, item) => {
+    return Math.max(latest, Number(item?.current_period_end) || 0);
+  }, 0) || 0;
+  return Math.max(direct, itemEnd);
+}
+
+function invoiceSubscriptionId(invoice) {
+  return normalizeId(
+    invoice?.subscription ||
+    invoice?.parent?.subscription_details?.subscription ||
+    invoice?.lines?.data?.[0]?.parent?.subscription_item_details?.subscription
+  );
+}
+
 function tierFromSubscription(subscription, env = process.env) {
   const metadataTier = subscription?.metadata?.tier;
   if (metadataTier && Object.hasOwn(TIERS, metadataTier)) return metadataTier;
@@ -133,17 +149,24 @@ function existingBySubscription(subscriptionId) {
   return db.prepare("SELECT * FROM supporter_subscriptions WHERE stripe_subscription_id = ?").get(subscriptionId) || null;
 }
 
-function markBySubscription(subscriptionId, { status, autoRenew, renewsAt = null, cancelled = false }) {
+function markBySubscription(subscriptionId, { status, autoRenew = null, renewsAt = null, cancelled = false }) {
   const existing = existingBySubscription(subscriptionId);
   if (!existing) return null;
   db.prepare(`
     UPDATE supporter_subscriptions
     SET stripe_status = ?,
-        auto_renew = ?,
+        auto_renew = CASE WHEN ? IS NULL THEN auto_renew ELSE ? END,
         renews_at = COALESCE(?, renews_at),
         cancelled_at = CASE WHEN ? THEN datetime('now') ELSE cancelled_at END
     WHERE stripe_subscription_id = ?
-  `).run(status, autoRenew ? 1 : 0, renewsAt, cancelled ? 1 : 0, subscriptionId);
+  `).run(
+    status,
+    autoRenew === null ? null : (autoRenew ? 1 : 0),
+    autoRenew === null ? null : (autoRenew ? 1 : 0),
+    renewsAt,
+    cancelled ? 1 : 0,
+    subscriptionId
+  );
   return getSupporterStatus(existing.user_id);
 }
 
@@ -165,13 +188,14 @@ function processStripeEvent(event, env = process.env) {
     if (object.mode === "subscription") {
       const userId = userIdFromObject(object);
       const tier = object.metadata?.tier;
+      const paid = object.payment_status === "paid" || object.payment_status === "no_payment_required";
       if (userId && Object.hasOwn(TIERS, tier)) {
         upsertSupporter({
           userId,
           tier,
           customerId: normalizeId(object.customer),
           subscriptionId: normalizeId(object.subscription),
-          status: "active",
+          status: paid ? "active" : "pending",
           autoRenew: true,
         });
       }
@@ -189,7 +213,7 @@ function processStripeEvent(event, env = process.env) {
         customerId: normalizeId(object.customer),
         subscriptionId,
         status: object.status || "unknown",
-        renewsAt: isoFromUnix(object.current_period_end),
+        renewsAt: isoFromUnix(subscriptionPeriodEnd(object)),
         autoRenew,
       });
     }
@@ -205,18 +229,18 @@ function processStripeEvent(event, env = process.env) {
         customerId: normalizeId(object.customer),
         subscriptionId,
         status: "canceled",
-        renewsAt: isoFromUnix(object.current_period_end),
+        renewsAt: isoFromUnix(subscriptionPeriodEnd(object)),
         autoRenew: false,
       });
       markBySubscription(subscriptionId, {
         status: "canceled",
         autoRenew: false,
-        renewsAt: isoFromUnix(object.current_period_end),
+        renewsAt: isoFromUnix(subscriptionPeriodEnd(object)),
         cancelled: true,
       });
     }
   } else if (event.type === "invoice.paid") {
-    const subscriptionId = normalizeId(object.subscription);
+    const subscriptionId = invoiceSubscriptionId(object);
     if (subscriptionId) {
       const periodEnd = object.lines?.data?.reduce((latest, line) => {
         const end = Number(line?.period?.end) || 0;
@@ -224,18 +248,16 @@ function processStripeEvent(event, env = process.env) {
       }, 0);
       markBySubscription(subscriptionId, {
         status: "active",
-        autoRenew: true,
         renewsAt: isoFromUnix(periodEnd),
       });
     }
   } else if (event.type === "invoice.payment_failed") {
-    const subscriptionId = normalizeId(object.subscription);
+    const subscriptionId = invoiceSubscriptionId(object);
     if (subscriptionId) {
       const existing = existingBySubscription(subscriptionId);
       if (existing) {
         markBySubscription(subscriptionId, {
           status: "past_due",
-          autoRenew: Boolean(existing.auto_renew),
         });
       }
     }
@@ -254,5 +276,12 @@ module.exports = {
   processStripeEvent,
   tierFromSubscription,
   isEntitled,
-  _test: { parseStripeSignature, isoFromUnix, upsertSupporter, existingBySubscription },
+  _test: {
+    parseStripeSignature,
+    isoFromUnix,
+    subscriptionPeriodEnd,
+    invoiceSubscriptionId,
+    upsertSupporter,
+    existingBySubscription,
+  },
 };
