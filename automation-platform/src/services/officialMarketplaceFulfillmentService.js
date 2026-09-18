@@ -3,7 +3,8 @@ const marketplace = require('./marketplaceService');
 const files = require('./parkedDinoFileService');
 
 function enabled() {
-  return String(process.env.OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED || '').toLowerCase() === 'true';
+  return String(process.env.OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED || '').toLowerCase() === 'true'
+    && String(process.env.MARKETPLACE_WRITE_ENABLED || '').toLowerCase() === 'true';
 }
 
 function intervalMs() {
