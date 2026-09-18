@@ -26,7 +26,7 @@ test('due scheduled announcement is durably queued for HerbyBot', async () => {
   assert.equal(result.status, 'completed');
 
   const events = store.listOutboxEvents({ limit: 50 });
-  const event = events.find((item) => item.nonce === id);
+  const event = events.find((item) => item.nonce === `${id}:${job.run_at}`);
   assert.ok(event);
   assert.equal(event.destination, 'announcement');
   assert.equal(event.status, 'pending');
@@ -83,4 +83,31 @@ test('server monitor queues one outage alert and one recovery alert through Herb
   alerts = store.listOutboxEvents({ limit: 100 }).filter((event) => event.destination === 'alert');
   assert.equal(alerts.length, 2);
   assert.match(alerts[1].message, /recovered/i);
+});
+
+
+test('recurring scheduled announcements get a unique durable nonce per occurrence', async () => {
+  const id = randomUUID();
+  const firstRunAt = new Date(Date.now() - 2000).toISOString();
+  const job = store.createJob({
+    id,
+    type: 'discord_announcement',
+    runAt: firstRunAt,
+    recurrence: 'daily',
+    payload: { message: 'Daily Hollow Valley update' },
+  });
+
+  const afterFirst = await scheduler.executeJob(job);
+  assert.equal(afterFirst.status, 'scheduled');
+  assert.notEqual(afterFirst.run_at, firstRunAt);
+
+  const afterSecond = await scheduler.executeJob(afterFirst);
+  assert.equal(afterSecond.status, 'scheduled');
+
+  const events = store.listOutboxEvents({ limit: 100 })
+    .filter((event) => event.message === 'Daily Hollow Valley update');
+  assert.equal(events.length, 2);
+  assert.notEqual(events[0].nonce, events[1].nonce);
+  assert.ok(events[0].nonce.startsWith(`${id}:`));
+  assert.ok(events[1].nonce.startsWith(`${id}:`));
 });
