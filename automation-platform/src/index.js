@@ -9,6 +9,7 @@ const audit = require('./services/auditService');
 const backupService = require('./services/backupService');
 const adminRoutes = require('./routes/adminRoutes');
 const websiteRoutes = require('./routes/websiteRoutes');
+const herbyBotRoutes = require('./routes/herbyBotRoutes');
 const bodyDropRoutes = require('./routes/bodyDropRoutes');
 const dinoStorageRoutes = require('./routes/dinoStorageRoutes');
 const { startBodyDropReconciler } = require('./services/bodyDropService');
@@ -101,6 +102,11 @@ app.use('/api/website', (_req, res, next) => {
   res.set('Cache-Control', 'no-store');
   next();
 }, websiteRoutes);
+
+app.use('/api/herbybot', (_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+}, herbyBotRoutes);
 
 app.use('/api/bodydrop', bodyDropRoutes);
 app.use('/api/dinostorage', dinoStorageRoutes);
