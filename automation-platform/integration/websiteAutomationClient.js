@@ -60,6 +60,18 @@ async function call(path, { method = 'GET', body, fetchImpl = globalThis.fetch }
   }
 }
 
+function migrateLegacyWallet({ steamId, legacyUserId, balance }, options = {}) {
+  return call('/wallet/migrate', {
+    ...options,
+    method: 'POST',
+    body: {
+      steamId: validateSteamId(steamId),
+      legacyUserId: String(legacyUserId ?? '').trim(),
+      balance: Number(balance),
+    },
+  });
+}
+
 function getWallet(steamId, options = {}) {
   return call(`/wallet/${encodeURIComponent(validateSteamId(steamId))}`, options);
 }
@@ -253,6 +265,7 @@ async function waitForRequestStatus(requestId, steamId, {
 module.exports = {
   validateSteamId,
   validateRequestId,
+  migrateLegacyWallet,
   getWallet,
   getQuests,
   listMarketplaceCatalog,
