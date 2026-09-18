@@ -12,6 +12,7 @@ router.post("/catalog/:id/buy", requireAuth, (req, res) =>
   automationRoutes.buyMarketplaceCatalogItem(req, res, req.params.id));
 
 router.get("/state", (req, res) => automationRoutes.getDinoMarketplaceState(req, res));
+router.get("/orders/mine", requireAuth, (req, res) => automationRoutes.listMarketplaceOrders(req, res));
 router.get("/listings", (req, res) => automationRoutes.listDinoMarketplaceListings(req, res));
 router.get("/listings/mine", requireAuth, (req, res) => automationRoutes.listMyDinoMarketplaceListings(req, res));
 router.post("/listings", requireAuth, (req, res) => automationRoutes.createDinoMarketplaceListing(req, res));
