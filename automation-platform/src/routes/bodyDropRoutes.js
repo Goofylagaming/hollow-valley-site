@@ -19,10 +19,13 @@ router.get('/requests', requireAdminToken, (req, res) => {
   });
 });
 
-router.get('/cooldown/:steamId', requireAdminToken, (req, res) => {
-  const steamId = String(req.params.steamId || '').trim();
-  if (!/^\d{17}$/.test(steamId)) return res.status(400).json({ error: 'Invalid Steam ID.' });
-  res.json({ steamId, cooldown: bodyDrop.getCooldown(steamId) });
+router.get('/cooldown/:steamId', requireAdminToken, async (req, res) => {
+  try {
+    res.json(await bodyDrop.getBodyDropState(req.params.steamId));
+  } catch (error) {
+    const unavailable = /server|rcon|connection|timeout/i.test(error.message || '');
+    res.status(unavailable ? 503 : 400).json({ error: error.message || 'Unable to read BodyDrop state.' });
+  }
 });
 
 router.post('/request', requireAdminToken, async (req, res) => {
