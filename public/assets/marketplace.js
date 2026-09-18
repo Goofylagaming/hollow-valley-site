@@ -66,30 +66,32 @@ async function loadListings() {
   try {
     const listings = await api("/api/marketplace/listings");
     if (!listings.length) {
-      grid.innerHTML = `<div class="empty-roster"><strong>No listings yet</strong><span>Players can list their own dinos for sale from My Dinos.</span></div>`;
+      grid.innerHTML = `<div class="empty-roster"><strong>No listings yet</strong><span>Players can list their own parked dinos for sale from My Dinos.</span></div>`;
       return;
     }
     grid.innerHTML = listings
       .map((listing) => {
-        const species = speciesById[listing.species_id] || { name: listing.species_id };
+        const species = speciesById[String(listing.species_id || "").toLowerCase()] || { name: listing.species_id || "Unknown" };
+        const mutations = Array.isArray(listing.mutations) ? listing.mutations : [];
         return `<div class="storage-card">
           <h3>${escapeHtml(listing.nickname || species.name)}</h3>
-          <small>Sold by ${escapeHtml(listing.seller_username)} ? Size ${listing.size_percent}%</small>
-          <div class="stat-row"><span>${listing.price.toLocaleString()} Valley Coin</span></div>
-          <div class="actions"><button class="small-button buy-listing-btn" data-id="${listing.id}">Buy</button></div>
+          <small>${listing.size_percent || 0}% growth${listing.gender ? ` · ${escapeHtml(listing.gender)}` : ""}${listing.is_prime ? " · PRIME" : ""}</small>
+          ${mutations.length ? `<div class="market-listing-meta">${mutations.slice(0,4).map((mutation) => `<span>${escapeHtml(mutation)}</span>`).join("")}</div>` : ""}
+          <div class="stat-row"><span>${Number(listing.price || 0).toLocaleString()} Valley Coin</span></div>
+          <div class="actions"><button class="small-button buy-listing-btn" data-id="${escapeHtml(listing.id)}">Buy</button></div>
         </div>`;
       })
       .join("");
     grid.querySelectorAll(".buy-listing-btn").forEach((btn) =>
       btn.addEventListener("click", async () => {
         const me = await window.HDS.loadMe();
-        if (!me.loggedIn) return alert("Log in with Discord or Steam to buy a dino.");
+        if (!me.loggedIn) return alert("Log in with Steam to buy a parked dino.");
         const origText = btn.textContent;
         btn.disabled = true;
         btn.textContent = "Purchasing...";
         try {
-          await api(`/api/marketplace/listings/${btn.dataset.id}/buy`, { method: "POST" });
-          alert("Purchased! The dino has been transferred straight to your 'My Dinos' storage and can be redeemed in-game at any time.");
+          await api(`/api/marketplace/listings/${encodeURIComponent(btn.dataset.id)}/buy`, { method: "POST" });
+          alert("Purchased! The parked dino has been transferred into your My Dinos storage.");
           window.location.href = "/mydinos";
         } catch (err) {
           alert(err.message || "Failed to buy listing");
@@ -99,7 +101,58 @@ async function loadListings() {
       })
     );
   } catch (err) {
-    console.error("Failed to load listings", err);
+    grid.innerHTML = `<div class="empty-roster"><strong>Listings unavailable</strong><span>${escapeHtml(err.message || "Could not load marketplace listings.")}</span></div>`;
+  }
+}
+
+async function loadMyListings() {
+  const section = document.getElementById("my-listings-section");
+  const grid = document.getElementById("my-listings-grid");
+  if (!section || !grid) return;
+  const me = await window.HDS.loadMe();
+  if (!me.loggedIn) {
+    section.hidden = true;
+    return;
+  }
+  section.hidden = false;
+  try {
+    const listings = await api("/api/marketplace/listings/mine");
+    if (!Array.isArray(listings) || !listings.length) {
+      grid.innerHTML = `<div class="empty-roster"><strong>No marketplace listings</strong><span>List a parked dinosaur from My Dinos.</span></div>`;
+      return;
+    }
+    grid.innerHTML = listings.map((listing) => {
+      const snapshot = listing.snapshot || {};
+      const growth = Math.round((Number(snapshot.growth) || 0) * 100);
+      return `<div class="storage-card">
+        <h3>${escapeHtml(snapshot.species || "Unknown dino")}</h3>
+        <small>${growth}% growth${snapshot.gender ? ` · ${escapeHtml(snapshot.gender)}` : ""}${snapshot.isPrime ? " · PRIME" : ""}</small>
+        <div class="market-listing-meta">
+          <span>${Number(listing.price || 0).toLocaleString()} Valley Coin</span>
+          <span class="listing-status-pill">${escapeHtml(listing.status || "unknown")}</span>
+        </div>
+        ${(snapshot.mutationList || []).length ? `<div class="market-listing-meta">${snapshot.mutationList.slice(0,4).map((mutation) => `<span>${escapeHtml(mutation)}</span>`).join("")}</div>` : ""}
+        <div class="actions">${listing.status === "active" ? `<button class="small-button cancel-listing-btn" data-id="${escapeHtml(listing.id)}">Cancel listing</button>` : ""}</div>
+      </div>`;
+    }).join("");
+    grid.querySelectorAll(".cancel-listing-btn").forEach((button) => {
+      button.addEventListener("click", async () => {
+        if (!confirm("Cancel this listing and return the dino from escrow to My Dinos?")) return;
+        button.disabled = true;
+        button.textContent = "Returning...";
+        try {
+          await api(`/api/marketplace/listings/${encodeURIComponent(button.dataset.id)}/cancel`, { method: "POST" });
+          await loadListings();
+          await loadMyListings();
+        } catch (error) {
+          alert(error.message || "Could not cancel listing.");
+          button.disabled = false;
+          button.textContent = "Cancel listing";
+        }
+      });
+    });
+  } catch (error) {
+    grid.innerHTML = `<div class="empty-roster"><strong>Your listings are unavailable</strong><span>${escapeHtml(error.message)}</span></div>`;
   }
 }
 
@@ -118,6 +171,7 @@ async function init() {
   catalog = await api("/api/marketplace/catalog");
   renderCatalog();
   await loadListings();
+  await loadMyListings();
 }
 
 init();
