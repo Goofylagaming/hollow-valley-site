@@ -97,6 +97,32 @@ db.exec(`
     ON economy_marketplace_orders(steam_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_economy_orders_status_created
     ON economy_marketplace_orders(status, created_at ASC);
+
+  CREATE TABLE IF NOT EXISTS economy_dino_listings (
+    id TEXT PRIMARY KEY,
+    seller_steam_id TEXT NOT NULL,
+    original_slot TEXT NOT NULL,
+    price INTEGER NOT NULL CHECK(price > 0),
+    status TEXT NOT NULL DEFAULT 'escrowing',
+    idempotency_key TEXT NOT NULL UNIQUE,
+    buyer_steam_id TEXT,
+    buyer_slot TEXT,
+    purchase_key TEXT UNIQUE,
+    snapshot_json TEXT NOT NULL DEFAULT '{}',
+    error TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    sold_at TEXT,
+    cancelled_at TEXT,
+    FOREIGN KEY (seller_steam_id) REFERENCES economy_wallets(steam_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_economy_dino_listings_status_created
+    ON economy_dino_listings(status, created_at ASC);
+  CREATE INDEX IF NOT EXISTS idx_economy_dino_listings_seller
+    ON economy_dino_listings(seller_steam_id, created_at DESC);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_economy_dino_listings_active_slot
+    ON economy_dino_listings(seller_steam_id, original_slot)
+    WHERE status IN ('escrowing','active','reserved','transfer_uncertain','cancelling');
 `);
 
 function validateSteamId(value) {
@@ -282,6 +308,40 @@ function listCatalog({ activeOnly = true } = {}) {
   return rows.map((row) => ({ ...row, payload: parseJson(row.payload_json), active: Boolean(row.active) }));
 }
 
+function getDinoListing(id) {
+  const row = db.prepare('SELECT * FROM economy_dino_listings WHERE id = ?').get(String(id || '').trim());
+  return row ? { ...row, snapshot: parseJson(row.snapshot_json) } : null;
+}
+
+function getDinoListingByIdempotency(idempotencyKey) {
+  const row = db.prepare('SELECT * FROM economy_dino_listings WHERE idempotency_key = ?').get(String(idempotencyKey || '').trim());
+  return row ? { ...row, snapshot: parseJson(row.snapshot_json) } : null;
+}
+
+function listDinoListings({ sellerSteamId = null, statuses = null, limit = 100 } = {}) {
+  const safeLimit = Math.max(1, Math.min(500, Number(limit) || 100));
+  const clauses = [];
+  const params = [];
+  if (sellerSteamId) {
+    clauses.push('seller_steam_id = ?');
+    params.push(validateSteamId(sellerSteamId));
+  }
+  if (Array.isArray(statuses) && statuses.length) {
+    clauses.push(`status IN (${statuses.map(() => '?').join(',')})`);
+    params.push(...statuses.map(String));
+  }
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+  return db.prepare(`
+    SELECT * FROM economy_dino_listings
+    ${where}
+    ORDER BY created_at DESC
+    LIMIT ?
+  `).all(...params, safeLimit).map((row) => ({
+    ...row,
+    snapshot: parseJson(row.snapshot_json),
+  }));
+}
+
 function getOrder(id) {
   const row = db.prepare('SELECT * FROM economy_marketplace_orders WHERE id = ?').get(String(id));
   return row ? {
@@ -330,6 +390,9 @@ module.exports = {
   upsertCatalogItem,
   getCatalogItem,
   listCatalog,
+  getDinoListing,
+  getDinoListingByIdempotency,
+  listDinoListings,
   getOrder,
   listOrders,
 };
