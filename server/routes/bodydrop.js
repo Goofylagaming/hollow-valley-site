@@ -1,13 +1,5 @@
 const express = require("express");
-const {
-  createBodyDropRequest,
-  updateBodyDropRequest,
-  getLatestBodyDropRequest,
-  getRecentBodyDropRequests,
-} = require("../db");
 const { requireAuth } = require("../middleware/requireAuth");
-const { executeBodyDrop } = require("../services/bodyDrop");
-const serverStatus = require("../services/serverStatus");
 const automationRoutes = require("../../automation-platform/integration/liveRouteAdapters");
 
 const router = express.Router();
@@ -59,7 +51,7 @@ function toDate(value) {
 
 function cooldownFor(latest, now = new Date()) {
   if (!latest) return { active: false, nextAvailableAt: null, remainingSeconds: 0 };
-  if (latest.status === "pending" || latest.status === "queued") {
+  if (["pending", "preparing", "queued", "acknowledged", "unknown"].includes(latest.status)) {
     return { active: true, reason: "pending", nextAvailableAt: null, remainingSeconds: null };
   }
 
@@ -78,88 +70,21 @@ function cooldownFor(latest, now = new Date()) {
   };
 }
 
-// BodyDrop status/eligibility is read from the isolated automation service.
+// Both status and request traffic now go through the isolated automation
+// service. Publishing remains locked there until it is explicitly confirmed as
+// the sole CommandBridge publisher.
 router.get("/", requireAuth, (req, res) =>
   automationRoutes.getBodyDropState(req, res, { options: getDropTypes() }));
 
-router.post("/", requireAuth, async (req, res) => {
-  if (!req.user.steam_id) {
-    return res.status(400).json({ error: "Your Steam account is not linked. Please sign in with Steam first." });
-  }
+router.post("/", requireAuth, (req, res) =>
+  automationRoutes.requestBodyDrop(req, res));
 
-  const state = serverStatus.getState();
-  if (!state.online) {
-    return res.status(503).json({ error: "The Isle server is not online or RCON is not synced yet." });
-  }
-
-  const options = getDropTypes();
-  const dropType = String(req.body?.dropType || "").trim();
-  if (!options.some((option) => option.id === dropType)) {
-    return res.status(400).json({ error: "Unknown body drop type." });
-  }
-
-  const latest = getLatestBodyDropRequest(req.user.id);
-  const cooldown = cooldownFor(latest);
-  if (cooldown.active) {
-    return res.status(429).json({
-      error: cooldown.reason === "pending" ? "You already have a body drop request pending." : "Body drop is still on cooldown.",
-      cooldown,
-    });
-  }
-
-  // The mod spawns the corpse at a fixed world location, so the requesting
-  // player must currently be spawned in-game (their RCON character record has
-  // a live X/Y/Z). Use the raw RCON location, NOT the swapped/projected
-  // coordinates used for the map display - the mod places actors using the
-  // same raw Unreal world units RCON reports.
-  const character = state.characters.find((c) => c.steamId === req.user.steam_id);
-  const location = character?.location;
-  if (!location || !Number.isFinite(location.x) || !Number.isFinite(location.y) || !Number.isFinite(location.z)) {
-    return res.status(400).json({ error: "You must be spawned in-game to request a body drop." });
-  }
-
-  const selected = options.find((option) => option.id === dropType);
-
-  const request = createBodyDropRequest({
-    userId: req.user.id,
-    steamId: req.user.steam_id,
-    dropType,
+// Once a command has been submitted it must never be treated as safely
+// cancellable just because the browser timed out. Reconciliation is explicit.
+router.delete("/", requireAuth, (_req, res) => {
+  res.status(409).json({
+    error: "A submitted Body Drop command may still execute. An operator must reconcile its request state before releasing it.",
   });
-
-  const result = await executeBodyDrop({
-    steamId: req.user.steam_id,
-    species: selected.species,
-    growth: selected.growth,
-    dropType,
-    bodyDropRequestId: request.id,
-    location,
-  });
-
-  if (!result.ok && !result.queued) {
-    const failed = updateBodyDropRequest(request.id, {
-      status: "failed",
-      bridgeRequestId: result.requestId,
-      error: result.error || "Game server did not process body drop request.",
-    });
-    return res.status(400).json({ error: failed.error, request: failed });
-  }
-
-  const queued = updateBodyDropRequest(request.id, {
-    status: result.queued ? "queued" : "completed",
-    bridgeRequestId: result.requestId,
-    error: result.queued ? result.message : null,
-  });
-
-  res.status(result.queued ? 202 : 200).json({ ok: result.ok, request: queued, result });
-});
-
-router.delete("/", requireAuth, (req, res) => {
-  const latest = getLatestBodyDropRequest(req.user.id);
-  if (!latest || latest.status !== "queued") {
-    return res.status(409).json({ error: "There is no uploaded Body Drop request awaiting reconciliation." });
-  }
-
-  res.status(409).json({ error: "The uploaded command may still execute. An operator must reconcile its queues and results before releasing this request." });
 });
 
 module.exports = router;
