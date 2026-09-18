@@ -3,6 +3,7 @@ require('dotenv').config();
 const path = require('node:path');
 const express = require('express');
 const { getPublicStatus } = require('./services/statusService');
+const store = require('./services/automationStore');
 const { getMigrationReadiness } = require('./services/migrationReadinessService');
 const { requireAdminToken } = require('./middleware/adminAuth');
 const audit = require('./services/auditService');
@@ -27,6 +28,27 @@ const app = express();
 const port = Number(process.env.PORT || 3100);
 const publicDir = path.join(__dirname, '..', 'public');
 
+function buildStorageHealth() {
+  const dbPath = String(store.dbPath || '').trim();
+  const databasePersistent = Boolean(dbPath) &&
+    dbPath !== ':memory:' &&
+    !path.resolve(dbPath).includes(`${path.sep}tmp${path.sep}`);
+
+  let probe = store.getState('health:persistence-probe', null);
+  if (!probe?.value?.initializedAt) {
+    probe = store.setState('health:persistence-probe', {
+      initializedAt: new Date().toISOString(),
+    });
+  }
+
+  return {
+    databasePersistent,
+    initializedAt: probe?.value?.initializedAt || null,
+  };
+}
+
+const storageHealth = buildStorageHealth();
+
 app.disable('x-powered-by');
 app.use(express.json({ limit: '64kb' }));
 app.use(express.static(publicDir, { extensions: ['html'] }));
@@ -37,6 +59,7 @@ app.get('/health', (_req, res) => {
     ok: true,
     service: 'hollow-valley-automation-platform',
     time: new Date().toISOString(),
+    storage: storageHealth,
   });
 });
 
@@ -132,6 +155,7 @@ if (require.main === module) {
   backupService.startBackups();
   app.listen(port, () => {
     console.log(`Hollow Valley automation platform listening on port ${port}`);
+    console.log(`[storage] persistent=${storageHealth.databasePersistent} initializedAt=${storageHealth.initializedAt}`);
   });
 }
 
