@@ -89,6 +89,46 @@ function purchaseMarketplaceItem({ steamId, catalogId, idempotencyKey }, options
   });
 }
 
+function listDinoMarketplaceListings(options = {}) {
+  return call('/marketplace/listings', options);
+}
+
+function listMyDinoMarketplaceListings(steamId, options = {}) {
+  return call(`/marketplace/listings/mine/${encodeURIComponent(validateSteamId(steamId))}`, options);
+}
+
+function createDinoMarketplaceListing({ steamId, slot, price, idempotencyKey }, options = {}) {
+  return call('/marketplace/listings', {
+    ...options,
+    method: 'POST',
+    body: {
+      steamId: validateSteamId(steamId),
+      slot: String(slot || '').trim(),
+      price: Number(price),
+      idempotencyKey: String(idempotencyKey || '').trim(),
+    },
+  });
+}
+
+function buyDinoMarketplaceListing({ steamId, listingId, idempotencyKey }, options = {}) {
+  return call(`/marketplace/listings/${encodeURIComponent(String(listingId || '').trim())}/buy`, {
+    ...options,
+    method: 'POST',
+    body: {
+      steamId: validateSteamId(steamId),
+      idempotencyKey: String(idempotencyKey || '').trim(),
+    },
+  });
+}
+
+function cancelDinoMarketplaceListing({ steamId, listingId }, options = {}) {
+  return call(`/marketplace/listings/${encodeURIComponent(String(listingId || '').trim())}/cancel`, {
+    ...options,
+    method: 'POST',
+    body: { steamId: validateSteamId(steamId) },
+  });
+}
+
 function getBodyDropCooldown(steamId, options = {}) {
   return call(`/bodydrop/cooldown/${encodeURIComponent(validateSteamId(steamId))}`, options);
 }
@@ -173,6 +213,11 @@ module.exports = {
   listMarketplaceCatalog,
   listMarketplaceOrders,
   purchaseMarketplaceItem,
+  listDinoMarketplaceListings,
+  listMyDinoMarketplaceListings,
+  createDinoMarketplaceListing,
+  buyDinoMarketplaceListing,
+  cancelDinoMarketplaceListing,
   getBodyDropCooldown,
   requestBodyDrop,
   getActiveCharacter,
