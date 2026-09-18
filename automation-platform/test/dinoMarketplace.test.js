@@ -5,6 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 
 function loadMarketplace({ transferError = null } = {}) {
+  let currentTransferError = transferError;
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hv-p2p-'));
   const previous = {
     db: process.env.AUTOMATION_DB_PATH,
@@ -65,9 +66,9 @@ function loadMarketplace({ transferError = null } = {}) {
       async storedExists() { return filesState.sellerPresent; },
       async transferEscrowToStored() {
         filesState.transfers += 1;
-        if (transferError) {
-          const error = new Error(transferError.message);
-          error.code = transferError.code;
+        if (currentTransferError) {
+          const error = new Error(currentTransferError.message);
+          error.code = currentTransferError.code;
           throw error;
         }
         if (!filesState.escrowPresent) {
@@ -102,6 +103,7 @@ function loadMarketplace({ transferError = null } = {}) {
     store,
     service,
     filesState,
+    setTransferError(value) { currentTransferError = value; },
     cleanup() {
       delete require.cache[storePath];
       delete require.cache[filePath];
@@ -280,4 +282,55 @@ test('seller cannot buy their own listing', async (t) => {
 
   assert.equal(fixture.store.getDinoListing(created.listing.id).status, 'active');
   assert.equal(fixture.store.getWallet(seller).balance, 1000);
+});
+
+
+test('reconciler completes an uncertain transfer after retry proves buyer copy', async (t) => {
+  const fixture = loadMarketplace({ transferError: { code: 'TRANSFER_UNCERTAIN', message: 'network dropped after copy' } });
+  t.after(fixture.cleanup);
+  const seller = '76561198000000110';
+  const buyer = '76561198000000111';
+  const created = await createActive(fixture, seller);
+
+  fixture.store.applyWalletTransaction({
+    steamId: buyer,
+    amount: 1000,
+    kind: 'test_credit',
+    reason: 'Buyer funding',
+    idempotencyKey: 'fund:buyer:004',
+  });
+
+  await assert.rejects(() => fixture.service.buyDinoListing({
+    buyerSteamId: buyer,
+    listingId: created.listing.id,
+    idempotencyKey: 'purchase:p2p:004',
+  }), (error) => error.code === 'TRANSFER_UNCERTAIN');
+
+  assert.equal(fixture.store.getDinoListing(created.listing.id).status, 'transfer_uncertain');
+  fixture.setTransferError(null);
+
+  const result = await fixture.service.reconcileDinoListings();
+  assert.equal(result.checked, 1);
+  assert.equal(result.changed, 1);
+  assert.equal(fixture.store.getDinoListing(created.listing.id).status, 'sold');
+  assert.equal(fixture.store.getWallet(buyer).balance, 500);
+  assert.equal(fixture.store.getWallet(seller).balance, 500);
+});
+
+test('reconciler finishes a cancelling listing after service restart', async (t) => {
+  const fixture = loadMarketplace();
+  t.after(fixture.cleanup);
+  const seller = '76561198000000112';
+  const created = await createActive(fixture, seller);
+
+  fixture.store.db.prepare(`
+    UPDATE economy_dino_listings SET status = 'cancelling' WHERE id = ?
+  `).run(created.listing.id);
+
+  const result = await fixture.service.reconcileDinoListings();
+  assert.equal(result.checked, 1);
+  assert.equal(result.changed, 1);
+  assert.equal(fixture.store.getDinoListing(created.listing.id).status, 'cancelled');
+  assert.equal(fixture.filesState.sellerPresent, true);
+  assert.equal(fixture.filesState.escrowPresent, false);
 });
