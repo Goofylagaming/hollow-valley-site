@@ -56,7 +56,8 @@ async function executeJob(job) {
 
   try {
     if (job.type === 'discord_announcement') {
-      await discord.sendAnnouncement(job.payload?.message, { nonce: job.id });
+      const occurrenceNonce = `${job.id}:${job.run_at}`;
+      await discord.sendAnnouncement(job.payload?.message, { nonce: occurrenceNonce });
     } else {
       throw new Error(`Unsupported automation job type: ${job.type}`);
     }
