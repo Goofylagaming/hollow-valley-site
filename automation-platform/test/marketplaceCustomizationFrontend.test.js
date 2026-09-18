@@ -109,3 +109,12 @@ test('official catalog uses gated automation fulfillment and order status panel'
   assert.match(html, /YOUR STORE ORDERS/);
   assert.match(html, /id="my-orders-section"/);
 });
+
+
+test('official store dinos do not fake uncaptured vitals in My Dinos', () => {
+  const myDinos = read('public/assets/mydinos.js');
+  assert.match(myDinos, /marketplacePurchase\?\.orderId/);
+  assert.match(myDinos, /ON REDEEM/);
+  assert.match(myDinos, /Any gender/);
+  assert.match(myDinos, /Official store dino/);
+});
