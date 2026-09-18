@@ -3,6 +3,7 @@ const { requireAdminToken } = require('../middleware/adminAuth');
 const { getAdminStatus } = require('../services/statusService');
 const bodyDrop = require('../services/bodyDropService');
 const dinoStorage = require('../services/dinoStorageService');
+const adminRestore = require('../services/adminRestoreService');
 const discordAutomation = require('../services/discordAutomationService');
 const scheduler = require('../services/schedulerService');
 const rconControl = require('../services/rconControlService');
@@ -34,6 +35,32 @@ router.get('/requests', (req, res) => {
   const kind = ['bodydrop', 'dinostorage'].includes(String(req.query.kind || '')) ? String(req.query.kind) : null;
   const limit = Math.max(1, Math.min(500, Number(req.query.limit) || 100));
   res.json({ requests: store.listRequests({ kind, limit }) });
+});
+
+router.post('/dinostorage/admin-restore-json', async (req, res) => {
+  try {
+    const restore = await audit.run(
+      'dinostorage',
+      'build_admin_restore_json',
+      {
+        fullNutrientsRequested: req.body?.fullNutrients === true,
+        hasRestorePayload: Boolean(req.body?.restore),
+      },
+      async () => adminRestore.buildAdminRestoreJson({
+        restore: req.body?.restore,
+        fullNutrients: req.body?.fullNutrients,
+      }),
+      (value) => ({
+        fullNutrients: value.fullNutrients,
+        explicitNutrients: value.explicitNutrients,
+        slot: value.state?.slot || null,
+        classPath: value.state?.classPath || null,
+      })
+    );
+    res.json({ ok: true, restore });
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Unable to build admin restore JSON.' });
+  }
 });
 
 router.get('/audit', (req, res) => {
