@@ -13,7 +13,7 @@ async function loadDashboard() {
   content.hidden = false;
 
   const adminWalletPanel = document.getElementById("admin-wallet-panel");
-  if (adminWalletPanel) adminWalletPanel.hidden = !Boolean(me.user?.is_admin);
+  if (adminWalletPanel) adminWalletPanel.hidden = false;
 
   try {
     const summary = await api("/api/dashboard");
