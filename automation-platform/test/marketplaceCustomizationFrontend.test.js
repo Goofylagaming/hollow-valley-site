@@ -68,3 +68,16 @@ test('My Dinos tool wiring contains no accidental literal escaped newline betwee
   assert.equal(source.includes('wireParkedTools(grid);\\n'), false);
   assert.match(source, /wireParkedTools\(grid\);\s+grid\.querySelectorAll/);
 });
+
+
+test('marketplace safety gate state controls P2P buy sell and cancel UI', () => {
+  const marketplace = read('public/assets/marketplace.js');
+  const myDinos = read('public/assets/mydinos.js');
+  const routes = read('server/routes/marketplace.js');
+
+  assert.match(marketplace, /\/api\/marketplace\/state/);
+  assert.match(marketplace, /Marketplace locked/);
+  assert.match(myDinos, /\/api\/marketplace\/state/);
+  assert.match(myDinos, /Selling locked/);
+  assert.match(routes, /automationRoutes\.getDinoMarketplaceState/);
+});
