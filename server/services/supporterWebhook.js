@@ -67,16 +67,18 @@ function invoiceSubscriptionId(invoice) {
 }
 
 function tierFromSubscription(subscription, env = process.env) {
-  const metadataTier = subscription?.metadata?.tier;
-  if (metadataTier && Object.hasOwn(TIERS, metadataTier)) return metadataTier;
-
+  // The actual subscribed Price is authoritative when Stripe includes it.
+  // Metadata is a fallback for events such as Checkout Session completion.
   const priceId = subscription?.items?.data?.[0]?.price?.id;
-  const match = {
+  const priceTier = {
     [env.STRIPE_PRICE_MEMBER]: "member",
     [env.STRIPE_PRICE_ELITE]: "elite",
     [env.STRIPE_PRICE_LEGEND]: "legend",
   }[priceId];
-  return match || null;
+  if (priceTier) return priceTier;
+
+  const metadataTier = subscription?.metadata?.tier;
+  return metadataTier && Object.hasOwn(TIERS, metadataTier) ? metadataTier : null;
 }
 
 function userIdFromObject(object) {
