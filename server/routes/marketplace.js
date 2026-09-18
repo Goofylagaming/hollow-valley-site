@@ -79,7 +79,7 @@ router.get("/state", async (_req, res) => {
       ...state,
       p2pWritesEnabled: true,
       p2pCreateEnabled: true,
-      p2pBuyEnabled: false,
+      p2pBuyEnabled: true,
       p2pCancelEnabled: true,
     });
   } catch (error) {
@@ -153,10 +153,26 @@ router.post("/listings/:id/cancel", requireAuth, async (req, res) => {
   }
 });
 
-function buyingDisabled(_req, res) {
-  return res.status(503).json({ error: "Marketplace P2P buying is not enabled yet." });
-}
-
-router.post("/listings/:id/buy", requireAuth, buyingDisabled);
+router.post("/listings/:id/buy", requireAuth, async (req, res) => {
+  if (!req.user?.steam_id) {
+    return res.status(400).json({ error: "Your Steam account is not linked. Please sign in with Steam first." });
+  }
+  try {
+    const result = await automation.buyDinoMarketplaceListing({
+      steamId: String(req.user.steam_id),
+      listingId: req.params.id,
+      idempotencyKey: `website-p2p-buy:${randomUUID()}`,
+    });
+    return res.status(result.duplicate ? 200 : 201).json({
+      ok: true,
+      duplicate: Boolean(result.duplicate),
+      listing: result.listing ? mapListing(result.listing) : null,
+      wallet: result.wallet || null,
+    });
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Unable to buy marketplace listing.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
 
 module.exports = router;
