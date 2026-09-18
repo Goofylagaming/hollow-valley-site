@@ -21,6 +21,9 @@ function getMigrationReadiness() {
   const presenceEnabled = process.env.PLAYER_PRESENCE_ENABLED === 'true';
   const monitorEnabled = process.env.SERVER_MONITOR_ENABLED === 'true';
   const herbyBotConfigured = configured('HERBYBOT_AUTOMATION_TOKEN');
+  const playtimeRewardsEnabled = process.env.WALLET_PLAYTIME_REWARDS_ENABLED === 'true';
+  const playtimeRewardCoins = Number(process.env.WALLET_PLAYTIME_COINS_PER_5_MINUTES || 0);
+  const playtimeRewardsSafe = !playtimeRewardsEnabled || (presenceEnabled && Number.isSafeInteger(playtimeRewardCoins) && playtimeRewardCoins > 0);
 
   const checks = [
     check('admin-token', 'Operator admin token', configured('AUTOMATION_ADMIN_TOKEN'), configured('AUTOMATION_ADMIN_TOKEN') ? 'Admin API is protected.' : 'Set AUTOMATION_ADMIN_TOKEN before exposing the operator console.'),
@@ -46,6 +49,11 @@ function getMigrationReadiness() {
       ? 'Dedicated HerbyBot server-to-server token is configured; Discord credentials remain on HerbyBot only.'
       : 'Optional: set HERBYBOT_AUTOMATION_TOKEN to enable durable announcements and alerts through the existing HerbyBot.', 'optional'),
     check('presence', 'Presence tracking', presenceEnabled, presenceEnabled ? 'Read-only session tracking is enabled.' : 'Optional: enable only after stable read-only RCON verification.', 'optional'),
+    check('playtime-rewards', 'Valley Coin playtime rewards', playtimeRewardsSafe, playtimeRewardsEnabled
+      ? playtimeRewardsSafe
+        ? `Rewards are enabled at ${playtimeRewardCoins} Valley Coin per verified 5 minutes.`
+        : 'Rewards are enabled without both presence tracking and a positive integer coin rate. Disable rewards or complete the configuration.'
+      : 'Playtime rewards are disabled, which is correct until the economy rate and presence sampling are approved.', 'safety'),
     check('monitor', 'Server outage monitoring', monitorEnabled, monitorEnabled ? 'Persistent outage/recovery monitoring is enabled and alerts are queued for HerbyBot.' : 'Optional: enable after the HerbyBot bridge and RCON stability are verified.', 'optional'),
   ];
 
