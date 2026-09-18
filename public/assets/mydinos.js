@@ -174,7 +174,8 @@ function renderStorage() {
   }
 
   grid.innerHTML = filtered.map(renderDinoCard).join("");
-  wireParkedTools(grid);\n  grid.querySelectorAll(".stored-redeem").forEach((button) => {
+  wireParkedTools(grid);
+  grid.querySelectorAll(".stored-redeem").forEach((button) => {
     button.addEventListener("click", async () => {
       const slot = button.dataset.slot;
       const dino = storedDinos.find((item) => item.slot === slot);
