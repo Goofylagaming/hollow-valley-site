@@ -48,6 +48,7 @@ async function getWallet(req, res) {
     return res.json({
       balance: Number(wallet.balance) || 0,
       transactions: Array.isArray(wallet.transactions) ? wallet.transactions : [],
+      earning: wallet.earning || null,
       steamLinked: true,
     });
   } catch (error) {
