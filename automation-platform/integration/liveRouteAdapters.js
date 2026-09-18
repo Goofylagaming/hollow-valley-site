@@ -24,6 +24,7 @@ function mapAutomationError(error, fallback = 'Automation service request failed
       body: {
         error: error.message || fallback,
         ...(error.payload?.cooldown ? { cooldown: error.payload.cooldown } : {}),
+        ...(error.payload?.eligibility ? { eligibility: error.payload.eligibility } : {}),
         ...(error.payload?.request ? { request: error.payload.request } : {}),
       },
     };
@@ -101,9 +102,11 @@ async function getBodyDropState(req, res, { options = [] } = {}) {
     return res.json({
       enabled: true,
       steamLinked: true,
-      serverOnline: true,
+      serverOnline: cooldownResult.serverOnline !== false,
       cooldownSeconds: Number(process.env.BODYDROP_COOLDOWN_SECONDS || 900),
       cooldown,
+      eligibility: cooldownResult.eligibility || { eligible: false, reason: null },
+      restrictions: cooldownResult.restrictions || { carnivoreOnly: true, maxGrowthPercent: 60 },
       options,
       latest,
       recent: latest ? [latest] : [],
