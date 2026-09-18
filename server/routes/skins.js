@@ -1,7 +1,7 @@
 const express = require("express");
 const fs = require("node:fs");
 const path = require("node:path");
-const { createSkin } = require("../db");
+const { getSkinsForSpecies, createSkin } = require("../db");
 const { requireAuth, requireAdmin } = require("../middleware/requireAuth");
 const automationRoutes = require("../../automation-platform/integration/liveRouteAdapters");
 
@@ -19,8 +19,10 @@ router.post("/:id/apply", requireAuth, (req, res) => automationRoutes.applySkinP
 // Keep the public legacy library read route during migration so old premium
 // display records are not silently removed from the site. New player presets
 // are created only from parked dinos through /from-stored.
-router.get("/", (_req, res) => {
-  res.json(species.map((entry) => ({ speciesId: entry.id, skins: [] })));
+router.get("/", (req, res) => {
+  const speciesId = req.query.species;
+  if (speciesId) return res.json(getSkinsForSpecies(speciesId));
+  res.json(species.map((entry) => ({ speciesId: entry.id, skins: getSkinsForSpecies(entry.id) })));
 });
 
 // Existing admin premium-name route is retained branch-side for compatibility;
