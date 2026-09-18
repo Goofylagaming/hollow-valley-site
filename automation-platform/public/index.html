@@ -91,7 +91,7 @@
                 <div class="module-row"><span class="module-icon">◎</span><div><b>Server status worker</b><small>RCON player count, capacity and character snapshot</small></div><span class="module-state ready" id="module-server">Built</span></div>
                 <div class="module-row"><span class="module-icon">◌</span><div><b>BodyDrop worker</b><small>Live position lookup, queueing and result reconciliation</small></div><span class="module-state ready" id="module-bodydrop">Built</span></div>
                 <div class="module-row"><span class="module-icon">▣</span><div><b>DinoStorage worker</b><small>Store, redeem, slot reads and acknowledgement tracking</small></div><span class="module-state ready" id="module-dinostorage">Built</span></div>
-                <div class="module-row"><span class="module-icon">◇</span><div><b>Discord automation</b><small>Status channel sync and protected announcements</small></div><span class="module-state ready" id="module-discord">Built</span></div>
+                <div class="module-row"><span class="module-icon">◇</span><div><b>HerbyBot bridge</b><small>Single Discord client, durable outbox delivery and alerts</small></div><span class="module-state ready" id="module-discord">Built</span></div>
               </div>
             </article>
           </div>
@@ -127,20 +127,20 @@
           </article>
 
           <article class="automation-panel discord-panel">
-            <div class="panel-heading"><div><small>DISCORD</small><h3>Community automation</h3></div><span class="panel-pill" id="discord-health">Not configured</span></div>
+            <div class="panel-heading"><div><small>HERBYBOT</small><h3>Community automation</h3></div><span class="panel-pill" id="discord-health">Not configured</span></div>
             <div class="discord-grid">
               <div class="discord-control">
-                <small>SERVER STATUS CHANNEL</small>
+                <small>STATUS HANDOFF</small>
                 <b id="discord-status-channel">Not configured</b>
-                <p>Keep the configured Discord channel name in sync with the live Evrima player count.</p>
-                <button class="small-button" id="discord-sync-status" type="button">Sync status now</button>
+                <p>HerbyBot owns Discord presence and status-channel updates. Automation supplies the current Evrima state.</p>
+                <button class="small-button" id="discord-sync-status" type="button">Check status handoff</button>
               </div>
               <form class="discord-control discord-announcement-form" id="discord-announcement-form">
                 <label for="discord-message">ANNOUNCEMENT</label>
                 <textarea id="discord-message" maxlength="1900" rows="5" placeholder="Write a Hollow Valley announcement…"></textarea>
                 <div class="discord-action-row">
                   <small id="discord-announcement-channel">Not configured</small>
-                  <button class="small-button" type="submit">Send announcement</button>
+                  <button class="small-button" type="submit">Queue announcement</button>
                 </div>
                 <div class="automation-notice" id="discord-action-status" hidden></div>
               </form>
@@ -151,7 +151,7 @@
             <div class="panel-heading"><div><small>SCHEDULER</small><h3>Scheduled automation</h3></div><span class="panel-pill" id="scheduler-health">0 scheduled</span></div>
             <div class="scheduler-grid">
               <form id="scheduler-form" class="scheduler-form">
-                <label for="scheduler-message">Discord announcement</label>
+                <label for="scheduler-message">HerbyBot announcement</label>
                 <textarea id="scheduler-message" maxlength="1900" rows="4" placeholder="Announcement to send…" required></textarea>
                 <div class="scheduler-fields">
                   <label>Run at<input id="scheduler-run-at" type="datetime-local" required></label>
@@ -180,7 +180,7 @@
 
     <footer><span>© 2026 Herby Death Squad Games</span><span>HOLLOW VALLEY AUTOMATION PLATFORM</span><a href="https://hollowvalley.herbydeathsquadgames.com/">Back to command ↑</a></footer>
   </div>
-  <script src="/assets/automation.js?v=5"></script>
+  <script src="/assets/automation.js?v=6"></script>
   <script src="/assets/rcon-controls.js?v=1"></script>
   <script src="/assets/presence-panel.js?v=1"></script>
   <script src="/assets/migration-readiness-panel.js?v=1"></script>
