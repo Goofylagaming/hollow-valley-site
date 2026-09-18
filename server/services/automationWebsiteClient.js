@@ -151,6 +151,15 @@ function createDinoMarketplaceListing({ steamId, slot, price, idempotencyKey }) 
   });
 }
 
+function cancelDinoMarketplaceListing({ steamId, listingId }) {
+  const id = String(listingId || '').trim();
+  if (!/^[A-Za-z0-9_-]{8,128}$/.test(id)) throw new Error('Invalid marketplace listing ID');
+  return call(`/marketplace/listings/${encodeURIComponent(id)}/cancel`, {
+    method: 'POST',
+    body: { steamId: validateSteamId(steamId) },
+  });
+}
+
 module.exports = {
   getActiveCharacter,
   listStoredDinos,
@@ -165,4 +174,5 @@ module.exports = {
   listDinoMarketplaceListings,
   listMyDinoMarketplaceListings,
   createDinoMarketplaceListing,
+  cancelDinoMarketplaceListing,
 };
