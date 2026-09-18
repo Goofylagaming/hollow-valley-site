@@ -1,12 +1,27 @@
 const express = require("express");
-const { getWallet } = require("../db");
+const { getWallet: getLegacyWallet } = require("../db");
 const { requireAuth, requireAdmin } = require("../middleware/requireAuth");
 const automation = require("../services/automationWebsiteClient");
 
 const router = express.Router();
 
-router.get("/", requireAuth, (req, res) => {
-  res.json(getWallet(req.user.id));
+router.get("/", requireAuth, async (req, res) => {
+  if (!req.user?.steam_id) {
+    return res.json(getLegacyWallet(req.user.id));
+  }
+
+  try {
+    const wallet = await automation.getWallet(String(req.user.steam_id));
+    return res.json(wallet);
+  } catch (error) {
+    if (error?.code === "AUTOMATION_TIMEOUT") {
+      return res.status(504).json({ error: "The automation wallet did not respond in time." });
+    }
+    if (Number.isInteger(error?.status)) {
+      return res.status(error.status).json({ error: error.message || "Unable to read Valley Coin wallet." });
+    }
+    return res.status(502).json({ error: error?.message || "Unable to read Valley Coin wallet." });
+  }
 });
 
 router.post("/admin-credit", requireAdmin, async (req, res) => {
