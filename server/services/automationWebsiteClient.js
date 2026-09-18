@@ -127,6 +127,10 @@ function listDinoMarketplaceListings() {
   return call('/marketplace/listings');
 }
 
+function listMyDinoMarketplaceListings(steamId) {
+  return call(`/marketplace/listings/mine/${encodeURIComponent(validateSteamId(steamId))}`);
+}
+
 module.exports = {
   getActiveCharacter,
   listStoredDinos,
@@ -139,4 +143,5 @@ module.exports = {
   adminCreditWallet,
   getDinoMarketplaceState,
   listDinoMarketplaceListings,
+  listMyDinoMarketplaceListings,
 };
