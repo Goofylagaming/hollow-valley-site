@@ -5,17 +5,12 @@ const {
   getMarketplaceCatalog,
   seedMarketplaceCatalogIfEmpty,
   getCatalogEntry,
-  getMarketplaceListings,
-  getListingEntry,
-  createListing,
-  closeListing,
-  getRosterEntry,
   addRosterDino,
-  transferRosterDino,
   getWallet,
   creditWallet,
 } = require("../db");
 const { requireAuth } = require("../middleware/requireAuth");
+const automationRoutes = require("../../automation-platform/integration/liveRouteAdapters");
 
 const router = express.Router();
 
@@ -29,8 +24,9 @@ function debitWallet(userId, amount, reason) {
   return creditWallet(userId, -amount, reason);
 }
 
-// Official server catalog ? fixed price dinos, bought with Valley Coin.
-router.get("/catalog", (req, res) => {
+// Official catalog remains on the existing website DB until its catalog and
+// legacy wallet balances are deliberately migrated to the automation economy.
+router.get("/catalog", (_req, res) => {
   res.json(getMarketplaceCatalog());
 });
 
@@ -43,45 +39,12 @@ router.post("/catalog/:id/buy", requireAuth, (req, res) => {
   res.json({ ok: true, wallet, dino });
 });
 
-// Peer-to-peer resale of a player's own dino.
-router.get("/listings", (req, res) => {
-  res.json(getMarketplaceListings());
-});
-
-router.post("/listings", requireAuth, (req, res) => {
-  const { rosterId, price } = req.body || {};
-  const dino = getRosterEntry(Number(rosterId));
-  if (!dino || dino.user_id !== req.user.id) {
-    return res.status(404).json({ error: "Dino not found in your storage" });
-  }
-  if (!Number.isFinite(price) || price <= 0) {
-    return res.status(400).json({ error: "Price must be a positive number" });
-  }
-  const listing = createListing(dino.id, req.user.id, Math.round(price));
-  res.json(listing);
-});
-
-router.post("/listings/:id/buy", requireAuth, (req, res) => {
-  const listing = getListingEntry(Number(req.params.id));
-  if (!listing) return res.status(404).json({ error: "Listing not found" });
-  if (listing.seller_id === req.user.id) return res.status(400).json({ error: "You cannot buy your own listing" });
-
-  const wallet = debitWallet(req.user.id, listing.price, "Bought dino from another survivor");
-  if (!wallet) return res.status(402).json({ error: "Not enough Valley Coin" });
-
-  transferRosterDino(listing.roster_id, req.user.id);
-  closeListing(listing.id, "sold");
-  creditWallet(listing.seller_id, listing.price, "Sold dino on marketplace");
-  res.json({ ok: true, wallet });
-});
-
-router.post("/listings/:id/cancel", requireAuth, (req, res) => {
-  const listing = getListingEntry(Number(req.params.id));
-  if (!listing || listing.seller_id !== req.user.id) {
-    return res.status(404).json({ error: "Listing not found" });
-  }
-  closeListing(listing.id, "cancelled");
-  res.json({ ok: true });
-});
+// Player-to-player selling uses the real parked DinoStorage file through the
+// isolated automation service. No browser-supplied Steam ID is trusted.
+router.get("/listings", (req, res) => automationRoutes.listDinoMarketplaceListings(req, res));
+router.get("/listings/mine", requireAuth, (req, res) => automationRoutes.listMyDinoMarketplaceListings(req, res));
+router.post("/listings", requireAuth, (req, res) => automationRoutes.createDinoMarketplaceListing(req, res));
+router.post("/listings/:id/buy", requireAuth, (req, res) => automationRoutes.buyDinoMarketplaceListing(req, res, req.params.id));
+router.post("/listings/:id/cancel", requireAuth, (req, res) => automationRoutes.cancelDinoMarketplaceListing(req, res, req.params.id));
 
 module.exports = router;
