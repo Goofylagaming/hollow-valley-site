@@ -92,8 +92,11 @@ async function loadMarketplaceState() {
   }
   const notice = document.getElementById("marketplace-write-notice");
   if (notice) {
-    notice.hidden = marketplaceState.writeEnabled;
-    notice.textContent = "Player-to-player selling is staged but currently locked while DinoStorage escrow writes remain disabled.";
+    const locked = !marketplaceState.writeEnabled || !marketplaceState.officialCatalogEnabled;
+    notice.hidden = !locked;
+    notice.textContent = !marketplaceState.writeEnabled
+      ? "Marketplace writes are staged but currently locked while DinoStorage escrow remains disabled."
+      : "Player-to-player selling is available, but the official catalog remains locked until DinoStorage fulfillment is enabled.";
   }
 }
 
