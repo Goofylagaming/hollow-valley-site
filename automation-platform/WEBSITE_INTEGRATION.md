@@ -95,6 +95,29 @@ GET /api/website/requests/:requestId?steamId=7656119...
 
 The request is returned only when the supplied Steam ID matches the stored request owner. This lets the live website poll a request safely without exposing the full automation ledger.
 
+## Existing live-route mapping
+
+The isolated `integration/liveRouteAdapters.js` now covers every request used by the current My Dinos / BodyDrop frontend without requiring browser changes:
+
+| Current live route | Adapter function | Automation call |
+| --- | --- | --- |
+| `GET /api/mydinos` | `listDinos` | DinoStorage slot list |
+| `GET /api/mydinos/active-character` | `getActiveCharacter` | read-only active character |
+| `POST /api/mydinos/park-active` | `parkActive` | DinoStorage store |
+| `POST /api/mydinos/stored/:slot/redeem` | `redeemStored` | DinoStorage redeem |
+| `GET /api/bodydrop` | `getBodyDropState` | cooldown + server/eligibility state |
+| `POST /api/bodydrop` | `requestBodyDrop` | BodyDrop request |
+
+Compatibility behavior intentionally preserved:
+
+- the website backend remains the source of Steam identity;
+- logged-in users without a linked Steam account still receive the existing harmless read-only states;
+- BodyDrop remains carnivore-only and limited to 60% growth or below;
+- failed BodyDrop requests do not consume cooldown;
+- stored dino responses retain the full fields used by the existing cards, including max stats, Prime state and `mutationList`;
+- write requests return accepted/queued semantics without pretending the deferred game-side action is complete;
+- timeouts and unknown outcomes are never automatically replayed.
+
 ## Recommended live-site flow
 
 1. Player signs in to Hollow Valley with the existing Steam login.
