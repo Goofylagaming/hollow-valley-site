@@ -193,19 +193,30 @@ async function restoreEscrowToSeller({ listingId, sellerSteamId, sellerSlot }) {
   const target = storedPath(sellerSteamId, sellerSlot);
 
   return fileBridge.withClient(async (client) => {
-    if (await exists(client, target)) {
-      const error = new Error('Original seller storage slot is occupied');
-      error.code = 'DINO_TARGET_EXISTS';
-      throw error;
+    const escrowPresent = await exists(client, escrow);
+    const targetPresent = await exists(client, target);
+
+    if (targetPresent) {
+      const targetState = await readJson(client, target);
+      if (targetState?.marketplaceReturn?.listingId !== listingId) {
+        const error = new Error('Original seller storage slot is occupied');
+        error.code = 'DINO_TARGET_EXISTS';
+        throw error;
+      }
+      if (escrowPresent) await client.remove(escrow);
+      return { restored: true, resumed: true, target };
     }
-    if (!await exists(client, escrow)) {
-      const error = new Error('Marketplace escrow file is missing');
+
+    if (!escrowPresent) {
+      const error = new Error('Marketplace escrow file is missing and seller target is absent');
       error.code = 'TRANSFER_UNCERTAIN';
       throw error;
     }
+
     const state = await readJson(client, escrow);
     state.slot = validateSlot(sellerSlot);
     delete state.marketplaceTransfer;
+    state.marketplaceReturn = { listingId: validateListingId(listingId) };
     await writeJsonExclusive(client, target, state);
     try {
       await client.remove(escrow);
@@ -214,7 +225,7 @@ async function restoreEscrowToSeller({ listingId, sellerSteamId, sellerSlot }) {
       uncertain.code = 'TRANSFER_UNCERTAIN';
       throw uncertain;
     }
-    return { restored: true, target };
+    return { restored: true, resumed: false, target };
   });
 }
 
