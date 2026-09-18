@@ -2,7 +2,8 @@ require('dotenv').config();
 
 const path = require('node:path');
 const express = require('express');
-const { getPublicStatus } = require('./services/statusService');
+const { getPublicStatus, getServerSnapshot, integrationConfig } = require('./services/statusService');
+const fileBridge = require('./adapters/fileBridge');
 const store = require('./services/automationStore');
 const { getMigrationReadiness } = require('./services/migrationReadinessService');
 const { requireAdminToken } = require('./middleware/adminAuth');
@@ -48,6 +49,35 @@ function buildStorageHealth() {
 }
 
 const storageHealth = buildStorageHealth();
+
+async function runStartupReadOnlyDiagnostics() {
+  const integrations = integrationConfig();
+
+  if (!integrations.rcon) {
+    console.log('[startup-check] rcon configured=false');
+  } else {
+    const server = await getServerSnapshot({ force: true });
+    console.log(
+      `[startup-check] rcon configured=true online=${server.online} players=${server.players.length} error=${Boolean(server.error)}`
+    );
+  }
+
+  try {
+    fileBridge.getConfig();
+  } catch {
+    console.log('[startup-check] ftp configured=false');
+    return;
+  }
+
+  try {
+    const entries = await fileBridge.withClient((client) => client.list(fileBridge.getUe4ssRemotePath()));
+    console.log(`[startup-check] ftp configured=true connected=true ue4ssEntries=${entries.length}`);
+  } catch (error) {
+    console.log(
+      `[startup-check] ftp configured=true connected=false errorCode=${String(error?.code || error?.name || 'unknown')}`
+    );
+  }
+}
 
 app.disable('x-powered-by');
 app.use(express.json({ limit: '64kb' }));
@@ -156,6 +186,9 @@ if (require.main === module) {
   app.listen(port, () => {
     console.log(`Hollow Valley automation platform listening on port ${port}`);
     console.log(`[storage] persistent=${storageHealth.databasePersistent} initializedAt=${storageHealth.initializedAt}`);
+    runStartupReadOnlyDiagnostics().catch(() => {
+      console.log('[startup-check] diagnostics failed');
+    });
   });
 }
 
