@@ -32,6 +32,14 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_economy_ledger_steam_created
     ON economy_wallet_ledger(steam_id, created_at DESC);
 
+  CREATE TABLE IF NOT EXISTS economy_legacy_wallet_migrations (
+    legacy_user_id TEXT PRIMARY KEY,
+    steam_id TEXT NOT NULL UNIQUE,
+    legacy_balance INTEGER NOT NULL CHECK(legacy_balance >= 0),
+    migrated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (steam_id) REFERENCES economy_wallets(steam_id)
+  );
+
   CREATE TABLE IF NOT EXISTS economy_playtime_progress (
     steam_id TEXT PRIMARY KEY,
     last_seen_ms INTEGER NOT NULL,
@@ -258,6 +266,82 @@ function applyWalletTransaction({
   }
 }
 
+function migrateLegacyWallet({ legacyUserId, steamId, balance }) {
+  const id = validateSteamId(steamId);
+  const legacyId = String(legacyUserId ?? '').trim();
+  const legacyBalance = Number(balance);
+  if (!/^[1-9]\d{0,18}$/.test(legacyId)) throw new Error('Invalid legacy user ID');
+  if (!Number.isSafeInteger(legacyBalance) || legacyBalance < 0) {
+    throw new Error('Legacy wallet balance must be a non-negative integer');
+  }
+
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    ensureWallet(id);
+    const existing = db.prepare(
+      'SELECT * FROM economy_legacy_wallet_migrations WHERE legacy_user_id = ? OR steam_id = ?'
+    ).get(legacyId, id);
+
+    if (existing) {
+      if (existing.legacy_user_id !== legacyId || existing.steam_id !== id || Number(existing.legacy_balance) !== legacyBalance) {
+        const error = new Error('Legacy wallet has already been migrated with different account data');
+        error.code = 'LEGACY_WALLET_MIGRATION_CONFLICT';
+        throw error;
+      }
+      db.exec('COMMIT');
+      return {
+        duplicate: true,
+        migration: existing,
+        wallet: getWallet(id),
+      };
+    }
+
+    if (legacyBalance > 0) {
+      const key = `legacy-wallet-migration:user:${legacyId}`;
+      const wallet = db.prepare('SELECT balance FROM economy_wallets WHERE steam_id = ?').get(id);
+      const nextBalance = Number(wallet.balance) + legacyBalance;
+      const transactionId = randomUUID();
+
+      db.prepare(`
+        UPDATE economy_wallets
+        SET balance = ?, updated_at = datetime('now')
+        WHERE steam_id = ?
+      `).run(nextBalance, id);
+      db.prepare(`
+        INSERT INTO economy_wallet_ledger
+          (id, steam_id, amount, kind, reason, idempotency_key, reference_type, reference_id, metadata_json)
+        VALUES (?, ?, ?, 'legacy_wallet_migration', 'Legacy Hollow Valley wallet balance', ?, 'legacy_user', ?, ?)
+      `).run(
+        transactionId,
+        id,
+        legacyBalance,
+        key,
+        legacyId,
+        JSON.stringify({ legacyUserId: legacyId, legacyBalance })
+      );
+    }
+
+    db.prepare(`
+      INSERT INTO economy_legacy_wallet_migrations
+        (legacy_user_id, steam_id, legacy_balance)
+      VALUES (?, ?, ?)
+    `).run(legacyId, id, legacyBalance);
+
+    const migration = db.prepare(
+      'SELECT * FROM economy_legacy_wallet_migrations WHERE legacy_user_id = ?'
+    ).get(legacyId);
+    db.exec('COMMIT');
+    return {
+      duplicate: false,
+      migration,
+      wallet: getWallet(id),
+    };
+  } catch (error) {
+    try { db.exec('ROLLBACK'); } catch {}
+    throw error;
+  }
+}
+
 function getPlaytimeProgress(steamId) {
   const id = validateSteamId(steamId);
   return db.prepare('SELECT * FROM economy_playtime_progress WHERE steam_id = ?').get(id) || null;
@@ -449,6 +533,7 @@ module.exports = {
   getWallet,
   getLedgerByIdempotency,
   applyWalletTransaction,
+  migrateLegacyWallet,
   getPlaytimeProgress,
   getQuestState,
   listQuestAchievements,
