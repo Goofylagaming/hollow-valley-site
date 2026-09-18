@@ -7,6 +7,7 @@ const { getServerSnapshot } = require('./statusService');
 const dbPath = process.env.AUTOMATION_DB_PATH || path.join(__dirname, '..', '..', 'data', 'automation.sqlite');
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 const db = new DatabaseSync(dbPath);
+db.exec('PRAGMA busy_timeout = 5000;');
 db.exec('PRAGMA journal_mode = WAL;');
 db.exec(`
   CREATE TABLE IF NOT EXISTS player_presence_sessions (
@@ -99,12 +100,12 @@ function listPresenceSamples({ hours = 24, nowMs = Date.now(), limit = 5000 } = 
   });
 }
 
-function prunePresenceSamples({ retentionHours = 24 * 31 } = {}) {
+function prunePresenceSamples({ retentionHours = 24 * 31, nowIso = new Date().toISOString() } = {}) {
   const hours = Math.max(24, Math.min(24 * 365, Number(retentionHours) || 24 * 31));
   return db.prepare(`
     DELETE FROM player_presence_samples
-    WHERE sampled_at < datetime('now', ?)
-  `).run(`-${hours} hours`).changes;
+    WHERE sampled_at < datetime(?, ?)
+  `).run(nowIso, `-${hours} hours`).changes;
 }
 
 function reconcilePresence(onlinePlayers, nowIso = new Date().toISOString()) {
