@@ -6,7 +6,11 @@ let activeFilter = "all";
 
 async function loadSpeciesMap() {
   const list = await api("/api/species");
-  speciesById = Object.fromEntries(list.map((s) => [s.id, s]));
+  speciesById = {};
+  for (const species of list) {
+    speciesById[String(species.id || "").toLowerCase()] = species;
+    speciesById[String(species.name || "").toLowerCase()] = species;
+  }
 }
 
 function sortCatalog(list) {
@@ -21,7 +25,7 @@ function sortCatalog(list) {
 function renderCatalog() {
   const grid = document.getElementById("catalog-grid");
   let filtered = catalog.filter((entry) => {
-    const species = speciesById[entry.species_id];
+    const species = speciesById[String(entry.species_id || "").toLowerCase()];
     return activeFilter === "all" || species?.category === activeFilter;
   });
   filtered = sortCatalog(filtered);
