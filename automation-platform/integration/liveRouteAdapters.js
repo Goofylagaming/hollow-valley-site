@@ -57,6 +57,32 @@ async function getWallet(req, res) {
   }
 }
 
+async function getQuests(req, res) {
+  if (!req.user) return res.status(401).json({ error: 'Not logged in' });
+  if (!req.user.steam_id) return res.json({
+    steamLinked: false,
+    activeBoostPercent: 0,
+    quests: [],
+  });
+
+  try {
+    const result = await automation.getQuests(String(req.user.steam_id));
+    return res.json({
+      ...result,
+      steamLinked: true,
+      quests: (result.quests || []).map((quest) => ({
+        ...quest,
+        claimed: Boolean(quest.completed),
+        reward: null,
+        rewardType: 'playtime_boost_percent',
+      })),
+    });
+  } catch (error) {
+    const mapped = mapAutomationError(error, 'Could not read playtime quests.');
+    return res.status(mapped.status).json(mapped.body);
+  }
+}
+
 async function listMarketplaceCatalog(_req, res) {
   try {
     const result = await automation.listMarketplaceCatalog();
@@ -261,6 +287,7 @@ module.exports = {
   createSlotId,
   mapAutomationError,
   getWallet,
+  getQuests,
   listMarketplaceCatalog,
   listMarketplaceOrders,
   buyMarketplaceCatalogItem,
