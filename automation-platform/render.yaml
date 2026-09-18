@@ -68,6 +68,20 @@ services:
         value: 0
       - key: WALLET_PLAYTIME_MAX_SAMPLE_GAP_SECONDS
         value: 90
+      - key: ECONOMY_TIMEZONE
+        value: Australia/Brisbane
+      - key: WALLET_QUEST_DAILY_1H_BOOST_PERCENT
+        value: 0
+      - key: WALLET_QUEST_DAILY_3H_BOOST_PERCENT
+        value: 0
+      - key: WALLET_QUEST_DAILY_6H_BOOST_PERCENT
+        value: 0
+      - key: WALLET_QUEST_WEEKLY_12H_BOOST_PERCENT
+        value: 0
+      - key: WALLET_QUEST_WEEKLY_24H_BOOST_PERCENT
+        value: 0
+      - key: WALLET_QUEST_MAX_TOTAL_BOOST_PERCENT
+        value: 100
 
       # Read-only uptime/player-count history is also opt-in.
       - key: SERVER_HEALTH_HISTORY_ENABLED
