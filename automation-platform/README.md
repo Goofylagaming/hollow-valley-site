@@ -16,9 +16,9 @@ The project is a separate Hollow Valley control plane that keeps the existing HD
 - BodyDrop/DinoStorage request ledger.
 - RCON control panel with server-side write kill switch.
 - HerbyBot bridge controls with durable announcement/alert outbox.
-- Tested HerbyBot slash-command layer: public `/server` plus staff-only ephemeral `/automation`, `/players [page]`, `/queue`, `/announce` and `/schedule`.
+- Tested HerbyBot slash-command layer: public `/server` plus staff-only ephemeral `/automation`, `/players [page]`, `/queue`, `/activity`, `/announce` and `/schedule`.
 - Persisted scheduler UI.
-- Player Activity panel for read-only tracked sessions/analytics.
+- Player Activity panel with 24h/7d/30d read-only analytics, average/peak online counts, returning players, session-length metrics, activity trend, species mix and top tracked players.
 - Migration Readiness panel showing setup, safety and publisher-cutover state.
 - Admin restore JSON builder with `fullNutrients` support and a separately gated DinoStorage slot uploader.
 
@@ -40,14 +40,14 @@ The project is a separate Hollow Valley control plane that keeps the existing HD
 - Scheduled-job ledger.
 - Operator audit ledger with secret-field redaction.
 - Persisted server-monitor state.
-- Persisted read-only player-presence sessions.
+- Persisted read-only player-presence sessions plus aggregate player-count/species samples (31-day default retention).
 - Automatic BodyDrop/DinoStorage reconcilers.
 - Durable HerbyBot outbox for announcements and operational alerts.
 - Existing-client HerbyBot integration helper for outbox polling, command registration and interaction handling without a second Discord login.
 - Server-side staff overview sanitizer limits Discord player output to name, species and growth; Steam IDs, coordinates and vitals never cross the HerbyBot bridge.
 - One-time/daily/weekly HerbyBot announcement scheduler, including idempotent staff slash-command scheduling.
 - Multi-failure server outage/recovery monitor.
-- Presence analytics: unique players, tracked player-minutes, tracked peak concurrency and top tracked players.
+- Presence analytics: unique/returning players, tracked playtime, average/median/longest sessions, average/peak concurrency, bucketed activity trend, sampled species mix and top tracked players.
 
 ### Website integration
 
