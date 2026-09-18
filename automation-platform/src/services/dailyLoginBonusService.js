@@ -1,0 +1,84 @@
+const store = require('./economyStore');
+
+function enabled() {
+  return String(process.env.WALLET_DAILY_LOGIN_BONUS_ENABLED || '').toLowerCase() === 'true';
+}
+
+function amount() {
+  const value = Number(process.env.WALLET_DAILY_LOGIN_BONUS_COINS || 0);
+  return Number.isSafeInteger(value) ? Math.max(0, Math.min(1000000, value)) : 0;
+}
+
+function timezone() {
+  return String(process.env.ECONOMY_TIMEZONE || 'Australia/Brisbane').trim() || 'Australia/Brisbane';
+}
+
+function dayKey(now = new Date()) {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone(),
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const parts = Object.fromEntries(formatter.formatToParts(now).map((part) => [part.type, part.value]));
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function status(steamId, { now = new Date() } = {}) {
+  const id = store.validateSteamId(steamId);
+  const key = dayKey(now);
+  const reward = amount();
+  const ledgerKey = `daily-login:${id}:${key}`;
+  const transaction = store.getLedgerByIdempotency(ledgerKey);
+  return {
+    enabled: enabled(),
+    amount: reward,
+    timezone: timezone(),
+    dayKey: key,
+    claimed: Boolean(transaction),
+    claimable: enabled() && reward > 0 && !transaction,
+    transaction: transaction || null,
+  };
+}
+
+function claim(steamId, { now = new Date() } = {}) {
+  const id = store.validateSteamId(steamId);
+  const current = status(id, { now });
+  if (!current.enabled || current.amount <= 0) {
+    const error = new Error('Daily login bonus is disabled');
+    error.code = 'DAILY_LOGIN_BONUS_DISABLED';
+    throw error;
+  }
+
+  const result = store.applyWalletTransaction({
+    steamId: id,
+    amount: current.amount,
+    kind: 'daily_login_bonus',
+    reason: `Daily login bonus (${current.dayKey})`,
+    idempotencyKey: `daily-login:${id}:${current.dayKey}`,
+    referenceType: 'daily_login',
+    referenceId: current.dayKey,
+    metadata: {
+      dayKey: current.dayKey,
+      timezone: current.timezone,
+      amount: current.amount,
+    },
+  });
+
+  return {
+    duplicate: Boolean(result.duplicate),
+    dayKey: current.dayKey,
+    amount: current.amount,
+    wallet: result.wallet,
+    transaction: result.transaction,
+  };
+}
+
+module.exports = {
+  enabled,
+  amount,
+  timezone,
+  dayKey,
+  status,
+  claim,
+};
