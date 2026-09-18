@@ -23,6 +23,14 @@ db.exec(`
     ON player_presence_sessions(ended_at, last_seen_at DESC);
   CREATE INDEX IF NOT EXISTS idx_presence_steam
     ON player_presence_sessions(steam_id, started_at DESC);
+
+  CREATE TABLE IF NOT EXISTS player_presence_samples (
+    sampled_at TEXT PRIMARY KEY,
+    player_count INTEGER NOT NULL,
+    species_counts_json TEXT NOT NULL DEFAULT '{}'
+  );
+  CREATE INDEX IF NOT EXISTS idx_presence_samples_time
+    ON player_presence_samples(sampled_at DESC);
 `);
 
 let running = false;
@@ -47,6 +55,56 @@ function normalizeOnline(snapshot) {
       species: character?.species || null,
     };
   }).filter((player) => /^\d{17}$/.test(player.steamId));
+}
+
+function speciesCounts(onlinePlayers = []) {
+  const counts = {};
+  for (const player of onlinePlayers) {
+    const species = String(player.species || 'Unknown').trim() || 'Unknown';
+    counts[species] = (counts[species] || 0) + 1;
+  }
+  return counts;
+}
+
+function recordPresenceSample(onlinePlayers, nowIso = new Date().toISOString()) {
+  const counts = speciesCounts(onlinePlayers);
+  db.prepare(`
+    INSERT INTO player_presence_samples (sampled_at, player_count, species_counts_json)
+    VALUES (?, ?, ?)
+    ON CONFLICT(sampled_at) DO UPDATE SET
+      player_count = excluded.player_count,
+      species_counts_json = excluded.species_counts_json
+  `).run(nowIso, onlinePlayers.length, JSON.stringify(counts));
+  return { sampledAt: nowIso, playerCount: onlinePlayers.length, speciesCounts: counts };
+}
+
+function listPresenceSamples({ hours = 24, nowMs = Date.now(), limit = 5000 } = {}) {
+  const safeHours = Math.max(1, Math.min(24 * 31, Number(hours) || 24));
+  const safeLimit = Math.max(1, Math.min(20000, Number(limit) || 5000));
+  const startIso = new Date(nowMs - safeHours * 60 * 60 * 1000).toISOString();
+  return db.prepare(`
+    SELECT sampled_at, player_count, species_counts_json
+    FROM player_presence_samples
+    WHERE sampled_at >= ?
+    ORDER BY sampled_at ASC
+    LIMIT ?
+  `).all(startIso, safeLimit).map((row) => {
+    let counts = {};
+    try { counts = JSON.parse(row.species_counts_json || '{}'); } catch {}
+    return {
+      sampledAt: row.sampled_at,
+      playerCount: Number(row.player_count) || 0,
+      speciesCounts: counts,
+    };
+  });
+}
+
+function prunePresenceSamples({ retentionHours = 24 * 31 } = {}) {
+  const hours = Math.max(24, Math.min(24 * 365, Number(retentionHours) || 24 * 31));
+  return db.prepare(`
+    DELETE FROM player_presence_samples
+    WHERE sampled_at < datetime('now', ?)
+  `).run(`-${hours} hours`).changes;
 }
 
 function reconcilePresence(onlinePlayers, nowIso = new Date().toISOString()) {
@@ -111,7 +169,11 @@ async function samplePresence({ force = false } = {}) {
       };
     }
     const players = normalizeOnline(snapshot);
-    return { skipped: false, ...reconcilePresence(players) };
+    const nowIso = new Date().toISOString();
+    const reconciliation = reconcilePresence(players, nowIso);
+    const sample = recordPresenceSample(players, nowIso);
+    prunePresenceSamples({ retentionHours: Number(process.env.PLAYER_PRESENCE_RETENTION_HOURS || 24 * 31) });
+    return { skipped: false, ...reconciliation, sample };
   } finally {
     running = false;
   }
@@ -212,13 +274,54 @@ function getPresenceAnalytics({ hours = 24, nowMs = Date.now() } = {}) {
       trackedMinutes: Math.round(player.trackedMs / 60000),
     }));
 
+  const completedDurations = rows
+    .filter((row) => row.ended_at)
+    .map((row) => Math.max(0, Math.min(nowMs, Date.parse(row.ended_at)) - Math.max(windowStartMs, Date.parse(row.started_at))))
+    .filter(Number.isFinite)
+    .sort((a, b) => a - b);
+  const averageSessionMinutes = completedDurations.length
+    ? Math.round(completedDurations.reduce((sum, value) => sum + value, 0) / completedDurations.length / 60000)
+    : 0;
+  const medianSessionMinutes = completedDurations.length
+    ? Math.round(completedDurations[Math.floor((completedDurations.length - 1) / 2)] / 60000)
+    : 0;
+  const longestSessionMinutes = completedDurations.length
+    ? Math.round(completedDurations[completedDurations.length - 1] / 60000)
+    : 0;
+  const returningPlayers = [...perPlayer.values()].filter((player) => player.sessions >= 2).length;
+
+  const samples = listPresenceSamples({ hours: safeHours, nowMs });
+  const samplePeak = samples.reduce((peak, sample) => Math.max(peak, sample.playerCount), 0);
+  const averageOnline = samples.length
+    ? Math.round((samples.reduce((sum, sample) => sum + sample.playerCount, 0) / samples.length) * 10) / 10
+    : 0;
+  const speciesTotals = new Map();
+  for (const sample of samples) {
+    for (const [species, count] of Object.entries(sample.speciesCounts || {})) {
+      speciesTotals.set(species, (speciesTotals.get(species) || 0) + Number(count || 0));
+    }
+  }
+  const topSpecies = [...speciesTotals.entries()]
+    .map(([species, samplePlayerCount]) => ({ species, samplePlayerCount }))
+    .sort((a, b) => b.samplePlayerCount - a.samplePlayerCount || a.species.localeCompare(b.species))
+    .slice(0, 10);
+  const activityTrend = samples.map((sample) => ({ sampledAt: sample.sampledAt, playerCount: sample.playerCount }));
+
   return {
     enabled: enabled(),
     hours: safeHours,
     uniquePlayers: unique.size,
     sessions: rows.length,
     trackedMinutes: Math.round(trackedMs / 60000),
-    peakConcurrent,
+    peakConcurrent: Math.max(peakConcurrent, samplePeak),
+    averageOnline,
+    averageSessionMinutes,
+    medianSessionMinutes,
+    longestSessionMinutes,
+    returningPlayers,
+    topSpecies,
+    activityTrend,
+    sampleCount: samples.length,
     topPlayers,
     windowStart: windowStartIso,
     windowEnd: nowIso,
@@ -239,6 +342,10 @@ module.exports = {
   enabled,
   intervalMs,
   normalizeOnline,
+  speciesCounts,
+  recordPresenceSample,
+  listPresenceSamples,
+  prunePresenceSamples,
   reconcilePresence,
   samplePresence,
   listSessions,
