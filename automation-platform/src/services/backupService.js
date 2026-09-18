@@ -82,6 +82,7 @@ function createBackup({ now = new Date() } = {}) {
 
     const db = new DatabaseSync(source);
     try {
+      db.exec('PRAGMA busy_timeout = 5000;');
       // VACUUM INTO creates a transactionally consistent standalone snapshot,
       // including data that may currently live in the source database's WAL.
       db.exec(`VACUUM INTO ${sqliteLiteral(destination)}`);
