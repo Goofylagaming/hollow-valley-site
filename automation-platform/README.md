@@ -16,6 +16,7 @@ The project is a separate Hollow Valley control plane that keeps the existing HD
 - BodyDrop/DinoStorage request ledger.
 - RCON control panel with server-side write kill switch.
 - HerbyBot bridge controls with durable announcement/alert outbox.
+- Tested HerbyBot slash-command layer: public `/server` and staff-only ephemeral `/automation`.
 - Persisted scheduler UI.
 - Player Activity panel for read-only tracked sessions/analytics.
 - Migration Readiness panel showing setup, safety and publisher-cutover state.
@@ -42,6 +43,7 @@ The project is a separate Hollow Valley control plane that keeps the existing HD
 - Persisted read-only player-presence sessions.
 - Automatic BodyDrop/DinoStorage reconcilers.
 - Durable HerbyBot outbox for announcements and operational alerts.
+- Existing-client HerbyBot integration helper for outbox polling, command registration and interaction handling without a second Discord login.
 - One-time/daily/weekly HerbyBot announcement scheduler.
 - Multi-failure server outage/recovery monitor.
 - Presence analytics: unique players, tracked player-minutes, tracked peak concurrency and top tracked players.
