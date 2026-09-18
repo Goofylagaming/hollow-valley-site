@@ -48,13 +48,16 @@ The project is a separate Hollow Valley control plane that keeps the existing HD
 - One-time/daily/weekly HerbyBot announcement scheduler, including idempotent staff slash-command scheduling.
 - Multi-failure server outage/recovery monitor.
 - Presence analytics: unique/returning players, tracked playtime, average/median/longest sessions, average/peak concurrency, bucketed activity trend, sampled species mix and top tracked players.
+- Steam-keyed Valley Coin wallets with immutable idempotent ledger transactions.
+- Configurable five-minute verified-online playtime rewards, disabled by default until the economy rate is chosen.
+- Atomic marketplace debit + pending-order creation, with explicit fulfillment/failure/refund states.
 
 ### Website integration
 
 - Dedicated `HOLLOW_VALLEY_API_TOKEN`, separate from the operator token.
 - Private `/api/website/*` server-to-server endpoints.
 - `integration/websiteAutomationClient.js` for the eventual live backend connection.
-- `integration/liveRouteAdapters.js` to preserve the current My Dinos/BodyDrop response shapes and minimize frontend changes.
+- `integration/liveRouteAdapters.js` to preserve the current My Dinos/BodyDrop/Wallet/Marketplace response shapes and minimize frontend changes.
 - Request-status polling that never replays the original game action.
 
 ### Deployment safety
@@ -65,6 +68,7 @@ The project is a separate Hollow Valley control plane that keeps the existing HD
 - `RCON_WRITE_ENABLED=false` by default.
 - `COMMAND_BRIDGE_ENABLED=false` by default.
 - `PLAYER_PRESENCE_ENABLED=false` by default.
+- `WALLET_PLAYTIME_REWARDS_ENABLED=false` and `WALLET_PLAYTIME_COINS_PER_5_MINUTES=0` by default.
 - `SERVER_MONITOR_ENABLED=false` by default.
 - `ADMIN_RESTORE_WRITE_ENABLED=false` by default; JSON generation remains available while FTP slot writes stay locked.
 - CommandBridge requires an additional exact sole-publisher acknowledgement before it can publish:
@@ -81,7 +85,9 @@ Public endpoints only expose aggregate health. Steam IDs, names, locations, stor
 
 `AUTOMATION_ADMIN_TOKEN` protects operator/admin APIs.
 
-`HOLLOW_VALLEY_API_TOKEN` protects the live website's server-to-server integration. Never expose it to browser JavaScript and never reuse the operator token.\n\n`HERBYBOT_AUTOMATION_TOKEN` protects the HerbyBot claim/ack bridge. Discord credentials stay on the existing HerbyBot service; the automation service never receives `DISCORD_BOT_TOKEN`.
+`HOLLOW_VALLEY_API_TOKEN` protects the live website's server-to-server integration. Never expose it to browser JavaScript and never reuse the operator token.
+
+`HERBYBOT_AUTOMATION_TOKEN` protects the HerbyBot claim/ack bridge. Discord credentials stay on the existing HerbyBot service; the automation service never receives `DISCORD_BOT_TOKEN`.
 
 Game actions remain conservative:
 
@@ -108,6 +114,7 @@ automation-platform/
   Dockerfile
   render.yaml
   WEBSITE_INTEGRATION.md
+  ECONOMY_MARKETPLACE.md
   DEPLOYMENT.md
 ```
 
@@ -128,6 +135,7 @@ For safe local/UI testing leave these disabled:
 COMMAND_BRIDGE_ENABLED=false
 RCON_WRITE_ENABLED=false
 PLAYER_PRESENCE_ENABLED=false
+WALLET_PLAYTIME_REWARDS_ENABLED=false
 SERVER_MONITOR_ENABLED=false
 ADMIN_RESTORE_WRITE_ENABLED=false
 ```
@@ -168,6 +176,10 @@ Operator/admin protected:
 
 Website server-to-server protected:
 
+- `GET /api/website/wallet/:steamId`
+- `GET /api/website/marketplace/catalog`
+- `GET /api/website/marketplace/orders/:steamId`
+- `POST /api/website/marketplace/catalog/:catalogId/buy`
 - `GET /api/website/bodydrop/cooldown/:steamId`
 - `POST /api/website/bodydrop`
 - `GET /api/website/dinostorage/:steamId`
@@ -175,7 +187,7 @@ Website server-to-server protected:
 - `POST /api/website/dinostorage/redeem`
 - `GET /api/website/requests/:requestId?steamId=...`
 
-See `WEBSITE_INTEGRATION.md` for the live-site contract, `HERBYBOT_INTEGRATION.md` for the existing-bot bridge, and `DEPLOYMENT.md` for the staged rollout/cutover procedure.
+See `WEBSITE_INTEGRATION.md` for the live-site contract, `ECONOMY_MARKETPLACE.md` for the wallet/marketplace architecture, `HERBYBOT_INTEGRATION.md` for the existing-bot bridge, and `DEPLOYMENT.md` for the staged rollout/cutover procedure.
 
 ## Production status
 
