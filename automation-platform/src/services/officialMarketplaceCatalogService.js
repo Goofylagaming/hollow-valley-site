@@ -31,7 +31,8 @@ const CLASS_PATHS = Object.freeze(Object.fromEntries(
 ));
 
 function seedOfficialCatalog() {
-  return OFFICIAL_DINO_CATALOG.map(([speciesId, speciesName, price], index) =>
+  const currentIds = OFFICIAL_DINO_CATALOG.map(([speciesId]) => `dino:${speciesId}:75`);
+  const items = OFFICIAL_DINO_CATALOG.map(([speciesId, speciesName, price], index) =>
     store.upsertCatalogItem({
       id: `dino:${speciesId}:75`,
       itemType: 'dino',
@@ -50,6 +51,14 @@ function seedOfficialCatalog() {
       sortOrder: index,
     })
   );
+
+  const placeholders = currentIds.map(() => '?').join(',');
+  store.db.prepare(`
+    UPDATE economy_marketplace_catalog
+    SET active = 0, updated_at = datetime('now')
+    WHERE item_type = 'dino' AND id NOT IN (${placeholders})
+  `).run(...currentIds);
+  return items;
 }
 
 function classPathForSpecies(speciesId) {
