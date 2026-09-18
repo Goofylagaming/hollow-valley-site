@@ -86,8 +86,10 @@ The first command layer contains:
 
 - `/server` — public, aggregate-only Hollow Valley status: online/offline, player count/capacity and automation connectivity.
 - `/automation` — staff-only (Manage Server / Administrator), ephemeral automation health including HerbyBot outbox state and integration readiness.
+- `/players [page]` — staff-only, ephemeral online-player overview with player name, species and growth only. Steam IDs, coordinates and vitals are stripped server-side.
+- `/queue` — staff-only, ephemeral BodyDrop/DinoStorage request counts plus HerbyBot outbox delivery state.
 
-No Steam IDs, player names, locations or stored-dino data are exposed by `/server`.
+No Steam IDs, player names, locations or stored-dino data are exposed by `/server`. The staff player view is separately sanitized on the automation service before Discord formatting, so only name/species/growth can cross the HerbyBot bridge.
 
 Command registration uses `DISCORD_GUILD_ID` when configured so development/test commands appear quickly in the target guild. If no guild ID is configured, HerbyBot registers the commands globally.
 
@@ -141,11 +143,12 @@ Recommended first live bridge test:
 2. Keep CommandBridge and RCON writes disabled.
 3. Attach the combined HerbyBot integration to the existing Discord client.
 4. Register the slash commands and verify `/server` returns aggregate status.
-5. Verify a non-staff user cannot use `/automation`, then test it with a staff account.
-6. Queue one harmless operator announcement.
-7. Confirm HerbyBot claims it, sends it once, and acknowledges it.
-8. Verify the event becomes `delivered` in the automation outbox.
-9. Only then enable scheduler delivery.
-10. Enable server-monitor alerts later, after read-only RCON is stable.
+5. Verify non-staff users cannot use `/automation`, `/players` or `/queue`.
+6. Test `/automation`, `/players` and `/queue` with a staff account and confirm player output has no Steam IDs or coordinates.
+7. Queue one harmless operator announcement.
+8. Confirm HerbyBot claims it, sends it once, and acknowledges it.
+9. Verify the event becomes `delivered` in the automation outbox.
+10. Only then enable scheduler delivery.
+11. Enable server-monitor alerts later, after read-only RCON is stable.
 
 The live `master` HerbyBot remains untouched until that controlled integration step.
