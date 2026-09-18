@@ -141,7 +141,7 @@ async function getBodyDropState(steamId) {
   if (!/^\d{17}$/.test(steamId)) throw new Error('A valid 17-digit Steam ID is required');
 
   const cooldown = getCooldown(steamId);
-  const snapshot = await statusService.getServerSnapshot({ force: true });
+  const snapshot = await statusService.getServerSnapshot();
   if (!snapshot.online) {
     return {
       steamId,
