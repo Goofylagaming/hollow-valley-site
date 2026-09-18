@@ -93,6 +93,18 @@ function requestBodyDrop({ steamId, dropType }) {
   });
 }
 
+function listMarketplaceCatalog() {
+  return call('/marketplace/catalog');
+}
+
+function getDinoMarketplaceState() {
+  return call('/marketplace/state');
+}
+
+function listDinoMarketplaceListings() {
+  return call('/marketplace/listings');
+}
+
 module.exports = {
   getActiveCharacter,
   listStoredDinos,
@@ -100,4 +112,7 @@ module.exports = {
   getRequestStatus,
   getBodyDropCooldown,
   requestBodyDrop,
+  listMarketplaceCatalog,
+  getDinoMarketplaceState,
+  listDinoMarketplaceListings,
 };
