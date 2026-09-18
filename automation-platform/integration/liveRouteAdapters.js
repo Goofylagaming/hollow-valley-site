@@ -137,6 +137,85 @@ async function buyMarketplaceCatalogItem(req, res, catalogId) {
   }
 }
 
+async function listDinoMarketplaceListings(_req, res) {
+  try {
+    const result = await automation.listDinoMarketplaceListings();
+    return res.json((result.listings || []).map((listing) => ({
+      id: listing.id,
+      price: Number(listing.price) || 0,
+      species_id: listing.snapshot?.species || 'Unknown',
+      size_percent: Math.round((Number(listing.snapshot?.growth) || 0) * 100),
+      gender: listing.snapshot?.gender || null,
+      is_prime: Boolean(listing.snapshot?.isPrime),
+      mutations: listing.snapshot?.mutationList || [],
+      skin: listing.snapshot?.skin || null,
+      created_at: listing.createdAt || null,
+    })));
+  } catch (error) {
+    const mapped = mapAutomationError(error, 'Could not read dino marketplace listings.');
+    return res.status(mapped.status).json(mapped.body);
+  }
+}
+
+async function listMyDinoMarketplaceListings(req, res) {
+  const steamId = requireLoggedInSteam(req, res);
+  if (!steamId) return;
+  try {
+    const result = await automation.listMyDinoMarketplaceListings(steamId);
+    return res.json(result.listings || []);
+  } catch (error) {
+    const mapped = mapAutomationError(error, 'Could not read your marketplace listings.');
+    return res.status(mapped.status).json(mapped.body);
+  }
+}
+
+async function createDinoMarketplaceListing(req, res) {
+  const steamId = requireLoggedInSteam(req, res);
+  if (!steamId) return;
+  const slot = String(req.body?.slot || '').trim();
+  const price = Number(req.body?.price);
+  try {
+    const result = await automation.createDinoMarketplaceListing({
+      steamId,
+      slot,
+      price,
+      idempotencyKey: `website-listing:${randomUUID()}`,
+    });
+    return res.status(result.duplicate ? 200 : 201).json(result);
+  } catch (error) {
+    const mapped = mapAutomationError(error, 'Could not list parked dinosaur.');
+    return res.status(mapped.status).json(mapped.body);
+  }
+}
+
+async function buyDinoMarketplaceListing(req, res, listingId) {
+  const steamId = requireLoggedInSteam(req, res);
+  if (!steamId) return;
+  try {
+    const result = await automation.buyDinoMarketplaceListing({
+      steamId,
+      listingId,
+      idempotencyKey: `website-p2p-buy:${randomUUID()}`,
+    });
+    return res.status(result.duplicate ? 200 : 201).json(result);
+  } catch (error) {
+    const mapped = mapAutomationError(error, 'Could not buy parked dinosaur.');
+    return res.status(mapped.status).json(mapped.body);
+  }
+}
+
+async function cancelDinoMarketplaceListing(req, res, listingId) {
+  const steamId = requireLoggedInSteam(req, res);
+  if (!steamId) return;
+  try {
+    const result = await automation.cancelDinoMarketplaceListing({ steamId, listingId });
+    return res.json(result);
+  } catch (error) {
+    const mapped = mapAutomationError(error, 'Could not cancel marketplace listing.');
+    return res.status(mapped.status).json(mapped.body);
+  }
+}
+
 async function getActiveCharacter(req, res) {
   if (!req.user) return res.status(401).json({ error: 'Not logged in' });
   if (!req.user.steam_id) return res.json({ active: false, reason: 'steam_not_linked' });
@@ -291,6 +370,11 @@ module.exports = {
   listMarketplaceCatalog,
   listMarketplaceOrders,
   buyMarketplaceCatalogItem,
+  listDinoMarketplaceListings,
+  listMyDinoMarketplaceListings,
+  createDinoMarketplaceListing,
+  buyDinoMarketplaceListing,
+  cancelDinoMarketplaceListing,
   getActiveCharacter,
   listDinos,
   parkActive,
