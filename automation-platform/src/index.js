@@ -15,7 +15,7 @@ const herbyBotRoutes = require('./routes/herbyBotRoutes');
 const bodyDropRoutes = require('./routes/bodyDropRoutes');
 const dinoStorageRoutes = require('./routes/dinoStorageRoutes');
 const { startBodyDropReconciler } = require('./services/bodyDropService');
-const { startDinoStorageReconciler } = require('./services/dinoStorageService');
+const { startDinoStorageReconciler, recoverInterruptedDinoStorage } = require('./services/dinoStorageService');
 const { startDinoMarketplaceReconciler } = require('./services/dinoMarketplaceService');
 const { seedOfficialCatalog } = require('./services/officialMarketplaceCatalogService');
 const { startOfficialMarketplaceFulfillment } = require('./services/officialMarketplaceFulfillmentService');
@@ -173,6 +173,10 @@ app.get('*', (_req, res) => {
 
 if (require.main === module) {
   seedOfficialCatalog();
+  const recoveredDinoStorage = recoverInterruptedDinoStorage();
+  if (recoveredDinoStorage) {
+    console.warn(`[dinostorage-recover] marked ${recoveredDinoStorage} interrupted request(s) unknown; none were replayed`);
+  }
   startBodyDropReconciler();
   startDinoStorageReconciler();
   startDinoMarketplaceReconciler();
