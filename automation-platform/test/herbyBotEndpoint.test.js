@@ -186,3 +186,26 @@ test('HerbyBot slash write endpoints reject invalid interaction nonces', async (
   });
   assert.equal(schedule.status, 400);
 });
+
+
+test('HerbyBot activity endpoint is token protected and returns sanitized analytics', async (t) => {
+  const server = await listen();
+  t.after(() => close(server));
+  const { port } = server.address();
+  const base = `http://127.0.0.1:${port}/api/herbybot`;
+
+  const denied = await fetch(`${base}/activity?hours=168`);
+  assert.equal(denied.status, 401);
+
+  const allowed = await fetch(`${base}/activity?hours=168`, {
+    headers: { Authorization: 'Bearer herbybot-endpoint-secret' },
+  });
+  assert.equal(allowed.status, 200);
+  const body = await allowed.json();
+  assert.equal(body.analytics.hours, 168);
+  assert.ok(Array.isArray(body.analytics.topPlayers));
+  assert.ok(Array.isArray(body.analytics.topSpecies));
+  const serialized = JSON.stringify(body);
+  assert.equal(serialized.includes('steamId'), false);
+  assert.equal(serialized.includes('activityTrend'), false);
+});
