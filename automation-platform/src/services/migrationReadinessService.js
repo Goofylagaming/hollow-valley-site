@@ -17,6 +17,7 @@ function getMigrationReadiness() {
   const bridgeEnabled = process.env.COMMAND_BRIDGE_ENABLED === 'true';
   const solePublisherAck = String(process.env.COMMAND_BRIDGE_SINGLE_PUBLISHER_ACK || '').trim() === PUBLISHER_ACK;
   const rconWritesEnabled = process.env.RCON_WRITE_ENABLED === 'true';
+  const adminRestoreWritesEnabled = process.env.ADMIN_RESTORE_WRITE_ENABLED === 'true';
   const presenceEnabled = process.env.PLAYER_PRESENCE_ENABLED === 'true';
   const monitorEnabled = process.env.SERVER_MONITOR_ENABLED === 'true';
 
@@ -37,6 +38,9 @@ function getMigrationReadiness() {
     check('rcon-writes', 'RCON writes remain disabled', !rconWritesEnabled, rconWritesEnabled
       ? 'RCON write actions are enabled. Only do this after read-only validation and controlled testing.'
       : 'RCON writes are disabled.', 'safety'),
+    check('admin-restore-writes', 'Admin restore uploads remain disabled', !adminRestoreWritesEnabled, adminRestoreWritesEnabled
+      ? 'Admin restore FTP uploads are enabled. Use only during a controlled operator restore window.'
+      : 'Admin restore JSON can be built, but FTP slot uploads remain locked.', 'safety'),
     check('presence', 'Presence tracking', presenceEnabled, presenceEnabled ? 'Read-only session tracking is enabled.' : 'Optional: enable only after stable read-only RCON verification.', 'optional'),
     check('monitor', 'Server outage monitoring', monitorEnabled, monitorEnabled ? 'Persistent outage/recovery monitoring is enabled.' : 'Optional: enable after Discord alerts and RCON stability are verified.', 'optional'),
   ];
