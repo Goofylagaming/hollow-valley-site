@@ -219,3 +219,16 @@ test('catalog seeding deactivates obsolete dinosaur items', (t) => {
   assert.equal(fixture.store.getCatalogItem('dino:deinocheirus:75').active, false);
   assert.equal(fixture.store.listCatalog({ activeOnly: true }).some((item) => item.id === 'dino:deinocheirus:75'), false);
 });
+
+
+test('official fulfillment requires both write gates', (t) => {
+  const fixture = loadFixture();
+  t.after(fixture.cleanup);
+
+  assert.equal(fixture.fulfillment.enabled(), true);
+  process.env.MARKETPLACE_WRITE_ENABLED = 'false';
+  assert.equal(fixture.fulfillment.enabled(), false);
+  process.env.MARKETPLACE_WRITE_ENABLED = 'true';
+  process.env.OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED = 'false';
+  assert.equal(fixture.fulfillment.enabled(), false);
+});
