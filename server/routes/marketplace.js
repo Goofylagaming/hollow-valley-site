@@ -1,4 +1,5 @@
 const express = require("express");
+const { randomUUID } = require("node:crypto");
 const { requireAuth } = require("../middleware/requireAuth");
 const automation = require("../services/automationWebsiteClient");
 
@@ -32,6 +33,29 @@ router.get("/catalog", async (_req, res) => {
   }
 });
 
+router.post("/catalog/:id/buy", requireAuth, async (req, res) => {
+  if (!req.user?.steam_id) {
+    return res.status(400).json({ error: "Your Steam account is not linked. Please sign in with Steam first." });
+  }
+  try {
+    const result = await automation.purchaseMarketplaceItem({
+      steamId: String(req.user.steam_id),
+      catalogId: req.params.id,
+      idempotencyKey: `website-marketplace:${randomUUID()}`,
+    });
+    return res.status(result.duplicate ? 200 : 202).json({
+      ok: true,
+      accepted: true,
+      fulfilled: result.order?.status === "fulfilled",
+      order: result.order || null,
+      wallet: result.wallet || null,
+    });
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Marketplace purchase failed.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
 router.get("/state", async (_req, res) => {
   try {
     res.json(await automation.getDinoMarketplaceState());
@@ -62,10 +86,9 @@ router.get("/listings", async (_req, res) => {
 });
 
 function writesDisabled(_req, res) {
-  return res.status(503).json({ error: "Marketplace writes are not enabled yet." });
+  return res.status(503).json({ error: "Marketplace P2P writes are not enabled yet." });
 }
 
-router.post("/catalog/:id/buy", requireAuth, writesDisabled);
 router.post("/listings", requireAuth, writesDisabled);
 router.post("/listings/:id/buy", requireAuth, writesDisabled);
 router.post("/listings/:id/cancel", requireAuth, writesDisabled);
