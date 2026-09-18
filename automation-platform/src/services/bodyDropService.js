@@ -111,12 +111,15 @@ function parseSqliteDate(value) {
   return Number.isFinite(timestamp) ? timestamp : null;
 }
 
-function getCooldown(steamId, now = Date.now()) {
-  const latest = store.getLatestForSteam(steamId, 'bodydrop');
+function cooldownForRequest(latest, now = Date.now()) {
   if (!latest) return { active: false, remainingSeconds: 0, latest: null };
   if (['preparing', 'queued', 'acknowledged', 'unknown'].includes(latest.status)) {
     return { active: true, reason: 'pending', remainingSeconds: null, latest };
   }
+  if (['failed', 'cancelled'].includes(latest.status)) {
+    return { active: false, reason: null, remainingSeconds: 0, latest };
+  }
+
   const createdAt = parseSqliteDate(latest.created_at);
   if (!createdAt) return { active: false, remainingSeconds: 0, latest };
   const remainingSeconds = Math.max(0, Math.ceil((createdAt + getCooldownSeconds() * 1000 - now) / 1000));
@@ -127,6 +130,10 @@ function getCooldown(steamId, now = Date.now()) {
     nextAvailableAt: remainingSeconds > 0 ? new Date(createdAt + getCooldownSeconds() * 1000).toISOString() : null,
     latest,
   };
+}
+
+function getCooldown(steamId, now = Date.now()) {
+  return cooldownForRequest(store.getLatestForSteam(steamId, 'bodydrop'), now);
 }
 
 async function getBodyDropState(steamId) {
@@ -285,6 +292,7 @@ function startBodyDropReconciler() {
 module.exports = {
   BODYDROP_MAX_GROWTH_PERCENT,
   bodyDropEligibility,
+  cooldownForRequest,
   growthPercent,
   isCarnivoreSpecies,
   getCooldown,
