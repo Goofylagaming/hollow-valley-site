@@ -56,6 +56,22 @@ function getStaffOverview(options = {}) {
   return call('/staff-overview', options);
 }
 
+function queueAnnouncement(message, nonce, options = {}) {
+  return call('/commands/announcement', {
+    ...options,
+    method: 'POST',
+    body: { message, nonce },
+  });
+}
+
+function scheduleAnnouncement({ message, runAt, recurrence = 'none', nonce }, options = {}) {
+  return call('/commands/schedule', {
+    ...options,
+    method: 'POST',
+    body: { message, runAt, recurrence, nonce },
+  });
+}
+
 function claimMessages({ limit = 10, leaseSeconds = 60 } = {}, options = {}) {
   return call('/outbox/claim', {
     ...options,
@@ -83,6 +99,8 @@ function failMessage(id, error, options = {}) {
 module.exports = {
   getStatus,
   getStaffOverview,
+  queueAnnouncement,
+  scheduleAnnouncement,
   claimMessages,
   acknowledgeMessage,
   failMessage,
