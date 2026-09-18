@@ -179,7 +179,6 @@
           steamId: steamInput.value,
           slot: slotInput.value,
           restore: generated,
-          fullNutrients: toggle.checked,
         }),
       });
       const payload = await response.json().catch(() => ({}));
