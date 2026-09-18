@@ -62,6 +62,26 @@ db.exec(`
     value_json TEXT NOT NULL DEFAULT '{}',
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+
+
+  CREATE TABLE IF NOT EXISTS herbybot_outbox (
+    id TEXT PRIMARY KEY,
+    destination TEXT NOT NULL,
+    message TEXT NOT NULL,
+    nonce TEXT NOT NULL UNIQUE,
+    status TEXT NOT NULL DEFAULT 'pending',
+    attempts INTEGER NOT NULL DEFAULT 0,
+    claimed_at TEXT,
+    lease_until TEXT,
+    delivered_at TEXT,
+    last_error TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_herbybot_outbox_status_created
+    ON herbybot_outbox(status, created_at ASC);
+  CREATE INDEX IF NOT EXISTS idx_herbybot_outbox_lease
+    ON herbybot_outbox(status, lease_until);
 `);
 
 function parseJson(value) {
@@ -252,6 +272,128 @@ function listAudit({ category = null, action = null, statuses = null, limit = 10
     .map(parseAudit);
 }
 
+
+function parseOutbox(row) {
+  return row || null;
+}
+
+function createOutboxEvent({ id, destination, message, nonce }) {
+  db.prepare(`
+    INSERT INTO herbybot_outbox (id, destination, message, nonce)
+    VALUES (?, ?, ?, ?)
+    ON CONFLICT(nonce) DO NOTHING
+  `).run(id, destination, message, nonce);
+  return parseOutbox(db.prepare('SELECT * FROM herbybot_outbox WHERE nonce = ?').get(nonce));
+}
+
+function getOutboxEvent(id) {
+  return parseOutbox(db.prepare('SELECT * FROM herbybot_outbox WHERE id = ?').get(String(id)));
+}
+
+function listOutboxEvents({ statuses = null, limit = 100 } = {}) {
+  const safeLimit = Math.max(1, Math.min(500, Number(limit) || 100));
+  const clauses = [];
+  const params = [];
+  if (Array.isArray(statuses) && statuses.length) {
+    clauses.push(`status IN (${statuses.map(() => '?').join(',')})`);
+    params.push(...statuses);
+  }
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+  return db.prepare(`SELECT * FROM herbybot_outbox ${where} ORDER BY created_at ASC LIMIT ?`)
+    .all(...params, safeLimit)
+    .map(parseOutbox);
+}
+
+function claimOutboxEvents({ limit = 10, leaseSeconds = 60, now = new Date() } = {}) {
+  const safeLimit = Math.max(1, Math.min(50, Number(limit) || 10));
+  const safeLease = Math.max(15, Math.min(300, Number(leaseSeconds) || 60));
+  const nowIso = now.toISOString();
+  const leaseUntil = new Date(now.getTime() + safeLease * 1000).toISOString();
+
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    db.prepare(`
+      UPDATE herbybot_outbox
+      SET status = 'pending', claimed_at = NULL, lease_until = NULL, updated_at = datetime('now')
+      WHERE status = 'claimed' AND lease_until IS NOT NULL AND lease_until <= ?
+    `).run(nowIso);
+
+    const rows = db.prepare(`
+      SELECT * FROM herbybot_outbox
+      WHERE status = 'pending'
+      ORDER BY created_at ASC
+      LIMIT ?
+    `).all(safeLimit);
+
+    const update = db.prepare(`
+      UPDATE herbybot_outbox
+      SET status = 'claimed',
+          attempts = attempts + 1,
+          claimed_at = ?,
+          lease_until = ?,
+          last_error = NULL,
+          updated_at = datetime('now')
+      WHERE id = ? AND status = 'pending'
+    `);
+
+    for (const row of rows) update.run(nowIso, leaseUntil, row.id);
+    db.exec('COMMIT');
+
+    if (!rows.length) return [];
+    const ids = rows.map((row) => row.id);
+    return ids.map((id) => getOutboxEvent(id)).filter(Boolean);
+  } catch (error) {
+    try { db.exec('ROLLBACK'); } catch {}
+    throw error;
+  }
+}
+
+function acknowledgeOutboxEvent(id, deliveredAt = new Date().toISOString()) {
+  const current = getOutboxEvent(id);
+  if (!current) return null;
+  if (current.status === 'delivered') return current;
+  db.prepare(`
+    UPDATE herbybot_outbox
+    SET status = 'delivered',
+        delivered_at = ?,
+        claimed_at = NULL,
+        lease_until = NULL,
+        last_error = NULL,
+        updated_at = datetime('now')
+    WHERE id = ?
+  `).run(deliveredAt, current.id);
+  return getOutboxEvent(current.id);
+}
+
+function failOutboxEvent(id, error, { terminal = false } = {}) {
+  const current = getOutboxEvent(id);
+  if (!current) return null;
+  db.prepare(`
+    UPDATE herbybot_outbox
+    SET status = ?,
+        claimed_at = NULL,
+        lease_until = NULL,
+        last_error = ?,
+        updated_at = datetime('now')
+    WHERE id = ?
+  `).run(terminal ? 'failed' : 'pending', String(error || 'Delivery failed').slice(0, 500), current.id);
+  return getOutboxEvent(current.id);
+}
+
+function getOutboxSummary() {
+  const rows = db.prepare(`
+    SELECT status, COUNT(*) AS count
+    FROM herbybot_outbox
+    GROUP BY status
+  `).all();
+  const summary = { pending: 0, claimed: 0, delivered: 0, failed: 0, total: 0 };
+  for (const row of rows) {
+    if (Object.hasOwn(summary, row.status)) summary[row.status] = Number(row.count) || 0;
+    summary.total += Number(row.count) || 0;
+  }
+  return summary;
+}
+
 function getState(key, fallback = null) {
   const row = db.prepare('SELECT value_json, updated_at FROM automation_state WHERE key = ?').get(String(key));
   if (!row) return fallback;
@@ -290,6 +432,13 @@ module.exports = {
   getAudit,
   updateAudit,
   listAudit,
+  createOutboxEvent,
+  getOutboxEvent,
+  listOutboxEvents,
+  claimOutboxEvents,
+  acknowledgeOutboxEvent,
+  failOutboxEvent,
+  getOutboxSummary,
   getState,
   setState,
   deleteState,
