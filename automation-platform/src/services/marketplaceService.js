@@ -1,10 +1,7 @@
 const { randomUUID } = require('node:crypto');
-const { DatabaseSync } = require('node:sqlite');
 const store = require('./economyStore');
 
-const db = new DatabaseSync(store.dbPath);
-db.exec('PRAGMA busy_timeout = 5000;');
-db.exec('PRAGMA journal_mode = WAL;');
+const db = store.db;
 
 function purchaseCatalogItem({ steamId, catalogId, idempotencyKey }) {
   const buyer = store.validateSteamId(steamId);
