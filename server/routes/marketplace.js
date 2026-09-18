@@ -15,6 +15,22 @@ function mapAutomationError(error, fallback) {
   return { status: 502, body: { error: error?.message || fallback } };
 }
 
+function mapListing(listing) {
+  return {
+    id: listing.id,
+    status: listing.status || null,
+    price: Number(listing.price) || 0,
+    original_slot: listing.original_slot || listing.originalSlot || listing.snapshot?.originalSlot || null,
+    species_id: listing.snapshot?.species || "Unknown",
+    size_percent: Math.round((Number(listing.snapshot?.growth) || 0) * 100),
+    gender: listing.snapshot?.gender || null,
+    is_prime: Boolean(listing.snapshot?.isPrime),
+    mutations: listing.snapshot?.mutationList || [],
+    skin: listing.snapshot?.skin || null,
+    created_at: listing.createdAt || listing.created_at || null,
+  };
+}
+
 router.get("/catalog", async (_req, res) => {
   try {
     const result = await automation.listMarketplaceCatalog();
@@ -58,7 +74,8 @@ router.post("/catalog/:id/buy", requireAuth, async (req, res) => {
 
 router.get("/state", async (_req, res) => {
   try {
-    res.json(await automation.getDinoMarketplaceState());
+    const state = await automation.getDinoMarketplaceState();
+    res.json({ ...state, p2pWritesEnabled: false });
   } catch (error) {
     const mapped = mapAutomationError(error, "Could not read marketplace state.");
     res.status(mapped.status).json(mapped.body);
@@ -68,19 +85,22 @@ router.get("/state", async (_req, res) => {
 router.get("/listings", async (_req, res) => {
   try {
     const result = await automation.listDinoMarketplaceListings();
-    res.json((result.listings || []).map((listing) => ({
-      id: listing.id,
-      price: Number(listing.price) || 0,
-      species_id: listing.snapshot?.species || "Unknown",
-      size_percent: Math.round((Number(listing.snapshot?.growth) || 0) * 100),
-      gender: listing.snapshot?.gender || null,
-      is_prime: Boolean(listing.snapshot?.isPrime),
-      mutations: listing.snapshot?.mutationList || [],
-      skin: listing.snapshot?.skin || null,
-      created_at: listing.createdAt || null,
-    })));
+    res.json((result.listings || []).map(mapListing));
   } catch (error) {
     const mapped = mapAutomationError(error, "Could not read dino marketplace listings.");
+    res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.get("/listings/mine", requireAuth, async (req, res) => {
+  if (!req.user?.steam_id) {
+    return res.status(400).json({ error: "Your Steam account is not linked. Please sign in with Steam first." });
+  }
+  try {
+    const result = await automation.listMyDinoMarketplaceListings(String(req.user.steam_id));
+    res.json((result.listings || []).map(mapListing));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not read your marketplace listings.");
     res.status(mapped.status).json(mapped.body);
   }
 });
