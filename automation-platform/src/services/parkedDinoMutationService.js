@@ -2,6 +2,21 @@ const files = require('./parkedDinoFileService');
 
 const SLOT_KEYS = Object.freeze(['Slot1', 'Slot2', 'Slot3', 'Slot4']);
 
+const MUTATION_RULES = Object.freeze({
+  'Advanced Gestation': { femaleOnly: true },
+  'Gastronomic Regeneration': { slots: ['Slot2', 'Slot4'] },
+  'Tactile Endurance': { slots: ['Slot2', 'Slot4'] },
+  'Cannibalistic': { slots: ['Slot2', 'Slot4'] },
+  'Hypermetabolic Inanition': { slots: ['Slot2', 'Slot4'] },
+  'Enhanced Digestion': { slots: ['Slot2', 'Slot3'] },
+  'Heightened Ghrelin': { slots: ['Slot2'] },
+  'Multichambered Lungs': { slots: ['Slot2', 'Slot3'] },
+  'Reniculate Kidneys': { slots: ['Slot2', 'Slot3'] },
+  'Augmented Tapetum': { slots: ['Slot2'] },
+  'Parthenogenesis': { slots: ['Slot2'], femaleOnly: true },
+  'Prolific Reproduction': { slots: ['Slot2'], femaleOnly: true },
+});
+
 const MUTATION_CATALOG = Object.freeze([
   'Accelerated Prey Drive',
   'Advanced Gestation',
@@ -31,15 +46,16 @@ const MUTATION_CATALOG = Object.freeze([
   'Osteosclerosis',
   'Photosynthetic Regeneration',
   'Photosynthetic Tissue',
+  'Parthenogenesis',
   'Prolific Reproduction',
   'Reabsorption',
   'Reinforced Tendons',
   'Reniculate Kidneys',
+  'Sequential Hermaphroditism',
   'Social Behavior',
   'Submerged Optical Retention',
   'Sustained Hydration',
   'Tactile Endurance',
-  'Traumatic Thrombosis',
   'Truculency',
   'Wader',
   'Xerocole Adaptation',
@@ -63,9 +79,29 @@ function normalizeMutation(value) {
   return canonical;
 }
 
-function normalizeSlots(input = {}) {
+function mutationAllowedInSlot(name, slotKey, { isFemale = null } = {}) {
+  if (!name) return true;
+  const rules = MUTATION_RULES[name] || {};
+  if (Array.isArray(rules.slots) && !rules.slots.includes(slotKey)) return false;
+  if (rules.femaleOnly && isFemale !== true) return false;
+  return true;
+}
+
+function normalizeSlots(input = {}, { isFemale = null } = {}) {
   const result = {};
-  for (const key of SLOT_KEYS) result[key] = normalizeMutation(input?.[key]);
+  for (const key of SLOT_KEYS) {
+    const value = normalizeMutation(input?.[key]);
+    if (value && !mutationAllowedInSlot(value, key, { isFemale })) {
+      const rules = MUTATION_RULES[value] || {};
+      const reason = rules.femaleOnly && isFemale !== true
+        ? `${value} is female-only`
+        : `${value} cannot be equipped in ${key}`;
+      const error = new Error(reason);
+      error.code = 'MUTATION_SLOT_NOT_ALLOWED';
+      throw error;
+    }
+    result[key] = value;
+  }
   const chosen = SLOT_KEYS.map((key) => result[key]).filter(Boolean);
   if (new Set(chosen.map((name) => name.toLowerCase())).size !== chosen.length) {
     const error = new Error('The same mutation cannot be equipped in more than one active slot');
@@ -77,10 +113,16 @@ function normalizeSlots(input = {}) {
 
 function editorState(state, slot) {
   const mutations = state?.mutations && typeof state.mutations === 'object' ? state.mutations : {};
+  const isFemale = state?.isFemale === true ? true : state?.isFemale === false ? false : null;
   return {
     slot,
     mutations: Object.fromEntries(SLOT_KEYS.map((key) => [key, mutations[key] || ''])),
     catalog: [...MUTATION_CATALOG],
+    slotCatalog: Object.fromEntries(SLOT_KEYS.map((key) => [
+      key,
+      MUTATION_CATALOG.filter((name) => mutationAllowedInSlot(name, key, { isFemale })),
+    ])),
+    isFemale,
     writeEnabled: writeEnabled(),
   };
 }
@@ -101,9 +143,9 @@ async function updateMutations({ steamId, slot, mutations }) {
 
   const steam = files.validateSteamId(steamId);
   const selectedSlot = files.validateSlot(slot);
-  const nextSlots = normalizeSlots(mutations);
 
   const updated = await files.updateStoredDino(steam, selectedSlot, (state) => {
+    const nextSlots = normalizeSlots(mutations, { isFemale: state?.isFemale === true });
     if (!state.mutations || typeof state.mutations !== 'object' || Array.isArray(state.mutations)) {
       state.mutations = {};
     }
@@ -120,9 +162,11 @@ async function updateMutations({ steamId, slot, mutations }) {
 
 module.exports = {
   SLOT_KEYS,
+  MUTATION_RULES,
   MUTATION_CATALOG,
   writeEnabled,
   normalizeMutation,
+  mutationAllowedInSlot,
   normalizeSlots,
   editorState,
   getMutationEditor,
