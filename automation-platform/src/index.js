@@ -15,6 +15,8 @@ const dinoStorageRoutes = require('./routes/dinoStorageRoutes');
 const { startBodyDropReconciler } = require('./services/bodyDropService');
 const { startDinoStorageReconciler } = require('./services/dinoStorageService');
 const { startDinoMarketplaceReconciler } = require('./services/dinoMarketplaceService');
+const { seedOfficialCatalog } = require('./services/officialMarketplaceCatalogService');
+const { startOfficialMarketplaceFulfillment } = require('./services/officialMarketplaceFulfillmentService');
 const { startDiscordAutomation } = require('./services/discordAutomationService');
 const { startScheduler } = require('./services/schedulerService');
 const { startServerMonitor } = require('./services/serverMonitorService');
@@ -117,9 +119,11 @@ app.get('*', (_req, res) => {
 });
 
 if (require.main === module) {
+  seedOfficialCatalog();
   startBodyDropReconciler();
   startDinoStorageReconciler();
-startDinoMarketplaceReconciler();
+  startDinoMarketplaceReconciler();
+  startOfficialMarketplaceFulfillment();
   startDiscordAutomation();
   startScheduler();
   startServerMonitor();
