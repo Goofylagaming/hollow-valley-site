@@ -251,9 +251,9 @@ async function openMutationEditor(dino) {
   );
   try {
     const data = await api(`/api/mydinos/stored/${encodeURIComponent(dino.slot)}/mutations`);
-    const options = (selected) => [
+    const options = (slotKey, selected) => [
       '<option value="">Empty slot</option>',
-      ...(data.catalog || []).map((name) =>
+      ...((data.slotCatalog?.[slotKey]) || data.catalog || []).map((name) =>
         `<option value="${escapeHtml(name)}" ${name === selected ? "selected" : ""}>${escapeHtml(name)}</option>`
       ),
     ].join("");
@@ -261,7 +261,7 @@ async function openMutationEditor(dino) {
       <form id="mutation-editor-form" class="parked-tool-form">
         <div class="mutation-editor-grid">
           ${["Slot1","Slot2","Slot3","Slot4"].map((slotKey, index) => `
-            <label><span>ACTIVE SLOT ${index + 1}</span><select name="${slotKey}">${options(data.mutations?.[slotKey] || "")}</select></label>
+            <label><span>ACTIVE SLOT ${index + 1}</span><select name="${slotKey}">${options(slotKey, data.mutations?.[slotKey] || "")}</select></label>
           `).join("")}
         </div>
         <div class="parked-tool-note">${data.writeEnabled ? "Changes are written only to this parked DinoStorage slot." : "Mutation editing is currently locked until the parked-dino write gate is enabled."}</div>
