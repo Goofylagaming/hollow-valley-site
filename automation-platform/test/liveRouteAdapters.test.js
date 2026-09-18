@@ -98,3 +98,49 @@ test('missing login is rejected before contacting automation service', async (t)
   assert.equal(calls, 0);
   assert.equal(res.statusCode, 401);
 });
+
+
+test('BodyDrop state preserves automation eligibility and restrictions for the live frontend', async (t) => {
+  const fixture = loadWithClientStubs({
+    getBodyDropCooldown: async () => ({
+      serverOnline: true,
+      cooldown: { active: false, remainingSeconds: 0, latest: null },
+      eligibility: { eligible: false, reason: 'Body drops are only available to carnivores.', species: 'Triceratops' },
+      restrictions: { carnivoreOnly: true, maxGrowthPercent: 60 },
+    }),
+  });
+  t.after(fixture.restore);
+
+  const req = { user: { steam_id: '76561198000000000' } };
+  const res = response();
+  await fixture.adapters.getBodyDropState(req, res, { options: [{ id: 'small' }] });
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.serverOnline, true);
+  assert.equal(res.body.eligibility.eligible, false);
+  assert.match(res.body.eligibility.reason, /carnivores/i);
+  assert.deepEqual(res.body.restrictions, { carnivoreOnly: true, maxGrowthPercent: 60 });
+});
+
+test('BodyDrop 403 keeps eligibility details instead of becoming a generic proxy error', async (t) => {
+  const fixture = loadWithClientStubs({
+    requestBodyDrop: async () => {
+      const error = new Error('Body drops are only available at 60% growth or below.');
+      error.status = 403;
+      error.payload = {
+        error: error.message,
+        eligibility: { eligible: false, growthPercent: 72, maxGrowthPercent: 60 },
+      };
+      throw error;
+    },
+  });
+  t.after(fixture.restore);
+
+  const req = { user: { steam_id: '76561198000000000' }, body: { dropType: 'small' } };
+  const res = response();
+  await fixture.adapters.requestBodyDrop(req, res);
+
+  assert.equal(res.statusCode, 403);
+  assert.equal(res.body.eligibility.eligible, false);
+  assert.equal(res.body.eligibility.growthPercent, 72);
+});
