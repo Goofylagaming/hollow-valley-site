@@ -3,6 +3,7 @@ const { api, escapeHtml } = window.HDS;
 let speciesById = {};
 let catalog = [];
 let activeFilter = "all";
+let marketplaceState = { writeEnabled: false };
 
 async function loadSpeciesMap() {
   const list = await api("/api/species");
@@ -65,6 +66,19 @@ function renderCatalog() {
   );
 }
 
+async function loadMarketplaceState() {
+  try {
+    marketplaceState = await api("/api/marketplace/state");
+  } catch {
+    marketplaceState = { writeEnabled: false };
+  }
+  const notice = document.getElementById("marketplace-write-notice");
+  if (notice) {
+    notice.hidden = marketplaceState.writeEnabled;
+    notice.textContent = "Player-to-player selling is staged but currently locked while DinoStorage escrow writes remain disabled.";
+  }
+}
+
 async function loadListings() {
   const grid = document.getElementById("listings-grid");
   try {
@@ -82,7 +96,7 @@ async function loadListings() {
           <small>${listing.size_percent || 0}% growth${listing.gender ? ` · ${escapeHtml(listing.gender)}` : ""}${listing.is_prime ? " · PRIME" : ""}</small>
           ${mutations.length ? `<div class="market-listing-meta">${mutations.slice(0,4).map((mutation) => `<span>${escapeHtml(mutation)}</span>`).join("")}</div>` : ""}
           <div class="stat-row"><span>${Number(listing.price || 0).toLocaleString()} Valley Coin</span></div>
-          <div class="actions"><button class="small-button buy-listing-btn" data-id="${escapeHtml(listing.id)}">Buy</button></div>
+          <div class="actions"><button class="small-button buy-listing-btn" data-id="${escapeHtml(listing.id)}" ${marketplaceState.writeEnabled ? "" : "disabled"}>${marketplaceState.writeEnabled ? "Buy" : "Marketplace locked"}</button></div>
         </div>`;
       })
       .join("");
@@ -136,7 +150,7 @@ async function loadMyListings() {
           <span class="listing-status-pill">${escapeHtml(listing.status || "unknown")}</span>
         </div>
         ${(snapshot.mutationList || []).length ? `<div class="market-listing-meta">${snapshot.mutationList.slice(0,4).map((mutation) => `<span>${escapeHtml(mutation)}</span>`).join("")}</div>` : ""}
-        <div class="actions">${listing.status === "active" ? `<button class="small-button cancel-listing-btn" data-id="${escapeHtml(listing.id)}">Cancel listing</button>` : ""}</div>
+        <div class="actions">${listing.status === "active" ? `<button class="small-button cancel-listing-btn" data-id="${escapeHtml(listing.id)}" ${marketplaceState.writeEnabled ? "" : "disabled"}>${marketplaceState.writeEnabled ? "Cancel listing" : "Marketplace locked"}</button>` : ""}</div>
       </div>`;
     }).join("");
     grid.querySelectorAll(".cancel-listing-btn").forEach((button) => {
@@ -172,6 +186,7 @@ document.getElementById("sort-select")?.addEventListener("change", renderCatalog
 
 async function init() {
   await loadSpeciesMap();
+  await loadMarketplaceState();
   catalog = await api("/api/marketplace/catalog");
   renderCatalog();
   await loadListings();
