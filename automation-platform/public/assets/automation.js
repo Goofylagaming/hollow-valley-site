@@ -85,25 +85,28 @@ function renderRequests(requests) {
 }
 
 function renderDiscordAutomation(state = {}) {
-  const ready = state.statusChannelConfigured && state.announcementConfigured;
-  const partial = state.configured && !ready;
-  const health = state.lastError ? 'Needs attention' : ready ? 'Ready' : partial ? 'Partial setup' : 'Not configured';
+  const ready = Boolean(state.configured);
+  const health = state.lastError ? 'Needs attention' : ready ? 'Bridge ready' : 'Not configured';
   $('discord-health').textContent = health;
-  $('discord-status-channel').textContent = state.statusChannelConfigured
-    ? state.lastStatusChannelName ? `Last synced: ${state.lastStatusChannelName}` : 'Configured · waiting for first sync'
-    : 'Not configured';
-  $('discord-announcement-channel').textContent = state.announcementConfigured ? 'Announcement channel configured' : 'Announcement channel not configured';
+  $('discord-status-channel').textContent = ready
+    ? state.lastStatusChannelName ? `Expected label: ${state.lastStatusChannelName}` : 'Managed by HerbyBot'
+    : 'Bridge not configured';
+
+  const pending = Number(state.outbox?.pending || 0) + Number(state.outbox?.claimed || 0);
+  $('discord-announcement-channel').textContent = ready
+    ? `HerbyBot outbox ready · ${pending} pending`
+    : 'HerbyBot bridge not configured';
 
   const sync = $('discord-sync-status');
-  if (sync) sync.disabled = !state.statusChannelConfigured;
+  if (sync) sync.disabled = !ready;
   const message = $('discord-message');
   const submit = document.querySelector('#discord-announcement-form button[type="submit"]');
-  if (message) message.disabled = !state.announcementConfigured;
-  if (submit) submit.disabled = !state.announcementConfigured;
+  if (message) message.disabled = !ready;
+  if (submit) submit.disabled = !ready;
 
   const schedulerForm = $('scheduler-form');
   if (schedulerForm) {
-    for (const field of schedulerForm.querySelectorAll('textarea,input,select,button')) field.disabled = !state.announcementConfigured;
+    for (const field of schedulerForm.querySelectorAll('textarea,input,select,button')) field.disabled = !ready;
   }
 
   const notice = $('discord-action-status');
@@ -327,16 +330,16 @@ $('reconcile-all')?.addEventListener('click', async () => {
 $('discord-sync-status')?.addEventListener('click', async () => {
   const button = $('discord-sync-status');
   button.disabled = true;
-  button.textContent = 'Syncing…';
+  button.textContent = 'Checking…';
   showDiscordNotice('');
   try {
     const result = await fetchJson('/api/admin/discord/sync-status', { method: 'POST', headers: adminHeaders() });
-    showDiscordNotice(result.changed ? `Discord status channel updated to ${result.name}.` : `Discord status channel already matches ${result.name}.`);
+    showDiscordNotice(result.message || `HerbyBot status handoff expects ${result.name}.`);
     await loadAdminStatus(false);
   } catch (error) {
     showDiscordNotice(error.message, true);
   } finally {
-    button.textContent = 'Sync status now';
+    button.textContent = 'Check status handoff';
   }
 });
 
@@ -346,7 +349,7 @@ $('discord-announcement-form')?.addEventListener('submit', async (event) => {
   if (!message) return;
   const button = event.currentTarget.querySelector('button[type="submit"]');
   button.disabled = true;
-  button.textContent = 'Sending…';
+  button.textContent = 'Queueing…';
   showDiscordNotice('');
   try {
     await fetchJson('/api/admin/discord/announce', {
@@ -355,12 +358,12 @@ $('discord-announcement-form')?.addEventListener('submit', async (event) => {
       body: JSON.stringify({ message }),
     });
     $('discord-message').value = '';
-    showDiscordNotice('Announcement sent to Discord.');
+    showDiscordNotice('Announcement queued for HerbyBot delivery.');
   } catch (error) {
     showDiscordNotice(error.message, true);
   } finally {
     button.disabled = false;
-    button.textContent = 'Send announcement';
+    button.textContent = 'Queue announcement';
   }
 });
 
