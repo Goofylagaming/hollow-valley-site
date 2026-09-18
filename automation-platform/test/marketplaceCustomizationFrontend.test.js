@@ -61,3 +61,10 @@ test('branch routes use automation adapters for real parked-dino features', () =
   assert.match(skins, /automationRoutes\.createSkinPreset/);
   assert.match(skins, /automationRoutes\.applySkinPreset/);
 });
+
+
+test('My Dinos tool wiring contains no accidental literal escaped newline between statements', () => {
+  const source = read('public/assets/mydinos.js');
+  assert.equal(source.includes('wireParkedTools(grid);\\n'), false);
+  assert.match(source, /wireParkedTools\(grid\);\s+grid\.querySelectorAll/);
+});
