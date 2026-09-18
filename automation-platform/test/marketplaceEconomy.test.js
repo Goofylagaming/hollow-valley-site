@@ -9,9 +9,11 @@ function loadMarketplace() {
   const previous = {
     db: process.env.AUTOMATION_DB_PATH,
     write: process.env.MARKETPLACE_WRITE_ENABLED,
+    fulfillment: process.env.OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED,
   };
   process.env.AUTOMATION_DB_PATH = path.join(dir, 'economy.sqlite');
   process.env.MARKETPLACE_WRITE_ENABLED = 'true';
+  process.env.OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED = 'true';
 
   const storePath = require.resolve('../src/services/economyStore');
   const marketPath = require.resolve('../src/services/marketplaceService');
@@ -30,6 +32,8 @@ function loadMarketplace() {
       else process.env.AUTOMATION_DB_PATH = previous.db;
       if (previous.write === undefined) delete process.env.MARKETPLACE_WRITE_ENABLED;
       else process.env.MARKETPLACE_WRITE_ENABLED = previous.write;
+      if (previous.fulfillment === undefined) delete process.env.OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED;
+      else process.env.OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED = previous.fulfillment;
       fs.rmSync(dir, { recursive: true, force: true });
     },
   };
@@ -136,4 +140,37 @@ test('failed pending order can be refunded idempotently', (t) => {
   const duplicate = marketplace.refundOrder(purchase.order.id);
   assert.equal(duplicate.wallet.balance, 500);
   assert.equal(store.getWallet(steamId).transactions.filter((tx) => tx.kind === 'marketplace_refund').length, 1);
+});
+
+
+test('official purchase is fail-closed before any debit when fulfillment gate is disabled', (t) => {
+  const fixture = loadMarketplace();
+  t.after(fixture.cleanup);
+  const { store, marketplace } = fixture;
+  const steamId = '76561198000000011';
+
+  store.upsertCatalogItem({
+    id: 'dino:carno:75',
+    itemType: 'dino',
+    name: 'Carnotaurus 75%',
+    price: 400,
+    payload: { species: 'Carnotaurus', growth: 0.75 },
+  });
+  store.applyWalletTransaction({
+    steamId,
+    amount: 1000,
+    kind: 'admin_seed',
+    reason: 'Test funding',
+    idempotencyKey: 'seed:market:disabled',
+  });
+
+  process.env.OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED = 'false';
+  assert.throws(() => marketplace.purchaseCatalogItem({
+    steamId,
+    catalogId: 'dino:carno:75',
+    idempotencyKey: 'purchase:disabled:001',
+  }), (error) => error.code === 'OFFICIAL_MARKETPLACE_FULFILLMENT_DISABLED');
+
+  assert.equal(store.getWallet(steamId).balance, 1000);
+  assert.equal(store.listOrders({ steamId }).length, 0);
 });
