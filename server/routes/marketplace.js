@@ -1,22 +1,73 @@
 const express = require("express");
 const { requireAuth } = require("../middleware/requireAuth");
-const automationRoutes = require("../../automation-platform/integration/liveRouteAdapters");
+const automation = require("../services/automationWebsiteClient");
 
 const router = express.Router();
 
-// Both the official catalog and player-to-player marketplace read from the
-// Steam-keyed automation economy. Writes remain fail-closed behind the
-// automation service's explicit marketplace write gates.
-router.get("/catalog", (req, res) => automationRoutes.listMarketplaceCatalog(req, res));
-router.post("/catalog/:id/buy", requireAuth, (req, res) =>
-  automationRoutes.buyMarketplaceCatalogItem(req, res, req.params.id));
+function mapAutomationError(error, fallback) {
+  if (Number.isInteger(error?.status)) {
+    return { status: error.status, body: { error: error.message || fallback } };
+  }
+  if (error?.code === "AUTOMATION_TIMEOUT") {
+    return { status: 504, body: { error: "The automation service did not respond in time." } };
+  }
+  return { status: 502, body: { error: error?.message || fallback } };
+}
 
-router.get("/state", (req, res) => automationRoutes.getDinoMarketplaceState(req, res));
-router.get("/orders/mine", requireAuth, (req, res) => automationRoutes.listMarketplaceOrders(req, res));
-router.get("/listings", (req, res) => automationRoutes.listDinoMarketplaceListings(req, res));
-router.get("/listings/mine", requireAuth, (req, res) => automationRoutes.listMyDinoMarketplaceListings(req, res));
-router.post("/listings", requireAuth, (req, res) => automationRoutes.createDinoMarketplaceListing(req, res));
-router.post("/listings/:id/buy", requireAuth, (req, res) => automationRoutes.buyDinoMarketplaceListing(req, res, req.params.id));
-router.post("/listings/:id/cancel", requireAuth, (req, res) => automationRoutes.cancelDinoMarketplaceListing(req, res, req.params.id));
+router.get("/catalog", async (_req, res) => {
+  try {
+    const result = await automation.listMarketplaceCatalog();
+    const catalog = (result.catalog || []).map((item) => ({
+      id: item.id,
+      species_id: item.payload?.speciesId || item.payload?.species || item.id,
+      price: Number(item.price) || 0,
+      size_percent: Number(item.payload?.sizePercent ?? item.payload?.growthPercent ?? 75),
+      name: item.name || null,
+      item_type: item.item_type || null,
+    }));
+    res.json(catalog);
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not read marketplace catalog.");
+    res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.get("/state", async (_req, res) => {
+  try {
+    res.json(await automation.getDinoMarketplaceState());
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not read marketplace state.");
+    res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.get("/listings", async (_req, res) => {
+  try {
+    const result = await automation.listDinoMarketplaceListings();
+    res.json((result.listings || []).map((listing) => ({
+      id: listing.id,
+      price: Number(listing.price) || 0,
+      species_id: listing.snapshot?.species || "Unknown",
+      size_percent: Math.round((Number(listing.snapshot?.growth) || 0) * 100),
+      gender: listing.snapshot?.gender || null,
+      is_prime: Boolean(listing.snapshot?.isPrime),
+      mutations: listing.snapshot?.mutationList || [],
+      skin: listing.snapshot?.skin || null,
+      created_at: listing.createdAt || null,
+    })));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not read dino marketplace listings.");
+    res.status(mapped.status).json(mapped.body);
+  }
+});
+
+function writesDisabled(_req, res) {
+  return res.status(503).json({ error: "Marketplace writes are not enabled yet." });
+}
+
+router.post("/catalog/:id/buy", requireAuth, writesDisabled);
+router.post("/listings", requireAuth, writesDisabled);
+router.post("/listings/:id/buy", requireAuth, writesDisabled);
+router.post("/listings/:id/cancel", requireAuth, writesDisabled);
 
 module.exports = router;
