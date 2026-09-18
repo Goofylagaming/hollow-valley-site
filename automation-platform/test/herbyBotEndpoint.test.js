@@ -76,3 +76,23 @@ test('HerbyBot can claim and acknowledge a queued event through the bridge API',
   const ackBody = await ack.json();
   assert.equal(ackBody.event.status, 'delivered');
 });
+
+
+test('HerbyBot staff overview requires bridge authentication', async (t) => {
+  const server = await listen();
+  t.after(() => close(server));
+  const { port } = server.address();
+  const base = `http://127.0.0.1:${port}/api/herbybot`;
+
+  const denied = await fetch(`${base}/staff-overview`);
+  assert.equal(denied.status, 401);
+
+  const allowed = await fetch(`${base}/staff-overview`, {
+    headers: { Authorization: 'Bearer herbybot-endpoint-secret' },
+  });
+  assert.equal(allowed.status, 200);
+  const body = await allowed.json();
+  assert.ok(Array.isArray(body.server.players));
+  assert.ok(body.requests);
+  assert.ok(body.outbox);
+});
