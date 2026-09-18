@@ -181,14 +181,18 @@ function isStaffOverviewCommand(name) {
 
 async function handleStaffOverviewCommand(interaction, api) {
   if (!isStaffOverviewCommand(interaction.commandName)) return false;
+
+  if (interaction.commandName === 'activity') {
+    const window = interaction.options?.getString?.('window') || '24h';
+    return activityReply(await api.getActivity(activityWindowHours(window)));
+  }
+
   const overview = await api.getStaffOverview();
   if (interaction.commandName === 'players') {
     const page = interaction.options?.getInteger?.('page') || 1;
     return playersReply(overview, page);
   }
-  if (interaction.commandName === 'queue') return queueReply(overview);
-  const window = interaction.options?.getString?.('window') || '24h';
-  return activityReply(await api.getActivity(activityWindowHours(window)));
+  return queueReply(overview);
 }
 
 module.exports = {
