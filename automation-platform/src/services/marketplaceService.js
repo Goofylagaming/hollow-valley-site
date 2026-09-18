@@ -7,6 +7,10 @@ function writeEnabled() {
   return String(process.env.MARKETPLACE_WRITE_ENABLED || '').toLowerCase() === 'true';
 }
 
+function officialFulfillmentEnabled() {
+  return String(process.env.OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED || '').toLowerCase() === 'true';
+}
+
 function assertWriteEnabled() {
   if (!writeEnabled()) {
     const error = new Error('Marketplace writes are disabled');
@@ -15,8 +19,17 @@ function assertWriteEnabled() {
   }
 }
 
-function purchaseCatalogItem({ steamId, catalogId, idempotencyKey }) {
+function assertOfficialPurchaseEnabled() {
   assertWriteEnabled();
+  if (!officialFulfillmentEnabled()) {
+    const error = new Error('Official marketplace DinoStorage fulfillment is disabled');
+    error.code = 'OFFICIAL_MARKETPLACE_FULFILLMENT_DISABLED';
+    throw error;
+  }
+}
+
+function purchaseCatalogItem({ steamId, catalogId, idempotencyKey }) {
+  assertOfficialPurchaseEnabled();
   const buyer = store.validateSteamId(steamId);
   const itemId = String(catalogId || '').trim();
   const key = String(idempotencyKey || '').trim();
@@ -160,7 +173,9 @@ function refundOrder(orderId, reason = 'Marketplace order refund') {
 
 module.exports = {
   writeEnabled,
+  officialFulfillmentEnabled,
   assertWriteEnabled,
+  assertOfficialPurchaseEnabled,
   purchaseCatalogItem,
   markOrderFulfilled,
   markOrderFailed,
