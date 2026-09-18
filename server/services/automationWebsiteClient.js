@@ -97,6 +97,14 @@ function getWallet(steamId) {
   return call(`/wallet/${encodeURIComponent(validateSteamId(steamId))}`);
 }
 
+function getDailyLoginBonus(steamId) {
+  return call(`/daily-login/${encodeURIComponent(validateSteamId(steamId))}`);
+}
+
+function claimDailyLoginBonus(steamId) {
+  return call(`/daily-login/${encodeURIComponent(validateSteamId(steamId))}/claim`, { method: 'POST' });
+}
+
 function listMarketplaceCatalog() {
   return call('/marketplace/catalog');
 }
@@ -186,6 +194,8 @@ module.exports = {
   getBodyDropCooldown,
   requestBodyDrop,
   getWallet,
+  getDailyLoginBonus,
+  claimDailyLoginBonus,
   listMarketplaceCatalog,
   purchaseMarketplaceItem,
   adminCreditWallet,
