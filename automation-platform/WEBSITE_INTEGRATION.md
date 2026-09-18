@@ -77,7 +77,7 @@ Content-Type: application/json
 }
 ```
 
-Payment and pending-order creation are atomic. HTTP 402 means insufficient Valley Coin. A successful purchase is **not** proof of DinoStorage fulfillment; the order remains pending until the fulfillment layer confirms delivery. Repeating the same idempotency key returns the original order without charging again.
+Payment and pending-order creation are atomic. HTTP 402 means insufficient Valley Coin. Purchases fail closed with HTTP 503 while official DinoStorage fulfillment is disabled. When enabled, the order remains pending until the worker proves the deterministic `shop_<order>` slot exists, then becomes fulfilled. Repeating the same idempotency key returns the original order without charging again.
 
 ### BodyDrop cooldown
 
@@ -150,7 +150,12 @@ The isolated `integration/liveRouteAdapters.js` now covers every request used by
 | `GET /api/wallet` | `getWallet` | Steam-keyed Valley Coin wallet + earning progress |
 | `GET /api/quests` | `getQuests` | automatic daily/weekly quest progress + active boost |
 | `GET /api/marketplace/catalog` | `listMarketplaceCatalog` | official marketplace catalog |
-| `POST /api/marketplace/catalog/:id/buy` | `buyMarketplaceCatalogItem` | atomic debit + pending marketplace order |
+| `POST /api/marketplace/catalog/:id/buy` | `buyMarketplaceCatalogItem` | atomic debit + pending real DinoStorage order |
+| `GET /api/marketplace/orders/mine` | `listMarketplaceOrders` | official order delivery status |
+| `GET /api/marketplace/listings` | `listDinoMarketplaceListings` | active real-DinoStorage P2P listings |
+| P2P create/buy/cancel routes | marketplace adapters | escrow / transfer / cancellation |
+| parked mutation routes | mutation adapters | active Slot1–Slot4 editor |
+| skin preset routes | skin adapters | real captured skin save/apply |
 | `GET /api/mydinos` | `listDinos` | DinoStorage slot list |
 | `GET /api/mydinos/active-character` | `getActiveCharacter` | read-only active character |
 | `POST /api/mydinos/park-active` | `parkActive` | DinoStorage store |
@@ -193,8 +198,9 @@ Keep this integration disconnected until the automation platform is deployed as 
 6. Enable CommandBridge only after confirming the single-file queue consumer is ready for this publisher.
 7. Verify wallet and marketplace catalog reads with the reward switch still disabled.
 8. Migrate/reconcile existing wallet balances before switching the live Wallet page.
-9. Test one controlled marketplace purchase only after its DinoStorage fulfillment worker exists.
-10. Test one controlled BodyDrop or DinoStorage request and follow its request ID through reconciliation before enabling the player-facing UI.
+9. Keep marketplace and official fulfillment gates disabled until wallet migration is reconciled.
+10. Controlled-test official DinoStorage fulfillment and P2P escrow with a disposable test account before enabling player-facing writes.
+11. Test one controlled BodyDrop or DinoStorage request and follow its request ID through reconciliation before enabling the player-facing UI.
 
 The live `master` site remains unchanged until this integration is deliberately connected and reviewed.
 
