@@ -131,18 +131,31 @@ async function syncDiscordMembershipForUser(
     membershipRoles = roles.filter((role) => Object.values(ROLE_NAMES).includes(role?.name));
   }
 
+  const member = await discordRequest(
+    `/guilds/${config.guildId}/members/${user.discord_id}`,
+    {},
+    env,
+    fetchImpl
+  );
+  const currentRoleIds = new Set(
+    Array.isArray(member?.roles) ? member.roles.map((roleId) => String(roleId)) : []
+  );
+
   let changed = false;
 
   for (const role of membershipRoles) {
-    const shouldHave = Boolean(targetRole && role.id === targetRole.id);
-    const path = `/guilds/${config.guildId}/members/${user.discord_id}/roles/${role.id}`;
+    const roleId = String(role.id);
+    const shouldHave = Boolean(targetRole && roleId === String(targetRole.id));
+    const hasRole = currentRoleIds.has(roleId);
+    if (shouldHave === hasRole) continue;
+
+    const path = `/guilds/${config.guildId}/members/${user.discord_id}/roles/${roleId}`;
     if (shouldHave) {
       await discordRequest(path, { method: "PUT" }, env, fetchImpl);
-      changed = true;
     } else {
       await discordRequest(path, { method: "DELETE" }, env, fetchImpl);
-      changed = true;
     }
+    changed = true;
   }
 
   return {
