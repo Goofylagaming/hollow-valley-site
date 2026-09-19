@@ -94,8 +94,8 @@ function rewardOnlinePlayers(players, { nowMs = Date.now() } = {}) {
               [
                 `Online playtime reward: ${coins} base`,
                 activeBoostPercent > 0 ? `+${activeBoostPercent}% quest boost` : null,
-                supporter.bonusPercent > 0
-                  ? `+${supporter.bonusPercent}% ${supporter.tier} supporter boost`
+                supporter.multiplier > 1
+                  ? `×${supporter.multiplier} ${supporter.tier} supporter multiplier`
                   : null,
               ].filter(Boolean).join(' '),
               key,
@@ -110,7 +110,7 @@ function rewardOnlinePlayers(players, { nowMs = Date.now() } = {}) {
                 questBonusCoins: bonusCoins,
                 questBoostedCoins,
                 supporterTier: supporter.tier,
-                supporterBoostPercent: supporter.bonusPercent,
+                supporterMultiplier: supporter.multiplier,
                 supporterBonusCoins: supporter.supporterBonusCoins,
                 payoutCoins,
               })
