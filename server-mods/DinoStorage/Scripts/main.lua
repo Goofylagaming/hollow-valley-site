@@ -508,6 +508,9 @@ local function readStateJson(body)
     state.elderStacks = math.floor(jsonReadNumber(body, "elderStacks") or 0)
     state.capturedAt = jsonReadNumber(body, "capturedAt")
     state.slot       = jsonReadString(body, "slot") or "default"
+    -- Admin restore JSON convenience flag. Normal DinoStorage snapshots do not
+    -- write this key, so their captured nutrient values continue to round-trip.
+    state.fullNutrients = jsonReadBool(body, "fullNutrients") == true
 
     -- Unlock list
     state.unlockRequiredMutations = {}
@@ -702,6 +705,40 @@ local function applyColor(cdata, field, c)
     end)
 end
 
+local FULL_NUTRIENT_VALUE = 9999.0
+
+-- Apply saved nutrient state exactly unless an admin restore JSON explicitly
+-- asks for full normal diet nutrients. fullNutrients only overrides Carb,
+-- Protein and Lipid; all other explicitly supplied nutrient fields still use
+-- their existing values. If no nutrients object is supplied, unrelated live
+-- nutrient fields are left alone.
+local function applyNutrientState(nutrStruct, state)
+    if nutrStruct == nil or state == nil then return false end
+    local nutr = state.nutrients
+    if nutr == nil and state.fullNutrients ~= true then return false end
+
+    if nutr ~= nil then
+        nutrStruct.CarbValue         = nutr.carbValue or 0
+        nutrStruct.ProteinValue      = nutr.proteinValue or 0
+        nutrStruct.LipidValue        = nutr.lipidValue or 0
+        nutrStruct.BonesValue        = nutr.bonesValue or 0
+        nutrStruct.CannibalValue     = nutr.cannibalValue or 0
+        nutrStruct.MagyValue         = nutr.magyValue or 0
+        nutrStruct.RottenFleshValue  = nutr.rottenFleshValue or 0
+        nutrStruct.MushroomsValue    = nutr.mushroomsValue or 0
+        nutrStruct.bMalnutrition     = nutr.bMalnutrition == true
+    end
+
+    if state.fullNutrients == true then
+        nutrStruct.CarbValue     = FULL_NUTRIENT_VALUE
+        nutrStruct.ProteinValue  = FULL_NUTRIENT_VALUE
+        nutrStruct.LipidValue    = FULL_NUTRIENT_VALUE
+        nutrStruct.bMalnutrition = false
+    end
+
+    return true
+end
+
 local function applyState(pawn, steam, state, slot)
     if pawn == nil or state == nil then return false, "nil pawn or state" end
 
@@ -750,26 +787,15 @@ local function applyState(pawn, steam, state, slot)
         pcall(function() pawn:SetReplicatedMutationsData(rmData, true) end)
     end
 
-    -- 3. Nutrients - FIXED: Ensure all nutrient values are properly reset to prevent vomit sickness
-    local nutr = state.nutrients
-    if nutr ~= nil then
-        local nutrStruct; pcall(function() nutrStruct = pawn.NutrientsStruct end)
-        if nutrStruct ~= nil then
-            pcall(function()
-                -- Restore the captured diet exactly; storage must not act as a
-                -- free food/diet refill or silently cure an existing condition.
-                nutrStruct.CarbValue         = nutr.carbValue or 0
-                nutrStruct.ProteinValue      = nutr.proteinValue or 0
-                nutrStruct.LipidValue        = nutr.lipidValue or 0
-                nutrStruct.BonesValue        = nutr.bonesValue or 0
-                nutrStruct.CannibalValue     = nutr.cannibalValue or 0
-                nutrStruct.MagyValue         = nutr.magyValue or 0
-                nutrStruct.RottenFleshValue  = nutr.rottenFleshValue or 0
-                nutrStruct.MushroomsValue    = nutr.mushroomsValue or 0
-                nutrStruct.bMalnutrition     = nutr.bMalnutrition == true
+    -- 3. Nutrients. Normal storage restores the captured diet exactly. Admin
+    -- restore JSON may opt into full Carb/Protein/Lipid with fullNutrients=true.
+    local nutrStruct; pcall(function() nutrStruct = pawn.NutrientsStruct end)
+    if nutrStruct ~= nil then
+        pcall(function()
+            if applyNutrientState(nutrStruct, state) then
                 pawn:SetNutrientsStruct(nutrStruct, true)
-            end)
-        end
+            end
+        end)
     end
 
     -- 4. Prime data
@@ -997,19 +1023,11 @@ local function applyState(pawn, steam, state, slot)
                 if state.rottenValue  ~= nil then pcallLog("SetRottenValue",  function() pawn3:SetRottenValue(state.rottenValue) end) end
 
                 local liveNutrients; pcall(function() liveNutrients = pawn3.NutrientsStruct end)
-                local savedNutrients = state.nutrients
-                if liveNutrients ~= nil and savedNutrients ~= nil then
+                if liveNutrients ~= nil then
                     pcallLog("SetNutrientsStruct", function()
-                        liveNutrients.CarbValue        = savedNutrients.carbValue or 0
-                        liveNutrients.ProteinValue     = savedNutrients.proteinValue or 0
-                        liveNutrients.LipidValue       = savedNutrients.lipidValue or 0
-                        liveNutrients.BonesValue       = savedNutrients.bonesValue or 0
-                        liveNutrients.CannibalValue    = savedNutrients.cannibalValue or 0
-                        liveNutrients.MagyValue        = savedNutrients.magyValue or 0
-                        liveNutrients.RottenFleshValue = savedNutrients.rottenFleshValue or 0
-                        liveNutrients.MushroomsValue   = savedNutrients.mushroomsValue or 0
-                        liveNutrients.bMalnutrition    = savedNutrients.bMalnutrition == true
-                        pawn3:SetNutrientsStruct(liveNutrients, true)
+                        if applyNutrientState(liveNutrients, state) then
+                            pawn3:SetNutrientsStruct(liveNutrients, true)
+                        end
                     end)
                 end
 
