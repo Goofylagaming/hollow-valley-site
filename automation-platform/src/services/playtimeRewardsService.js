@@ -110,6 +110,7 @@ function rewardOnlinePlayers(players, { nowMs = Date.now() } = {}) {
                 questBonusCoins: bonusCoins,
                 questBoostedCoins,
                 supporterTier: supporter.tier,
+                supporterMultiplier: supporter.supporterMultiplier || 1,
                 supporterBoostPercent: supporter.bonusPercent,
                 supporterBonusCoins: supporter.supporterBonusCoins,
                 payoutCoins,
