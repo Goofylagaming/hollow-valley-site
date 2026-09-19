@@ -55,6 +55,7 @@ function noMembership(steamId) {
     steamId,
     entitled: false,
     tier: null,
+    multiplier: 1,
     bonusPercent: 0,
   };
 }
