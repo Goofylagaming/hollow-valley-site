@@ -137,9 +137,14 @@ db.exec(`
     owner_steam_id TEXT,
     species TEXT NOT NULL,
     name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
     skin_json TEXT NOT NULL,
     is_premium INTEGER NOT NULL DEFAULT 0,
     active INTEGER NOT NULL DEFAULT 1,
+    published INTEGER NOT NULL DEFAULT 0,
+    price INTEGER NOT NULL DEFAULT 0 CHECK(price >= 0),
+    share_code TEXT,
+    create_key TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (owner_steam_id) REFERENCES economy_wallets(steam_id)
@@ -148,7 +153,57 @@ db.exec(`
     ON economy_skin_presets(owner_steam_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_economy_skin_presets_species
     ON economy_skin_presets(species, active, is_premium);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_economy_skin_presets_share_code
+    ON economy_skin_presets(share_code) WHERE share_code IS NOT NULL;
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_economy_skin_presets_create_key
+    ON economy_skin_presets(create_key) WHERE create_key IS NOT NULL;
+
+  CREATE TABLE IF NOT EXISTS economy_skin_unlocks (
+    steam_id TEXT NOT NULL,
+    preset_id TEXT NOT NULL,
+    purchase_price INTEGER NOT NULL DEFAULT 0 CHECK(purchase_price >= 0),
+    idempotency_key TEXT UNIQUE,
+    unlocked_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (steam_id, preset_id),
+    FOREIGN KEY (steam_id) REFERENCES economy_wallets(steam_id),
+    FOREIGN KEY (preset_id) REFERENCES economy_skin_presets(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_economy_skin_unlocks_steam
+    ON economy_skin_unlocks(steam_id, unlocked_at DESC);
 `);
+
+(function ensureSkinPresetStoreSchema() {
+  const columns = db.prepare('PRAGMA table_info(economy_skin_presets)').all();
+  const names = new Set(columns.map((column) => column.name));
+  const additions = [
+    ['description', "TEXT NOT NULL DEFAULT ''"],
+    ['published', 'INTEGER NOT NULL DEFAULT 0'],
+    ['price', 'INTEGER NOT NULL DEFAULT 0'],
+    ['share_code', 'TEXT'],
+    ['create_key', 'TEXT'],
+  ];
+  for (const [name, definition] of additions) {
+    if (!names.has(name)) db.exec(`ALTER TABLE economy_skin_presets ADD COLUMN ${name} ${definition};`);
+  }
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_economy_skin_presets_share_code
+      ON economy_skin_presets(share_code) WHERE share_code IS NOT NULL;
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_economy_skin_presets_create_key
+      ON economy_skin_presets(create_key) WHERE create_key IS NOT NULL;
+    CREATE TABLE IF NOT EXISTS economy_skin_unlocks (
+      steam_id TEXT NOT NULL,
+      preset_id TEXT NOT NULL,
+      purchase_price INTEGER NOT NULL DEFAULT 0 CHECK(purchase_price >= 0),
+      idempotency_key TEXT UNIQUE,
+      unlocked_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (steam_id, preset_id),
+      FOREIGN KEY (steam_id) REFERENCES economy_wallets(steam_id),
+      FOREIGN KEY (preset_id) REFERENCES economy_skin_presets(id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_economy_skin_unlocks_steam
+      ON economy_skin_unlocks(steam_id, unlocked_at DESC);
+  `);
+})();
 
 function validateSteamId(value) {
   const steamId = String(value || '').trim();
@@ -409,17 +464,51 @@ function listCatalog({ activeOnly = true } = {}) {
   return rows.map((row) => ({ ...row, payload: parseJson(row.payload_json), active: Boolean(row.active) }));
 }
 
-function getSkinPreset(id) {
-  const row = db.prepare('SELECT * FROM economy_skin_presets WHERE id = ?').get(String(id || '').trim());
-  return row ? {
+function mapSkinPreset(row, { owned = false } = {}) {
+  if (!row) return null;
+  return {
     ...row,
     isPremium: Boolean(row.is_premium),
     active: Boolean(row.active),
+    published: Boolean(row.published),
+    owned: Boolean(owned),
+    price: Math.max(0, Number(row.price) || 0),
     skin: parseJson(row.skin_json),
-  } : null;
+  };
 }
 
-function listSkinPresets({ ownerSteamId = null, species = null, includePremium = true, activeOnly = true, limit = 200 } = {}) {
+function getSkinPreset(id) {
+  const row = db.prepare('SELECT * FROM economy_skin_presets WHERE id = ?').get(String(id || '').trim());
+  return mapSkinPreset(row);
+}
+
+function getSkinPresetByShareCode(shareCode) {
+  const code = String(shareCode || '').trim().toUpperCase();
+  if (!code) return null;
+  return mapSkinPreset(db.prepare('SELECT * FROM economy_skin_presets WHERE upper(share_code) = ?').get(code));
+}
+
+function getSkinPresetByCreateKey(createKey) {
+  const key = String(createKey || '').trim();
+  if (!key) return null;
+  return mapSkinPreset(db.prepare('SELECT * FROM economy_skin_presets WHERE create_key = ?').get(key));
+}
+
+function hasSkinUnlock(steamId, presetId) {
+  const steam = validateSteamId(steamId);
+  return Boolean(db.prepare(
+    'SELECT 1 FROM economy_skin_unlocks WHERE steam_id = ? AND preset_id = ?'
+  ).get(steam, String(presetId || '').trim()));
+}
+
+function listSkinPresets({
+  ownerSteamId = null,
+  species = null,
+  includePremium = true,
+  activeOnly = true,
+  publishedOnly = false,
+  limit = 200,
+} = {}) {
   const clauses = [];
   const params = [];
   const safeLimit = Math.max(1, Math.min(500, Number(limit) || 200));
@@ -442,19 +531,59 @@ function listSkinPresets({ ownerSteamId = null, species = null, includePremium =
     params.push(String(species));
   }
   if (activeOnly) clauses.push('active = 1');
+  if (publishedOnly) clauses.push('published = 1');
 
   const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
   return db.prepare(`
     SELECT * FROM economy_skin_presets
     ${where}
-    ORDER BY is_premium DESC, created_at DESC
+    ORDER BY published DESC, is_premium DESC, created_at DESC
     LIMIT ?
-  `).all(...params, safeLimit).map((row) => ({
-    ...row,
-    isPremium: Boolean(row.is_premium),
-    active: Boolean(row.active),
-    skin: parseJson(row.skin_json),
-  }));
+  `).all(...params, safeLimit).map((row) => mapSkinPreset(row));
+}
+
+function listSkinStore({ steamId = null, species = null, limit = 300 } = {}) {
+  const safeLimit = Math.max(1, Math.min(500, Number(limit) || 300));
+  const clauses = ['p.active = 1', 'p.published = 1'];
+  const params = [];
+  if (species) {
+    clauses.push('lower(p.species) = lower(?)');
+    params.push(String(species));
+  }
+
+  let join = '';
+  let ownedExpr = '0';
+  if (steamId) {
+    const steam = validateSteamId(steamId);
+    join = 'LEFT JOIN economy_skin_unlocks u ON u.preset_id = p.id AND u.steam_id = ?';
+    params.unshift(steam);
+    ownedExpr = 'CASE WHEN p.owner_steam_id = ? OR p.is_premium = 1 OR u.preset_id IS NOT NULL THEN 1 ELSE 0 END';
+    params.splice(1, 0, steam);
+  }
+
+  const sql = `
+    SELECT p.*, ${ownedExpr} AS owned_flag
+    FROM economy_skin_presets p
+    ${join}
+    WHERE ${clauses.join(' AND ')}
+    ORDER BY p.is_premium DESC, p.price ASC, p.created_at DESC
+    LIMIT ?
+  `;
+  return db.prepare(sql).all(...params, safeLimit).map((row) => mapSkinPreset(row, { owned: Boolean(row.owned_flag) }));
+}
+
+function listOwnedSkinPresets(steamId, { limit = 300 } = {}) {
+  const steam = validateSteamId(steamId);
+  const safeLimit = Math.max(1, Math.min(500, Number(limit) || 300));
+  return db.prepare(`
+    SELECT p.*, CASE WHEN p.owner_steam_id = ? OR p.is_premium = 1 OR u.preset_id IS NOT NULL THEN 1 ELSE 0 END AS owned_flag
+    FROM economy_skin_presets p
+    LEFT JOIN economy_skin_unlocks u ON u.preset_id = p.id AND u.steam_id = ?
+    WHERE p.active = 1 AND (p.owner_steam_id = ? OR p.is_premium = 1 OR u.preset_id IS NOT NULL)
+    ORDER BY p.owner_steam_id = ? DESC, p.published DESC, p.created_at DESC
+    LIMIT ?
+  `).all(steam, steam, steam, steam, safeLimit)
+    .map((row) => mapSkinPreset(row, { owned: Boolean(row.owned_flag) }));
 }
 
 function getDinoListing(id) {
@@ -541,7 +670,12 @@ module.exports = {
   getCatalogItem,
   listCatalog,
   getSkinPreset,
+  getSkinPresetByShareCode,
+  getSkinPresetByCreateKey,
+  hasSkinUnlock,
   listSkinPresets,
+  listSkinStore,
+  listOwnedSkinPresets,
   getDinoListing,
   getDinoListingByIdempotency,
   listDinoListings,
