@@ -4,6 +4,7 @@ const { randomUUID } = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
 const { getServerSnapshot } = require('./statusService');
 const playtimeRewards = require('./playtimeRewardsService');
+const rconControl = require('./rconControlService');
 
 const dbPath = process.env.AUTOMATION_DB_PATH || path.join(__dirname, '..', '..', 'data', 'automation.sqlite');
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
@@ -36,6 +37,7 @@ db.exec(`
 `);
 
 let running = false;
+let joinMessagesPrimed = false;
 
 function enabled() {
   return String(process.env.PLAYER_PRESENCE_ENABLED || '').toLowerCase() === 'true';
@@ -44,6 +46,59 @@ function enabled() {
 function intervalMs() {
   const value = Number(process.env.PLAYER_PRESENCE_INTERVAL_MS || 60000);
   return Math.max(15000, Math.min(600000, Number.isFinite(value) ? value : 60000));
+}
+
+function joinMessagesEnabled() {
+  return String(process.env.JOIN_MESSAGE_ENABLED || '').toLowerCase() === 'true' &&
+    rconControl.writeEnabled('announce');
+}
+
+function buildJoinMessage(player = {}) {
+  const safeName = String(player.name || 'survivor')
+    .replace(/[\x00\r\n]/g, '')
+    .trim()
+    .slice(0, 48) || 'survivor';
+  const template = String(
+    process.env.JOIN_MESSAGE_TEMPLATE ||
+    'Welcome to Hollow Valley, {player}! Join us at discord.gg/herbydeathsquadgames'
+  ).replace(/[\x00\r\n]/g, ' ').trim();
+
+  const message = template.replaceAll('{player}', safeName).replace(/\s+/g, ' ').trim();
+  return message.slice(0, 240);
+}
+
+function findNewPlayers(onlinePlayers = []) {
+  const open = db.prepare(`
+    SELECT steam_id
+    FROM player_presence_sessions
+    WHERE ended_at IS NULL
+  `).all();
+  const openSteamIds = new Set(open.map((row) => String(row.steam_id)));
+  return onlinePlayers.filter((player) => !openSteamIds.has(String(player.steamId)));
+}
+
+async function sendJoinMessages(players = []) {
+  if (!joinMessagesEnabled()) {
+    return { skipped: true, reason: 'disabled', attempted: 0, sent: 0, confirmed: 0, failed: 0 };
+  }
+  if (!players.length) {
+    return { skipped: true, reason: 'no-new-players', attempted: 0, sent: 0, confirmed: 0, failed: 0 };
+  }
+
+  const summary = { skipped: false, attempted: 0, sent: 0, confirmed: 0, failed: 0 };
+  for (const player of players) {
+    summary.attempted += 1;
+    try {
+      const result = await rconControl.execute('announce', { message: buildJoinMessage(player) });
+      if (result.sent) summary.sent += 1;
+      if (result.confirmed) summary.confirmed += 1;
+      if (!result.sent) summary.failed += 1;
+    } catch (error) {
+      summary.failed += 1;
+      console.warn('[join-message]', error.message);
+    }
+  }
+  return summary;
 }
 
 function normalizeOnline(snapshot) {
@@ -172,6 +227,7 @@ async function samplePresence({ force = false } = {}) {
     }
     const players = normalizeOnline(snapshot);
     const nowIso = new Date().toISOString();
+    const newPlayers = findNewPlayers(players);
     const reconciliation = reconcilePresence(players, nowIso);
     const sample = recordPresenceSample(players, nowIso);
     prunePresenceSamples({ retentionHours: Number(process.env.PLAYER_PRESENCE_RETENTION_HOURS || 24 * 31) });
@@ -184,7 +240,25 @@ async function samplePresence({ force = false } = {}) {
       rewards = { skipped: true, reason: 'reward-error', error: error.message };
     }
 
-    return { skipped: false, ...reconciliation, sample, rewards };
+    let joinMessages;
+    if (!joinMessagesPrimed) {
+      // Never greet everyone merely because the automation service restarted.
+      // The first successful presence snapshot establishes the baseline.
+      joinMessagesPrimed = true;
+      joinMessages = {
+        skipped: true,
+        reason: 'priming',
+        attempted: 0,
+        sent: 0,
+        confirmed: 0,
+        failed: 0,
+        suppressed: newPlayers.length,
+      };
+    } else {
+      joinMessages = await sendJoinMessages(newPlayers);
+    }
+
+    return { skipped: false, ...reconciliation, sample, rewards, joinMessages };
   } finally {
     running = false;
   }
@@ -221,7 +295,13 @@ function getPresenceSummary() {
     SELECT COUNT(DISTINCT steam_id) AS count FROM player_presence_sessions
     WHERE datetime(started_at) >= datetime('now', '-24 hours') OR datetime(last_seen_at) >= datetime('now', '-24 hours')
   `).get().count;
-  return { enabled: enabled(), active, sessions24h, uniquePlayers24h: unique24h };
+  return {
+    enabled: enabled(),
+    active,
+    sessions24h,
+    uniquePlayers24h: unique24h,
+    joinMessagesEnabled: joinMessagesEnabled(),
+  };
 }
 
 function buildActivityTrend(samples, { startMs, endMs, maxBuckets = 48 } = {}) {
@@ -384,6 +464,10 @@ function startPlayerPresence() {
 module.exports = {
   enabled,
   intervalMs,
+  joinMessagesEnabled,
+  buildJoinMessage,
+  findNewPlayers,
+  sendJoinMessages,
   normalizeOnline,
   speciesCounts,
   recordPresenceSample,
