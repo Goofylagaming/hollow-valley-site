@@ -35,7 +35,7 @@ function checkoutConfigured(env = process.env) {
   return Boolean(configuration(env));
 }
 
-async function createCheckoutSession({ tier, userId, env = process.env, fetchImpl = globalThis.fetch }) {
+async function createCheckoutSession({ tier, userId, steamId = null, env = process.env, fetchImpl = globalThis.fetch }) {
   if (!Object.hasOwn(TIERS, tier)) throw new CheckoutError(404, "Unknown supporter tier");
   if (userId === undefined || userId === null || String(userId) === "") {
     throw new CheckoutError(401, "Not logged in");
@@ -55,6 +55,10 @@ async function createCheckoutSession({ tier, userId, env = process.env, fetchImp
     success_url: `${config.origin}/supporter?checkout=success`,
     cancel_url: `${config.origin}/supporter?checkout=cancelled`,
   });
+  if (steamId) {
+    body.set("metadata[steam_id]", String(steamId));
+    body.set("subscription_data[metadata][steam_id]", String(steamId));
+  }
   try {
     const response = await fetchImpl("https://api.stripe.com/v1/checkout/sessions", {
       method: "POST",
