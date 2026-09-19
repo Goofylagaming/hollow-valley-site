@@ -35,6 +35,10 @@ function checkoutConfigured(env = process.env) {
   return Boolean(configuration(env));
 }
 
+function stableIdentityRequired(env = process.env) {
+  return /^(1|true|yes)$/i.test(String(env.SUPPORTER_REQUIRE_STEAM_ID || "").trim());
+}
+
 async function createCheckoutSession({ tier, userId, steamId = null, env = process.env, fetchImpl = globalThis.fetch }) {
   if (!Object.hasOwn(TIERS, tier)) throw new CheckoutError(404, "Unknown supporter tier");
   if (userId === undefined || userId === null || String(userId) === "") {
@@ -42,6 +46,9 @@ async function createCheckoutSession({ tier, userId, steamId = null, env = proce
   }
   const config = configuration(env);
   if (!config) throw new CheckoutError(503, "Supporter sandbox checkout is not configured yet.");
+  if (stableIdentityRequired(env) && !/^\d{15,22}$/.test(String(steamId || ""))) {
+    throw new CheckoutError(409, "A linked Steam account is required before starting a membership.");
+  }
   const user = String(userId);
   const body = new URLSearchParams({
     mode: "subscription",
@@ -83,4 +90,4 @@ async function createCheckoutSession({ tier, userId, steamId = null, env = proce
   }
 }
 
-module.exports = { TIERS, PRICE_ENV, configuration, checkoutConfigured, createCheckoutSession, CheckoutError };
+module.exports = { TIERS, PRICE_ENV, configuration, checkoutConfigured, stableIdentityRequired, createCheckoutSession, CheckoutError };
