@@ -313,3 +313,55 @@ test('published skin purchase permanently unlocks once and debits Valley Coin on
   assert.equal(owned.some((row) => row.id === created.preset.id), true);
   assert.equal(fixture.store.getWallet(buyer).transactions.filter((tx) => tx.kind === 'skin_purchase').length, 1);
 });
+
+
+test('existing skin preset databases migrate columns before share-code indexes are created', (t) => {
+  const { DatabaseSync } = require('node:sqlite');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hv-skin-migrate-'));
+  const dbPath = path.join(dir, 'economy.sqlite');
+  const legacy = new DatabaseSync(dbPath);
+  legacy.exec(`
+    CREATE TABLE economy_wallets (
+      steam_id TEXT PRIMARY KEY,
+      balance INTEGER NOT NULL DEFAULT 0 CHECK(balance >= 0),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE TABLE economy_skin_presets (
+      id TEXT PRIMARY KEY,
+      owner_steam_id TEXT,
+      species TEXT NOT NULL,
+      name TEXT NOT NULL,
+      skin_json TEXT NOT NULL,
+      is_premium INTEGER NOT NULL DEFAULT 0,
+      active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (owner_steam_id) REFERENCES economy_wallets(steam_id)
+    );
+  `);
+  legacy.close();
+
+  const previous = process.env.AUTOMATION_DB_PATH;
+  process.env.AUTOMATION_DB_PATH = dbPath;
+  const storePath = require.resolve('../src/services/economyStore');
+  delete require.cache[storePath];
+
+  const store = require(storePath);
+  const columns = new Set(store.db.prepare('PRAGMA table_info(economy_skin_presets)').all().map((row) => row.name));
+  assert.equal(columns.has('share_code'), true);
+  assert.equal(columns.has('create_key'), true);
+  assert.equal(columns.has('published'), true);
+  assert.equal(columns.has('price'), true);
+
+  const indexes = new Set(store.db.prepare('PRAGMA index_list(economy_skin_presets)').all().map((row) => row.name));
+  assert.equal(indexes.has('idx_economy_skin_presets_share_code'), true);
+  assert.equal(indexes.has('idx_economy_skin_presets_create_key'), true);
+
+  t.after(() => {
+    delete require.cache[storePath];
+    if (previous === undefined) delete process.env.AUTOMATION_DB_PATH;
+    else process.env.AUTOMATION_DB_PATH = previous;
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+});
