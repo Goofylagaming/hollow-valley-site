@@ -11,6 +11,10 @@ const {
   resumeSubscription,
 } = require("../services/supporterManage");
 const { ReconcileError, reconcileCurrentUser } = require("../services/supporterReconcile");
+const {
+  DiscordMembershipError,
+  syncDiscordMembershipForUser,
+} = require("../services/discordMembership");
 
 const router = express.Router();
 
@@ -45,6 +49,16 @@ router.get("/", requireAuth, (req, res) => {
     entitled: isEntitled(status.stripe_status),
     managed: Boolean(status.stripe_subscription_id),
   });
+});
+
+router.post("/sync-discord", requireAuth, async (req, res) => {
+  try {
+    res.json(await syncDiscordMembershipForUser(req.user.id));
+  } catch (error) {
+    res.status(error instanceof DiscordMembershipError ? error.status : 500).json({
+      error: error instanceof DiscordMembershipError ? error.message : "Unable to sync Discord membership role.",
+    });
+  }
 });
 
 router.post("/reconcile", requireAuth, async (req, res) => {
