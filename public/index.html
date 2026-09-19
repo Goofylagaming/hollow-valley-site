@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Hollow Valley — Isle Server, home of the Herby Death Squad community.">
   <title>Hollow Valley | Isle Server</title>
-  <link rel="stylesheet" href="assets/styles.css?v=15">
+  <link rel="stylesheet" href="assets/styles.css?v=16">
 </head>
 <body>
   <div class="app-shell">
@@ -52,7 +52,16 @@
         <div class="wallet-earning-grid">
           <div class="summary-tile"><small>BASE EARNING</small><b id="wallet-base-rate">Not enabled</b><span>Verified online playtime</span></div>
           <div class="summary-tile"><small>QUEST BOOST</small><b id="wallet-active-boost">+0%</b><span>Daily + weekly boosts</span></div>
-          <div class="summary-tile"><small>CURRENT PAYOUT</small><b id="wallet-current-payout">—</b><span>Base plus active boost</span></div>
+          <div class="summary-tile"><small>SUPPORTER</small><b id="wallet-supporter-multiplier">×1</b><span id="wallet-supporter-tier">No active tier</span></div>
+          <div class="summary-tile"><small>EFFECTIVE PAYOUT</small><b id="wallet-current-payout">—</b><span>Quest boost, then supporter multiplier</span></div>
+        </div>
+        <div class="wallet-daily-panel" id="wallet-daily-panel">
+          <div>
+            <small>DAILY LOGIN BONUS</small>
+            <b id="wallet-daily-amount">Loading…</b>
+            <span id="wallet-daily-status">Checking today's reward.</span>
+          </div>
+          <button class="primary-button wallet-daily-claim" id="wallet-daily-claim" type="button" disabled>Claim <b>→</b></button>
         </div>
         <div class="wallet-progress-panel">
           <div class="list-heading"><span>NEXT 5-MINUTE PAYOUT</span><small id="wallet-next-payout">Base earning rate has not been enabled yet</small></div>
@@ -76,7 +85,23 @@
     </main>
     <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="#top">Back to top ↑</a></footer>
   </div>
+  <dialog class="dino-dialog" aria-labelledby="dialog-title">
+    <button class="dialog-close" aria-label="Close species details">×</button>
+    <p class="overline green">SPECIES PROFILE</p>
+    <h2 id="dialog-title">Species name</h2>
+    <p class="dialog-role"></p>
+    <p class="dialog-description"></p>
+    <p class="dialog-status" hidden>⏳ Not yet playable in Evrima — stats will be added once this species is officially added to the branch.</p>
+    <div class="dialog-stats">
+      <div class="stat-item"><span>Pack Limit</span><strong class="stat-pack"></strong></div>
+      <div class="stat-item"><span>Peak Prime Weight</span><strong class="stat-weight"></strong></div>
+      <div class="stat-item"><span>Bite Force (Peak)</span><strong class="stat-bite"></strong></div>
+      <div class="stat-item"><span>Growth Time</span><strong class="stat-growth"></strong></div>
+    </div>
+    <p class="dialog-note">In-game Evrima gameplay stat values (not real-world physics units) &mdash; approximate and subject to patch changes.</p>
+    <div class="dialog-social"><span>Best played as</span><strong></strong></div>
+  </dialog>
   <script src="assets/common.js?v=12"></script>
-  <script src="assets/site.js?v=7"></script>
+  <script src="assets/site.js?v=8"></script>
 </body>
 </html>
