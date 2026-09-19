@@ -30,17 +30,34 @@ function rconNotice(message, isError = false) {
   box.classList.toggle('error', Boolean(isError));
 }
 
+function setFieldsEnabled(selector, enabled) {
+  for (const field of document.querySelectorAll(selector)) field.disabled = !enabled;
+}
+
 function setRconControlsEnabled(enabled) {
-  for (const field of document.querySelectorAll('.rcon-control textarea,.rcon-control input,.rcon-control button')) {
-    field.disabled = !enabled;
-  }
+  setFieldsEnabled('.rcon-control textarea,.rcon-control input,.rcon-control button', enabled);
+  updateWipeButton();
+}
+
+function applyRconActionGates(state) {
+  const gates = state.actionGates || {};
+  const panel = document.querySelector('.rcon-panel');
+  if (!panel) return;
+
+  panel.dataset.writeEnabled = state.writeEnabled ? 'true' : 'false';
+  panel.dataset.wipeEnabled = gates.wipeCorpses ? 'true' : 'false';
+
+  setFieldsEnabled('#rcon-announcement-form textarea,#rcon-announcement-form button', Boolean(gates.announce));
+  setFieldsEnabled('#rcon-save', Boolean(gates.save));
+  setFieldsEnabled('#rcon-ai-form input,#rcon-ai-form button', Boolean(gates.aiDensity));
+  setFieldsEnabled('#rcon-wipe-form input,#rcon-wipe-form button', Boolean(gates.wipeCorpses));
   updateWipeButton();
 }
 
 function updateWipeButton() {
   const input = document.getElementById('rcon-wipe-confirm');
   const button = document.querySelector('#rcon-wipe-form button[type="submit"]');
-  if (!button || button.closest('.rcon-panel')?.dataset.writeEnabled !== 'true') return;
+  if (!button || button.closest('.rcon-panel')?.dataset.wipeEnabled !== 'true') return;
   button.disabled = input?.value !== 'WIPE CORPSES';
 }
 
@@ -50,23 +67,31 @@ function renderRconState(state) {
   const warning = document.getElementById('rcon-write-warning');
   if (!panel || !badge || !warning) return;
 
-  panel.dataset.writeEnabled = state.writeEnabled ? 'true' : 'false';
   if (!state.configured) {
     badge.textContent = 'RCON not configured';
     warning.textContent = 'RCON connection settings are incomplete. Write controls remain unavailable.';
     setRconControlsEnabled(false);
-    return;
-  }
-  if (!state.writeEnabled) {
-    badge.textContent = 'Write locked';
-    warning.textContent = 'RCON write commands are disabled. Set RCON_WRITE_ENABLED=true only after operator review.';
-    setRconControlsEnabled(false);
+    panel.dataset.writeEnabled = 'false';
+    panel.dataset.wipeEnabled = 'false';
     return;
   }
 
-  badge.textContent = 'Write enabled';
-  warning.textContent = 'RCON writes are enabled. Commands are sent directly to the live game server and are never automatically retried.';
-  setRconControlsEnabled(true);
+  const gates = state.actionGates || {};
+  const enabled = Object.entries(gates).filter(([, value]) => value).map(([action]) => action);
+  const locked = Object.entries(gates).filter(([, value]) => !value).map(([action]) => action);
+
+  if (!enabled.length) {
+    badge.textContent = 'Write locked';
+    warning.textContent = 'All RCON write actions are locked. Enable only the specific action gates that have been reviewed.';
+    setRconControlsEnabled(false);
+    panel.dataset.writeEnabled = 'false';
+    panel.dataset.wipeEnabled = 'false';
+    return;
+  }
+
+  badge.textContent = enabled.length === Object.keys(gates).length ? 'Write enabled' : 'Partial writes enabled';
+  warning.textContent = `Enabled: ${enabled.join(', ')}. Locked: ${locked.join(', ') || 'none'}. Commands are sent once and are never automatically retried.`;
+  applyRconActionGates(state);
 }
 
 async function loadRconState() {
