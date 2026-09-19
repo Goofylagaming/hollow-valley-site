@@ -26,7 +26,7 @@ test('due scheduled announcement is durably queued for HerbyBot', async () => {
   assert.equal(result.status, 'completed');
 
   const events = store.listOutboxEvents({ limit: 50 });
-  const event = events.find((item) => item.nonce === `${id}:${Date.parse(job.run_at)}`);
+  const event = events.find((item) => item.nonce === `scheduled:${id}:${Date.parse(job.run_at)}`);
   assert.ok(event);
   assert.equal(event.destination, 'announcement');
   assert.equal(event.status, 'pending');
@@ -108,6 +108,6 @@ test('recurring scheduled announcements get a unique durable nonce per occurrenc
     .filter((event) => event.message === 'Daily Hollow Valley update');
   assert.equal(events.length, 2);
   assert.notEqual(events[0].nonce, events[1].nonce);
-  assert.ok(events[0].nonce.startsWith(`${id}:`));
-  assert.ok(events[1].nonce.startsWith(`${id}:`));
+  assert.ok(events[0].nonce.startsWith(`scheduled:${id}:`));
+  assert.ok(events[1].nonce.startsWith(`scheduled:${id}:`));
 });
