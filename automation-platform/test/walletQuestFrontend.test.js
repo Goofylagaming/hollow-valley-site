@@ -34,6 +34,11 @@ test('homepage wallet renders five-minute earning rate progress and active boost
   assert.match(js, /wallet-base-rate/);
   assert.match(js, /wallet-active-boost/);
   assert.match(js, /wallet-current-payout/);
+  assert.match(js, /wallet-supporter-multiplier/);
+  assert.match(js, /wallet-supporter-tier/);
+  assert.match(js, /supporterMultiplier/);
+  assert.match(html, /SUPPORTER/);
+  assert.match(html, /Quest boost, then supporter multiplier/);
   assert.match(js, /wallet-progress-fill/);
   assert.match(js, /nextRewardInSeconds/);
   assert.match(html, /NEXT 5-MINUTE PAYOUT/);
