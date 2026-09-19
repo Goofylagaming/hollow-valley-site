@@ -67,6 +67,29 @@ test("daily bonus route uses the Steam-linked automation wallet only", () => {
   assert.equal(route.includes("Math.random"), false);
 });
 
+test("marketplace exposes order history and richer P2P listing details without changing write gates", () => {
+  const html = read("public/marketplace.html");
+  const js = read("public/assets/marketplace.js");
+  const route = read("server/routes/marketplace.js");
+  const client = read("server/services/automationWebsiteClient.js");
+  const myDinos = read("public/assets/mydinos.js");
+
+  assert.match(html, /YOUR STORE ORDERS/);
+  assert.match(html, /YOUR LISTINGS/);
+  assert.match(html, /id="my-orders-section"/);
+  assert.match(html, /id="my-listings-section"/);
+  assert.match(js, /loadMyOrders/);
+  assert.match(js, /loadMyListings/);
+  assert.match(js, /listingSkinPreview/);
+  assert.match(js, /p2pCancelEnabled/);
+  assert.match(route, /\/orders\/mine/);
+  assert.match(route, /listMarketplaceOrders/);
+  assert.match(client, /function listMarketplaceOrders/);
+  assert.match(client, /\/marketplace\/orders\//);
+  assert.match(myDinos, /stored-sell/);
+  assert.match(myDinos, /p2pWritesEnabled/);
+});
+
 test("Admin Restore browser page never contains an automation admin token", () => {
   const html = read("public/adminrestore.html");
   const js = read("public/assets/adminrestore.js");
