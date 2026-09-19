@@ -1,4 +1,5 @@
 const store = require('./economyStore');
+const supporterBonuses = require('./supporterBonusService');
 
 function enabled() {
   return String(process.env.WALLET_DAILY_LOGIN_BONUS_ENABLED || '').toLowerCase() === 'true';
@@ -41,7 +42,7 @@ function status(steamId, { now = new Date() } = {}) {
   };
 }
 
-function claim(steamId, { now = new Date() } = {}) {
+async function claim(steamId, { now = new Date() } = {}) {
   const id = store.validateSteamId(steamId);
   const current = status(id, { now });
   if (!current.enabled || current.amount <= 0) {
@@ -50,25 +51,44 @@ function claim(steamId, { now = new Date() } = {}) {
     throw error;
   }
 
+  try {
+    await supporterBonuses.refreshMemberships([id]);
+  } catch (error) {
+    // Membership lookup failures fail closed for the paid bonus, but do not
+    // block the player's normal daily login reward.
+  }
+  const supporter = supporterBonuses.applyBonus(current.amount, id);
+  const payoutAmount = supporter.payoutCoins;
+
   const result = store.applyWalletTransaction({
     steamId: id,
-    amount: current.amount,
+    amount: payoutAmount,
     kind: 'daily_login_bonus',
-    reason: `Daily login bonus (${current.dayKey})`,
+    reason: [
+      `Daily login bonus (${current.dayKey}): ${current.amount} base`,
+      supporter.multiplier > 1 ? `×${supporter.multiplier} ${supporter.tier} supporter` : null,
+    ].filter(Boolean).join(' '),
     idempotencyKey: `daily-login:${id}:${current.dayKey}`,
     referenceType: 'daily_login',
     referenceId: current.dayKey,
     metadata: {
       dayKey: current.dayKey,
       timezone: current.timezone,
-      amount: current.amount,
+      baseAmount: current.amount,
+      supporterTier: supporter.tier,
+      supporterMultiplier: supporter.multiplier || 1,
+      supporterBonusCoins: supporter.supporterBonusCoins,
+      amount: payoutAmount,
     },
   });
 
   return {
     duplicate: Boolean(result.duplicate),
     dayKey: current.dayKey,
-    amount: current.amount,
+    amount: payoutAmount,
+    baseAmount: current.amount,
+    supporterTier: supporter.tier,
+    supporterMultiplier: supporter.multiplier || 1,
     wallet: result.wallet,
     transaction: result.transaction,
   };
