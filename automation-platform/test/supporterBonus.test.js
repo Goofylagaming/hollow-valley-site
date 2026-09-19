@@ -11,7 +11,7 @@ function restoreEnv(previous) {
   }
 }
 
-test("supporter membership lookup is batched and maps official x2/x3/x5 tiers", async (t) => {
+test("supporter membership lookup is batched and maps official ×2/×3/×5 multipliers", async (t) => {
   const names = [
     "SUPPORTER_COIN_BONUSES_ENABLED",
     "HOLLOW_VALLEY_API_BASE_URL",
@@ -156,7 +156,34 @@ test("supporter bonus multiplies the already quest-boosted playtime payout", (t)
   assert.equal(tx.metadata.questBonusCoins, 5);
   assert.equal(tx.metadata.questBoostedCoins, 25);
   assert.equal(tx.metadata.supporterTier, "supporter");
-  assert.equal(tx.metadata.supporterBoostPercent, 100);
+  assert.equal(tx.metadata.supporterMultiplier, 2);
   assert.equal(tx.metadata.supporterBonusCoins, 25);
   assert.equal(tx.metadata.payoutCoins, 50);
+});
+
+
+test("legacy member and elite membership records normalize to official multipliers", (t) => {
+  process.env.SUPPORTER_COIN_BONUSES_ENABLED = "true";
+  const servicePath = require.resolve("../src/services/supporterBonusService");
+  delete require.cache[servicePath];
+  const supporter = require(servicePath);
+  t.after(() => {
+    supporter._test.clearCache();
+    delete require.cache[servicePath];
+  });
+
+  const memberId = "76561198000000061";
+  const eliteId = "76561198000000062";
+  supporter.replaceMemberships(
+    [memberId, eliteId],
+    [
+      { steamId: memberId, entitled: true, tier: "member" },
+      { steamId: eliteId, entitled: true, tier: "elite" },
+    ]
+  );
+
+  assert.equal(supporter.membershipForSteamId(memberId).tier, "supporter");
+  assert.equal(supporter.membershipForSteamId(memberId).multiplier, 2);
+  assert.equal(supporter.membershipForSteamId(eliteId).tier, "guardian");
+  assert.equal(supporter.membershipForSteamId(eliteId).multiplier, 3);
 });
