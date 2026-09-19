@@ -93,6 +93,14 @@ test("unpaid completed checkout stays pending and does not count as entitled", (
 
 test("subscription price is authoritative for upgrades and lifecycle events update status", () => {
   reset();
+  const env = {
+    ...process.env,
+    STRIPE_PRICE_SUPPORTER: "",
+    STRIPE_PRICE_GUARDIAN: "",
+    STRIPE_PRICE_MEMBER: "price_test_member",
+    STRIPE_PRICE_ELITE: "price_test_elite",
+    STRIPE_PRICE_LEGEND: "price_test_legend",
+  };
   processStripeEvent({
     id: "evt_seed",
     type: "checkout.session.completed",
@@ -121,14 +129,14 @@ test("subscription price is authoritative for upgrades and lifecycle events upda
       }],
     },
   };
-  assert.equal(tierFromSubscription(subscription), "legend");
+  assert.equal(tierFromSubscription(subscription, env), "legend");
 
   processStripeEvent({
     id: "evt_upgrade",
     type: "customer.subscription.updated",
     livemode: false,
     data: { object: subscription },
-  });
+  }, env);
   let status = getSupporterStatus(42);
   assert.equal(status.tier, "legend");
   assert.equal(status.stripe_status, "active");
@@ -144,7 +152,7 @@ test("subscription price is authoritative for upgrades and lifecycle events upda
         parent: { subscription_details: { subscription: "sub_test_42" } },
       },
     },
-  });
+  }, env);
   status = getSupporterStatus(42);
   assert.equal(status.stripe_status, "past_due");
   assert.equal(status.auto_renew, 1);
@@ -160,7 +168,7 @@ test("subscription price is authoritative for upgrades and lifecycle events upda
         status: "canceled",
       },
     },
-  });
+  }, env);
   status = getSupporterStatus(42);
   assert.equal(status.stripe_status, "canceled");
   assert.equal(status.auto_renew, 0);
