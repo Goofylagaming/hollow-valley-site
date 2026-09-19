@@ -79,4 +79,4 @@ async function createCheckoutSession({ tier, userId, env = process.env, fetchImp
   }
 }
 
-module.exports = { TIERS, checkoutConfigured, createCheckoutSession, CheckoutError };
+module.exports = { TIERS, PRICE_ENV, configuration, checkoutConfigured, createCheckoutSession, CheckoutError };
