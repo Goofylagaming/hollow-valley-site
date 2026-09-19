@@ -2,6 +2,7 @@ const crypto = require("node:crypto");
 const express = require("express");
 const { db } = require("../db");
 const { TIERS } = require("../services/supporterCheckout");
+const { normalizeTier } = require("../services/supporterTiers");
 const { isEntitled } = require("../services/supporterWebhook");
 
 const router = express.Router();
@@ -52,15 +53,17 @@ router.post("/", (req, res) => {
 
   const memberships = steamIds.map((steamId) => {
     const row = lookup.get(steamId);
+    const tier = normalizeTier(row?.tier);
     const entitled = Boolean(
       row &&
-      Object.hasOwn(TIERS, row.tier) &&
+      tier &&
+      Object.hasOwn(TIERS, tier) &&
       isEntitled(row.stripe_status)
     );
     return {
       steamId,
       entitled,
-      tier: entitled ? row.tier : null,
+      tier: entitled ? tier : null,
     };
   });
 
