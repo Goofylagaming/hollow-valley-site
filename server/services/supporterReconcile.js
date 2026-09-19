@@ -8,10 +8,12 @@ class ReconcileError extends Error {
   }
 }
 
-function isRecoverableSubscription(subscription) {
+function isRecoverableSubscription(subscription, env = process.env) {
+  const config = configuration(env);
   return Boolean(
+    config &&
     subscription &&
-    subscription.livemode === false &&
+    subscription.livemode === config.live &&
     subscription.id?.startsWith("sub_") &&
     !["canceled", "incomplete_expired"].includes(subscription.status)
   );
@@ -30,7 +32,7 @@ function scoreSubscription(subscription) {
 
 async function stripeSearchSubscriptions({ query, env, fetchImpl }) {
   const config = configuration(env);
-  if (!config) throw new ReconcileError(503, "Supporter sandbox recovery is not configured.");
+  if (!config) throw new ReconcileError(503, "Supporter recovery is not configured.");
 
   const qs = new URLSearchParams({ query, limit: "20" });
   try {
@@ -45,7 +47,7 @@ async function stripeSearchSubscriptions({ query, env, fetchImpl }) {
     const payload = await response.json();
     return Array.isArray(payload.data) ? payload.data : [];
   } catch {
-    throw new ReconcileError(502, "Unable to check Stripe Sandbox membership right now.");
+    throw new ReconcileError(502, "Unable to check Stripe membership right now.");
   }
 }
 
@@ -100,8 +102,8 @@ async function reconcileCurrentUser({
     }
   }
 
-  // Sandbox-only fallback for subscriptions created before Steam ID metadata
-  // was added. Strict stable-identity mode disables this legacy fallback.
+  // Legacy fallback for subscriptions created before Steam ID metadata
+  // was added. Strict stable-identity mode disables this fallback.
   if (!stableIdentityRequired(env)) {
     const byUserId = await stripeSearchSubscriptions({
       query: `metadata['user_id']:'${String(userId)}'`,
@@ -117,7 +119,7 @@ async function reconcileCurrentUser({
   }
 
   const eligible = candidates
-    .filter(isRecoverableSubscription)
+    .filter((subscription) => isRecoverableSubscription(subscription, env))
     .map((subscription) => ({
       subscription,
       tier: tierFromSubscription(subscription, env),

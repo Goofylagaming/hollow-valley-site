@@ -237,3 +237,36 @@ test("strict supporter identity requires matching Steam metadata", async () => {
     { status: 403 }
   );
 });
+
+
+test("live membership management accepts live objects only when explicitly enabled", async () => {
+  const liveEnv = {
+    ...env,
+    STRIPE_LIVE_ENABLED: "true",
+    STRIPE_SECRET_KEY: "sk_live_fixture",
+  };
+  const liveSubscription = subscription({
+    id: "sub_live_42",
+    livemode: true,
+    metadata: { user_id: "42", tier: "member" },
+  });
+  const result = await changeSubscription({
+    subscriptionId: "sub_live_42",
+    tier: "member",
+    userId: 42,
+    env: liveEnv,
+    fetchImpl: async () => ({ ok: true, json: async () => liveSubscription }),
+  });
+  assert.equal(result.changed, false);
+
+  await assert.rejects(
+    changeSubscription({
+      subscriptionId: "sub_live_42",
+      tier: "member",
+      userId: 42,
+      env: liveEnv,
+      fetchImpl: async () => ({ ok: true, json: async () => ({ ...liveSubscription, livemode: false }) }),
+    }),
+    { status: 502 }
+  );
+});

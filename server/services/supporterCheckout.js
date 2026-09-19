@@ -16,16 +16,24 @@ class CheckoutError extends Error {
   }
 }
 
-function configuration(env) {
-  const secret = env.STRIPE_SECRET_KEY || "";
-  // This first checkout rollout is sandbox-only. Never fall through to live billing.
-  if (!/^(sk|rk)_test_/.test(secret)) return null;
+function liveModeEnabled(env = process.env) {
+  return /^(1|true|yes)$/i.test(String(env.STRIPE_LIVE_ENABLED || "").trim());
+}
+
+function configuration(env = process.env) {
+  const secret = String(env.STRIPE_SECRET_KEY || "").trim();
+  const live = liveModeEnabled(env);
+  const keyOk = live
+    ? /^(sk|rk)_live_/.test(secret)
+    : /^(sk|rk)_test_/.test(secret);
+  if (!keyOk) return null;
+
   try {
     // Use server configuration, never Host, Origin or browser-supplied return URLs.
     const origin = new URL(env.RENDER_EXTERNAL_URL || env.STEAM_REALM);
     if (origin.protocol !== "https:" || origin.username || origin.password) return null;
     if (!Object.values(PRICE_ENV).every((name) => /^price_[A-Za-z0-9]+$/.test(env[name] || ""))) return null;
-    return { secret, origin: origin.origin };
+    return { secret, origin: origin.origin, live };
   } catch {
     return null;
   }
@@ -45,7 +53,7 @@ async function createCheckoutSession({ tier, userId, steamId = null, env = proce
     throw new CheckoutError(401, "Not logged in");
   }
   const config = configuration(env);
-  if (!config) throw new CheckoutError(503, "Supporter sandbox checkout is not configured yet.");
+  if (!config) throw new CheckoutError(503, "Supporter checkout is not configured yet.");
   if (stableIdentityRequired(env) && !/^\d{15,22}$/.test(String(steamId || ""))) {
     throw new CheckoutError(409, "A linked Steam account is required before starting a membership.");
   }
@@ -79,9 +87,10 @@ async function createCheckoutSession({ tier, userId, steamId = null, env = proce
     if (!response.ok) throw new Error("Stripe rejected checkout");
     const session = await response.json();
     const url = new URL(session.url);
-    if (session.livemode !== false || !session.id?.startsWith("cs_test_") ||
+    const expectedPrefix = config.live ? "cs_live_" : "cs_test_";
+    if (session.livemode !== config.live || !session.id?.startsWith(expectedPrefix) ||
         url.origin !== "https://checkout.stripe.com" || url.username || url.password) {
-      throw new Error("Invalid sandbox checkout response");
+      throw new Error("Invalid Stripe checkout response");
     }
     return { url: session.url };
   } catch {
@@ -90,4 +99,4 @@ async function createCheckoutSession({ tier, userId, steamId = null, env = proce
   }
 }
 
-module.exports = { TIERS, PRICE_ENV, configuration, checkoutConfigured, stableIdentityRequired, createCheckoutSession, CheckoutError };
+module.exports = { TIERS, PRICE_ENV, liveModeEnabled, configuration, checkoutConfigured, stableIdentityRequired, createCheckoutSession, CheckoutError };

@@ -20,7 +20,7 @@ async function stripeRequest(path, {
   fetchImpl = globalThis.fetch,
 } = {}) {
   const config = configuration(env);
-  if (!config) throw new ManageError(503, "Supporter sandbox management is not configured yet.");
+  if (!config) throw new ManageError(503, "Supporter management is not configured yet.");
 
   try {
     const response = await fetchImpl(`https://api.stripe.com${path}`, {
@@ -34,7 +34,7 @@ async function stripeRequest(path, {
     });
     if (!response.ok) throw new Error("Stripe rejected membership management request");
     const payload = await response.json();
-    if (payload?.livemode !== false) throw new Error("Expected sandbox Stripe object");
+    if (payload?.livemode !== config.live) throw new Error("Stripe mode mismatch");
     return payload;
   } catch (error) {
     if (error instanceof ManageError) throw error;

@@ -153,3 +153,40 @@ test('strict supporter identity requires a valid Steam ID before checkout', asyn
   });
   assert.deepEqual(result, { url: session.url });
 });
+
+
+test('live checkout requires explicit live flag and validates live Stripe response', async () => {
+  const liveEnv = {
+    ...env,
+    STRIPE_LIVE_ENABLED: 'true',
+    STRIPE_SECRET_KEY: 'sk_live_fixture',
+    RENDER_EXTERNAL_URL: 'https://hollowvalley.herbydeathsquadgames.com',
+  };
+  const liveSession = {
+    id: 'cs_live_fixture',
+    livemode: true,
+    url: 'https://checkout.stripe.com/c/pay/cs_live_fixture',
+  };
+
+  const result = await createCheckoutSession({
+    tier: 'legend',
+    userId: 42,
+    steamId: '76561198000000042',
+    env: liveEnv,
+    fetchImpl: async (url, options) => {
+      assert.equal(options.headers.Authorization, 'Bearer sk_live_fixture');
+      return { ok: true, json: async () => liveSession };
+    },
+  });
+  assert.deepEqual(result, { url: liveSession.url });
+
+  await assert.rejects(
+    createCheckoutSession({
+      tier: 'legend',
+      userId: 42,
+      env: { ...liveEnv, STRIPE_LIVE_ENABLED: 'false' },
+      fetchImpl: () => assert.fail('live key must not be used without explicit live flag'),
+    }),
+    { status: 503 }
+  );
+});
