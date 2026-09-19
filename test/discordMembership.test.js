@@ -37,8 +37,8 @@ test("active membership gets exactly its matching Discord role", async () => {
   reset();
   const calls = [];
   const roles = [
-    { id: "1", name: "Valley Member" },
-    { id: "2", name: "Valley Elite" },
+    { id: "1", name: "Valley Supporter" },
+    { id: "2", name: "Valley Guardian" },
     { id: "3", name: "Valley Legend" },
     { id: "4", name: "Community Member" },
   ];
@@ -68,8 +68,8 @@ test("active membership gets exactly its matching Discord role", async () => {
 test("inactive membership removes all Hollow Valley membership roles", async () => {
   reset({ tier: "legend", stripeStatus: "canceled" });
   const roles = [
-    { id: "1", name: "Valley Member" },
-    { id: "2", name: "Valley Elite" },
+    { id: "1", name: "Valley Supporter" },
+    { id: "2", name: "Valley Guardian" },
     { id: "3", name: "Valley Legend" },
   ];
   const calls = [];
@@ -92,9 +92,9 @@ test("inactive membership removes all Hollow Valley membership roles", async () 
 });
 
 test("missing target role is created before assignment", async () => {
-  reset({ tier: "elite" });
+  reset({ tier: "guardian" });
   const calls = [];
-  let roles = [{ id: "1", name: "Valley Member" }];
+  let roles = [{ id: "1", name: "Valley Supporter" }];
 
   const fetchImpl = async (url, options = {}) => {
     const method = options.method || "GET";
@@ -106,7 +106,7 @@ test("missing target role is created before assignment", async () => {
       return { ok: true, status: 200, json: async () => ({ roles: ["1"] }) };
     }
     if (method === "POST" && url.endsWith("/roles")) {
-      const created = { id: "2", name: "Valley Elite" };
+      const created = { id: "2", name: "Valley Guardian" };
       roles = [...roles, created];
       return { ok: true, status: 200, json: async () => created };
     }
@@ -114,7 +114,7 @@ test("missing target role is created before assignment", async () => {
   };
 
   const result = await syncDiscordMembershipForUser(42, { env, fetchImpl });
-  assert.equal(result.roleName, "Valley Elite");
+  assert.equal(result.roleName, "Valley Guardian");
   assert.ok(calls.some((call) => call.method === "POST" && call.url.endsWith("/guilds/1540359454627725382/roles")));
   assert.ok(calls.some((call) => call.method === "PUT" && call.url.endsWith("/roles/2")));
 });
@@ -124,8 +124,8 @@ test("configured supporter role IDs are used directly without listing or creatin
   reset({ tier: "legend" });
   const exactEnv = {
     ...env,
-    DISCORD_ROLE_MEMBER_ID: "1550695486464204810",
-    DISCORD_ROLE_ELITE_ID: "1550695581373042688",
+    DISCORD_ROLE_SUPPORTER_ID: "1550695486464204810",
+    DISCORD_ROLE_GUARDIAN_ID: "1550695581373042688",
     DISCORD_ROLE_LEGEND_ID: "1550695426456555551",
   };
   const calls = [];
@@ -159,8 +159,8 @@ test("already-correct exact membership role is a no-op", async () => {
   reset({ tier: "legend" });
   const exactEnv = {
     ...env,
-    DISCORD_ROLE_MEMBER_ID: "1550695486464204810",
-    DISCORD_ROLE_ELITE_ID: "1550695581373042688",
+    DISCORD_ROLE_SUPPORTER_ID: "1550695486464204810",
+    DISCORD_ROLE_GUARDIAN_ID: "1550695581373042688",
     DISCORD_ROLE_LEGEND_ID: "1550695426456555551",
   };
   const calls = [];
