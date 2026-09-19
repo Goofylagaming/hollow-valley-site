@@ -192,6 +192,8 @@ async function loadWallet() {
     const baseRate = document.getElementById("wallet-base-rate");
     const boost = document.getElementById("wallet-active-boost");
     const payout = document.getElementById("wallet-current-payout");
+    const supporterMultiplier = document.getElementById("wallet-supporter-multiplier");
+    const supporterTier = document.getElementById("wallet-supporter-tier");
     const progress = document.getElementById("wallet-progress-fill");
     const progressText = document.getElementById("wallet-progress-text");
     const nextPayout = document.getElementById("wallet-next-payout");
@@ -200,6 +202,10 @@ async function loadWallet() {
       ? `${Number(earning.coinsPer5Minutes || 0).toLocaleString()} / 5 min`
       : "Not enabled";
     if (boost) boost.textContent = `+${Number(earning.activeBoostPercent || 0)}%`;
+    if (supporterMultiplier) supporterMultiplier.textContent = `×${Number(earning.supporterMultiplier || 1)}`;
+    if (supporterTier) supporterTier.textContent = earning.supporterTier
+      ? String(earning.supporterTier).replace(/^./, (value) => value.toUpperCase())
+      : "No active tier";
     if (payout) payout.textContent = earning.configured
       ? `${Number(earning.boostedCoinsPer5Minutes || earning.coinsPer5Minutes || 0).toLocaleString()} / 5 min`
       : "—";
