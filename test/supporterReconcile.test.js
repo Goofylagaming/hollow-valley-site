@@ -171,3 +171,45 @@ test("strict recovery only searches by Steam metadata and requires Steam identit
     { status: 409 }
   );
 });
+
+
+test("live recovery accepts only live subscriptions when live mode is enabled", async () => {
+  reset();
+  const liveEnv = {
+    ...env,
+    STRIPE_LIVE_ENABLED: "true",
+    STRIPE_SECRET_KEY: "sk_live_fixture",
+    SUPPORTER_REQUIRE_STEAM_ID: "true",
+  };
+  const subscription = {
+    id: "sub_live_steam",
+    livemode: true,
+    status: "active",
+    cancel_at_period_end: false,
+    created: 2_000_000_002,
+    metadata: {
+      steam_id: "76561198000000042",
+      tier: "elite",
+    },
+    customer: "cus_live_42",
+    items: {
+      data: [{
+        id: "si_live_42",
+        price: { id: liveEnv.STRIPE_PRICE_ELITE },
+        current_period_end: 2_100_000_002,
+      }],
+    },
+  };
+
+  const result = await reconcileCurrentUser({
+    userId: 42,
+    steamId: "76561198000000042",
+    env: liveEnv,
+    fetchImpl: async (url) => {
+      assert.match(new URL(url).searchParams.get("query"), /steam_id/);
+      return { ok: true, json: async () => ({ data: [subscription] }) };
+    },
+  });
+  assert.equal(result.recovered, true);
+  assert.equal(result.tier, "elite");
+});
