@@ -130,6 +130,8 @@ window.HDS = (function () {
     }
     wireNavInteractions();
     const me = await loadMe();
+    const adminRestoreNav = document.getElementById("admin-restore-nav");
+    if (adminRestoreNav) adminRestoreNav.hidden = !Boolean(me?.user?.is_admin);
     await claimDailyLoginBonus(me);
 
     document.getElementById("auth-area")?.addEventListener("click", (event) => {
