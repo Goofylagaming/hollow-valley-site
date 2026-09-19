@@ -9,9 +9,9 @@ const {
 
 const env = {
   STRIPE_SECRET_KEY: "sk_test_fixture",
-  STRIPE_PRICE_MEMBER: "price_test_member",
-  STRIPE_PRICE_ELITE: "price_test_elite",
-  STRIPE_PRICE_LEGEND: "price_test_legend",
+  STRIPE_PRICE_MEMBER: "price_testmember",
+  STRIPE_PRICE_ELITE: "price_testelite",
+  STRIPE_PRICE_LEGEND: "price_testlegend",
   RENDER_EXTERNAL_URL: "https://hollow-valley-site-test.onrender.com",
 };
 
