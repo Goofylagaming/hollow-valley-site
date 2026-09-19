@@ -1,7 +1,15 @@
-const BONUS_PERCENT_BY_TIER = Object.freeze({
-  member: 20,
-  elite: 50,
-  legend: 100,
+const MULTIPLIER_BY_TIER = Object.freeze({
+  supporter: 2,
+  guardian: 3,
+  legend: 5,
+});
+
+const LEGACY_TIER_ALIASES = Object.freeze({
+  member: "supporter",
+  elite: "guardian",
+  supporter: "supporter",
+  guardian: "guardian",
+  legend: "legend",
 });
 
 const memberships = new Map();
@@ -28,8 +36,18 @@ function validateSteamId(value) {
   return steamId;
 }
 
+function normalizeTier(tier) {
+  const key = String(tier || "").trim().toLowerCase();
+  return Object.hasOwn(LEGACY_TIER_ALIASES, key) ? LEGACY_TIER_ALIASES[key] : null;
+}
+
+function multiplierForTier(tier) {
+  const canonical = normalizeTier(tier);
+  return canonical ? MULTIPLIER_BY_TIER[canonical] || 1 : 1;
+}
+
 function bonusPercentForTier(tier) {
-  return BONUS_PERCENT_BY_TIER[String(tier || "").trim()] || 0;
+  return Math.max(0, (multiplierForTier(tier) - 1) * 100);
 }
 
 function noMembership(steamId) {
@@ -37,6 +55,7 @@ function noMembership(steamId) {
     steamId,
     entitled: false,
     tier: null,
+    multiplier: 1,
     bonusPercent: 0,
   };
 }
@@ -58,10 +77,11 @@ function replaceMemberships(steamIds, records = [], env = process.env) {
   let entitled = 0;
   for (const steamId of ids) {
     const record = bySteam.get(steamId);
-    const tier = record?.entitled ? String(record.tier || "") : "";
-    const bonusPercent = bonusPercentForTier(tier);
-    const membership = bonusPercent > 0
-      ? { steamId, entitled: true, tier, bonusPercent }
+    const tier = record?.entitled ? normalizeTier(record.tier) : null;
+    const multiplier = tier ? multiplierForTier(tier) : 1;
+    const bonusPercent = Math.max(0, (multiplier - 1) * 100);
+    const membership = tier && multiplier > 1
+      ? { steamId, entitled: true, tier, multiplier, bonusPercent }
       : noMembership(steamId);
     memberships.set(steamId, membership);
     if (membership.entitled) entitled += 1;
@@ -127,6 +147,7 @@ function applyBonus(coinsAfterQuestBoost, steamId, env = process.env) {
   return {
     ...membership,
     coinsBeforeSupporterBonus: amount,
+    supporterMultiplier: membership.multiplier || 1,
     supporterBonusCoins,
     payoutCoins: amount + supporterBonusCoins,
   };
@@ -137,10 +158,13 @@ function clearCache() {
 }
 
 module.exports = {
-  BONUS_PERCENT_BY_TIER,
+  MULTIPLIER_BY_TIER,
+  LEGACY_TIER_ALIASES,
   enabled,
   configuration,
   validateSteamId,
+  normalizeTier,
+  multiplierForTier,
   bonusPercentForTier,
   membershipForSteamId,
   replaceMemberships,
