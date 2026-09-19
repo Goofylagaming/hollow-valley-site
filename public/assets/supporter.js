@@ -61,9 +61,10 @@ async function loadStatus() {
 
     statusEl.innerHTML = `
       <div class="summary-tile"><small>CURRENT TIER</small><b>${escapeHtml(status.tierLabel || status.tier)}</b></div>
+      <div class="summary-tile"><small>REWARD MULTIPLIER</small><b>×${Number(status.multiplier || 1)}</b></div>
       <div class="summary-tile"><small>STRIPE STATUS</small><b>${escapeHtml(state)}</b></div>
       <div class="summary-tile"><small>AUTO-RENEW</small><b>${renewText}</b></div>
-      <div class="summary-tile"><small>BENEFITS</small><b>${status.entitled ? "Membership verified" : "Inactive / pending"}</b></div>
+      <div class="summary-tile"><small>BENEFITS</small><b>${status.entitled ? "Active on eligible rewards" : "Inactive / pending"}</b></div>
       ${managementButton}
     `;
 
@@ -143,7 +144,8 @@ async function loadTiers(status = currentStatus) {
 
       return `<div class="tier-card">
         <h3>${escapeHtml(tier.label)}</h3>
-        <p class="price">A$${tier.priceAud.toFixed(2)} / month</p>
+        <p class="price">A${tier.priceAud.toFixed(2)} / month</p>
+        <p class="section-intro">×${Number(tier.multiplier || 1)} on eligible Valley Coin rewards</p>
         <button
           class="small-button"
           data-tier="${key}"
