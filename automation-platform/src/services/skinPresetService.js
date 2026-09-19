@@ -148,6 +148,8 @@ function getSharedPreset(shareCode) {
 }
 
 function createPresetRecord({ ownerSteamId, species, name, description = '', skin, createKey = null }) {
+  const owner = ownerSteamId ? store.validateSteamId(ownerSteamId) : null;
+  if (owner) store.ensureWallet(owner);
   const id = randomUUID();
   const shareCode = generateShareCode();
   store.db.prepare(`
@@ -156,7 +158,7 @@ function createPresetRecord({ ownerSteamId, species, name, description = '', ski
     VALUES (?, ?, ?, ?, ?, ?, 0, 1, 0, 0, ?, ?)
   `).run(
     id,
-    ownerSteamId,
+    owner,
     validateSpecies(species),
     validateName(name),
     validateDescription(description),
