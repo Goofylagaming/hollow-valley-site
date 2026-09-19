@@ -1,0 +1,34 @@
+name: Validate Skin Studio Automation
+
+on:
+  pull_request:
+    branches:
+      - automation-platform
+    paths:
+      - "automation-platform/src/services/economyStore.js"
+      - "automation-platform/src/services/skinPresetService.js"
+      - "automation-platform/src/services/skinWearService.js"
+      - "automation-platform/src/services/commandBridgeService.js"
+      - "automation-platform/src/routes/websiteRoutes.js"
+      - "automation-platform/test/skinPresets.test.js"
+      - "automation-platform/.env.example"
+      - ".github/workflows/validate-skin-studio-automation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: automation-platform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: automation-platform/package-lock.json
+      - run: npm ci
+      - run: node --test test/skinPresets.test.js test/commandBridge.test.js
