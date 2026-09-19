@@ -235,3 +235,35 @@ test("HTTP webhook route accepts a valid signed raw body and rejects tampering",
   });
   assert.equal(bad.status, 400);
 });
+
+
+test("live-mode webhooks are processed only when live mode is explicitly enabled", () => {
+  reset();
+  const liveEnv = {
+    ...process.env,
+    STRIPE_LIVE_ENABLED: "true",
+  };
+  const liveEvent = {
+    id: "evt_live_enabled",
+    type: "checkout.session.completed",
+    livemode: true,
+    data: {
+      object: {
+        mode: "subscription",
+        payment_status: "paid",
+        metadata: { user_id: "42", tier: "legend" },
+        customer: "cus_live_42",
+        subscription: "sub_live_42",
+      },
+    },
+  };
+
+  assert.deepEqual(processStripeEvent(liveEvent, liveEnv), { processed: true, userId: 42 });
+  assert.equal(getSupporterStatus(42).tier, "legend");
+
+  assert.deepEqual(processStripeEvent({
+    ...liveEvent,
+    id: "evt_test_rejected_in_live",
+    livemode: false,
+  }, liveEnv), { ignored: true });
+});
