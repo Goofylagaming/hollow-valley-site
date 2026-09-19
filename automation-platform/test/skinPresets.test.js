@@ -23,7 +23,7 @@ function sampleSkin() {
   };
 }
 
-function loadService({ enabled = true, edits = true } = {}) {
+function loadService({ enabled = true, edits = true, cost = 500 } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hv-skins-'));
   const previous = {
     db: process.env.AUTOMATION_DB_PATH,
@@ -34,7 +34,7 @@ function loadService({ enabled = true, edits = true } = {}) {
   process.env.AUTOMATION_DB_PATH = path.join(dir, 'economy.sqlite');
   process.env.SKIN_SYSTEM_ENABLED = enabled ? 'true' : 'false';
   process.env.PARKED_DINO_EDIT_ENABLED = edits ? 'true' : 'false';
-  process.env.SKIN_PRESET_CREATE_COST = '500';
+  process.env.SKIN_PRESET_CREATE_COST = String(cost);
 
   const storePath = require.resolve('../src/services/economyStore');
   const filePath = require.resolve('../src/services/parkedDinoFileService');
@@ -226,4 +226,90 @@ test('invalid captured skin values are rejected instead of written back', (t) =>
   const bad = sampleSkin();
   bad.body.r = 2;
   assert.throws(() => fixture.service.sanitizeSkin(bad), /between 0 and 1/);
+});
+
+
+test('Skin Studio saves free drafts with a share code when creation cost is zero', async (t) => {
+  const fixture = loadService({ cost: 0 });
+  t.after(fixture.cleanup);
+  const steamId = '76561198000000307';
+
+  const created = await fixture.service.createPresetFromStudio({
+    steamId,
+    species: 'Triceratops',
+    name: 'Valley Moss',
+    description: 'Green and gold valley pattern.',
+    skin: sampleSkin(),
+    idempotencyKey: 'skin-studio:007',
+  });
+
+  assert.equal(created.duplicate, false);
+  assert.equal(created.wallet.balance, 0);
+  assert.equal(created.preset.species, 'Triceratops');
+  assert.match(created.preset.share_code, /^HV-[A-F0-9]{5}-[A-F0-9]{5}$/);
+  assert.equal(created.preset.published, false);
+
+  const duplicate = await fixture.service.createPresetFromStudio({
+    steamId,
+    species: 'Triceratops',
+    name: 'Valley Moss',
+    description: 'Green and gold valley pattern.',
+    skin: sampleSkin(),
+    idempotencyKey: 'skin-studio:007',
+  });
+  assert.equal(duplicate.duplicate, true);
+  assert.equal(duplicate.preset.id, created.preset.id);
+});
+
+test('published skin purchase permanently unlocks once and debits Valley Coin once', async (t) => {
+  const fixture = loadService({ cost: 0 });
+  t.after(fixture.cleanup);
+  const creator = '76561198000000308';
+  const buyer = '76561198000000309';
+
+  const created = await fixture.service.createPresetFromStudio({
+    steamId: creator,
+    species: 'Triceratops',
+    name: 'Amber Frill',
+    skin: sampleSkin(),
+    idempotencyKey: 'skin-studio:008',
+  });
+  fixture.service.publishPreset({
+    presetId: created.preset.id,
+    price: 250,
+    description: 'Published test skin.',
+  });
+
+  fixture.store.applyWalletTransaction({
+    steamId: buyer,
+    amount: 500,
+    kind: 'test_credit',
+    reason: 'Skin shop funding',
+    idempotencyKey: 'skin-fund:009',
+  });
+
+  const before = fixture.service.listStore(buyer).find((row) => row.id === created.preset.id);
+  assert.equal(before.owned, false);
+  assert.equal(before.price, 250);
+
+  const purchase = fixture.service.purchasePreset({
+    steamId: buyer,
+    presetId: created.preset.id,
+    idempotencyKey: 'skin-buy:009',
+  });
+  assert.equal(purchase.duplicate, false);
+  assert.equal(purchase.wallet.balance, 250);
+  assert.equal(purchase.preset.owned, true);
+
+  const duplicate = fixture.service.purchasePreset({
+    steamId: buyer,
+    presetId: created.preset.id,
+    idempotencyKey: 'skin-buy:009',
+  });
+  assert.equal(duplicate.duplicate, true);
+  assert.equal(duplicate.wallet.balance, 250);
+
+  const owned = fixture.service.listAvailablePresets(buyer);
+  assert.equal(owned.some((row) => row.id === created.preset.id), true);
+  assert.equal(fixture.store.getWallet(buyer).transactions.filter((tx) => tx.kind === 'skin_purchase').length, 1);
 });

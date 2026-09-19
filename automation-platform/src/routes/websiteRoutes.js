@@ -13,6 +13,7 @@ const supporterBonuses = require('../services/supporterBonusService');
 const dinoMarketplace = require('../services/dinoMarketplaceService');
 const parkedDinoMutations = require('../services/parkedDinoMutationService');
 const skinPresets = require('../services/skinPresetService');
+const skinWear = require('../services/skinWearService');
 const officialMarketplaceFulfillment = require('../services/officialMarketplaceFulfillmentService');
 
 const router = express.Router();
@@ -279,6 +280,31 @@ router.put('/dinostorage/stored/:steamId/:slot/mutations', async (req, res) => {
   }
 });
 
+router.get('/skins/store', (req, res) => {
+  try {
+    const steamId = req.query.steamId ? validateSteamId(req.query.steamId) : null;
+    const species = req.query.species ? String(req.query.species) : null;
+    res.json({
+      systemEnabled: skinPresets.systemEnabled(),
+      applyEnabled: skinPresets.applyEnabled(),
+      liveWearEnabled: skinPresets.liveWearEnabled(),
+      createCost: skinPresets.createCost(),
+      skins: skinPresets.listStore(steamId, { species }),
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Unable to read the skin store.' });
+  }
+});
+
+router.get('/skins/share/:shareCode', (req, res) => {
+  try {
+    res.json({ preset: skinPresets.getSharedPreset(req.params.shareCode) });
+  } catch (error) {
+    res.status(error.code === 'SKIN_SHARE_NOT_FOUND' ? 404 : 400)
+      .json({ error: error.message || 'Unable to read shared skin.' });
+  }
+});
+
 router.get('/skins/:steamId', (req, res) => {
   try {
     const steamId = validateSteamId(req.params.steamId);
@@ -291,6 +317,47 @@ router.get('/skins/:steamId', (req, res) => {
     });
   } catch (error) {
     res.status(400).json({ error: error.message || 'Unable to read skin presets.' });
+  }
+});
+
+router.post('/skins/studio', async (req, res) => {
+  try {
+    const steamId = validateSteamId(req.body?.steamId);
+    const result = await audit.run('website', 'skin_studio_save', {
+      steamId,
+      species: req.body?.species || null,
+      nameLength: String(req.body?.name || '').trim().length,
+    }, async () => skinPresets.createPresetFromStudio({
+      steamId,
+      species: req.body?.species,
+      name: req.body?.name,
+      description: req.body?.description,
+      skin: req.body?.skin,
+      idempotencyKey: req.body?.idempotencyKey,
+    }), (value) => ({
+      presetId: value.preset?.id || null,
+      species: value.preset?.species || null,
+      duplicate: Boolean(value.duplicate),
+    }));
+    res.status(result.duplicate ? 200 : 201).json({ ok: true, ...result });
+  } catch (error) {
+    const status = error.code === 'SKIN_SYSTEM_DISABLED' ? 503 : 400;
+    res.status(status).json({ error: error.message || 'Unable to save Skin Studio design.', code: error.code || null });
+  }
+});
+
+router.post('/skins/import', async (req, res) => {
+  try {
+    const steamId = validateSteamId(req.body?.steamId);
+    const result = await skinPresets.importSharedPreset({
+      steamId,
+      shareCode: req.body?.shareCode,
+      idempotencyKey: req.body?.idempotencyKey,
+    });
+    res.status(result.duplicate ? 200 : 201).json({ ok: true, ...result });
+  } catch (error) {
+    const status = error.code === 'SKIN_SHARE_NOT_FOUND' ? 404 : 400;
+    res.status(status).json({ error: error.message || 'Unable to import shared skin.', code: error.code || null });
   }
 });
 
@@ -318,6 +385,72 @@ router.post('/skins/from-stored', async (req, res) => {
       error.code === 'INSUFFICIENT_FUNDS' ? 402 :
       error.code === 'DINO_FILE_NOT_FOUND' ? 404 : 400;
     res.status(status).json({ error: error.message || 'Unable to create skin preset.', code: error.code || null });
+  }
+});
+
+router.post('/skins/:presetId/buy', async (req, res) => {
+  try {
+    const steamId = validateSteamId(req.body?.steamId);
+    const result = await audit.run('website', 'skin_purchase', {
+      steamId,
+      presetId: req.params.presetId,
+    }, async () => skinPresets.purchasePreset({
+      steamId,
+      presetId: req.params.presetId,
+      idempotencyKey: req.body?.idempotencyKey,
+    }), (value) => ({
+      presetId: value.preset?.id || null,
+      duplicate: Boolean(value.duplicate),
+      balance: value.wallet?.balance ?? null,
+    }));
+    res.status(result.duplicate ? 200 : 201).json({ ok: true, ...result });
+  } catch (error) {
+    const status = error.code === 'SKIN_SYSTEM_DISABLED' ? 503 :
+      error.code === 'INSUFFICIENT_FUNDS' ? 402 :
+      error.code === 'SKIN_PRESET_NOT_FOUND' ? 404 : 400;
+    res.status(status).json({ error: error.message || 'Unable to unlock skin.', code: error.code || null });
+  }
+});
+
+router.post('/skins/:presetId/wear', async (req, res) => {
+  try {
+    const steamId = validateSteamId(req.body?.steamId);
+    const result = await audit.run('website', 'skin_live_wear', {
+      steamId,
+      presetId: req.params.presetId,
+    }, async () => skinWear.wearPreset({
+      steamId,
+      presetId: req.params.presetId,
+    }), (value) => ({
+      presetId: value.preset?.id || null,
+      requestId: value.requestId || null,
+      confirmed: Boolean(value.confirmed),
+    }));
+    res.status(result.confirmed ? 200 : 202).json({ ok: true, ...result });
+  } catch (error) {
+    const status = error.code === 'SKIN_LIVE_WEAR_DISABLED' ? 503 :
+      error.code === 'SKIN_PRESET_NOT_FOUND' ? 404 :
+      error.code === 'SKIN_WEAR_FAILED' ? 409 : 400;
+    res.status(status).json({
+      error: error.message || 'Unable to wear skin.',
+      code: error.code || null,
+      requestId: error.requestId || null,
+    });
+  }
+});
+
+router.post('/skins/:presetId/publish', (req, res) => {
+  try {
+    const preset = skinPresets.publishPreset({
+      presetId: req.params.presetId,
+      price: req.body?.price,
+      description: req.body?.description,
+      published: req.body?.published !== false,
+    });
+    res.json({ ok: true, preset });
+  } catch (error) {
+    res.status(error.code === 'SKIN_PRESET_NOT_FOUND' ? 404 : 400)
+      .json({ error: error.message || 'Unable to publish skin.', code: error.code || null });
   }
 });
 
