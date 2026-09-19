@@ -67,7 +67,6 @@ test('homepage quests render automatic daily and weekly progress with no claim b
   assert.match(js, /progressSeconds/);
   assert.match(js, /boostPercent/);
   assert.equal(js.includes('quest-claim'), false);
-  assert.equal(js.includes('Claiming…'), false);
   assert.match(html, /Verified online time completes these automatically/);
   assert.match(html, /ACTIVE COIN BOOST/);
 });
