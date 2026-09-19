@@ -38,20 +38,21 @@ test("dashboard has one prominent wallet balance and official supporter multipli
   assert.match(html, /VALLEY COIN · LIVE REWARDS/);
 });
 
-test("homepage quests are automatic progress with no manual claim buttons", () => {
+test("homepage quest panels are removed while automatic quest logic remains available", () => {
   const html = read("public/index.html");
   const js = read("public/assets/site.js");
-  assert.match(html, /Verified online time completes these automatically/);
+  assert.equal(html.includes("Verified online time completes these automatically"), false);
+  assert.equal(html.includes("ACTIVE COIN BOOST"), false);
   assert.match(js, /progressSeconds/);
   assert.match(js, /boostPercent/);
   assert.equal(js.includes("quest-claim"), false);
 });
 
-test("homepage wallet shows supporter multiplier, daily login reward and species browser", () => {
+test("homepage wallet panel is removed while wallet and species helpers remain available", () => {
   const html = read("public/index.html");
   const js = read("public/assets/site.js");
-  assert.match(html, /wallet-supporter-multiplier/);
-  assert.match(html, /DAILY LOGIN BONUS/);
+  assert.equal(html.includes("wallet-supporter-multiplier"), false);
+  assert.equal(html.includes("DAILY LOGIN BONUS"), false);
   assert.match(js, /supporterMultiplier/);
   assert.match(js, /daily_login_bonus/);
   assert.match(js, /loadDailyBonus/);
