@@ -3,6 +3,7 @@ const express = require("express");
 const { getSupporterStatus, cancelSupporterAutoRenew } = require("../db");
 const { requireAuth } = require("../middleware/requireAuth");
 const { TIERS, checkoutConfigured, createCheckoutSession, CheckoutError } = require("../services/supporterCheckout");
+const { normalizeTier, supporterMultiplier } = require("../services/supporterTiers");
 const { isEntitled } = require("../services/supporterWebhook");
 const {
   ManageError,
@@ -38,10 +39,12 @@ router.get("/tiers", (req, res) => {
 router.get("/", requireAuth, (req, res) => {
   const status = getSupporterStatus(req.user.id);
   if (!status) return res.json(null);
-  const tier = TIERS[status.tier];
+  const canonicalTier = normalizeTier(status.tier);
+  const tier = canonicalTier ? TIERS[canonicalTier] : null;
   res.json({
-    tier: status.tier,
+    tier: canonicalTier || status.tier,
     tierLabel: tier?.label || status.tier,
+    multiplier: supporterMultiplier(canonicalTier),
     auto_renew: Boolean(status.auto_renew),
     renews_at: status.renews_at,
     cancelled_at: status.cancelled_at,
