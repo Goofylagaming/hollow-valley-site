@@ -455,6 +455,36 @@ local function writeToBodyDropInbox(cmdId, steam, args)
     return true, "queued"
 end
 
+local function writeToSkinStudioInbox(cmdId, steam, args)
+    local inboxPath =
+        (MODS_ROOT and (MODS_ROOT .. "/SkinStudio/Saved/inbox.ndjson"))
+        or "Mods/SkinStudio/Saved/inbox.ndjson"
+
+    local tokensJson = "["
+    for i, token in ipairs(args or {}) do
+        if i > 1 then tokensJson = tokensJson .. "," end
+        tokensJson = tokensJson .. '"' .. jsonEscape(token) .. '"'
+    end
+    tokensJson = tokensJson .. "]"
+
+    local line = string.format(
+        '{"id":"%s","ts":%d,"steam":"%s","args":%s}',
+        jsonEscape(cmdId),
+        os.time(),
+        jsonEscape(steam),
+        tokensJson
+    )
+
+    local ok = appendLine(inboxPath, line)
+    if not ok then
+        log("SkinStudio inbox write failed: " .. inboxPath)
+        return false, "SkinStudio inbox write failed"
+    end
+
+    log(string.format("Queued SkinStudio command id=%s steam=%s", tostring(cmdId), tostring(steam)))
+    return true, "queued"
+end
+
 local function dispatchCommand(id, verb, steam, args)
     args = args or {}
 
@@ -483,6 +513,14 @@ local function dispatchCommand(id, verb, steam, args)
 
     if verb == "bd" then
         local ok, msg = writeToBodyDropInbox(id, steam, args)
+        if not ok then
+            emitResult(id, verb, steam, false, msg)
+        end
+        return
+    end
+
+    if verb == "skin_apply" then
+        local ok, msg = writeToSkinStudioInbox(id, steam, args)
         if not ok then
             emitResult(id, verb, steam, false, msg)
         end
