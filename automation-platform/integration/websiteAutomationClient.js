@@ -1,0 +1,305 @@
+function requireConfig() {
+  const baseUrl = String(process.env.AUTOMATION_SERVICE_URL || '').trim().replace(/\/$/, '');
+  const token = String(process.env.HOLLOW_VALLEY_API_TOKEN || '').trim();
+  const timeoutMs = Math.max(1000, Math.min(30000, Number(process.env.AUTOMATION_SERVICE_TIMEOUT_MS || 8000)));
+  if (!baseUrl) throw new Error('AUTOMATION_SERVICE_URL is not configured');
+  if (!/^https?:\/\//i.test(baseUrl)) throw new Error('AUTOMATION_SERVICE_URL must be an http(s) URL');
+  if (!token) throw new Error('HOLLOW_VALLEY_API_TOKEN is not configured');
+  return { baseUrl, token, timeoutMs };
+}
+
+function validateSteamId(value) {
+  const steamId = String(value || '').trim();
+  if (!/^\d{17}$/.test(steamId)) throw new Error('A valid 17-digit Steam ID is required');
+  return steamId;
+}
+
+function validateRequestId(value) {
+  const requestId = String(value || '').trim();
+  if (!/^[A-Za-z0-9_-]{8,128}$/.test(requestId)) throw new Error('Invalid automation request ID');
+  return requestId;
+}
+
+async function call(path, { method = 'GET', body, fetchImpl = globalThis.fetch } = {}) {
+  if (typeof fetchImpl !== 'function') throw new Error('A fetch implementation is required');
+  const { baseUrl, token, timeoutMs } = requireConfig();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  timer.unref?.();
+
+  try {
+    const response = await fetchImpl(`${baseUrl}/api/website${path}`, {
+      method,
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+        ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    let payload = null;
+    try { payload = await response.json(); } catch {}
+    if (!response.ok) {
+      const error = new Error(payload?.error || `Automation service request failed (${response.status})`);
+      error.status = response.status;
+      error.payload = payload;
+      throw error;
+    }
+    return payload;
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      const timeoutError = new Error('Automation service request timed out');
+      timeoutError.code = 'AUTOMATION_TIMEOUT';
+      throw timeoutError;
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function migrateLegacyWallet({ steamId, legacyUserId, balance }, options = {}) {
+  return call('/wallet/migrate', {
+    ...options,
+    method: 'POST',
+    body: {
+      steamId: validateSteamId(steamId),
+      legacyUserId: String(legacyUserId ?? '').trim(),
+      balance: Number(balance),
+    },
+  });
+}
+
+function getWallet(steamId, options = {}) {
+  return call(`/wallet/${encodeURIComponent(validateSteamId(steamId))}`, options);
+}
+
+function getQuests(steamId, options = {}) {
+  return call(`/quests/${encodeURIComponent(validateSteamId(steamId))}`, options);
+}
+
+function getDailyLoginBonus(steamId, options = {}) {
+  return call(`/daily-login/${encodeURIComponent(validateSteamId(steamId))}`, options);
+}
+
+function claimDailyLoginBonus(steamId, options = {}) {
+  return call(`/daily-login/${encodeURIComponent(validateSteamId(steamId))}/claim`, {
+    ...options,
+    method: 'POST',
+  });
+}
+
+function listMarketplaceCatalog(options = {}) {
+  return call('/marketplace/catalog', options);
+}
+
+function listMarketplaceOrders(steamId, options = {}) {
+  return call(`/marketplace/orders/${encodeURIComponent(validateSteamId(steamId))}`, options);
+}
+
+function purchaseMarketplaceItem({ steamId, catalogId, idempotencyKey }, options = {}) {
+  const validatedSteamId = validateSteamId(steamId);
+  const itemId = String(catalogId || '').trim();
+  const key = String(idempotencyKey || '').trim();
+  if (!/^[A-Za-z0-9:_-]{8,160}$/.test(key)) throw new Error('Invalid marketplace idempotency key');
+  if (!/^[A-Za-z0-9:_-]{2,80}$/.test(itemId)) throw new Error('Invalid marketplace catalog ID');
+  return call(`/marketplace/catalog/${encodeURIComponent(itemId)}/buy`, {
+    ...options,
+    method: 'POST',
+    body: { steamId: validatedSteamId, idempotencyKey: key },
+  });
+}
+
+function getDinoMarketplaceState(options = {}) {
+  return call('/marketplace/state', options);
+}
+
+function listDinoMarketplaceListings(options = {}) {
+  return call('/marketplace/listings', options);
+}
+
+function listMyDinoMarketplaceListings(steamId, options = {}) {
+  return call(`/marketplace/listings/mine/${encodeURIComponent(validateSteamId(steamId))}`, options);
+}
+
+function createDinoMarketplaceListing({ steamId, slot, price, idempotencyKey }, options = {}) {
+  return call('/marketplace/listings', {
+    ...options,
+    method: 'POST',
+    body: {
+      steamId: validateSteamId(steamId),
+      slot: String(slot || '').trim(),
+      price: Number(price),
+      idempotencyKey: String(idempotencyKey || '').trim(),
+    },
+  });
+}
+
+function buyDinoMarketplaceListing({ steamId, listingId, idempotencyKey }, options = {}) {
+  return call(`/marketplace/listings/${encodeURIComponent(String(listingId || '').trim())}/buy`, {
+    ...options,
+    method: 'POST',
+    body: {
+      steamId: validateSteamId(steamId),
+      idempotencyKey: String(idempotencyKey || '').trim(),
+    },
+  });
+}
+
+function cancelDinoMarketplaceListing({ steamId, listingId }, options = {}) {
+  return call(`/marketplace/listings/${encodeURIComponent(String(listingId || '').trim())}/cancel`, {
+    ...options,
+    method: 'POST',
+    body: { steamId: validateSteamId(steamId) },
+  });
+}
+
+function getParkedDinoMutations(steamId, slot, options = {}) {
+  return call(`/dinostorage/stored/${encodeURIComponent(validateSteamId(steamId))}/${encodeURIComponent(String(slot || '').trim())}/mutations`, options);
+}
+
+function updateParkedDinoMutations(steamId, slot, mutations, options = {}) {
+  return call(`/dinostorage/stored/${encodeURIComponent(validateSteamId(steamId))}/${encodeURIComponent(String(slot || '').trim())}/mutations`, {
+    ...options,
+    method: 'PUT',
+    body: { mutations },
+  });
+}
+
+function listSkinPresets(steamId, { species = null, ...options } = {}) {
+  const query = species ? `?species=${encodeURIComponent(String(species))}` : '';
+  return call(`/skins/${encodeURIComponent(validateSteamId(steamId))}${query}`, options);
+}
+
+function createSkinPreset({ steamId, slot, name, idempotencyKey }, options = {}) {
+  return call('/skins/from-stored', {
+    ...options,
+    method: 'POST',
+    body: {
+      steamId: validateSteamId(steamId),
+      slot: String(slot || '').trim(),
+      name: String(name || '').trim(),
+      idempotencyKey: String(idempotencyKey || '').trim(),
+    },
+  });
+}
+
+function applySkinPreset({ steamId, slot, presetId }, options = {}) {
+  return call(`/skins/${encodeURIComponent(String(presetId || '').trim())}/apply`, {
+    ...options,
+    method: 'POST',
+    body: {
+      steamId: validateSteamId(steamId),
+      slot: String(slot || '').trim(),
+    },
+  });
+}
+
+function getBodyDropCooldown(steamId, options = {}) {
+  return call(`/bodydrop/cooldown/${encodeURIComponent(validateSteamId(steamId))}`, options);
+}
+
+function requestBodyDrop({ steamId, dropType }, options = {}) {
+  const validatedSteamId = validateSteamId(steamId);
+  const type = String(dropType || '').trim();
+  if (!/^[A-Za-z0-9_-]{2,32}$/.test(type)) throw new Error('Invalid body drop type');
+  return call('/bodydrop', { ...options, method: 'POST', body: { steamId: validatedSteamId, dropType: type } });
+}
+
+function getActiveCharacter(steamId, options = {}) {
+  return call(`/dinostorage/active-character/${encodeURIComponent(validateSteamId(steamId))}`, options);
+}
+
+function listStoredDinos(steamId, options = {}) {
+  return call(`/dinostorage/${encodeURIComponent(validateSteamId(steamId))}`, options);
+}
+
+function requestDinoAction(action, { steamId, slot = 'default' }, options = {}) {
+  if (!['store', 'redeem'].includes(action)) throw new Error('Unsupported DinoStorage action');
+  const validatedSteamId = validateSteamId(steamId);
+  const selectedSlot = String(slot || 'default').trim();
+  if (!/^[A-Za-z0-9_-]{1,80}$/.test(selectedSlot)) throw new Error('Invalid DinoStorage slot');
+  return call(`/dinostorage/${action}`, {
+    ...options,
+    method: 'POST',
+    body: { steamId: validatedSteamId, slot: selectedSlot },
+  });
+}
+
+function getRequestStatus(requestId, steamId, options = {}) {
+  const id = validateRequestId(requestId);
+  const steam = validateSteamId(steamId);
+  return call(`/requests/${encodeURIComponent(id)}?steamId=${encodeURIComponent(steam)}`, options);
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForRequestStatus(requestId, steamId, {
+  fetchImpl = globalThis.fetch,
+  intervalMs = 2000,
+  maxWaitMs = 30000,
+} = {}) {
+  const id = validateRequestId(requestId);
+  const steam = validateSteamId(steamId);
+  const pollEvery = Math.max(250, Math.min(10000, Number(intervalMs) || 2000));
+  const deadline = Date.now() + Math.max(1000, Math.min(120000, Number(maxWaitMs) || 30000));
+  const terminal = new Set(['confirmed', 'accepted', 'completed', 'failed', 'unknown', 'cancelled']);
+  let latest = null;
+
+  while (Date.now() <= deadline) {
+    const payload = await getRequestStatus(id, steam, { fetchImpl });
+    latest = payload?.request || null;
+    if (!latest) throw new Error('Automation service returned no request state');
+    if (terminal.has(latest.status)) {
+      return {
+        request: latest,
+        terminal: true,
+        requiresOperator: latest.status === 'unknown',
+      };
+    }
+    if (Date.now() + pollEvery > deadline) break;
+    await sleep(pollEvery);
+  }
+
+  return {
+    request: latest,
+    terminal: false,
+    timedOut: true,
+    requiresOperator: false,
+  };
+}
+
+module.exports = {
+  validateSteamId,
+  validateRequestId,
+  migrateLegacyWallet,
+  getWallet,
+  getQuests,
+  getDailyLoginBonus,
+  claimDailyLoginBonus,
+  listMarketplaceCatalog,
+  listMarketplaceOrders,
+  purchaseMarketplaceItem,
+  getDinoMarketplaceState,
+  listDinoMarketplaceListings,
+  listMyDinoMarketplaceListings,
+  createDinoMarketplaceListing,
+  buyDinoMarketplaceListing,
+  cancelDinoMarketplaceListing,
+  getParkedDinoMutations,
+  updateParkedDinoMutations,
+  listSkinPresets,
+  createSkinPreset,
+  applySkinPreset,
+  getBodyDropCooldown,
+  requestBodyDrop,
+  getActiveCharacter,
+  listStoredDinos,
+  requestDinoAction,
+  getRequestStatus,
+  waitForRequestStatus,
+};

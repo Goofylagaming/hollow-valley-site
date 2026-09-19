@@ -1,0 +1,177 @@
+# Separate Render Blueprint for the Hollow Valley Automation Platform.
+# This file is intentionally scoped to automation-platform and must create a
+# NEW service. It must not replace or repoint the live Hollow Valley website.
+
+services:
+  - type: web
+    name: hollow-valley-automation
+    runtime: docker
+    rootDir: automation-platform
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    autoDeploy: false
+    healthCheckPath: /health
+    disk:
+      name: hollow-valley-automation-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3100
+      - key: AUTOMATION_DB_PATH
+        value: /var/data/automation.sqlite
+      - key: AUTOMATION_ADMIN_TOKEN
+        generateValue: true
+      - key: HOLLOW_VALLEY_API_TOKEN
+        generateValue: true
+      - key: AUTOMATION_SCHEDULER_INTERVAL_MS
+        value: 15000
+
+      # Consistent SQLite snapshots use the same persistent disk. Enable only
+      # after the disk has been verified to survive redeploys.
+      - key: AUTOMATION_BACKUP_ENABLED
+        value: false
+      - key: AUTOMATION_BACKUP_DIR
+        value: /var/data/backups
+      - key: AUTOMATION_BACKUP_INTERVAL_MS
+        value: 21600000
+      - key: AUTOMATION_BACKUP_RETENTION
+        value: 20
+
+      # RCON read access can be configured without enabling writes.
+      - key: RCON_HOST
+        sync: false
+      - key: RCON_PORT
+        sync: false
+      - key: RCON_PASSWORD
+        sync: false
+      - key: RCON_TIMEOUT_MS
+        value: 6000
+      - key: RCON_WRITE_ENABLED
+        value: false
+
+      # Read-only player session history is opt-in after RCON verification.
+      - key: PLAYER_PRESENCE_ENABLED
+        value: false
+      - key: PLAYER_PRESENCE_INTERVAL_MS
+        value: 60000
+      - key: PLAYER_PRESENCE_RETENTION_HOURS
+        value: 744
+
+      # Valley Coin playtime rewards remain locked until the rate is deliberately
+      # chosen and read-only presence tracking has been verified.
+      - key: WALLET_PLAYTIME_REWARDS_ENABLED
+        value: false
+      - key: WALLET_PLAYTIME_COINS_PER_5_MINUTES
+        value: 0
+      - key: WALLET_PLAYTIME_MAX_SAMPLE_GAP_SECONDS
+        value: 90
+      - key: ECONOMY_TIMEZONE
+        value: Australia/Brisbane
+      - key: WALLET_QUEST_DAILY_1H_BOOST_PERCENT
+        value: 5
+      - key: WALLET_QUEST_DAILY_3H_BOOST_PERCENT
+        value: 10
+      - key: WALLET_QUEST_DAILY_6H_BOOST_PERCENT
+        value: 15
+      - key: WALLET_QUEST_WEEKLY_12H_BOOST_PERCENT
+        value: 10
+      - key: WALLET_QUEST_WEEKLY_24H_BOOST_PERCENT
+        value: 20
+      - key: WALLET_QUEST_MAX_TOTAL_BOOST_PERCENT
+        value: 100
+      - key: MARKETPLACE_WRITE_ENABLED
+        value: false
+      - key: MARKETPLACE_RECONCILE_INTERVAL_MS
+        value: 15000
+      - key: OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED
+        value: false
+      - key: OFFICIAL_MARKETPLACE_FULFILLMENT_INTERVAL_MS
+        value: 15000
+      - key: PARKED_DINO_EDIT_ENABLED
+        value: false
+      - key: SKIN_SYSTEM_ENABLED
+        value: false
+      - key: SKIN_PRESET_CREATE_COST
+        value: 500
+
+      # Read-only uptime/player-count history is also opt-in.
+      - key: SERVER_HEALTH_HISTORY_ENABLED
+        value: false
+      - key: SERVER_HEALTH_HISTORY_INTERVAL_MS
+        value: 60000
+      - key: SERVER_HEALTH_HISTORY_RETENTION_HOURS
+        value: 720
+
+      # Server monitoring remains disabled until Discord alerts are verified.
+      - key: SERVER_MONITOR_ENABLED
+        value: false
+      - key: SERVER_MONITOR_INTERVAL_MS
+        value: 60000
+      - key: SERVER_MONITOR_FAILURE_THRESHOLD
+        value: 3
+
+      # VeryGames FTP credentials may be added for diagnostics, but publishing
+      # stays disabled until CommandBridge queue ownership is reviewed.
+      - key: GAME_FILE_PROTOCOL
+        value: ftp
+      - key: SFTP_HOST
+        sync: false
+      - key: SFTP_PORT
+        value: 21
+      - key: SFTP_USER
+        sync: false
+      - key: SFTP_PASSWORD
+        sync: false
+      - key: SFTP_BASE_PATH
+        value: /
+      - key: FTP_SECURE
+        value: false
+      - key: COMMAND_BRIDGE_ENABLED
+        value: false
+      # Set manually only after the old website publisher is disabled. Expected
+      # value: automation-platform-is-sole-publisher
+      - key: COMMAND_BRIDGE_SINGLE_PUBLISHER_ACK
+        sync: false
+      - key: COMMAND_BRIDGE_SAVED_PATH
+        value: Mods/CommandBridge/Saved
+      - key: COMMAND_BRIDGE_TIMEOUT_MS
+        value: 20000
+
+      - key: BODYDROP_BRIDGE_MODE
+        value: commandbridge
+      - key: BODYDROP_COOLDOWN_SECONDS
+        value: 900
+      - key: BODYDROP_UNKNOWN_AFTER_SECONDS
+        value: 60
+      - key: BODYDROP_RECONCILE_INTERVAL_MS
+        value: 5000
+
+      - key: DINOSTORAGE_RESULT_MODE
+        value: bridge_ack
+      - key: DINOSTORAGE_UNKNOWN_AFTER_SECONDS
+        value: 60
+      - key: DINOSTORAGE_RECONCILE_INTERVAL_MS
+        value: 5000
+      # Admin restore JSON generation is always available to authenticated
+      # operators. Actual FTP slot uploads remain separately locked.
+      - key: ADMIN_RESTORE_WRITE_ENABLED
+        value: false
+
+      # HerbyBot bridge. This is a server-to-server credential used by the
+      # existing live HerbyBot to claim and acknowledge durable outbox events.
+      - key: HERBYBOT_AUTOMATION_TOKEN
+        generateValue: true
+      - key: HERBYBOT_AUTOMATION_POLL_INTERVAL_MS
+        value: 15000
+      - key: HERBYBOT_AUTOMATION_BATCH_SIZE
+        value: 10
+      - key: HERBYBOT_AUTOMATION_LEASE_SECONDS
+        value: 60
+      - key: HERBYBOT_OUTBOX_MAX_ATTEMPTS
+        value: 5
+
+      # Discord bot token and channel IDs intentionally stay on the existing
+      # HerbyBot service. The automation service never logs into Discord.

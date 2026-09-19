@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Hollow Valley server automation control center.">
+  <title>Automation Center | Herby Death Squad</title>
+  <link rel="stylesheet" href="https://hollowvalley.herbydeathsquadgames.com/assets/styles.css?v=12">
+  <link rel="stylesheet" href="/assets/automation.css?v=8">
+  <link rel="stylesheet" href="/assets/rcon-controls.css?v=1">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="https://hollowvalley.herbydeathsquadgames.com/dashboard">
+        <span class="brand-mark">HDS</span>
+        <span><b>HERBY DEATH SQUAD</b><small>EVRIMA SURVIVAL PORTAL</small></span>
+      </a>
+      <nav class="main-nav">
+        <a href="https://hollowvalley.herbydeathsquadgames.com/">Command</a>
+        <a href="https://hollowvalley.herbydeathsquadgames.com/dashboard">Dashboard</a>
+        <a href="https://hollowvalley.herbydeathsquadgames.com/mydinos">My dinos</a>
+        <a href="https://hollowvalley.herbydeathsquadgames.com/livemap">Live map</a>
+        <a href="/" class="automation-nav-active">Automation</a>
+      </nav>
+      <div class="automation-badge"><span class="status-dot" id="header-dot"></span><span id="header-status">Checking</span></div>
+      <button class="menu-toggle" aria-label="Toggle navigation" aria-expanded="false"><span></span><span></span></button>
+    </header>
+
+    <main>
+      <section class="page-header automation-header">
+        <p class="overline green">AUTOMATION CENTER</p>
+        <h1>Hollow Valley control plane.</h1>
+        <p class="section-intro">Server health, CommandBridge reconciliation and the automation services connecting the portal to Evrima.</p>
+      </section>
+
+      <section class="roster-section automation-section">
+        <div class="summary-grid automation-summary-grid public-summary-grid">
+          <div class="summary-tile"><small>GAME SERVER</small><b id="public-server-state">Checking</b><span id="public-server-detail">Waiting for status</span></div>
+          <div class="summary-tile"><small>ONLINE PLAYERS</small><b id="public-player-count">—</b><span id="public-player-capacity">Capacity unknown</span></div>
+          <div class="summary-tile"><small>AUTOMATION</small><b id="public-automation-state">Checking</b><span>Control-plane health</span></div>
+        </div>
+
+        <div class="automation-access" id="admin-gate">
+          <div>
+            <p class="overline green">OPERATOR ACCESS</p>
+            <h2>Admin console.</h2>
+            <p class="section-intro">Detailed player data, bridge paths, request queues and game-control actions require the automation admin token.</p>
+          </div>
+          <form id="admin-login-form" class="admin-login-form" autocomplete="off">
+            <label for="admin-token">Automation admin token</label>
+            <div class="admin-token-row">
+              <input id="admin-token" name="token" type="password" autocomplete="off" spellcheck="false" placeholder="Enter token" required>
+              <button class="small-button" type="submit">Unlock console</button>
+            </div>
+            <small>The token is kept only in this browser tab's session storage.</small>
+            <div class="automation-error" id="admin-login-error" hidden></div>
+          </form>
+        </div>
+
+        <div id="admin-console" hidden>
+          <div class="section-top compact-section-top console-toolbar">
+            <div><p class="overline green">LIVE STATUS</p><h2>Server <em>overview.</em></h2></div>
+            <div class="toolbar-actions">
+              <button class="small-button" id="reconcile-all" type="button">Reconcile queues</button>
+              <button class="small-button" id="refresh-status" type="button">Refresh status</button>
+              <button class="small-button subtle-button" id="lock-console" type="button">Lock</button>
+            </div>
+          </div>
+
+          <div class="summary-grid automation-summary-grid">
+            <div class="summary-tile"><small>GAME SERVER</small><b id="server-state">Checking</b><span id="server-detail">Waiting for RCON</span></div>
+            <div class="summary-tile"><small>ONLINE PLAYERS</small><b id="player-count">—</b><span id="player-capacity">Capacity unknown</span></div>
+            <div class="summary-tile"><small>RCON</small><b id="rcon-state">Checking</b><span>Evrima control channel</span></div>
+            <div class="summary-tile"><small>COMMAND BRIDGE</small><b id="bridge-state">Checking</b><span id="bridge-detail">VeryGames FTP queue</span></div>
+            <div class="summary-tile"><small>PENDING REQUESTS</small><b id="pending-count">0</b><span id="pending-detail">No queued work</span></div>
+            <div class="summary-tile"><small>UNKNOWN OUTCOMES</small><b id="unknown-count">0</b><span>Require operator reconciliation</span></div>
+          </div>
+
+          <div class="automation-grid">
+            <article class="automation-panel">
+              <div class="panel-heading"><div><small>EVRIMA</small><h3>Live players</h3></div><span class="panel-pill" id="last-checked">Not checked</span></div>
+              <div id="players-list" class="automation-list">
+                <div class="empty-roster"><strong>Waiting for server data</strong><span>The player list will appear after admin authentication.</span></div>
+              </div>
+            </article>
+
+            <article class="automation-panel">
+              <div class="panel-heading"><div><small>SERVICES</small><h3>Automation modules</h3></div><span class="panel-pill">Phase 2</span></div>
+              <div class="module-list">
+                <div class="module-row"><span class="module-icon">◎</span><div><b>Server status worker</b><small>RCON player count, capacity and character snapshot</small></div><span class="module-state ready" id="module-server">Built</span></div>
+                <div class="module-row"><span class="module-icon">◌</span><div><b>BodyDrop worker</b><small>Live position lookup, queueing and result reconciliation</small></div><span class="module-state ready" id="module-bodydrop">Built</span></div>
+                <div class="module-row"><span class="module-icon">▣</span><div><b>DinoStorage worker</b><small>Store, redeem, slot reads and acknowledgement tracking</small></div><span class="module-state ready" id="module-dinostorage">Built</span></div>
+                <div class="module-row"><span class="module-icon">◇</span><div><b>HerbyBot bridge</b><small>Single Discord client, durable outbox delivery and alerts</small></div><span class="module-state ready" id="module-discord">Built</span></div>
+              </div>
+            </article>
+          </div>
+
+          <article class="automation-panel rcon-panel">
+            <div class="panel-heading"><div><small>EVRIMA RCON</small><h3>Server controls</h3></div><span class="panel-pill" id="rcon-write-health">Write locked</span></div>
+            <div class="rcon-warning" id="rcon-write-warning">RCON write actions are individually gated and remain locked until explicitly enabled.</div>
+            <div class="rcon-control-grid">
+              <form class="rcon-control" id="rcon-announcement-form">
+                <label for="rcon-announcement">IN-GAME ANNOUNCEMENT</label>
+                <textarea id="rcon-announcement" maxlength="240" rows="4" placeholder="Message shown to every player…"></textarea>
+                <button class="small-button" type="submit">Send in-game announcement</button>
+              </form>
+              <div class="rcon-control">
+                <small>SERVER MAINTENANCE</small>
+                <p>Trigger a manual game-data save. A response timeout is shown as unconfirmed and is never automatically retried.</p>
+                <button class="small-button" id="rcon-save" type="button">Save server data</button>
+              </div>
+              <form class="rcon-control" id="rcon-ai-form">
+                <label for="rcon-ai-density">AI DENSITY</label>
+                <input id="rcon-ai-density" type="number" min="0" max="1" step="0.05" value="0.5">
+                <small>Allowed range: 0.00–1.00</small>
+                <button class="small-button" type="submit">Set AI density</button>
+              </form>
+              <form class="rcon-control danger-control" id="rcon-wipe-form" autocomplete="off">
+                <label for="rcon-wipe-confirm">WIPE CORPSES</label>
+                <p>This removes dead bodies from the game world. Type <b>WIPE CORPSES</b> to enable the action.</p>
+                <input id="rcon-wipe-confirm" type="text" autocomplete="off" placeholder="WIPE CORPSES">
+                <button class="small-button danger-button" type="submit">Wipe corpses</button>
+              </form>
+            </div>
+            <div class="automation-notice" id="rcon-action-status" hidden></div>
+          </article>
+
+          <article class="automation-panel discord-panel">
+            <div class="panel-heading"><div><small>HERBYBOT</small><h3>Community automation</h3></div><span class="panel-pill" id="discord-health">Not configured</span></div>
+            <div class="discord-grid">
+              <div class="discord-control">
+                <small>STATUS HANDOFF</small>
+                <b id="discord-status-channel">Not configured</b>
+                <p>HerbyBot owns Discord presence and status-channel updates. Automation supplies the current Evrima state.</p>
+                <button class="small-button" id="discord-sync-status" type="button">Check status handoff</button>
+              </div>
+              <form class="discord-control discord-announcement-form" id="discord-announcement-form">
+                <label for="discord-message">ANNOUNCEMENT</label>
+                <textarea id="discord-message" maxlength="1900" rows="5" placeholder="Write a Hollow Valley announcement…"></textarea>
+                <div class="discord-action-row">
+                  <small id="discord-announcement-channel">Not configured</small>
+                  <button class="small-button" type="submit">Queue announcement</button>
+                </div>
+                <div class="automation-notice" id="discord-action-status" hidden></div>
+              </form>
+            </div>
+          </article>
+
+          <article class="automation-panel scheduler-panel">
+            <div class="panel-heading"><div><small>SCHEDULER</small><h3>Scheduled automation</h3></div><span class="panel-pill" id="scheduler-health">0 scheduled</span></div>
+            <div class="scheduler-grid">
+              <form id="scheduler-form" class="scheduler-form">
+                <label for="scheduler-message">HerbyBot announcement</label>
+                <textarea id="scheduler-message" maxlength="1900" rows="4" placeholder="Announcement to send…" required></textarea>
+                <div class="scheduler-fields">
+                  <label>Run at<input id="scheduler-run-at" type="datetime-local" required></label>
+                  <label>Repeat<select id="scheduler-recurrence"><option value="none">Once</option><option value="daily">Daily</option><option value="weekly">Weekly</option></select></label>
+                </div>
+                <button class="small-button" type="submit">Schedule announcement</button>
+                <div class="automation-notice" id="scheduler-action-status" hidden></div>
+              </form>
+              <div id="scheduler-list" class="automation-list">
+                <div class="empty-roster"><strong>No scheduled jobs</strong><span>Future automation jobs will appear here.</span></div>
+              </div>
+            </div>
+          </article>
+
+          <article class="automation-panel request-panel">
+            <div class="panel-heading"><div><small>COMMAND BRIDGE</small><h3>Recent automation requests</h3></div><span class="panel-pill" id="request-total">0 tracked</span></div>
+            <div id="request-list" class="automation-list">
+              <div class="empty-roster"><strong>No automation requests yet</strong><span>BodyDrop and DinoStorage requests will appear here.</span></div>
+            </div>
+          </article>
+
+          <div id="status-error" class="automation-error" hidden></div>
+        </div>
+      </section>
+    </main>
+
+    <footer><span>© 2026 Herby Death Squad Games</span><span>HOLLOW VALLEY AUTOMATION PLATFORM</span><a href="https://hollowvalley.herbydeathsquadgames.com/">Back to command ↑</a></footer>
+  </div>
+  <script src="/assets/automation.js?v=6"></script>
+  <script src="/assets/rcon-controls.js?v=2"></script>
+  <script src="/assets/presence-panel.js?v=2"></script>
+  <script src="/assets/migration-readiness-panel.js?v=1"></script>
+  <script src="/assets/server-health-panel.js?v=1"></script>
+  <script src="/assets/backup-panel.js?v=1"></script>
+  <script src="/assets/admin-restore-panel.js?v=3"></script>
+</body>
+</html>

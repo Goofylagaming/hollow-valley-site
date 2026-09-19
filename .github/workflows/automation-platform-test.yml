@@ -1,0 +1,48 @@
+name: Automation Platform Tests
+
+on:
+  push:
+    branches:
+      - automation-platform
+    paths:
+      - 'automation-platform/**'
+      - 'server/routes/bodydrop.js'
+      - 'server/routes/mydinos.js'
+      - 'server/routes/wallet.js'
+      - 'server/routes/quests.js'
+      - 'server/routes/marketplace.js'
+      - 'server/routes/skins.js'
+      - '.github/workflows/automation-platform-test.yml'
+  pull_request:
+    paths:
+      - 'automation-platform/**'
+      - 'server/routes/bodydrop.js'
+      - 'server/routes/mydinos.js'
+      - 'server/routes/wallet.js'
+      - 'server/routes/quests.js'
+      - 'server/routes/marketplace.js'
+      - 'server/routes/skins.js'
+      - '.github/workflows/automation-platform-test.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: automation-platform
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Run tests
+        run: npm test
+      - name: Build automation Docker image
+        run: docker build -t hollow-valley-automation-ci .
