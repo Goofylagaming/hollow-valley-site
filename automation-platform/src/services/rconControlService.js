@@ -8,8 +8,40 @@ const COMMANDS = Object.freeze({
   aiDensity: 0x92,
 });
 
-function writeEnabled() {
-  return String(process.env.RCON_WRITE_ENABLED || '').toLowerCase() === 'true';
+const ACTION_GATES = Object.freeze({
+  announce: 'RCON_ANNOUNCEMENT_WRITE_ENABLED',
+  directMessage: 'RCON_DIRECT_MESSAGE_WRITE_ENABLED',
+  wipeCorpses: 'RCON_CORPSE_WIPE_WRITE_ENABLED',
+  save: 'RCON_SAVE_WRITE_ENABLED',
+  aiDensity: 'RCON_AI_DENSITY_WRITE_ENABLED',
+});
+
+function envEnabled(name) {
+  return String(process.env[name] || '').toLowerCase() === 'true';
+}
+
+function legacyWriteEnabled() {
+  return envEnabled('RCON_WRITE_ENABLED');
+}
+
+function writeEnabled(action = null) {
+  if (!action) {
+    return legacyWriteEnabled() || Object.keys(ACTION_GATES).some((key) => writeEnabled(key));
+  }
+
+  const gate = ACTION_GATES[action];
+  if (!gate) return false;
+
+  // Explicit per-action gates override the legacy global gate. If a specific
+  // gate is not present, keep backward compatibility with RCON_WRITE_ENABLED.
+  if (process.env[gate] !== undefined && String(process.env[gate]).trim() !== '') {
+    return envEnabled(gate);
+  }
+  return legacyWriteEnabled();
+}
+
+function getActionGates() {
+  return Object.fromEntries(Object.keys(ACTION_GATES).map((action) => [action, writeEnabled(action)]));
 }
 
 function getConfig() {
@@ -71,9 +103,11 @@ function buildAction(action, payload = {}) {
 }
 
 async function execute(action, payload = {}) {
-  if (!writeEnabled()) {
-    const error = new Error('RCON write controls are disabled. Set RCON_WRITE_ENABLED=true only after operator review.');
+  if (!writeEnabled(action)) {
+    const gate = ACTION_GATES[action] || 'RCON_WRITE_ENABLED';
+    const error = new Error(`RCON ${action} writes are disabled. Enable ${gate}=true only after operator review.`);
     error.code = 'RCON_WRITE_DISABLED';
+    error.gate = gate;
     throw error;
   }
   const command = buildAction(action, payload);
@@ -89,16 +123,21 @@ async function execute(action, payload = {}) {
 }
 
 function getState() {
+  const actionGates = getActionGates();
   return {
     configured: Boolean(String(process.env.RCON_HOST || '').trim() && String(process.env.RCON_PORT || '').trim() && String(process.env.RCON_PASSWORD || '')),
-    writeEnabled: writeEnabled(),
+    writeEnabled: Object.values(actionGates).some(Boolean),
+    legacyWriteEnabled: legacyWriteEnabled(),
+    actionGates,
     supportedActions: Object.keys(COMMANDS),
   };
 }
 
 module.exports = {
   COMMANDS,
+  ACTION_GATES,
   writeEnabled,
+  getActionGates,
   validateMessage,
   validateSteamId,
   validateDensity,
