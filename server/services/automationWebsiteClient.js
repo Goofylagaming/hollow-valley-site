@@ -97,6 +97,10 @@ function getWallet(steamId) {
   return call(`/wallet/${encodeURIComponent(validateSteamId(steamId))}`);
 }
 
+function getQuests(steamId) {
+  return call(`/quests/${encodeURIComponent(validateSteamId(steamId))}`);
+}
+
 function getDailyLoginBonus(steamId) {
   return call(`/daily-login/${encodeURIComponent(validateSteamId(steamId))}`);
 }
@@ -239,6 +243,7 @@ module.exports = {
   getBodyDropCooldown,
   requestBodyDrop,
   getWallet,
+  getQuests,
   getDailyLoginBonus,
   claimDailyLoginBonus,
   listMarketplaceCatalog,
