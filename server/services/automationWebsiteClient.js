@@ -20,6 +20,52 @@ function validateRequestId(value) {
   return id;
 }
 
+async function callAdmin(path, { method = 'GET', body } = {}) {
+  if (typeof globalThis.fetch !== 'function') throw new Error('A fetch implementation is required');
+  const baseUrl = String(process.env.AUTOMATION_SERVICE_URL || '').trim().replace(/\/$/, '');
+  const token = String(process.env.AUTOMATION_ADMIN_TOKEN || '').trim();
+  const timeoutMs = Math.max(1000, Math.min(30000, Number(process.env.AUTOMATION_SERVICE_TIMEOUT_MS || 8000)));
+  if (!/^https?:\/\//i.test(baseUrl)) throw new Error('AUTOMATION_SERVICE_URL is not configured');
+  if (!token) {
+    const error = new Error('Automation admin API is not configured');
+    error.status = 503;
+    throw error;
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  timer.unref?.();
+  try {
+    const response = await fetch(`${baseUrl}/api/admin${path}`, {
+      method,
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+        ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal: controller.signal,
+    });
+    let payload = null;
+    try { payload = await response.json(); } catch {}
+    if (!response.ok) {
+      const error = new Error(payload?.error || `Automation admin request failed (${response.status})`);
+      error.status = response.status;
+      error.payload = payload;
+      throw error;
+    }
+    return payload;
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      const timeoutError = new Error('Automation service request timed out');
+      timeoutError.code = 'AUTOMATION_TIMEOUT';
+      throw timeoutError;
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function call(path, { method = 'GET', body } = {}) {
   if (typeof globalThis.fetch !== 'function') throw new Error('A fetch implementation is required');
   const { baseUrl, token, timeoutMs } = requireConfig();
@@ -235,6 +281,24 @@ function applySkinPreset({ steamId, slot, presetId }) {
   });
 }
 
+function getAdminRestoreState() {
+  return callAdmin('/dinostorage/admin-restore');
+}
+
+function buildAdminRestoreJson({ restore, fullNutrients = false }) {
+  return callAdmin('/dinostorage/admin-restore-json', {
+    method: 'POST',
+    body: { restore, fullNutrients: Boolean(fullNutrients) },
+  });
+}
+
+function uploadAdminRestore({ steamId, slot, restore, fullNutrients = false }) {
+  return callAdmin('/dinostorage/admin-restore/upload', {
+    method: 'POST',
+    body: { steamId, slot, restore, fullNutrients: Boolean(fullNutrients) },
+  });
+}
+
 module.exports = {
   getActiveCharacter,
   listStoredDinos,
@@ -260,4 +324,7 @@ module.exports = {
   listSkinPresets,
   createSkinPresetFromStored,
   applySkinPreset,
+  getAdminRestoreState,
+  buildAdminRestoreJson,
+  uploadAdminRestore,
 };
