@@ -31,9 +31,14 @@ function status(steamId, { now = new Date() } = {}) {
   const reward = amount();
   const ledgerKey = `daily-login:${id}:${key}`;
   const transaction = store.getLedgerByIdempotency(ledgerKey);
+  const supporter = supporterBonuses.applyBonus(reward, id);
   return {
     enabled: enabled(),
     amount: reward,
+    baseAmount: reward,
+    effectiveAmount: supporter.payoutCoins,
+    supporterTier: supporter.tier,
+    supporterMultiplier: supporter.multiplier,
     timezone: timezone(),
     dayKey: key,
     claimed: Boolean(transaction),
@@ -45,13 +50,13 @@ function status(steamId, { now = new Date() } = {}) {
 function claim(steamId, { now = new Date() } = {}) {
   const id = store.validateSteamId(steamId);
   const current = status(id, { now });
-  if (!current.enabled || current.amount <= 0) {
+  if (!current.enabled || current.baseAmount <= 0) {
     const error = new Error('Daily login bonus is disabled');
     error.code = 'DAILY_LOGIN_BONUS_DISABLED';
     throw error;
   }
 
-  const supporter = supporterBonuses.applyBonus(current.amount, id);
+  const supporter = supporterBonuses.applyBonus(current.baseAmount, id);
   const payoutAmount = supporter.payoutCoins;
 
   const result = store.applyWalletTransaction({
@@ -59,7 +64,7 @@ function claim(steamId, { now = new Date() } = {}) {
     amount: payoutAmount,
     kind: 'daily_login_bonus',
     reason: [
-      `Daily login bonus (${current.dayKey}): ${current.amount} base`,
+      `Daily login bonus (${current.dayKey}): ${current.baseAmount} base`,
       supporter.multiplier > 1 ? `×${supporter.multiplier} ${supporter.tier} supporter multiplier` : null,
     ].filter(Boolean).join(' '),
     idempotencyKey: `daily-login:${id}:${current.dayKey}`,
@@ -68,7 +73,7 @@ function claim(steamId, { now = new Date() } = {}) {
     metadata: {
       dayKey: current.dayKey,
       timezone: current.timezone,
-      baseAmount: current.amount,
+      baseAmount: current.baseAmount,
       supporterTier: supporter.tier,
       supporterMultiplier: supporter.multiplier,
       supporterBonusCoins: supporter.supporterBonusCoins,
@@ -80,7 +85,7 @@ function claim(steamId, { now = new Date() } = {}) {
     duplicate: Boolean(result.duplicate),
     dayKey: current.dayKey,
     amount: payoutAmount,
-    baseAmount: current.amount,
+    baseAmount: current.baseAmount,
     supporterTier: supporter.tier,
     supporterMultiplier: supporter.multiplier,
     supporterBonusCoins: supporter.supporterBonusCoins,
