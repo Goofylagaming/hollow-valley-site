@@ -70,7 +70,6 @@ async function ensureRoleForTier(tier, env, fetchImpl) {
         name: ROLE_NAMES[tier],
         hoist: false,
         mentionable: false,
-        reason: "Hollow Valley membership tier",
       },
     },
     env,
