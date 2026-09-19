@@ -36,6 +36,7 @@ jobs:
           set -euo pipefail
           mkdir -p predeploy-backup
           date +%s > /tmp/reload.flag
+          : > /tmp/enabled.txt
           lftp -c "
             set cmd:fail-exit yes;
             set ssl:verify-certificate no;
@@ -47,6 +48,7 @@ jobs:
             get /TheIsle/Binaries/Win64/ue4ss/Mods/SkinStudio/Scripts/main.lua -o predeploy-backup/main.lua;
             set cmd:fail-exit yes;
             put server-mods/SkinStudio/Scripts/main.lua -o /TheIsle/Binaries/Win64/ue4ss/Mods/SkinStudio/Scripts/main.lua;
+            put /tmp/enabled.txt -o /TheIsle/Binaries/Win64/ue4ss/Mods/SkinStudio/enabled.txt;
             put /tmp/reload.flag -o /TheIsle/Binaries/Win64/ue4ss/Mods/SkinStudio/Saved/reload.flag;
             bye;
           "
