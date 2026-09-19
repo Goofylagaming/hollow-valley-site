@@ -46,7 +46,10 @@ test("active membership gets exactly its matching Discord role", async () => {
   const fetchImpl = async (url, options = {}) => {
     calls.push({ url, method: options.method || "GET" });
     if ((options.method || "GET") === "GET") {
-      return { ok: true, status: 200, json: async () => roles };
+      if (url.endsWith("/roles")) {
+        return { ok: true, status: 200, json: async () => roles };
+      }
+      return { ok: true, status: 200, json: async () => ({ roles: ["1", "2"] }) };
     }
     return { ok: true, status: 204, json: async () => null };
   };
@@ -74,7 +77,10 @@ test("inactive membership removes all Hollow Valley membership roles", async () 
   const fetchImpl = async (url, options = {}) => {
     calls.push({ url, method: options.method || "GET" });
     if ((options.method || "GET") === "GET") {
-      return { ok: true, status: 200, json: async () => roles };
+      if (url.endsWith("/roles")) {
+        return { ok: true, status: 200, json: async () => roles };
+      }
+      return { ok: true, status: 200, json: async () => ({ roles: ["1", "2", "3"] }) };
     }
     return { ok: true, status: 204, json: async () => null };
   };
@@ -94,7 +100,10 @@ test("missing target role is created before assignment", async () => {
     const method = options.method || "GET";
     calls.push({ url, method, body: options.body });
     if (method === "GET") {
-      return { ok: true, status: 200, json: async () => roles };
+      if (url.endsWith("/roles")) {
+        return { ok: true, status: 200, json: async () => roles };
+      }
+      return { ok: true, status: 200, json: async () => ({ roles: ["1"] }) };
     }
     if (method === "POST" && url.endsWith("/roles")) {
       const created = { id: "2", name: "Valley Elite" };
@@ -124,8 +133,16 @@ test("configured supporter role IDs are used directly without listing or creatin
   const fetchImpl = async (url, options = {}) => {
     const method = options.method || "GET";
     calls.push({ url, method });
-    assert.notEqual(method, "GET");
     assert.notEqual(method, "POST");
+    if (method === "GET") {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          roles: ["1550695486464204810", "1550695581373042688"],
+        }),
+      };
+    }
     return { ok: true, status: 204, json: async () => null };
   };
 
@@ -135,4 +152,34 @@ test("configured supporter role IDs are used directly without listing or creatin
   assert.ok(calls.some((call) => call.method === "PUT" && call.url.endsWith("/roles/1550695426456555551")));
   assert.ok(calls.some((call) => call.method === "DELETE" && call.url.endsWith("/roles/1550695486464204810")));
   assert.ok(calls.some((call) => call.method === "DELETE" && call.url.endsWith("/roles/1550695581373042688")));
+});
+
+
+test("already-correct exact membership role is a no-op", async () => {
+  reset({ tier: "legend" });
+  const exactEnv = {
+    ...env,
+    DISCORD_ROLE_MEMBER_ID: "1550695486464204810",
+    DISCORD_ROLE_ELITE_ID: "1550695581373042688",
+    DISCORD_ROLE_LEGEND_ID: "1550695426456555551",
+  };
+  const calls = [];
+
+  const fetchImpl = async (url, options = {}) => {
+    const method = options.method || "GET";
+    calls.push({ url, method });
+    if (method !== "GET") {
+      return { ok: true, status: 204, json: async () => null };
+    }
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ roles: ["1550695426456555551"] }),
+    };
+  };
+
+  const result = await syncDiscordMembershipForUser(42, { env: exactEnv, fetchImpl });
+  assert.equal(result.changed, false);
+  assert.equal(calls.filter((call) => call.method === "PUT").length, 0);
+  assert.equal(calls.filter((call) => call.method === "DELETE").length, 0);
 });
