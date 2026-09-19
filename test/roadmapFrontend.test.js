@@ -97,3 +97,11 @@ test("Admin Restore browser page never contains an automation admin token", () =
   assert.equal(js.includes("AUTOMATION_ADMIN_TOKEN"), false);
   assert.match(js, /\/api\/admin-restore/);
 });
+
+
+test("supporter page uses current Hollow Valley portal branding", () => {
+  const html = read("public/supporter.html");
+  assert.match(html, /© 2026 Hollow Valley/);
+  assert.match(html, /HOME OF THE HERBY DEATH SQUAD/);
+  assert.equal(html.includes("© 2026 Herby Death Squad Games"), false);
+});
