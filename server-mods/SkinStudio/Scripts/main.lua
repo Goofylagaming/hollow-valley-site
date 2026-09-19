@@ -1,0 +1,396 @@
+-- SkinStudio v001
+-- Hollow Valley live skin application + reconnect persistence.
+-- Commands arrive from CommandBridge as inbox.ndjson records.
+
+local MOD_NAME = "SkinStudio"
+local MOD_VERSION = "v001"
+
+local SAVED_DIR = "Mods/SkinStudio/Saved"
+local INBOX_PATH = SAVED_DIR .. "/inbox.ndjson"
+local PROFILES_PATH = SAVED_DIR .. "/profiles.ndjson"
+local RELOAD_FLAG = SAVED_DIR .. "/reload.flag"
+local RESULTS_FILE = "Mods/CommandBridge/Saved/results.ndjson"
+local POLL_INTERVAL_MS = 1500
+local REAPPLY_INTERVAL_MS = 10000
+
+local function log(msg)
+    print(string.format("[%s] %s\n", MOD_NAME, tostring(msg)))
+end
+
+local function fileExists(path)
+    local f = io.open(path, "rb")
+    if f == nil then return false end
+    f:close()
+    return true
+end
+
+local function readAll(path)
+    local f = io.open(path, "rb")
+    if f == nil then return nil end
+    local body = f:read("*a")
+    f:close()
+    return body
+end
+
+local function appendLine(path, line)
+    local f = io.open(path, "ab")
+    if f == nil then return false end
+    f:write(line or "")
+    f:write("\n")
+    f:close()
+    return true
+end
+
+local function ensureDir(path)
+    local winPath = tostring(path):gsub("/", "\\")
+    os.execute('mkdir "' .. winPath .. '" 2>nul')
+end
+
+local function consumeFlag(path)
+    local f = io.open(path, "rb")
+    if f == nil then return nil end
+    local body = f:read("*a") or ""
+    f:close()
+    os.remove(path)
+    body = body:gsub("^%s+", ""):gsub("%s+$", "")
+    return body ~= "" and body or nil
+end
+
+local function jsonEscape(s)
+    s = tostring(s or "")
+    s = s:gsub("\\", "\\\\")
+    s = s:gsub('"', '\\"')
+    s = s:gsub("\n", "\\n")
+    s = s:gsub("\r", "\\r")
+    s = s:gsub("\t", "\\t")
+    return s
+end
+
+local function jsonReadString(body, field)
+    return string.match(body or "", '"' .. field .. '"%s*:%s*"([^"]*)"')
+end
+
+local function jsonReadStringArray(body, field)
+    local out = {}
+    local arrayBody = string.match(body or "", '"' .. field .. '"%s*:%s*(%b[])')
+    if not arrayBody then return out end
+    for value in string.gmatch(arrayBody, '"([^"]*)"') do
+        table.insert(out, value)
+    end
+    return out
+end
+
+local function findGameMode()
+    local candidates = {"BP_SurvivalGameMode_C", "TISurvivalGameMode", "TIGameModeBase", "GameModeBase"}
+    for _, name in ipairs(candidates) do
+        local gm
+        pcall(function() gm = FindFirstOf(name) end)
+        if gm ~= nil then return gm end
+    end
+    return nil
+end
+
+local function livePawnFromCtrl(ctrl)
+    if ctrl == nil then return nil end
+    local pawn
+    pcall(function() pawn = ctrl:K2_GetPawn() end)
+    if pawn == nil then return nil end
+    local addr
+    pcall(function() addr = pawn:GetAddress() end)
+    if addr == nil or addr == 0 then return nil end
+    return pawn
+end
+
+local function safeNotify(steam, msg)
+    local gm = findGameMode()
+    if gm == nil then return end
+    local ctrl
+    pcall(function() ctrl = gm:GetControllerBySteamId(steam) end)
+    if ctrl == nil then return end
+    local text = msg
+    if FText ~= nil then
+        local ok, ft = pcall(function() return FText(msg) end)
+        if ok and ft ~= nil then text = ft end
+    end
+    pcall(function() ctrl:ClientShowNotification(text) end)
+end
+
+local FIELD_MAP = {
+    body = "BodyColor",
+    markings = "MarkingsColor",
+    flank = "FlankColor",
+    underbelly = "UnderbellyColor",
+    teeth = "TeethColor",
+    mouth = "MouthColor",
+    claws = "ClawsColor",
+    detail1 = "Detail1Color",
+    eyes = "EyesColor",
+    maleDisplay = "MaleDisplayColor",
+}
+
+local COLOR_KEYS = {
+    "body", "markings", "flank", "underbelly", "teeth",
+    "mouth", "claws", "detail1", "eyes", "maleDisplay",
+}
+
+local function parseColor(raw)
+    local r, g, b, a = tostring(raw or ""):match("^([%d%.]+),([%d%.]+),([%d%.]+),([%d%.]+)$")
+    r, g, b, a = tonumber(r), tonumber(g), tonumber(b), tonumber(a)
+    if r == nil or g == nil or b == nil or a == nil then return nil end
+    if r < 0 or r > 1 or g < 0 or g > 1 or b < 0 or b > 1 or a < 0 or a > 1 then return nil end
+    return { r=r, g=g, b=b, a=a }
+end
+
+local function parseTokens(args)
+    local raw = {}
+    for _, token in ipairs(args or {}) do
+        local key, value = tostring(token):match("^([A-Za-z0-9_]+)=(.+)$")
+        if key and value then raw[key] = value end
+    end
+
+    local species = tostring(raw.species or "")
+    if not species:match("^[A-Za-z0-9_-]+$") then
+        return nil, "Skin species is missing or invalid."
+    end
+
+    local config = {
+        preset = tostring(raw.preset or ""),
+        species = species,
+        colors = {},
+        variation = tonumber(raw.variation),
+        pattern = tonumber(raw.pattern),
+        theme = tonumber(raw.theme),
+    }
+
+    for _, key in ipairs(COLOR_KEYS) do
+        local color = parseColor(raw[key])
+        if color == nil then
+            return nil, "Skin colour data is incomplete or invalid."
+        end
+        config.colors[key] = color
+    end
+
+    for _, key in ipairs({"variation", "pattern", "theme"}) do
+        local value = config[key]
+        if value == nil or value < 0 or value > 65535 or value ~= math.floor(value) then
+            return nil, "Skin pattern data is invalid."
+        end
+    end
+
+    return config, nil
+end
+
+local function pawnClassName(pawn)
+    local full
+    pcall(function() full = pawn:GetClass():GetFullName() end)
+    return tostring(full or "")
+end
+
+local function speciesMatches(pawn, expected)
+    local className = pawnClassName(pawn):lower()
+    local wanted = tostring(expected or ""):lower()
+    if className == "" or wanted == "" then return false end
+    return className:find("bp_" .. wanted, 1, true) ~= nil
+        or className:find(wanted, 1, true) ~= nil
+end
+
+local function applyColor(cdata, field, color)
+    pcall(function()
+        cdata[field].R = color.r
+        cdata[field].G = color.g
+        cdata[field].B = color.b
+        cdata[field].A = color.a
+    end)
+end
+
+local function applyConfigToPawn(pawn, config)
+    if pawn == nil then return false, "You need a live dinosaur in game." end
+    if not speciesMatches(pawn, config.species) then
+        return false, "This skin is for " .. tostring(config.species) .. ", not your current dinosaur."
+    end
+
+    local cdata
+    pcall(function() cdata = pawn.CustomizerData end)
+    if cdata == nil then
+        return false, "The live dinosaur customizer is unavailable."
+    end
+
+    for key, field in pairs(FIELD_MAP) do
+        applyColor(cdata, field, config.colors[key])
+    end
+
+    pcall(function() cdata.SkinVariation = math.floor(config.variation) end)
+    pcall(function() cdata.PatternIndex = math.floor(config.pattern) end)
+    pcall(function() cdata.ThemeIndex = math.floor(config.theme) end)
+    pcall(function() pawn:ForceNetUpdate() end)
+    return true, "Skin applied."
+end
+
+local profiles = {}
+local profileArgs = {}
+local lastPawnAddress = {}
+
+local function profileLine(steam, args)
+    local parts = {}
+    for i, token in ipairs(args or {}) do
+        parts[i] = '"' .. jsonEscape(token) .. '"'
+    end
+    return string.format(
+        '{"steam":"%s","tokens":[%s]}',
+        jsonEscape(steam),
+        table.concat(parts, ",")
+    )
+end
+
+local function rememberProfile(steam, args, config)
+    profiles[steam] = config
+    profileArgs[steam] = args
+    appendLine(PROFILES_PATH, profileLine(steam, args))
+end
+
+local function loadProfiles()
+    local body = readAll(PROFILES_PATH)
+    if body == nil or body == "" then return end
+    local count = 0
+    for line in string.gmatch(body .. "\n", "([^\r\n]+)\r?\n") do
+        local steam = jsonReadString(line, "steam")
+        local args = jsonReadStringArray(line, "tokens")
+        if steam and steam:match("^%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d$") then
+            local config = parseTokens(args)
+            if config ~= nil then
+                profiles[steam] = config
+                profileArgs[steam] = args
+                count = count + 1
+            end
+        end
+    end
+    log("Loaded " .. tostring(count) .. " persisted skin profile record(s)")
+end
+
+local function emitResult(id, steam, ok, msg)
+    local line = string.format(
+        '{"id":"%s","ts":%d,"verb":"skin_apply","steam":"%s","ok":%s,"msg":"%s","source":"SkinStudio"}',
+        jsonEscape(id),
+        os.time(),
+        jsonEscape(steam),
+        tostring(ok == true),
+        jsonEscape(msg)
+    )
+    appendLine(RESULTS_FILE, line)
+end
+
+local function applyForSteam(steam, config)
+    local gm = findGameMode()
+    if gm == nil then return false, "Server not ready." end
+
+    local ctrl
+    pcall(function() ctrl = gm:GetControllerBySteamId(steam) end)
+    if ctrl == nil then return false, "You must be logged into the server." end
+
+    local pawn = livePawnFromCtrl(ctrl)
+    return applyConfigToPawn(pawn, config)
+end
+
+local function processLine(line)
+    local id = jsonReadString(line, "id")
+    local steam = jsonReadString(line, "steam")
+    local args = jsonReadStringArray(line, "args")
+
+    if not id or not steam or not steam:match("^%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d$") then
+        return
+    end
+
+    local config, parseError = parseTokens(args)
+    if config == nil then
+        emitResult(id, steam, false, parseError or "Invalid skin request.")
+        return
+    end
+
+    local ok, msg = applyForSteam(steam, config)
+    if ok then
+        rememberProfile(steam, args, config)
+        local gm = findGameMode()
+        if gm ~= nil then
+            local ctrl
+            pcall(function() ctrl = gm:GetControllerBySteamId(steam) end)
+            local pawn = livePawnFromCtrl(ctrl)
+            if pawn ~= nil then
+                local addr
+                pcall(function() addr = pawn:GetAddress() end)
+                lastPawnAddress[steam] = addr
+            end
+        end
+        safeNotify(steam, "Hollow Valley skin equipped: " .. tostring(config.preset ~= "" and config.preset or "custom skin"))
+    end
+    emitResult(id, steam, ok, msg)
+end
+
+local function pollInbox()
+    if not fileExists(INBOX_PATH) then return end
+    local stash = INBOX_PATH .. ".processing"
+    os.remove(stash)
+    if not os.rename(INBOX_PATH, stash) then return end
+
+    local body = readAll(stash)
+    if body ~= nil and body ~= "" then
+        for line in string.gmatch(body .. "\n", "([^\r\n]+)\r?\n") do
+            local ok, err = pcall(function() processLine(line) end)
+            if not ok then log("Request processing failed: " .. tostring(err)) end
+        end
+    end
+    os.remove(stash)
+end
+
+local function reapplyProfiles()
+    local gm = findGameMode()
+    if gm == nil then return end
+
+    for steam, config in pairs(profiles) do
+        local ctrl
+        pcall(function() ctrl = gm:GetControllerBySteamId(steam) end)
+        local pawn = livePawnFromCtrl(ctrl)
+        if pawn ~= nil and speciesMatches(pawn, config.species) then
+            local addr
+            pcall(function() addr = pawn:GetAddress() end)
+            if addr ~= nil and addr ~= lastPawnAddress[steam] then
+                local ok = applyConfigToPawn(pawn, config)
+                if ok then
+                    lastPawnAddress[steam] = addr
+                    safeNotify(steam, "Your Hollow Valley skin was restored.")
+                end
+            end
+        else
+            lastPawnAddress[steam] = nil
+        end
+    end
+end
+
+local function safeCall(label, fn)
+    local ok, err = pcall(fn)
+    if not ok then log(label .. " failed: " .. tostring(err)) end
+end
+
+log(string.format("Loading; version=%s", MOD_VERSION))
+ensureDir(SAVED_DIR)
+loadProfiles()
+
+if LoopInGameThreadWithDelay ~= nil then
+    LoopInGameThreadWithDelay(POLL_INTERVAL_MS, function()
+        safeCall("pollInbox", pollInbox)
+        local reload = consumeFlag(RELOAD_FLAG)
+        if reload ~= nil and RestartCurrentMod ~= nil then
+            log("Reload requested")
+            RestartCurrentMod()
+        end
+    end)
+
+    LoopInGameThreadWithDelay(REAPPLY_INTERVAL_MS, function()
+        safeCall("reapplyProfiles", reapplyProfiles)
+    end)
+
+    log("Poll and persistence loops registered")
+else
+    log("ERROR: LoopInGameThreadWithDelay is unavailable")
+end
+
+log(string.format("Loaded; version=%s", MOD_VERSION))
