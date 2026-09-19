@@ -1,0 +1,41 @@
+name: Validate Skin Studio
+
+on:
+  pull_request:
+    paths:
+      - "server/routes/skins.js"
+      - "server/services/automationWebsiteClient.js"
+      - "public/skins.html"
+      - "public/assets/skins.js"
+      - "public/assets/styles.css"
+      - "public/partials/nav.html"
+      - "server-mods/SkinStudio/**"
+      - "server-mods/CommandBridge/Scripts/main.lua"
+      - "test/skinStudioClient.test.js"
+      - ".github/workflows/validate-skin-studio.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  website:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node --test test/skinStudioClient.test.js
+
+  lua:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Lua
+        run: sudo apt-get update -qq && sudo apt-get install -y lua5.4
+      - name: Validate UE4SS Lua syntax
+        run: |
+          luac -p server-mods/SkinStudio/Scripts/main.lua
+          luac -p server-mods/CommandBridge/Scripts/main.lua
