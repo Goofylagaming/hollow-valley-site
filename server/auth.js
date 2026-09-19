@@ -2,6 +2,7 @@
 // https://discord.com/developers/applications with the redirect URI below added.
 const express = require("express");
 const { findOrCreateUser, db } = require("./db");
+const { syncDiscordMembershipForUser } = require("./services/discordMembership");
 
 const router = express.Router();
 
@@ -67,6 +68,9 @@ router.get("/discord/callback", async (req, res) => {
     }
 
     req.session.userId = user.id;
+    syncDiscordMembershipForUser(user.id).catch((error) => {
+      console.warn("Discord membership role sync warning:", error.message);
+    });
     res.redirect("/");
   } catch (error) {
     console.error("Discord OAuth error:", error);
