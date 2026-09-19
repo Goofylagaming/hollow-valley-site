@@ -1,4 +1,5 @@
 const store = require('./economyStore');
+const supporterBonuses = require('./supporterBonusService');
 
 function enabled() {
   return String(process.env.WALLET_DAILY_LOGIN_BONUS_ENABLED || '').toLowerCase() === 'true';
@@ -50,25 +51,39 @@ function claim(steamId, { now = new Date() } = {}) {
     throw error;
   }
 
+  const supporter = supporterBonuses.applyBonus(current.amount, id);
+  const payoutAmount = supporter.payoutCoins;
+
   const result = store.applyWalletTransaction({
     steamId: id,
-    amount: current.amount,
+    amount: payoutAmount,
     kind: 'daily_login_bonus',
-    reason: `Daily login bonus (${current.dayKey})`,
+    reason: [
+      `Daily login bonus (${current.dayKey}): ${current.amount} base`,
+      supporter.multiplier > 1 ? `×${supporter.multiplier} ${supporter.tier} supporter multiplier` : null,
+    ].filter(Boolean).join(' '),
     idempotencyKey: `daily-login:${id}:${current.dayKey}`,
     referenceType: 'daily_login',
     referenceId: current.dayKey,
     metadata: {
       dayKey: current.dayKey,
       timezone: current.timezone,
-      amount: current.amount,
+      baseAmount: current.amount,
+      supporterTier: supporter.tier,
+      supporterMultiplier: supporter.multiplier,
+      supporterBonusCoins: supporter.supporterBonusCoins,
+      payoutAmount,
     },
   });
 
   return {
     duplicate: Boolean(result.duplicate),
     dayKey: current.dayKey,
-    amount: current.amount,
+    amount: payoutAmount,
+    baseAmount: current.amount,
+    supporterTier: supporter.tier,
+    supporterMultiplier: supporter.multiplier,
+    supporterBonusCoins: supporter.supporterBonusCoins,
     wallet: result.wallet,
     transaction: result.transaction,
   };
