@@ -117,3 +117,57 @@ test("ignores canceled or live subscriptions during sandbox recovery", async () 
   assert.deepEqual(result, { recovered: false });
   assert.equal(getSupporterStatus(42), null);
 });
+
+
+test("strict recovery only searches by Steam metadata and requires Steam identity", async () => {
+  reset();
+  const strictEnv = { ...env, SUPPORTER_REQUIRE_STEAM_ID: "true" };
+  const calls = [];
+  const subscription = {
+    id: "sub_test_steam",
+    livemode: false,
+    status: "active",
+    cancel_at_period_end: false,
+    created: 2_000_000_001,
+    metadata: {
+      user_id: "999",
+      steam_id: "76561198000000042",
+      tier: "legend",
+    },
+    customer: "cus_test_steam",
+    items: {
+      data: [{
+        id: "si_test_steam",
+        price: { id: strictEnv.STRIPE_PRICE_LEGEND },
+        current_period_end: 2_100_000_001,
+      }],
+    },
+  };
+
+  const fetchImpl = async (url) => {
+    calls.push(url);
+    const parsed = new URL(url);
+    const query = parsed.searchParams.get("query");
+    assert.match(query, /steam_id/);
+    return { ok: true, json: async () => ({ data: [subscription] }) };
+  };
+
+  const result = await reconcileCurrentUser({
+    userId: 42,
+    steamId: "76561198000000042",
+    env: strictEnv,
+    fetchImpl,
+  });
+  assert.equal(result.recovered, true);
+  assert.equal(result.tier, "legend");
+  assert.equal(calls.length, 1);
+
+  await assert.rejects(
+    reconcileCurrentUser({
+      userId: 42,
+      env: strictEnv,
+      fetchImpl: () => assert.fail("Stripe should not be contacted"),
+    }),
+    { status: 409 }
+  );
+});
