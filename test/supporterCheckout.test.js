@@ -125,3 +125,31 @@ test('HTTP routes enforce auth, ignore browser price/user fields, and preserve c
   assert.equal((await request('/cancel', false)).status, 401);
   assert.equal((await request('/cancel')).status, 200);
 });
+
+
+test('strict supporter identity requires a valid Steam ID before checkout', async () => {
+  const strictEnv = { ...env, SUPPORTER_REQUIRE_STEAM_ID: 'true' };
+  await assert.rejects(
+    createCheckoutSession({
+      tier: 'member',
+      userId: 42,
+      env: strictEnv,
+      fetchImpl: () => assert.fail('Stripe should not be contacted'),
+    }),
+    { status: 409 }
+  );
+
+  const result = await createCheckoutSession({
+    tier: 'member',
+    userId: 42,
+    steamId: '76561198000000042',
+    env: strictEnv,
+    fetchImpl: async (url, options) => {
+      const body = Object.fromEntries(options.body);
+      assert.equal(body['metadata[steam_id]'], '76561198000000042');
+      assert.equal(body['subscription_data[metadata][steam_id]'], '76561198000000042');
+      return ok();
+    },
+  });
+  assert.deepEqual(result, { url: session.url });
+});
