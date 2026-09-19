@@ -90,6 +90,27 @@ test('presence normalizes player list and character species without exposing loc
   assert.deepEqual(result, [{ steamId: '76561198000000000', name: 'Alpha', species: 'Triceratops' }]);
 });
 
+
+test('join-message helpers identify only newly opened sessions and safely build the welcome text', (t) => {
+  const fixture = loadPresence({ snapshot: { configured: true, online: true, players: [], characters: [] } });
+  t.after(fixture.cleanup);
+  const p = fixture.presence;
+
+  const alpha = { steamId: '76561198000000000', name: 'Alpha', species: 'Triceratops' };
+  const beta = { steamId: '76561198000000001', name: 'Beta', species: 'Omniraptor' };
+
+  assert.deepEqual(p.findNewPlayers([alpha, beta]).map((player) => player.name), ['Alpha', 'Beta']);
+  p.reconcilePresence([alpha], '2026-09-18T00:00:00.000Z');
+  assert.deepEqual(p.findNewPlayers([alpha, beta]).map((player) => player.name), ['Beta']);
+
+  const previousTemplate = process.env.JOIN_MESSAGE_TEMPLATE;
+  process.env.JOIN_MESSAGE_TEMPLATE = 'Welcome {player} to Hollow Valley!';
+  assert.equal(p.buildJoinMessage({ name: 'Beta' }), 'Welcome Beta to Hollow Valley!');
+  assert.equal(p.buildJoinMessage({ name: 'Bad\nName' }), 'Welcome BadName to Hollow Valley!');
+  if (previousTemplate === undefined) delete process.env.JOIN_MESSAGE_TEMPLATE;
+  else process.env.JOIN_MESSAGE_TEMPLATE = previousTemplate;
+});
+
 test('presence analytics calculate unique players, tracked time and peak concurrency', (t) => {
   const fixture = loadPresence({ snapshot: { configured: true, online: true, players: [], characters: [] } });
   t.after(fixture.cleanup);
