@@ -34,10 +34,54 @@ test('direct message requires a valid Steam ID', () => {
   });
 });
 
-test('RCON writes fail closed unless explicitly enabled', async () => {
-  const previous = process.env.RCON_WRITE_ENABLED;
+test('RCON writes fail closed unless the specific action is enabled', async () => {
+  const keys = [
+    'RCON_WRITE_ENABLED',
+    'RCON_ANNOUNCEMENT_WRITE_ENABLED',
+    'RCON_CORPSE_WIPE_WRITE_ENABLED',
+    'RCON_SAVE_WRITE_ENABLED',
+    'RCON_AI_DENSITY_WRITE_ENABLED',
+  ];
+  const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+
   process.env.RCON_WRITE_ENABLED = 'false';
-  await assert.rejects(() => rcon.execute('save'), /disabled/);
-  if (previous === undefined) delete process.env.RCON_WRITE_ENABLED;
-  else process.env.RCON_WRITE_ENABLED = previous;
+  process.env.RCON_ANNOUNCEMENT_WRITE_ENABLED = 'true';
+  process.env.RCON_CORPSE_WIPE_WRITE_ENABLED = 'true';
+  process.env.RCON_SAVE_WRITE_ENABLED = 'false';
+  process.env.RCON_AI_DENSITY_WRITE_ENABLED = 'false';
+
+  assert.equal(rcon.writeEnabled('announce'), true);
+  assert.equal(rcon.writeEnabled('wipeCorpses'), true);
+  assert.equal(rcon.writeEnabled('save'), false);
+  assert.equal(rcon.writeEnabled('aiDensity'), false);
+  assert.deepEqual(rcon.getActionGates(), {
+    announce: true,
+    directMessage: false,
+    wipeCorpses: true,
+    save: false,
+    aiDensity: false,
+  });
+
+  await assert.rejects(() => rcon.execute('save'), /RCON_SAVE_WRITE_ENABLED/);
+
+  for (const key of keys) {
+    if (previous[key] === undefined) delete process.env[key];
+    else process.env[key] = previous[key];
+  }
+});
+
+test('legacy RCON_WRITE_ENABLED remains a fallback when no per-action gate is set', () => {
+  const previousGlobal = process.env.RCON_WRITE_ENABLED;
+  const previousAnnouncement = process.env.RCON_ANNOUNCEMENT_WRITE_ENABLED;
+  process.env.RCON_WRITE_ENABLED = 'true';
+  delete process.env.RCON_ANNOUNCEMENT_WRITE_ENABLED;
+  assert.equal(rcon.writeEnabled('announce'), true);
+
+  process.env.RCON_ANNOUNCEMENT_WRITE_ENABLED = 'false';
+  assert.equal(rcon.writeEnabled('announce'), false);
+
+  if (previousGlobal === undefined) delete process.env.RCON_WRITE_ENABLED;
+  else process.env.RCON_WRITE_ENABLED = previousGlobal;
+  if (previousAnnouncement === undefined) delete process.env.RCON_ANNOUNCEMENT_WRITE_ENABLED;
+  else process.env.RCON_ANNOUNCEMENT_WRITE_ENABLED = previousAnnouncement;
 });
