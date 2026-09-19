@@ -124,7 +124,7 @@ test("subscription price is authoritative for upgrades and lifecycle events upda
     metadata: { user_id: "42", tier: "supporter" },
     items: {
       data: [{
-        price: { id: process.env.STRIPE_PRICE_LEGEND },
+        price: { id: env.STRIPE_PRICE_LEGEND },
         current_period_end: 2_100_000_000,
       }],
     },
