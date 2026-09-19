@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 process.env.DB_PATH = ":memory:";
 
 const { db } = require("../server/db");
+require("../server/services/supporterWebhook");
 const {
   configuration,
   syncDiscordMembershipForUser,
