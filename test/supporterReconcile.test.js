@@ -64,12 +64,12 @@ test("recovers an old sandbox subscription by legacy user_id metadata and backfi
 
   assert.deepEqual(result, {
     recovered: true,
-    tier: "member",
+    tier: "supporter",
     stripeStatus: "active",
   });
 
   const status = getSupporterStatus(42);
-  assert.equal(status.tier, "member");
+  assert.equal(status.tier, "supporter");
   assert.equal(status.stripe_status, "active");
   assert.equal(status.stripe_subscription_id, "sub_test_42");
   assert.equal(status.stripe_customer_id, "cus_test_42");
@@ -211,5 +211,5 @@ test("live recovery accepts only live subscriptions when live mode is enabled", 
     },
   });
   assert.equal(result.recovered, true);
-  assert.equal(result.tier, "elite");
+  assert.equal(result.tier, "guardian");
 });
