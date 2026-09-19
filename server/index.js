@@ -27,6 +27,7 @@ const eventsRouter = require("./routes/events");
 const mapdataRouter = require("./routes/mapdata");
 const commandBridgeInternalRouter = require("./routes/commandBridgeInternal");
 const supporterInternalRouter = require("./routes/supporterInternal");
+const adminRestoreRouter = require("./routes/adminRestore");
 const serverStatusService = require("./services/serverStatus");
 const { syncSteamProfiles } = require("./services/steamProfile");
 const herbyBot = require("./herbyBot");
@@ -159,6 +160,7 @@ function createApp() {
   app.use("/api/dinostorage", dinoStorageRouter);
   app.use("/api/server-status", serverStatusRouter);
   app.use("/api/events", eventsRouter);
+  app.use("/api/admin-restore", adminRestoreRouter);
   app.use("/api/mapdata", mapdataRouter);
 
   app.all("/api/park", parkHandler);
@@ -167,7 +169,7 @@ function createApp() {
   app.all("/api/parked", parkedHandler);
   app.all("/api/admin", adminHandler);
 
-  const PAGE_ROUTES = ["dashboard", "mydinos", "marketplace", "skins", "livemap", "leaderboard", "supporter", "events"];
+  const PAGE_ROUTES = ["dashboard", "mydinos", "marketplace", "skins", "livemap", "leaderboard", "supporter", "events", "adminrestore"];
   for (const page of PAGE_ROUTES) {
     app.get(`/${page}`, (req, res) => {
       res.sendFile(path.join(__dirname, "..", "public", `${page}.html`));
