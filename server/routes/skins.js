@@ -1,6 +1,6 @@
 const express = require("express");
 const { randomUUID } = require("node:crypto");
-const { requireAuth } = require("../middleware/requireAuth");
+const { requireAuth, requireAdmin } = require("../middleware/requireAuth");
 const automation = require("../services/automationWebsiteClient");
 
 const router = express.Router();
@@ -23,6 +23,17 @@ function requireSteam(req, res) {
   return String(req.user.steam_id);
 }
 
+router.get("/", async (req, res) => {
+  try {
+    const steamId = req.user?.steam_id ? String(req.user.steam_id) : null;
+    const species = req.query.species ? String(req.query.species) : null;
+    return res.json(await automation.listSkinStore(steamId, species));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not load the skin shop.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
 router.get("/mine", requireAuth, async (req, res) => {
   const steamId = requireSteam(req, res);
   if (!steamId) return;
@@ -30,6 +41,50 @@ router.get("/mine", requireAuth, async (req, res) => {
     return res.json(await automation.listSkinPresets(steamId, req.query.species || null));
   } catch (error) {
     const mapped = mapAutomationError(error, "Could not load skin presets.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.get("/share/:code", async (req, res) => {
+  try {
+    return res.json(await automation.getSharedSkin(req.params.code));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Skin share code was not found.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.post("/studio", requireAuth, async (req, res) => {
+  const steamId = requireSteam(req, res);
+  if (!steamId) return;
+  try {
+    const result = await automation.saveStudioSkin({
+      steamId,
+      species: req.body?.species,
+      name: req.body?.name,
+      description: req.body?.description,
+      skin: req.body?.skin,
+      idempotencyKey: req.body?.idempotencyKey || `website-skin-studio:${randomUUID()}`,
+    });
+    return res.status(result.duplicate ? 200 : 201).json(result);
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not save the Skin Studio design.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.post("/import", requireAuth, async (req, res) => {
+  const steamId = requireSteam(req, res);
+  if (!steamId) return;
+  try {
+    const result = await automation.importSharedSkin({
+      steamId,
+      shareCode: req.body?.shareCode,
+      idempotencyKey: req.body?.idempotencyKey || `website-skin-import:${randomUUID()}`,
+    });
+    return res.status(result.duplicate ? 200 : 201).json(result);
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not import the shared skin.");
     return res.status(mapped.status).json(mapped.body);
   }
 });
@@ -42,7 +97,7 @@ router.post("/from-stored", requireAuth, async (req, res) => {
       steamId,
       slot: req.body?.slot,
       name: req.body?.name,
-      idempotencyKey: `website-skin:${randomUUID()}`,
+      idempotencyKey: req.body?.idempotencyKey || `website-skin:${randomUUID()}`,
     });
     return res.status(result.duplicate ? 200 : 201).json(result);
   } catch (error) {
@@ -51,6 +106,35 @@ router.post("/from-stored", requireAuth, async (req, res) => {
   }
 });
 
+router.post("/:id/buy", requireAuth, async (req, res) => {
+  const steamId = requireSteam(req, res);
+  if (!steamId) return;
+  try {
+    const result = await automation.buySkin({
+      steamId,
+      presetId: req.params.id,
+      idempotencyKey: req.body?.idempotencyKey || `website-skin-buy:${randomUUID()}`,
+    });
+    return res.status(result.duplicate ? 200 : 201).json(result);
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not unlock this skin.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.post("/:id/wear", requireAuth, async (req, res) => {
+  const steamId = requireSteam(req, res);
+  if (!steamId) return;
+  try {
+    const result = await automation.wearSkin({ steamId, presetId: req.params.id });
+    return res.status(result.confirmed ? 200 : 202).json(result);
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not apply this skin to your live dinosaur.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
+// Existing parked-dino route kept for My Dinos compatibility.
 router.post("/:id/apply", requireAuth, async (req, res) => {
   const steamId = requireSteam(req, res);
   if (!steamId) return;
@@ -62,6 +146,20 @@ router.post("/:id/apply", requireAuth, async (req, res) => {
     }));
   } catch (error) {
     const mapped = mapAutomationError(error, "Could not apply skin preset.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.post("/:id/publish", requireAdmin, async (req, res) => {
+  try {
+    return res.json(await automation.publishSkin({
+      presetId: req.params.id,
+      price: req.body?.price,
+      description: req.body?.description,
+      published: req.body?.published !== false,
+    }));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not update skin publication.");
     return res.status(mapped.status).json(mapped.body);
   }
 });
