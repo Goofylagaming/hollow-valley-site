@@ -69,7 +69,11 @@ router.post("/:tier/checkout", requireAuth, async (req, res) => {
   }
 
   try {
-    res.json(await createCheckoutSession({ tier: req.params.tier, userId: req.user.id }));
+    res.json(await createCheckoutSession({
+      tier: req.params.tier,
+      userId: req.user.id,
+      steamId: req.user.steam_id || null,
+    }));
   } catch (error) {
     res.status(error instanceof CheckoutError ? error.status : 500).json({
       error: error instanceof CheckoutError ? error.message : "Unable to start checkout.",
