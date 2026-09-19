@@ -159,6 +159,10 @@ function listMarketplaceCatalog() {
   return call('/marketplace/catalog');
 }
 
+function listMarketplaceOrders(steamId) {
+  return call(`/marketplace/orders/${encodeURIComponent(validateSteamId(steamId))}`);
+}
+
 function purchaseMarketplaceItem({ steamId, catalogId, idempotencyKey }) {
   const itemId = String(catalogId || '').trim();
   const key = String(idempotencyKey || '').trim();
@@ -311,6 +315,7 @@ module.exports = {
   getDailyLoginBonus,
   claimDailyLoginBonus,
   listMarketplaceCatalog,
+  listMarketplaceOrders,
   purchaseMarketplaceItem,
   adminCreditWallet,
   getDinoMarketplaceState,

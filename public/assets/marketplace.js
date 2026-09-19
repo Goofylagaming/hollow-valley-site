@@ -37,6 +37,24 @@ async function loadSpeciesMap() {
   speciesById = Object.fromEntries(list.map((s) => [s.id, s]));
 }
 
+function listingSkinColor(color) {
+  if (!color || typeof color !== "object") return "";
+  const clamp = (value) => Math.max(0, Math.min(255, Math.round((Number(value) || 0) * 255)));
+  return `rgb(${clamp(color.r)}, ${clamp(color.g)}, ${clamp(color.b)})`;
+}
+
+function listingSkinPreview(skin) {
+  if (!skin || typeof skin !== "object") return "";
+  const colors = ["body", "markings", "flank", "underbelly", "eyes"]
+    .map((key) => listingSkinColor(skin[key]))
+    .filter(Boolean);
+  if (!colors.length) return "";
+  return `<div class="dino-skin-row market-skin-preview">
+    <div class="dino-skin-swatches">${colors.map((color) => `<i style="background:${escapeHtml(color)}"></i>`).join("")}</div>
+    <small>Pattern ${Number(skin.patternIndex ?? 0)} · Theme ${Number(skin.themeIndex ?? 0)}</small>
+  </div>`;
+}
+
 async function loadMyListingIds() {
   myListingIds = new Set();
   try {
@@ -90,9 +108,15 @@ function renderCatalog() {
       btn.disabled = true;
       btn.textContent = "Purchasing...";
       try {
-        await api(`/api/marketplace/catalog/${btn.dataset.id}/buy`, { method: "POST" });
-        alert(`Purchased! Your dino (${btn.dataset.size}% Size) has been placed in your 'My Dinos' storage and can be redeemed in-game at any time.`);
-        window.location.href = "/mydinos";
+        const result = await api(`/api/marketplace/catalog/${btn.dataset.id}/buy`, { method: "POST" });
+        if (result.fulfilled || result.order?.status === "fulfilled") {
+          alert("Purchased! The dino is now available in My Dinos.");
+          window.location.href = "/mydinos";
+          return;
+        }
+        alert("Order accepted. DinoStorage delivery is processing. Track it under Your Store Orders.");
+        btn.textContent = "Order processing";
+        await loadMyOrders();
       } catch (err) {
         alert(err.message || "Failed to purchase dino");
         btn.disabled = false;
@@ -116,10 +140,13 @@ async function loadListings() {
         const isMine = myListingIds.has(String(listing.id));
         const buyEnabled = marketplaceState.p2pBuyEnabled === true && !isMine;
         const buttonText = isMine ? "Your Listing" : marketplaceState.p2pBuyEnabled === true ? "Buy" : "Buying Coming Online";
+        const mutations = Array.isArray(listing.mutations) ? listing.mutations : [];
         return `<div class="storage-card">
           <h3>${escapeHtml(listing.nickname || species.name)}</h3>
-          <small>Size ${listing.size_percent}%</small>
-          <div class="stat-row"><span>${listing.price.toLocaleString()} Valley Coin</span></div>
+          <small>${Number(listing.size_percent || 0)}% growth${listing.gender ? ` · ${escapeHtml(listing.gender)}` : ""}${listing.is_prime ? " · PRIME" : ""}</small>
+          ${mutations.length ? `<div class="market-listing-meta">${mutations.slice(0,4).map((mutation) => `<span>${escapeHtml(mutation)}</span>`).join("")}</div>` : ""}
+          ${listingSkinPreview(listing.skin)}
+          <div class="stat-row"><span>${Number(listing.price || 0).toLocaleString()} Valley Coin</span></div>
           <div class="actions"><button class="small-button buy-listing-btn" data-id="${listing.id}" ${buyEnabled ? "" : "disabled"}>${buttonText}</button></div>
         </div>`;
       })
@@ -148,6 +175,103 @@ async function loadListings() {
   }
 }
 
+async function loadMyOrders() {
+  const section = document.getElementById("my-orders-section");
+  const grid = document.getElementById("my-orders-grid");
+  if (!section || !grid) return;
+  const me = await window.HDS.loadMe();
+  if (!me.loggedIn) {
+    section.hidden = true;
+    return;
+  }
+  section.hidden = false;
+  try {
+    const orders = await api("/api/marketplace/orders/mine");
+    if (!Array.isArray(orders) || !orders.length) {
+      grid.innerHTML = `<div class="empty-roster"><strong>No official store orders</strong><span>Official catalog purchases will appear here while DinoStorage delivers them.</span></div>`;
+      return;
+    }
+    grid.innerHTML = orders.map((order) => {
+      const item = order.itemSnapshot || {};
+      const payload = item.payload || {};
+      const status = String(order.status || "unknown");
+      const detail = status === "fulfilled"
+        ? `Available in My Dinos${order.fulfillment?.slot ? ` · ${escapeHtml(order.fulfillment.slot)}` : ""}`
+        : status === "pending"
+          ? "DinoStorage delivery processing"
+          : status === "refunded"
+            ? "Valley Coin refunded"
+            : status === "failed"
+              ? escapeHtml(order.error || "Delivery failed")
+              : escapeHtml(status);
+      return `<div class="storage-card">
+        <h3>${escapeHtml(item.name || payload.species || order.catalog_id || "Official dino")}</h3>
+        <small>${Number(payload.growthPercent ?? payload.sizePercent ?? 75)}% growth</small>
+        <div class="market-listing-meta">
+          <span>${Number(order.price || 0).toLocaleString()} Valley Coin</span>
+          <span class="listing-status-pill">${escapeHtml(status)}</span>
+        </div>
+        <p class="section-intro">${detail}</p>
+      </div>`;
+    }).join("");
+  } catch (error) {
+    grid.innerHTML = `<div class="empty-roster"><strong>Store orders unavailable</strong><span>${escapeHtml(error.message || "Could not load orders.")}</span></div>`;
+  }
+}
+
+async function loadMyListings() {
+  const section = document.getElementById("my-listings-section");
+  const grid = document.getElementById("my-listings-grid");
+  if (!section || !grid) return;
+  const me = await window.HDS.loadMe();
+  if (!me.loggedIn) {
+    section.hidden = true;
+    return;
+  }
+  section.hidden = false;
+  try {
+    const listings = await api("/api/marketplace/listings/mine");
+    if (!Array.isArray(listings) || !listings.length) {
+      grid.innerHTML = `<div class="empty-roster"><strong>No marketplace listings</strong><span>List a parked dinosaur from My Dinos.</span></div>`;
+      return;
+    }
+    grid.innerHTML = listings.map((listing) => {
+      const mutations = Array.isArray(listing.mutations) ? listing.mutations : [];
+      const active = String(listing.status || "") === "active";
+      const cancelEnabled = active && marketplaceState.p2pCancelEnabled === true;
+      return `<div class="storage-card">
+        <h3>${escapeHtml(listing.species_id || "Unknown dino")}</h3>
+        <small>${Number(listing.size_percent || 0)}% growth${listing.gender ? ` · ${escapeHtml(listing.gender)}` : ""}${listing.is_prime ? " · PRIME" : ""}</small>
+        <div class="market-listing-meta">
+          <span>${Number(listing.price || 0).toLocaleString()} Valley Coin</span>
+          <span class="listing-status-pill">${escapeHtml(listing.status || "unknown")}</span>
+        </div>
+        ${mutations.length ? `<div class="market-listing-meta">${mutations.slice(0,4).map((mutation) => `<span>${escapeHtml(mutation)}</span>`).join("")}</div>` : ""}
+        ${listingSkinPreview(listing.skin)}
+        <div class="actions">${active ? `<button class="small-button cancel-listing-btn" data-id="${escapeHtml(listing.id)}" ${cancelEnabled ? "" : "disabled"}>${cancelEnabled ? "Cancel listing" : "Cancellation locked"}</button>` : ""}</div>
+      </div>`;
+    }).join("");
+
+    grid.querySelectorAll(".cancel-listing-btn:not([disabled])").forEach((button) => {
+      button.addEventListener("click", async () => {
+        if (!confirm("Cancel this listing and return the dino from escrow to My Dinos?")) return;
+        button.disabled = true;
+        button.textContent = "Returning...";
+        try {
+          await api(`/api/marketplace/listings/${encodeURIComponent(button.dataset.id)}/cancel`, { method: "POST" });
+          await Promise.all([loadMyListingIds(), loadListings(), loadMyListings()]);
+        } catch (error) {
+          alert(error.message || "Could not cancel listing.");
+          button.disabled = false;
+          button.textContent = "Cancel listing";
+        }
+      });
+    });
+  } catch (error) {
+    grid.innerHTML = `<div class="empty-roster"><strong>Your listings are unavailable</strong><span>${escapeHtml(error.message || "Could not load listings.")}</span></div>`;
+  }
+}
+
 document.querySelectorAll(".filter").forEach((filter) => {
   filter.addEventListener("click", () => {
     document.querySelectorAll(".filter").forEach((f) => f.classList.toggle("active", f === filter));
@@ -170,6 +294,8 @@ async function init() {
   catalog = await api("/api/marketplace/catalog");
   renderCatalog();
   await loadListings();
+  await loadMyOrders();
+  await loadMyListings();
 }
 
 init();
