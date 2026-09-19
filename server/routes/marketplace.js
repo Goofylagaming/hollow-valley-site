@@ -49,6 +49,19 @@ router.get("/catalog", async (_req, res) => {
   }
 });
 
+router.get("/orders/mine", requireAuth, async (req, res) => {
+  if (!req.user?.steam_id) {
+    return res.status(400).json({ error: "Your Steam account is not linked. Please sign in with Steam first." });
+  }
+  try {
+    const result = await automation.listMarketplaceOrders(String(req.user.steam_id));
+    return res.json(Array.isArray(result.orders) ? result.orders : []);
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not read marketplace orders.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
 router.post("/catalog/:id/buy", requireAuth, async (req, res) => {
   if (!req.user?.steam_id) {
     return res.status(400).json({ error: "Your Steam account is not linked. Please sign in with Steam first." });
