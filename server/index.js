@@ -26,6 +26,7 @@ const serverStatusRouter = require("./routes/serverStatus");
 const eventsRouter = require("./routes/events");
 const mapdataRouter = require("./routes/mapdata");
 const commandBridgeInternalRouter = require("./routes/commandBridgeInternal");
+const supporterInternalRouter = require("./routes/supporterInternal");
 const serverStatusService = require("./services/serverStatus");
 const { syncSteamProfiles } = require("./services/steamProfile");
 const herbyBot = require("./herbyBot");
@@ -141,6 +142,7 @@ function createApp() {
   app.use("/auth", authRouter);
   app.use("/auth/steam", authSteamRouter);
   app.use("/api/internal/commandbridge", commandBridgeInternalRouter);
+  app.use("/api/internal/supporter-memberships", supporterInternalRouter);
   app.use("/api/species", speciesRouter);
   app.use("/api/wallet", walletRouter);
   app.use("/api/quests", questsRouter);
