@@ -35,40 +35,28 @@ test('quest route uses automatic verified-playtime quests and disables manual cl
   assert.equal(route.includes('recordClaim'), false);
 });
 
-test('homepage wallet renders five-minute earning rate progress and active boost', () => {
+test('homepage no longer renders the wallet panel after dashboard consolidation', () => {
   const js = read('public/assets/site.js');
   const html = read('public/index.html');
 
-  assert.match(js, /wallet-base-rate/);
-  assert.match(js, /wallet-active-boost/);
-  assert.match(js, /wallet-current-payout/);
-  assert.match(js, /wallet-supporter-multiplier/);
-  assert.match(js, /wallet-supporter-tier/);
-  assert.match(js, /supporterMultiplier/);
-  assert.match(html, /SUPPORTER/);
-  assert.match(html, /Quest boost, then supporter multiplier/);
-  assert.match(js, /wallet-progress-fill/);
-  assert.match(js, /nextRewardInSeconds/);
-  assert.match(html, /NEXT 5-MINUTE PAYOUT/);
-  assert.match(html, /RECENT WALLET ACTIVITY/);
-  assert.match(html, /DAILY LOGIN BONUS/);
-  assert.match(js, /loadDailyBonus/);
-  assert.match(js, /wallet-daily-claim/);
-  assert.match(js, /daily_login_bonus/);
-  assert.match(js, /walletActivityDetail/);
+  assert.equal(js.includes('wallet-base-rate'), false);
+  assert.equal(js.includes('wallet-active-boost'), false);
+  assert.equal(js.includes('wallet-current-payout'), false);
+  assert.equal(js.includes('wallet-progress-fill'), false);
+  assert.equal(html.includes('NEXT 5-MINUTE PAYOUT'), false);
+  assert.equal(html.includes('RECENT WALLET ACTIVITY'), false);
+  assert.equal(html.includes('DAILY LOGIN BONUS'), false);
 });
 
-test('homepage quests render automatic daily and weekly progress with no claim buttons', () => {
+test('homepage no longer renders quest progress panels or claim controls', () => {
   const js = read('public/assets/site.js');
   const html = read('public/index.html');
 
-  assert.match(js, /DAILY ACTIVITY/);
-  assert.match(js, /WEEKLY ACTIVITY/);
-  assert.match(js, /progressSeconds/);
-  assert.match(js, /boostPercent/);
   assert.equal(js.includes('quest-claim'), false);
-  assert.match(html, /Verified online time completes these automatically/);
-  assert.match(html, /ACTIVE COIN BOOST/);
+  assert.equal(js.includes('DAILY ACTIVITY'), false);
+  assert.equal(js.includes('WEEKLY ACTIVITY'), false);
+  assert.equal(html.includes('Verified online time completes these automatically'), false);
+  assert.equal(html.includes('ACTIVE COIN BOOST'), false);
 });
 
 test('wallet activity labels marketplace sales refunds and skin preset spending', () => {
