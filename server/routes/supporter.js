@@ -106,6 +106,7 @@ router.post("/:tier/change", requireAuth, async (req, res) => {
       subscriptionId: status.stripe_subscription_id,
       tier: req.params.tier,
       userId: req.user.id,
+      steamId: req.user.steam_id || null,
     }));
   } catch (error) {
     sendManageError(res, error);
@@ -122,6 +123,7 @@ router.post("/cancel", requireAuth, async (req, res) => {
     res.json(await cancelSubscription({
       subscriptionId: status.stripe_subscription_id,
       userId: req.user.id,
+      steamId: req.user.steam_id || null,
     }));
   } catch (error) {
     sendManageError(res, error);
@@ -138,6 +140,7 @@ router.post("/resume", requireAuth, async (req, res) => {
     res.json(await resumeSubscription({
       subscriptionId: status.stripe_subscription_id,
       userId: req.user.id,
+      steamId: req.user.steam_id || null,
     }));
   } catch (error) {
     sendManageError(res, error);
