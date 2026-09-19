@@ -18,6 +18,14 @@ test('wallet route uses Steam-linked automation economy', () => {
   assert.equal(route.includes('getWallet(req.user.id)'), false);
 });
 
+test('daily bonus route uses Steam-linked automation economy with no legacy wallet credit', () => {
+  const route = read('server/routes/dailybonus.js');
+  assert.match(route, /automationRoutes\.getDailyLoginBonus/);
+  assert.match(route, /automationRoutes\.claimDailyLoginBonus/);
+  assert.equal(route.includes('creditWallet'), false);
+  assert.equal(route.includes('Math.random'), false);
+});
+
 test('quest route uses automatic verified-playtime quests and disables manual claims', () => {
   const route = read('server/routes/quests.js');
   assert.match(route, /automationRoutes\.getQuests/);
@@ -34,10 +42,20 @@ test('homepage wallet renders five-minute earning rate progress and active boost
   assert.match(js, /wallet-base-rate/);
   assert.match(js, /wallet-active-boost/);
   assert.match(js, /wallet-current-payout/);
+  assert.match(js, /wallet-supporter-multiplier/);
+  assert.match(js, /wallet-supporter-tier/);
+  assert.match(js, /supporterMultiplier/);
+  assert.match(html, /SUPPORTER/);
+  assert.match(html, /Quest boost, then supporter multiplier/);
   assert.match(js, /wallet-progress-fill/);
   assert.match(js, /nextRewardInSeconds/);
   assert.match(html, /NEXT 5-MINUTE PAYOUT/);
   assert.match(html, /RECENT WALLET ACTIVITY/);
+  assert.match(html, /DAILY LOGIN BONUS/);
+  assert.match(js, /loadDailyBonus/);
+  assert.match(js, /wallet-daily-claim/);
+  assert.match(js, /daily_login_bonus/);
+  assert.match(js, /walletActivityDetail/);
 });
 
 test('homepage quests render automatic daily and weekly progress with no claim buttons', () => {
@@ -49,7 +67,6 @@ test('homepage quests render automatic daily and weekly progress with no claim b
   assert.match(js, /progressSeconds/);
   assert.match(js, /boostPercent/);
   assert.equal(js.includes('quest-claim'), false);
-  assert.equal(js.includes('Claiming…'), false);
   assert.match(html, /Verified online time completes these automatically/);
   assert.match(html, /ACTIVE COIN BOOST/);
 });
