@@ -1,6 +1,7 @@
 const { randomUUID } = require('node:crypto');
 const store = require('./economyStore');
 const quests = require('./questBoostService');
+const supporterBonuses = require('./supporterBonusService');
 
 const db = store.db;
 
@@ -75,7 +76,9 @@ function rewardOnlinePlayers(players, { nowMs = Date.now() } = {}) {
           const existing = db.prepare('SELECT id FROM economy_wallet_ledger WHERE idempotency_key = ?').get(key);
           if (!existing) {
             const bonusCoins = Math.floor((coins * activeBoostPercent) / 100);
-            const payoutCoins = coins + bonusCoins;
+            const questBoostedCoins = coins + bonusCoins;
+            const supporter = supporterBonuses.applyBonus(questBoostedCoins, steamId);
+            const payoutCoins = supporter.payoutCoins;
             const wallet = db.prepare('SELECT balance FROM economy_wallets WHERE steam_id = ?').get(steamId);
             const nextBalance = Number(wallet.balance) + payoutCoins;
             db.prepare('UPDATE economy_wallets SET balance = ?, updated_at = datetime(\'now\') WHERE steam_id = ?')
@@ -88,9 +91,13 @@ function rewardOnlinePlayers(players, { nowMs = Date.now() } = {}) {
               randomUUID(),
               steamId,
               payoutCoins,
-              activeBoostPercent > 0
-                ? `Online playtime reward: ${coins} base + ${activeBoostPercent}% quest boost`
-                : `Online playtime reward: ${coins} Valley Coin per 5 minutes`,
+              [
+                `Online playtime reward: ${coins} base`,
+                activeBoostPercent > 0 ? `+${activeBoostPercent}% quest boost` : null,
+                supporter.bonusPercent > 0
+                  ? `+${supporter.bonusPercent}% ${supporter.tier} supporter boost`
+                  : null,
+              ].filter(Boolean).join(' '),
               key,
               String(sequence),
               JSON.stringify({
@@ -99,6 +106,12 @@ function rewardOnlinePlayers(players, { nowMs = Date.now() } = {}) {
                 baseCoins: coins,
                 boostPercent: activeBoostPercent,
                 bonusCoins,
+                questBoostPercent: activeBoostPercent,
+                questBonusCoins: bonusCoins,
+                questBoostedCoins,
+                supporterTier: supporter.tier,
+                supporterBoostPercent: supporter.bonusPercent,
+                supporterBonusCoins: supporter.supporterBonusCoins,
                 payoutCoins,
               })
             );
