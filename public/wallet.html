@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Your Hollow Valley Valley Coin wallet.">
+  <title>Wallet | Hollow Valley</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=16">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main>
+      <section class="page-header">
+        <p class="overline green">VALLEY COIN</p>
+        <h1>Your wallet.</h1>
+        <p class="section-intro">Your Steam-linked balance, current earning rate, payout progress and recent Valley Coin activity.</p>
+      </section>
+
+      <section class="wallet-section">
+        <div id="wallet-guard"><p class="section-intro">Sign in with Steam to view your wallet.</p></div>
+        <div id="wallet-content" hidden>
+          <div class="wallet-balance wallet-balance-v2">
+            <small>CURRENT BALANCE</small>
+            <b id="wallet-balance">0</b>
+            <span>Valley Coin follows your linked Steam account.</span>
+          </div>
+
+          <div class="wallet-earning-grid">
+            <div class="summary-tile"><small>BASE EARNING</small><b id="wallet-base-rate">—</b><span>Verified online playtime</span></div>
+            <div class="summary-tile"><small>QUEST BOOST</small><b id="wallet-active-boost">+0%</b><span>Daily + weekly boosts</span></div>
+            <div class="summary-tile"><small>SUPPORTER</small><b id="wallet-supporter-multiplier">×1</b><span>Eligible reward multiplier</span></div>
+            <div class="summary-tile"><small>CURRENT PAYOUT</small><b id="wallet-current-payout">—</b><span>Per 5 minutes</span></div>
+          </div>
+
+          <div class="wallet-progress-panel">
+            <div class="list-heading"><span>NEXT 5-MINUTE PAYOUT</span><small id="wallet-next-payout">Checking…</small></div>
+            <div class="wallet-progress-track"><i id="wallet-progress-fill" style="width:0%"></i></div>
+            <small id="wallet-progress-text">0s / 5m verified</small>
+          </div>
+
+          <div class="list-heading wallet-activity-heading"><span>RECENT WALLET ACTIVITY</span></div>
+          <div class="activity-list" id="wallet-transactions">
+            <div class="empty-roster"><strong>No transactions yet</strong><span>Your Valley Coin earnings and spending will appear here.</span></div>
+          </div>
+        </div>
+      </section>
+    </main>
+    <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
+  </div>
+  <script src="/assets/common.js?v=12"></script>
+  <script src="/assets/wallet.js?v=1"></script>
+</body>
+</html>

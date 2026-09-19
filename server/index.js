@@ -169,7 +169,7 @@ function createApp() {
   app.all("/api/parked", parkedHandler);
   app.all("/api/admin", adminHandler);
 
-  const PAGE_ROUTES = ["dashboard", "mydinos", "bodydrop", "marketplace", "skins", "livemap", "leaderboard", "supporter", "events", "adminrestore"];
+  const PAGE_ROUTES = ["dashboard", "wallet", "quests", "mydinos", "bodydrop", "marketplace", "skins", "livemap", "leaderboard", "supporter", "events", "adminrestore"];
   for (const page of PAGE_ROUTES) {
     app.get(`/${page}`, (req, res) => {
       res.sendFile(path.join(__dirname, "..", "public", `${page}.html`));
