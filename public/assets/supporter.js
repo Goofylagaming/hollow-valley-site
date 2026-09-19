@@ -1,6 +1,7 @@
 const { api, escapeHtml } = window.HDS;
 
 let currentStatus = null;
+let reconcileAttempted = false;
 
 function activeManagedSubscription(status) {
   return Boolean(
@@ -29,6 +30,20 @@ async function loadStatus() {
     currentStatus = status;
 
     if (!status?.tier) {
+      if (!reconcileAttempted) {
+        reconcileAttempted = true;
+        statusEl.innerHTML = `<div class="summary-tile"><small>CURRENT TIER</small><b>Checking Stripe Sandbox…</b></div>`;
+        try {
+          const recovered = await api("/api/supporter/reconcile", { method: "POST" });
+          if (recovered?.recovered) {
+            document.getElementById("checkout-message").textContent =
+              "Recovered your existing Stripe Sandbox membership after the database move.";
+            return loadStatus();
+          }
+        } catch (err) {
+          console.error("Sandbox membership recovery failed", err);
+        }
+      }
       statusEl.innerHTML = `<div class="summary-tile"><small>CURRENT TIER</small><b>None</b></div>`;
       return null;
     }
