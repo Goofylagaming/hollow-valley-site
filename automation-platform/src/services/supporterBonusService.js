@@ -1,7 +1,15 @@
-const BONUS_PERCENT_BY_TIER = Object.freeze({
-  member: 20,
-  elite: 50,
-  legend: 100,
+const MULTIPLIER_BY_TIER = Object.freeze({
+  supporter: 2,
+  guardian: 3,
+  legend: 5,
+});
+
+const LEGACY_TIER_ALIASES = Object.freeze({
+  member: "supporter",
+  elite: "guardian",
+  supporter: "supporter",
+  guardian: "guardian",
+  legend: "legend",
 });
 
 const memberships = new Map();
@@ -28,8 +36,13 @@ function validateSteamId(value) {
   return steamId;
 }
 
-function bonusPercentForTier(tier) {
-  return BONUS_PERCENT_BY_TIER[String(tier || "").trim()] || 0;
+function normalizeTier(value) {
+  return LEGACY_TIER_ALIASES[String(value || "").trim().toLowerCase()] || null;
+}
+
+function multiplierForTier(tier) {
+  const canonical = normalizeTier(tier);
+  return canonical ? MULTIPLIER_BY_TIER[canonical] || 1 : 1;
 }
 
 function noMembership(steamId) {
@@ -37,7 +50,7 @@ function noMembership(steamId) {
     steamId,
     entitled: false,
     tier: null,
-    bonusPercent: 0,
+    multiplier: 1,
   };
 }
 
@@ -58,10 +71,10 @@ function replaceMemberships(steamIds, records = [], env = process.env) {
   let entitled = 0;
   for (const steamId of ids) {
     const record = bySteam.get(steamId);
-    const tier = record?.entitled ? String(record.tier || "") : "";
-    const bonusPercent = bonusPercentForTier(tier);
-    const membership = bonusPercent > 0
-      ? { steamId, entitled: true, tier, bonusPercent }
+    const tier = record?.entitled ? normalizeTier(record.tier) : null;
+    const multiplier = multiplierForTier(tier);
+    const membership = tier && multiplier > 1
+      ? { steamId, entitled: true, tier, multiplier }
       : noMembership(steamId);
     memberships.set(steamId, membership);
     if (membership.entitled) entitled += 1;
@@ -114,7 +127,6 @@ async function refreshMemberships(
     const summary = replaceMemberships(ids, payload.memberships, env);
     return { skipped: false, ...summary };
   } catch (error) {
-    // Fail closed: a website outage must never keep granting a stale paid bonus.
     replaceMemberships(ids, [], env);
     throw error;
   }
@@ -123,12 +135,12 @@ async function refreshMemberships(
 function applyBonus(coinsAfterQuestBoost, steamId, env = process.env) {
   const amount = Math.max(0, Math.floor(Number(coinsAfterQuestBoost) || 0));
   const membership = membershipForSteamId(steamId, env);
-  const supporterBonusCoins = Math.floor((amount * membership.bonusPercent) / 100);
+  const payoutCoins = amount * membership.multiplier;
   return {
     ...membership,
     coinsBeforeSupporterBonus: amount,
-    supporterBonusCoins,
-    payoutCoins: amount + supporterBonusCoins,
+    supporterBonusCoins: payoutCoins - amount,
+    payoutCoins,
   };
 }
 
@@ -137,11 +149,13 @@ function clearCache() {
 }
 
 module.exports = {
-  BONUS_PERCENT_BY_TIER,
+  MULTIPLIER_BY_TIER,
+  LEGACY_TIER_ALIASES,
   enabled,
   configuration,
   validateSteamId,
-  bonusPercentForTier,
+  normalizeTier,
+  multiplierForTier,
   membershipForSteamId,
   replaceMemberships,
   refreshMemberships,
