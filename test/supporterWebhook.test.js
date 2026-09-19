@@ -223,7 +223,7 @@ test("HTTP webhook route accepts a valid signed raw body and rejects tampering",
     body,
   });
   assert.equal(good.status, 200);
-  assert.equal(getSupporterStatus(42).tier, "member");
+  assert.equal(getSupporterStatus(42).tier, "supporter");
 
   const bad = await fetch(url, {
     method: "POST",
