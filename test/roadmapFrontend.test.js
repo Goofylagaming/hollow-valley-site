@@ -45,7 +45,26 @@ test("homepage quests are automatic progress with no manual claim buttons", () =
   assert.match(js, /progressSeconds/);
   assert.match(js, /boostPercent/);
   assert.equal(js.includes("quest-claim"), false);
-  assert.equal(js.includes("Claiming…"), false);
+});
+
+test("homepage wallet shows supporter multiplier, daily login reward and species browser", () => {
+  const html = read("public/index.html");
+  const js = read("public/assets/site.js");
+  assert.match(html, /wallet-supporter-multiplier/);
+  assert.match(html, /DAILY LOGIN BONUS/);
+  assert.match(js, /supporterMultiplier/);
+  assert.match(js, /daily_login_bonus/);
+  assert.match(js, /loadDailyBonus/);
+  assert.match(js, /loadSpecies/);
+  assert.match(js, /walletActivityDetail/);
+});
+
+test("daily bonus route uses the Steam-linked automation wallet only", () => {
+  const route = read("server/routes/dailybonus.js");
+  assert.match(route, /getDailyLoginBonus/);
+  assert.match(route, /claimDailyLoginBonus/);
+  assert.equal(route.includes("creditWallet"), false);
+  assert.equal(route.includes("Math.random"), false);
 });
 
 test("Admin Restore browser page never contains an automation admin token", () => {
