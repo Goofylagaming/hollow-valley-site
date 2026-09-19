@@ -2,6 +2,7 @@ const express = require('express');
 const { requireWebsiteToken } = require('../middleware/websiteAuth');
 const audit = require('../services/auditService');
 const dailyLogin = require('../services/dailyLoginBonusService');
+const supporterBonuses = require('../services/supporterBonusService');
 
 const router = express.Router();
 router.use(requireWebsiteToken);
@@ -12,9 +13,14 @@ function validateSteamId(value) {
   return steamId;
 }
 
-router.get('/:steamId', (req, res) => {
+router.get('/:steamId', async (req, res) => {
   try {
     const steamId = validateSteamId(req.params.steamId);
+    try {
+      await supporterBonuses.refreshMemberships([steamId]);
+    } catch (error) {
+      console.warn('[daily-login-supporter]', error.message);
+    }
     res.json(dailyLogin.status(steamId));
   } catch (error) {
     res.status(400).json({ error: error.message || 'Unable to read daily login bonus.' });
@@ -24,6 +30,11 @@ router.get('/:steamId', (req, res) => {
 router.post('/:steamId/claim', async (req, res) => {
   try {
     const steamId = validateSteamId(req.params.steamId);
+    try {
+      await supporterBonuses.refreshMemberships([steamId]);
+    } catch (error) {
+      console.warn('[daily-login-supporter]', error.message);
+    }
     const result = await audit.run(
       'website',
       'daily_login_bonus',
