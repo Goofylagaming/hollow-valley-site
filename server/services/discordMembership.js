@@ -6,6 +6,17 @@ const ROLE_NAMES = Object.freeze({
   legend: "Valley Legend",
 });
 
+function configuredRoleIds(env = process.env) {
+  const ids = {
+    member: String(env.DISCORD_ROLE_MEMBER_ID || "").trim(),
+    elite: String(env.DISCORD_ROLE_ELITE_ID || "").trim(),
+    legend: String(env.DISCORD_ROLE_LEGEND_ID || "").trim(),
+  };
+  return Object.fromEntries(
+    Object.entries(ids).filter(([, id]) => /^\d{15,22}$/.test(id))
+  );
+}
+
 class DiscordMembershipError extends Error {
   constructor(status, message) {
     super(message);
@@ -42,7 +53,7 @@ async function discordRequest(path, { method = "GET", body = null } = {}, env = 
     } catch {}
     throw new DiscordMembershipError(
       response.status >= 400 && response.status < 500 ? 502 : 503,
-      `Discord role sync failed${detail}`
+      `Discord role sync failed (HTTP ${response.status})${detail}`
     );
   }
 
@@ -93,17 +104,33 @@ async function syncDiscordMembershipForUser(
   const targetTier = entitled && ROLE_NAMES[status?.tier] ? status.tier : null;
   const config = configuration(env);
 
-  let roles;
+  const exactRoleIds = configuredRoleIds(env);
+  const hasAllExactRoleIds = Object.keys(ROLE_NAMES).every((tier) => exactRoleIds[tier]);
+
+  let membershipRoles;
   let targetRole = null;
-  if (targetTier) {
-    const ensured = await ensureRoleForTier(targetTier, env, fetchImpl);
-    targetRole = ensured.role;
-    roles = ensured.roles;
+
+  if (hasAllExactRoleIds) {
+    membershipRoles = Object.entries(ROLE_NAMES).map(([tier, name]) => ({
+      id: exactRoleIds[tier],
+      name,
+      tier,
+    }));
+    targetRole = targetTier
+      ? membershipRoles.find((role) => role.tier === targetTier) || null
+      : null;
   } else {
-    roles = await listRoles(env, fetchImpl);
+    let roles;
+    if (targetTier) {
+      const ensured = await ensureRoleForTier(targetTier, env, fetchImpl);
+      targetRole = ensured.role;
+      roles = ensured.roles;
+    } else {
+      roles = await listRoles(env, fetchImpl);
+    }
+    membershipRoles = roles.filter((role) => Object.values(ROLE_NAMES).includes(role?.name));
   }
 
-  const membershipRoles = roles.filter((role) => Object.values(ROLE_NAMES).includes(role?.name));
   let changed = false;
 
   for (const role of membershipRoles) {
@@ -131,6 +158,7 @@ module.exports = {
   ROLE_NAMES,
   DiscordMembershipError,
   configuration,
+  configuredRoleIds,
   syncDiscordMembershipForUser,
   _test: { ensureRoleForTier, discordRequest },
 };
