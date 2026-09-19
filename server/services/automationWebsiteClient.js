@@ -93,6 +93,89 @@ function requestBodyDrop({ steamId, dropType }) {
   });
 }
 
+function listSkinStore(steamId = null, species = null) {
+  const params = new URLSearchParams();
+  if (steamId) params.set('steamId', validateSteamId(steamId));
+  if (species) params.set('species', String(species));
+  const query = params.toString();
+  return call(`/skins/store${query ? `?${query}` : ''}`);
+}
+
+function listMySkins(steamId, species = null) {
+  const query = species ? `?species=${encodeURIComponent(String(species))}` : '';
+  return call(`/skins/${encodeURIComponent(validateSteamId(steamId))}${query}`);
+}
+
+function saveStudioSkin({ steamId, species, name, description, skin, idempotencyKey }) {
+  return call('/skins/studio', {
+    method: 'POST',
+    body: {
+      steamId: validateSteamId(steamId),
+      species,
+      name,
+      description,
+      skin,
+      idempotencyKey,
+    },
+  });
+}
+
+function importSharedSkin({ steamId, shareCode, idempotencyKey }) {
+  return call('/skins/import', {
+    method: 'POST',
+    body: { steamId: validateSteamId(steamId), shareCode, idempotencyKey },
+  });
+}
+
+function getSharedSkin(shareCode) {
+  const code = String(shareCode || '').trim();
+  if (!/^[A-Za-z0-9-]{4,40}$/.test(code)) throw new Error('Invalid skin share code');
+  return call(`/skins/share/${encodeURIComponent(code)}`);
+}
+
+function buySkin({ steamId, presetId, idempotencyKey }) {
+  const id = String(presetId || '').trim();
+  if (!/^[A-Za-z0-9-]{8,128}$/.test(id)) throw new Error('Invalid skin preset ID');
+  return call(`/skins/${encodeURIComponent(id)}/buy`, {
+    method: 'POST',
+    body: { steamId: validateSteamId(steamId), idempotencyKey },
+  });
+}
+
+function wearSkin({ steamId, presetId }) {
+  const id = String(presetId || '').trim();
+  if (!/^[A-Za-z0-9-]{8,128}$/.test(id)) throw new Error('Invalid skin preset ID');
+  return call(`/skins/${encodeURIComponent(id)}/wear`, {
+    method: 'POST',
+    body: { steamId: validateSteamId(steamId) },
+  });
+}
+
+function publishSkin({ presetId, price, description, published = true }) {
+  const id = String(presetId || '').trim();
+  if (!/^[A-Za-z0-9-]{8,128}$/.test(id)) throw new Error('Invalid skin preset ID');
+  return call(`/skins/${encodeURIComponent(id)}/publish`, {
+    method: 'POST',
+    body: { price, description, published },
+  });
+}
+
+function createSkinFromStored({ steamId, slot, name, idempotencyKey }) {
+  return call('/skins/from-stored', {
+    method: 'POST',
+    body: { steamId: validateSteamId(steamId), slot, name, idempotencyKey },
+  });
+}
+
+function applySkinToStored({ steamId, presetId, slot }) {
+  const id = String(presetId || '').trim();
+  if (!/^[A-Za-z0-9-]{8,128}$/.test(id)) throw new Error('Invalid skin preset ID');
+  return call(`/skins/${encodeURIComponent(id)}/apply`, {
+    method: 'POST',
+    body: { steamId: validateSteamId(steamId), slot },
+  });
+}
+
 function getWallet(steamId) {
   return call(`/wallet/${encodeURIComponent(validateSteamId(steamId))}`);
 }
@@ -193,6 +276,16 @@ module.exports = {
   getRequestStatus,
   getBodyDropCooldown,
   requestBodyDrop,
+  listSkinStore,
+  listMySkins,
+  saveStudioSkin,
+  importSharedSkin,
+  getSharedSkin,
+  buySkin,
+  wearSkin,
+  publishSkin,
+  createSkinFromStored,
+  applySkinToStored,
   getWallet,
   getDailyLoginBonus,
   claimDailyLoginBonus,
