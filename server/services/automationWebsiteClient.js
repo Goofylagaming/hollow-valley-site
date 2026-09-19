@@ -186,6 +186,51 @@ function buyDinoMarketplaceListing({ steamId, listingId, idempotencyKey }) {
   });
 }
 
+function getParkedDinoMutations(steamId, slot) {
+  const selectedSlot = String(slot || '').trim();
+  if (!/^[A-Za-z0-9_-]{1,80}$/.test(selectedSlot)) throw new Error('Invalid DinoStorage slot');
+  return call(`/dinostorage/stored/${encodeURIComponent(validateSteamId(steamId))}/${encodeURIComponent(selectedSlot)}/mutations`);
+}
+
+function updateParkedDinoMutations({ steamId, slot, mutations }) {
+  const selectedSlot = String(slot || '').trim();
+  if (!/^[A-Za-z0-9_-]{1,80}$/.test(selectedSlot)) throw new Error('Invalid DinoStorage slot');
+  return call(`/dinostorage/stored/${encodeURIComponent(validateSteamId(steamId))}/${encodeURIComponent(selectedSlot)}/mutations`, {
+    method: 'PUT',
+    body: { mutations: mutations && typeof mutations === 'object' ? mutations : {} },
+  });
+}
+
+function listSkinPresets(steamId, species = null) {
+  const id = validateSteamId(steamId);
+  const query = species ? `?species=${encodeURIComponent(String(species))}` : '';
+  return call(`/skins/${encodeURIComponent(id)}${query}`);
+}
+
+function createSkinPresetFromStored({ steamId, slot, name, idempotencyKey }) {
+  const selectedSlot = String(slot || '').trim();
+  const presetName = String(name || '').trim();
+  const key = String(idempotencyKey || '').trim();
+  if (!/^[A-Za-z0-9_-]{1,80}$/.test(selectedSlot)) throw new Error('Invalid DinoStorage slot');
+  if (presetName.length < 2 || presetName.length > 60) throw new Error('Skin preset name must be 2-60 characters');
+  if (!/^[A-Za-z0-9:_-]{8,160}$/.test(key)) throw new Error('Invalid idempotency key');
+  return call('/skins/from-stored', {
+    method: 'POST',
+    body: { steamId: validateSteamId(steamId), slot: selectedSlot, name: presetName, idempotencyKey: key },
+  });
+}
+
+function applySkinPreset({ steamId, slot, presetId }) {
+  const selectedSlot = String(slot || '').trim();
+  const id = String(presetId || '').trim();
+  if (!/^[A-Za-z0-9_-]{1,80}$/.test(selectedSlot)) throw new Error('Invalid DinoStorage slot');
+  if (!/^[A-Za-z0-9_-]{8,128}$/.test(id)) throw new Error('Invalid skin preset ID');
+  return call(`/skins/${encodeURIComponent(id)}/apply`, {
+    method: 'POST',
+    body: { steamId: validateSteamId(steamId), slot: selectedSlot },
+  });
+}
+
 module.exports = {
   getActiveCharacter,
   listStoredDinos,
@@ -205,4 +250,9 @@ module.exports = {
   createDinoMarketplaceListing,
   cancelDinoMarketplaceListing,
   buyDinoMarketplaceListing,
+  getParkedDinoMutations,
+  updateParkedDinoMutations,
+  listSkinPresets,
+  createSkinPresetFromStored,
+  applySkinPreset,
 };
