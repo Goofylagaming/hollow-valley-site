@@ -153,11 +153,6 @@ db.exec(`
     ON economy_skin_presets(owner_steam_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_economy_skin_presets_species
     ON economy_skin_presets(species, active, is_premium);
-  CREATE UNIQUE INDEX IF NOT EXISTS idx_economy_skin_presets_share_code
-    ON economy_skin_presets(share_code) WHERE share_code IS NOT NULL;
-  CREATE UNIQUE INDEX IF NOT EXISTS idx_economy_skin_presets_create_key
-    ON economy_skin_presets(create_key) WHERE create_key IS NOT NULL;
-
   CREATE TABLE IF NOT EXISTS economy_skin_unlocks (
     steam_id TEXT NOT NULL,
     preset_id TEXT NOT NULL,
