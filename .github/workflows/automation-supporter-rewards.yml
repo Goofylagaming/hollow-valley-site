@@ -1,0 +1,35 @@
+name: Supporter Reward Tests
+
+on:
+  pull_request:
+    branches:
+      - automation-platform
+    paths:
+      - 'automation-platform/src/services/supporterBonusService.js'
+      - 'automation-platform/src/services/playtimeRewardsService.js'
+      - 'automation-platform/src/services/dailyLoginBonusService.js'
+      - 'automation-platform/src/routes/websiteRoutes.js'
+      - 'automation-platform/test/supporterBonus.test.js'
+      - 'automation-platform/test/supporterDailyLogin.test.js'
+      - '.github/workflows/automation-supporter-rewards.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: automation-platform
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Run supporter reward tests
+        run: node --test test/supporterBonus.test.js test/supporterDailyLogin.test.js
