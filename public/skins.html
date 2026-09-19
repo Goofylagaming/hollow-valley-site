@@ -3,37 +3,125 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Create and browse custom dino skins.">
-  <title>Skins | Herby Death Squad</title>
-  <link rel="stylesheet" href="assets/styles.css?v=12">
+  <meta name="description" content="Design, unlock, share and wear Hollow Valley dinosaur skins.">
+  <title>Skin Studio | Hollow Valley</title>
+  <link rel="stylesheet" href="assets/styles.css?v=13">
 </head>
 <body>
   <div class="app-shell">
     <div id="nav-slot"></div>
+
     <main>
-      <section class="page-header">
-        <p class="overline green">COSMETICS</p>
-        <h1>Skins.</h1>
-        <p class="section-intro">Create your own skin design for 500 Valley Coin, or use one of the free premium skins from the admin team. Apply skins to your active dino from My Dinos.</p>
+      <section class="page-header skin-page-header">
+        <p class="overline green">HOLLOW VALLEY COSMETICS</p>
+        <h1>Skin <span>Studio.</span></h1>
+        <p class="section-intro">Build a colour preset, save it, share it with a code, unlock published designs with Valley Coin, then wear an owned skin on your live dinosaur.</p>
       </section>
-      <section class="roster-section">
-        <div id="skins-guard"><p class="section-intro">Sign in with Steam to create a skin.</p></div>
-        <div id="skins-create" hidden>
-          <div class="list-heading"><span>CREATE A SKIN</span></div>
-          <div class="form-row">
-            <select id="skin-species"></select>
-            <input type="text" id="skin-name" placeholder="Skin name" maxlength="40">
-            <button class="small-button" id="skin-create-btn">Create (500 Valley Coin)</button>
-          </div>
+
+      <section class="skin-shell">
+        <div id="skin-alert" class="skin-alert" hidden></div>
+
+        <div class="skin-tabs" role="tablist" aria-label="Skin Studio sections">
+          <button class="skin-tab active" type="button" data-skin-tab="studio">Skin Studio</button>
+          <button class="skin-tab" type="button" data-skin-tab="store">Skin Shop</button>
+          <button class="skin-tab" type="button" data-skin-tab="mine">My Skins</button>
+          <button class="skin-tab" type="button" data-skin-tab="share">Share / Import</button>
         </div>
 
-        <div class="list-heading" style="margin-top:40px"><span>SKIN LIBRARY</span></div>
-        <div id="skins-library" class="storage-grid"><p class="section-intro">Loading skins…</p></div>
+        <section class="skin-panel active" data-skin-panel="studio">
+          <div class="skin-studio-grid">
+            <div class="skin-preview-card">
+              <div class="skin-preview-stage" id="skin-preview-stage">
+                <div class="skin-preview-orb" id="skin-preview-orb">
+                  <span class="skin-preview-eye"></span>
+                  <span class="skin-preview-mark skin-preview-mark-a"></span>
+                  <span class="skin-preview-mark skin-preview-mark-b"></span>
+                  <span class="skin-preview-flank"></span>
+                </div>
+              </div>
+              <div class="skin-preview-meta">
+                <span id="preview-species">Choose a species</span>
+                <b id="preview-name">Untitled Skin</b>
+                <small>Colour preview • game result uses EVRIMA's native pattern system</small>
+              </div>
+            </div>
+
+            <div class="skin-editor-card">
+              <div class="list-heading"><span>DESIGN SETTINGS</span><span id="skin-system-state">Checking…</span></div>
+              <div class="skin-editor-fields">
+                <label>Species<select id="skin-species"></select></label>
+                <label>Skin name<input id="skin-name" maxlength="60" placeholder="e.g. Ashen Valley"></label>
+                <label class="wide">Description<input id="skin-description" maxlength="240" placeholder="Short description for the shop or share page"></label>
+                <label>Pattern index<input id="skin-pattern" type="number" min="0" max="65535" value="0"></label>
+                <label>Theme index<input id="skin-theme" type="number" min="0" max="65535" value="0"></label>
+                <label>Variation<input id="skin-variation" type="number" min="0" max="65535" value="0"></label>
+              </div>
+
+              <div class="list-heading skin-color-heading"><span>COLOUR ZONES</span><button class="small-button" id="skin-randomize" type="button">Randomise</button></div>
+              <div id="skin-colors" class="skin-color-grid"></div>
+
+              <div class="skin-editor-actions">
+                <button class="primary-button green" id="skin-save" type="button">Save design <b>→</b></button>
+                <button class="small-button" id="skin-reset" type="button">Reset</button>
+                <span id="skin-save-note">Sign in with Steam to save designs.</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="skin-panel" data-skin-panel="store">
+          <div class="skin-toolbar">
+            <div>
+              <p class="overline green">VALLEY SKIN SHOP</p>
+              <h2>Published skins.</h2>
+            </div>
+            <div class="skin-toolbar-actions">
+              <select id="skin-store-species"><option value="">All species</option></select>
+              <button class="small-button" id="skin-store-refresh" type="button">Refresh</button>
+            </div>
+          </div>
+          <div id="skin-store-grid" class="skin-card-grid"><p class="section-intro">Loading skin shop…</p></div>
+        </section>
+
+        <section class="skin-panel" data-skin-panel="mine">
+          <div class="skin-toolbar">
+            <div>
+              <p class="overline green">YOUR COLLECTION</p>
+              <h2>My skins.</h2>
+            </div>
+            <div class="skin-toolbar-actions">
+              <select id="skin-stored-slot"><option value="">Parked dino slot (optional)</option></select>
+              <button class="small-button" id="skin-mine-refresh" type="button">Refresh</button>
+            </div>
+          </div>
+          <div id="skin-mine-guard" class="skin-signin-card">Sign in with Steam to see your saved and unlocked skins.</div>
+          <div id="skin-mine-grid" class="skin-card-grid" hidden></div>
+        </section>
+
+        <section class="skin-panel" data-skin-panel="share">
+          <div class="skin-share-grid">
+            <div class="skin-editor-card">
+              <p class="overline green">IMPORT A DESIGN</p>
+              <h2>Skin share code.</h2>
+              <p class="section-intro">Paste a Hollow Valley share code to preview the design. Signed-in players can import a copy into My Skins.</p>
+              <div class="form-row">
+                <input id="skin-share-code" maxlength="40" placeholder="HV-ABCDE-12345">
+                <button class="small-button" id="skin-share-preview" type="button">Preview</button>
+                <button class="small-button" id="skin-share-import" type="button">Import copy</button>
+              </div>
+            </div>
+            <div id="skin-share-result" class="skin-share-result">
+              <span>No share code loaded.</span>
+            </div>
+          </div>
+        </section>
       </section>
     </main>
-    <footer><span>© 2026 Herby Death Squad Games</span><span>ISLE EVRIMA COMMUNITY SERVER</span><a href="/">Back to command ↑</a></footer>
+
+    <footer><span>© 2026 Hollow Valley</span><span>HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to command ↑</a></footer>
   </div>
+
   <script src="assets/common.js?v=10"></script>
-  <script src="assets/skins.js"></script>
+  <script src="assets/skins.js?v=2"></script>
 </body>
 </html>
