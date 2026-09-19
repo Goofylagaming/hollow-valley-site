@@ -12,7 +12,7 @@ function enabled(env = process.env) {
 
 function configuration(env = process.env) {
   if (!enabled(env)) return null;
-  const baseUrl = String(env.HOLLOW_VALLEY_SITE_URL || "").trim().replace(/\/$/, "");
+  const baseUrl = String(env.HOLLOW_VALLEY_API_BASE_URL || env.HOLLOW_VALLEY_SITE_URL || "").trim().replace(/\/$/, "");
   const token = String(env.HOLLOW_VALLEY_API_TOKEN || "").trim();
   const timeoutMs = Math.max(
     1000,
