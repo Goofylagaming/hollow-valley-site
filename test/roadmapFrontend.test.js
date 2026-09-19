@@ -17,15 +17,21 @@ test("roadmap browser scripts parse", () => {
     "public/assets/skins.js",
     "public/assets/supporter.js",
     "public/assets/adminrestore.js",
+    "public/assets/wallet.js",
+    "public/assets/quests.js",
   ]) {
     assert.doesNotThrow(() => new Function(read(file)), file);
   }
 });
 
-test("shared navigation removes Command and How to Join and keeps Admin Restore hidden", () => {
+test("shared navigation exposes Wallet and Quests as separate tabs", () => {
   const nav = read("public/partials/nav.html");
   assert.equal(nav.includes('href="/">Command</a>'), false);
   assert.equal(nav.includes('href="/#join">How to join</a>'), false);
+  assert.match(nav, /href="\/wallet">Wallet<\/a>/);
+  assert.match(nav, /href="\/quests">Quests<\/a>/);
+  assert.equal(nav.includes('href="/#wallet"'), false);
+  assert.equal(nav.includes('href="/#quests"'), false);
   assert.match(nav, /id="admin-restore-nav" hidden/);
   assert.match(nav, /HOLLOW VALLEY/);
 });
@@ -38,26 +44,30 @@ test("dashboard has one prominent wallet balance and official supporter multipli
   assert.match(html, /VALLEY COIN · LIVE REWARDS/);
 });
 
-test("homepage quest panels are removed while automatic quest logic remains available", () => {
-  const html = read("public/index.html");
-  const js = read("public/assets/site.js");
-  assert.equal(html.includes("Verified online time completes these automatically"), false);
-  assert.equal(html.includes("ACTIVE COIN BOOST"), false);
+test("Quests are restored as a dedicated automatic-progress page", () => {
+  const homepage = read("public/index.html");
+  const html = read("public/quests.html");
+  const js = read("public/assets/quests.js");
+  assert.equal(homepage.includes('id="quests"'), false);
+  assert.match(html, /Your quests\./);
+  assert.match(html, /ACTIVE COIN BOOST/);
   assert.match(js, /progressSeconds/);
   assert.match(js, /boostPercent/);
+  assert.match(js, /\/api\/quests/);
   assert.equal(js.includes("quest-claim"), false);
 });
 
-test("homepage wallet panel is removed while wallet and species helpers remain available", () => {
-  const html = read("public/index.html");
-  const js = read("public/assets/site.js");
-  assert.equal(html.includes("wallet-supporter-multiplier"), false);
-  assert.equal(html.includes("DAILY LOGIN BONUS"), false);
+test("Wallet is restored as a dedicated Steam-linked page", () => {
+  const homepage = read("public/index.html");
+  const html = read("public/wallet.html");
+  const js = read("public/assets/wallet.js");
+  assert.equal(homepage.includes('id="wallet"'), false);
+  assert.match(html, /Your wallet\./);
+  assert.match(html, /CURRENT BALANCE/);
+  assert.match(html, /SUPPORTER/);
   assert.match(js, /supporterMultiplier/);
-  assert.match(js, /daily_login_bonus/);
-  assert.match(js, /loadDailyBonus/);
-  assert.match(js, /loadSpecies/);
-  assert.match(js, /walletActivityDetail/);
+  assert.match(js, /\/api\/wallet/);
+  assert.match(js, /wallet-transactions/);
 });
 
 test("daily bonus route uses the Steam-linked automation wallet only", () => {
@@ -105,4 +115,10 @@ test("supporter page uses current Hollow Valley portal branding", () => {
   assert.match(html, /© 2026 Hollow Valley/);
   assert.match(html, /HOME OF THE HERBY DEATH SQUAD/);
   assert.equal(html.includes("© 2026 Herby Death Squad Games"), false);
+});
+
+test("server exposes Wallet and Quests as dedicated page routes", () => {
+  const server = read("server/index.js");
+  assert.match(server, /"wallet"/);
+  assert.match(server, /"quests"/);
 });
