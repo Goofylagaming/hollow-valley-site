@@ -35,26 +35,26 @@ test('quest route uses automatic verified-playtime quests and disables manual cl
   assert.equal(route.includes('recordClaim'), false);
 });
 
-test('homepage no longer renders the wallet panel after dashboard consolidation', () => {
+test('homepage hides the wallet panel while retaining reusable wallet helpers', () => {
   const js = read('public/assets/site.js');
   const html = read('public/index.html');
 
-  assert.equal(js.includes('wallet-base-rate'), false);
-  assert.equal(js.includes('wallet-active-boost'), false);
-  assert.equal(js.includes('wallet-current-payout'), false);
-  assert.equal(js.includes('wallet-progress-fill'), false);
+  assert.match(js, /wallet-base-rate/);
+  assert.match(js, /wallet-active-boost/);
+  assert.match(js, /wallet-current-payout/);
+  assert.match(js, /wallet-progress-fill/);
   assert.equal(html.includes('NEXT 5-MINUTE PAYOUT'), false);
   assert.equal(html.includes('RECENT WALLET ACTIVITY'), false);
   assert.equal(html.includes('DAILY LOGIN BONUS'), false);
 });
 
-test('homepage no longer renders quest progress panels or claim controls', () => {
+test('homepage hides quest progress panels while retaining automatic quest helpers', () => {
   const js = read('public/assets/site.js');
   const html = read('public/index.html');
 
   assert.equal(js.includes('quest-claim'), false);
-  assert.equal(js.includes('DAILY ACTIVITY'), false);
-  assert.equal(js.includes('WEEKLY ACTIVITY'), false);
+  assert.match(js, /DAILY ACTIVITY/);
+  assert.match(js, /WEEKLY ACTIVITY/);
   assert.equal(html.includes('Verified online time completes these automatically'), false);
   assert.equal(html.includes('ACTIVE COIN BOOST'), false);
 });
