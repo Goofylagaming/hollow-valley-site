@@ -79,6 +79,29 @@ async function getWallet(req, res, { legacyWallet = null } = {}) {
   }
 }
 
+async function getDailyLoginBonus(req, res) {
+  const steamId = requireLoggedInSteam(req, res);
+  if (!steamId) return;
+  try {
+    return res.json(await automation.getDailyLoginBonus(steamId));
+  } catch (error) {
+    const mapped = mapAutomationError(error, 'Could not read daily login bonus.');
+    return res.status(mapped.status).json(mapped.body);
+  }
+}
+
+async function claimDailyLoginBonus(req, res) {
+  const steamId = requireLoggedInSteam(req, res);
+  if (!steamId) return;
+  try {
+    const result = await automation.claimDailyLoginBonus(steamId);
+    return res.status(result.duplicate ? 200 : 201).json(result);
+  } catch (error) {
+    const mapped = mapAutomationError(error, 'Could not claim daily login bonus.');
+    return res.status(mapped.status).json(mapped.body);
+  }
+}
+
 async function getQuests(req, res) {
   if (!req.user) return res.status(401).json({ error: 'Not logged in' });
   if (!req.user.steam_id) return res.json({
@@ -465,6 +488,8 @@ module.exports = {
   createSlotId,
   mapAutomationError,
   getWallet,
+  getDailyLoginBonus,
+  claimDailyLoginBonus,
   getQuests,
   listMarketplaceCatalog,
   listMarketplaceOrders,
