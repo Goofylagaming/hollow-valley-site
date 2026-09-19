@@ -21,7 +21,7 @@ function subscription(overrides = {}) {
     livemode: false,
     status: "active",
     cancel_at_period_end: false,
-    metadata: { user_id: "42", tier: "member" },
+    metadata: { user_id: "42", tier: "supporter" },
     items: {
       data: [{
         id: "si_test_42",
@@ -48,7 +48,7 @@ test("changing tier updates the existing subscription item instead of creating a
     return {
       ok: true,
       json: async () => subscription({
-        metadata: { user_id: "42", tier: "elite" },
+        metadata: { user_id: "42", tier: "guardian" },
         items: { data: [{ id: "si_test_42", price: { id: env.STRIPE_PRICE_ELITE } }] },
       }),
     };
@@ -56,7 +56,7 @@ test("changing tier updates the existing subscription item instead of creating a
 
   const result = await changeSubscription({
     subscriptionId: "sub_test_42",
-    tier: "elite",
+    tier: "guardian",
     userId: 42,
     env,
     fetchImpl,
@@ -64,7 +64,7 @@ test("changing tier updates the existing subscription item instead of creating a
 
   assert.equal(result.ok, true);
   assert.equal(result.changed, true);
-  assert.equal(result.tier, "elite");
+  assert.equal(result.tier, "guardian");
   assert.equal(calls.length, 2);
   assert.equal(calls[0].url, "https://api.stripe.com/v1/subscriptions/sub_test_42");
   assert.equal(calls[1].url, "https://api.stripe.com/v1/subscriptions/sub_test_42");
@@ -78,7 +78,7 @@ test("selecting the current tier makes no Stripe update", async () => {
   };
   const result = await changeSubscription({
     subscriptionId: "sub_test_42",
-    tier: "member",
+    tier: "supporter",
     userId: 42,
     env,
     fetchImpl,
@@ -135,13 +135,13 @@ test("cancellation is scheduled at period end and can be resumed", async () => {
 test("management refuses a subscription linked to another Hollow Valley user", async () => {
   const fetchImpl = async () => ({
     ok: true,
-    json: async () => subscription({ metadata: { user_id: "99", tier: "member" } }),
+    json: async () => subscription({ metadata: { user_id: "99", tier: "supporter" } }),
   });
 
   await assert.rejects(
     changeSubscription({
       subscriptionId: "sub_test_42",
-      tier: "elite",
+      tier: "guardian",
       userId: 42,
       env,
       fetchImpl,
@@ -154,7 +154,7 @@ test("sandbox management rejects live Stripe objects and bad subscription ids", 
   await assert.rejects(
     changeSubscription({
       subscriptionId: "bad",
-      tier: "elite",
+      tier: "guardian",
       userId: 42,
       env,
       fetchImpl: () => assert.fail("Stripe should not be contacted"),
@@ -185,7 +185,7 @@ test("Steam metadata takes precedence over local user id when present", async ()
       metadata: {
         user_id: "42",
         steam_id: "76561198000000999",
-        tier: "member",
+        tier: "supporter",
       },
     }),
   });
@@ -193,7 +193,7 @@ test("Steam metadata takes precedence over local user id when present", async ()
   await assert.rejects(
     changeSubscription({
       subscriptionId: "sub_test_42",
-      tier: "elite",
+      tier: "guardian",
       userId: 42,
       steamId: "76561198000000042",
       env,
@@ -211,14 +211,14 @@ test("strict supporter identity requires matching Steam metadata", async () => {
       metadata: {
         user_id: "42",
         steam_id: "76561198000000042",
-        tier: "member",
+        tier: "supporter",
       },
     }),
   });
 
   const result = await changeSubscription({
     subscriptionId: "sub_test_42",
-    tier: "member",
+    tier: "supporter",
     userId: 42,
     steamId: "76561198000000042",
     env: strictEnv,
@@ -229,7 +229,7 @@ test("strict supporter identity requires matching Steam metadata", async () => {
   await assert.rejects(
     changeSubscription({
       subscriptionId: "sub_test_42",
-      tier: "member",
+      tier: "supporter",
       userId: 42,
       env: strictEnv,
       fetchImpl,
@@ -248,11 +248,11 @@ test("live membership management accepts live objects only when explicitly enabl
   const liveSubscription = subscription({
     id: "sub_live_42",
     livemode: true,
-    metadata: { user_id: "42", tier: "member" },
+    metadata: { user_id: "42", tier: "supporter" },
   });
   const result = await changeSubscription({
     subscriptionId: "sub_live_42",
-    tier: "member",
+    tier: "supporter",
     userId: 42,
     env: liveEnv,
     fetchImpl: async () => ({ ok: true, json: async () => liveSubscription }),
@@ -262,7 +262,7 @@ test("live membership management accepts live objects only when explicitly enabl
   await assert.rejects(
     changeSubscription({
       subscriptionId: "sub_live_42",
-      tier: "member",
+      tier: "supporter",
       userId: 42,
       env: liveEnv,
       fetchImpl: async () => ({ ok: true, json: async () => ({ ...liveSubscription, livemode: false }) }),
