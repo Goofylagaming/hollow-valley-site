@@ -1,0 +1,39 @@
+name: Website Automation Regression Tests
+
+on:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'automation-platform/test/liveSiteReadRouting.test.js'
+      - 'automation-platform/test/marketplaceCustomizationFrontend.test.js'
+      - 'automation-platform/test/walletQuestFrontend.test.js'
+      - 'server/routes/**'
+      - 'public/**'
+      - '.github/workflows/website-automation-regression-tests.yml'
+  push:
+    branches:
+      - master
+    paths:
+      - 'automation-platform/test/liveSiteReadRouting.test.js'
+      - 'automation-platform/test/marketplaceCustomizationFrontend.test.js'
+      - 'automation-platform/test/walletQuestFrontend.test.js'
+      - 'server/routes/**'
+      - 'public/**'
+      - '.github/workflows/website-automation-regression-tests.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run focused routing and frontend tests
+        run: node --test automation-platform/test/liveSiteReadRouting.test.js automation-platform/test/marketplaceCustomizationFrontend.test.js automation-platform/test/walletQuestFrontend.test.js
