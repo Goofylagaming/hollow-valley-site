@@ -176,3 +176,64 @@ test("sandbox management rejects live Stripe objects and bad subscription ids", 
     { status: 502 }
   );
 });
+
+
+test("Steam metadata takes precedence over local user id when present", async () => {
+  const fetchImpl = async () => ({
+    ok: true,
+    json: async () => subscription({
+      metadata: {
+        user_id: "42",
+        steam_id: "76561198000000999",
+        tier: "member",
+      },
+    }),
+  });
+
+  await assert.rejects(
+    changeSubscription({
+      subscriptionId: "sub_test_42",
+      tier: "elite",
+      userId: 42,
+      steamId: "76561198000000042",
+      env,
+      fetchImpl,
+    }),
+    { status: 403 }
+  );
+});
+
+test("strict supporter identity requires matching Steam metadata", async () => {
+  const strictEnv = { ...env, SUPPORTER_REQUIRE_STEAM_ID: "true" };
+  const fetchImpl = async () => ({
+    ok: true,
+    json: async () => subscription({
+      metadata: {
+        user_id: "42",
+        steam_id: "76561198000000042",
+        tier: "member",
+      },
+    }),
+  });
+
+  const result = await changeSubscription({
+    subscriptionId: "sub_test_42",
+    tier: "member",
+    userId: 42,
+    steamId: "76561198000000042",
+    env: strictEnv,
+    fetchImpl,
+  });
+  assert.equal(result.changed, false);
+
+  await assert.rejects(
+    changeSubscription({
+      subscriptionId: "sub_test_42",
+      tier: "member",
+      userId: 42,
+      env: strictEnv,
+      fetchImpl,
+    }),
+    { status: 403 }
+  );
+});
