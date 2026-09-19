@@ -19,7 +19,8 @@ const PRICE_ENV_CANDIDATES = Object.freeze({
 });
 
 function normalizeTier(value) {
-  return LEGACY_TIER_ALIASES[String(value || "").trim().toLowerCase()] || null;
+  const key = String(value || "").trim().toLowerCase();
+  return Object.hasOwn(LEGACY_TIER_ALIASES, key) ? LEGACY_TIER_ALIASES[key] : null;
 }
 
 function tierInfo(value) {
@@ -36,7 +37,7 @@ function stripePriceId(value, env = process.env) {
   if (!tier) return null;
   for (const name of PRICE_ENV_CANDIDATES[tier]) {
     const candidate = String(env[name] || "").trim();
-    if (/^price_[A-Za-z0-9]+$/.test(candidate)) return candidate;
+    if (/^price_[A-Za-z0-9_]+$/.test(candidate)) return candidate;
   }
   return null;
 }
