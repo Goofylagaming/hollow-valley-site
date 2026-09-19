@@ -11,7 +11,7 @@ function restoreEnv(previous) {
   }
 }
 
-test("supporter membership lookup is batched and maps Member/Elite/Legend bonuses", async (t) => {
+test("supporter membership lookup is batched and maps official ×2/×3/×5 multipliers", async (t) => {
   const names = [
     "SUPPORTER_COIN_BONUSES_ENABLED",
     "HOLLOW_VALLEY_API_BASE_URL",
@@ -50,8 +50,8 @@ test("supporter membership lookup is batched and maps Member/Elite/Legend bonuse
         ok: true,
         json: async () => ({
           memberships: [
-            { steamId: ids[0], entitled: true, tier: "member" },
-            { steamId: ids[1], entitled: true, tier: "elite" },
+            { steamId: ids[0], entitled: true, tier: "supporter" },
+            { steamId: ids[1], entitled: true, tier: "guardian" },
             { steamId: ids[2], entitled: true, tier: "legend" },
             { steamId: ids[3], entitled: false, tier: null },
           ],
@@ -62,9 +62,9 @@ test("supporter membership lookup is batched and maps Member/Elite/Legend bonuse
 
   assert.equal(calls, 1);
   assert.deepEqual(summary, { skipped: false, requested: 4, entitled: 3 });
-  assert.equal(supporter.applyBonus(100, ids[0]).payoutCoins, 120);
-  assert.equal(supporter.applyBonus(100, ids[1]).payoutCoins, 150);
-  assert.equal(supporter.applyBonus(100, ids[2]).payoutCoins, 200);
+  assert.equal(supporter.applyBonus(100, ids[0]).payoutCoins, 200);
+  assert.equal(supporter.applyBonus(100, ids[1]).payoutCoins, 300);
+  assert.equal(supporter.applyBonus(100, ids[2]).payoutCoins, 500);
   assert.equal(supporter.applyBonus(100, ids[3]).payoutCoins, 100);
 
   await assert.rejects(
@@ -131,7 +131,7 @@ test("supporter bonus multiplies the already quest-boosted playtime payout", (t)
 
   supporter.replaceMemberships(
     [steamId],
-    [{ steamId, entitled: true, tier: "member" }]
+    [{ steamId, entitled: true, tier: "supporter" }]
   );
 
   rewards.rewardOnlinePlayers(player, { nowMs: start });
@@ -147,16 +147,43 @@ test("supporter bonus multiplies the already quest-boosted playtime payout", (t)
   }
 
   const wallet = store.getWallet(steamId);
-  assert.equal(wallet.balance, 30);
+  assert.equal(wallet.balance, 50);
   assert.equal(wallet.transactions.length, 1);
   const tx = wallet.transactions[0];
-  assert.equal(tx.amount, 30);
+  assert.equal(tx.amount, 50);
   assert.equal(tx.metadata.baseCoins, 20);
   assert.equal(tx.metadata.questBoostPercent, 25);
   assert.equal(tx.metadata.questBonusCoins, 5);
   assert.equal(tx.metadata.questBoostedCoins, 25);
-  assert.equal(tx.metadata.supporterTier, "member");
-  assert.equal(tx.metadata.supporterBoostPercent, 20);
-  assert.equal(tx.metadata.supporterBonusCoins, 5);
-  assert.equal(tx.metadata.payoutCoins, 30);
+  assert.equal(tx.metadata.supporterTier, "supporter");
+  assert.equal(tx.metadata.supporterMultiplier, 2);
+  assert.equal(tx.metadata.supporterBonusCoins, 25);
+  assert.equal(tx.metadata.payoutCoins, 50);
+});
+
+
+test("legacy member and elite membership records normalize to official multipliers", (t) => {
+  process.env.SUPPORTER_COIN_BONUSES_ENABLED = "true";
+  const servicePath = require.resolve("../src/services/supporterBonusService");
+  delete require.cache[servicePath];
+  const supporter = require(servicePath);
+  t.after(() => {
+    supporter._test.clearCache();
+    delete require.cache[servicePath];
+  });
+
+  const memberId = "76561198000000061";
+  const eliteId = "76561198000000062";
+  supporter.replaceMemberships(
+    [memberId, eliteId],
+    [
+      { steamId: memberId, entitled: true, tier: "member" },
+      { steamId: eliteId, entitled: true, tier: "elite" },
+    ]
+  );
+
+  assert.equal(supporter.membershipForSteamId(memberId).tier, "supporter");
+  assert.equal(supporter.membershipForSteamId(memberId).multiplier, 2);
+  assert.equal(supporter.membershipForSteamId(eliteId).tier, "guardian");
+  assert.equal(supporter.membershipForSteamId(eliteId).multiplier, 3);
 });
