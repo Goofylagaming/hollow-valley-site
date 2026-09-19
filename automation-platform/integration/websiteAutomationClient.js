@@ -80,6 +80,17 @@ function getQuests(steamId, options = {}) {
   return call(`/quests/${encodeURIComponent(validateSteamId(steamId))}`, options);
 }
 
+function getDailyLoginBonus(steamId, options = {}) {
+  return call(`/daily-login/${encodeURIComponent(validateSteamId(steamId))}`, options);
+}
+
+function claimDailyLoginBonus(steamId, options = {}) {
+  return call(`/daily-login/${encodeURIComponent(validateSteamId(steamId))}/claim`, {
+    ...options,
+    method: 'POST',
+  });
+}
+
 function listMarketplaceCatalog(options = {}) {
   return call('/marketplace/catalog', options);
 }
@@ -268,6 +279,8 @@ module.exports = {
   migrateLegacyWallet,
   getWallet,
   getQuests,
+  getDailyLoginBonus,
+  claimDailyLoginBonus,
   listMarketplaceCatalog,
   listMarketplaceOrders,
   purchaseMarketplaceItem,
