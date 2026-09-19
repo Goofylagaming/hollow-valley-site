@@ -35,7 +35,7 @@ jobs:
       - name: Run BodyDrop and CommandBridge flow tests
         run: >-
           node --test
-          --test-name-pattern='BodyDrop|Body Drop|result matching|partial NDJSON|only routing ACK|sub-mod rejection|preflight read|ambiguous upload|disabled or invalid configuration'
+          --test-name-pattern='reconciliation reads|reconciliation retains|HTTP reconciliation accepts|correlation is persisted|sends bd|result matching|partial NDJSON|disabled or invalid configuration|only routing ACK|ACK mode|sub-mod rejection|preflight read|ambiguous upload|cannot release'
           test/commandBridge.test.js
 
       - name: Validate Lua syntax and bd routing
