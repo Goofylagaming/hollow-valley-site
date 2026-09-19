@@ -4,6 +4,7 @@ const { randomUUID } = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
 const { getServerSnapshot } = require('./statusService');
 const playtimeRewards = require('./playtimeRewardsService');
+const supporterBonuses = require('./supporterBonusService');
 const rconControl = require('./rconControlService');
 
 const dbPath = process.env.AUTOMATION_DB_PATH || path.join(__dirname, '..', '..', 'data', 'automation.sqlite');
@@ -232,6 +233,22 @@ async function samplePresence({ force = false } = {}) {
     const sample = recordPresenceSample(players, nowIso);
     prunePresenceSamples({ retentionHours: Number(process.env.PLAYER_PRESENCE_RETENTION_HOURS || 24 * 31) });
 
+    let supporterMemberships;
+    try {
+      supporterMemberships = await supporterBonuses.refreshMemberships(
+        players.map((player) => player.steamId)
+      );
+    } catch (error) {
+      console.warn('[supporter-bonuses]', error.message);
+      supporterMemberships = {
+        skipped: true,
+        reason: 'refresh-error',
+        error: error.message,
+        requested: players.length,
+        entitled: 0,
+      };
+    }
+
     let rewards;
     try {
       rewards = playtimeRewards.rewardOnlinePlayers(players, { nowMs: Date.parse(nowIso) });
@@ -258,7 +275,7 @@ async function samplePresence({ force = false } = {}) {
       joinMessages = await sendJoinMessages(newPlayers);
     }
 
-    return { skipped: false, ...reconciliation, sample, rewards, joinMessages };
+    return { skipped: false, ...reconciliation, sample, supporterMemberships, rewards, joinMessages };
   } finally {
     running = false;
   }

@@ -9,6 +9,7 @@ const economy = require('../services/economyStore');
 const marketplace = require('../services/marketplaceService');
 const playtimeRewards = require('../services/playtimeRewardsService');
 const questBoosts = require('../services/questBoostService');
+const supporterBonuses = require('../services/supporterBonusService');
 const dinoMarketplace = require('../services/dinoMarketplaceService');
 const parkedDinoMutations = require('../services/parkedDinoMutationService');
 const skinPresets = require('../services/skinPresetService');
@@ -52,6 +53,8 @@ router.get('/wallet/:steamId', (req, res) => {
     const accruedMs = Math.max(0, Number(progress?.accrued_ms || 0));
     const activeBoostPercent = Number(questState.activeBoostPercent || 0);
     const bonusCoins = Math.floor((rewardState.coinsPer5Minutes * activeBoostPercent) / 100);
+    const questBoostedCoins = rewardState.coinsPer5Minutes + bonusCoins;
+    const supporter = supporterBonuses.applyBonus(questBoostedCoins, steamId);
 
     res.json({
       ...wallet,
@@ -60,7 +63,11 @@ router.get('/wallet/:steamId', (req, res) => {
         configured: rewardState.configured,
         coinsPer5Minutes: rewardState.coinsPer5Minutes,
         activeBoostPercent,
-        boostedCoinsPer5Minutes: rewardState.coinsPer5Minutes + bonusCoins,
+        questBoostedCoinsPer5Minutes: questBoostedCoins,
+        supporterTier: supporter.tier,
+        supporterBoostPercent: supporter.bonusPercent,
+        supporterBonusCoinsPer5Minutes: supporter.supporterBonusCoins,
+        boostedCoinsPer5Minutes: supporter.payoutCoins,
         intervalSeconds: rewardState.intervalSeconds,
         accruedSeconds: Math.floor(accruedMs / 1000),
         nextRewardInSeconds: rewardState.configured
