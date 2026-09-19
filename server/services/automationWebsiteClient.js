@@ -285,6 +285,76 @@ function applySkinPreset({ steamId, slot, presetId }) {
   });
 }
 
+function listSkinStore(steamId = null, species = null) {
+  const params = new URLSearchParams();
+  if (steamId) params.set('steamId', validateSteamId(steamId));
+  if (species) params.set('species', String(species));
+  const query = params.toString();
+  return call(`/skins/store${query ? `?${query}` : ''}`);
+}
+
+function saveStudioSkin({ steamId, species, name, description, skin, idempotencyKey }) {
+  const key = String(idempotencyKey || '').trim();
+  if (!/^[A-Za-z0-9:_-]{8,160}$/.test(key)) throw new Error('Invalid idempotency key');
+  return call('/skins/studio', {
+    method: 'POST',
+    body: {
+      steamId: validateSteamId(steamId),
+      species,
+      name,
+      description,
+      skin,
+      idempotencyKey: key,
+    },
+  });
+}
+
+function importSharedSkin({ steamId, shareCode, idempotencyKey }) {
+  const code = String(shareCode || '').trim();
+  const key = String(idempotencyKey || '').trim();
+  if (!/^[A-Za-z0-9-]{4,40}$/.test(code)) throw new Error('Invalid skin share code');
+  if (!/^[A-Za-z0-9:_-]{8,160}$/.test(key)) throw new Error('Invalid idempotency key');
+  return call('/skins/import', {
+    method: 'POST',
+    body: { steamId: validateSteamId(steamId), shareCode: code, idempotencyKey: key },
+  });
+}
+
+function getSharedSkin(shareCode) {
+  const code = String(shareCode || '').trim();
+  if (!/^[A-Za-z0-9-]{4,40}$/.test(code)) throw new Error('Invalid skin share code');
+  return call(`/skins/share/${encodeURIComponent(code)}`);
+}
+
+function buySkin({ steamId, presetId, idempotencyKey }) {
+  const id = String(presetId || '').trim();
+  const key = String(idempotencyKey || '').trim();
+  if (!/^[A-Za-z0-9_-]{8,128}$/.test(id)) throw new Error('Invalid skin preset ID');
+  if (!/^[A-Za-z0-9:_-]{8,160}$/.test(key)) throw new Error('Invalid idempotency key');
+  return call(`/skins/${encodeURIComponent(id)}/buy`, {
+    method: 'POST',
+    body: { steamId: validateSteamId(steamId), idempotencyKey: key },
+  });
+}
+
+function wearSkin({ steamId, presetId }) {
+  const id = String(presetId || '').trim();
+  if (!/^[A-Za-z0-9_-]{8,128}$/.test(id)) throw new Error('Invalid skin preset ID');
+  return call(`/skins/${encodeURIComponent(id)}/wear`, {
+    method: 'POST',
+    body: { steamId: validateSteamId(steamId) },
+  });
+}
+
+function publishSkin({ presetId, price, description, published = true }) {
+  const id = String(presetId || '').trim();
+  if (!/^[A-Za-z0-9_-]{8,128}$/.test(id)) throw new Error('Invalid skin preset ID');
+  return call(`/skins/${encodeURIComponent(id)}/publish`, {
+    method: 'POST',
+    body: { price, description, published },
+  });
+}
+
 function getAdminRestoreState() {
   return callAdmin('/dinostorage/admin-restore');
 }
@@ -329,6 +399,13 @@ module.exports = {
   listSkinPresets,
   createSkinPresetFromStored,
   applySkinPreset,
+  listSkinStore,
+  saveStudioSkin,
+  importSharedSkin,
+  getSharedSkin,
+  buySkin,
+  wearSkin,
+  publishSkin,
   getAdminRestoreState,
   buildAdminRestoreJson,
   uploadAdminRestore,
