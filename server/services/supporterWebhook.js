@@ -185,6 +185,7 @@ function processStripeEvent(event, env = process.env) {
   if (alreadyProcessed(event.id)) return { duplicate: true };
 
   const object = event.data?.object || {};
+  let affectedUserId = null;
 
   if (event.type === "checkout.session.completed") {
     if (object.mode === "subscription") {
@@ -192,7 +193,7 @@ function processStripeEvent(event, env = process.env) {
       const tier = object.metadata?.tier;
       const paid = object.payment_status === "paid" || object.payment_status === "no_payment_required";
       if (userId && Object.hasOwn(TIERS, tier)) {
-        upsertSupporter({
+        const updated = upsertSupporter({
           userId,
           tier,
           customerId: normalizeId(object.customer),
@@ -200,6 +201,7 @@ function processStripeEvent(event, env = process.env) {
           status: paid ? "active" : "pending",
           autoRenew: true,
         });
+        affectedUserId = updated?.user_id || userId;
       }
     }
   } else if (event.type === "customer.subscription.updated") {
@@ -209,7 +211,7 @@ function processStripeEvent(event, env = process.env) {
     const tier = tierFromSubscription(object, env) || existing?.tier || null;
     const autoRenew = !object.cancel_at_period_end && object.status !== "canceled";
     if (userId && tier) {
-      upsertSupporter({
+      const updated = upsertSupporter({
         userId,
         tier,
         customerId: normalizeId(object.customer),
@@ -218,6 +220,7 @@ function processStripeEvent(event, env = process.env) {
         renewsAt: isoFromUnix(subscriptionPeriodEnd(object)),
         autoRenew,
       });
+      affectedUserId = updated?.user_id || userId;
     }
   } else if (event.type === "customer.subscription.deleted") {
     const subscriptionId = normalizeId(object.id);
@@ -234,12 +237,13 @@ function processStripeEvent(event, env = process.env) {
         renewsAt: isoFromUnix(subscriptionPeriodEnd(object)),
         autoRenew: false,
       });
-      markBySubscription(subscriptionId, {
+      const updated = markBySubscription(subscriptionId, {
         status: "canceled",
         autoRenew: false,
         renewsAt: isoFromUnix(subscriptionPeriodEnd(object)),
         cancelled: true,
       });
+      affectedUserId = updated?.user_id || userId;
     }
   } else if (event.type === "invoice.paid") {
     const subscriptionId = invoiceSubscriptionId(object);
@@ -248,25 +252,27 @@ function processStripeEvent(event, env = process.env) {
         const end = Number(line?.period?.end) || 0;
         return Math.max(latest, end);
       }, 0);
-      markBySubscription(subscriptionId, {
+      const updated = markBySubscription(subscriptionId, {
         status: "active",
         renewsAt: isoFromUnix(periodEnd),
       });
+      affectedUserId = updated?.user_id || null;
     }
   } else if (event.type === "invoice.payment_failed") {
     const subscriptionId = invoiceSubscriptionId(object);
     if (subscriptionId) {
       const existing = existingBySubscription(subscriptionId);
       if (existing) {
-        markBySubscription(subscriptionId, {
+        const updated = markBySubscription(subscriptionId, {
           status: "past_due",
         });
+        affectedUserId = updated?.user_id || existing.user_id || null;
       }
     }
   }
 
   recordProcessed(event);
-  return { processed: true };
+  return { processed: true, userId: affectedUserId };
 }
 
 function isEntitled(status) {
