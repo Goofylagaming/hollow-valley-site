@@ -6,6 +6,8 @@ async function loadRewardOverview() {
   try {
     const wallet = await api("/api/wallet");
     const earning = wallet?.earning || null;
+    const walletEl = document.getElementById("dash-wallet");
+    if (walletEl) walletEl.textContent = Number(wallet?.balance || 0).toLocaleString();
     if (!earning) {
       stateEl.textContent = "Reward data unavailable";
       return;
