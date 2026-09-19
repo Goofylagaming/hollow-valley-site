@@ -109,3 +109,30 @@ test("missing target role is created before assignment", async () => {
   assert.ok(calls.some((call) => call.method === "POST" && call.url.endsWith("/guilds/1540359454627725382/roles")));
   assert.ok(calls.some((call) => call.method === "PUT" && call.url.endsWith("/roles/2")));
 });
+
+
+test("configured supporter role IDs are used directly without listing or creating roles", async () => {
+  reset({ tier: "legend" });
+  const exactEnv = {
+    ...env,
+    DISCORD_ROLE_MEMBER_ID: "1550695486464204810",
+    DISCORD_ROLE_ELITE_ID: "1550695581373042688",
+    DISCORD_ROLE_LEGEND_ID: "1550695426456555551",
+  };
+  const calls = [];
+
+  const fetchImpl = async (url, options = {}) => {
+    const method = options.method || "GET";
+    calls.push({ url, method });
+    assert.notEqual(method, "GET");
+    assert.notEqual(method, "POST");
+    return { ok: true, status: 204, json: async () => null };
+  };
+
+  const result = await syncDiscordMembershipForUser(42, { env: exactEnv, fetchImpl });
+  assert.equal(result.tier, "legend");
+  assert.equal(result.roleName, "Valley Legend");
+  assert.ok(calls.some((call) => call.method === "PUT" && call.url.endsWith("/roles/1550695426456555551")));
+  assert.ok(calls.some((call) => call.method === "DELETE" && call.url.endsWith("/roles/1550695486464204810")));
+  assert.ok(calls.some((call) => call.method === "DELETE" && call.url.endsWith("/roles/1550695581373042688")));
+});
