@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
-test("daily login reward receives the active supporter multiplier", (t) => {
+test("daily login reward receives the active supporter multiplier", async (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "hv-daily-supporter-"));
   const names = [
     "AUTOMATION_DB_PATH",
@@ -44,7 +44,8 @@ test("daily login reward receives the active supporter multiplier", (t) => {
     [{ steamId, entitled: true, tier: "guardian" }]
   );
 
-  const result = daily.claim(steamId, { now: new Date("2026-09-19T00:00:00.000Z") });
+  supporter.refreshMemberships = async () => ({ skipped: false, requested: 1, entitled: 1 });
+  const result = await daily.claim(steamId, { now: new Date("2026-09-19T00:00:00.000Z") });
   assert.equal(result.baseAmount, 50);
   assert.equal(result.supporterTier, "guardian");
   assert.equal(result.supporterMultiplier, 3);
