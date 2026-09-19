@@ -42,7 +42,7 @@ test("changing tier updates the existing subscription item instead of creating a
     const body = Object.fromEntries(options.body);
     assert.equal(body["items[0][id]"], "si_test_42");
     assert.equal(body["items[0][price]"], env.STRIPE_PRICE_ELITE);
-    assert.equal(body["metadata[tier]"], "elite");
+    assert.equal(body["metadata[tier]"], "guardian");
     assert.equal(body.cancel_at_period_end, "false");
     assert.equal(body.proration_behavior, "create_prorations");
     return {
