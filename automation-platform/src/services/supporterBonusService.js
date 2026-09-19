@@ -36,18 +36,13 @@ function validateSteamId(value) {
   return steamId;
 }
 
-function normalizeTier(tier) {
-  const key = String(tier || "").trim().toLowerCase();
-  return Object.hasOwn(LEGACY_TIER_ALIASES, key) ? LEGACY_TIER_ALIASES[key] : null;
+function normalizeTier(value) {
+  return LEGACY_TIER_ALIASES[String(value || "").trim().toLowerCase()] || null;
 }
 
 function multiplierForTier(tier) {
   const canonical = normalizeTier(tier);
   return canonical ? MULTIPLIER_BY_TIER[canonical] || 1 : 1;
-}
-
-function bonusPercentForTier(tier) {
-  return Math.max(0, (multiplierForTier(tier) - 1) * 100);
 }
 
 function noMembership(steamId) {
@@ -56,7 +51,6 @@ function noMembership(steamId) {
     entitled: false,
     tier: null,
     multiplier: 1,
-    bonusPercent: 0,
   };
 }
 
@@ -78,10 +72,9 @@ function replaceMemberships(steamIds, records = [], env = process.env) {
   for (const steamId of ids) {
     const record = bySteam.get(steamId);
     const tier = record?.entitled ? normalizeTier(record.tier) : null;
-    const multiplier = tier ? multiplierForTier(tier) : 1;
-    const bonusPercent = Math.max(0, (multiplier - 1) * 100);
+    const multiplier = multiplierForTier(tier);
     const membership = tier && multiplier > 1
-      ? { steamId, entitled: true, tier, multiplier, bonusPercent }
+      ? { steamId, entitled: true, tier, multiplier }
       : noMembership(steamId);
     memberships.set(steamId, membership);
     if (membership.entitled) entitled += 1;
@@ -134,7 +127,6 @@ async function refreshMemberships(
     const summary = replaceMemberships(ids, payload.memberships, env);
     return { skipped: false, ...summary };
   } catch (error) {
-    // Fail closed: a website outage must never keep granting a stale paid bonus.
     replaceMemberships(ids, [], env);
     throw error;
   }
@@ -143,13 +135,12 @@ async function refreshMemberships(
 function applyBonus(coinsAfterQuestBoost, steamId, env = process.env) {
   const amount = Math.max(0, Math.floor(Number(coinsAfterQuestBoost) || 0));
   const membership = membershipForSteamId(steamId, env);
-  const supporterBonusCoins = Math.floor((amount * membership.bonusPercent) / 100);
+  const payoutCoins = amount * membership.multiplier;
   return {
     ...membership,
     coinsBeforeSupporterBonus: amount,
-    supporterMultiplier: membership.multiplier || 1,
-    supporterBonusCoins,
-    payoutCoins: amount + supporterBonusCoins,
+    supporterBonusCoins: payoutCoins - amount,
+    payoutCoins,
   };
 }
 
@@ -165,7 +156,6 @@ module.exports = {
   validateSteamId,
   normalizeTier,
   multiplierForTier,
-  bonusPercentForTier,
   membershipForSteamId,
   replaceMemberships,
   refreshMemberships,
