@@ -1,4 +1,4 @@
-const { TIERS, PRICE_ENV, configuration } = require("./supporterCheckout");
+const { TIERS, PRICE_ENV, configuration, stableIdentityRequired } = require("./supporterCheckout");
 
 class ManageError extends Error {
   constructor(status, message) {
@@ -42,11 +42,23 @@ async function stripeRequest(path, {
   }
 }
 
-function ensureOwnedSubscription(subscription, userId) {
+function ensureOwnedSubscription(subscription, userId, steamId = null, env = process.env) {
   const metadataUser = String(subscription?.metadata?.user_id || "");
-  if (!metadataUser || metadataUser !== String(userId)) {
+  const metadataSteam = String(subscription?.metadata?.steam_id || "");
+  const normalizedSteam = String(steamId || "");
+
+  if (stableIdentityRequired(env)) {
+    if (!/^\d{15,22}$/.test(normalizedSteam) || metadataSteam !== normalizedSteam) {
+      throw new ManageError(403, "This Stripe subscription is not linked to your Steam account.");
+    }
+  } else if (metadataSteam && normalizedSteam) {
+    if (metadataSteam !== normalizedSteam) {
+      throw new ManageError(403, "This Stripe subscription is not linked to your Steam account.");
+    }
+  } else if (!metadataUser || metadataUser !== String(userId)) {
     throw new ManageError(403, "This Stripe subscription is not linked to your Hollow Valley account.");
   }
+
   if (BLOCKED_STATUSES.has(subscription.status)) {
     throw new ManageError(409, "This subscription can no longer be changed.");
   }
@@ -63,6 +75,7 @@ function currentItemId(subscription) {
 async function getSubscription({
   subscriptionId,
   userId,
+  steamId = null,
   env = process.env,
   fetchImpl = globalThis.fetch,
 }) {
@@ -73,7 +86,7 @@ async function getSubscription({
     `/v1/subscriptions/${encodeURIComponent(subscriptionId)}`,
     { env, fetchImpl }
   );
-  ensureOwnedSubscription(subscription, userId);
+  ensureOwnedSubscription(subscription, userId, steamId, env);
   return subscription;
 }
 
@@ -81,11 +94,12 @@ async function changeSubscription({
   subscriptionId,
   tier,
   userId,
+  steamId = null,
   env = process.env,
   fetchImpl = globalThis.fetch,
 }) {
   if (!Object.hasOwn(TIERS, tier)) throw new ManageError(404, "Unknown membership tier.");
-  const subscription = await getSubscription({ subscriptionId, userId, env, fetchImpl });
+  const subscription = await getSubscription({ subscriptionId, userId, steamId, env, fetchImpl });
 
   const itemId = currentItemId(subscription);
   if (!itemId) throw new ManageError(409, "Stripe subscription has no changeable subscription item.");
@@ -107,7 +121,7 @@ async function changeSubscription({
     `/v1/subscriptions/${encodeURIComponent(subscriptionId)}`,
     { method: "POST", body, env, fetchImpl }
   );
-  ensureOwnedSubscription(updated, userId);
+  ensureOwnedSubscription(updated, userId, steamId, env);
 
   return {
     ok: true,
@@ -121,10 +135,11 @@ async function changeSubscription({
 async function cancelSubscription({
   subscriptionId,
   userId,
+  steamId = null,
   env = process.env,
   fetchImpl = globalThis.fetch,
 }) {
-  const subscription = await getSubscription({ subscriptionId, userId, env, fetchImpl });
+  const subscription = await getSubscription({ subscriptionId, userId, steamId, env, fetchImpl });
   if (subscription.cancel_at_period_end) {
     return { ok: true, changed: false, cancelAtPeriodEnd: true };
   }
@@ -134,7 +149,7 @@ async function cancelSubscription({
     `/v1/subscriptions/${encodeURIComponent(subscriptionId)}`,
     { method: "POST", body, env, fetchImpl }
   );
-  ensureOwnedSubscription(updated, userId);
+  ensureOwnedSubscription(updated, userId, steamId, env);
 
   return {
     ok: true,
@@ -147,10 +162,11 @@ async function cancelSubscription({
 async function resumeSubscription({
   subscriptionId,
   userId,
+  steamId = null,
   env = process.env,
   fetchImpl = globalThis.fetch,
 }) {
-  const subscription = await getSubscription({ subscriptionId, userId, env, fetchImpl });
+  const subscription = await getSubscription({ subscriptionId, userId, steamId, env, fetchImpl });
   if (!subscription.cancel_at_period_end) {
     return { ok: true, changed: false, cancelAtPeriodEnd: false };
   }
@@ -160,7 +176,7 @@ async function resumeSubscription({
     `/v1/subscriptions/${encodeURIComponent(subscriptionId)}`,
     { method: "POST", body, env, fetchImpl }
   );
-  ensureOwnedSubscription(updated, userId);
+  ensureOwnedSubscription(updated, userId, steamId, env);
 
   return {
     ok: true,
