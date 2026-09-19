@@ -1,6 +1,6 @@
 const crypto = require("node:crypto");
 const { db, getSupporterStatus } = require("../db");
-const { TIERS } = require("./supporterCheckout");
+const { TIERS, liveModeEnabled } = require("./supporterCheckout");
 
 const WEBHOOK_TOLERANCE_SECONDS = 300;
 const ACTIVE_STATUSES = new Set(["active", "trialing"]);
@@ -181,7 +181,8 @@ function recordProcessed(event) {
 }
 
 function processStripeEvent(event, env = process.env) {
-  if (!event?.id || !event?.type || event.livemode !== false) return { ignored: true };
+  const expectedLive = liveModeEnabled(env);
+  if (!event?.id || !event?.type || event.livemode !== expectedLive) return { ignored: true };
   if (alreadyProcessed(event.id)) return { duplicate: true };
 
   const object = event.data?.object || {};
