@@ -20,6 +20,52 @@ function validateRequestId(value) {
   return id;
 }
 
+async function callAdmin(path, { method = 'GET', body } = {}) {
+  if (typeof globalThis.fetch !== 'function') throw new Error('A fetch implementation is required');
+  const baseUrl = String(process.env.AUTOMATION_SERVICE_URL || '').trim().replace(/\/$/, '');
+  const token = String(process.env.AUTOMATION_ADMIN_TOKEN || '').trim();
+  const timeoutMs = Math.max(1000, Math.min(30000, Number(process.env.AUTOMATION_SERVICE_TIMEOUT_MS || 8000)));
+  if (!/^https?:\/\//i.test(baseUrl)) throw new Error('AUTOMATION_SERVICE_URL is not configured');
+  if (!token) {
+    const error = new Error('Automation admin API is not configured');
+    error.status = 503;
+    throw error;
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  timer.unref?.();
+  try {
+    const response = await fetch(`${baseUrl}/api/admin${path}`, {
+      method,
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+        ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal: controller.signal,
+    });
+    let payload = null;
+    try { payload = await response.json(); } catch {}
+    if (!response.ok) {
+      const error = new Error(payload?.error || `Automation admin request failed (${response.status})`);
+      error.status = response.status;
+      error.payload = payload;
+      throw error;
+    }
+    return payload;
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      const timeoutError = new Error('Automation service request timed out');
+      timeoutError.code = 'AUTOMATION_TIMEOUT';
+      throw timeoutError;
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function call(path, { method = 'GET', body } = {}) {
   if (typeof globalThis.fetch !== 'function') throw new Error('A fetch implementation is required');
   const { baseUrl, token, timeoutMs } = requireConfig();
@@ -95,6 +141,10 @@ function requestBodyDrop({ steamId, dropType }) {
 
 function getWallet(steamId) {
   return call(`/wallet/${encodeURIComponent(validateSteamId(steamId))}`);
+}
+
+function getQuests(steamId) {
+  return call(`/quests/${encodeURIComponent(validateSteamId(steamId))}`);
 }
 
 function getDailyLoginBonus(steamId) {
@@ -186,6 +236,69 @@ function buyDinoMarketplaceListing({ steamId, listingId, idempotencyKey }) {
   });
 }
 
+function getParkedDinoMutations(steamId, slot) {
+  const selectedSlot = String(slot || '').trim();
+  if (!/^[A-Za-z0-9_-]{1,80}$/.test(selectedSlot)) throw new Error('Invalid DinoStorage slot');
+  return call(`/dinostorage/stored/${encodeURIComponent(validateSteamId(steamId))}/${encodeURIComponent(selectedSlot)}/mutations`);
+}
+
+function updateParkedDinoMutations({ steamId, slot, mutations }) {
+  const selectedSlot = String(slot || '').trim();
+  if (!/^[A-Za-z0-9_-]{1,80}$/.test(selectedSlot)) throw new Error('Invalid DinoStorage slot');
+  return call(`/dinostorage/stored/${encodeURIComponent(validateSteamId(steamId))}/${encodeURIComponent(selectedSlot)}/mutations`, {
+    method: 'PUT',
+    body: { mutations: mutations && typeof mutations === 'object' ? mutations : {} },
+  });
+}
+
+function listSkinPresets(steamId, species = null) {
+  const id = validateSteamId(steamId);
+  const query = species ? `?species=${encodeURIComponent(String(species))}` : '';
+  return call(`/skins/${encodeURIComponent(id)}${query}`);
+}
+
+function createSkinPresetFromStored({ steamId, slot, name, idempotencyKey }) {
+  const selectedSlot = String(slot || '').trim();
+  const presetName = String(name || '').trim();
+  const key = String(idempotencyKey || '').trim();
+  if (!/^[A-Za-z0-9_-]{1,80}$/.test(selectedSlot)) throw new Error('Invalid DinoStorage slot');
+  if (presetName.length < 2 || presetName.length > 60) throw new Error('Skin preset name must be 2-60 characters');
+  if (!/^[A-Za-z0-9:_-]{8,160}$/.test(key)) throw new Error('Invalid idempotency key');
+  return call('/skins/from-stored', {
+    method: 'POST',
+    body: { steamId: validateSteamId(steamId), slot: selectedSlot, name: presetName, idempotencyKey: key },
+  });
+}
+
+function applySkinPreset({ steamId, slot, presetId }) {
+  const selectedSlot = String(slot || '').trim();
+  const id = String(presetId || '').trim();
+  if (!/^[A-Za-z0-9_-]{1,80}$/.test(selectedSlot)) throw new Error('Invalid DinoStorage slot');
+  if (!/^[A-Za-z0-9_-]{8,128}$/.test(id)) throw new Error('Invalid skin preset ID');
+  return call(`/skins/${encodeURIComponent(id)}/apply`, {
+    method: 'POST',
+    body: { steamId: validateSteamId(steamId), slot: selectedSlot },
+  });
+}
+
+function getAdminRestoreState() {
+  return callAdmin('/dinostorage/admin-restore');
+}
+
+function buildAdminRestoreJson({ restore, fullNutrients = false }) {
+  return callAdmin('/dinostorage/admin-restore-json', {
+    method: 'POST',
+    body: { restore, fullNutrients: Boolean(fullNutrients) },
+  });
+}
+
+function uploadAdminRestore({ steamId, slot, restore, fullNutrients = false }) {
+  return callAdmin('/dinostorage/admin-restore/upload', {
+    method: 'POST',
+    body: { steamId, slot, restore, fullNutrients: Boolean(fullNutrients) },
+  });
+}
+
 module.exports = {
   getActiveCharacter,
   listStoredDinos,
@@ -194,6 +307,7 @@ module.exports = {
   getBodyDropCooldown,
   requestBodyDrop,
   getWallet,
+  getQuests,
   getDailyLoginBonus,
   claimDailyLoginBonus,
   listMarketplaceCatalog,
@@ -205,4 +319,12 @@ module.exports = {
   createDinoMarketplaceListing,
   cancelDinoMarketplaceListing,
   buyDinoMarketplaceListing,
+  getParkedDinoMutations,
+  updateParkedDinoMutations,
+  listSkinPresets,
+  createSkinPresetFromStored,
+  applySkinPreset,
+  getAdminRestoreState,
+  buildAdminRestoreJson,
+  uploadAdminRestore,
 };

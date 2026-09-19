@@ -102,6 +102,38 @@ async function runDinoAction(req, res, action, slot) {
 router.post("/park-active", requireAuth, (req, res) =>
   runDinoAction(req, res, "store", `dino-${randomUUID()}`));
 
+router.get("/stored/:slot/mutations", requireAuth, async (req, res) => {
+  const steamId = requireSteam(req, res);
+  if (!steamId) return;
+  let slot;
+  try { slot = validateSlot(req.params.slot); }
+  catch (err) { return res.status(400).json({ error: err.message }); }
+  try {
+    return res.json(await automation.getParkedDinoMutations(steamId, slot));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not read parked dino mutations.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.put("/stored/:slot/mutations", requireAuth, async (req, res) => {
+  const steamId = requireSteam(req, res);
+  if (!steamId) return;
+  let slot;
+  try { slot = validateSlot(req.params.slot); }
+  catch (err) { return res.status(400).json({ error: err.message }); }
+  try {
+    return res.json(await automation.updateParkedDinoMutations({
+      steamId,
+      slot,
+      mutations: req.body?.mutations || {},
+    }));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not update parked dino mutations.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
 router.post("/stored/:slot/redeem", requireAuth, async (req, res) => {
   let slot;
   try {

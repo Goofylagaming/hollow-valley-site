@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Hollow Valley admin restore console.">
+  <title>Admin Restore | Hollow Valley</title>
+  <link rel="stylesheet" href="assets/styles.css?v=15">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main>
+      <section class="page-header">
+        <p class="overline green">ADMIN TOOL</p>
+        <h1>Dino restore.</h1>
+        <p class="section-intro">Build and upload a guarded DinoStorage restore file. Uploads remain disabled unless the automation service explicitly enables Admin Restore writes.</p>
+      </section>
+
+      <section class="roster-section">
+        <div id="admin-restore-guard"><p class="section-intro">Checking admin access…</p></div>
+        <div id="admin-restore-content" hidden>
+          <div class="admin-restore-status" id="admin-restore-status">
+            <div class="summary-tile"><small>BUILDER</small><b id="restore-builder-state">Checking…</b></div>
+            <div class="summary-tile"><small>UPLOAD GATE</small><b id="restore-write-state">Checking…</b></div>
+            <div class="summary-tile"><small>FILE BRIDGE</small><b id="restore-ftp-state">Checking…</b></div>
+          </div>
+
+          <div class="admin-restore-grid">
+            <section class="admin-restore-panel">
+              <div class="list-heading"><span>RESTORE TARGET</span></div>
+              <div class="admin-restore-form">
+                <label><span>STEAM ID</span><input id="restore-steam-id" inputmode="numeric" maxlength="17" placeholder="7656119…"></label>
+                <label><span>DINO STORAGE SLOT</span><input id="restore-slot" maxlength="80" value="admin_restore" placeholder="admin_restore"></label>
+                <label class="restore-check"><input id="restore-full-nutrients" type="checkbox"><span>Force full nutrients on restore</span></label>
+              </div>
+
+              <div class="list-heading"><span>RESTORE JSON</span></div>
+              <textarea id="restore-json" class="admin-restore-json" spellcheck="false" placeholder='{"classPath":"/Game/...","growth":0.76,"isPrime":true}'></textarea>
+
+              <div class="admin-restore-actions">
+                <button class="small-button" id="restore-build">Validate &amp; build JSON</button>
+                <button class="primary-button" id="restore-upload" disabled>Upload restore <b>→</b></button>
+              </div>
+              <p class="section-intro" id="restore-message" role="status"></p>
+            </section>
+
+            <aside class="admin-restore-panel admin-restore-safety">
+              <p class="overline green">SAFETY GATES</p>
+              <h2>Controlled writes only.</h2>
+              <p>The website verifies your admin account first. The server then calls the automation admin API using a server-side token that is never sent to the browser.</p>
+              <p>Uploads also require <b>ADMIN_RESTORE_WRITE_ENABLED=true</b> on the automation service and refuse to overwrite an existing DinoStorage slot.</p>
+              <p>Use <b>Validate &amp; build JSON</b> before upload. Nutrient values can be supplied explicitly, or use the full-nutrients option when appropriate.</p>
+            </aside>
+          </div>
+        </div>
+      </section>
+    </main>
+    <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
+  </div>
+  <script src="assets/common.js?v=12"></script>
+  <script src="assets/adminrestore.js?v=1"></script>
+</body>
+</html>

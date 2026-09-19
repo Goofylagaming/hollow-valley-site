@@ -3,8 +3,34 @@ const { api, escapeHtml } = window.HDS;
 let speciesById = {};
 let catalog = [];
 let activeFilter = "all";
-let marketplaceState = { p2pBuyEnabled: false };
+let marketplaceState = { officialWritesEnabled: false, p2pWritesEnabled: false, p2pBuyEnabled: false };
 let myListingIds = new Set();
+
+
+function renderMarketplaceState() {
+  const banner = document.getElementById("market-state-banner");
+  const detail = document.getElementById("market-state-detail");
+  if (!banner || !detail) return;
+
+  const official = marketplaceState.officialWritesEnabled === true;
+  const p2p = marketplaceState.p2pWritesEnabled === true;
+  banner.classList.toggle("online", official || p2p);
+  banner.classList.toggle("offline", !official && !p2p);
+  const label = banner.querySelector("b");
+  if (official && p2p) {
+    label.textContent = "Marketplace fully online";
+    detail.textContent = "Official purchases and survivor trading are enabled.";
+  } else if (official) {
+    label.textContent = "Official catalog online";
+    detail.textContent = "Survivor trading is temporarily read-only.";
+  } else if (p2p) {
+    label.textContent = "Survivor trading online";
+    detail.textContent = "Official catalog purchases are temporarily disabled.";
+  } else {
+    label.textContent = "Marketplace read-only";
+    detail.textContent = "Browse only — purchases and listings are temporarily disabled.";
+  }
+}
 
 async function loadSpeciesMap() {
   const list = await api("/api/species");
@@ -50,13 +76,14 @@ function renderCatalog() {
         <div class="dino-art ${species.art}"><span>${species.name.toUpperCase()}</span></div>
         <div class="dino-info"><div><small>${(species.role || "").toUpperCase()}</small><h3>${escapeHtml(species.name)}</h3></div></div>
         <div class="dino-meta"><span>${entry.price.toLocaleString()} Valley Coin</span><span>Size ${entry.size_percent}%</span></div>
-        <div class="actions" style="padding:0 15px 15px"><button class="small-button buy-catalog-btn" data-id="${entry.id}" data-size="${entry.size_percent}">Buy (${entry.size_percent}% Size)</button></div>
+        <div class="actions" style="padding:0 15px 15px"><button class="small-button buy-catalog-btn" data-id="${entry.id}" data-size="${entry.size_percent}" ${marketplaceState.officialWritesEnabled === true ? "" : "disabled"}>${marketplaceState.officialWritesEnabled === true ? `Buy (${entry.size_percent}% Size)` : "Purchases Offline"}</button></div>
       </article>`;
     })
     .join("");
 
   grid.querySelectorAll(".buy-catalog-btn").forEach((btn) =>
     btn.addEventListener("click", async () => {
+      if (marketplaceState.officialWritesEnabled !== true) return;
       const me = await window.HDS.loadMe();
       if (!me.loggedIn) return alert("Log in with Discord or Steam to buy a dino.");
       const origText = btn.textContent;
@@ -136,8 +163,9 @@ async function init() {
   try {
     marketplaceState = await api("/api/marketplace/state");
   } catch {
-    marketplaceState = { p2pBuyEnabled: false };
+    marketplaceState = { officialWritesEnabled: false, p2pWritesEnabled: false, p2pBuyEnabled: false };
   }
+  renderMarketplaceState();
   await loadMyListingIds();
   catalog = await api("/api/marketplace/catalog");
   renderCatalog();

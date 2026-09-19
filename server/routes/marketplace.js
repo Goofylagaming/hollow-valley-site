@@ -75,12 +75,18 @@ router.post("/catalog/:id/buy", requireAuth, async (req, res) => {
 router.get("/state", async (_req, res) => {
   try {
     const state = await automation.getDinoMarketplaceState();
+    const p2pWritesEnabled = state.p2pWritesEnabled ?? state.writeEnabled ?? false;
+    const officialWritesEnabled = state.officialWritesEnabled
+      ?? state.officialCatalogEnabled
+      ?? state.officialFulfillmentEnabled
+      ?? false;
     res.json({
       ...state,
-      p2pWritesEnabled: true,
-      p2pCreateEnabled: true,
-      p2pBuyEnabled: true,
-      p2pCancelEnabled: true,
+      officialWritesEnabled: Boolean(officialWritesEnabled),
+      p2pWritesEnabled: Boolean(p2pWritesEnabled),
+      p2pCreateEnabled: Boolean(p2pWritesEnabled),
+      p2pBuyEnabled: Boolean(p2pWritesEnabled),
+      p2pCancelEnabled: Boolean(p2pWritesEnabled),
     });
   } catch (error) {
     const mapped = mapAutomationError(error, "Could not read marketplace state.");

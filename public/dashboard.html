@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Your Hollow Valley account overview.">
   <title>Dashboard | Hollow Valley</title>
-  <link rel="stylesheet" href="assets/styles.css?v=12">
+  <link rel="stylesheet" href="assets/styles.css?v=15">
 </head>
 <body>
   <div class="app-shell">
@@ -15,17 +15,30 @@
         <p class="overline green">COMMAND CENTER</p>
         <h1>Your dashboard.</h1>
         <p class="section-intro">An overview of your account, storage and supporter status.</p>
+        <div class="dashboard-wallet-corner" aria-label="Valley Coin wallet balance"><small>WALLET</small><b id="dash-wallet">0</b><span>Valley Coin</span></div>
       </section>
       <section class="roster-section">
         <div id="dashboard-guard"><p class="section-intro">Sign in with Steam to see your dashboard.</p></div>
         <div id="dashboard-content" hidden>
           <div class="summary-grid">
             <div class="summary-tile"><small>DINOS IN STORAGE</small><b id="dash-dino-count">0</b></div>
-            <div class="summary-tile"><small>WALLET BALANCE</small><b id="dash-wallet">0</b></div>
             <div class="summary-tile"><small>SUPPORTER STATUS</small><b id="dash-supporter">None</b></div>
             <div class="summary-tile"><small>SUPPORTER MULTIPLIER</small><b id="dash-supporter-multiplier">×1</b></div>
             <div class="summary-tile"><small>DAILY BONUS</small><b id="dash-bonus-state">Ready</b></div>
           </div>
+          <section class="reward-overview" aria-labelledby="reward-overview-title">
+            <div class="list-heading"><span id="reward-overview-title">VALLEY COIN · LIVE REWARDS</span><span id="dash-reward-state">Checking…</span></div>
+            <div class="reward-stat-grid">
+              <div class="reward-stat"><small>BASE RATE</small><b id="dash-base-rate">—</b><span>per 5 minutes</span></div>
+              <div class="reward-stat"><small>QUEST BOOST</small><b id="dash-quest-boost">+0%</b><span>active boost</span></div>
+              <div class="reward-stat"><small>SUPPORTER</small><b id="dash-reward-supporter">×1</b><span>eligible rewards</span></div>
+              <div class="reward-stat featured"><small>CURRENT PAYOUT</small><b id="dash-reward-rate">—</b><span>per 5 minutes</span></div>
+            </div>
+            <div class="reward-progress-wrap">
+              <div class="reward-progress-copy"><span>Next playtime payout</span><b id="dash-next-reward">—</b></div>
+              <div class="reward-progress"><span id="dash-reward-progress-bar"></span></div>
+            </div>
+          </section>
           <div class="page-toolbar">
             <button class="small-button" id="claim-daily-bonus">Roll daily bonus</button>
           </div>
@@ -42,9 +55,9 @@
         </div>
       </section>
     </main>
-    <footer><span>© 2026 Herby Death Squad Games</span><span>ISLE EVRIMA COMMUNITY SERVER</span><a href="/">Back to command ↑</a></footer>
+    <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
   </div>
-  <script src="assets/common.js?v=10"></script>
-  <script src="assets/dashboard.js?v=4"></script>
+  <script src="assets/common.js?v=12"></script>
+  <script src="assets/dashboard.js?v=5"></script>
 </body>
 </html>
