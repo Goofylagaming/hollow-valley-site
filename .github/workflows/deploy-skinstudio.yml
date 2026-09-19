@@ -43,7 +43,9 @@ jobs:
             open -p \"$FTP_PORT\" -u \"$FTP_USER\",\"$FTP_PASS\" \"$FTP_HOST\";
             mkdir -p /TheIsle/Binaries/Win64/ue4ss/Mods/SkinStudio/Scripts;
             mkdir -p /TheIsle/Binaries/Win64/ue4ss/Mods/SkinStudio/Saved;
-            get /TheIsle/Binaries/Win64/ue4ss/Mods/SkinStudio/Scripts/main.lua -o predeploy-backup/main.lua || true;
+            set cmd:fail-exit no;
+            get /TheIsle/Binaries/Win64/ue4ss/Mods/SkinStudio/Scripts/main.lua -o predeploy-backup/main.lua;
+            set cmd:fail-exit yes;
             put server-mods/SkinStudio/Scripts/main.lua -o /TheIsle/Binaries/Win64/ue4ss/Mods/SkinStudio/Scripts/main.lua;
             put /tmp/reload.flag -o /TheIsle/Binaries/Win64/ue4ss/Mods/SkinStudio/Saved/reload.flag;
             bye;
