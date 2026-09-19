@@ -65,7 +65,7 @@ router.get('/wallet/:steamId', (req, res) => {
         activeBoostPercent,
         questBoostedCoinsPer5Minutes: questBoostedCoins,
         supporterTier: supporter.tier,
-        supporterBoostPercent: supporter.bonusPercent,
+        supporterMultiplier: supporter.multiplier,
         supporterBonusCoinsPer5Minutes: supporter.supporterBonusCoins,
         boostedCoinsPer5Minutes: supporter.payoutCoins,
         intervalSeconds: rewardState.intervalSeconds,
