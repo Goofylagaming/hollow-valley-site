@@ -1,6 +1,7 @@
 const crypto = require("node:crypto");
 const { db, getSupporterStatus } = require("../db");
-const { TIERS, liveModeEnabled } = require("./supporterCheckout");
+const { liveModeEnabled } = require("./supporterCheckout");
+const { TIERS, normalizeTier, tierFromStripePriceId } = require("./supporterTiers");
 
 const WEBHOOK_TOLERANCE_SECONDS = 300;
 const ACTIVE_STATUSES = new Set(["active", "trialing"]);
@@ -70,15 +71,10 @@ function tierFromSubscription(subscription, env = process.env) {
   // The actual subscribed Price is authoritative when Stripe includes it.
   // Metadata is a fallback for events such as Checkout Session completion.
   const priceId = subscription?.items?.data?.[0]?.price?.id;
-  const priceTier = {
-    [env.STRIPE_PRICE_MEMBER]: "member",
-    [env.STRIPE_PRICE_ELITE]: "elite",
-    [env.STRIPE_PRICE_LEGEND]: "legend",
-  }[priceId];
+  const priceTier = tierFromStripePriceId(priceId, env);
   if (priceTier) return priceTier;
 
-  const metadataTier = subscription?.metadata?.tier;
-  return metadataTier && Object.hasOwn(TIERS, metadataTier) ? metadataTier : null;
+  return normalizeTier(subscription?.metadata?.tier);
 }
 
 function userIdFromObject(object) {
@@ -116,7 +112,8 @@ function upsertSupporter({
   renewsAt = null,
   autoRenew = true,
 }) {
-  if (!userId || !tier || !Object.hasOwn(TIERS, tier)) return null;
+  const canonicalTier = normalizeTier(tier);
+  if (!userId || !canonicalTier || !Object.hasOwn(TIERS, canonicalTier)) return null;
   const user = db.prepare("SELECT id FROM users WHERE id = ?").get(userId);
   if (!user) return null;
 
@@ -136,7 +133,7 @@ function upsertSupporter({
       stripe_status = excluded.stripe_status
   `).run(
     userId,
-    tier,
+    canonicalTier,
     autoRenew ? 1 : 0,
     renewsAt,
     customerId,
@@ -191,9 +188,9 @@ function processStripeEvent(event, env = process.env) {
   if (event.type === "checkout.session.completed") {
     if (object.mode === "subscription") {
       const userId = userIdFromObject(object);
-      const tier = object.metadata?.tier;
+      const tier = normalizeTier(object.metadata?.tier);
       const paid = object.payment_status === "paid" || object.payment_status === "no_payment_required";
-      if (userId && Object.hasOwn(TIERS, tier)) {
+      if (userId && tier) {
         const updated = upsertSupporter({
           userId,
           tier,
