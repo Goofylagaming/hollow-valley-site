@@ -160,9 +160,34 @@ function formatDuration(seconds) {
   return `${total}s`;
 }
 
+function walletActivityDetail(transaction) {
+  const kind = String(transaction?.kind || "");
+  const metadata = transaction?.metadata || {};
+  if (kind === "playtime_reward") {
+    const base = Number(metadata.baseCoins);
+    const quest = Number(metadata.questBoostPercent || metadata.boostPercent || 0);
+    const multiplier = Number(metadata.supporterMultiplier || 1);
+    const parts = [];
+    if (Number.isFinite(base)) parts.push(`${base.toLocaleString()} base`);
+    if (quest > 0) parts.push(`+${quest}% quest boost`);
+    if (multiplier > 1) parts.push(`×${multiplier} supporter`);
+    return parts.length ? parts.join(" · ") : transaction?.reason || "";
+  }
+  if (kind === "daily_login_bonus") {
+    const base = Number(metadata.baseAmount);
+    const multiplier = Number(metadata.supporterMultiplier || 1);
+    const parts = [];
+    if (Number.isFinite(base)) parts.push(`${base.toLocaleString()} base daily reward`);
+    if (multiplier > 1) parts.push(`×${multiplier} supporter`);
+    return parts.length ? parts.join(" · ") : transaction?.reason || "";
+  }
+  return transaction?.reason || "";
+}
+
 function walletActivityLabel(transaction) {
   const kind = String(transaction?.kind || "");
   if (kind === "playtime_reward") return "Playtime reward";
+  if (kind === "daily_login_bonus") return "Daily login bonus";
   if (kind === "marketplace_purchase") return "Marketplace purchase";
   if (kind === "marketplace_refund") return "Marketplace refund";
   if (kind === "marketplace_p2p_hold") return "Dino purchase";
@@ -172,7 +197,68 @@ function walletActivityLabel(transaction) {
   return transaction?.reason || "Valley Coin activity";
 }
 
-async function loadWallet() {
+function renderDailyBonus(bonus) {
+  const amountEl = document.getElementById("wallet-daily-amount");
+  const statusEl = document.getElementById("wallet-daily-status");
+  const claimButton = document.getElementById("wallet-daily-claim");
+  if (!amountEl || !statusEl || !claimButton) return;
+
+  const base = Number(bonus?.baseAmount ?? bonus?.amount ?? 0);
+  const effective = Number(bonus?.effectiveAmount ?? base);
+  const multiplier = Number(bonus?.supporterMultiplier || 1);
+
+  amountEl.textContent = bonus?.enabled
+    ? `${effective.toLocaleString()} Valley Coin`
+    : "Not enabled";
+
+  if (!bonus?.enabled) {
+    statusEl.textContent = "Daily login rewards are currently disabled.";
+  } else if (bonus?.claimed) {
+    statusEl.textContent = "Claimed today. Come back after the daily reset.";
+  } else if (multiplier > 1) {
+    statusEl.textContent = `${base.toLocaleString()} base ×${multiplier} supporter multiplier.`;
+  } else {
+    statusEl.textContent = `${base.toLocaleString()} Valley Coin available today.`;
+  }
+
+  claimButton.disabled = !bonus?.claimable;
+  claimButton.textContent = bonus?.claimed ? "Claimed ✓" : "Claim";
+}
+
+async function loadDailyBonus() {
+  try {
+    const bonus = await api("/api/daily-bonus");
+    renderDailyBonus(bonus);
+    return bonus;
+  } catch (err) {
+    const statusEl = document.getElementById("wallet-daily-status");
+    if (statusEl) statusEl.textContent = err.message || "Could not load daily login bonus.";
+    return null;
+  }
+}
+
+let dailyBonusWired = false;
+function wireDailyBonusClaim() {
+  if (dailyBonusWired) return;
+  const button = document.getElementById("wallet-daily-claim");
+  if (!button) return;
+  dailyBonusWired = true;
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    button.textContent = "Claiming…";
+    try {
+      await api("/api/daily-bonus/claim", { method: "POST" });
+      await Promise.all([loadDailyBonus(), loadWallet({ skipDailyBonus: true })]);
+    } catch (err) {
+      const statusEl = document.getElementById("wallet-daily-status");
+      if (statusEl) statusEl.textContent = err.message || "Could not claim daily login bonus.";
+      button.disabled = false;
+      button.textContent = "Claim";
+    }
+  });
+}
+
+async function loadWallet({ skipDailyBonus = false } = {}) {
   const balanceEl = document.getElementById("wallet-balance");
   const txEl = document.getElementById("wallet-transactions");
   if (!balanceEl || !txEl) return;
@@ -188,6 +274,8 @@ async function loadWallet() {
     const wallet = await api("/api/wallet");
     const earning = wallet.earning || {};
     balanceEl.textContent = Number(wallet.balance || 0).toLocaleString();
+    wireDailyBonusClaim();
+    if (!skipDailyBonus) loadDailyBonus();
 
     const baseRate = document.getElementById("wallet-base-rate");
     const boost = document.getElementById("wallet-active-boost");
@@ -228,7 +316,7 @@ async function loadWallet() {
         const amount = Number(transaction.amount) || 0;
         const when = transaction.created_at ? new Date(transaction.created_at).toLocaleString() : "";
         return `<div class="activity-row">
-          <span><strong>${escapeHtml(walletActivityLabel(transaction))}</strong><small>${escapeHtml(transaction.reason || "")}</small></span>
+          <span><strong>${escapeHtml(walletActivityLabel(transaction))}</strong><small>${escapeHtml(walletActivityDetail(transaction))}</small></span>
           <b>${amount > 0 ? "+" : ""}${amount.toLocaleString()}</b>
           <small>${escapeHtml(when)}</small>
         </div>`;
