@@ -10,6 +10,7 @@ const {
   cancelSubscription,
   resumeSubscription,
 } = require("../services/supporterManage");
+const { ReconcileError, reconcileCurrentUser } = require("../services/supporterReconcile");
 
 const router = express.Router();
 
@@ -44,6 +45,19 @@ router.get("/", requireAuth, (req, res) => {
     entitled: isEntitled(status.stripe_status),
     managed: Boolean(status.stripe_subscription_id),
   });
+});
+
+router.post("/reconcile", requireAuth, async (req, res) => {
+  try {
+    res.json(await reconcileCurrentUser({
+      userId: req.user.id,
+      steamId: req.user.steam_id || null,
+    }));
+  } catch (error) {
+    res.status(error instanceof ReconcileError ? error.status : 500).json({
+      error: error instanceof ReconcileError ? error.message : "Unable to recover membership.",
+    });
+  }
 });
 
 router.post("/:tier/checkout", requireAuth, async (req, res) => {
