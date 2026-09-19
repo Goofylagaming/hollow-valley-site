@@ -1,0 +1,120 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+
+function read(relative) {
+  return fs.readFileSync(path.join(__dirname, '..', '..', relative), 'utf8');
+}
+
+test('marketplace, My Dinos and skins browser scripts parse successfully', () => {
+  for (const relative of [
+    'public/assets/mydinos.js',
+    'public/assets/marketplace.js',
+    'public/assets/skins.js',
+  ]) {
+    const source = read(relative);
+    assert.doesNotThrow(() => new Function(source), relative);
+  }
+});
+
+test('My Dinos exposes sell, mutation and skin tools for parked dinos', () => {
+  const source = read('public/assets/mydinos.js');
+  assert.match(source, /data-tool="sell"/);
+  assert.match(source, /data-tool="mutations"/);
+  assert.match(source, /data-tool="skins"/);
+  assert.match(source, /\/api\/mydinos\/stored\/\$\{encodeURIComponent\(dino\.slot\)\}\/mutations/);
+  assert.match(source, /\/api\/skins\/from-stored/);
+  assert.match(source, /\/api\/marketplace\/listings/);
+});
+
+test('marketplace UI includes public escrow listings and seller cancellation panel', () => {
+  const js = read('public/assets/marketplace.js');
+  const html = read('public/marketplace.html');
+  assert.match(js, /loadMyListings/);
+  assert.match(js, /\/api\/marketplace\/listings\/mine/);
+  assert.match(js, /cancel-listing-btn/);
+  assert.match(html, /id="my-listings-section"/);
+  assert.match(html, /YOUR LISTINGS/);
+});
+
+test('skins page no longer offers the legacy name-only creator', () => {
+  const html = read('public/skins.html');
+  const js = read('public/assets/skins.js');
+  assert.equal(html.includes('id="skin-create-btn"'), false);
+  assert.equal(js.includes('skin-create-btn'), false);
+  assert.match(js, /\/api\/skins\/mine/);
+  assert.match(html, /Captured from DinoStorage/);
+});
+
+test('branch routes use automation adapters for real parked-dino features', () => {
+  const myDinos = read('server/routes/mydinos.js');
+  const marketplace = read('server/routes/marketplace.js');
+  const skins = read('server/routes/skins.js');
+
+  assert.match(myDinos, /automationRoutes\.getParkedDinoMutations/);
+  assert.match(myDinos, /automationRoutes\.updateParkedDinoMutations/);
+  assert.match(marketplace, /automationRoutes\.createDinoMarketplaceListing/);
+  assert.match(marketplace, /automationRoutes\.buyDinoMarketplaceListing/);
+  assert.match(marketplace, /automationRoutes\.cancelDinoMarketplaceListing/);
+  assert.match(skins, /automationRoutes\.listSkinPresets/);
+  assert.match(skins, /automationRoutes\.createSkinPreset/);
+  assert.match(skins, /automationRoutes\.applySkinPreset/);
+});
+
+
+test('My Dinos tool wiring contains no accidental literal escaped newline between statements', () => {
+  const source = read('public/assets/mydinos.js');
+  assert.equal(source.includes('wireParkedTools(grid);\\n'), false);
+  assert.match(source, /wireParkedTools\(grid\);\s+grid\.querySelectorAll/);
+});
+
+
+test('marketplace safety gate state controls P2P buy sell and cancel UI', () => {
+  const marketplace = read('public/assets/marketplace.js');
+  const myDinos = read('public/assets/mydinos.js');
+  const routes = read('server/routes/marketplace.js');
+
+  assert.match(marketplace, /\/api\/marketplace\/state/);
+  assert.match(marketplace, /Marketplace locked/);
+  assert.match(myDinos, /\/api\/marketplace\/state/);
+  assert.match(myDinos, /Selling locked/);
+  assert.match(routes, /automationRoutes\.getDinoMarketplaceState/);
+});
+
+
+test('P2P listing and My Dinos cards expose captured skin previews', () => {
+  const myDinos = read('public/assets/mydinos.js');
+  const marketplace = read('public/assets/marketplace.js');
+  assert.match(myDinos, /renderSkinPreview\(dino\.skin\)/);
+  assert.match(myDinos, /dino-skin-swatches/);
+  assert.match(marketplace, /listingSkinPreview\(listing\.skin\)/);
+  assert.match(marketplace, /listingSkinPreview\(snapshot\.skin\)/);
+});
+
+
+test('official catalog uses gated automation fulfillment and order status panel', () => {
+  const js = read('public/assets/marketplace.js');
+  const html = read('public/marketplace.html');
+  const routes = read('server/routes/marketplace.js');
+
+  assert.match(routes, /automationRoutes\.listMarketplaceCatalog/);
+  assert.match(routes, /automationRoutes\.buyMarketplaceCatalogItem/);
+  assert.match(routes, /automationRoutes\.listMarketplaceOrders/);
+  assert.equal(routes.includes('addRosterDino'), false);
+  assert.match(js, /officialCatalogEnabled/);
+  assert.match(js, /Order accepted/);
+  assert.match(js, /loadMyOrders/);
+  assert.match(js, /\/api\/marketplace\/orders\/mine/);
+  assert.match(html, /YOUR STORE ORDERS/);
+  assert.match(html, /id="my-orders-section"/);
+});
+
+
+test('official store dinos do not fake uncaptured vitals in My Dinos', () => {
+  const myDinos = read('public/assets/mydinos.js');
+  assert.match(myDinos, /marketplacePurchase\?\.orderId/);
+  assert.match(myDinos, /ON REDEEM/);
+  assert.match(myDinos, /Any gender/);
+  assert.match(myDinos, /Official store dino/);
+});

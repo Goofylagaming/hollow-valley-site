@@ -1,0 +1,318 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+
+function loadWithClientStubs(stubs = {}) {
+  const clientPath = require.resolve('../integration/websiteAutomationClient');
+  const adapterPath = require.resolve('../integration/liveRouteAdapters');
+  const originalClient = require(clientPath);
+  require.cache[clientPath].exports = { ...originalClient, ...stubs };
+  delete require.cache[adapterPath];
+  const adapters = require(adapterPath);
+  return {
+    adapters,
+    restore() {
+      require.cache[clientPath].exports = originalClient;
+      delete require.cache[adapterPath];
+    },
+  };
+}
+
+function response() {
+  return {
+    statusCode: 200,
+    body: null,
+    status(code) { this.statusCode = code; return this; },
+    json(body) { this.body = body; return this; },
+  };
+}
+
+test('wallet adapter migrates legacy balance using authenticated backend identity before read', async (t) => {
+  let seen = null;
+  let migrated = null;
+  const fixture = loadWithClientStubs({
+    migrateLegacyWallet: async (input) => {
+      migrated = input;
+      return { duplicate: false };
+    },
+    getWallet: async (steamId) => {
+      seen = steamId;
+      return { balance: 120, transactions: [{ amount: 10, kind: 'playtime_reward' }] };
+    },
+  });
+  t.after(fixture.restore);
+
+  const res = response();
+  await fixture.adapters.getWallet({
+    user: { id: 7, steam_id: '76561198000000011' },
+    query: { steamId: '76561198999999999' },
+  }, res, {
+    legacyWallet: { balance: 90, transactions: [{ amount: 90, reason: 'legacy' }] },
+  });
+
+  assert.deepEqual(migrated, {
+    steamId: '76561198000000011',
+    legacyUserId: 7,
+    balance: 90,
+  });
+  assert.equal(seen, '76561198000000011');
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.balance, 120);
+  assert.equal(res.body.steamLinked, true);
+  assert.equal(res.body.migrationPending, false);
+});
+
+test('unlinked wallet preserves legacy balance without contacting automation', async (t) => {
+  let calls = 0;
+  const fixture = loadWithClientStubs({
+    migrateLegacyWallet: async () => { calls += 1; return {}; },
+    getWallet: async () => { calls += 1; return {}; },
+  });
+  t.after(fixture.restore);
+
+  const legacyWallet = {
+    balance: 345,
+    transactions: [{ id: 1, amount: 345, reason: 'Legacy balance' }],
+  };
+  const res = response();
+  await fixture.adapters.getWallet({
+    user: { id: 8, steam_id: null },
+  }, res, { legacyWallet });
+
+  assert.equal(calls, 0);
+  assert.deepEqual(res.body, {
+    balance: 345,
+    transactions: legacyWallet.transactions,
+    steamLinked: false,
+    migrationPending: true,
+    earning: null,
+  });
+});
+
+test('marketplace catalog adapter preserves current frontend catalog shape', async (t) => {
+  const fixture = loadWithClientStubs({
+    listMarketplaceCatalog: async () => ({
+      catalog: [{
+        id: 'dino:carno:75',
+        item_type: 'dino',
+        name: 'Carnotaurus 75%',
+        price: 400,
+        payload: { speciesId: 'carnotaurus', sizePercent: 75 },
+      }],
+    }),
+  });
+  t.after(fixture.restore);
+
+  const res = response();
+  await fixture.adapters.listMarketplaceCatalog({}, res);
+  assert.deepEqual(res.body, [{
+    id: 'dino:carno:75',
+    species_id: 'carnotaurus',
+    price: 400,
+    size_percent: 75,
+    name: 'Carnotaurus 75%',
+    item_type: 'dino',
+  }]);
+});
+
+test('marketplace buy uses authenticated Steam identity and backend-generated idempotency key', async (t) => {
+  let input = null;
+  const fixture = loadWithClientStubs({
+    purchaseMarketplaceItem: async (value) => {
+      input = value;
+      return {
+        duplicate: false,
+        order: { id: 'order-1', status: 'pending' },
+        wallet: { balance: 600 },
+      };
+    },
+  });
+  t.after(fixture.restore);
+
+  const res = response();
+  await fixture.adapters.buyMarketplaceCatalogItem({
+    user: { steam_id: '76561198000000012' },
+  }, res, 'dino:carno:75');
+
+  assert.equal(input.steamId, '76561198000000012');
+  assert.equal(input.catalogId, 'dino:carno:75');
+  assert.match(input.idempotencyKey, /^website-marketplace:/);
+  assert.equal(res.statusCode, 202);
+  assert.equal(res.body.accepted, true);
+  assert.equal(res.body.fulfilled, false);
+  assert.equal(res.body.order.status, 'pending');
+});
+
+
+test('quest adapter derives Steam identity and exposes automatic boost progress', async (t) => {
+  let seen = null;
+  const fixture = loadWithClientStubs({
+    getQuests: async (steamId) => {
+      seen = steamId;
+      return {
+        activeBoostPercent: 25,
+        quests: [{
+          id: 'daily-total-3h',
+          title: 'Three Hour Survivor',
+          cadence: 'daily',
+          thresholdSeconds: 10800,
+          progressSeconds: 10800,
+          completed: true,
+          boostPercent: 15,
+        }],
+      };
+    },
+  });
+  t.after(fixture.restore);
+
+  const res = response();
+  await fixture.adapters.getQuests({
+    user: { steam_id: '76561198000000013' },
+  }, res);
+
+  assert.equal(seen, '76561198000000013');
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.steamLinked, true);
+  assert.equal(res.body.activeBoostPercent, 25);
+  assert.equal(res.body.quests[0].claimed, true);
+  assert.equal(res.body.quests[0].rewardType, 'playtime_boost_percent');
+  assert.equal(res.body.quests[0].reward, null);
+});
+
+test('unlinked quest read returns harmless empty state without automation call', async (t) => {
+  let calls = 0;
+  const fixture = loadWithClientStubs({
+    getQuests: async () => { calls += 1; return {}; },
+  });
+  t.after(fixture.restore);
+
+  const res = response();
+  await fixture.adapters.getQuests({ user: { steam_id: null } }, res);
+  assert.equal(calls, 0);
+  assert.deepEqual(res.body, {
+    steamLinked: false,
+    activeBoostPercent: 0,
+    quests: [],
+  });
+});
+
+
+test('P2P listing adapter derives Steam identity from authenticated user', async (t) => {
+  let seen = null;
+  const fixture = loadWithClientStubs({
+    createDinoMarketplaceListing: async (input) => {
+      seen = input;
+      return { listing: { id: 'listing-1', status: 'active' }, duplicate: false };
+    },
+  });
+  t.after(fixture.restore);
+
+  const res = response();
+  await fixture.adapters.createDinoMarketplaceListing({
+    user: { steam_id: '76561198000000401' },
+    body: {
+      steamId: '76561198999999999',
+      slot: 'slot_a',
+      price: 750,
+    },
+  }, res);
+
+  assert.equal(seen.steamId, '76561198000000401');
+  assert.equal(seen.slot, 'slot_a');
+  assert.equal(seen.price, 750);
+  assert.match(seen.idempotencyKey, /^website-listing:/);
+  assert.equal(res.statusCode, 201);
+});
+
+test('P2P purchase adapter derives buyer Steam identity and server idempotency key', async (t) => {
+  let seen = null;
+  const fixture = loadWithClientStubs({
+    buyDinoMarketplaceListing: async (input) => {
+      seen = input;
+      return { listing: { id: input.listingId, status: 'sold' }, wallet: { balance: 250 }, duplicate: false };
+    },
+  });
+  t.after(fixture.restore);
+
+  const res = response();
+  await fixture.adapters.buyDinoMarketplaceListing({
+    user: { steam_id: '76561198000000402' },
+    body: { steamId: '76561198999999999' },
+  }, res, 'listing-2');
+
+  assert.equal(seen.steamId, '76561198000000402');
+  assert.equal(seen.listingId, 'listing-2');
+  assert.match(seen.idempotencyKey, /^website-p2p-buy:/);
+  assert.equal(res.statusCode, 201);
+});
+
+test('parked mutation adapter uses authenticated Steam identity and selected slot only', async (t) => {
+  let seen = null;
+  const fixture = loadWithClientStubs({
+    updateParkedDinoMutations: async (steamId, slot, mutations) => {
+      seen = { steamId, slot, mutations };
+      return { slot, mutations, writeEnabled: true };
+    },
+  });
+  t.after(fixture.restore);
+
+  const res = response();
+  await fixture.adapters.updateParkedDinoMutations({
+    user: { steam_id: '76561198000000403' },
+    body: {
+      steamId: '76561198999999999',
+      mutations: { Slot1: 'Wader', Slot2: '' },
+    },
+  }, res, 'parked_slot');
+
+  assert.deepEqual(seen, {
+    steamId: '76561198000000403',
+    slot: 'parked_slot',
+    mutations: { Slot1: 'Wader', Slot2: '' },
+  });
+  assert.equal(res.statusCode, 200);
+});
+
+test('skin creation adapter uses authenticated Steam identity and backend idempotency key', async (t) => {
+  let seen = null;
+  const fixture = loadWithClientStubs({
+    createSkinPreset: async (input) => {
+      seen = input;
+      return { preset: { id: 'skin-1', name: input.name }, wallet: { balance: 500 }, duplicate: false };
+    },
+  });
+  t.after(fixture.restore);
+
+  const res = response();
+  await fixture.adapters.createSkinPreset({
+    user: { steam_id: '76561198000000404' },
+    body: {
+      steamId: '76561198999999999',
+      slot: 'skin_slot',
+      name: 'Ash Hunter',
+    },
+  }, res);
+
+  assert.equal(seen.steamId, '76561198000000404');
+  assert.equal(seen.slot, 'skin_slot');
+  assert.equal(seen.name, 'Ash Hunter');
+  assert.match(seen.idempotencyKey, /^website-skin:/);
+  assert.equal(res.statusCode, 201);
+});
+
+test('marketplace capability adapter returns read-only gate state', async (t) => {
+  const fixture = loadWithClientStubs({
+    getDinoMarketplaceState: async () => ({
+      writeEnabled: false,
+      reconcileIntervalMs: 15000,
+    }),
+  });
+  t.after(fixture.restore);
+
+  const res = response();
+  await fixture.adapters.getDinoMarketplaceState({}, res);
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body, {
+    writeEnabled: false,
+    reconcileIntervalMs: 15000,
+  });
+});
