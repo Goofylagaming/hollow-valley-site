@@ -50,7 +50,7 @@ test("completed sandbox checkout activates the linked Hollow Valley membership i
         mode: "subscription",
         payment_status: "paid",
         client_reference_id: "42",
-        metadata: { user_id: "42", tier: "elite" },
+        metadata: { user_id: "42", tier: "guardian" },
         customer: "cus_test_42",
         subscription: "sub_test_42",
       },
@@ -59,7 +59,7 @@ test("completed sandbox checkout activates the linked Hollow Valley membership i
 
   assert.deepEqual(processStripeEvent(event), { processed: true, userId: 42 });
   const status = getSupporterStatus(42);
-  assert.equal(status.tier, "elite");
+  assert.equal(status.tier, "guardian");
   assert.equal(status.stripe_status, "active");
   assert.equal(status.stripe_customer_id, "cus_test_42");
   assert.equal(status.stripe_subscription_id, "sub_test_42");
@@ -80,13 +80,13 @@ test("unpaid completed checkout stays pending and does not count as entitled", (
       object: {
         mode: "subscription",
         payment_status: "unpaid",
-        metadata: { user_id: "42", tier: "member" },
+        metadata: { user_id: "42", tier: "supporter" },
         subscription: "sub_pending",
       },
     },
   });
   const status = getSupporterStatus(42);
-  assert.equal(status.tier, "member");
+  assert.equal(status.tier, "supporter");
   assert.equal(status.stripe_status, "pending");
   assert.equal(isEntitled(status.stripe_status), false);
 });
@@ -101,7 +101,7 @@ test("subscription price is authoritative for upgrades and lifecycle events upda
       object: {
         mode: "subscription",
         payment_status: "paid",
-        metadata: { user_id: "42", tier: "member" },
+        metadata: { user_id: "42", tier: "supporter" },
         customer: "cus_test_42",
         subscription: "sub_test_42",
       },
@@ -113,7 +113,7 @@ test("subscription price is authoritative for upgrades and lifecycle events upda
     customer: "cus_test_42",
     status: "active",
     cancel_at_period_end: false,
-    metadata: { user_id: "42", tier: "member" },
+    metadata: { user_id: "42", tier: "supporter" },
     items: {
       data: [{
         price: { id: process.env.STRIPE_PRICE_LEGEND },
@@ -207,7 +207,7 @@ test("HTTP webhook route accepts a valid signed raw body and rejects tampering",
       object: {
         mode: "subscription",
         payment_status: "paid",
-        metadata: { user_id: "42", tier: "member" },
+        metadata: { user_id: "42", tier: "supporter" },
         subscription: "sub_http",
       },
     },
@@ -231,7 +231,7 @@ test("HTTP webhook route accepts a valid signed raw body and rejects tampering",
       "Content-Type": "application/json",
       "Stripe-Signature": signedHeader(body, timestamp),
     },
-    body: body.replace("member", "legend"),
+    body: body.replace("supporter", "legend"),
   });
   assert.equal(bad.status, 400);
 });
