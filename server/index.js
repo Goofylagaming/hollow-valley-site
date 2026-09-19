@@ -169,12 +169,18 @@ function createApp() {
   app.all("/api/parked", parkedHandler);
   app.all("/api/admin", adminHandler);
 
-  const PAGE_ROUTES = ["dashboard", "wallet", "quests", "mydinos", "bodydrop", "marketplace", "skins", "livemap", "leaderboard", "supporter", "events", "adminrestore"];
+  const PAGE_ROUTES = ["dashboard", "wallet", "quests", "mydinos", "bodydrop", "marketplace", "livemap", "leaderboard", "supporter", "events", "adminrestore"];
   for (const page of PAGE_ROUTES) {
     app.get(`/${page}`, (req, res) => {
       res.sendFile(path.join(__dirname, "..", "public", `${page}.html`));
     });
   }
+
+  app.get(["/skins", "/skins.html"], (req, res) => {
+    if (!req.user) return res.status(401).send("Not logged in");
+    if (!req.user.is_admin) return res.status(403).send("Admin access required");
+    return res.sendFile(path.join(__dirname, "..", "public", "skins.html"));
+  });
 
   app.get("/mydinos/", (req, res) => {
     res.sendFile(path.join(__dirname, "..", "public", "mydinos.html"));

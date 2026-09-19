@@ -5,6 +5,9 @@ const automation = require("../services/automationWebsiteClient");
 
 const router = express.Router();
 
+// Skin Studio is temporarily admin-only while live testing is in progress.
+router.use(requireAdmin);
+
 function mapAutomationError(error, fallback) {
   if (Number.isInteger(error?.status)) {
     return { status: error.status, body: { error: error.message || fallback } };
