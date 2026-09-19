@@ -133,3 +133,38 @@ test('website client reads active character state through the protected automati
     assert.equal(request.options.method, 'GET');
   });
 });
+
+
+test('website client reads and claims daily login bonus through protected automation API', async () => {
+  await withEnv({
+    AUTOMATION_SERVICE_URL: 'https://automation.example.test',
+    HOLLOW_VALLEY_API_TOKEN: 'website-secret',
+  }, async () => {
+    const client = loadClient();
+    const calls = [];
+    const fetchImpl = async (url, options) => {
+      calls.push({ url, method: options.method });
+      return response(options.method === 'POST' ? 201 : 200, {
+        enabled: true,
+        claimable: options.method !== 'POST',
+        baseAmount: 50,
+        effectiveAmount: 150,
+        supporterMultiplier: 3,
+      });
+    };
+
+    await client.getDailyLoginBonus('76561198000000010', { fetchImpl });
+    await client.claimDailyLoginBonus('76561198000000010', { fetchImpl });
+
+    assert.deepEqual(calls, [
+      {
+        url: 'https://automation.example.test/api/website/daily-login/76561198000000010',
+        method: 'GET',
+      },
+      {
+        url: 'https://automation.example.test/api/website/daily-login/76561198000000010/claim',
+        method: 'POST',
+      },
+    ]);
+  });
+});
