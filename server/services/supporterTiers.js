@@ -43,11 +43,10 @@ function stripePriceId(value, env = process.env) {
 }
 
 function tierFromStripePriceId(priceId, env = process.env) {
-  const candidate = String(priceId || "");
-  for (const tier of Object.keys(TIERS)) {
-    if (stripePriceId(tier, env) === candidate) return tier;
-  }
-  return null;
+  const candidate = String(priceId || "").trim();
+  if (!candidate) return null;
+  const matches = Object.keys(TIERS).filter((tier) => stripePriceId(tier, env) === candidate);
+  return matches.length === 1 ? matches[0] : null;
 }
 
 module.exports = {
