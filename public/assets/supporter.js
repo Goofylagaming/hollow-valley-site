@@ -2,6 +2,7 @@ const { api, escapeHtml } = window.HDS;
 
 let currentStatus = null;
 let reconcileAttempted = false;
+let discordSyncAttemptedKey = null;
 
 function activeManagedSubscription(status) {
   return Boolean(
@@ -65,6 +66,14 @@ async function loadStatus() {
       <div class="summary-tile"><small>BENEFITS</small><b>${status.entitled ? "Membership verified" : "Inactive / pending"}</b></div>
       ${managementButton}
     `;
+
+    const discordSyncKey = `${status.tier || "none"}:${status.stripe_status || "none"}`;
+    if (discordSyncAttemptedKey !== discordSyncKey) {
+      discordSyncAttemptedKey = discordSyncKey;
+      api("/api/supporter/sync-discord", { method: "POST" }).catch((err) => {
+        console.warn("Discord membership role sync failed", err);
+      });
+    }
 
     document.getElementById("cancel-supporter")?.addEventListener("click", async () => {
       if (!confirm("Cancel this Stripe Sandbox membership at the end of the current billing period?")) return;
