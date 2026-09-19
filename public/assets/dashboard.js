@@ -19,9 +19,12 @@ async function loadDashboard() {
     const summary = await api("/api/dashboard");
     document.getElementById("dash-dino-count").textContent = summary.dinoCount;
     document.getElementById("dash-wallet").textContent = summary.walletBalance;
-    document.getElementById("dash-supporter").textContent = summary.supporter
-      ? `${summary.supporter.tier} ${summary.supporter.auto_renew ? "(auto-renews)" : "(ending)"}`
+    const supporter = summary.supporter;
+    document.getElementById("dash-supporter").textContent = supporter
+      ? `${supporter.tierLabel || supporter.tier} ${supporter.auto_renew ? "(auto-renews)" : "(ending)"}`
       : "None";
+    document.getElementById("dash-supporter-multiplier").textContent =
+      supporter?.entitled ? `×${Number(supporter.multiplier || 1)}` : "×1";
 
     const activityEl = document.getElementById("dash-activity");
     if (summary.recentActivity.length) {

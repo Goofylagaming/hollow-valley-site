@@ -1,4 +1,5 @@
-const { TIERS, PRICE_ENV, configuration, stableIdentityRequired } = require("./supporterCheckout");
+const { TIERS, configuration, stableIdentityRequired } = require("./supporterCheckout");
+const { normalizeTier, stripePriceId } = require("./supporterTiers");
 
 class ManageError extends Error {
   constructor(status, message) {
@@ -98,21 +99,22 @@ async function changeSubscription({
   env = process.env,
   fetchImpl = globalThis.fetch,
 }) {
-  if (!Object.hasOwn(TIERS, tier)) throw new ManageError(404, "Unknown membership tier.");
+  const canonicalTier = normalizeTier(tier);
+  if (!canonicalTier || !Object.hasOwn(TIERS, canonicalTier)) throw new ManageError(404, "Unknown membership tier.");
   const subscription = await getSubscription({ subscriptionId, userId, steamId, env, fetchImpl });
 
   const itemId = currentItemId(subscription);
   if (!itemId) throw new ManageError(409, "Stripe subscription has no changeable subscription item.");
 
-  const targetPrice = env[PRICE_ENV[tier]];
+  const targetPrice = stripePriceId(canonicalTier, env);
   if (currentPriceId(subscription) === targetPrice && !subscription.cancel_at_period_end) {
-    return { ok: true, changed: false, tier, cancelAtPeriodEnd: false };
+    return { ok: true, changed: false, tier: canonicalTier, cancelAtPeriodEnd: false };
   }
 
   const body = new URLSearchParams({
     "items[0][id]": itemId,
     "items[0][price]": targetPrice,
-    "metadata[tier]": tier,
+    "metadata[tier]": canonicalTier,
     cancel_at_period_end: "false",
     proration_behavior: "create_prorations",
   });
@@ -126,7 +128,7 @@ async function changeSubscription({
   return {
     ok: true,
     changed: true,
-    tier,
+    tier: canonicalTier,
     status: updated.status,
     cancelAtPeriodEnd: Boolean(updated.cancel_at_period_end),
   };

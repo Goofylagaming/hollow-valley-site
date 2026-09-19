@@ -67,8 +67,8 @@ test("internal supporter lookup is token protected and returns only entitled tie
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), {
     memberships: [
-      { steamId: "76561198000000041", entitled: true, tier: "member" },
-      { steamId: "76561198000000042", entitled: true, tier: "elite" },
+      { steamId: "76561198000000041", entitled: true, tier: "supporter" },
+      { steamId: "76561198000000042", entitled: true, tier: "guardian" },
       { steamId: "76561198000000043", entitled: false, tier: null },
       { steamId: "76561198000000044", entitled: false, tier: null },
     ],

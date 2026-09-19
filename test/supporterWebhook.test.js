@@ -59,7 +59,7 @@ test("completed sandbox checkout activates the linked Hollow Valley membership i
 
   assert.deepEqual(processStripeEvent(event), { processed: true, userId: 42 });
   const status = getSupporterStatus(42);
-  assert.equal(status.tier, "elite");
+  assert.equal(status.tier, "guardian");
   assert.equal(status.stripe_status, "active");
   assert.equal(status.stripe_customer_id, "cus_test_42");
   assert.equal(status.stripe_subscription_id, "sub_test_42");
@@ -86,7 +86,7 @@ test("unpaid completed checkout stays pending and does not count as entitled", (
     },
   });
   const status = getSupporterStatus(42);
-  assert.equal(status.tier, "member");
+  assert.equal(status.tier, "supporter");
   assert.equal(status.stripe_status, "pending");
   assert.equal(isEntitled(status.stripe_status), false);
 });
@@ -223,7 +223,7 @@ test("HTTP webhook route accepts a valid signed raw body and rejects tampering",
     body,
   });
   assert.equal(good.status, 200);
-  assert.equal(getSupporterStatus(42).tier, "member");
+  assert.equal(getSupporterStatus(42).tier, "supporter");
 
   const bad = await fetch(url, {
     method: "POST",
