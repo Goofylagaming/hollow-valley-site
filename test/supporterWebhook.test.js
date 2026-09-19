@@ -3,9 +3,9 @@ const assert = require("node:assert/strict");
 const crypto = require("node:crypto");
 
 process.env.DB_PATH = ":memory:";
-process.env.STRIPE_PRICE_MEMBER = "price_test_member";
-process.env.STRIPE_PRICE_ELITE = "price_test_elite";
-process.env.STRIPE_PRICE_LEGEND = "price_test_legend";
+process.env.STRIPE_PRICE_MEMBER = "price_testmember";
+process.env.STRIPE_PRICE_ELITE = "price_testelite";
+process.env.STRIPE_PRICE_LEGEND = "price_testlegend";
 process.env.STRIPE_WEBHOOK_SECRET = "whsec_test_fixture";
 
 const { db, getSupporterStatus } = require("../server/db");
@@ -97,9 +97,9 @@ test("subscription price is authoritative for upgrades and lifecycle events upda
     ...process.env,
     STRIPE_PRICE_SUPPORTER: "",
     STRIPE_PRICE_GUARDIAN: "",
-    STRIPE_PRICE_MEMBER: "price_test_member",
-    STRIPE_PRICE_ELITE: "price_test_elite",
-    STRIPE_PRICE_LEGEND: "price_test_legend",
+    STRIPE_PRICE_MEMBER: "price_testmember",
+    STRIPE_PRICE_ELITE: "price_testelite",
+    STRIPE_PRICE_LEGEND: "price_testlegend",
   };
   processStripeEvent({
     id: "evt_seed",
