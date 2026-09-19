@@ -17,7 +17,7 @@ test("existing Stripe membership blocks duplicate checkout at the HTTP route", a
   db.prepare("INSERT INTO users (id, username) VALUES (42, ?)").run("route-test");
   db.prepare(
     "INSERT INTO supporter_subscriptions (user_id, tier, auto_renew, stripe_subscription_id, stripe_status) VALUES (?, ?, 1, ?, ?)"
-  ).run(42, "member", "sub_test_42", "active");
+  ).run(42, "supporter", "sub_test_42", "active");
 
   const app = express();
   app.use(express.json());
