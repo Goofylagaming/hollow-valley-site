@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Herby Death Squad Games — a community-first Isle Evrima survival server.">
   <title>Herby Death Squad | Evrima Portal</title>
-  <link rel="stylesheet" href="assets/styles.css?v=12">
+  <link rel="stylesheet" href="assets/styles.css?v=14">
 </head>
 <body>
   <div class="app-shell">
@@ -35,11 +35,33 @@
       </section>
 
       <section class="roster-section" id="quests" hidden>
-        <div class="section-top"><div><p class="overline green">DAILY &amp; WEEKLY</p><h2>Valley<br><em>quests.</em></h2></div><p class="section-intro">Complete quests to earn Valley Coin for your wallet.</p></div>
-        <div class="quest-list" id="quest-list"><p class="section-intro">Sign in with Steam to view and claim quests.</p></div>
+        <div class="section-top"><div><p class="overline green">DAILY &amp; WEEKLY</p><h2>Valley<br><em>activity.</em></h2></div><div class="quest-summary"><small>ACTIVE COIN BOOST</small><b id="quest-active-boost">+0%</b><span>Completed boosts stack on future 5-minute payouts.</span></div></div>
+        <p class="section-intro quest-section-intro">Verified online time completes these automatically. No manual claiming.</p>
+        <div class="quest-list" id="quest-list"><p class="section-intro">Sign in with Steam to view your playtime quests.</p></div>
       </section>
 
-      <section class="wallet-section" id="wallet" hidden><div class="activity-heading"><div><p class="overline green">YOUR BALANCE</p><h2>Valley <em>wallet.</em></h2></div><span>ALL TIME</span></div><div class="wallet-balance"><small>CURRENT BALANCE</small><b id="wallet-balance">0</b><span>Earn coins by playing, completing quests and joining events.</span></div><div class="activity-list" id="wallet-transactions"><div class="empty-roster"><strong>No transactions yet</strong><span>Your earnings and spending will show up here once the server goes live.</span></div></div></section>
+      <section class="roster-section" id="species" hidden>
+        <div class="section-top"><div><p class="overline green">SPECIES DATABASE</p><h2>Playable<br><em>dinosaurs.</em></h2></div><p class="section-intro">Every dinosaur currently playable in Isle Evrima.</p></div>
+        <div class="filter-row" role="group" aria-label="Filter species"><button class="filter active" data-filter="all">All species</button><button class="filter" data-filter="herbivore">Herbivores</button><button class="filter" data-filter="carnivore">Carnivores</button><button class="filter" data-filter="omnivore">Omnivores</button><button class="filter" data-filter="flying">Flying</button><span class="roster-count" id="roster-count">.. / LIVE EVRIMA ROSTER</span></div>
+        <div class="dino-grid" id="dino-grid"><p class="section-intro">Loading species database…</p></div>
+      </section>
+
+      <section class="wallet-section" id="wallet" hidden>
+        <div class="activity-heading"><div><p class="overline green">YOUR BALANCE</p><h2>Valley <em>wallet.</em></h2></div><span>STEAM-LINKED</span></div>
+        <div class="wallet-balance wallet-balance-v2"><small>CURRENT BALANCE</small><b id="wallet-balance">0</b><span>Valley Coin follows your linked Steam account.</span></div>
+        <div class="wallet-earning-grid">
+          <div class="summary-tile"><small>BASE EARNING</small><b id="wallet-base-rate">Not enabled</b><span>Verified online playtime</span></div>
+          <div class="summary-tile"><small>QUEST BOOST</small><b id="wallet-active-boost">+0%</b><span>Daily + weekly boosts</span></div>
+          <div class="summary-tile"><small>CURRENT PAYOUT</small><b id="wallet-current-payout">—</b><span>Base plus active boost</span></div>
+        </div>
+        <div class="wallet-progress-panel">
+          <div class="list-heading"><span>NEXT 5-MINUTE PAYOUT</span><small id="wallet-next-payout">Base earning rate has not been enabled yet</small></div>
+          <div class="wallet-progress-track"><i id="wallet-progress-fill" style="width:0%"></i></div>
+          <small id="wallet-progress-text">0s / 5m verified</small>
+        </div>
+        <div class="list-heading wallet-activity-heading"><span>RECENT WALLET ACTIVITY</span></div>
+        <div class="activity-list" id="wallet-transactions"><div class="empty-roster"><strong>No transactions yet</strong><span>Your Valley Coin earnings and spending will appear here.</span></div></div>
+      </section>
       <section class="rules-strip" id="rules"><div class="strip-number">02</div><div><p class="overline green">THE HDS SURVIVAL CODE</p><h2>Respect the wild.<br><em>Earn your place.</em></h2></div><p>Our rules are simple: respect the world, respect the players, and leave room for every story. No toxicity. No shortcuts. Just a better way to play.</p><a class="outline-button" href="#community">Read the code <b>↗</b></a></section>
 
       <section class="join-strip" id="join">
@@ -55,6 +77,6 @@
     <footer><span>© 2026 Herby Death Squad Games</span><span>ISLE EVRIMA COMMUNITY SERVER</span><a href="#top">Back to top ↑</a></footer>
   </div>
   <script src="assets/common.js?v=11"></script>
-  <script src="assets/site.js?v=6"></script>
+  <script src="assets/site.js?v=7"></script>
 </body>
 </html>
