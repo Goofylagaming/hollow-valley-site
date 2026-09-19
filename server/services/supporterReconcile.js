@@ -1,4 +1,4 @@
-const { configuration } = require("./supporterCheckout");
+const { configuration, stableIdentityRequired } = require("./supporterCheckout");
 const { tierFromSubscription, upsertSupporter, subscriptionPeriodEnd } = require("./supporterWebhook");
 
 class ReconcileError extends Error {
@@ -79,6 +79,9 @@ async function reconcileCurrentUser({
   fetchImpl = globalThis.fetch,
 }) {
   if (!userId) throw new ReconcileError(401, "Not logged in.");
+  if (stableIdentityRequired(env) && !/^\d{15,22}$/.test(String(steamId || ""))) {
+    throw new ReconcileError(409, "A linked Steam account is required to recover membership.");
+  }
 
   const candidates = [];
   const seen = new Set();
@@ -98,16 +101,18 @@ async function reconcileCurrentUser({
   }
 
   // Sandbox-only fallback for subscriptions created before Steam ID metadata
-  // was added. This is intentionally not a live-billing recovery mechanism.
-  const byUserId = await stripeSearchSubscriptions({
-    query: `metadata['user_id']:'${String(userId)}'`,
-    env,
-    fetchImpl,
-  });
-  for (const subscription of byUserId) {
-    if (!seen.has(subscription.id)) {
-      seen.add(subscription.id);
-      candidates.push(subscription);
+  // was added. Strict stable-identity mode disables this legacy fallback.
+  if (!stableIdentityRequired(env)) {
+    const byUserId = await stripeSearchSubscriptions({
+      query: `metadata['user_id']:'${String(userId)}'`,
+      env,
+      fetchImpl,
+    });
+    for (const subscription of byUserId) {
+      if (!seen.has(subscription.id)) {
+        seen.add(subscription.id);
+        candidates.push(subscription);
+      }
     }
   }
 
