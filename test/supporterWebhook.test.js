@@ -57,7 +57,7 @@ test("completed sandbox checkout activates the linked Hollow Valley membership i
     },
   };
 
-  assert.deepEqual(processStripeEvent(event), { processed: true });
+  assert.deepEqual(processStripeEvent(event), { processed: true, userId: 42 });
   const status = getSupporterStatus(42);
   assert.equal(status.tier, "elite");
   assert.equal(status.stripe_status, "active");
