@@ -7,32 +7,31 @@ function readRepoFile(relativePath) {
   return fs.readFileSync(path.join(__dirname, '..', '..', relativePath), 'utf8');
 }
 
-test('My Dinos reads and store/redeem writes use automation adapters', () => {
+test('My Dinos reads and store/redeem writes use the website automation client', () => {
   const source = readRepoFile('server/routes/mydinos.js');
-
-  assert.match(source, /router\.get\("\/", requireAuth, \(req, res\) => automationRoutes\.listDinos\(req, res\)\)/);
-  assert.match(source, /automationRoutes\.getActiveCharacter\(req, res\)/);
-  assert.match(source, /automationRoutes\.parkActive\(req, res\)/);
-  assert.match(source, /automationRoutes\.redeemStored\(req, res, slot\)/);
+  assert.match(source, /require\("\.\.\/services\/automationWebsiteClient"\)/);
+  assert.match(source, /automation\.listStoredDinos/);
+  assert.match(source, /automation\.getActiveCharacter/);
+  assert.match(source, /automation\.requestDinoAction/);
   assert.doesNotMatch(source, /respondToDinoStorageAction/);
 });
 
-test('BodyDrop GET and POST both use automation and legacy executor is absent', () => {
+test('BodyDrop GET and POST use automation and the legacy executor is absent', () => {
   const source = readRepoFile('server/routes/bodydrop.js');
-
-  assert.match(source, /automationRoutes\.getBodyDropState\(req, res, \{ options: getDropTypes\(\) \}\)/);
-  assert.match(source, /automationRoutes\.requestBodyDrop\(req, res\)/);
+  assert.match(source, /automation\.getBodyDropCooldown/);
+  assert.match(source, /automation\.requestBodyDrop/);
   assert.doesNotMatch(source, /executeBodyDrop/);
   assert.doesNotMatch(source, /createBodyDropRequest/);
 });
 
-test('wallet, quests and marketplace branch routes use the automation adapters', () => {
+test('wallet, quests and marketplace routes use the website automation client', () => {
   const wallet = readRepoFile('server/routes/wallet.js');
   const quests = readRepoFile('server/routes/quests.js');
   const marketplace = readRepoFile('server/routes/marketplace.js');
-
-  assert.match(wallet, /automationRoutes\.getWallet/);
-  assert.match(quests, /automationRoutes\.getQuests/);
-  assert.match(marketplace, /automationRoutes\.listMarketplaceCatalog/);
-  assert.match(marketplace, /automationRoutes\.listDinoMarketplaceListings/);
+  assert.match(wallet, /automation\.getWallet/);
+  assert.match(wallet, /automation\.getDailyLoginBonus/);
+  assert.match(quests, /automation\.getQuests/);
+  assert.match(marketplace, /automation\.listMarketplaceCatalog/);
+  assert.match(marketplace, /automation\.listDinoMarketplaceListings/);
+  assert.match(marketplace, /automation\.listMarketplaceOrders/);
 });
