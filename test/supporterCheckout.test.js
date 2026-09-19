@@ -14,9 +14,9 @@ const ok = async () => ({ ok: true, json: async () => session });
 
 test('exactly three monthly AUD display tiers', () => {
   assert.deepEqual(TIERS, {
-    member: { label: 'Valley Member', priceAud: 7 },
-    elite: { label: 'Valley Elite', priceAud: 15 },
-    legend: { label: 'Valley Legend', priceAud: 25 },
+    supporter: { label: 'Valley Supporter', priceAud: 7, multiplier: 2 },
+    guardian: { label: 'Valley Guardian', priceAud: 15, multiplier: 3 },
+    legend: { label: 'Valley Legend', priceAud: 25, multiplier: 5 },
   });
 });
 for (const tier of Object.keys(TIERS)) {
@@ -28,7 +28,7 @@ for (const tier of Object.keys(TIERS)) {
       assert.ok(options.signal instanceof AbortSignal);
       assert.deepEqual(Object.fromEntries(options.body), {
         mode: 'subscription',
-        'line_items[0][price]': env[`STRIPE_PRICE_${tier.toUpperCase()}`],
+        'line_items[0][price]': tier === 'supporter' ? env.STRIPE_PRICE_MEMBER : tier === 'guardian' ? env.STRIPE_PRICE_ELITE : env.STRIPE_PRICE_LEGEND,
         'line_items[0][quantity]': '1',
         client_reference_id: '42',
         'metadata[user_id]': '42', 'metadata[tier]': tier,
@@ -41,13 +41,13 @@ for (const tier of Object.keys(TIERS)) {
     assert.deepEqual(result, { url: session.url });
   });
 }
-for (const tier of ['scout', 'hunter', 'apex', '__proto__', 'constructor', 'price_arbitrary', 'MEMBER']) {
+for (const tier of ['scout', 'hunter', 'apex', '__proto__', 'constructor', 'price_arbitrary']) {
   test(`rejects unknown tier ${tier} before contacting Stripe`, async () => {
     await assert.rejects(createCheckoutSession({ tier, userId: 42, env, fetchImpl: () => assert.fail() }), { status: 404 });
   });
 }
 test('requires an authenticated user', async () => {
-  await assert.rejects(createCheckoutSession({ tier: 'member', env, fetchImpl: () => assert.fail() }), { status: 401 });
+  await assert.rejects(createCheckoutSession({ tier: 'supporter', env, fetchImpl: () => assert.fail() }), { status: 401 });
 });
 test('missing configuration, live keys and unsafe origins fail closed', async () => {
   for (const override of [
@@ -58,7 +58,7 @@ test('missing configuration, live keys and unsafe origins fail closed', async ()
   ]) {
     const broken = { ...env, ...override };
     assert.equal(checkoutConfigured(broken), false);
-    await assert.rejects(createCheckoutSession({ tier: 'member', userId: 42, env: broken, fetchImpl: () => assert.fail() }), { status: 503 });
+    await assert.rejects(createCheckoutSession({ tier: 'supporter', userId: 42, env: broken, fetchImpl: () => assert.fail() }), { status: 503 });
   }
   assert.equal(checkoutConfigured(env), true);
 });
@@ -72,7 +72,7 @@ for (const [name, fetchImpl] of Object.entries({
   live: async () => ({ ok: true, json: async () => ({ ...session, livemode: true }) }),
 })) {
   test(`sanitizes Stripe ${name} errors`, async () => {
-    await assert.rejects(createCheckoutSession({ tier: 'member', userId: 42, env, fetchImpl }), {
+    await assert.rejects(createCheckoutSession({ tier: 'supporter', userId: 42, env, fetchImpl }), {
       status: 502, message: 'Unable to start Stripe checkout. Please try again.',
     });
   });
@@ -104,24 +104,24 @@ test('HTTP routes enforce auth, ignore browser price/user fields, and preserve c
     calls++;
     assert.equal(options.body.get('line_items[0][price]'), env.STRIPE_PRICE_MEMBER);
     assert.equal(options.body.get('client_reference_id'), '42');
-    assert.equal(options.body.get('metadata[tier]'), 'member');
+    assert.equal(options.body.get('metadata[tier]'), 'supporter');
     return ok();
   };
-  assert.equal((await request('/member/checkout', false)).status, 401);
+  assert.equal((await request('/supporter/checkout', false)).status, 401);
   assert.equal(calls, 0);
   const tiers = await (await originalFetch(base + '/tiers')).json();
   assert.deepEqual(tiers, { tiers: TIERS, checkoutConfigured: true });
   assert.equal(JSON.stringify(tiers).includes('price_'), false);
-  const success = await request('/member/checkout', true, { price: 'price_attacker', user_id: 99, tier: 'legend', success_url: 'https://evil.example' });
+  const success = await request('/supporter/checkout', true, { price: 'price_attacker', user_id: 99, tier: 'legend', success_url: 'https://evil.example' });
   assert.equal(success.status, 200);
   assert.deepEqual(await success.json(), { url: session.url });
   assert.equal(calls, 1);
   assert.equal(db.prepare('SELECT count(*) AS n FROM supporter_subscriptions').get().n, 0);
   assert.equal((await request('/constructor/checkout')).status, 404);
   global.fetch = async () => { throw new Error('secret'); };
-  assert.equal((await request('/member/checkout')).status, 502);
+  assert.equal((await request('/supporter/checkout')).status, 502);
   delete process.env.STRIPE_PRICE_MEMBER;
-  assert.equal((await request('/member/checkout')).status, 503);
+  assert.equal((await request('/supporter/checkout')).status, 503);
   assert.equal((await request('/cancel', false)).status, 401);
   assert.equal((await request('/cancel')).status, 200);
 });
@@ -131,7 +131,7 @@ test('strict supporter identity requires a valid Steam ID before checkout', asyn
   const strictEnv = { ...env, SUPPORTER_REQUIRE_STEAM_ID: 'true' };
   await assert.rejects(
     createCheckoutSession({
-      tier: 'member',
+      tier: 'supporter',
       userId: 42,
       env: strictEnv,
       fetchImpl: () => assert.fail('Stripe should not be contacted'),
@@ -140,7 +140,7 @@ test('strict supporter identity requires a valid Steam ID before checkout', asyn
   );
 
   const result = await createCheckoutSession({
-    tier: 'member',
+    tier: 'supporter',
     userId: 42,
     steamId: '76561198000000042',
     env: strictEnv,
