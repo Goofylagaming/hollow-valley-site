@@ -47,8 +47,13 @@ function status(steamId, { now = new Date() } = {}) {
   };
 }
 
-function claim(steamId, { now = new Date() } = {}) {
+async function claim(steamId, { now = new Date() } = {}) {
   const id = store.validateSteamId(steamId);
+  try {
+    await supporterBonuses.refreshMemberships([id]);
+  } catch (error) {
+    // Fail closed for the paid bonus while preserving the base daily reward.
+  }
   const current = status(id, { now });
   if (!current.enabled || current.baseAmount <= 0) {
     const error = new Error('Daily login bonus is disabled');
