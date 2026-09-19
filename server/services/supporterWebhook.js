@@ -278,6 +278,8 @@ module.exports = {
   processStripeEvent,
   tierFromSubscription,
   isEntitled,
+  upsertSupporter,
+  subscriptionPeriodEnd,
   _test: {
     parseStripeSignature,
     isoFromUnix,
