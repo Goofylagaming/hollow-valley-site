@@ -14,21 +14,21 @@ test('homepage wallet and quest browser script parses successfully', () => {
 
 test('wallet route uses Steam-linked automation economy', () => {
   const route = read('server/routes/wallet.js');
-  assert.match(route, /automation\\.getWallet/);
+  assert.match(route, /automation\.getWallet/);
   assert.equal(route.includes('getWallet(req.user.id)'), false);
 });
 
 test('daily bonus route uses Steam-linked automation economy with no legacy wallet credit', () => {
   const route = read('server/routes/dailybonus.js');
-  assert.match(route, /automation\\.getDailyLoginBonus/);
-  assert.match(route, /automation\\.claimDailyLoginBonus/);
+  assert.match(route, /automation\.getDailyLoginBonus/);
+  assert.match(route, /automation\.claimDailyLoginBonus/);
   assert.equal(route.includes('creditWallet'), false);
   assert.equal(route.includes('Math.random'), false);
 });
 
 test('quest route uses automatic verified-playtime quests and disables manual claims', () => {
   const route = read('server/routes/quests.js');
-  assert.match(route, /automation\\.getQuests/);
+  assert.match(route, /automation\.getQuests/);
   assert.match(route, /status\(410\)/);
   assert.match(route, /complete automatically/i);
   assert.equal(route.includes('creditWallet'), false);
