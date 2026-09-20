@@ -4,8 +4,8 @@ const { PUBLISHER_ACK } = require('./commandBridgeService');
 const store = require('./automationStore');
 
 function cacheMs() {
-  const value = Number(process.env.RCON_STATUS_CACHE_MS || 30000);
-  return Math.max(15000, Math.min(120000, Number.isFinite(value) ? value : 30000));
+  const value = Number(process.env.RCON_STATUS_CACHE_MS || 55000);
+  return Math.max(15000, Math.min(120000, Number.isFinite(value) ? value : 55000));
 }
 
 let cachedAt = 0;
@@ -52,6 +52,7 @@ async function getServerSnapshot({ force = false } = {}) {
         port: Number(process.env.RCON_PORT),
         password: process.env.RCON_PASSWORD,
         timeoutMs: Number(process.env.RCON_TIMEOUT_MS || 6000),
+        maxPlayersHint: Number(process.env.MAX_PLAYERS || 0) || null,
       });
       cachedAt = Date.now();
       cachedError = null;
