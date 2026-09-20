@@ -25,6 +25,24 @@ function validateSteamId(value) {
   return steamId;
 }
 
+router.get('/server-snapshot', async (_req, res) => {
+  try {
+    const snapshot = await statusService.getServerSnapshot();
+    return res.json({
+      configured: snapshot.configured,
+      online: snapshot.online,
+      players: snapshot.players || [],
+      characters: snapshot.characters || [],
+      maxPlayers: snapshot.maxPlayers ?? null,
+      checkedAt: snapshot.checkedAt || null,
+      cached: Boolean(snapshot.cached),
+      error: snapshot.error || null,
+    });
+  } catch (error) {
+    return res.status(503).json({ error: error.message || 'Unable to read cached server snapshot.' });
+  }
+});
+
 router.post('/wallet/migrate', (req, res) => {
   try {
     const steamId = validateSteamId(req.body?.steamId);

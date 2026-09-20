@@ -49,6 +49,10 @@ services:
         sync: false
       - key: RCON_TIMEOUT_MS
         value: 6000
+      - key: RCON_STATUS_CACHE_MS
+        value: 55000
+      - key: MAX_PLAYERS
+        value: 100
       - key: RCON_WRITE_ENABLED
         value: false
 
