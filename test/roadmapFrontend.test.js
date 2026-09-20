@@ -122,3 +122,15 @@ test("server exposes Wallet and Quests as dedicated page routes", () => {
   assert.match(server, /"wallet"/);
   assert.match(server, /"quests"/);
 });
+
+
+test("website server status reuses the automation snapshot instead of duplicate RCON polling", () => {
+  const status = read("server/services/serverStatus.js");
+  const client = read("server/services/automationWebsiteClient.js");
+
+  assert.match(status, /if \(automationConfigured\(\)\) \{\s*return automation\.getServerSnapshot\(\);/s);
+  assert.match(status, /automationConfigured\(\) \? 60_000 : 120_000/);
+  assert.match(status, /source: automationConfigured\(\) \? "automation-cache" : "direct-rcon"/);
+  assert.match(client, /function getServerSnapshot\(\)/);
+  assert.match(client, /call\('\/server-snapshot'\)/);
+});
