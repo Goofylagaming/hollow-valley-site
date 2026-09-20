@@ -59,6 +59,13 @@ test('website wallet and marketplace APIs are protected and preserve atomic purc
     'Content-Type': 'application/json',
   };
 
+  const statusResponse = await fetch(`${base}/server-snapshot`, { headers });
+  assert.equal(statusResponse.status, 200);
+  const statusBody = await statusResponse.json();
+  assert.equal(typeof statusBody.configured, 'boolean');
+  assert.ok(Array.isArray(statusBody.players));
+  assert.ok(Array.isArray(statusBody.characters));
+
   const walletBefore = await fetch(`${base}/wallet/${steamId}`, { headers });
   assert.equal(walletBefore.status, 200);
   const walletBody = await walletBefore.json();
