@@ -104,6 +104,10 @@ async function call(path, { method = 'GET', body } = {}) {
   }
 }
 
+function getServerSnapshot() {
+  return call('/server-snapshot');
+}
+
 function getActiveCharacter(steamId) {
   return call(`/dinostorage/active-character/${encodeURIComponent(validateSteamId(steamId))}`);
 }
@@ -374,6 +378,7 @@ function uploadAdminRestore({ steamId, slot, restore, fullNutrients = false }) {
 }
 
 module.exports = {
+  getServerSnapshot,
   getActiveCharacter,
   listStoredDinos,
   requestDinoAction,
