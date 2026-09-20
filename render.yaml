@@ -55,6 +55,14 @@ services:
         sync: false
       - key: RCON_PASSWORD
         sync: false
+      # Website reads the automation service's shared RCON cache instead of
+      # opening a second RCON connection to the game server.
+      - key: AUTOMATION_SERVICE_URL
+        sync: false
+      - key: HOLLOW_VALLEY_API_TOKEN
+        sync: false
+      - key: SERVER_STATUS_POLL_INTERVAL_MS
+        value: 60000
       - key: COMMAND_BRIDGE_ENABLED
         value: true
       - key: COMMAND_BRIDGE_TRANSPORT

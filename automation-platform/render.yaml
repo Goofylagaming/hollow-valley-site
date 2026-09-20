@@ -49,6 +49,12 @@ services:
         sync: false
       - key: RCON_TIMEOUT_MS
         value: 6000
+      # One roughly-minute RCON snapshot is shared by presence, status,
+      # monitoring and the website instead of each consumer polling separately.
+      - key: RCON_STATUS_CACHE_MS
+        value: 55000
+      - key: MAX_PLAYERS
+        value: 100
       - key: RCON_WRITE_ENABLED
         value: false
 

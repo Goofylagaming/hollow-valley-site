@@ -11,10 +11,12 @@ function fixture() {
     RCON_HOST: process.env.RCON_HOST,
     RCON_PORT: process.env.RCON_PORT,
     RCON_PASSWORD: process.env.RCON_PASSWORD,
+    RCON_STATUS_CACHE_MS: process.env.RCON_STATUS_CACHE_MS,
   };
   process.env.RCON_HOST = '127.0.0.1';
   process.env.RCON_PORT = '7777';
   process.env.RCON_PASSWORD = 'test-secret';
+  process.env.RCON_STATUS_CACHE_MS = '55000';
 
   let calls = 0;
   require.cache[rconPath].exports = {
@@ -79,4 +81,16 @@ test('ordinary read-only status calls reuse the recent cache', async (t) => {
   assert.equal(fresh.online, true);
   assert.equal(cached.online, true);
   assert.equal(cached.cached, true);
+});
+
+
+test('default minute-scale cache avoids extra routine player-list reads', async (t) => {
+  const f = fixture();
+  t.after(f.restore);
+
+  await f.service.getServerSnapshot({ force: true });
+  await f.service.getServerSnapshot();
+  await f.service.getServerSnapshot();
+
+  assert.equal(f.calls(), 1);
 });
