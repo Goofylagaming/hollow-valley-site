@@ -116,8 +116,21 @@
                 <button class="small-button" id="skin-share-import" type="button">Import copy</button>
               </div>
             </div>
+            <div class="skin-editor-card">
+              <p class="overline green">IMPORT FROM ANOTHER SERVER</p>
+              <h2>External skin code.</h2>
+              <p class="section-intro">Paste a Fangs & Ferns share code or Dino Den-style JSON code. Hollow Valley auto-detects the format and loads compatible values into Skin Studio for review before saving.</p>
+              <div class="skin-editor-fields">
+                <label class="wide">Target species<select id="skin-external-species"></select></label>
+              </div>
+              <textarea id="skin-external-code" class="comms-textarea" maxlength="12000" spellcheck="false" placeholder="FNF-TYRA-... · HEX-HEX-...  or  {&quot;PatternIndex&quot;:3,&quot;BodyColor&quot;:{...}}"></textarea>
+              <div class="skin-editor-actions">
+                <button class="primary-button green" id="skin-external-load" type="button">Load into Studio <b>→</b></button>
+                <span id="skin-external-result">Supported: Fangs & Ferns + Dino Den JSON.</span>
+              </div>
+            </div>
             <div id="skin-share-result" class="skin-share-result">
-              <span>No share code loaded.</span>
+              <span>No Hollow Valley share code loaded.</span>
             </div>
           </div>
         </section>
@@ -128,6 +141,7 @@
   </div>
 
   <script src="assets/common.js?v=16"></script>
-  <script src="assets/skins.js?v=5"></script>
+  <script src="assets/external-skin-import.js?v=1"></script>
+  <script src="assets/skins.js?v=6"></script>
 </body>
 </html>
