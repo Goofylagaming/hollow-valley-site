@@ -307,10 +307,15 @@ async function loadStoredSlots() {
   }
 }
 
+function activateSkinTab(tabName) {
+  const target = String(tabName || "");
+  document.querySelectorAll(".skin-tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.skinTab === target));
+  document.querySelectorAll(".skin-panel").forEach((panel) => panel.classList.toggle("active", panel.dataset.skinPanel === target));
+}
+
 function wireTabs() {
   document.querySelectorAll(".skin-tab").forEach((button) => button.addEventListener("click", () => {
-    document.querySelectorAll(".skin-tab").forEach((tab) => tab.classList.toggle("active", tab === button));
-    document.querySelectorAll(".skin-panel").forEach((panel) => panel.classList.toggle("active", panel.dataset.skinPanel === button.dataset.skinTab));
+    activateSkinTab(button.dataset.skinTab);
   }));
 }
 
@@ -319,6 +324,8 @@ async function initSpecies() {
   const options = speciesList.map((species) => `<option value="${escapeHtml(species.id)}">${escapeHtml(species.name)}</option>`).join("");
   document.getElementById("skin-species").innerHTML = options;
   document.getElementById("skin-store-species").innerHTML = '<option value="">All species</option>' + options;
+  const externalSpecies = document.getElementById("skin-external-species");
+  if (externalSpecies) externalSpecies.innerHTML = options;
   updatePreview();
 }
 
@@ -392,6 +399,44 @@ document.getElementById("skin-share-import").addEventListener("click", async () 
     showAlert(`Imported ${result.preset?.name || "skin"} into My Skins.`, "success");
     await loadMine();
   } catch (err) {
+    showAlert(err.message, "error");
+  }
+});
+
+document.getElementById("skin-external-load")?.addEventListener("click", () => {
+  const adapter = window.HDSSkinImport;
+  if (!adapter?.parseExternalSkinCode || !adapter?.mergeWithSkin) {
+    return showAlert("External skin importer is unavailable.", "error");
+  }
+
+  const raw = document.getElementById("skin-external-code").value.trim();
+  const targetSpecies = document.getElementById("skin-external-species").value;
+  const resultEl = document.getElementById("skin-external-result");
+
+  try {
+    const parsed = adapter.parseExternalSkinCode(raw);
+    const merged = adapter.mergeWithSkin(editorSkin(), parsed);
+    applySkinToEditor(merged);
+
+    if (targetSpecies) {
+      document.getElementById("skin-species").value = targetSpecies;
+    }
+    if (!document.getElementById("skin-description").value.trim()) {
+      document.getElementById("skin-description").value = `Imported from ${parsed.sourceLabel}.`;
+    }
+    updatePreview();
+    activateSkinTab("studio");
+
+    const importedCount = Object.keys(parsed.skinPatch || {}).length;
+    const indexCount = Object.keys(parsed.indices || {}).length;
+    const warningText = (parsed.warnings || []).join(" ");
+    resultEl.textContent = `${parsed.sourceLabel} detected · ${importedCount} colour zones${indexCount ? ` · ${indexCount} native index values` : ""} loaded.`;
+    showAlert(
+      `Loaded ${parsed.sourceLabel} into Skin Studio for ${document.getElementById("skin-species").selectedOptions[0]?.textContent || "the selected species"}. Review the preview before saving.${warningText ? ` ${warningText}` : ""}`,
+      warningText ? "warning" : "success"
+    );
+  } catch (err) {
+    resultEl.textContent = err.message;
     showAlert(err.message, "error");
   }
 });
