@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Hollow Valley automation operations console.">
+  <title>Operations | Hollow Valley</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=17">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main>
+      <section class="page-header">
+        <p class="overline green">ADMIN · OPERATIONS</p>
+        <h1>System health.</h1>
+        <p class="section-intro">Automation, persistence, requests, backups and migration readiness. The Isle server may be offline while these systems remain healthy.</p>
+      </section>
+
+      <section class="roster-section">
+        <div id="ops-guard"><p class="section-intro">Checking admin access…</p></div>
+        <div id="ops-content" hidden>
+          <div class="page-toolbar ops-toolbar">
+            <button class="small-button" id="ops-refresh">Refresh status</button>
+            <button class="small-button" id="ops-create-backup">Create backup</button>
+            <span id="ops-message"></span>
+          </div>
+
+          <div class="ops-summary-grid">
+            <div class="summary-tile"><small>AUTOMATION</small><b id="ops-automation">Checking…</b><span id="ops-automation-detail">—</span></div>
+            <div class="summary-tile"><small>ISLE SERVER</small><b id="ops-server">Checking…</b><span id="ops-server-detail">—</span></div>
+            <div class="summary-tile"><small>COMMAND BRIDGE</small><b id="ops-bridge">Checking…</b><span id="ops-bridge-detail">—</span></div>
+            <div class="summary-tile"><small>PENDING REQUESTS</small><b id="ops-pending">—</b><span id="ops-request-detail">—</span></div>
+            <div class="summary-tile"><small>MIGRATION STAGE</small><b id="ops-migration">—</b><span id="ops-migration-detail">—</span></div>
+            <div class="summary-tile"><small>BACKUPS</small><b id="ops-backups">—</b><span id="ops-backup-detail">—</span></div>
+            <div class="summary-tile"><small>ACTIVE PRESENCE</small><b id="ops-presence">—</b><span id="ops-presence-detail">—</span></div>
+            <div class="summary-tile"><small>24H AVAILABILITY</small><b id="ops-availability">—</b><span id="ops-health-detail">—</span></div>
+          </div>
+
+          <div class="ops-two-column">
+            <section class="ops-panel">
+              <div class="list-heading"><span>INTEGRATIONS</span><small>configuration state</small></div>
+              <div class="ops-check-list" id="ops-integrations"></div>
+            </section>
+            <section class="ops-panel">
+              <div class="list-heading"><span>MIGRATION READINESS</span><small id="ops-readiness-count">—</small></div>
+              <div class="ops-check-list" id="ops-readiness"></div>
+            </section>
+          </div>
+
+          <div class="ops-two-column">
+            <section class="ops-panel">
+              <div class="list-heading"><span>RECENT REQUESTS</span><small>BodyDrop + DinoStorage</small></div>
+              <div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Type</th><th>Status</th><th>Updated</th></tr></thead><tbody id="ops-requests"></tbody></table></div>
+            </section>
+            <section class="ops-panel">
+              <div class="list-heading"><span>RECENT AUDIT</span><small>operator + automation events</small></div>
+              <div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Category</th><th>Action</th><th>Time</th></tr></thead><tbody id="ops-audit"></tbody></table></div>
+            </section>
+          </div>
+        </div>
+      </section>
+    </main>
+    <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
+  </div>
+  <script src="/assets/common.js?v=13"></script>
+  <script src="/assets/adminoperations.js?v=1"></script>
+</body>
+</html>

@@ -359,6 +359,48 @@ function publishSkin({ presetId, price, description, published = true }) {
   });
 }
 
+function getAdminOperationsStatus({ force = false } = {}) {
+  return callAdmin(`/status${force ? '?force=1' : ''}`);
+}
+
+function getAdminAudit({ limit = 50, category = null } = {}) {
+  const params = new URLSearchParams();
+  params.set('limit', String(Math.max(1, Math.min(200, Number(limit) || 50))));
+  if (category) params.set('category', String(category));
+  return callAdmin(`/audit?${params.toString()}`);
+}
+
+function getAdminRequests({ limit = 50, kind = null } = {}) {
+  const params = new URLSearchParams();
+  params.set('limit', String(Math.max(1, Math.min(200, Number(limit) || 50))));
+  if (kind) params.set('kind', String(kind));
+  return callAdmin(`/requests?${params.toString()}`);
+}
+
+function getAdminPresence({ limit = 50, activeOnly = false } = {}) {
+  const params = new URLSearchParams();
+  params.set('limit', String(Math.max(1, Math.min(200, Number(limit) || 50))));
+  if (activeOnly) params.set('active', '1');
+  return callAdmin(`/presence?${params.toString()}`);
+}
+
+function getAdminMigrationReadiness() {
+  return callAdmin('/migration-readiness');
+}
+
+function getAdminBackupState() {
+  return callAdmin('/backups');
+}
+
+function createAdminBackup() {
+  return callAdmin('/backups', { method: 'POST' });
+}
+
+function getAdminServerHealth({ hours = 24 } = {}) {
+  const safeHours = Math.max(1, Math.min(24 * 31, Number(hours) || 24));
+  return callAdmin(`/server-health/analytics?hours=${safeHours}`);
+}
+
 function getAdminRestoreState() {
   return callAdmin('/dinostorage/admin-restore');
 }
@@ -411,6 +453,14 @@ module.exports = {
   buySkin,
   wearSkin,
   publishSkin,
+  getAdminOperationsStatus,
+  getAdminAudit,
+  getAdminRequests,
+  getAdminPresence,
+  getAdminMigrationReadiness,
+  getAdminBackupState,
+  createAdminBackup,
+  getAdminServerHealth,
   getAdminRestoreState,
   buildAdminRestoreJson,
   uploadAdminRestore,
