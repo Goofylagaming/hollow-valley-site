@@ -17,6 +17,7 @@ test("roadmap browser scripts parse", () => {
     "public/assets/skins.js",
     "public/assets/supporter.js",
     "public/assets/adminrestore.js",
+    "public/assets/admincomms.js",
     "public/assets/wallet.js",
     "public/assets/quests.js",
   ]) {
@@ -133,4 +134,17 @@ test("website server status reuses the automation snapshot instead of duplicate 
   assert.match(status, /source: automationConfigured\(\) \? "automation-cache" : "direct-rcon"/);
   assert.match(client, /function getServerSnapshot\(\)/);
   assert.match(client, /call\('\/server-snapshot'\)/);
+});
+
+test("admin Comms page is admin-only and uses server-side automation proxy", () => {
+  const html = read("public/admincomms.html");
+  const js = read("public/assets/admincomms.js");
+  const nav = read("public/partials/nav.html");
+  assert.match(nav, /id="admin-comms-nav" hidden/);
+  assert.match(html, /ADMIN · COMMS/);
+  assert.match(js, /\/api\/admin-comms/);
+  assert.equal(html.includes("HERBYBOT_AUTOMATION_TOKEN"), false);
+  assert.equal(js.includes("HERBYBOT_AUTOMATION_TOKEN"), false);
+  assert.equal(html.includes("AUTOMATION_ADMIN_TOKEN"), false);
+  assert.equal(js.includes("AUTOMATION_ADMIN_TOKEN"), false);
 });
