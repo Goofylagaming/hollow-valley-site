@@ -359,6 +359,42 @@ function publishSkin({ presetId, price, description, published = true }) {
   });
 }
 
+function getAdminDiscordState() {
+  return callAdmin('/discord');
+}
+
+function syncAdminDiscordStatus() {
+  return callAdmin('/discord/sync-status', { method: 'POST' });
+}
+
+function sendAdminDiscordAnnouncement(message) {
+  return callAdmin('/discord/announce', {
+    method: 'POST',
+    body: { message: String(message || '') },
+  });
+}
+
+function getAdminJobs() {
+  return callAdmin('/jobs');
+}
+
+function scheduleAdminDiscordAnnouncement({ message, runAt, recurrence = 'none' }) {
+  return callAdmin('/jobs/discord-announcement', {
+    method: 'POST',
+    body: {
+      message: String(message || ''),
+      runAt,
+      recurrence,
+    },
+  });
+}
+
+function cancelAdminJob(jobId) {
+  const id = String(jobId || '').trim();
+  if (!/^[A-Za-z0-9:_-]{8,128}$/.test(id)) throw new Error('Invalid scheduled job ID');
+  return callAdmin(`/jobs/${encodeURIComponent(id)}/cancel`, { method: 'POST' });
+}
+
 function getAdminRestoreState() {
   return callAdmin('/dinostorage/admin-restore');
 }
@@ -411,6 +447,12 @@ module.exports = {
   buySkin,
   wearSkin,
   publishSkin,
+  getAdminDiscordState,
+  syncAdminDiscordStatus,
+  sendAdminDiscordAnnouncement,
+  getAdminJobs,
+  scheduleAdminDiscordAnnouncement,
+  cancelAdminJob,
   getAdminRestoreState,
   buildAdminRestoreJson,
   uploadAdminRestore,
