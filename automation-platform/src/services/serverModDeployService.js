@@ -8,16 +8,16 @@ const CONFIRM_PHRASE = 'DEPLOY SERVER MODS';
 
 const APPROVED_MODS = Object.freeze([
   {
-    id: 'command-bridge',
-    name: 'CommandBridge',
-    source: path.resolve(__dirname, '..', '..', '..', 'server-mods', 'CommandBridge', 'Scripts', 'main.lua'),
-    relativeRemote: 'Mods/CommandBridge/Scripts/main.lua',
-  },
-  {
     id: 'skin-studio',
     name: 'SkinStudio',
     source: path.resolve(__dirname, '..', '..', '..', 'server-mods', 'SkinStudio', 'Scripts', 'main.lua'),
     relativeRemote: 'Mods/SkinStudio/Scripts/main.lua',
+  },
+  {
+    id: 'command-bridge',
+    name: 'CommandBridge',
+    source: path.resolve(__dirname, '..', '..', '..', 'server-mods', 'CommandBridge', 'Scripts', 'main.lua'),
+    relativeRemote: 'Mods/CommandBridge/Scripts/main.lua',
   },
 ]);
 
@@ -135,6 +135,16 @@ async function getServerModDeployState({ inspectRemote = true } = {}) {
     ftpError = error.message;
   }
 
+  let ue4ssRemotePath = null;
+  if (ftpConfigured) {
+    try {
+      ue4ssRemotePath = fileBridge.getUe4ssRemotePath();
+    } catch (error) {
+      ftpConfigured = false;
+      ftpError = error.message;
+    }
+  }
+
   const base = {
     enabled: deployEnabled(),
     ftpConfigured,
@@ -147,7 +157,7 @@ async function getServerModDeployState({ inspectRemote = true } = {}) {
       name: mod.name,
       localVersion: mod.version,
       localBytes: mod.bytes,
-      remotePath: remotePathFor(mod),
+      remotePath: ue4ssRemotePath ? `${ue4ssRemotePath}/${mod.relativeRemote}` : null,
       installed: null,
       remoteVersion: null,
       remoteBytes: null,
