@@ -152,18 +152,28 @@ test("admin operations page is admin-only and contains no automation admin token
   assert.equal(js.includes("AUTOMATION_ADMIN_TOKEN"), false);
 });
 
-test("leaderboard uses verified 31-day playtime while combat rankings remain unverified", () => {
+test("leaderboard uses only verified automation sources for playtime and combat", () => {
   const html = read("public/leaderboard.html");
   const js = read("public/assets/leaderboard.js");
   const route = read("server/routes/leaderboards.js");
   const client = read("server/services/automationWebsiteClient.js");
+  const websiteRoutes = read("automation-platform/src/routes/websiteRoutes.js");
+  const combat = read("automation-platform/src/services/combatEventService.js");
 
   assert.match(html, /Playtime · 31 days/);
   assert.match(html, /authoritative combat feed/);
   assert.match(js, /Verified minutes · 31 days/);
   assert.match(js, /Combat ranking unavailable/);
+  assert.match(js, /No verified combat events/);
   assert.match(route, /getPlaytimeLeaderboard/);
+  assert.match(route, /getCombatLeaderboard/);
+  assert.equal(route.includes("../db"), false);
+  assert.equal(route.includes("getLeaderboards"), false);
   assert.match(client, /leaderboards\/playtime/);
+  assert.match(client, /leaderboards\/combat/);
+  assert.match(websiteRoutes, /leaderboards\/combat/);
+  assert.match(combat, /COMBAT_FEED_ENABLED/);
+  assert.match(combat, /COMBAT_EVENT_CONFLICT/);
 });
 
 test("admin Comms page is admin-only and uses server-side automation proxy", () => {

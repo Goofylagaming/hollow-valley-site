@@ -173,6 +173,11 @@ function getPlaytimeLeaderboard({ hours = 24 * 31 } = {}) {
   return call(`/leaderboards/playtime?hours=${safeHours}`);
 }
 
+function getCombatLeaderboard({ hours = 24 * 31 } = {}) {
+  const safeHours = Math.max(1, Math.min(24 * 31, Number(hours) || 24 * 31));
+  return call(`/leaderboards/combat?hours=${safeHours}`);
+}
+
 function listMarketplaceCatalog() {
   return call('/marketplace/catalog');
 }
@@ -501,6 +506,7 @@ module.exports = {
   getEventRewards,
   getMapActivity,
   getPlaytimeLeaderboard,
+  getCombatLeaderboard,
   listMarketplaceCatalog,
   listMarketplaceOrders,
   purchaseMarketplaceItem,

@@ -16,6 +16,7 @@ const websiteDailyLoginRoutes = require('./routes/websiteDailyLoginRoutes');
 const herbyBotRoutes = require('./routes/herbyBotRoutes');
 const bodyDropRoutes = require('./routes/bodyDropRoutes');
 const dinoStorageRoutes = require('./routes/dinoStorageRoutes');
+const combatRoutes = require('./routes/combatRoutes');
 const { startBodyDropReconciler } = require('./services/bodyDropService');
 const { startDinoStorageReconciler, recoverInterruptedDinoStorage } = require('./services/dinoStorageService');
 const { startDinoMarketplaceReconciler } = require('./services/dinoMarketplaceService');
@@ -178,6 +179,7 @@ app.use('/api/herbybot', (_req, res, next) => {
 
 app.use('/api/bodydrop', bodyDropRoutes);
 app.use('/api/dinostorage', dinoStorageRoutes);
+app.use('/api/combat', combatRoutes);
 
 app.get('*', (_req, res) => {
   res.sendFile(path.join(publicDir, 'index.html'));
