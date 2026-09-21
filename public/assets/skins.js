@@ -18,6 +18,9 @@ let speciesList = [];
 let storeState = null;
 let mineState = null;
 let storedDinos = [];
+let externalQueue = [];
+
+const EXTERNAL_LIBRARY_RE = /^\[External Library:([^\]]+)\]\s*/;
 
 function requestKey(prefix) {
   const id = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -125,10 +128,26 @@ function swatches(skin) {
   ).join("");
 }
 
+function externalLibraryMeta(description) {
+  const text = String(description || "");
+  const match = EXTERNAL_LIBRARY_RE.exec(text);
+  return {
+    source: match?.[1] || null,
+    description: text.replace(EXTERNAL_LIBRARY_RE, "").trim(),
+  };
+}
+
+function externalLibraryDescription(source, description = "") {
+  const safeSource = String(source || "External").replace(/[\[\]]/g, "").trim().slice(0, 60) || "External";
+  const body = String(description || "").trim() || "Imported external skin draft.";
+  return `[External Library:${safeSource}] ${body}`.slice(0, 240);
+}
+
 function skinCard(preset, mode) {
-  const owned = Boolean(preset.owned || preset.isPremium || mode === "mine");
+  const owned = Boolean(preset.owned || preset.isPremium || mode === "mine" || mode === "library");
   const price = Number(preset.price) || 0;
-  const description = preset.description || (preset.published ? "Published Hollow Valley skin." : "Saved Skin Studio design.");
+  const externalMeta = externalLibraryMeta(preset.description);
+  const description = externalMeta.description || (preset.published ? "Published Hollow Valley skin." : "Saved Skin Studio design.");
   const ownerBadge = preset.owner_steam_id && me.user?.steam_id === preset.owner_steam_id ? "Creator" : "";
   const status = preset.published ? (preset.isPremium ? "Free" : `${price.toLocaleString()} VC`) : "Draft";
 
@@ -136,11 +155,14 @@ function skinCard(preset, mode) {
   if (mode === "store" && !owned) {
     actions.push(`<button class="small-button skin-buy" data-id="${preset.id}">Unlock · ${price.toLocaleString()} VC</button>`);
   }
-  if (owned) {
+  if (owned && mode !== "library") {
     actions.push(`<button class="small-button skin-wear" data-id="${preset.id}">Wear live</button>`);
     actions.push(`<button class="small-button skin-apply-stored" data-id="${preset.id}" data-species="${escapeHtml(preset.species)}">Apply to parked</button>`);
   }
-  if (mode === "mine" && me.user?.is_admin) {
+  if (mode === "library" && me.user?.is_admin) {
+    actions.push(`<button class="small-button skin-library-edit" data-id="${preset.id}">Open in Studio</button>`);
+  }
+  if ((mode === "mine" || mode === "library") && me.user?.is_admin) {
     actions.push(`<button class="small-button skin-publish" data-id="${preset.id}" data-price="${price}">${preset.published ? "Update shop" : "Publish"}</button>`);
   }
 
@@ -164,6 +186,7 @@ function skinCard(preset, mode) {
           <span>Theme ${Number(preset.skin?.themeIndex) || 0}</span>
           <span>Variation ${Number(preset.skin?.skinVariation) || 0}</span>
           ${ownerBadge ? `<span>${ownerBadge}</span>` : ""}
+          ${mode === "library" && externalMeta.source ? `<span>Source: ${escapeHtml(externalMeta.source)}</span>` : ""}
         </div>
         <div class="skin-card-code">${preset.share_code ? `Share: <strong>${escapeHtml(preset.share_code)}</strong>` : ""}</div>
         <div class="skin-card-actions">${actions.join("")}</div>
