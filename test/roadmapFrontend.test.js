@@ -18,6 +18,7 @@ test("roadmap browser scripts parse", () => {
     "public/assets/supporter.js",
     "public/assets/adminrestore.js",
     "public/assets/adminoperations.js",
+    "public/assets/admincomms.js",
     "public/assets/wallet.js",
     "public/assets/quests.js",
     "public/assets/leaderboard.js",
@@ -160,4 +161,17 @@ test("leaderboard uses verified 31-day playtime while combat rankings remain unv
   assert.match(js, /Combat ranking unavailable/);
   assert.match(route, /getPlaytimeLeaderboard/);
   assert.match(client, /leaderboards\/playtime/);
+});
+
+test("admin Comms page is admin-only and uses server-side automation proxy", () => {
+  const html = read("public/admincomms.html");
+  const js = read("public/assets/admincomms.js");
+  const nav = read("public/partials/nav.html");
+  assert.match(nav, /id="admin-comms-nav" hidden/);
+  assert.match(html, /ADMIN · COMMS/);
+  assert.match(js, /\/api\/admin-comms/);
+  assert.equal(html.includes("HERBYBOT_AUTOMATION_TOKEN"), false);
+  assert.equal(js.includes("HERBYBOT_AUTOMATION_TOKEN"), false);
+  assert.equal(html.includes("AUTOMATION_ADMIN_TOKEN"), false);
+  assert.equal(js.includes("AUTOMATION_ADMIN_TOKEN"), false);
 });
