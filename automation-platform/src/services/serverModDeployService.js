@@ -107,6 +107,16 @@ async function inspectRemoteMod(client, local) {
       };
     }
     const remoteVersion = parseModVersion(current.toString('utf8'), local.name);
+    let enabledMarker = false;
+    const modDirectory = directory.replace(/\/Scripts$/i, '');
+    await client.cd('/').catch(() => {});
+    try {
+      await client.cd(modDirectory);
+      enabledMarker = await remoteFileExists(client, 'enabled.txt');
+    } catch (error) {
+      if (!(fileBridge.isMissingFtpError(error) || Number(error?.code) === 550)) throw error;
+    }
+
     return {
       id: local.id,
       name: local.name,
@@ -114,6 +124,7 @@ async function inspectRemoteMod(client, local) {
       localBytes: local.bytes,
       remotePath,
       installed: true,
+      enabledMarker,
       remoteVersion,
       remoteBytes: current.length,
       current: remoteVersion === local.version && current.equals(local.content),
@@ -161,6 +172,7 @@ async function getServerModDeployState({ inspectRemote = true } = {}) {
       installed: null,
       remoteVersion: null,
       remoteBytes: null,
+      enabledMarker: null,
       current: null,
     })),
   };
@@ -223,6 +235,15 @@ async function deployOne(client, local) {
       throw error;
     }
 
+    await client.cd('/').catch(() => {});
+    const modDirectory = directory.replace(/\/Scripts$/i, '');
+    await client.ensureDir(modDirectory);
+    let enabledMarkerCreated = false;
+    if (!await remoteFileExists(client, 'enabled.txt')) {
+      await client.uploadFrom(Readable.from([Buffer.alloc(0)]), 'enabled.txt');
+      enabledMarkerCreated = true;
+    }
+
     return {
       id: local.id,
       name: local.name,
@@ -232,6 +253,7 @@ async function deployOne(client, local) {
       installedNew: !existing,
       previousVersion,
       backupPath: existing ? `${directory}/${backupName}` : null,
+      enabledMarkerCreated,
     };
   } finally {
     if (tempExists) await client.remove(tempName).catch(() => {});
