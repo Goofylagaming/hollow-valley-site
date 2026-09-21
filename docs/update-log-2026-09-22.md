@@ -59,3 +59,14 @@
 - Continue combat/stat feed integration once an authoritative server feed is available.
 - Continue dashboard and admin UX cleanup.
 - Continue hosting-migration readiness work independently of the current Isle server being online.
+
+- Added and merged PR #72: Admin **Deploy Server Mods** control.
+  - Added to Admin → Operations with live version inspection.
+  - Uses the automation service's existing VeryGames FTP connection; browser never receives FTP credentials.
+  - Approved deployment list currently contains SkinStudio v002 and CommandBridge v006.1 only.
+  - Installs SkinStudio before CommandBridge so a partial failure cannot activate a bridge route with no skin handler.
+  - Creates missing UE4SS mod/Scripts folders and safe enabled.txt markers without editing shared mods.txt.
+  - Stages and byte-verifies uploads, timestamp-backs up replaced main.lua files, and rolls back failed replacements.
+  - Never writes to mod Saved/ folders.
+  - Requires admin authentication, automation admin token, exact deployment confirmation, and SERVER_MOD_DEPLOY_ENABLED=true.
+  - Automation Platform Tests, Website Automation Regression Tests, Validate Skin Studio, and Membership Tests all passed before merge.
