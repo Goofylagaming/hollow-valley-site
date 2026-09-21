@@ -17,6 +17,7 @@ let me = { loggedIn: false, user: null };
 let speciesList = [];
 let storeState = null;
 let mineState = null;
+let storedDinos = [];
 
 function requestKey(prefix) {
   const id = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -137,7 +138,7 @@ function skinCard(preset, mode) {
   }
   if (owned) {
     actions.push(`<button class="small-button skin-wear" data-id="${preset.id}">Wear live</button>`);
-    actions.push(`<button class="small-button skin-apply-stored" data-id="${preset.id}">Apply to parked</button>`);
+    actions.push(`<button class="small-button skin-apply-stored" data-id="${preset.id}" data-species="${escapeHtml(preset.species)}">Apply to parked</button>`);
   }
   if (mode === "mine" && me.user?.is_admin) {
     actions.push(`<button class="small-button skin-publish" data-id="${preset.id}" data-price="${price}">${preset.published ? "Update shop" : "Publish"}</button>`);
@@ -161,6 +162,7 @@ function skinCard(preset, mode) {
         <div class="skin-card-meta">
           <span>Pattern ${Number(preset.skin?.patternIndex) || 0}</span>
           <span>Theme ${Number(preset.skin?.themeIndex) || 0}</span>
+          <span>Variation ${Number(preset.skin?.skinVariation) || 0}</span>
           ${ownerBadge ? `<span>${ownerBadge}</span>` : ""}
         </div>
         <div class="skin-card-code">${preset.share_code ? `Share: <strong>${escapeHtml(preset.share_code)}</strong>` : ""}</div>
@@ -204,6 +206,14 @@ function wireCardActions(root) {
   root.querySelectorAll(".skin-apply-stored").forEach((button) => button.addEventListener("click", async () => {
     const slot = document.getElementById("skin-stored-slot").value;
     if (!slot) return showAlert("Choose a parked dino slot under My Skins first.", "warning");
+
+    const selectedDino = storedDinos.find((dino) => String(dino.slot || dino.name || "") === slot);
+    const presetSpecies = String(button.dataset.species || "").trim();
+    const dinoSpecies = String(selectedDino?.species || selectedDino?.speciesId || "").trim();
+    if (presetSpecies && dinoSpecies && presetSpecies.toLowerCase() !== dinoSpecies.toLowerCase()) {
+      return showAlert(`This skin is for ${presetSpecies}, but the selected parked dinosaur is ${dinoSpecies}.`, "warning");
+    }
+
     button.disabled = true;
     try {
       await api(`/api/skins/${button.dataset.id}/apply`, {
@@ -285,12 +295,14 @@ async function loadStoredSlots() {
   if (!me.loggedIn || !me.user?.steam_id) return;
   try {
     const dinos = await api("/api/mydinos");
-    select.innerHTML = '<option value="">Parked dino slot (optional)</option>' + (dinos || []).map((dino) => {
+    storedDinos = Array.isArray(dinos) ? dinos : [];
+    select.innerHTML = '<option value="">Parked dino slot (optional)</option>' + storedDinos.map((dino) => {
       const slot = dino.slot || dino.name || "";
       const label = dino.species || dino.speciesId || dino.classPath || "Stored dino";
       return `<option value="${escapeHtml(slot)}">${escapeHtml(label)} · ${escapeHtml(slot)}</option>`;
     }).join("");
   } catch {
+    storedDinos = [];
     select.innerHTML = '<option value="">Parked dinos unavailable</option>';
   }
 }

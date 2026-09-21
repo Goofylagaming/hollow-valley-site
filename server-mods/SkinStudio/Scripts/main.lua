@@ -1,9 +1,9 @@
--- SkinStudio v001
+-- SkinStudio v002
 -- Hollow Valley live skin application + reconnect persistence.
 -- Commands arrive from CommandBridge as inbox.ndjson records.
 
 local MOD_NAME = "SkinStudio"
-local MOD_VERSION = "v001"
+local MOD_VERSION = "v002"
 
 local SAVED_DIR = "Mods/SkinStudio/Saved"
 local INBOX_PATH = SAVED_DIR .. "/inbox.ndjson"
@@ -30,6 +30,14 @@ local function readAll(path)
     local body = f:read("*a")
     f:close()
     return body
+end
+
+local function writeAll(path, body)
+    local f = io.open(path, "wb")
+    if f == nil then return false end
+    f:write(body or "")
+    f:close()
+    return true
 end
 
 local function appendLine(path, line)
@@ -229,42 +237,92 @@ end
 local profiles = {}
 local profileArgs = {}
 local lastPawnAddress = {}
+local lastProfileSpecies = {}
 
-local function profileLine(steam, args)
+local function profileSpeciesKey(species)
+    return tostring(species or ""):lower()
+end
+
+local function ensureProfileBucket(steam)
+    profiles[steam] = profiles[steam] or {}
+    profileArgs[steam] = profileArgs[steam] or {}
+    return profiles[steam], profileArgs[steam]
+end
+
+local function setProfile(steam, args, config)
+    local key = profileSpeciesKey(config and config.species)
+    if key == "" then return false end
+    local bucket, argBucket = ensureProfileBucket(steam)
+    bucket[key] = config
+    argBucket[key] = args
+    return true
+end
+
+local function profileLine(steam, args, config)
     local parts = {}
     for i, token in ipairs(args or {}) do
         parts[i] = '"' .. jsonEscape(token) .. '"'
     end
     return string.format(
-        '{"steam":"%s","tokens":[%s]}',
+        '{"steam":"%s","species":"%s","tokens":[%s]}',
         jsonEscape(steam),
+        jsonEscape(config and config.species or ""),
         table.concat(parts, ",")
     )
 end
 
+local function persistProfiles()
+    local lines = {}
+    local steamIds = {}
+    for steam, _ in pairs(profiles) do table.insert(steamIds, steam) end
+    table.sort(steamIds)
+
+    for _, steam in ipairs(steamIds) do
+        local speciesKeys = {}
+        for species, _ in pairs(profiles[steam] or {}) do table.insert(speciesKeys, species) end
+        table.sort(speciesKeys)
+
+        for _, species in ipairs(speciesKeys) do
+            local config = profiles[steam][species]
+            local args = profileArgs[steam] and profileArgs[steam][species] or {}
+            table.insert(lines, profileLine(steam, args, config))
+        end
+    end
+
+    local body = table.concat(lines, "\n")
+    if body ~= "" then body = body .. "\n" end
+    return writeAll(PROFILES_PATH, body)
+end
+
 local function rememberProfile(steam, args, config)
-    profiles[steam] = config
-    profileArgs[steam] = args
-    appendLine(PROFILES_PATH, profileLine(steam, args))
+    if not setProfile(steam, args, config) then return false end
+    if not persistProfiles() then
+        log("WARNING: could not persist skin profiles")
+        return false
+    end
+    return true
 end
 
 local function loadProfiles()
     local body = readAll(PROFILES_PATH)
     if body == nil or body == "" then return end
-    local count = 0
+    local records = 0
     for line in string.gmatch(body .. "\n", "([^\r\n]+)\r?\n") do
         local steam = jsonReadString(line, "steam")
         local args = jsonReadStringArray(line, "tokens")
         if steam and steam:match("^%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d$") then
             local config = parseTokens(args)
-            if config ~= nil then
-                profiles[steam] = config
-                profileArgs[steam] = args
-                count = count + 1
+            if config ~= nil and setProfile(steam, args, config) then
+                records = records + 1
             end
         end
     end
-    log("Loaded " .. tostring(count) .. " persisted skin profile record(s)")
+
+    local unique = 0
+    for _, bucket in pairs(profiles) do
+        for _, _ in pairs(bucket) do unique = unique + 1 end
+    end
+    log("Loaded " .. tostring(unique) .. " persisted species skin profile(s) from " .. tostring(records) .. " record(s)")
 end
 
 local function emitResult(id, steam, ok, msg)
@@ -318,6 +376,7 @@ local function processLine(line)
                 local addr
                 pcall(function() addr = pawn:GetAddress() end)
                 lastPawnAddress[steam] = addr
+                lastProfileSpecies[steam] = profileSpeciesKey(config.species)
             end
         end
         safeNotify(steam, "Hollow Valley skin equipped: " .. tostring(config.preset ~= "" and config.preset or "custom skin"))
@@ -341,26 +400,43 @@ local function pollInbox()
     os.remove(stash)
 end
 
+local function matchingProfileForPawn(steam, pawn)
+    for species, config in pairs(profiles[steam] or {}) do
+        if speciesMatches(pawn, config.species) then
+            return config, species
+        end
+    end
+    return nil, nil
+end
+
 local function reapplyProfiles()
     local gm = findGameMode()
     if gm == nil then return end
 
-    for steam, config in pairs(profiles) do
+    for steam, _ in pairs(profiles) do
         local ctrl
         pcall(function() ctrl = gm:GetControllerBySteamId(steam) end)
         local pawn = livePawnFromCtrl(ctrl)
-        if pawn ~= nil and speciesMatches(pawn, config.species) then
-            local addr
-            pcall(function() addr = pawn:GetAddress() end)
-            if addr ~= nil and addr ~= lastPawnAddress[steam] then
-                local ok = applyConfigToPawn(pawn, config)
-                if ok then
-                    lastPawnAddress[steam] = addr
-                    safeNotify(steam, "Your Hollow Valley skin was restored.")
+        if pawn ~= nil then
+            local config, speciesKey = matchingProfileForPawn(steam, pawn)
+            if config ~= nil then
+                local addr
+                pcall(function() addr = pawn:GetAddress() end)
+                if addr ~= nil and (addr ~= lastPawnAddress[steam] or speciesKey ~= lastProfileSpecies[steam]) then
+                    local ok = applyConfigToPawn(pawn, config)
+                    if ok then
+                        lastPawnAddress[steam] = addr
+                        lastProfileSpecies[steam] = speciesKey
+                        safeNotify(steam, "Your Hollow Valley " .. tostring(config.species) .. " skin was restored.")
+                    end
                 end
+            else
+                lastPawnAddress[steam] = nil
+                lastProfileSpecies[steam] = nil
             end
         else
             lastPawnAddress[steam] = nil
+            lastProfileSpecies[steam] = nil
         end
     end
 end

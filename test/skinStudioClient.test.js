@@ -63,3 +63,23 @@ test("Skin Studio website client targets automation skin endpoints", async (t) =
   assert.equal(calls[2].url, "https://automation.example.test/api/website/skins/preset-12345678/wear");
   assert.equal(calls[2].options.headers.Authorization, "Bearer test-token");
 });
+
+
+test("Skin Studio v002 keeps reconnect profiles per species and blocks obvious parked-dino mismatches", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const lua = fs.readFileSync(path.join(__dirname, "..", "server-mods", "SkinStudio", "Scripts", "main.lua"), "utf8");
+  const browser = fs.readFileSync(path.join(__dirname, "..", "public", "assets", "skins.js"), "utf8");
+
+  assert.match(lua, /SkinStudio v002/);
+  assert.match(lua, /profiles\[steam\] = profiles\[steam\] or \{\}/);
+  assert.match(lua, /profileSpeciesKey/);
+  assert.match(lua, /matchingProfileForPawn/);
+  assert.match(lua, /persistProfiles/);
+  assert.match(lua, /Your Hollow Valley .* skin was restored/);
+
+  assert.match(browser, /data-species=/);
+  assert.match(browser, /storedDinos\.find/);
+  assert.match(browser, /presetSpecies\.toLowerCase\(\) !== dinoSpecies\.toLowerCase\(\)/);
+  assert.match(browser, /Variation \$\{Number\(preset\.skin\?\.skinVariation\)/);
+});
