@@ -111,6 +111,70 @@ function render(data) {
   }
 }
 
+function renderServerMods(payload) {
+  const state = payload?.serverMods || {};
+  const host = document.getElementById("ops-server-mods");
+  const button = document.getElementById("ops-deploy-server-mods");
+  const message = document.getElementById("ops-server-mods-message");
+  const mods = Array.isArray(state.mods) ? state.mods : [];
+
+  if (host) {
+    host.innerHTML = mods.length ? mods.map((mod) => {
+      const installed = mod.installed === true;
+      const current = mod.current === true;
+      const ready = installed && current;
+      const remoteLabel = installed
+        ? (mod.remoteVersion || "unknown version")
+        : mod.installed === false ? "not installed" : "not checked";
+      const detail = current
+        ? `Live ${remoteLabel} · matches ${mod.localVersion || "approved build"}`
+        : `Live: ${remoteLabel} · deploy: ${mod.localVersion || "approved build"}`;
+      return `<div class="ops-readiness-row ${ready ? "ready" : "attention"}">
+        <span class="status-dot"></span>
+        <div><b>${escapeHtml(mod.name || mod.id || "Server mod")}</b><small>${escapeHtml(detail)}</small></div>
+        <em>${current ? "Current" : installed ? "Update" : "Install"}</em>
+      </div>`;
+    }).join("") : '<div class="ops-empty-block">No approved server mods are configured.</div>';
+  }
+
+  const deployReady = Boolean(state.enabled && state.ftpConfigured && state.connected !== false && mods.length);
+  if (button) {
+    button.disabled = !deployReady;
+    button.title = !state.enabled
+      ? "Set SERVER_MOD_DEPLOY_ENABLED=true on the automation service first."
+      : !state.ftpConfigured
+        ? "VeryGames FTP is not configured on the automation service."
+        : state.connected === false
+          ? "The automation service could not connect to VeryGames FTP."
+          : "";
+  }
+
+  if (message) {
+    if (!state.enabled) message.textContent = "Deployment locked by SERVER_MOD_DEPLOY_ENABLED.";
+    else if (!state.ftpConfigured) message.textContent = state.ftpError || "VeryGames FTP is not configured.";
+    else if (state.connected === false) message.textContent = state.ftpError || "VeryGames FTP connection failed.";
+    else if (mods.length && mods.every((mod) => mod.current === true)) message.textContent = "Live server mods match the approved build.";
+    else message.textContent = "Install/update available. Saved folders will be preserved.";
+  }
+}
+
+async function loadServerMods() {
+  const refresh = document.getElementById("ops-refresh-server-mods");
+  const message = document.getElementById("ops-server-mods-message");
+  if (refresh) refresh.disabled = true;
+  if (message) message.textContent = "Checking VeryGames…";
+  try {
+    const data = await api("/api/admin-operations/server-mods");
+    renderServerMods(data);
+  } catch (error) {
+    if (message) message.textContent = error.message || "Could not inspect live server mods.";
+    const button = document.getElementById("ops-deploy-server-mods");
+    if (button) button.disabled = true;
+  } finally {
+    if (refresh) refresh.disabled = false;
+  }
+}
+
 async function loadOperations({ force = false } = {}) {
   const message = document.getElementById("ops-message");
   const refresh = document.getElementById("ops-refresh");
@@ -128,7 +192,37 @@ async function loadOperations({ force = false } = {}) {
   }
 }
 
-document.getElementById("ops-refresh")?.addEventListener("click", () => loadOperations({ force: true }));
+document.getElementById("ops-refresh")?.addEventListener("click", () => {
+  loadOperations({ force: true });
+  loadServerMods();
+});
+document.getElementById("ops-refresh-server-mods")?.addEventListener("click", loadServerMods);
+
+document.getElementById("ops-deploy-server-mods")?.addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  const message = document.getElementById("ops-server-mods-message");
+  const approved = window.confirm(
+    "Deploy the approved Hollow Valley CommandBridge and SkinStudio scripts to VeryGames now?\n\n" +
+    "Existing main.lua files will receive timestamped backups. Saved/ folders and configs will not be touched. " +
+    "A game-server restart is required before newly installed mods become active."
+  );
+  if (!approved) return;
+
+  button.disabled = true;
+  button.textContent = "Deploying…";
+  if (message) message.textContent = "Uploading approved server mods through automation FTP…";
+  try {
+    const result = await api("/api/admin-operations/server-mods/deploy", { method: "POST" });
+    const deployed = result.deployment?.deployed || [];
+    const summary = deployed.map((mod) => `${mod.name} ${mod.version}`).join(" · ");
+    if (message) message.textContent = `Deployment complete: ${summary || "approved server mods"}. Restart required.`;
+    await loadServerMods();
+  } catch (error) {
+    if (message) message.textContent = error.message || "Server mod deployment failed.";
+  } finally {
+    button.textContent = "Deploy Server Mods →";
+  }
+});
 
 document.getElementById("ops-create-backup")?.addEventListener("click", async (event) => {
   const button = event.currentTarget;
@@ -165,7 +259,7 @@ async function init() {
 
   guard.hidden = true;
   content.hidden = false;
-  await loadOperations();
+  await Promise.all([loadOperations(), loadServerMods()]);
 }
 
 init();
