@@ -15,6 +15,7 @@ const parkedDinoMutations = require('../services/parkedDinoMutationService');
 const skinPresets = require('../services/skinPresetService');
 const skinWear = require('../services/skinWearService');
 const officialMarketplaceFulfillment = require('../services/officialMarketplaceFulfillmentService');
+const playerPresence = require('../services/playerPresenceService');
 
 const router = express.Router();
 router.use(requireWebsiteToken);
@@ -109,6 +110,52 @@ router.get('/quests/:steamId', (req, res) => {
     });
   } catch (error) {
     res.status(400).json({ error: error.message || 'Unable to read playtime quests.' });
+  }
+});
+
+router.get('/map/activity', (req, res) => {
+  try {
+    const hours = Math.max(1, Math.min(24 * 31, Number(req.query.hours) || 24));
+    const analytics = playerPresence.getPresenceAnalytics({ hours });
+    const samples = playerPresence.listPresenceSamples({ hours, limit: 5000 });
+    const lastSample = samples.at(-1) || null;
+    res.json({
+      trackingEnabled: analytics.enabled,
+      hours: analytics.hours,
+      sampleCount: analytics.sampleCount,
+      uniquePlayers: analytics.uniquePlayers,
+      sessions: analytics.sessions,
+      averageOnline: analytics.averageOnline,
+      peakConcurrent: analytics.peakConcurrent,
+      topSpecies: analytics.topSpecies || [],
+      activityTrend: analytics.activityTrend || [],
+      lastVerifiedAt: lastSample?.sampledAt || null,
+      windowStart: analytics.windowStart,
+      windowEnd: analytics.windowEnd,
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Unable to read map activity history.' });
+  }
+});
+
+router.get('/leaderboards/playtime', (req, res) => {
+  try {
+    const hours = Math.max(1, Math.min(24 * 31, Number(req.query.hours) || 24 * 31));
+    const analytics = playerPresence.getPresenceAnalytics({ hours });
+    const players = (analytics.topPlayers || []).map((player) => ({
+      username: player.name || 'Unknown',
+      playtime_minutes: Number(player.trackedMinutes || 0),
+      sessions: Number(player.sessions || 0),
+    }));
+    res.json({
+      windowHours: analytics.hours,
+      windowStart: analytics.windowStart,
+      windowEnd: analytics.windowEnd,
+      trackingEnabled: analytics.enabled,
+      players,
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Unable to read playtime leaderboard.' });
   }
 });
 
