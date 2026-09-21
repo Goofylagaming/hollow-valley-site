@@ -113,3 +113,38 @@ test("admin event reward route proxies validated browser payload server-to-serve
     baseAmount: 200,
   });
 });
+
+
+test("website event calendar reads HerbyBot-synced automation events without a Discord bot token", async (t) => {
+  const original = automation.getDiscordScheduledEvents;
+  automation.getDiscordScheduledEvents = async () => ({
+    configured: true,
+    stale: false,
+    syncedAt: "2026-09-21T09:30:00.000Z",
+    ageSeconds: 15,
+    events: [{
+      id: "1540359454627725398",
+      guildId: "1540359454627725387",
+      title: "Migration Night",
+      startTime: "2026-09-22T09:00:00.000Z",
+      attendees: 17,
+      url: "https://discord.com/events/1540359454627725387/1540359454627725398",
+    }],
+  });
+  t.after(() => { automation.getDiscordScheduledEvents = original; });
+
+  const server = await listen(appFor(null));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const response = await fetch(`${base(server)}/api/events`);
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.configured, true);
+  assert.equal(body.stale, false);
+  assert.equal(body.events[0].title, "Migration Night");
+
+  const source = require("node:fs").readFileSync(require("node:path").join(__dirname, "..", "server", "routes", "events.js"), "utf8");
+  assert.equal(source.includes("DISCORD_BOT_TOKEN"), false);
+  assert.equal(source.includes("discord.com/api"), false);
+  assert.match(source, /getDiscordScheduledEvents/);
+});
