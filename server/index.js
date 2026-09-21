@@ -5,6 +5,7 @@ const session = require("express-session");
 
 const { db } = require("./db");
 const { SqliteSessionStore } = require("./sessionStore");
+const { requireAdmin } = require("./middleware/requireAuth");
 const authRouter = require("./auth");
 const authSteamRouter = require("./authSteam");
 const speciesRouter = require("./routes/species");
@@ -173,10 +174,23 @@ function createApp() {
   app.all("/api/parked", parkedHandler);
   app.all("/api/admin", adminHandler);
 
-  const PAGE_ROUTES = ["dashboard", "wallet", "quests", "mydinos", "bodydrop", "marketplace", "livemap", "leaderboard", "supporter", "events", "adminrestore"];
+  const PAGE_ROUTES = ["dashboard", "wallet", "quests", "mydinos", "bodydrop", "marketplace", "livemap", "leaderboard", "supporter", "events"];
   for (const page of PAGE_ROUTES) {
     app.get(`/${page}`, (req, res) => {
       res.sendFile(path.join(__dirname, "..", "public", `${page}.html`));
+    });
+  }
+
+  const ADMIN_PAGE_ROUTES = {
+    admin: "admin.html",
+    adminoperations: "adminoperations.html",
+    admincomms: "admincomms.html",
+    adminrestore: "adminrestore.html",
+  };
+  for (const [route, file] of Object.entries(ADMIN_PAGE_ROUTES)) {
+    app.get([`/${route}`, `/${route}.html`], requireAdmin, (_req, res) => {
+      res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
+      res.sendFile(path.join(__dirname, "..", "public", file));
     });
   }
 
