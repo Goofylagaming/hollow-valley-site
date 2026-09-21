@@ -37,6 +37,17 @@
             <div class="summary-tile"><small>24H AVAILABILITY</small><b id="ops-availability">—</b><span id="ops-health-detail">—</span></div>
           </div>
 
+          <section class="ops-panel">
+            <div class="list-heading"><span>SERVER MOD DEPLOYMENT</span><small>approved UE4SS scripts only</small></div>
+            <p class="section-intro">Deploy the current Hollow Valley CommandBridge and SkinStudio scripts through the automation service's existing VeryGames FTP connection. Saved data and configuration folders are never replaced.</p>
+            <div class="page-toolbar ops-toolbar">
+              <button class="primary-button green" id="ops-deploy-server-mods" type="button" disabled>Deploy Server Mods <b>→</b></button>
+              <button class="small-button" id="ops-refresh-server-mods" type="button">Check live versions</button>
+              <span id="ops-server-mods-message">Checking deployment state…</span>
+            </div>
+            <div class="ops-check-list" id="ops-server-mods"></div>
+          </section>
+
           <div class="ops-two-column">
             <section class="ops-panel">
               <div class="list-heading"><span>INTEGRATIONS</span><small>configuration state</small></div>
@@ -64,6 +75,6 @@
     <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="/assets/common.js?v=16"></script>
-  <script src="/assets/adminoperations.js?v=1"></script>
+  <script src="/assets/adminoperations.js?v=2"></script>
 </body>
 </html>
