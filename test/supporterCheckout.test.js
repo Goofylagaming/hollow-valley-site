@@ -87,11 +87,11 @@ test('HTTP routes enforce auth, ignore browser price/user fields, and preserve c
   t.after(() => { global.fetch = originalFetch; for (const key of Object.keys(env)) { if (oldEnv[key] === undefined) delete process.env[key]; else process.env[key] = oldEnv[key]; } });
   const express = require('express');
   const { db } = require('../server/db');
-  db.prepare('INSERT INTO users (id, username) VALUES (42, ?)').run('checkout-test');
+  db.prepare('INSERT INTO users (id, steam_id, username) VALUES (42, ?, ?)').run('76561198000000042', 'checkout-test');
   const router = require('../server/routes/supporter');
   const app = express();
   app.use(express.json());
-  app.use((req, res, next) => { if (req.headers['x-test-auth'] === 'yes') req.user = { id: 42 }; next(); });
+  app.use((req, res, next) => { if (req.headers['x-test-auth'] === 'yes') req.user = { id: 42, steam_id: '76561198000000042' }; next(); });
   app.use('/api/supporter', router);
   const server = await new Promise(resolve => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
   t.after(() => new Promise(resolve => server.close(resolve)));

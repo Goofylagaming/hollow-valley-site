@@ -19,6 +19,17 @@ const {
 
 const router = express.Router();
 
+function requireSteamLink(req, res) {
+  if (!req.user?.steam_id) {
+    res.status(409).json({
+      error: "Link your Steam account before starting or changing a Hollow Valley membership.",
+      code: "STEAM_LINK_REQUIRED",
+    });
+    return false;
+  }
+  return true;
+}
+
 function hasExistingStripeSubscription(status) {
   return Boolean(
     status?.stripe_subscription_id &&
@@ -78,6 +89,7 @@ router.post("/reconcile", requireAuth, async (req, res) => {
 });
 
 router.post("/:tier/checkout", requireAuth, async (req, res) => {
+  if (!requireSteamLink(req, res)) return;
   const status = getSupporterStatus(req.user.id);
   if (hasExistingStripeSubscription(status)) {
     return res.status(409).json({
@@ -99,6 +111,7 @@ router.post("/:tier/checkout", requireAuth, async (req, res) => {
 });
 
 router.post("/:tier/change", requireAuth, async (req, res) => {
+  if (!requireSteamLink(req, res)) return;
   const status = getSupporterStatus(req.user.id);
   if (!hasExistingStripeSubscription(status)) {
     return res.status(409).json({ error: "No active Stripe membership was found to change." });

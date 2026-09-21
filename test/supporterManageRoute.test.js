@@ -14,7 +14,7 @@ test("existing Stripe membership blocks duplicate checkout at the HTTP route", a
   const router = require("../server/routes/supporter");
 
   db.exec("DELETE FROM supporter_subscriptions; DELETE FROM users;");
-  db.prepare("INSERT INTO users (id, username) VALUES (42, ?)").run("route-test");
+  db.prepare("INSERT INTO users (id, steam_id, username) VALUES (42, ?, ?)").run("76561198000000042", "route-test");
   db.prepare(
     "INSERT INTO supporter_subscriptions (user_id, tier, auto_renew, stripe_subscription_id, stripe_status) VALUES (?, ?, 1, ?, ?)"
   ).run(42, "member", "sub_test_42", "active");
@@ -22,7 +22,7 @@ test("existing Stripe membership blocks duplicate checkout at the HTTP route", a
   const app = express();
   app.use(express.json());
   app.use((req, res, next) => {
-    if (req.headers["x-test-auth"] === "yes") req.user = { id: 42 };
+    if (req.headers["x-test-auth"] === "yes") req.user = { id: 42, steam_id: "76561198000000042" };
     next();
   });
   app.use("/api/supporter", router);
@@ -47,4 +47,43 @@ test("existing Stripe membership blocks duplicate checkout at the HTTP route", a
   assert.equal(response.status, 409);
   const payload = await response.json();
   assert.match(payload.error, /already have a Stripe membership/i);
+});
+
+
+test("membership checkout and tier changes require a linked Steam account", async (t) => {
+  const express = require("express");
+  const { db } = require("../server/db");
+  const router = require("../server/routes/supporter");
+
+  db.exec("DELETE FROM supporter_subscriptions; DELETE FROM users;");
+  db.prepare("INSERT INTO users (id, username) VALUES (77, ?)").run("steam-link-required");
+  db.prepare(
+    "INSERT INTO supporter_subscriptions (user_id, tier, auto_renew, stripe_subscription_id, stripe_status) VALUES (?, ?, 1, ?, ?)"
+  ).run(77, "supporter", "sub_test_77", "active");
+
+  const app = express();
+  app.use(express.json());
+  app.use((req, _res, next) => {
+    if (req.headers["x-test-auth"] === "yes") req.user = { id: 77, steam_id: null };
+    next();
+  });
+  app.use("/api/supporter", router);
+
+  const server = await new Promise((resolve) => {
+    const instance = app.listen(0, "127.0.0.1", () => resolve(instance));
+  });
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const base = "http://127.0.0.1:" + server.address().port;
+
+  for (const path of ["/api/supporter/legend/checkout", "/api/supporter/guardian/change"]) {
+    const response = await fetch(base + path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-test-auth": "yes" },
+      body: "{}",
+    });
+    assert.equal(response.status, 409, path);
+    const payload = await response.json();
+    assert.equal(payload.code, "STEAM_LINK_REQUIRED");
+    assert.match(payload.error, /link your Steam account/i);
+  }
 });
