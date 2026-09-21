@@ -11,6 +11,7 @@ on:
       - 'public/assets/supporter.js'
       - 'test/supporter*.test.js'
       - 'test/discordMembership.test.js'
+      - 'test/discordEvents.test.js'
       - 'test/adminRestoreRoute.test.js'
       - 'test/adminOperationsRoute.test.js'
       - 'test/roadmapFrontend.test.js'
@@ -49,4 +50,4 @@ jobs:
       - name: Install dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Run membership tests
-        run: node --test test/supporterCheckout.test.js test/supporterWebhook.test.js test/supporterManage.test.js test/supporterManageRoute.test.js test/supporterReconcile.test.js test/discordMembership.test.js test/adminRestoreRoute.test.js test/adminOperationsRoute.test.js test/roadmapFrontend.test.js test/supporterInternalRoute.test.js
+        run: node --test test/supporterCheckout.test.js test/supporterWebhook.test.js test/supporterManage.test.js test/supporterManageRoute.test.js test/supporterReconcile.test.js test/discordMembership.test.js test/discordEvents.test.js test/adminRestoreRoute.test.js test/adminOperationsRoute.test.js test/roadmapFrontend.test.js test/supporterInternalRoute.test.js
