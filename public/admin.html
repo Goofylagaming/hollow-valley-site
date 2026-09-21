@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Hollow Valley administration hub.">
+  <title>Admin Hub | Hollow Valley</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=21">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main>
+      <section class="page-header">
+        <p class="overline green">HOLLOW VALLEY · ADMIN</p>
+        <h1>Admin hub.</h1>
+        <p class="section-intro">One place to see automation health and jump into operations, communications, event rewards, restores and Skin Studio.</p>
+      </section>
+
+      <section class="roster-section">
+        <div id="admin-hub-guard"><p class="section-intro">Checking admin access…</p></div>
+        <div id="admin-hub-content" hidden>
+          <div class="page-toolbar admin-hub-toolbar">
+            <button class="small-button" id="admin-hub-refresh">Refresh overview</button>
+            <span id="admin-hub-updated">Loading…</span>
+          </div>
+
+          <div class="admin-hub-status-grid">
+            <div class="summary-tile"><small>AUTOMATION</small><b id="hub-automation">Checking…</b><span id="hub-automation-detail">—</span></div>
+            <div class="summary-tile"><small>ISLE SERVER</small><b id="hub-server">Checking…</b><span id="hub-server-detail">—</span></div>
+            <div class="summary-tile"><small>HERBYBOT</small><b id="hub-herbybot">Checking…</b><span id="hub-herbybot-detail">—</span></div>
+            <div class="summary-tile"><small>EVENT REWARDS</small><b id="hub-event-rewards">Checking…</b><span id="hub-event-detail">—</span></div>
+            <div class="summary-tile"><small>BACKUPS</small><b id="hub-backups">Checking…</b><span id="hub-backup-detail">—</span></div>
+            <div class="summary-tile"><small>ADMIN RESTORE</small><b id="hub-restore">Checking…</b><span id="hub-restore-detail">—</span></div>
+          </div>
+
+          <div class="admin-hub-grid">
+            <a class="admin-hub-card" href="/adminoperations">
+              <span class="admin-hub-icon">◉</span>
+              <div><small>OPERATIONS</small><h2>System health</h2><p>Automation status, backups, request queues, audit history and migration readiness.</p></div>
+              <b>→</b>
+            </a>
+            <a class="admin-hub-card" href="/admincomms">
+              <span class="admin-hub-icon">◈</span>
+              <div><small>COMMS</small><h2>Discord automation</h2><p>HerbyBot status, immediate announcements and scheduled messages.</p></div>
+              <b>→</b>
+            </a>
+            <a class="admin-hub-card" href="/events#event-admin-panel">
+              <span class="admin-hub-icon">◌</span>
+              <div><small>EVENTS</small><h2>Event rewards</h2><p>Steam-linked Valley Coin event payouts with supporter multipliers and ledger history.</p></div>
+              <b>→</b>
+            </a>
+            <a class="admin-hub-card" href="/adminrestore">
+              <span class="admin-hub-icon">↻</span>
+              <div><small>DINO STORAGE</small><h2>Admin Restore</h2><p>Validate and upload guarded DinoStorage restoration files.</p></div>
+              <b>→</b>
+            </a>
+            <a class="admin-hub-card" href="/skins">
+              <span class="admin-hub-icon">◇</span>
+              <div><small>SKIN STUDIO</small><h2>Skin management</h2><p>Design, publish, share and manage Hollow Valley skins.</p></div>
+              <b>→</b>
+            </a>
+            <a class="admin-hub-card" href="/dashboard">
+              <span class="admin-hub-icon">▣</span>
+              <div><small>PORTAL</small><h2>Player dashboard</h2><p>Return to the normal portal view and account tools.</p></div>
+              <b>→</b>
+            </a>
+          </div>
+        </div>
+      </section>
+    </main>
+    <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
+  </div>
+  <script src="/assets/common.js?v=16"></script>
+  <script src="/assets/admin.js?v=1"></script>
+</body>
+</html>
