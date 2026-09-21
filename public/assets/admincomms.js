@@ -37,11 +37,11 @@ function render(data) {
     return `<tr>
       <td>${escapeHtml(formatDate(job.run_at || job.runAt))}</td>
       <td>${escapeHtml(job.recurrence || "none")}</td>
-      <td><span class="ops-status-label ${escapeHtml(job.status || "")}">${escapeHtml(job.status || "—")}</span></td>
+      <td><span class="comms-status-label ${escapeHtml(job.status || "")}">${escapeHtml(job.status || "—")}</span></td>
       <td class="comms-job-message">${escapeHtml(safeJobMessage(job))}</td>
       <td>${canCancel ? `<button class="small-button comms-cancel-job" data-job-id="${escapeHtml(job.id)}">Cancel</button>` : ""}</td>
     </tr>`;
-  }).join("") : '<tr><td colspan="5" class="ops-empty">No scheduled announcements.</td></tr>';
+  }).join("") : '<tr><td colspan="5" class="comms-empty">No scheduled announcements.</td></tr>';
 
   tbody.querySelectorAll(".comms-cancel-job").forEach((button) => {
     button.addEventListener("click", async () => {
