@@ -7,6 +7,7 @@
 // Fully optional: if DISCORD_BOT_TOKEN isn't set, start() is a no-op so the
 // rest of the site keeps working exactly as before.
 const { getState } = require("./services/serverStatus");
+const discordEvents = require("./services/discordEvents");
 
 const PRESENCE_INTERVAL_MS = 30_000;
 const CHANNEL_RENAME_INTERVAL_MS = 5 * 60_000; // Discord rate-limits channel renames
@@ -96,6 +97,17 @@ function start() {
     updatePresence();
     updateStatusChannel();
     lockStatusChannel();
+    discordEvents.invalidateCache("herbybot-ready");
+  });
+
+  client.on("guildScheduledEventCreate", (event) => {
+    discordEvents.invalidateCache(`created:${event?.id || "unknown"}`);
+  });
+  client.on("guildScheduledEventUpdate", (_oldEvent, newEvent) => {
+    discordEvents.invalidateCache(`updated:${newEvent?.id || "unknown"}`);
+  });
+  client.on("guildScheduledEventDelete", (event) => {
+    discordEvents.invalidateCache(`deleted:${event?.id || "unknown"}`);
   });
 
   client.login(process.env.DISCORD_BOT_TOKEN).catch((err) => {
