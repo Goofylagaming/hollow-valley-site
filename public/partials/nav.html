@@ -10,9 +10,17 @@
     <div class="nav-group"><button type="button" aria-expanded="false">Leaderboards <span>⌃</span></button><div class="mega-menu"><a href="/leaderboard?tab=kills"><b>◎</b><span>Kills<small>Top hunters</small></span></a><a href="/leaderboard?tab=kd"><b>⚔</b><span>K / D Ratio<small>Best survival ratio</small></span></a><a href="/leaderboard?tab=playtime"><b>◷</b><span>Playtime<small>Most time logged</small></span></a></div></div>
     <a href="/supporter">Supporter</a>
     <a href="/events">Events</a>
-    <a href="/adminoperations" id="admin-operations-nav" hidden>Operations</a>
-    <a href="/admincomms" id="admin-comms-nav" hidden>Comms</a>
-    <a href="/adminrestore" id="admin-restore-nav" hidden>Admin Restore</a>
+    <div class="nav-group" id="admin-nav-group" hidden>
+      <button type="button" aria-expanded="false">Admin <span>⌃</span></button>
+      <div class="mega-menu">
+        <a href="/admin"><b>◆</b><span>Admin hub<small>Overview &amp; quick actions</small></span></a>
+        <a href="/adminoperations"><b>◉</b><span>Operations<small>Health, backups &amp; audit</small></span></a>
+        <a href="/admincomms"><b>◈</b><span>Comms<small>Announcements &amp; schedules</small></span></a>
+        <a href="/adminrestore"><b>↻</b><span>Admin Restore<small>Guarded DinoStorage restore</small></span></a>
+        <a href="/events#event-admin-panel"><b>◌</b><span>Event rewards<small>Steam-linked Valley Coin payouts</small></span></a>
+        <a href="/skins"><b>◇</b><span>Skin Studio<small>Design, publish &amp; manage skins</small></span></a>
+      </div>
+    </div>
   </nav>
   <div id="auth-area">
     <a class="steam-signin" id="auth-steam" href="/auth/steam"><span class="steam-icon">◈</span> Sign in with Steam</a>
