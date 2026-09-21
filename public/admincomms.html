@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Hollow Valley Discord communications console.">
+  <title>Comms | Hollow Valley</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=18">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main>
+      <section class="page-header">
+        <p class="overline green">ADMIN · COMMS</p>
+        <h1>Discord automation.</h1>
+        <p class="section-intro">Queue announcements, sync the status channel and schedule recurring messages through HerbyBot without needing the Isle server online.</p>
+      </section>
+
+      <section class="roster-section">
+        <div id="comms-guard"><p class="section-intro">Checking admin access…</p></div>
+        <div id="comms-content" hidden>
+          <div class="ops-summary-grid">
+            <div class="summary-tile"><small>HERBYBOT BRIDGE</small><b id="comms-configured">Checking…</b><span id="comms-delivery">—</span></div>
+            <div class="summary-tile"><small>STATUS CHANNEL</small><b id="comms-status-channel">—</b><span id="comms-status-sync">—</span></div>
+            <div class="summary-tile"><small>SCHEDULED JOBS</small><b id="comms-scheduled-count">—</b><span id="comms-job-summary">—</span></div>
+            <div class="summary-tile"><small>OUTBOX</small><b id="comms-outbox">—</b><span id="comms-outbox-detail">—</span></div>
+          </div>
+
+          <div class="page-toolbar">
+            <button class="small-button" id="comms-refresh">Refresh</button>
+            <button class="small-button" id="comms-sync-status">Sync status channel</button>
+            <span id="comms-message"></span>
+          </div>
+
+          <div class="ops-two-column">
+            <section class="ops-panel">
+              <div class="list-heading"><span>ANNOUNCE NOW</span><small>queued through HerbyBot</small></div>
+              <form id="comms-announce-form" class="parked-tool-form">
+                <label><span>MESSAGE</span><textarea id="comms-announce-message" class="comms-textarea" maxlength="1800" placeholder="Announcement text…" required></textarea></label>
+                <button class="primary-button" type="submit">Queue announcement <b>→</b></button>
+              </form>
+            </section>
+
+            <section class="ops-panel">
+              <div class="list-heading"><span>SCHEDULE ANNOUNCEMENT</span><small>one-time, daily or weekly</small></div>
+              <form id="comms-schedule-form" class="parked-tool-form">
+                <label><span>MESSAGE</span><textarea id="comms-schedule-message" class="comms-textarea" maxlength="1800" placeholder="Scheduled announcement…" required></textarea></label>
+                <div class="comms-schedule-grid">
+                  <label><span>RUN AT</span><input id="comms-run-at" type="datetime-local" required></label>
+                  <label><span>RECURRENCE</span><select id="comms-recurrence"><option value="none">Once</option><option value="daily">Daily</option><option value="weekly">Weekly</option></select></label>
+                </div>
+                <button class="primary-button" type="submit">Schedule <b>→</b></button>
+              </form>
+            </section>
+          </div>
+
+          <section class="ops-panel" style="margin-top:18px">
+            <div class="list-heading"><span>SCHEDULED ANNOUNCEMENTS</span><small>future and recent jobs</small></div>
+            <div class="ops-table-wrap">
+              <table class="ops-table">
+                <thead><tr><th>Run at</th><th>Recurrence</th><th>Status</th><th>Message</th><th></th></tr></thead>
+                <tbody id="comms-jobs"><tr><td colspan="5" class="ops-empty">Loading…</td></tr></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+    <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
+  </div>
+  <script src="/assets/common.js?v=14"></script>
+  <script src="/assets/admincomms.js?v=1"></script>
+</body>
+</html>
