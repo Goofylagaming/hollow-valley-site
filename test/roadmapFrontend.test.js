@@ -17,6 +17,7 @@ test("roadmap browser scripts parse", () => {
     "public/assets/skins.js",
     "public/assets/supporter.js",
     "public/assets/adminrestore.js",
+    "public/assets/admin.js",
     "public/assets/adminoperations.js",
     "public/assets/admincomms.js",
     "public/assets/wallet.js",
@@ -37,7 +38,7 @@ test("shared navigation exposes Wallet and Quests as separate tabs", () => {
   assert.match(nav, /href="\/quests">Quests<\/a>/);
   assert.equal(nav.includes('href="/#wallet"'), false);
   assert.equal(nav.includes('href="/#quests"'), false);
-  assert.match(nav, /id="admin-restore-nav" hidden/);
+  assert.match(nav, /id="admin-nav-group" hidden/);
   assert.match(nav, /HOLLOW VALLEY/);
 });
 
@@ -144,7 +145,7 @@ test("admin operations page is admin-only and contains no automation admin token
   const html = read("public/adminoperations.html");
   const js = read("public/assets/adminoperations.js");
   const nav = read("public/partials/nav.html");
-  assert.match(nav, /id="admin-operations-nav" hidden/);
+  assert.match(nav, /id="admin-nav-group" hidden/);
   assert.match(html, /ADMIN · OPERATIONS/);
   assert.match(js, /\/api\/admin-operations/);
   assert.equal(html.includes("AUTOMATION_ADMIN_TOKEN"), false);
@@ -169,7 +170,7 @@ test("admin Comms page is admin-only and uses server-side automation proxy", () 
   const html = read("public/admincomms.html");
   const js = read("public/assets/admincomms.js");
   const nav = read("public/partials/nav.html");
-  assert.match(nav, /id="admin-comms-nav" hidden/);
+  assert.match(nav, /id="admin-nav-group" hidden/);
   assert.match(html, /ADMIN · COMMS/);
   assert.match(js, /\/api\/admin-comms/);
   assert.equal(html.includes("HERBYBOT_AUTOMATION_TOKEN"), false);
@@ -214,4 +215,30 @@ test("Events page exposes Steam-linked reward history and guarded admin payouts"
   assert.match(eventService, /EVENT_REWARDS_ENABLED/);
   assert.match(eventService, /kind: 'event_reward'/);
   assert.match(eventService, /supporterBonuses\.applyBonus/);
+});
+
+test("consolidated admin hub replaces scattered admin navigation", () => {
+  const html = read("public/admin.html");
+  const js = read("public/assets/admin.js");
+  const nav = read("public/partials/nav.html");
+  const server = read("server/index.js");
+
+  assert.match(nav, /id="admin-nav-group" hidden/);
+  assert.match(nav, /href="\/admin"/);
+  assert.match(nav, /href="\/adminoperations"/);
+  assert.match(nav, /href="\/admincomms"/);
+  assert.match(nav, /href="\/adminrestore"/);
+  assert.equal(nav.includes('id="admin-operations-nav"'), false);
+  assert.equal(nav.includes('id="admin-comms-nav"'), false);
+  assert.equal(nav.includes('id="admin-restore-nav"'), false);
+  assert.match(html, /Admin hub\./);
+  assert.match(html, /System health/);
+  assert.match(html, /Discord automation/);
+  assert.match(html, /Event rewards/);
+  assert.match(js, /\/api\/admin-operations/);
+  assert.match(js, /\/api\/admin-comms/);
+  assert.match(js, /\/api\/events\/admin\/rewards/);
+  assert.match(js, /\/api\/admin-restore/);
+  assert.match(server, /ADMIN_PAGE_ROUTES/);
+  assert.match(server, /requireAdmin/);
 });
