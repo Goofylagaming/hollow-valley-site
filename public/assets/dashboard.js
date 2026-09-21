@@ -1,6 +1,64 @@
 const { api, escapeHtml } = window.HDS;
 
 
+
+async function loadNextEvent() {
+  const title = document.getElementById("dash-next-event-title");
+  const detail = document.getElementById("dash-next-event-detail");
+  const link = document.getElementById("dash-next-event-link");
+  if (!title || !detail || !link) return;
+
+  try {
+    const data = await api("/api/events");
+    const now = Date.now();
+    const next = (Array.isArray(data.events) ? data.events : [])
+      .filter((event) => new Date(event.endTime || event.startTime).getTime() >= now)
+      .sort((a, b) => new Date(a.startTime) - new Date(b.startTime))[0];
+
+    if (!data.configured) {
+      title.textContent = "Discord events not configured";
+      detail.textContent = "The community calendar will appear once Herbybot event sync is connected.";
+      link.href = "/events";
+      link.textContent = "View events";
+      return;
+    }
+
+    if (!next) {
+      title.textContent = "No upcoming events";
+      detail.textContent = "New Discord Scheduled Events will appear here automatically.";
+      link.href = "/events";
+      link.textContent = "View calendar";
+      return;
+    }
+
+    const when = new Intl.DateTimeFormat(undefined, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(new Date(next.startTime));
+
+    title.textContent = next.title || "Community event";
+    detail.textContent = [
+      when,
+      next.location || "Discord",
+      Number(next.attendees || 0) > 0 ? `${Number(next.attendees)} interested` : null,
+    ].filter(Boolean).join(" · ");
+
+    link.href = next.url || "/events";
+    link.target = next.url ? "_blank" : "";
+    link.rel = next.url ? "noopener" : "";
+    link.textContent = next.url ? "View in Discord" : "View events";
+  } catch (error) {
+    console.error("Failed to load next Discord event", error);
+    title.textContent = "Events temporarily unavailable";
+    detail.textContent = "The dashboard will try again next time it loads.";
+    link.href = "/events";
+    link.textContent = "View events";
+  }
+}
+
 async function loadRewardOverview() {
   const stateEl = document.getElementById("dash-reward-state");
   try {
@@ -80,7 +138,7 @@ async function loadDashboard() {
     console.error("Failed to load dashboard", err);
   }
 
-  await loadRewardOverview();
+  await Promise.all([loadRewardOverview(), loadNextEvent()]);
 
   try {
     const bonus = await api("/api/daily-bonus");
