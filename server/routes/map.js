@@ -1,6 +1,7 @@
 const express = require("express");
 const { requireAuth } = require("../middleware/requireAuth");
 const serverStatus = require("../services/serverStatus");
+const automation = require("../services/automationWebsiteClient");
 const {
   project,
   toLatLong,
@@ -59,6 +60,27 @@ function toPublicEntry(character) {
     isPrime: character.isPrime,
   };
 }
+
+router.get("/activity", async (req, res) => {
+  try {
+    const hours = Math.max(1, Math.min(24 * 31, Number(req.query.hours) || 24));
+    return res.json(await automation.getMapActivity({ hours }));
+  } catch (error) {
+    return res.status(502).json({
+      error: error?.message || "Verified activity history is unavailable.",
+      trackingEnabled: false,
+      hours: 24,
+      sampleCount: 0,
+      uniquePlayers: 0,
+      sessions: 0,
+      averageOnline: 0,
+      peakConcurrent: 0,
+      topSpecies: [],
+      activityTrend: [],
+      lastVerifiedAt: null,
+    });
+  }
+});
 
 router.get("/positions", requireAuth, (req, res) => {
   const state = serverStatus.getState();
