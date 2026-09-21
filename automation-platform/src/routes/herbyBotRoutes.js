@@ -6,6 +6,7 @@ const { buildStaffOverview, buildStaffActivityAnalytics } = require('../services
 const scheduler = require('../services/schedulerService');
 const audit = require('../services/auditService');
 const playerPresence = require('../services/playerPresenceService');
+const discordEvents = require('../services/discordEventService');
 
 const router = express.Router();
 router.use(requireHerbyBotToken);
@@ -48,6 +49,24 @@ router.get('/activity', (_req, res) => {
     res.json({ analytics: buildStaffActivityAnalytics(analytics) });
   } catch (error) {
     res.status(400).json({ error: error.message || 'Unable to read HerbyBot player activity analytics.' });
+  }
+});
+
+router.post('/events/sync', (req, res) => {
+  try {
+    const result = discordEvents.syncEvents({
+      guildId: req.body?.guildId,
+      events: req.body?.events,
+      syncedAt: req.body?.syncedAt || new Date().toISOString(),
+    });
+    res.json({
+      ok: true,
+      guildId: result.guildId,
+      eventCount: result.events.length,
+      syncedAt: result.syncedAt,
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Unable to sync Discord scheduled events.' });
   }
 });
 

@@ -271,3 +271,21 @@ test("Supporter account panel makes Steam and Discord linkage explicit", () => {
   assert.match(route, /STEAM_LINK_REQUIRED/);
   assert.match(route, /requireSteamLink/);
 });
+
+
+test("Discord event calendar is sourced through HerbyBot and automation", () => {
+  const route = read("server/routes/events.js");
+  const client = read("server/services/automationWebsiteClient.js");
+  const herbyRoute = read("automation-platform/src/routes/herbyBotRoutes.js");
+  const websiteRoute = read("automation-platform/src/routes/websiteRoutes.js");
+  const service = read("automation-platform/src/services/discordEventService.js");
+
+  assert.equal(route.includes("DISCORD_BOT_TOKEN"), false);
+  assert.equal(route.includes("discord.com/api"), false);
+  assert.match(route, /getDiscordScheduledEvents/);
+  assert.match(client, /function getDiscordScheduledEvents/);
+  assert.match(herbyRoute, /events\/sync/);
+  assert.match(websiteRoute, /router\.get\('\/events'/);
+  assert.match(service, /discord:scheduled-events/);
+  assert.match(service, /staleAfterMs/);
+});

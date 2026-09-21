@@ -159,6 +159,10 @@ function claimDailyLoginBonus(steamId) {
   return call(`/daily-login/${encodeURIComponent(validateSteamId(steamId))}/claim`, { method: 'POST' });
 }
 
+function getDiscordScheduledEvents() {
+  return call('/events');
+}
+
 function getEventRewards(steamId) {
   return call(`/events/rewards/${encodeURIComponent(validateSteamId(steamId))}`);
 }
@@ -503,6 +507,7 @@ module.exports = {
   getQuests,
   getDailyLoginBonus,
   claimDailyLoginBonus,
+  getDiscordScheduledEvents,
   getEventRewards,
   getMapActivity,
   getPlaytimeLeaderboard,

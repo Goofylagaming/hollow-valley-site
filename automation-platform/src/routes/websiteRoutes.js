@@ -18,6 +18,7 @@ const officialMarketplaceFulfillment = require('../services/officialMarketplaceF
 const playerPresence = require('../services/playerPresenceService');
 const eventRewards = require('../services/eventRewardService');
 const combatEvents = require('../services/combatEventService');
+const discordEvents = require('../services/discordEventService');
 
 const router = express.Router();
 router.use(requireWebsiteToken);
@@ -113,6 +114,10 @@ router.get('/quests/:steamId', (req, res) => {
   } catch (error) {
     res.status(400).json({ error: error.message || 'Unable to read playtime quests.' });
   }
+});
+
+router.get('/events', (_req, res) => {
+  res.json(discordEvents.getEvents());
 });
 
 router.get('/events/rewards/:steamId', (req, res) => {

@@ -241,6 +241,10 @@ async function init() {
     events = data.events || [];
     renderCalendar();
     renderEvents();
+    if (data.configured && data.stale) {
+      const list = document.getElementById("event-list");
+      list.insertAdjacentHTML("afterbegin", '<div class="map-history-note">Discord event sync is temporarily stale. Showing the last successful HerbyBot snapshot.</div>');
+    }
     if (!data.configured) {
       document.getElementById("event-list").innerHTML = '<div class="empty-roster"><strong>Discord event calendar is not connected on this service</strong><span>Admins can still use the event reward panel with a manual event ID and title.</span></div>';
     }
