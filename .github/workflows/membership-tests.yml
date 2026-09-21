@@ -27,6 +27,7 @@ on:
       - 'test/supporter*.test.js'
       - 'test/discordMembership.test.js'
       - 'test/adminRestoreRoute.test.js'
+      - 'test/adminOperationsRoute.test.js'
       - 'test/roadmapFrontend.test.js'
       - 'package.json'
       - 'package-lock.json'
