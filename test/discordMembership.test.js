@@ -7,6 +7,7 @@ const { db } = require("../server/db");
 require("../server/services/supporterWebhook");
 const {
   configuration,
+  getDiscordMembershipStatusForUser,
   syncDiscordMembershipForUser,
 } = require("../server/services/discordMembership");
 
@@ -182,4 +183,72 @@ test("already-correct exact membership role is a no-op", async () => {
   assert.equal(result.changed, false);
   assert.equal(calls.filter((call) => call.method === "PUT").length, 0);
   assert.equal(calls.filter((call) => call.method === "DELETE").length, 0);
+});
+
+test("read-only Discord membership status reports a correct role", async () => {
+  reset({ tier: "guardian" });
+  const exactEnv = {
+    ...env,
+    DISCORD_ROLE_SUPPORTER_ID: "1550695486464204810",
+    DISCORD_ROLE_GUARDIAN_ID: "1550695581373042688",
+    DISCORD_ROLE_LEGEND_ID: "1550695426456555551",
+  };
+
+  const result = await getDiscordMembershipStatusForUser(42, {
+    env: exactEnv,
+    fetchImpl: async (_url, options = {}) => {
+      assert.equal(options.method || "GET", "GET");
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ roles: ["1550695581373042688"] }),
+      };
+    },
+  });
+
+  assert.equal(result.configured, true);
+  assert.equal(result.linked, true);
+  assert.equal(result.tier, "guardian");
+  assert.equal(result.expectedRoleName, "Valley Guardian");
+  assert.deepEqual(result.actualRoleNames, ["Valley Guardian"]);
+  assert.equal(result.inSync, true);
+});
+
+test("read-only Discord membership status detects stale supporter roles", async () => {
+  reset({ tier: "legend" });
+  const exactEnv = {
+    ...env,
+    DISCORD_ROLE_SUPPORTER_ID: "1550695486464204810",
+    DISCORD_ROLE_GUARDIAN_ID: "1550695581373042688",
+    DISCORD_ROLE_LEGEND_ID: "1550695426456555551",
+  };
+
+  const result = await getDiscordMembershipStatusForUser(42, {
+    env: exactEnv,
+    fetchImpl: async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        roles: ["1550695486464204810", "1550695581373042688"],
+      }),
+    }),
+  });
+
+  assert.equal(result.expectedRoleName, "Valley Legend");
+  assert.deepEqual(result.actualRoleNames, ["Valley Supporter", "Valley Guardian"]);
+  assert.equal(result.inSync, false);
+});
+
+test("read-only Discord membership status shows an unlinked website account without calling Discord", async () => {
+  reset({ discordId: null });
+  const result = await getDiscordMembershipStatusForUser(42, {
+    env,
+    fetchImpl: async () => {
+      throw new Error("Discord should not be called");
+    },
+  });
+
+  assert.equal(result.configured, true);
+  assert.equal(result.linked, false);
+  assert.equal(result.inSync, false);
 });
