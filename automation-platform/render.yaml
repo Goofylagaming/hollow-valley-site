@@ -58,6 +58,15 @@ services:
       - key: RCON_WRITE_ENABLED
         value: false
 
+      # Authoritative kill/death ingestion stays disabled until a trusted
+      # game-side source can provide stable unique event IDs.
+      - key: COMBAT_FEED_ENABLED
+        value: false
+      - key: COMBAT_FEED_TOKEN
+        generateValue: true
+      - key: COMBAT_FEED_SOURCE
+        value: hollow-valley-game
+
       # Read-only player session history is opt-in after RCON verification.
       - key: PLAYER_PRESENCE_ENABLED
         value: false
