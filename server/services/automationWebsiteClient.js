@@ -159,6 +159,11 @@ function claimDailyLoginBonus(steamId) {
   return call(`/daily-login/${encodeURIComponent(validateSteamId(steamId))}/claim`, { method: 'POST' });
 }
 
+function getMapActivity({ hours = 24 } = {}) {
+  const safeHours = Math.max(1, Math.min(24 * 31, Number(hours) || 24));
+  return call(`/map/activity?hours=${safeHours}`);
+}
+
 function getPlaytimeLeaderboard({ hours = 24 * 31 } = {}) {
   const safeHours = Math.max(1, Math.min(24 * 31, Number(hours) || 24 * 31));
   return call(`/leaderboards/playtime?hours=${safeHours}`);
@@ -472,6 +477,7 @@ module.exports = {
   getQuests,
   getDailyLoginBonus,
   claimDailyLoginBonus,
+  getMapActivity,
   getPlaytimeLeaderboard,
   listMarketplaceCatalog,
   listMarketplaceOrders,
