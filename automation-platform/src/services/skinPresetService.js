@@ -1,4 +1,4 @@
-const { randomUUID } = require('node:crypto');
+const { randomBytes, randomUUID } = require('node:crypto');
 const store = require('./economyStore');
 const files = require('./parkedDinoFileService');
 
@@ -23,9 +23,13 @@ function applyEnabled() {
   return systemEnabled() && String(process.env.PARKED_DINO_EDIT_ENABLED || '').toLowerCase() === 'true';
 }
 
+function liveWearEnabled() {
+  return systemEnabled() && String(process.env.SKIN_LIVE_WEAR_ENABLED || '').toLowerCase() === 'true';
+}
+
 function createCost() {
-  const value = Number(process.env.SKIN_PRESET_CREATE_COST || 500);
-  return Number.isSafeInteger(value) ? Math.max(1, Math.min(1000000, value)) : 500;
+  const value = Number(process.env.SKIN_PRESET_CREATE_COST || 0);
+  return Number.isSafeInteger(value) ? Math.max(0, Math.min(1000000, value)) : 0;
 }
 
 function speciesFromClassPath(classPath) {
@@ -33,10 +37,24 @@ function speciesFromClassPath(classPath) {
   return match ? match[1].replace(/_C$/i, '') : 'Unknown';
 }
 
+function validateSpecies(value) {
+  const species = String(value || '').trim();
+  if (!/^[A-Za-z0-9_-]{2,64}$/.test(species)) {
+    throw new Error('Skin species is invalid');
+  }
+  return species;
+}
+
 function validateName(value) {
   const name = String(value || '').trim().replace(/\s+/g, ' ');
   if (name.length < 2 || name.length > 60) throw new Error('Skin preset name must be between 2 and 60 characters');
   return name;
+}
+
+function validateDescription(value) {
+  const description = String(value || '').trim().replace(/\s+/g, ' ');
+  if (description.length > 240) throw new Error('Skin description must be 240 characters or fewer');
+  return description;
 }
 
 function validateColor(value, field) {
@@ -56,7 +74,7 @@ function validateColor(value, field) {
 
 function sanitizeSkin(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error('Parked dinosaur does not contain captured skin data');
+    throw new Error('Skin data is missing or invalid');
   }
 
   const skin = {};
@@ -78,26 +96,101 @@ function validateIdempotencyKey(value) {
   return key;
 }
 
+function generateShareCode() {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const raw = randomBytes(5).toString('hex').toUpperCase();
+    const code = `HV-${raw.slice(0, 5)}-${raw.slice(5)}`;
+    if (!store.getSkinPresetByShareCode(code)) return code;
+  }
+  throw new Error('Could not generate a unique skin share code');
+}
+
 function getPresetForPlayer(steamId, presetId) {
   const steam = store.validateSteamId(steamId);
   const preset = store.getSkinPreset(presetId);
-  if (!preset || !preset.active || (!preset.isPremium && preset.owner_steam_id !== steam)) {
-    const error = new Error('Skin preset not found');
+  const accessible = preset && preset.active && (
+    preset.owner_steam_id === steam ||
+    preset.isPremium ||
+    Number(preset.price) === 0 && preset.published ||
+    store.hasSkinUnlock(steam, preset.id)
+  );
+  if (!accessible) {
+    const error = new Error('Skin preset not found or not unlocked');
     error.code = 'SKIN_PRESET_NOT_FOUND';
+    throw error;
+  }
+  return { ...preset, owned: true };
+}
+
+function listAvailablePresets(steamId, { species = null } = {}) {
+  const steam = store.validateSteamId(steamId);
+  const wanted = species ? validateSpecies(species).toLowerCase() : null;
+  return store.listOwnedSkinPresets(steam, { limit: 300 })
+    .filter((preset) => !wanted || String(preset.species).toLowerCase() === wanted);
+}
+
+function listStore(steamId = null, { species = null } = {}) {
+  return store.listSkinStore({
+    steamId: steamId ? store.validateSteamId(steamId) : null,
+    species: species ? validateSpecies(species) : null,
+    limit: 300,
+  });
+}
+
+function getSharedPreset(shareCode) {
+  const preset = store.getSkinPresetByShareCode(shareCode);
+  if (!preset || !preset.active) {
+    const error = new Error('Skin share code not found');
+    error.code = 'SKIN_SHARE_NOT_FOUND';
     throw error;
   }
   return preset;
 }
 
-function listAvailablePresets(steamId, { species = null } = {}) {
+function createPresetRecord({ ownerSteamId, species, name, description = '', skin, createKey = null }) {
+  const owner = ownerSteamId ? store.validateSteamId(ownerSteamId) : null;
+  if (owner) store.ensureWallet(owner);
+  const id = randomUUID();
+  const shareCode = generateShareCode();
+  store.db.prepare(`
+    INSERT INTO economy_skin_presets
+      (id, owner_steam_id, species, name, description, skin_json, is_premium, active, published, price, share_code, create_key)
+    VALUES (?, ?, ?, ?, ?, ?, 0, 1, 0, 0, ?, ?)
+  `).run(
+    id,
+    owner,
+    validateSpecies(species),
+    validateName(name),
+    validateDescription(description),
+    JSON.stringify(sanitizeSkin(skin)),
+    shareCode,
+    createKey
+  );
+  return store.getSkinPreset(id);
+}
+
+async function createPresetFromStudio({ steamId, species, name, description = '', skin, idempotencyKey }) {
+  if (!systemEnabled()) {
+    const error = new Error('Skin preset system is disabled');
+    error.code = 'SKIN_SYSTEM_DISABLED';
+    throw error;
+  }
+
   const steam = store.validateSteamId(steamId);
-  return store.listSkinPresets({
+  const requestKey = validateIdempotencyKey(idempotencyKey);
+  const createKey = `skin-studio:${steam}:${requestKey}`;
+  const existing = store.getSkinPresetByCreateKey(createKey);
+  if (existing) return { duplicate: true, preset: existing, wallet: store.getWallet(steam) };
+
+  const preset = createPresetRecord({
     ownerSteamId: steam,
     species,
-    includePremium: true,
-    activeOnly: true,
-    limit: 300,
+    name,
+    description,
+    skin,
+    createKey,
   });
+  return { duplicate: false, preset, wallet: store.getWallet(steam) };
 }
 
 async function createPresetFromStored({ steamId, slot, name, idempotencyKey }) {
@@ -111,12 +204,9 @@ async function createPresetFromStored({ steamId, slot, name, idempotencyKey }) {
   const selectedSlot = files.validateSlot(slot);
   const presetName = validateName(name);
   const requestKey = validateIdempotencyKey(idempotencyKey);
-  const ledgerKey = `skin-preset-create:${requestKey}`;
-  const existingTx = store.getLedgerByIdempotency(ledgerKey);
-  if (existingTx?.reference_id) {
-    const preset = store.getSkinPreset(existingTx.reference_id);
-    if (preset) return { duplicate: true, preset, wallet: store.getWallet(steam) };
-  }
+  const createKey = `skin-stored:${steam}:${requestKey}`;
+  const existingPreset = store.getSkinPresetByCreateKey(createKey);
+  if (existingPreset) return { duplicate: true, preset: existingPreset, wallet: store.getWallet(steam) };
 
   const state = await files.readStoredDino(steam, selectedSlot);
   const skin = sanitizeSkin(state.skin);
@@ -126,9 +216,8 @@ async function createPresetFromStored({ steamId, slot, name, idempotencyKey }) {
   store.db.exec('BEGIN IMMEDIATE');
   try {
     store.ensureWallet(steam);
-    const duplicateTx = store.getLedgerByIdempotency(ledgerKey);
-    if (duplicateTx?.reference_id) {
-      const duplicatePreset = store.getSkinPreset(duplicateTx.reference_id);
+    const duplicatePreset = store.getSkinPresetByCreateKey(createKey);
+    if (duplicatePreset) {
       store.db.exec('COMMIT');
       return { duplicate: true, preset: duplicatePreset, wallet: store.getWallet(steam) };
     }
@@ -140,39 +229,157 @@ async function createPresetFromStored({ steamId, slot, name, idempotencyKey }) {
       throw error;
     }
 
-    const presetId = randomUUID();
-    store.db.prepare(`
-      INSERT INTO economy_skin_presets
-        (id, owner_steam_id, species, name, skin_json, is_premium, active)
-      VALUES (?, ?, ?, ?, ?, 0, 1)
-    `).run(presetId, steam, species, presetName, JSON.stringify(skin));
+    const preset = createPresetRecord({
+      ownerSteamId: steam,
+      species,
+      name: presetName,
+      skin,
+      createKey,
+    });
 
-    store.db.prepare('UPDATE economy_wallets SET balance = ?, updated_at = datetime(\'now\') WHERE steam_id = ?')
-      .run(Number(wallet.balance) - cost, steam);
-    store.db.prepare(`
-      INSERT INTO economy_wallet_ledger
-        (id, steam_id, amount, kind, reason, idempotency_key, reference_type, reference_id, metadata_json)
-      VALUES (?, ?, ?, 'skin_preset_create', ?, ?, 'skin_preset', ?, ?)
-    `).run(
-      randomUUID(),
-      steam,
-      -cost,
-      `Created skin preset: ${presetName}`,
-      ledgerKey,
-      presetId,
-      JSON.stringify({ species, sourceSlot: selectedSlot })
-    );
+    if (cost > 0) {
+      const ledgerKey = `skin-preset-create:${requestKey}`;
+      store.db.prepare('UPDATE economy_wallets SET balance = ?, updated_at = datetime(\'now\') WHERE steam_id = ?')
+        .run(Number(wallet.balance) - cost, steam);
+      store.db.prepare(`
+        INSERT INTO economy_wallet_ledger
+          (id, steam_id, amount, kind, reason, idempotency_key, reference_type, reference_id, metadata_json)
+        VALUES (?, ?, ?, 'skin_preset_create', ?, ?, 'skin_preset', ?, ?)
+      `).run(
+        randomUUID(),
+        steam,
+        -cost,
+        `Created skin preset: ${presetName}`,
+        ledgerKey,
+        preset.id,
+        JSON.stringify({ species, sourceSlot: selectedSlot })
+      );
+    }
 
     store.db.exec('COMMIT');
     return {
       duplicate: false,
-      preset: store.getSkinPreset(presetId),
+      preset: store.getSkinPreset(preset.id),
       wallet: store.getWallet(steam),
     };
   } catch (error) {
     try { store.db.exec('ROLLBACK'); } catch {}
     throw error;
   }
+}
+
+function publishPreset({ presetId, price = 0, description = '', published = true }) {
+  const preset = store.getSkinPreset(presetId);
+  if (!preset) {
+    const error = new Error('Skin preset not found');
+    error.code = 'SKIN_PRESET_NOT_FOUND';
+    throw error;
+  }
+  const amount = Number(price);
+  if (!Number.isSafeInteger(amount) || amount < 0 || amount > 1000000) {
+    throw new Error('Skin price must be a whole number between 0 and 1,000,000');
+  }
+  const desc = validateDescription(description || preset.description || '');
+  store.db.prepare(`
+    UPDATE economy_skin_presets
+    SET published = ?, price = ?, description = ?, is_premium = ?, updated_at = datetime('now')
+    WHERE id = ?
+  `).run(published ? 1 : 0, amount, desc, published && amount === 0 ? 1 : 0, preset.id);
+  return store.getSkinPreset(preset.id);
+}
+
+function purchasePreset({ steamId, presetId, idempotencyKey }) {
+  if (!systemEnabled()) {
+    const error = new Error('Skin preset system is disabled');
+    error.code = 'SKIN_SYSTEM_DISABLED';
+    throw error;
+  }
+  const steam = store.validateSteamId(steamId);
+  const preset = store.getSkinPreset(presetId);
+  if (!preset || !preset.active || !preset.published) {
+    const error = new Error('Skin is not available in the store');
+    error.code = 'SKIN_PRESET_NOT_FOUND';
+    throw error;
+  }
+
+  if (preset.owner_steam_id === steam || preset.isPremium || store.hasSkinUnlock(steam, preset.id)) {
+    return { duplicate: true, preset: { ...preset, owned: true }, wallet: store.getWallet(steam) };
+  }
+
+  const requestKey = validateIdempotencyKey(idempotencyKey);
+  const unlockKey = `skin-unlock:${requestKey}`;
+  const price = Math.max(0, Number(preset.price) || 0);
+
+  store.db.exec('BEGIN IMMEDIATE');
+  try {
+    store.ensureWallet(steam);
+    if (store.hasSkinUnlock(steam, preset.id)) {
+      store.db.exec('COMMIT');
+      return { duplicate: true, preset: { ...preset, owned: true }, wallet: store.getWallet(steam) };
+    }
+
+    const wallet = store.db.prepare('SELECT balance FROM economy_wallets WHERE steam_id = ?').get(steam);
+    if (Number(wallet.balance) < price) {
+      const error = new Error(`This skin costs ${price} Valley Coin`);
+      error.code = 'INSUFFICIENT_FUNDS';
+      throw error;
+    }
+
+    store.db.prepare(`
+      INSERT INTO economy_skin_unlocks (steam_id, preset_id, purchase_price, idempotency_key)
+      VALUES (?, ?, ?, ?)
+    `).run(steam, preset.id, price, unlockKey);
+
+    if (price > 0) {
+      store.db.prepare('UPDATE economy_wallets SET balance = ?, updated_at = datetime(\'now\') WHERE steam_id = ?')
+        .run(Number(wallet.balance) - price, steam);
+      store.db.prepare(`
+        INSERT INTO economy_wallet_ledger
+          (id, steam_id, amount, kind, reason, idempotency_key, reference_type, reference_id, metadata_json)
+        VALUES (?, ?, ?, 'skin_purchase', ?, ?, 'skin_preset', ?, ?)
+      `).run(
+        randomUUID(),
+        steam,
+        -price,
+        `Unlocked skin: ${preset.name}`,
+        `skin-purchase:${requestKey}`,
+        preset.id,
+        JSON.stringify({ species: preset.species, shareCode: preset.share_code || null })
+      );
+    }
+
+    store.db.exec('COMMIT');
+    return {
+      duplicate: false,
+      preset: { ...store.getSkinPreset(preset.id), owned: true },
+      wallet: store.getWallet(steam),
+    };
+  } catch (error) {
+    try { store.db.exec('ROLLBACK'); } catch {}
+    if (/UNIQUE constraint failed: economy_skin_unlocks\.idempotency_key/i.test(String(error?.message || ''))) {
+      return { duplicate: true, preset: { ...preset, owned: store.hasSkinUnlock(steam, preset.id) }, wallet: store.getWallet(steam) };
+    }
+    throw error;
+  }
+}
+
+async function importSharedPreset({ steamId, shareCode, idempotencyKey }) {
+  const steam = store.validateSteamId(steamId);
+  const source = getSharedPreset(shareCode);
+  const requestKey = validateIdempotencyKey(idempotencyKey);
+  const createKey = `skin-import:${steam}:${requestKey}`;
+  const existing = store.getSkinPresetByCreateKey(createKey);
+  if (existing) return { duplicate: true, preset: existing };
+
+  const preset = createPresetRecord({
+    ownerSteamId: steam,
+    species: source.species,
+    name: `${source.name} Copy`.slice(0, 60),
+    description: source.description || '',
+    skin: source.skin,
+    createKey,
+  });
+  return { duplicate: false, preset };
 }
 
 async function applyPreset({ steamId, slot, presetId }) {
@@ -214,11 +421,20 @@ module.exports = {
   COLOR_KEYS,
   systemEnabled,
   applyEnabled,
+  liveWearEnabled,
   createCost,
   speciesFromClassPath,
+  validateSpecies,
   validateName,
   sanitizeSkin,
+  getPresetForPlayer,
   listAvailablePresets,
+  listStore,
+  getSharedPreset,
+  createPresetFromStudio,
   createPresetFromStored,
+  importSharedPreset,
+  publishPreset,
+  purchasePreset,
   applyPreset,
 };
