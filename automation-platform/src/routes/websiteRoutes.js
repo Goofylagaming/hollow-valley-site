@@ -17,6 +17,7 @@ const skinWear = require('../services/skinWearService');
 const officialMarketplaceFulfillment = require('../services/officialMarketplaceFulfillmentService');
 const playerPresence = require('../services/playerPresenceService');
 const eventRewards = require('../services/eventRewardService');
+const combatEvents = require('../services/combatEventService');
 
 const router = express.Router();
 router.use(requireWebsiteToken);
@@ -148,6 +149,15 @@ router.get('/map/activity', (req, res) => {
     });
   } catch (error) {
     res.status(400).json({ error: error.message || 'Unable to read map activity history.' });
+  }
+});
+
+router.get('/leaderboards/combat', (req, res) => {
+  try {
+    const hours = Math.max(1, Math.min(24 * 31, Number(req.query.hours) || 24 * 31));
+    res.json(combatEvents.leaderboard({ hours, limit: 100 }));
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Unable to read combat leaderboard.' });
   }
 });
 
