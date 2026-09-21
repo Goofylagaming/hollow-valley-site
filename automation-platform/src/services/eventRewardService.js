@@ -76,10 +76,26 @@ async function awardReward({
   const id = validateEventId(eventId);
   const title = validateEventTitle(eventTitle);
   const base = validateBaseAmount(baseAmount);
+  const idempotencyKey = `event-reward:${id}:${steam}`;
+
+  const existing = economy.getLedgerByIdempotency(idempotencyKey);
+  if (existing) {
+    const metadata = existing.metadata || {};
+    return {
+      duplicate: true,
+      event: { id, title: metadata.eventTitle || title },
+      baseAmount: Number(metadata.baseAmount || 0),
+      supporterTier: metadata.supporterTier || null,
+      supporterMultiplier: Number(metadata.supporterMultiplier || 1),
+      supporterBonusCoins: Number(metadata.supporterBonusCoins || 0),
+      payoutAmount: Number(existing.amount || metadata.payoutAmount || 0),
+      transaction: existing,
+      wallet: economy.getWallet(steam),
+    };
+  }
 
   await refreshSupporter(steam, env);
   const supporter = supporterBonuses.applyBonus(base, steam, env);
-  const idempotencyKey = `event-reward:${id}:${steam}`;
 
   const result = economy.applyWalletTransaction({
     steamId: steam,
