@@ -37,18 +37,72 @@ function renderRestoreJson(value) {
   document.getElementById("restore-json").value = JSON.stringify(value, null, 2);
 }
 
+function populateBuilderFields(restore) {
+  document.getElementById("restore-slot").value = restore.slot || "admin_restore";
+  document.getElementById("restore-class-path").value = restore.classPath || "";
+  document.getElementById("restore-growth-percent").value =
+    Number.isFinite(Number(restore.growth)) ? String(Number(restore.growth) * 100) : "100";
+  document.getElementById("restore-prime").checked = restore.isPrime === true;
+  document.getElementById("restore-full-vitals").checked =
+    ["health", "stamina", "hunger", "thirst"].some((key) => Number(restore[key]) > 0);
+  document.getElementById("restore-full-nutrients").checked = restore.fullNutrients === true;
+}
+
 function loadTrikeRecoveryPreset() {
   renderRestoreJson(TRIKE_76_RECOVERY);
-  document.getElementById("restore-slot").value = TRIKE_76_RECOVERY.slot;
-  document.getElementById("restore-full-nutrients").checked = true;
+  populateBuilderFields(TRIKE_76_RECOVERY);
   setMessage("Loaded the 76% Triceratops recovery preset. Review it, then use Validate & build JSON. Nothing has been uploaded.");
 }
 
 function clearRestoreJson() {
   document.getElementById("restore-json").value = "";
   document.getElementById("restore-slot").value = "admin_restore";
+  document.getElementById("restore-class-path").value = "";
+  document.getElementById("restore-growth-percent").value = "100";
+  document.getElementById("restore-prime").checked = false;
+  document.getElementById("restore-full-vitals").checked = true;
   document.getElementById("restore-full-nutrients").checked = false;
   setMessage("Restore builder cleared.");
+}
+
+function buildRestoreFromFields() {
+  const classPath = document.getElementById("restore-class-path").value.trim();
+  const slot = document.getElementById("restore-slot").value.trim() || "admin_restore";
+  const growthPercent = Number(document.getElementById("restore-growth-percent").value);
+
+  if (!classPath.startsWith("/Game/")) {
+    throw new Error("Enter the full /Game/... dinosaur class path.");
+  }
+  if (!/^[A-Za-z0-9_-]{1,80}$/.test(slot)) {
+    throw new Error("Slot may contain only letters, numbers, underscores and hyphens.");
+  }
+  if (!Number.isFinite(growthPercent) || growthPercent < 0 || growthPercent > 100) {
+    throw new Error("Growth must be between 0 and 100%.");
+  }
+
+  const restore = {
+    version: 2,
+    slot,
+    capturedAt: 0,
+    classPath,
+    growth: growthPercent / 100,
+  };
+
+  if (document.getElementById("restore-full-vitals").checked) {
+    restore.health = 99999;
+    restore.stamina = 99999;
+    restore.hunger = 99999;
+    restore.thirst = 99999;
+  }
+  if (document.getElementById("restore-prime").checked) {
+    restore.isPrime = true;
+  }
+  if (document.getElementById("restore-full-nutrients").checked) {
+    restore.fullNutrients = true;
+  }
+
+  renderRestoreJson(restore);
+  setMessage("Built recovery JSON from the quick fields. Run Validate & build JSON before uploading.");
 }
 
 function renderState(result) {
@@ -97,6 +151,13 @@ async function loadState() {
 
 document.getElementById("restore-preset-trike-76")?.addEventListener("click", loadTrikeRecoveryPreset);
 document.getElementById("restore-clear")?.addEventListener("click", clearRestoreJson);
+document.getElementById("restore-build-fields")?.addEventListener("click", () => {
+  try {
+    buildRestoreFromFields();
+  } catch (error) {
+    setMessage(error.message || "Could not build recovery JSON.", true);
+  }
+});
 
 document.getElementById("restore-build")?.addEventListener("click", async (event) => {
   const button = event.currentTarget;
@@ -112,7 +173,10 @@ document.getElementById("restore-build")?.addEventListener("click", async (event
       }),
     });
     const built = result?.restore;
-    if (built?.json) document.getElementById("restore-json").value = built.json;
+    if (built?.json) {
+      document.getElementById("restore-json").value = built.json;
+      populateBuilderFields(built.state || restore);
+    }
     setMessage(`Valid restore JSON · slot ${built?.state?.slot || "not set"} · ${built?.fullNutrients ? "full nutrients enabled" : "nutrients unchanged"}.`);
   } catch (error) {
     setMessage(error.message || "Restore validation failed.", true);
