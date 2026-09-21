@@ -20,7 +20,7 @@
       <section class="roster-section">
         <div id="comms-guard"><p class="section-intro">Checking admin access…</p></div>
         <div id="comms-content" hidden>
-          <div class="ops-summary-grid">
+          <div class="comms-summary-grid">
             <div class="summary-tile"><small>HERBYBOT BRIDGE</small><b id="comms-configured">Checking…</b><span id="comms-delivery">—</span></div>
             <div class="summary-tile"><small>STATUS CHANNEL</small><b id="comms-status-channel">—</b><span id="comms-status-sync">—</span></div>
             <div class="summary-tile"><small>SCHEDULED JOBS</small><b id="comms-scheduled-count">—</b><span id="comms-job-summary">—</span></div>
@@ -33,8 +33,8 @@
             <span id="comms-message"></span>
           </div>
 
-          <div class="ops-two-column">
-            <section class="ops-panel">
+          <div class="comms-two-column">
+            <section class="comms-panel">
               <div class="list-heading"><span>ANNOUNCE NOW</span><small>queued through HerbyBot</small></div>
               <form id="comms-announce-form" class="parked-tool-form">
                 <label><span>MESSAGE</span><textarea id="comms-announce-message" class="comms-textarea" maxlength="1800" placeholder="Announcement text…" required></textarea></label>
@@ -42,7 +42,7 @@
               </form>
             </section>
 
-            <section class="ops-panel">
+            <section class="comms-panel">
               <div class="list-heading"><span>SCHEDULE ANNOUNCEMENT</span><small>one-time, daily or weekly</small></div>
               <form id="comms-schedule-form" class="parked-tool-form">
                 <label><span>MESSAGE</span><textarea id="comms-schedule-message" class="comms-textarea" maxlength="1800" placeholder="Scheduled announcement…" required></textarea></label>
@@ -55,12 +55,12 @@
             </section>
           </div>
 
-          <section class="ops-panel" style="margin-top:18px">
+          <section class="comms-panel" style="margin-top:18px">
             <div class="list-heading"><span>SCHEDULED ANNOUNCEMENTS</span><small>future and recent jobs</small></div>
-            <div class="ops-table-wrap">
-              <table class="ops-table">
+            <div class="comms-table-wrap">
+              <table class="comms-table">
                 <thead><tr><th>Run at</th><th>Recurrence</th><th>Status</th><th>Message</th><th></th></tr></thead>
-                <tbody id="comms-jobs"><tr><td colspan="5" class="ops-empty">Loading…</td></tr></tbody>
+                <tbody id="comms-jobs"><tr><td colspan="5" class="comms-empty">Loading…</td></tr></tbody>
               </table>
             </div>
           </section>
