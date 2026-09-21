@@ -432,6 +432,17 @@ function getAdminBackupState() {
   return callAdmin('/backups');
 }
 
+function getAdminServerMods() {
+  return callAdmin('/server-mods');
+}
+
+function deployAdminServerMods() {
+  return callAdmin('/server-mods/deploy', {
+    method: 'POST',
+    body: { confirmation: 'DEPLOY SERVER MODS' },
+  });
+}
+
 function createAdminBackup() {
   return callAdmin('/backups', { method: 'POST' });
 }
@@ -542,6 +553,8 @@ module.exports = {
   getAdminPresence,
   getAdminMigrationReadiness,
   getAdminBackupState,
+  getAdminServerMods,
+  deployAdminServerMods,
   createAdminBackup,
   getAdminServerHealth,
   getAdminDiscordState,

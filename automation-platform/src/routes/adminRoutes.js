@@ -12,6 +12,7 @@ const playerPresence = require('../services/playerPresenceService');
 const audit = require('../services/auditService');
 const store = require('../services/automationStore');
 const eventRewards = require('../services/eventRewardService');
+const serverModDeploy = require('../services/serverModDeployService');
 
 const router = express.Router();
 router.use(requireAdminToken);
@@ -29,6 +30,44 @@ router.get('/status', async (req, res) => {
   } catch (error) {
     console.error('[automation-admin-status]', error);
     res.status(503).json({ error: error.message || 'Admin status unavailable.' });
+  }
+});
+
+router.get('/server-mods', async (_req, res) => {
+  try {
+    res.json({ serverMods: await serverModDeploy.getServerModDeployState({ inspectRemote: true }) });
+  } catch (error) {
+    res.status(503).json({ error: error.message || 'Unable to inspect live server mods.' });
+  }
+});
+
+router.post('/server-mods/deploy', async (req, res) => {
+  try {
+    const result = await audit.run(
+      'server_mods',
+      'deploy_approved_mods',
+      {
+        confirmationProvided: String(req.body?.confirmation || '').trim() === serverModDeploy.CONFIRM_PHRASE,
+        approvedMods: serverModDeploy.APPROVED_MODS.map((mod) => mod.name),
+      },
+      () => serverModDeploy.deployApprovedServerMods({ confirmation: req.body?.confirmation }),
+      (value) => ({
+        restartRequired: Boolean(value.restartRequired),
+        preservesSavedFolders: Boolean(value.preservesSavedFolders),
+        deployed: (value.deployed || []).map((mod) => ({
+          name: mod.name,
+          version: mod.version,
+          installedNew: Boolean(mod.installedNew),
+          previousVersion: mod.previousVersion || null,
+          backupCreated: Boolean(mod.backupPath),
+        })),
+      })
+    );
+    res.status(201).json({ ok: true, deployment: result });
+  } catch (error) {
+    if (error.code === 'SERVER_MOD_DEPLOY_DISABLED') return res.status(503).json({ error: error.message, code: error.code });
+    if (error.code === 'SERVER_MOD_DEPLOY_CONFIRMATION_REQUIRED') return res.status(400).json({ error: error.message, code: error.code });
+    res.status(502).json({ error: error.message || 'Server mod deployment failed.', code: error.code || null });
   }
 });
 
