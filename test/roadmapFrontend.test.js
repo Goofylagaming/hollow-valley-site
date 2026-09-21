@@ -20,6 +20,7 @@ test("roadmap browser scripts parse", () => {
     "public/assets/adminoperations.js",
     "public/assets/wallet.js",
     "public/assets/quests.js",
+    "public/assets/leaderboard.js",
   ]) {
     assert.doesNotThrow(() => new Function(read(file)), file);
   }
@@ -145,4 +146,18 @@ test("admin operations page is admin-only and contains no automation admin token
   assert.match(js, /\/api\/admin-operations/);
   assert.equal(html.includes("AUTOMATION_ADMIN_TOKEN"), false);
   assert.equal(js.includes("AUTOMATION_ADMIN_TOKEN"), false);
+});
+
+test("leaderboard uses verified 31-day playtime while combat rankings remain unverified", () => {
+  const html = read("public/leaderboard.html");
+  const js = read("public/assets/leaderboard.js");
+  const route = read("server/routes/leaderboards.js");
+  const client = read("server/services/automationWebsiteClient.js");
+
+  assert.match(html, /Playtime · 31 days/);
+  assert.match(html, /authoritative combat feed/);
+  assert.match(js, /Verified minutes · 31 days/);
+  assert.match(js, /Combat ranking unavailable/);
+  assert.match(route, /getPlaytimeLeaderboard/);
+  assert.match(client, /leaderboards\/playtime/);
 });

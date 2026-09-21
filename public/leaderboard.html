@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Kill/death and playtime leaderboards.">
+  <meta name="description" content="Hollow Valley verified playtime leaderboard and future combat rankings.">
   <title>Leaderboard | Hollow Valley</title>
   <link rel="stylesheet" href="assets/styles.css?v=15">
 </head>
@@ -14,13 +14,13 @@
       <section class="page-header">
         <p class="overline green">RANKINGS</p>
         <h1>Leaderboard.</h1>
-        <p class="section-intro">Rankings populate once player stats are reported from the game server. No fabricated data is shown here.</p>
+        <p class="section-intro">Playtime uses verified presence sessions from the automation database. Kills and K:D stay empty until an authoritative combat feed is available.</p>
       </section>
       <section class="roster-section">
         <div class="filter-row" role="group" aria-label="Leaderboard tabs">
           <button class="filter active" data-tab="mostKills">Most kills</button>
           <button class="filter" data-tab="bestKd">Best K:D</button>
-          <button class="filter" data-tab="mostPlaytime">Most playtime</button>
+          <button class="filter" data-tab="mostPlaytime">Playtime · 31 days</button>
         </div>
         <table class="leaderboard-table">
           <thead><tr><th>#</th><th>Player</th><th id="lb-metric-label">Kills</th></tr></thead>
@@ -31,6 +31,6 @@
     <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="assets/common.js?v=12"></script>
-  <script src="assets/leaderboard.js"></script>
+  <script src="assets/leaderboard.js?v=2"></script>
 </body>
 </html>
