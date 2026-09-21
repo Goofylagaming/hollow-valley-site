@@ -14,6 +14,7 @@ const {
 const { ReconcileError, reconcileCurrentUser } = require("../services/supporterReconcile");
 const {
   DiscordMembershipError,
+  getDiscordMembershipStatusForUser,
   syncDiscordMembershipForUser,
 } = require("../services/discordMembership");
 
@@ -52,6 +53,16 @@ router.get("/", requireAuth, (req, res) => {
     entitled: isEntitled(status.stripe_status),
     managed: Boolean(status.stripe_subscription_id),
   });
+});
+
+router.get("/discord-status", requireAuth, async (req, res) => {
+  try {
+    return res.json(await getDiscordMembershipStatusForUser(req.user.id));
+  } catch (error) {
+    return res.status(error instanceof DiscordMembershipError ? error.status : 500).json({
+      error: error instanceof DiscordMembershipError ? error.message : "Unable to read Discord membership role status.",
+    });
+  }
 });
 
 router.post("/sync-discord", requireAuth, async (req, res) => {
