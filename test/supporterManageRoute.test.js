@@ -14,7 +14,7 @@ test("existing Stripe membership blocks duplicate checkout at the HTTP route", a
   const router = require("../server/routes/supporter");
 
   db.exec("DELETE FROM supporter_subscriptions; DELETE FROM users;");
-  db.prepare("INSERT INTO users (id, username) VALUES (42, ?)").run("route-test");
+  db.prepare("INSERT INTO users (id, steam_id, username) VALUES (42, ?, ?)").run("76561198000000042", "route-test");
   db.prepare(
     "INSERT INTO supporter_subscriptions (user_id, tier, auto_renew, stripe_subscription_id, stripe_status) VALUES (?, ?, 1, ?, ?)"
   ).run(42, "member", "sub_test_42", "active");
@@ -22,7 +22,7 @@ test("existing Stripe membership blocks duplicate checkout at the HTTP route", a
   const app = express();
   app.use(express.json());
   app.use((req, res, next) => {
-    if (req.headers["x-test-auth"] === "yes") req.user = { id: 42 };
+    if (req.headers["x-test-auth"] === "yes") req.user = { id: 42, steam_id: "76561198000000042" };
     next();
   });
   app.use("/api/supporter", router);
