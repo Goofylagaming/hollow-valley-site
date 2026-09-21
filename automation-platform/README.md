@@ -1,6 +1,6 @@
 # Hollow Valley Automation Platform
 
-This folder is intentionally isolated from the live Hollow Valley website. Development happens on the `automation-platform` branch; nothing here is merged into or deployed from `master` automatically.
+This folder remains a separately deployed service, but its source now lives on `master` with the Hollow Valley website. `master` is the single source of truth for both services; the legacy `automation-platform` branch is automatically mirrored from `master` only for deployment compatibility.
 
 The project is a separate Hollow Valley control plane that keeps the existing HDS dark/gold/Cinzel-style visual language while moving server automation into an independently deployable service.
 
@@ -203,7 +203,7 @@ See `WEBSITE_INTEGRATION.md` for the live-site contract, `ECONOMY_MARKETPLACE.md
 
 ## Deployment status
 
-The isolated `hollow-valley-automation` Render service is deployed from the `automation-platform` branch with auto-deploy disabled.
+The isolated `hollow-valley-automation` Render service uses the `automation-platform/` root directory from the unified `master` source. Auto-deploy remains disabled unless deliberately changed.
 
 Verified on September 18, 2026:
 
@@ -215,4 +215,4 @@ Verified on September 18, 2026:
 - branch-side Wallet, Quests, Marketplace, My Dinos reads and BodyDrop status reads are prepared to use the automation API;
 - My Dinos Store/Redeem and BodyDrop POST still use the legacy publisher until the deliberate single-publisher cutover.
 
-The live `master` branch remains the production source of truth. Nothing in this branch should be merged or activated until the staged deployment checks in `DEPLOYMENT.md` are satisfied.
+`master` is the production source of truth for both the website and automation service. Runtime write gates remain independently controlled by environment variables and the staged checks in `DEPLOYMENT.md`.
