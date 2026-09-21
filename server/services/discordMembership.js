@@ -79,6 +79,85 @@ async function ensureRoleForTier(tier, env, fetchImpl) {
   return { role, roles };
 }
 
+async function getDiscordMembershipStatusForUser(userId, { env = process.env, fetchImpl = globalThis.fetch } = {}) {
+  const config = configuration(env);
+  const user = db.prepare("SELECT id, discord_id FROM users WHERE id = ?").get(userId);
+  if (!config) {
+    return {
+      configured: false,
+      linked: Boolean(user?.discord_id),
+      tier: null,
+      expectedRoleName: null,
+      actualRoleNames: [],
+      inSync: false,
+    };
+  }
+
+  if (!user?.discord_id) {
+    return {
+      configured: true,
+      linked: false,
+      tier: null,
+      expectedRoleName: null,
+      actualRoleNames: [],
+      inSync: false,
+    };
+  }
+
+  const supporter = getSupporterStatus(userId);
+  const entitled = Boolean(supporter && ["active", "trialing"].includes(supporter.stripe_status));
+  const normalizedTier = normalizeTier(supporter?.tier);
+  const targetTier = entitled && normalizedTier && ROLE_NAMES[normalizedTier] ? normalizedTier : null;
+
+  const exactRoleIds = configuredRoleIds(env);
+  const hasAllExactRoleIds = Object.keys(ROLE_NAMES).every((tier) => exactRoleIds[tier]);
+  let membershipRoles;
+
+  if (hasAllExactRoleIds) {
+    membershipRoles = Object.entries(ROLE_NAMES).map(([tier, name]) => ({
+      id: exactRoleIds[tier],
+      name,
+      tier,
+    }));
+  } else {
+    const roles = await listRoles(env, fetchImpl);
+    membershipRoles = roles
+      .filter((role) => Object.values(ROLE_NAMES).includes(role?.name) || LEGACY_ROLE_NAMES.has(role?.name))
+      .map((role) => ({
+        id: String(role.id),
+        name: role.name,
+        tier: Object.entries(ROLE_NAMES).find(([, name]) => name === role.name)?.[0] || null,
+      }));
+  }
+
+  const member = await discordRequest(
+    `/guilds/${config.guildId}/members/${user.discord_id}`,
+    {},
+    env,
+    fetchImpl
+  );
+  const currentRoleIds = new Set(Array.isArray(member?.roles) ? member.roles.map(String) : []);
+  const activeManagedRoles = membershipRoles.filter((role) => currentRoleIds.has(String(role.id)));
+  const targetRole = targetTier
+    ? membershipRoles.find((role) => role.tier === targetTier || role.name === ROLE_NAMES[targetTier]) || null
+    : null;
+
+  const targetPresent = Boolean(targetRole && currentRoleIds.has(String(targetRole.id)));
+  const otherManagedRoles = activeManagedRoles.filter((role) => !targetRole || String(role.id) !== String(targetRole.id));
+  const inSync = targetTier
+    ? targetPresent && otherManagedRoles.length === 0
+    : activeManagedRoles.length === 0;
+
+  return {
+    configured: true,
+    linked: true,
+    tier: targetTier,
+    expectedRoleName: targetTier ? ROLE_NAMES[targetTier] : null,
+    actualRoleNames: activeManagedRoles.map((role) => role.name),
+    inSync,
+  };
+}
+
 async function syncDiscordMembershipForUser(userId, { env = process.env, fetchImpl = globalThis.fetch } = {}) {
   if (!configuration(env)) return { configured: false, changed: false };
   const user = db.prepare("SELECT id, discord_id FROM users WHERE id = ?").get(userId);
@@ -140,6 +219,7 @@ module.exports = {
   DiscordMembershipError,
   configuration,
   configuredRoleIds,
+  getDiscordMembershipStatusForUser,
   syncDiscordMembershipForUser,
   _test: { ensureRoleForTier, discordRequest },
 };
