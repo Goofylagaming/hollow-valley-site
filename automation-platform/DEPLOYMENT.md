@@ -5,7 +5,7 @@ This service is designed to be deployed separately from the live Hollow Valley w
 ## Intended deployment shape
 
 - Repository: `Goofylagaming/hollow-valley-site`
-- Development branch: `automation-platform`
+- Source branch: `master` (single source of truth)
 - New service root directory: `automation-platform`
 - Runtime: Docker using `automation-platform/Dockerfile`
 - Health endpoint: `/health`
