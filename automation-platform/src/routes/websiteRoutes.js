@@ -112,6 +112,31 @@ router.get('/quests/:steamId', (req, res) => {
   }
 });
 
+router.get('/map/activity', (req, res) => {
+  try {
+    const hours = Math.max(1, Math.min(24 * 31, Number(req.query.hours) || 24));
+    const analytics = playerPresence.getPresenceAnalytics({ hours });
+    const samples = playerPresence.listPresenceSamples({ hours, limit: 5000 });
+    const lastSample = samples.at(-1) || null;
+    res.json({
+      trackingEnabled: analytics.enabled,
+      hours: analytics.hours,
+      sampleCount: analytics.sampleCount,
+      uniquePlayers: analytics.uniquePlayers,
+      sessions: analytics.sessions,
+      averageOnline: analytics.averageOnline,
+      peakConcurrent: analytics.peakConcurrent,
+      topSpecies: analytics.topSpecies || [],
+      activityTrend: analytics.activityTrend || [],
+      lastVerifiedAt: lastSample?.sampledAt || null,
+      windowStart: analytics.windowStart,
+      windowEnd: analytics.windowEnd,
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Unable to read map activity history.' });
+  }
+});
+
 router.get('/leaderboards/playtime', (req, res) => {
   try {
     const hours = Math.max(1, Math.min(24 * 31, Number(req.query.hours) || 24 * 31));
