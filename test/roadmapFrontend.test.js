@@ -20,6 +20,7 @@ test("roadmap browser scripts parse", () => {
     "public/assets/adminoperations.js",
     "public/assets/wallet.js",
     "public/assets/quests.js",
+    "public/assets/events.js",
   ]) {
     assert.doesNotThrow(() => new Function(read(file)), file);
   }
@@ -145,4 +146,22 @@ test("admin operations page is admin-only and contains no automation admin token
   assert.match(js, /\/api\/admin-operations/);
   assert.equal(html.includes("AUTOMATION_ADMIN_TOKEN"), false);
   assert.equal(js.includes("AUTOMATION_ADMIN_TOKEN"), false);
+});
+
+test("Discord Events page auto-refreshes from Discord and shows sync state", () => {
+  const html = read("public/events.html");
+  const js = read("public/assets/events.js");
+  const route = read("server/routes/events.js");
+  const bot = read("server/herbyBot.js");
+
+  assert.match(html, /Discord Scheduled Events are the source of truth/);
+  assert.match(html, /id="event-sync-state"/);
+  assert.match(js, /REFRESH_INTERVAL_MS = 30_000/);
+  assert.match(js, /\/api\/events/);
+  assert.match(js, /Discord events synced/);
+  assert.match(route, /discordEvents\.listScheduledEvents/);
+  assert.match(bot, /guildScheduledEventCreate/);
+  assert.match(bot, /guildScheduledEventUpdate/);
+  assert.match(bot, /guildScheduledEventDelete/);
+  assert.match(bot, /discordEvents\.invalidateCache/);
 });
