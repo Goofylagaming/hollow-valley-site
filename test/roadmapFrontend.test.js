@@ -180,3 +180,14 @@ test("Discord Events page auto-refreshes from Discord and shows sync state", () 
   assert.match(bot, /guildScheduledEventDelete/);
   assert.match(bot, /discordEvents\.invalidateCache/);
 });
+
+test("dashboard surfaces the next synced Discord event", () => {
+  const html = read("public/dashboard.html");
+  const js = read("public/assets/dashboard.js");
+
+  assert.match(html, /id="dash-next-event"/);
+  assert.match(html, /NEXT COMMUNITY EVENT/);
+  assert.match(js, /async function loadNextEvent/);
+  assert.match(js, /\/api\/events/);
+  assert.match(js, /View in Discord/);
+});
