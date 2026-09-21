@@ -1,8 +1,10 @@
 const { api, escapeHtml } = window.HDS;
 
 let currentStatus = null;
+let currentMe = { loggedIn: false, user: null };
 let reconcileAttempted = false;
 let discordSyncAttemptedKey = null;
+let discordSyncState = null;
 
 function activeManagedSubscription(status) {
   return Boolean(
@@ -16,8 +18,57 @@ function queueStatusRefresh() {
   setTimeout(loadPage, 3500);
 }
 
+function renderAccountStatus(me = currentMe, syncState = discordSyncState) {
+  const host = document.getElementById("supporter-account-status");
+  if (!host) return;
+
+  if (!me?.loggedIn || !me?.user) {
+    host.innerHTML = `
+      <div class="summary-tile"><small>STEAM ACCOUNT</small><b>Not signed in</b><span>Steam is required for supporter rewards.</span></div>
+      <div class="summary-tile"><small>DISCORD ACCOUNT</small><b>Not linked</b><span>Discord linking enables automatic supporter roles.</span></div>
+    `;
+    return;
+  }
+
+  const steamLinked = Boolean(me.user.steam_id);
+  const discordLinked = Boolean(me.user.discord_id);
+
+  let roleLabel = "Waiting for Discord";
+  let roleDetail = "Link Discord to sync supporter roles.";
+  if (discordLinked && syncState?.error) {
+    roleLabel = "Sync unavailable";
+    roleDetail = syncState.error;
+  } else if (discordLinked && syncState?.configured === false) {
+    roleLabel = "Not configured";
+    roleDetail = "Discord role automation is not configured.";
+  } else if (discordLinked && syncState?.linked) {
+    roleLabel = syncState.roleName || "No supporter role";
+    roleDetail = syncState.changed ? "Role updated from your current membership." : "Discord role is already in sync.";
+  } else if (discordLinked) {
+    roleLabel = "Checking…";
+    roleDetail = "Checking supporter role sync.";
+  }
+
+  const steamAction = steamLinked
+    ? '<span>Rewards are attached to this Steam-linked account.</span>'
+    : '<a class="small-button" href="/auth/steam?returnTo=/supporter">Link Steam</a>';
+  const discordAction = discordLinked
+    ? '<span>Discord identity is linked to this portal account.</span>'
+    : me.discordLoginConfigured
+      ? '<a class="small-button" href="/auth/discord">Link Discord</a>'
+      : '<span>Discord linking is not configured.</span>';
+
+  host.innerHTML = `
+    <div class="summary-tile"><small>STEAM ACCOUNT</small><b>${steamLinked ? "Linked" : "Required"}</b>${steamAction}</div>
+    <div class="summary-tile"><small>DISCORD ACCOUNT</small><b>${discordLinked ? "Linked" : "Not linked"}</b>${discordAction}</div>
+    <div class="summary-tile"><small>DISCORD SUPPORTER ROLE</small><b>${escapeHtml(roleLabel)}</b><span>${escapeHtml(roleDetail)}</span></div>
+  `;
+}
+
 async function loadStatus() {
   const me = await window.HDS.loadMe();
+  currentMe = me;
+  renderAccountStatus(me, discordSyncState);
   const statusEl = document.getElementById("supporter-status");
 
   if (!me.loggedIn) {
@@ -68,14 +119,6 @@ async function loadStatus() {
       ${managementButton}
     `;
 
-    const discordSyncKey = `${status.tier || "none"}:${status.stripe_status || "none"}`;
-    if (discordSyncAttemptedKey !== discordSyncKey) {
-      discordSyncAttemptedKey = discordSyncKey;
-      api("/api/supporter/sync-discord", { method: "POST" }).catch((err) => {
-        console.warn("Discord membership role sync failed", err);
-      });
-    }
-
     document.getElementById("cancel-supporter")?.addEventListener("click", async () => {
       if (!confirm("Cancel this membership at the end of the current billing period?")) return;
       const button = document.getElementById("cancel-supporter");
@@ -116,10 +159,47 @@ async function loadStatus() {
   }
 }
 
+async function syncDiscordAccount(status = currentStatus) {
+  if (!currentMe?.loggedIn || !currentMe?.user) {
+    discordSyncState = null;
+    renderAccountStatus(currentMe, discordSyncState);
+    return;
+  }
+
+  if (!currentMe.user.discord_id) {
+    discordSyncState = {
+      configured: Boolean(currentMe.discordLoginConfigured),
+      linked: false,
+      changed: false,
+    };
+    renderAccountStatus(currentMe, discordSyncState);
+    return;
+  }
+
+  const key = `${status?.tier || "none"}:${status?.stripe_status || "none"}:discord-linked`;
+  if (discordSyncAttemptedKey === key && discordSyncState) {
+    renderAccountStatus(currentMe, discordSyncState);
+    return;
+  }
+
+  discordSyncAttemptedKey = key;
+  discordSyncState = null;
+  renderAccountStatus(currentMe, discordSyncState);
+
+  try {
+    discordSyncState = await api("/api/supporter/sync-discord", { method: "POST" });
+  } catch (err) {
+    console.warn("Discord membership role sync failed", err);
+    discordSyncState = { error: err.message || "Discord role sync failed." };
+  }
+  renderAccountStatus(currentMe, discordSyncState);
+}
+
 async function loadTiers(status = currentStatus) {
   const grid = document.getElementById("tier-grid");
   const { tiers, checkoutConfigured } = await api("/api/supporter/tiers");
   const managing = activeManagedSubscription(status);
+  const steamLinked = Boolean(currentMe?.user?.steam_id);
 
   grid.innerHTML = Object.entries(tiers)
     .map(([key, tier]) => {
@@ -130,6 +210,9 @@ async function loadTiers(status = currentStatus) {
 
       if (!checkoutConfigured) {
         label = "Checkout not yet available";
+        disabled = true;
+      } else if (!steamLinked) {
+        label = "Link Steam first";
         disabled = true;
       } else if (isCurrent) {
         label = status.auto_renew ? "Current membership" : "Current until renewal";
@@ -159,7 +242,8 @@ async function loadTiers(status = currentStatus) {
   grid.querySelectorAll("button[data-tier]:not([disabled])").forEach((btn) =>
     btn.addEventListener("click", async () => {
       const me = await window.HDS.loadMe();
-      if (!me.loggedIn) return alert("Sign in with Steam first.");
+      currentMe = me;
+      if (!me.loggedIn || !me.user?.steam_id) return alert("Link your Steam account before starting or changing a membership.");
 
       const tier = btn.dataset.tier;
       const tierLabel = tiers[tier]?.label || tier;
@@ -198,6 +282,7 @@ async function loadTiers(status = currentStatus) {
 async function loadPage() {
   const status = await loadStatus();
   await loadTiers(status);
+  await syncDiscordAccount(status);
 }
 
 loadPage().catch(() => {
