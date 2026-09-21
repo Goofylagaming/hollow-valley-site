@@ -14,7 +14,9 @@ function render() {
       ? (data.playtimeTrackingEnabled === false
           ? "Verified playtime tracking is currently unavailable."
           : "No verified playtime has been recorded in this 31-day window.")
-      : "Combat ranking unavailable — waiting for an authoritative kill/death feed.";
+      : (data.combatFeedEnabled
+          ? "No verified combat events have been recorded in this 31-day window."
+          : "Combat ranking unavailable — waiting for an authoritative kill/death feed.");
     body.innerHTML = `<tr><td colspan="3">${message}</td></tr>`;
     return;
   }
