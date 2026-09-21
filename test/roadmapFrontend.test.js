@@ -17,6 +17,7 @@ test("roadmap browser scripts parse", () => {
     "public/assets/skins.js",
     "public/assets/supporter.js",
     "public/assets/adminrestore.js",
+    "public/assets/adminoperations.js",
     "public/assets/wallet.js",
     "public/assets/quests.js",
   ]) {
@@ -133,4 +134,15 @@ test("website server status reuses the automation snapshot instead of duplicate 
   assert.match(status, /source: automationConfigured\(\) \? "automation-cache" : "direct-rcon"/);
   assert.match(client, /function getServerSnapshot\(\)/);
   assert.match(client, /call\('\/server-snapshot'\)/);
+});
+
+test("admin operations page is admin-only and contains no automation admin token", () => {
+  const html = read("public/adminoperations.html");
+  const js = read("public/assets/adminoperations.js");
+  const nav = read("public/partials/nav.html");
+  assert.match(nav, /id="admin-operations-nav" hidden/);
+  assert.match(html, /ADMIN · OPERATIONS/);
+  assert.match(js, /\/api\/admin-operations/);
+  assert.equal(html.includes("AUTOMATION_ADMIN_TOKEN"), false);
+  assert.equal(js.includes("AUTOMATION_ADMIN_TOKEN"), false);
 });
