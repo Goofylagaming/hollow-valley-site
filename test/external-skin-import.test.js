@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { parseExternalSkinCode, mergeWithSkin } = require("../public/assets/external-skin-import.js");
+const { parseExternalSkinCode, parseExternalSkinBatch, mergeWithSkin } = require("../public/assets/external-skin-import.js");
 
 test("parses current Fangs & Ferns seven-zone share codes", () => {
   const parsed = parseExternalSkinCode(
@@ -58,4 +58,38 @@ test("external imports preserve unsupported current editor fields", () => {
 
 test("rejects unknown formats", () => {
   assert.throws(() => parseExternalSkinCode("not-a-supported-skin-code"), /Unsupported skin code/);
+});
+
+
+test("parses multiple Fangs & Ferns codes as one batch", () => {
+  const parsed = parseExternalSkinBatch([
+    "FNF-TYRA-AB09E · C42021-2A3A4F-B09E7E-9A5A2C-E6DAB8-FFB347-FF6A1F",
+    "FNF-CERA-CD12F · 102030-203040-304050-405060-506070-607080-708090",
+  ].join("\n"));
+  assert.equal(parsed.length, 2);
+  assert.equal(parsed[0].source, "fangs-ferns");
+  assert.equal(parsed[1].source, "fangs-ferns");
+});
+
+test("parses a JSON array as an external skin batch", () => {
+  const parsed = parseExternalSkinBatch(JSON.stringify([
+    {
+      PatternIndex: 1,
+      BodyColor: { R: 0.1, G: 0.2, B: 0.3, A: 1 },
+    },
+    {
+      SkinVariation: 4,
+      BodyColor: { R: 0.4, G: 0.5, B: 0.6, A: 1 },
+    },
+  ]));
+  assert.equal(parsed.length, 2);
+  assert.equal(parsed[0].indices.patternIndex, 1);
+  assert.equal(parsed[1].indices.skinVariation, 4);
+});
+
+test("limits external skin batches to 50 entries", () => {
+  const codes = Array.from({ length: 51 }, () =>
+    "FNF-TYRA-AB09E · C42021-2A3A4F-B09E7E-9A5A2C-E6DAB8-FFB347-FF6A1F"
+  ).join("\n");
+  assert.throws(() => parseExternalSkinBatch(codes), /limited to 50 skins/);
 });
