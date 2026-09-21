@@ -22,6 +22,14 @@
   - Any edit after validation immediately locks Upload again.
   - Successful upload requires revalidation before another upload attempt.
 - Website regression workflow passed for PRs #68 and #69 before merge.
+- Added and merged PR #70: external server skin-code import.
+  - Auto-detects current Fangs & Ferns seven-zone HEX share codes.
+  - Parses Dino Den-style JSON customizer codes, including pattern/variation/theme when supplied.
+  - Loads compatible values into Hollow Valley Skin Studio for review before saving.
+  - Requires an explicit target species rather than guessing cross-server species mappings.
+  - Preserves Hollow Valley values for fields a foreign format does not carry, such as teeth, mouth or claws.
+  - Native Hollow Valley share-code import remains unchanged.
+- Website Automation Regression Tests and Validate Skin Studio both passed before PR #70 was merged.
 
 ### Current roadmap baseline
 - Website and automation deployment source is unified on master.
@@ -37,7 +45,7 @@
 
 ### Next
 - Continue Admin Restore live workflow testing and expand recovery presets only after class paths are verified.
-- Continue Skin Studio live-test hardening.
+- Continue Skin Studio live-test hardening, including real-world external-code samples as they are collected.
 - Continue combat/stat feed integration once an authoritative server feed is available.
 - Continue dashboard and admin UX cleanup.
 - Continue hosting-migration readiness work independently of the current Isle server being online.
