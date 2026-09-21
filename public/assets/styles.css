@@ -509,3 +509,11 @@
 .comms-job-message{max-width:420px;white-space:normal!important;line-height:1.45}
 @media(max-width:1000px){.comms-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.comms-two-column{grid-template-columns:1fr}}
 @media(max-width:600px){.comms-summary-grid{grid-template-columns:1fr}.comms-schedule-grid{grid-template-columns:1fr}}
+
+.map-history-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:26px 0 10px}
+.map-history-grid .summary-tile span{display:block;margin-top:6px;color:#80705f;font-size:9px}
+.map-history-grid .summary-tile:first-child b{font-size:14px;line-height:1.35}
+.map-history-note{margin:0 0 22px;padding:10px 12px;border:1px solid #302b20;background:#0f0e0b;color:#8d7c69;font-size:10px;line-height:1.5}
+.map-status.offline{color:#c87767}
+@media(max-width:900px){.map-history-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.map-history-grid{grid-template-columns:1fr}}
