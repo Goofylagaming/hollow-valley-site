@@ -11,6 +11,7 @@ const serverMonitor = require('../services/serverMonitorService');
 const playerPresence = require('../services/playerPresenceService');
 const audit = require('../services/auditService');
 const store = require('../services/automationStore');
+const eventRewards = require('../services/eventRewardService');
 
 const router = express.Router();
 router.use(requireAdminToken);
@@ -97,6 +98,54 @@ router.post('/dinostorage/admin-restore/upload', async (req, res) => {
       return res.status(503).json({ error: error.message });
     }
     res.status(400).json({ error: error.message || 'Unable to upload admin restore JSON.' });
+  }
+});
+
+router.get('/events/rewards', (req, res) => {
+  const limit = Math.max(1, Math.min(500, Number(req.query.limit) || 100));
+  res.json({
+    state: eventRewards.state(),
+    rewards: eventRewards.listRewards({ limit }),
+  });
+});
+
+router.post('/events/reward', async (req, res) => {
+  try {
+    const result = await audit.run(
+      'economy',
+      'event_reward',
+      {
+        steamId: String(req.body?.steamId || '').trim(),
+        eventId: String(req.body?.eventId || '').trim(),
+        eventTitle: String(req.body?.eventTitle || '').trim(),
+        baseAmount: Number(req.body?.baseAmount) || 0,
+      },
+      () => eventRewards.awardReward({
+        steamId: req.body?.steamId,
+        eventId: req.body?.eventId,
+        eventTitle: req.body?.eventTitle,
+        baseAmount: req.body?.baseAmount,
+      }),
+      (value) => ({
+        duplicate: Boolean(value.duplicate),
+        eventId: value.event?.id || null,
+        steamId: value.wallet?.steamId || null,
+        baseAmount: value.baseAmount,
+        supporterTier: value.supporterTier,
+        supporterMultiplier: value.supporterMultiplier,
+        payoutAmount: value.payoutAmount,
+        balance: value.wallet?.balance ?? null,
+      })
+    );
+    res.status(result.duplicate ? 200 : 201).json({ ok: true, ...result });
+  } catch (error) {
+    const status = error.code === 'EVENT_REWARDS_DISABLED' ? 503 :
+      ['EVENT_REWARD_SUPPORTER_LOOKUP_UNAVAILABLE', 'EVENT_REWARD_SUPPORTER_LOOKUP_FAILED'].includes(error.code) ? 503 :
+      400;
+    res.status(status).json({
+      error: error.message || 'Unable to issue event reward.',
+      code: error.code || null,
+    });
   }
 });
 

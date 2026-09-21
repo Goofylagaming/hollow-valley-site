@@ -16,6 +16,7 @@ const skinPresets = require('../services/skinPresetService');
 const skinWear = require('../services/skinWearService');
 const officialMarketplaceFulfillment = require('../services/officialMarketplaceFulfillmentService');
 const playerPresence = require('../services/playerPresenceService');
+const eventRewards = require('../services/eventRewardService');
 
 const router = express.Router();
 router.use(requireWebsiteToken);
@@ -110,6 +111,18 @@ router.get('/quests/:steamId', (req, res) => {
     });
   } catch (error) {
     res.status(400).json({ error: error.message || 'Unable to read playtime quests.' });
+  }
+});
+
+router.get('/events/rewards/:steamId', (req, res) => {
+  try {
+    const steamId = validateSteamId(req.params.steamId);
+    res.json({
+      state: eventRewards.state(),
+      rewards: eventRewards.listRewards({ steamId, limit: 100 }),
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Unable to read event rewards.' });
   }
 });
 

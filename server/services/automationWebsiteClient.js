@@ -159,6 +159,10 @@ function claimDailyLoginBonus(steamId) {
   return call(`/daily-login/${encodeURIComponent(validateSteamId(steamId))}/claim`, { method: 'POST' });
 }
 
+function getEventRewards(steamId) {
+  return call(`/events/rewards/${encodeURIComponent(validateSteamId(steamId))}`);
+}
+
 function getMapActivity({ hours = 24 } = {}) {
   const safeHours = Math.max(1, Math.min(24 * 31, Number(hours) || 24));
   return call(`/map/activity?hours=${safeHours}`);
@@ -369,6 +373,23 @@ function publishSkin({ presetId, price, description, published = true }) {
   });
 }
 
+function getAdminEventRewards({ limit = 100 } = {}) {
+  const safeLimit = Math.max(1, Math.min(500, Number(limit) || 100));
+  return callAdmin(`/events/rewards?limit=${safeLimit}`);
+}
+
+function awardAdminEventReward({ steamId, eventId, eventTitle, baseAmount }) {
+  return callAdmin('/events/reward', {
+    method: 'POST',
+    body: {
+      steamId: validateSteamId(steamId),
+      eventId,
+      eventTitle,
+      baseAmount,
+    },
+  });
+}
+
 function getAdminOperationsStatus({ force = false } = {}) {
   return callAdmin(`/status${force ? '?force=1' : ''}`);
 }
@@ -477,6 +498,7 @@ module.exports = {
   getQuests,
   getDailyLoginBonus,
   claimDailyLoginBonus,
+  getEventRewards,
   getMapActivity,
   getPlaytimeLeaderboard,
   listMarketplaceCatalog,
@@ -501,6 +523,8 @@ module.exports = {
   buySkin,
   wearSkin,
   publishSkin,
+  getAdminEventRewards,
+  awardAdminEventReward,
   getAdminOperationsStatus,
   getAdminAudit,
   getAdminRequests,

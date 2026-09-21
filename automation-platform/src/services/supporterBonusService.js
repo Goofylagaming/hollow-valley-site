@@ -37,7 +37,8 @@ function validateSteamId(value) {
 }
 
 function normalizeTier(value) {
-  return LEGACY_TIER_ALIASES[String(value || "").trim().toLowerCase()] || null;
+  const key = String(value || "").trim().toLowerCase();
+  return Object.hasOwn(LEGACY_TIER_ALIASES, key) ? LEGACY_TIER_ALIASES[key] : null;
 }
 
 function multiplierForTier(tier) {

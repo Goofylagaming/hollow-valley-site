@@ -88,6 +88,8 @@ services:
         value: 20
       - key: WALLET_QUEST_MAX_TOTAL_BOOST_PERCENT
         value: 100
+      - key: EVENT_REWARDS_ENABLED
+        value: false
       - key: MARKETPLACE_WRITE_ENABLED
         value: false
       - key: MARKETPLACE_RECONCILE_INTERVAL_MS

@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Hollow Valley community events from Discord.">
+  <meta name="description" content="Hollow Valley community events and Steam-linked Valley Coin event rewards.">
   <title>Events | Hollow Valley</title>
-  <link rel="stylesheet" href="assets/styles.css?v=15">
+  <link rel="stylesheet" href="assets/styles.css?v=20">
 </head>
 <body>
   <div class="app-shell">
@@ -14,23 +14,90 @@
       <section class="page-header">
         <p class="overline green">COMMUNITY CALENDAR</p>
         <h1>Hollow Valley events.</h1>
-        <p class="section-intro">Upcoming community events are published from our Discord server.</p>
+        <p class="section-intro">Upcoming community events, plus Steam-linked Valley Coin rewards issued by Hollow Valley admins.</p>
       </section>
+
       <section class="roster-section">
         <div class="calendar-header">
-          <button class="small-button" id="calendar-previous" aria-label="Previous month">?</button>
-          <h2 id="calendar-title">Loading calendar?</h2>
-          <button class="small-button" id="calendar-next" aria-label="Next month">?</button>
+          <button class="small-button" id="calendar-previous" aria-label="Previous month">‹</button>
+          <h2 id="calendar-title">Loading calendar…</h2>
+          <button class="small-button" id="calendar-next" aria-label="Next month">›</button>
         </div>
-        <div class="calendar-weekdays" aria-hidden="true"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>
+        <div class="calendar-weekdays" aria-hidden="true">
+          <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+        </div>
         <div class="calendar-grid" id="calendar-grid"></div>
+
         <div class="list-heading" style="margin-top:40px"><span>UPCOMING EVENTS</span></div>
-        <div class="event-list" id="event-list"><div class="empty-roster"><strong>Loading events?</strong></div></div>
+        <div class="event-list" id="event-list">
+          <div class="empty-roster"><strong>Loading events…</strong></div>
+        </div>
+
+        <section class="event-rewards-section" aria-labelledby="my-event-rewards-heading">
+          <div class="list-heading">
+            <span id="my-event-rewards-heading">YOUR EVENT REWARDS</span>
+            <small id="event-reward-state">Steam-linked history</small>
+          </div>
+          <div id="my-event-rewards" class="event-reward-list">
+            <div class="empty-roster"><strong>Checking reward history…</strong></div>
+          </div>
+        </section>
+
+        <section class="event-admin-panel" id="event-admin-panel" hidden>
+          <div class="section-top">
+            <div>
+              <p class="overline green">ADMIN · EVENT REWARDS</p>
+              <h2>Award Valley Coin.</h2>
+            </div>
+            <p class="section-intro">One reward per Steam-linked player per event. Supporter multipliers apply automatically inside automation.</p>
+          </div>
+
+          <div class="event-admin-status" id="event-admin-status">Loading event reward gate…</div>
+
+          <form id="event-reward-form" class="event-reward-form">
+            <label>
+              <span>EVENT ID</span>
+              <input id="event-reward-event-id" maxlength="80" placeholder="Discord event ID or custom-event-01" required>
+            </label>
+            <label>
+              <span>EVENT TITLE</span>
+              <input id="event-reward-event-title" maxlength="120" placeholder="e.g. Migration Night" required>
+            </label>
+            <label>
+              <span>PLAYER</span>
+              <select id="event-reward-player" required>
+                <option value="">Loading Steam-linked players…</option>
+              </select>
+            </label>
+            <label>
+              <span>BASE VALLEY COIN</span>
+              <input id="event-reward-base" type="number" min="1" max="1000000" step="1" value="500" required>
+            </label>
+            <button class="primary-button" id="event-reward-submit" type="submit" disabled>Award event reward <b>→</b></button>
+          </form>
+
+          <p class="section-intro event-admin-message" id="event-admin-message" role="status"></p>
+
+          <div class="list-heading event-admin-history-heading">
+            <span>RECENT EVENT PAYOUTS</span>
+            <small>automation ledger</small>
+          </div>
+          <div class="ops-table-wrap">
+            <table class="ops-table">
+              <thead><tr><th>Event</th><th>Player</th><th>Base</th><th>Multiplier</th><th>Payout</th><th>Time</th></tr></thead>
+              <tbody id="event-admin-history">
+                <tr><td colspan="6" class="ops-empty">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
       </section>
     </main>
-    <footer><span>? 2026 Herby Death Squad Games</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to command ?</a></footer>
+
+    <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
   </div>
-  <script src="assets/common.js?v=12"></script>
-  <script src="assets/events.js?v=1"></script>
+
+  <script src="assets/common.js?v=14"></script>
+  <script src="assets/events.js?v=2"></script>
 </body>
 </html>

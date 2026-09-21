@@ -23,6 +23,7 @@ test("roadmap browser scripts parse", () => {
     "public/assets/quests.js",
     "public/assets/leaderboard.js",
     "public/assets/livemap.js",
+    "public/assets/events.js",
   ]) {
     assert.doesNotThrow(() => new Function(read(file)), file);
   }
@@ -191,4 +192,26 @@ test("Live Map keeps offline history separate from live coordinates", () => {
   assert.match(route, /router\.get\("\/activity"/);
   assert.match(client, /function getMapActivity/);
   assert.match(client, /\/map\/activity\?hours=/);
+});
+
+test("Events page exposes Steam-linked reward history and guarded admin payouts", () => {
+  const html = read("public/events.html");
+  const js = read("public/assets/events.js");
+  const route = read("server/routes/events.js");
+  const client = read("server/services/automationWebsiteClient.js");
+  const wallet = read("public/assets/wallet.js");
+  const eventService = read("automation-platform/src/services/eventRewardService.js");
+
+  assert.match(html, /YOUR EVENT REWARDS/);
+  assert.match(html, /id="event-admin-panel" hidden/);
+  assert.match(html, /Award Valley Coin/);
+  assert.match(js, /\/api\/events\/rewards\/mine/);
+  assert.match(js, /\/api\/events\/admin\/reward/);
+  assert.match(js, /supporterMultiplier/);
+  assert.match(route, /requireAdmin/);
+  assert.match(client, /awardAdminEventReward/);
+  assert.match(wallet, /event_reward/);
+  assert.match(eventService, /EVENT_REWARDS_ENABLED/);
+  assert.match(eventService, /kind: 'event_reward'/);
+  assert.match(eventService, /supporterBonuses\.applyBonus/);
 });

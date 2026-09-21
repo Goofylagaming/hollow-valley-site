@@ -1,4 +1,7 @@
 const express = require("express");
+const { requireAuth, requireAdmin } = require("../middleware/requireAuth");
+const { listSteamLinkedUsers } = require("../db");
+const automation = require("../services/automationWebsiteClient");
 
 const router = express.Router();
 const DISCORD_API = "https://discord.com/api/v10";
@@ -72,3 +75,57 @@ router.get("/", async (req, res) => {
 });
 
 module.exports = router;
+
+
+router.get("/rewards/mine", requireAuth, async (req, res) => {
+  if (!req.user?.steam_id) {
+    return res.status(400).json({ error: "Your Steam account is not linked." });
+  }
+
+  try {
+    return res.json(await automation.getEventRewards(String(req.user.steam_id)));
+  } catch (error) {
+    const status = Number.isInteger(error?.status) ? error.status : 502;
+    return res.status(status).json({ error: error.message || "Could not load event reward history." });
+  }
+});
+
+router.get("/admin/players", requireAdmin, (req, res) => {
+  const players = listSteamLinkedUsers({
+    query: req.query.q,
+    limit: Number(req.query.limit) || 200,
+  }).map((row) => ({
+    id: row.id,
+    steamId: row.steam_id,
+    username: row.username,
+    avatar: row.avatar || null,
+  }));
+  res.json({ players });
+});
+
+router.get("/admin/rewards", requireAdmin, async (req, res) => {
+  try {
+    return res.json(await automation.getAdminEventRewards({ limit: Number(req.query.limit) || 100 }));
+  } catch (error) {
+    const status = Number.isInteger(error?.status) ? error.status : 502;
+    return res.status(status).json({ error: error.message || "Could not load event reward administration." });
+  }
+});
+
+router.post("/admin/reward", requireAdmin, async (req, res) => {
+  try {
+    const result = await automation.awardAdminEventReward({
+      steamId: req.body?.steamId,
+      eventId: req.body?.eventId,
+      eventTitle: req.body?.eventTitle,
+      baseAmount: req.body?.baseAmount,
+    });
+    return res.status(result.duplicate ? 200 : 201).json(result);
+  } catch (error) {
+    const status = Number.isInteger(error?.status) ? error.status : 502;
+    return res.status(status).json({
+      error: error.message || "Could not issue event reward.",
+      code: error?.payload?.code || error?.code || null,
+    });
+  }
+});

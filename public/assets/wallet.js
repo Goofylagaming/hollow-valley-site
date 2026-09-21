@@ -13,6 +13,7 @@ function walletActivityLabel(transaction) {
   const kind = String(transaction?.kind || "");
   if (kind === "playtime_reward") return "Playtime reward";
   if (kind === "daily_login") return "Daily login";
+  if (kind === "event_reward") return "Event reward";
   if (kind === "marketplace_purchase") return "Marketplace purchase";
   if (kind === "marketplace_refund") return "Marketplace refund";
   if (kind === "marketplace_p2p_hold") return "Dino purchase";

@@ -181,6 +181,20 @@ function getUserByUsername(username) {
   return db.prepare("SELECT * FROM users WHERE username = ? COLLATE NOCASE").get(username);
 }
 
+function listSteamLinkedUsers({ query = "", limit = 200 } = {}) {
+  const safeLimit = Math.max(1, Math.min(500, Number(limit) || 200));
+  const q = String(query || "").trim();
+  if (!q) {
+    return db.prepare(
+      "SELECT id, steam_id, username, avatar FROM users WHERE steam_id IS NOT NULL AND steam_id <> '' ORDER BY username COLLATE NOCASE ASC LIMIT ?"
+    ).all(safeLimit);
+  }
+  const like = `%${q}%`;
+  return db.prepare(
+    "SELECT id, steam_id, username, avatar FROM users WHERE steam_id IS NOT NULL AND steam_id <> '' AND (username LIKE ? COLLATE NOCASE OR steam_id LIKE ?) ORDER BY username COLLATE NOCASE ASC LIMIT ?"
+  ).all(like, like, safeLimit);
+}
+
 function findOrCreateUser({ currentUserId, discordId, username, avatar }) {
   const existingDiscordUser = db.prepare("SELECT * FROM users WHERE discord_id = ?").get(discordId);
 
@@ -560,6 +574,7 @@ module.exports = {
   findOrCreateUser,
   findOrCreateUserBySteam,
   getUserByUsername,
+  listSteamLinkedUsers,
   getWallet,
   creditWallet,
   periodKeyFor,

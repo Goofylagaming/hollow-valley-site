@@ -517,3 +517,16 @@
 .map-status.offline{color:#c87767}
 @media(max-width:900px){.map-history-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:520px){.map-history-grid{grid-template-columns:1fr}}
+
+.event-rewards-section{margin-top:42px;padding:20px;border:1px solid var(--line);background:var(--panel)}
+.event-reward-list{display:grid;gap:8px}
+.event-reward-row{display:grid;grid-template-columns:minmax(180px,1fr) auto auto auto;align-items:center;gap:14px;padding:13px 14px;border:1px solid #30271d;background:#0f0d0a}
+.event-reward-row strong{display:block;color:#e8e1ce;font:600 13px Cinzel}.event-reward-row small{display:block;margin-top:4px;color:#7e6f5e;font-size:9px}.event-reward-row span{color:#9b8a76;font-size:10px}.event-reward-row>b{color:var(--gold);font:600 18px Oswald}
+.event-admin-panel{margin-top:28px;padding:22px;border:1px solid #5b4924;background:linear-gradient(135deg,#15130e,#0d0c09)}
+.event-admin-panel h2{margin:10px 0;color:#eee7d3;font:600 clamp(28px,3vw,42px)/1 Cinzel}
+.event-admin-status{margin:22px 0 14px;padding:11px 13px;border:1px solid #526537;background:#10140d;color:#a9c678;font-size:10px;line-height:1.5}.event-admin-status.locked{border-color:#684035;background:#160f0d;color:#d59584}
+.event-reward-form{display:grid;grid-template-columns:1fr 1fr 1.2fr .7fr auto;align-items:end;gap:10px}.event-reward-form label{display:grid;gap:7px}.event-reward-form label>span{color:#ad9b7e;font:700 9px Manrope;letter-spacing:.12em}.event-reward-form input,.event-reward-form select{width:100%;min-height:43px;padding:11px 12px;border:1px solid var(--line);background:#0b0b09;color:var(--text);font:600 10px Manrope}.event-reward-form select option{background:#11110e;color:var(--text)}
+.event-admin-message{max-width:none;margin-top:13px}.event-admin-history-heading{margin-top:28px}
+.event-card-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.event-card-actions .small-button{white-space:nowrap}
+@media(max-width:1100px){.event-reward-form{grid-template-columns:1fr 1fr}.event-reward-form .primary-button{grid-column:1/3}.event-reward-row{grid-template-columns:1fr auto}.event-reward-row span{grid-row:2}}
+@media(max-width:600px){.event-reward-form{grid-template-columns:1fr}.event-reward-form .primary-button{grid-column:1}.event-reward-row{grid-template-columns:1fr}.event-reward-row span{grid-row:auto}}
