@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Live Gateway map with survivor tracking, salt licks, migration zones and sanctuaries.">
+  <meta name="description" content="Gateway map with live Hollow Valley positions when available and verified activity history during downtime.">
   <title>Live map | Hollow Valley</title>
   <link rel="stylesheet" href="assets/styles.css?v=15">
 </head>
@@ -14,10 +14,17 @@
       <section class="page-header">
         <p class="overline green">LIVE POSITIONS</p>
         <h1>Live Gateway map.</h1>
-        <p class="section-intro">The full Gateway island with live survivor positions from the Hollow Valley game server, plus salt licks, migration corridors, patrol zones and sanctuaries.</p>
+        <p class="section-intro">The full Gateway island with live survivor positions when the game server is available, plus verified activity history and static Gateway map layers during downtime.</p>
       </section>
       <section class="roster-section live-tracker-section">
-        <div class="section-top"><div><p class="overline green">HOLLOW VALLEY TRACKER</p><h2>Live survivor positions.</h2></div><p class="section-intro">Live positions refresh every 30 seconds. Map layers are static Gateway v0.21 data.</p></div>
+        <div class="section-top"><div><p class="overline green">HOLLOW VALLEY TRACKER</p><h2>Live survivor positions.</h2></div><p class="section-intro">Live positions refresh every 30 seconds when available. Offline periods never display stale coordinates as live positions.</p></div>
+        <div class="map-history-grid" id="map-history-grid">
+          <div class="summary-tile"><small>LAST VERIFIED SAMPLE</small><b id="map-last-verified">—</b><span>presence history</span></div>
+          <div class="summary-tile"><small>24H PEAK</small><b id="map-peak-online">—</b><span>players online</span></div>
+          <div class="summary-tile"><small>24H AVERAGE</small><b id="map-average-online">—</b><span>players online</span></div>
+          <div class="summary-tile"><small>UNIQUE SURVIVORS</small><b id="map-unique-players">—</b><span>verified in 24h</span></div>
+        </div>
+        <div class="map-history-note" id="map-history-note">Loading verified activity history…</div>
         <div id="tracker-character" class="char-panel"><div class="empty-roster"><strong>Loading&hellip;</strong><span>Checking the server for your character.</span></div></div>
         <div class="tracker-grid">
           <div class="map-canvas-wrap">
@@ -38,7 +45,7 @@
                 </div>
               </div>
             </div>
-            <p class="map-credit" id="tracker-credit">Gateway island map with live positions from the Hollow Valley server. Static layer data: Gateway v0.21 community POI export.</p>
+            <p class="map-credit" id="tracker-credit">Gateway island map. Player markers are shown only from a current live server snapshot; static layer data remains available offline.</p>
             <p class="map-status" id="tracker-status">Checking live connection&hellip;</p>
           </div>
           <aside class="map-layers-panel">
@@ -60,9 +67,9 @@
         <div id="tracker-contacts" class="activity-list"><div class="empty-roster"><strong>Loading survivors&hellip;</strong></div></div>
       </section>
     </main>
-    <footer><span>&copy; 2026 Herby Death Squad Games</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to command &rarr;</a></footer>
+    <footer><span>&copy; 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="assets/common.js?v=12"></script>
-  <script src="assets/livemap.js?v=10"></script>
+  <script src="assets/livemap.js?v=11"></script>
 </body>
 </html>
