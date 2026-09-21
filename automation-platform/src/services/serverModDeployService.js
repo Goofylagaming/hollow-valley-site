@@ -85,6 +85,7 @@ async function inspectRemoteMod(client, local) {
         installed: false,
         remoteVersion: null,
         remoteBytes: 0,
+        enabledMarker: false,
         current: false,
       };
     }
@@ -103,6 +104,7 @@ async function inspectRemoteMod(client, local) {
         installed: false,
         remoteVersion: null,
         remoteBytes: 0,
+        enabledMarker: false,
         current: false,
       };
     }
@@ -127,7 +129,7 @@ async function inspectRemoteMod(client, local) {
       enabledMarker,
       remoteVersion,
       remoteBytes: current.length,
-      current: remoteVersion === local.version && current.equals(local.content),
+      current: enabledMarker && remoteVersion === local.version && current.equals(local.content),
     };
   } finally {
     await client.cd('/').catch(() => {});
@@ -240,7 +242,7 @@ async function deployOne(client, local) {
     await client.ensureDir(modDirectory);
     let enabledMarkerCreated = false;
     if (!await remoteFileExists(client, 'enabled.txt')) {
-      await client.uploadFrom(Readable.from([Buffer.alloc(0)]), 'enabled.txt');
+      await client.uploadFrom(Readable.from([Buffer.from('\n', 'utf8')]), 'enabled.txt');
       enabledMarkerCreated = true;
     }
 
