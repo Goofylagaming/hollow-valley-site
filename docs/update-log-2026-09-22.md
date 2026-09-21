@@ -30,6 +30,16 @@
   - Preserves Hollow Valley values for fields a foreign format does not carry, such as teeth, mouth or claws.
   - Native Hollow Valley share-code import remains unchanged.
 - Website Automation Regression Tests and Validate Skin Studio both passed before PR #70 was merged.
+- Added and merged PR #71: admin External Skin Library.
+  - Batch-imports up to 50 supported external skin codes at once.
+  - Supports multiple Fangs & Ferns lines plus Dino Den-style JSON arrays or separated JSON blocks.
+  - Provides queued previews with colour swatches and pattern/theme/variation values before saving.
+  - Lets admins rename every queued draft before import.
+  - Saves through the existing unpublished Skin Studio preset path; nothing is published automatically.
+  - Keeps source metadata attached to imported skins so they remain visible in the external catalogue after publishing.
+  - Adds a dedicated External Library tab with refresh, catalogue cards, Open in Studio, and Publish controls.
+  - Stops safely on partial batch failures and leaves unsaved queue items in place.
+- Website Automation Regression Tests and Validate Skin Studio both passed before PR #71 was merged.
 
 ### Current roadmap baseline
 - Website and automation deployment source is unified on master.
