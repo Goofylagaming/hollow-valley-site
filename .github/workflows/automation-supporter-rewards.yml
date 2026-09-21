@@ -3,7 +3,7 @@ name: Supporter Reward Tests
 on:
   pull_request:
     branches:
-      - automation-platform
+      - master
     paths:
       - 'automation-platform/src/services/supporterBonusService.js'
       - 'automation-platform/src/services/playtimeRewardsService.js'
