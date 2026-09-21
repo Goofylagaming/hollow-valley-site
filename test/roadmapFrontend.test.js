@@ -242,3 +242,22 @@ test("consolidated admin hub replaces scattered admin navigation", () => {
   assert.match(server, /ADMIN_PAGE_ROUTES/);
   assert.match(server, /requireAdmin/);
 });
+
+
+test("Supporter account panel makes Steam and Discord linkage explicit", () => {
+  const html = read("public/supporter.html");
+  const js = read("public/assets/supporter.js");
+  const route = read("server/routes/supporter.js");
+
+  assert.match(html, /ACCOUNT LINKS/);
+  assert.match(html, /id="supporter-account-status"/);
+  assert.match(js, /STEAM ACCOUNT/);
+  assert.match(js, /DISCORD ACCOUNT/);
+  assert.match(js, /DISCORD SUPPORTER ROLE/);
+  assert.match(js, /\/auth\/steam\?returnTo=\/supporter/);
+  assert.match(js, /\/auth\/discord/);
+  assert.match(js, /syncDiscordAccount/);
+  assert.match(js, /Link Steam first/);
+  assert.match(route, /STEAM_LINK_REQUIRED/);
+  assert.match(route, /requireSteamLink/);
+});
