@@ -25,6 +25,7 @@
           <button class="skin-tab active" type="button" data-skin-tab="studio">Skin Studio</button>
           <button class="skin-tab" type="button" data-skin-tab="store">Skin Shop</button>
           <button class="skin-tab" type="button" data-skin-tab="mine">My Skins</button>
+          <button class="skin-tab" type="button" data-skin-tab="library">External Library</button>
           <button class="skin-tab" type="button" data-skin-tab="share">Share / Import</button>
         </div>
 
@@ -104,6 +105,42 @@
           <div id="skin-mine-grid" class="skin-card-grid" hidden></div>
         </section>
 
+        <section class="skin-panel" data-skin-panel="library">
+          <div class="skin-toolbar">
+            <div>
+              <p class="overline green">ADMIN IMPORT CATALOGUE</p>
+              <h2>External skin library.</h2>
+              <p class="section-intro">Batch-import skin codes from supported external servers, review them as Hollow Valley previews, then save them as unpublished drafts. Publishing remains a separate admin action.</p>
+            </div>
+            <div class="skin-toolbar-actions">
+              <button class="small-button" id="skin-library-refresh" type="button">Refresh library</button>
+            </div>
+          </div>
+
+          <div class="skin-editor-card">
+            <div class="skin-editor-fields">
+              <label>Target species<select id="skin-library-species"></select></label>
+              <label>Draft name prefix<input id="skin-library-prefix" maxlength="50" value="Imported Skin" placeholder="e.g. Rex Collection"></label>
+            </div>
+            <textarea id="skin-library-batch" class="comms-textarea" maxlength="60000" spellcheck="false" placeholder="Paste up to 50 Fangs & Ferns codes (one per line), a Dino Den-style JSON array, or separated JSON blocks."></textarea>
+            <div class="skin-editor-actions">
+              <button class="primary-button green" id="skin-library-parse" type="button">Preview batch <b>→</b></button>
+              <button class="small-button" id="skin-library-save" type="button" disabled>Save all as drafts</button>
+              <span id="skin-library-result">Nothing queued.</span>
+            </div>
+          </div>
+
+          <div class="list-heading"><span>IMPORT QUEUE</span><span>Review names and colours before saving</span></div>
+          <div id="skin-library-queue" class="skin-card-grid">
+            <div class="empty-roster"><strong>No imports queued</strong><span>Paste external codes above and choose Preview batch.</span></div>
+          </div>
+
+          <div class="list-heading"><span>SAVED EXTERNAL DRAFTS</span><span>Persistent admin catalogue</span></div>
+          <div id="skin-library-grid" class="skin-card-grid">
+            <p class="section-intro">Loading external library…</p>
+          </div>
+        </section>
+
         <section class="skin-panel" data-skin-panel="share">
           <div class="skin-share-grid">
             <div class="skin-editor-card">
@@ -141,7 +178,7 @@
   </div>
 
   <script src="assets/common.js?v=16"></script>
-  <script src="assets/external-skin-import.js?v=1"></script>
-  <script src="assets/skins.js?v=6"></script>
+  <script src="assets/external-skin-import.js?v=2"></script>
+  <script src="assets/skins.js?v=7"></script>
 </body>
 </html>
