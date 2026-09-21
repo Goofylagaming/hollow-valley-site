@@ -5,6 +5,8 @@ const REFRESH_MS = 30_000;
 // Static Gateway layer data - fetched once, then re-rendered locally whenever a
 // layer toggle changes.
 let mapData = null;
+let activityHistory = null;
+let lastMapState = null;
 
 // Point layers render as dots with a hover label; label layers render as plain
 // text on the map; path layers render as SVG polylines.
@@ -216,6 +218,73 @@ function renderOthers(data) {
     .join("");
 }
 
+function formatVerifiedTime(value) {
+  if (!value) return "No data";
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "No data";
+  return date.toLocaleString();
+}
+
+function renderActivityHistory(data) {
+  activityHistory = data || null;
+  const tracking = data?.trackingEnabled !== false;
+  const samples = Number(data?.sampleCount || 0);
+  const lastVerified = data?.lastVerifiedAt || null;
+
+  const lastEl = document.getElementById("map-last-verified");
+  const peakEl = document.getElementById("map-peak-online");
+  const averageEl = document.getElementById("map-average-online");
+  const uniqueEl = document.getElementById("map-unique-players");
+  const note = document.getElementById("map-history-note");
+
+  if (lastEl) lastEl.textContent = lastVerified ? formatVerifiedTime(lastVerified) : "No data";
+  if (peakEl) peakEl.textContent = samples ? String(Number(data.peakConcurrent || 0)) : "—";
+  if (averageEl) averageEl.textContent = samples ? String(Number(data.averageOnline || 0)) : "—";
+  if (uniqueEl) uniqueEl.textContent = samples ? String(Number(data.uniquePlayers || 0)) : "—";
+
+  if (note) {
+    if (!tracking) {
+      note.textContent = "Verified presence tracking is currently disabled. Static Gateway layers remain available.";
+    } else if (!samples) {
+      note.textContent = "No verified activity samples exist in the last 24 hours. No positions are inferred from missing data.";
+    } else {
+      const species = (data.topSpecies || []).slice(0, 3).map((item) => item.species).filter(Boolean);
+      note.textContent = `Verified 24-hour activity · ${samples} samples${species.length ? ` · most observed species: ${species.join(", ")}` : ""}.`;
+    }
+  }
+
+  if (lastMapState) renderConnectionStatus(lastMapState);
+}
+
+function renderConnectionStatus(data) {
+  const status = document.getElementById("tracker-status");
+  if (!status || !data) return;
+
+  if (!data.connected) {
+    const lastVerified = activityHistory?.lastVerifiedAt;
+    status.textContent = data.configured
+      ? `Server offline · no live positions shown${lastVerified ? ` · last verified activity ${formatVerifiedTime(lastVerified)}` : ""}`
+      : "Server feed not configured · no live positions shown";
+    status.classList.add("offline");
+    return;
+  }
+
+  status.classList.remove("offline");
+  status.textContent = `Live · ${data.playerCount}/${data.maxPlayers} online · positions from current server snapshot`;
+}
+
+async function loadActivityHistory() {
+  try {
+    const data = await api("/api/map/activity?hours=24");
+    renderActivityHistory(data);
+  } catch (err) {
+    activityHistory = null;
+    const note = document.getElementById("map-history-note");
+    if (note) note.textContent = "Verified activity history is unavailable. Static Gateway layers remain available.";
+    console.error("Failed to load map activity history", err);
+  }
+}
+
 async function loadLayers() {
   const note = document.getElementById("layer-note");
   try {
@@ -237,26 +306,41 @@ async function loadMap() {
   const status = document.getElementById("tracker-status");
   try {
     const data = await api("/api/map/positions");
-    renderMarkers(data);
-    renderMe(data);
-    renderOthers(data);
+    lastMapState = data;
 
     if (!data.connected) {
-      status.textContent = data.configured ? "Server offline" : "Server feed not connected yet";
+      // An offline response is not a live snapshot. Explicitly clear all live markers.
+      renderMarkers(null);
     } else {
-      status.textContent = `Live \u2022 ${data.playerCount}/${data.maxPlayers} online`;
+      renderMarkers(data);
     }
+
+    renderMe(data);
+    renderOthers(data);
+    renderConnectionStatus(data);
   } catch (err) {
-    // The map itself is public; only the player overlay needs a session.
+    // Never leave an earlier successful snapshot painted as live after a failed refresh.
+    renderMarkers(null);
+    lastMapState = null;
+
     if (err && err.status === 401) {
-      status.textContent = "Sign in to see your character on the map";
+      if (status) status.textContent = "Sign in to see your character · no player positions are shown";
       const panel = document.getElementById("tracker-character");
       if (panel) {
-        panel.innerHTML = `<div class="empty-roster"><strong>Sign in required</strong><span>Log in with Steam to track your in-game character here.</span></div>`;
+        panel.innerHTML = `<div class="empty-roster"><strong>Sign in required</strong><span>Log in with Steam to track your current character. Static map layers and verified aggregate activity remain available.</span></div>`;
+      }
+      const contacts = document.getElementById("tracker-contacts");
+      if (contacts) {
+        contacts.innerHTML = `<div class="empty-roster"><strong>Live contacts hidden</strong><span>Sign in to load the current server snapshot.</span></div>`;
       }
       return;
     }
-    status.textContent = "Unable to reach map feed";
+
+    if (status) status.textContent = "Live position feed unavailable · no player positions are shown";
+    const contacts = document.getElementById("tracker-contacts");
+    if (contacts) {
+      contacts.innerHTML = `<div class="empty-roster"><strong>Live feed unavailable</strong><span>No stale player positions are displayed.</span></div>`;
+    }
     console.error(err);
   }
 }
@@ -449,5 +533,7 @@ function initMapZoom() {
 
 initMapZoom();
 loadLayers();
+loadActivityHistory();
 loadMap();
 setInterval(loadMap, REFRESH_MS);
+setInterval(loadActivityHistory, 5 * 60_000);
