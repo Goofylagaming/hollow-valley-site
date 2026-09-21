@@ -13,6 +13,20 @@ let cachedServer = null;
 let cachedError = null;
 let inFlight = null;
 
+
+function classifyRconError(message) {
+  const text = String(message || '');
+  if (!text) return 'none';
+  if (/authentication failed/i.test(text)) return 'authentication';
+  if (/response timeout/i.test(text)) return 'response-timeout';
+  if (/connection timeout/i.test(text)) return 'connection-timeout';
+  if (/ECONNREFUSED/i.test(text)) return 'connection-refused';
+  if (/EHOSTUNREACH|ENETUNREACH/i.test(text)) return 'network-unreachable';
+  if (/ECONNRESET|socket hang up/i.test(text)) return 'connection-reset';
+  if (/ENOTFOUND|EAI_AGAIN/i.test(text)) return 'dns';
+  return 'other';
+}
+
 function configured(name) {
   return Boolean(String(process.env[name] || '').trim());
 }
@@ -190,4 +204,5 @@ module.exports = {
   integrationConfig,
   commandBridgePublisherReady,
   requestSummary,
+  classifyRconError,
 };

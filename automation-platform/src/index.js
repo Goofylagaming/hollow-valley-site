@@ -2,7 +2,7 @@ require('dotenv').config();
 
 const path = require('node:path');
 const express = require('express');
-const { getPublicStatus, getServerSnapshot, integrationConfig } = require('./services/statusService');
+const { getPublicStatus, getServerSnapshot, integrationConfig, classifyRconError } = require('./services/statusService');
 const fileBridge = require('./adapters/fileBridge');
 const store = require('./services/automationStore');
 const { getMigrationReadiness } = require('./services/migrationReadinessService');
@@ -61,7 +61,7 @@ async function runStartupReadOnlyDiagnostics() {
   } else {
     const server = await getServerSnapshot({ force: true });
     console.log(
-      `[startup-check] rcon configured=true online=${server.online} players=${server.players.length} error=${Boolean(server.error)}`
+      `[startup-check] rcon configured=true online=${server.online} players=${server.players.length} error=${Boolean(server.error)} errorType=${classifyRconError(server.error)}`
     );
   }
 
