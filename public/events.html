@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Hollow Valley community events from Discord.">
+  <meta name="description" content="Hollow Valley community events synced from Discord.">
   <title>Events | Hollow Valley</title>
-  <link rel="stylesheet" href="assets/styles.css?v=15">
+  <link rel="stylesheet" href="assets/styles.css?v=16">
 </head>
 <body>
   <div class="app-shell">
@@ -14,23 +14,44 @@
       <section class="page-header">
         <p class="overline green">COMMUNITY CALENDAR</p>
         <h1>Hollow Valley events.</h1>
-        <p class="section-intro">Upcoming community events are published from our Discord server.</p>
+        <p class="section-intro">Discord Scheduled Events are the source of truth. Create or update an event in Discord and it will sync here automatically.</p>
       </section>
+
       <section class="roster-section">
-        <div class="calendar-header">
-          <button class="small-button" id="calendar-previous" aria-label="Previous month">?</button>
-          <h2 id="calendar-title">Loading calendar?</h2>
-          <button class="small-button" id="calendar-next" aria-label="Next month">?</button>
+        <div class="event-sync-strip">
+          <span><i class="status-dot"></i><b id="event-sync-state">Connecting to Discord…</b></span>
+          <small id="event-sync-time">Waiting for first sync</small>
         </div>
-        <div class="calendar-weekdays" aria-hidden="true"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>
+
+        <div class="calendar-header">
+          <button class="small-button" id="calendar-previous" aria-label="Previous month">←</button>
+          <h2 id="calendar-title">Loading calendar…</h2>
+          <button class="small-button" id="calendar-next" aria-label="Next month">→</button>
+        </div>
+
+        <div class="calendar-weekdays" aria-hidden="true">
+          <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+        </div>
         <div class="calendar-grid" id="calendar-grid"></div>
-        <div class="list-heading" style="margin-top:40px"><span>UPCOMING EVENTS</span></div>
-        <div class="event-list" id="event-list"><div class="empty-roster"><strong>Loading events?</strong></div></div>
+
+        <div class="list-heading" style="margin-top:40px">
+          <span>UPCOMING EVENTS</span>
+          <small>Synced from Discord</small>
+        </div>
+        <div class="event-list" id="event-list">
+          <div class="empty-roster"><strong>Loading Discord events…</strong></div>
+        </div>
       </section>
     </main>
-    <footer><span>? 2026 Herby Death Squad Games</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to command ?</a></footer>
+
+    <footer>
+      <span>© 2026 Hollow Valley</span>
+      <span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span>
+      <a href="/">Back to top ↑</a>
+    </footer>
   </div>
+
   <script src="assets/common.js?v=12"></script>
-  <script src="assets/events.js?v=1"></script>
+  <script src="assets/events.js?v=2"></script>
 </body>
 </html>
