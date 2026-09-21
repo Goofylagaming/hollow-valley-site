@@ -22,6 +22,7 @@ test("roadmap browser scripts parse", () => {
     "public/assets/wallet.js",
     "public/assets/quests.js",
     "public/assets/leaderboard.js",
+    "public/assets/livemap.js",
   ]) {
     assert.doesNotThrow(() => new Function(read(file)), file);
   }
@@ -174,4 +175,20 @@ test("admin Comms page is admin-only and uses server-side automation proxy", () 
   assert.equal(js.includes("HERBYBOT_AUTOMATION_TOKEN"), false);
   assert.equal(html.includes("AUTOMATION_ADMIN_TOKEN"), false);
   assert.equal(js.includes("AUTOMATION_ADMIN_TOKEN"), false);
+});
+
+test("Live Map keeps offline history separate from live coordinates", () => {
+  const html = read("public/livemap.html");
+  const js = read("public/assets/livemap.js");
+  const route = read("server/routes/map.js");
+  const client = read("server/services/automationWebsiteClient.js");
+
+  assert.match(html, /id="map-history-grid"/);
+  assert.match(html, /Offline periods never display stale coordinates as live positions/);
+  assert.match(js, /\/api\/map\/activity\?hours=24/);
+  assert.match(js, /renderMarkers\(null\)/);
+  assert.match(js, /no player positions are shown/);
+  assert.match(route, /router\.get\("\/activity"/);
+  assert.match(client, /function getMapActivity/);
+  assert.match(client, /\/map\/activity\?hours=/);
 });
