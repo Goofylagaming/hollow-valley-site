@@ -19,6 +19,7 @@ test("roadmap browser scripts parse", () => {
     "public/assets/adminrestore.js",
     "public/assets/wallet.js",
     "public/assets/quests.js",
+    "public/assets/leaderboard.js",
   ]) {
     assert.doesNotThrow(() => new Function(read(file)), file);
   }
@@ -133,4 +134,18 @@ test("website server status reuses the automation snapshot instead of duplicate 
   assert.match(status, /source: automationConfigured\(\) \? "automation-cache" : "direct-rcon"/);
   assert.match(client, /function getServerSnapshot\(\)/);
   assert.match(client, /call\('\/server-snapshot'\)/);
+});
+
+test("leaderboard uses verified 31-day playtime while combat rankings remain unverified", () => {
+  const html = read("public/leaderboard.html");
+  const js = read("public/assets/leaderboard.js");
+  const route = read("server/routes/leaderboards.js");
+  const client = read("server/services/automationWebsiteClient.js");
+
+  assert.match(html, /Playtime · 31 days/);
+  assert.match(html, /authoritative combat feed/);
+  assert.match(js, /Verified minutes · 31 days/);
+  assert.match(js, /Combat ranking unavailable/);
+  assert.match(route, /getPlaytimeLeaderboard/);
+  assert.match(client, /leaderboards\/playtime/);
 });
