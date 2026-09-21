@@ -175,3 +175,18 @@ test("admin Comms page is admin-only and uses server-side automation proxy", () 
   assert.equal(html.includes("AUTOMATION_ADMIN_TOKEN"), false);
   assert.equal(js.includes("AUTOMATION_ADMIN_TOKEN"), false);
 });
+
+test("supporter page shows Discord linkage and role-sync state", () => {
+  const html = read("public/supporter.html");
+  const js = read("public/assets/supporter.js");
+  const route = read("server/routes/supporter.js");
+
+  assert.match(html, /id="supporter-link-status"/);
+  assert.match(html, /ACCOUNT LINKS/);
+  assert.match(js, /\/api\/supporter\/discord-status/);
+  assert.match(js, /Sync Discord role/);
+  assert.match(js, /\/auth\/discord/);
+  assert.match(route, /getDiscordMembershipStatusForUser/);
+  assert.equal(html.includes("DISCORD_ROLE_BOT_TOKEN"), false);
+  assert.equal(js.includes("DISCORD_ROLE_BOT_TOKEN"), false);
+});
