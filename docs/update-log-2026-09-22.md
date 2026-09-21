@@ -13,6 +13,15 @@
   - Only fills the admin builder; it does not upload, overwrite or auto-redeem.
   - Existing admin authorization, validation, no-overwrite protection and ADMIN_RESTORE_WRITE_ENABLED safety gate remain unchanged.
 - Website regression workflow passed before PR #67 was merged.
+- Added and merged PR #68: generic Admin Restore recovery builder.
+  - Builds guarded restore JSON from dinosaur class path and growth percentage.
+  - Optional Prime eligibility, full health/stamina/hunger/thirst recovery, and full nutrients.
+  - Keeps server-side validation and all existing write protections.
+- Added and merged PR #69: validation-lock safety hardening for Admin Restore.
+  - Upload remains locked until the exact JSON, nutrient setting, and slot pass validation.
+  - Any edit after validation immediately locks Upload again.
+  - Successful upload requires revalidation before another upload attempt.
+- Website regression workflow passed for PRs #68 and #69 before merge.
 
 ### Current roadmap baseline
 - Website and automation deployment source is unified on master.
@@ -27,7 +36,7 @@
 - Event rewards and other write-sensitive features remain behind explicit safety gates where configured.
 
 ### Next
-- Continue Admin Restore / player-recovery polish.
+- Continue Admin Restore live workflow testing and expand recovery presets only after class paths are verified.
 - Continue Skin Studio live-test hardening.
 - Continue combat/stat feed integration once an authoritative server feed is available.
 - Continue dashboard and admin UX cleanup.
