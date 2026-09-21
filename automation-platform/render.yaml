@@ -102,6 +102,10 @@ services:
         value: false
       - key: SKIN_PRESET_CREATE_COST
         value: 500
+      - key: SKIN_LIVE_WEAR_ENABLED
+        value: false
+      - key: SKIN_WEAR_TIMEOUT_MS
+        value: 12000
 
       # Read-only uptime/player-count history is also opt-in.
       - key: SERVER_HEALTH_HISTORY_ENABLED

@@ -1,0 +1,23 @@
+name: Sync Automation Branch
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  mirror:
+    if: github.repository == 'Goofylagaming/hollow-valley-site'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: master
+      - name: Mirror automation-platform to master
+        run: |
+          git push origin HEAD:refs/heads/automation-platform --force

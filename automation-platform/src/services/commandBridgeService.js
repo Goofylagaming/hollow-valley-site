@@ -6,6 +6,7 @@ const SOURCES = {
   dino_store: 'DinoStorage',
   dino_retrieve: 'DinoStorage',
   dino_list: 'DinoStorage',
+  skin_apply: 'SkinStudio',
 };
 const PUBLISHER_ACK = 'automation-platform-is-sole-publisher';
 

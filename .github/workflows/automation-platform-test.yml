@@ -3,7 +3,7 @@ name: Automation Platform Tests
 on:
   push:
     branches:
-      - automation-platform
+      - master
     paths:
       - 'automation-platform/**'
       - 'server/routes/bodydrop.js'
