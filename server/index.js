@@ -29,6 +29,7 @@ const commandBridgeInternalRouter = require("./routes/commandBridgeInternal");
 const supporterInternalRouter = require("./routes/supporterInternal");
 const adminRestoreRouter = require("./routes/adminRestore");
 const adminOperationsRouter = require("./routes/adminOperations");
+const adminCommsRouter = require("./routes/adminComms");
 const serverStatusService = require("./services/serverStatus");
 const { syncSteamProfiles } = require("./services/steamProfile");
 const herbyBot = require("./herbyBot");
@@ -163,6 +164,7 @@ function createApp() {
   app.use("/api/events", eventsRouter);
   app.use("/api/admin-restore", adminRestoreRouter);
   app.use("/api/admin-operations", adminOperationsRouter);
+  app.use("/api/admin-comms", adminCommsRouter);
   app.use("/api/mapdata", mapdataRouter);
 
   app.all("/api/park", parkHandler);
