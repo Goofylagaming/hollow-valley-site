@@ -131,8 +131,8 @@ window.HDS = (function () {
     wireNavInteractions();
     const me = await loadMe();
     const isAdmin = Boolean(me?.user?.is_admin);
-    const adminRestoreNav = document.getElementById("admin-restore-nav");
-    if (adminRestoreNav) adminRestoreNav.hidden = !isAdmin;
+    const adminNavGroup = document.getElementById("admin-nav-group");
+    if (adminNavGroup) adminNavGroup.hidden = !isAdmin;
     const skinStudioNav = document.getElementById("skin-studio-nav");
     if (skinStudioNav) skinStudioNav.hidden = !isAdmin;
     await claimDailyLoginBonus(me);
