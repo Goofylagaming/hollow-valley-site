@@ -2,6 +2,20 @@ const { api, escapeHtml } = window.HDS;
 
 let restoreState = null;
 
+const TRIKE_76_RECOVERY = Object.freeze({
+  version: 2,
+  slot: "admin_restore_trike_76",
+  capturedAt: 0,
+  classPath: "/Game/TheIsle/Core/Characters/Dinosaurs/Triceratops/BP_Triceratops.BP_Triceratops_C",
+  growth: 0.76,
+  health: 99999,
+  stamina: 99999,
+  thirst: 99999,
+  hunger: 99999,
+  isPrime: true,
+  fullNutrients: true,
+});
+
 function setMessage(message, isError = false) {
   const el = document.getElementById("restore-message");
   if (!el) return;
@@ -17,6 +31,24 @@ function parseRestoreJson() {
   } catch (error) {
     throw new Error(`Restore JSON is invalid: ${error.message}`);
   }
+}
+
+function renderRestoreJson(value) {
+  document.getElementById("restore-json").value = JSON.stringify(value, null, 2);
+}
+
+function loadTrikeRecoveryPreset() {
+  renderRestoreJson(TRIKE_76_RECOVERY);
+  document.getElementById("restore-slot").value = TRIKE_76_RECOVERY.slot;
+  document.getElementById("restore-full-nutrients").checked = true;
+  setMessage("Loaded the 76% Triceratops recovery preset. Review it, then use Validate & build JSON. Nothing has been uploaded.");
+}
+
+function clearRestoreJson() {
+  document.getElementById("restore-json").value = "";
+  document.getElementById("restore-slot").value = "admin_restore";
+  document.getElementById("restore-full-nutrients").checked = false;
+  setMessage("Restore builder cleared.");
 }
 
 function renderState(result) {
@@ -62,6 +94,9 @@ async function loadState() {
     document.getElementById("restore-ftp-state").textContent = "Unavailable";
   }
 }
+
+document.getElementById("restore-preset-trike-76")?.addEventListener("click", loadTrikeRecoveryPreset);
+document.getElementById("restore-clear")?.addEventListener("click", clearRestoreJson);
 
 document.getElementById("restore-build")?.addEventListener("click", async (event) => {
   const button = event.currentTarget;
