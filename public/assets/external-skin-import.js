@@ -150,6 +150,43 @@
     throw new Error("Unsupported skin code. Current adapters support Fangs & Ferns share codes and Dino Den-style JSON customizer codes.");
   }
 
+  function parseExternalSkinBatch(value) {
+    const raw = String(value || "").trim();
+    if (!raw) throw new Error("Paste one or more external skin codes first.");
+    if (raw.length > 60000) throw new Error("External skin batch is too large.");
+
+    try {
+      const parsedJson = JSON.parse(raw);
+      if (Array.isArray(parsedJson)) {
+        if (!parsedJson.length) throw new Error("External skin JSON array is empty.");
+        if (parsedJson.length > 50) throw new Error("Import batches are limited to 50 skins at a time.");
+        return parsedJson.map((entry) => parseExternalSkinCode(JSON.stringify(entry)));
+      }
+      if (parsedJson && typeof parsedJson === "object") {
+        return [parseExternalSkinCode(raw)];
+      }
+    } catch (error) {
+      if (!/Unexpected|JSON/i.test(String(error?.message || ""))) throw error;
+    }
+
+    const lines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    const fnfLines = lines.filter((line) => /\bFNF-/i.test(line));
+    if (fnfLines.length > 1 && fnfLines.length === lines.length) {
+      if (fnfLines.length > 50) throw new Error("Import batches are limited to 50 skins at a time.");
+      return fnfLines.map((line) => parseExternalSkinCode(line));
+    }
+
+    const blocks = raw.split(/\n\s*(?:---+|\*\*\*)\s*\n|\n{2,}/)
+      .map((block) => block.trim())
+      .filter(Boolean);
+    if (blocks.length > 1) {
+      if (blocks.length > 50) throw new Error("Import batches are limited to 50 skins at a time.");
+      return blocks.map((block) => parseExternalSkinCode(block));
+    }
+
+    return [parseExternalSkinCode(raw)];
+  }
+
   function mergeWithSkin(baseSkin, parsed) {
     if (!baseSkin || typeof baseSkin !== "object") throw new Error("Current editor skin is unavailable.");
     if (!parsed || typeof parsed !== "object") throw new Error("Parsed skin data is unavailable.");
@@ -162,6 +199,7 @@
 
   return {
     parseExternalSkinCode,
+    parseExternalSkinBatch,
     mergeWithSkin,
   };
 });

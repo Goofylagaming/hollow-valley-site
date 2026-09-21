@@ -18,6 +18,9 @@ let speciesList = [];
 let storeState = null;
 let mineState = null;
 let storedDinos = [];
+let externalQueue = [];
+
+const EXTERNAL_LIBRARY_RE = /^\[External Library:([^\]]+)\]\s*/;
 
 function requestKey(prefix) {
   const id = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -125,10 +128,26 @@ function swatches(skin) {
   ).join("");
 }
 
+function externalLibraryMeta(description) {
+  const text = String(description || "");
+  const match = EXTERNAL_LIBRARY_RE.exec(text);
+  return {
+    source: match?.[1] || null,
+    description: text.replace(EXTERNAL_LIBRARY_RE, "").trim(),
+  };
+}
+
+function externalLibraryDescription(source, description = "") {
+  const safeSource = String(source || "External").replace(/[\[\]]/g, "").trim().slice(0, 60) || "External";
+  const body = String(description || "").trim() || "Imported external skin draft.";
+  return `[External Library:${safeSource}] ${body}`.slice(0, 240);
+}
+
 function skinCard(preset, mode) {
-  const owned = Boolean(preset.owned || preset.isPremium || mode === "mine");
+  const owned = Boolean(preset.owned || preset.isPremium || mode === "mine" || mode === "library");
   const price = Number(preset.price) || 0;
-  const description = preset.description || (preset.published ? "Published Hollow Valley skin." : "Saved Skin Studio design.");
+  const externalMeta = externalLibraryMeta(preset.description);
+  const description = externalMeta.description || (preset.published ? "Published Hollow Valley skin." : "Saved Skin Studio design.");
   const ownerBadge = preset.owner_steam_id && me.user?.steam_id === preset.owner_steam_id ? "Creator" : "";
   const status = preset.published ? (preset.isPremium ? "Free" : `${price.toLocaleString()} VC`) : "Draft";
 
@@ -136,11 +155,14 @@ function skinCard(preset, mode) {
   if (mode === "store" && !owned) {
     actions.push(`<button class="small-button skin-buy" data-id="${preset.id}">Unlock · ${price.toLocaleString()} VC</button>`);
   }
-  if (owned) {
+  if (owned && mode !== "library") {
     actions.push(`<button class="small-button skin-wear" data-id="${preset.id}">Wear live</button>`);
     actions.push(`<button class="small-button skin-apply-stored" data-id="${preset.id}" data-species="${escapeHtml(preset.species)}">Apply to parked</button>`);
   }
-  if (mode === "mine" && me.user?.is_admin) {
+  if (mode === "library" && me.user?.is_admin) {
+    actions.push(`<button class="small-button skin-library-edit" data-id="${preset.id}">Open in Studio</button>`);
+  }
+  if ((mode === "mine" || mode === "library") && me.user?.is_admin) {
     actions.push(`<button class="small-button skin-publish" data-id="${preset.id}" data-price="${price}">${preset.published ? "Update shop" : "Publish"}</button>`);
   }
 
@@ -164,6 +186,7 @@ function skinCard(preset, mode) {
           <span>Theme ${Number(preset.skin?.themeIndex) || 0}</span>
           <span>Variation ${Number(preset.skin?.skinVariation) || 0}</span>
           ${ownerBadge ? `<span>${ownerBadge}</span>` : ""}
+          ${mode === "library" && externalMeta.source ? `<span>Source: ${escapeHtml(externalMeta.source)}</span>` : ""}
         </div>
         <div class="skin-card-code">${preset.share_code ? `Share: <strong>${escapeHtml(preset.share_code)}</strong>` : ""}</div>
         <div class="skin-card-actions">${actions.join("")}</div>
@@ -228,12 +251,30 @@ function wireCardActions(root) {
     }
   }));
 
+  root.querySelectorAll(".skin-library-edit").forEach((button) => button.addEventListener("click", () => {
+    const preset = (mineState?.presets || []).find((item) => String(item.id) === String(button.dataset.id));
+    if (!preset) return showAlert("External library skin could not be found.", "error");
+    const meta = externalLibraryMeta(preset.description);
+    document.getElementById("skin-species").value = preset.species;
+    document.getElementById("skin-name").value = preset.name || "";
+    document.getElementById("skin-description").value = meta.description || "";
+    applySkinToEditor(preset.skin);
+    updatePreview();
+    activateSkinTab("studio");
+    showAlert(`Loaded ${preset.name} from the external library into Skin Studio. Saving creates a new draft; the original remains unchanged.`, "info");
+  }));
+
   root.querySelectorAll(".skin-publish").forEach((button) => button.addEventListener("click", async () => {
+    const preset = (mineState?.presets || []).find((item) => String(item.id) === String(button.dataset.id));
+    const meta = externalLibraryMeta(preset?.description);
     const priceRaw = prompt("Valley Coin price (0 = free):", button.dataset.price || "0");
     if (priceRaw === null) return;
     const price = Number(priceRaw);
     if (!Number.isInteger(price) || price < 0) return showAlert("Price must be a whole number of Valley Coin.", "warning");
-    const description = prompt("Shop description (optional):", "") ?? "";
+    const descriptionRaw = prompt("Shop description (optional):", meta.description || "") ?? "";
+    const description = meta.source
+      ? externalLibraryDescription(meta.source, descriptionRaw)
+      : descriptionRaw;
     button.disabled = true;
     try {
       await api(`/api/skins/${button.dataset.id}/publish`, {
@@ -267,12 +308,81 @@ async function loadStore() {
   }
 }
 
+function queueSkinCard(item, index) {
+  const parsed = item.parsed || {};
+  const warning = (parsed.warnings || []).join(" ");
+  return `
+    <article class="skin-card" data-queue-index="${index}">
+      <div class="skin-card-art" style="
+        --card-body:${colorToHex(item.skin?.body)};
+        --card-markings:${colorToHex(item.skin?.markings)};
+        --card-flank:${colorToHex(item.skin?.flank)};
+        --card-eye:${colorToHex(item.skin?.eyes)}">
+        <span class="skin-card-pattern"></span>
+        <span class="skin-card-eye"></span>
+      </div>
+      <div class="skin-card-body">
+        <div class="skin-card-topline"><span>${escapeHtml(item.species)}</span><b>Queued</b></div>
+        <label>Draft name<input class="skin-library-queue-name" data-index="${index}" maxlength="60" value="${escapeHtml(item.name)}"></label>
+        <p>${escapeHtml(parsed.sourceLabel || "External skin")}</p>
+        <div class="skin-swatch-row">${swatches(item.skin)}</div>
+        <div class="skin-card-meta">
+          <span>Pattern ${Number(item.skin?.patternIndex) || 0}</span>
+          <span>Theme ${Number(item.skin?.themeIndex) || 0}</span>
+          <span>Variation ${Number(item.skin?.skinVariation) || 0}</span>
+        </div>
+        ${warning ? `<small>${escapeHtml(warning)}</small>` : ""}
+      </div>
+    </article>
+  `;
+}
+
+function renderExternalQueue() {
+  const grid = document.getElementById("skin-library-queue");
+  const saveButton = document.getElementById("skin-library-save");
+  const result = document.getElementById("skin-library-result");
+  if (!grid || !saveButton || !result) return;
+
+  if (!externalQueue.length) {
+    grid.innerHTML = '<div class="empty-roster"><strong>No imports queued</strong><span>Paste external codes above and choose Preview batch.</span></div>';
+    saveButton.disabled = true;
+    result.textContent = "Nothing queued.";
+    return;
+  }
+
+  grid.innerHTML = externalQueue.map(queueSkinCard).join("");
+  saveButton.disabled = false;
+  result.textContent = `${externalQueue.length} skin${externalQueue.length === 1 ? "" : "s"} queued as unpublished drafts.`;
+  grid.querySelectorAll(".skin-library-queue-name").forEach((input) => input.addEventListener("input", () => {
+    const index = Number(input.dataset.index);
+    if (externalQueue[index]) externalQueue[index].name = input.value.slice(0, 60);
+  }));
+}
+
+function renderExternalLibrary() {
+  const grid = document.getElementById("skin-library-grid");
+  if (!grid) return;
+
+  if (!me.loggedIn || !me.user?.steam_id) {
+    grid.innerHTML = '<div class="empty-roster"><strong>Steam sign-in required</strong><span>Sign in before using the external skin library.</span></div>';
+    return;
+  }
+
+  const presets = (mineState?.presets || []).filter((preset) => Boolean(externalLibraryMeta(preset.description).source));
+  grid.innerHTML = presets.length
+    ? presets.map((preset) => skinCard(preset, "library")).join("")
+    : '<div class="empty-roster"><strong>No external drafts yet</strong><span>Batch-import codes above to build the admin catalogue.</span></div>';
+  wireCardActions(grid);
+}
+
 async function loadMine() {
   const guard = document.getElementById("skin-mine-guard");
   const grid = document.getElementById("skin-mine-grid");
   if (!me.loggedIn || !me.user?.steam_id) {
     guard.hidden = false;
     grid.hidden = true;
+    mineState = { presets: [] };
+    renderExternalLibrary();
     return;
   }
   guard.hidden = true;
@@ -285,8 +395,11 @@ async function loadMine() {
       ? skins.map((preset) => skinCard(preset, "mine")).join("")
       : '<div class="empty-roster"><strong>No saved skins</strong><span>Create a design in Skin Studio or unlock one from the shop.</span></div>';
     wireCardActions(grid);
+    renderExternalLibrary();
   } catch (err) {
     grid.innerHTML = `<div class="empty-roster"><strong>Could not load My Skins</strong><span>${escapeHtml(err.message)}</span></div>`;
+    const libraryGrid = document.getElementById("skin-library-grid");
+    if (libraryGrid) libraryGrid.innerHTML = `<div class="empty-roster"><strong>Could not load external library</strong><span>${escapeHtml(err.message)}</span></div>`;
   }
 }
 
@@ -326,6 +439,8 @@ async function initSpecies() {
   document.getElementById("skin-store-species").innerHTML = '<option value="">All species</option>' + options;
   const externalSpecies = document.getElementById("skin-external-species");
   if (externalSpecies) externalSpecies.innerHTML = options;
+  const librarySpecies = document.getElementById("skin-library-species");
+  if (librarySpecies) librarySpecies.innerHTML = options;
   updatePreview();
 }
 
@@ -373,6 +488,79 @@ document.getElementById("skin-save").addEventListener("click", async () => {
 document.getElementById("skin-store-refresh").addEventListener("click", loadStore);
 document.getElementById("skin-store-species").addEventListener("change", loadStore);
 document.getElementById("skin-mine-refresh").addEventListener("click", loadMine);
+document.getElementById("skin-library-refresh")?.addEventListener("click", loadMine);
+
+document.getElementById("skin-library-parse")?.addEventListener("click", () => {
+  const adapter = window.HDSSkinImport;
+  if (!adapter?.parseExternalSkinBatch || !adapter?.mergeWithSkin) {
+    return showAlert("External skin batch importer is unavailable.", "error");
+  }
+
+  const raw = document.getElementById("skin-library-batch").value.trim();
+  const species = document.getElementById("skin-library-species").value;
+  const prefix = document.getElementById("skin-library-prefix").value.trim() || "Imported Skin";
+  try {
+    const parsedBatch = adapter.parseExternalSkinBatch(raw);
+    const base = editorSkin();
+    externalQueue = parsedBatch.map((parsed, index) => ({
+      parsed,
+      species,
+      name: `${prefix} ${index + 1}`.slice(0, 60),
+      skin: adapter.mergeWithSkin(base, parsed),
+    }));
+    renderExternalQueue();
+    const sources = [...new Set(parsedBatch.map((item) => item.sourceLabel).filter(Boolean))];
+    showAlert(`Prepared ${externalQueue.length} external skin${externalQueue.length === 1 ? "" : "s"} for review from ${sources.join(" + ") || "supported external formats"}.`, "success");
+  } catch (err) {
+    externalQueue = [];
+    renderExternalQueue();
+    showAlert(err.message, "error");
+  }
+});
+
+document.getElementById("skin-library-save")?.addEventListener("click", async () => {
+  if (!me.loggedIn || !me.user?.steam_id) return showAlert("Sign in with Steam before saving external skin drafts.", "warning");
+  if (!externalQueue.length) return showAlert("Preview an external skin batch first.", "warning");
+
+  const button = document.getElementById("skin-library-save");
+  button.disabled = true;
+  let saved = 0;
+  let failure = null;
+  for (const item of externalQueue) {
+    const name = String(item.name || "").trim();
+    if (name.length < 2) {
+      failure = new Error("Every queued skin needs a name of at least 2 characters.");
+      break;
+    }
+    try {
+      await api("/api/skins/studio", {
+        method: "POST",
+        body: JSON.stringify({
+          species: item.species,
+          name,
+          description: externalLibraryDescription(item.parsed?.sourceLabel, "Imported external skin draft. Review before publishing."),
+          skin: item.skin,
+          idempotencyKey: requestKey("skin-external-library"),
+        }),
+      });
+      saved += 1;
+    } catch (err) {
+      failure = err;
+      break;
+    }
+  }
+
+  externalQueue = externalQueue.slice(saved);
+  renderExternalQueue();
+  await loadMine();
+  activateSkinTab("library");
+  if (failure) {
+    showAlert(`Saved ${saved} draft${saved === 1 ? "" : "s"} before the import stopped: ${failure.message}`, "warning");
+  } else {
+    document.getElementById("skin-library-batch").value = "";
+    showAlert(`Saved ${saved} external skin draft${saved === 1 ? "" : "s"} to the admin library. Nothing was published automatically.`, "success");
+  }
+});
 
 document.getElementById("skin-share-preview").addEventListener("click", async () => {
   const code = document.getElementById("skin-share-code").value.trim();
