@@ -34,6 +34,24 @@ router.get("/", async (req, res) => {
   }
 });
 
+router.get("/server-mods", async (_req, res) => {
+  try {
+    return res.json(await automation.getAdminServerMods());
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not inspect live server mods.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.post("/server-mods/deploy", async (_req, res) => {
+  try {
+    return res.status(201).json(await automation.deployAdminServerMods());
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not deploy server mods.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
 router.post("/backup", async (_req, res) => {
   try {
     return res.status(201).json(await automation.createAdminBackup());
