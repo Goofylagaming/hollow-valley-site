@@ -464,3 +464,22 @@
 .skin-share-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.skin-share-result{min-height:230px;display:grid;place-items:center;color:#75695c}.skin-share-result .skin-card{width:100%}
 @media(max-width:950px){.skin-studio-grid{grid-template-columns:1fr}.skin-preview-card{position:static}.skin-preview-stage{min-height:320px}.skin-share-grid{grid-template-columns:1fr}}
 @media(max-width:650px){.skin-shell{padding:28px 20px 70px}.skin-editor-fields{grid-template-columns:1fr 1fr}.skin-editor-fields label.wide{grid-column:span 2}.skin-color-grid{grid-template-columns:1fr}.skin-toolbar{align-items:flex-start;flex-direction:column}.skin-toolbar-actions{width:100%}.skin-toolbar-actions select{min-width:0;flex:1}.skin-card-grid{grid-template-columns:1fr}}
+
+.comms-summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:22px}
+.comms-summary-grid .summary-tile span{display:block;margin-top:7px;color:#8f806f;font-size:9px;line-height:1.45}
+.comms-two-column{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px}
+.comms-panel{padding:18px;border:1px solid var(--line);background:var(--panel)}
+.comms-textarea{width:100%;min-height:145px;resize:vertical;padding:12px 13px;border:1px solid var(--line);background:#0b0b09;color:var(--text);font:11px/1.55 Manrope}
+.comms-schedule-grid{display:grid;grid-template-columns:1fr 150px;gap:12px}
+.comms-schedule-grid input,.comms-schedule-grid select{width:100%;padding:12px 13px;border:1px solid var(--line);background:#0b0b09;color:var(--text);font:600 11px Manrope}
+.comms-table-wrap{overflow:auto}
+.comms-table{width:100%;border-collapse:collapse}
+.comms-table th,.comms-table td{padding:10px;border-bottom:1px solid #2a261c;text-align:left;font-size:10px;color:#a49380;vertical-align:top}
+.comms-table th{color:#8e7d6b;font:9px Oswald;letter-spacing:.1em;text-transform:uppercase}
+.comms-empty{text-align:center;color:#786a5b;padding:22px!important}
+.comms-status-label{display:inline-block;padding:3px 7px;border:1px solid #51452f;background:#15130e;color:#c8b897;font:9px Oswald;letter-spacing:.06em;text-transform:uppercase}
+.comms-status-label.failed{border-color:#6b342e;color:#db8a80}
+.comms-status-label.completed{border-color:#526537;color:#a9c678}
+.comms-job-message{max-width:420px;white-space:normal!important;line-height:1.45}
+@media(max-width:1000px){.comms-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.comms-two-column{grid-template-columns:1fr}}
+@media(max-width:600px){.comms-summary-grid{grid-template-columns:1fr}.comms-schedule-grid{grid-template-columns:1fr}}
