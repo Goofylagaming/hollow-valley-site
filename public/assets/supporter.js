@@ -16,6 +16,74 @@ function queueStatusRefresh() {
   setTimeout(loadPage, 3500);
 }
 
+
+async function loadDiscordStatus() {
+  const me = await window.HDS.loadMe();
+  const target = document.getElementById("supporter-link-status");
+  if (!target) return;
+
+  if (!me.loggedIn) {
+    target.innerHTML = '<div class="summary-tile"><small>DISCORD</small><b>Log in first</b></div>';
+    return;
+  }
+
+  try {
+    const status = await api("/api/supporter/discord-status");
+
+    if (!status.configured) {
+      target.innerHTML = `
+        <div class="summary-tile"><small>DISCORD ACCOUNT</small><b>${status.linked ? "Linked" : "Not linked"}</b></div>
+        <div class="summary-tile"><small>ROLE SYNC</small><b>Not configured</b><span>Herbybot role sync is unavailable.</span></div>
+      `;
+      return;
+    }
+
+    if (!status.linked) {
+      target.innerHTML = `
+        <div class="summary-tile"><small>DISCORD ACCOUNT</small><b>Not linked</b><span>Link Discord to receive your supporter role.</span></div>
+        <div class="summary-tile"><a class="small-button" href="/auth/discord">Link Discord</a></div>
+      `;
+      return;
+    }
+
+    const actualRoles = Array.isArray(status.actualRoleNames) && status.actualRoleNames.length
+      ? status.actualRoleNames.join(", ")
+      : "None";
+    const expected = status.expectedRoleName || "No supporter role";
+    const syncLabel = status.inSync ? "In sync" : "Needs sync";
+
+    target.innerHTML = `
+      <div class="summary-tile"><small>DISCORD ACCOUNT</small><b>Linked</b></div>
+      <div class="summary-tile"><small>EXPECTED ROLE</small><b>${escapeHtml(expected)}</b></div>
+      <div class="summary-tile"><small>ACTUAL ROLE</small><b>${escapeHtml(actualRoles)}</b></div>
+      <div class="summary-tile"><small>ROLE SYNC</small><b>${syncLabel}</b><button class="small-button supporter-role-sync" id="supporter-role-sync">Sync Discord role</button></div>
+    `;
+
+    document.getElementById("supporter-role-sync")?.addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      button.textContent = "Syncing…";
+      try {
+        const result = await api("/api/supporter/sync-discord", { method: "POST" });
+        document.getElementById("checkout-message").textContent = result.changed
+          ? "Discord supporter role updated."
+          : "Discord supporter role is already correct.";
+        await loadDiscordStatus();
+      } catch (error) {
+        document.getElementById("checkout-message").textContent =
+          error.message || "Discord role sync failed.";
+        button.disabled = false;
+        button.textContent = "Sync Discord role";
+      }
+    });
+  } catch (error) {
+    console.warn("Failed to load Discord supporter role status", error);
+    target.innerHTML = `
+      <div class="summary-tile"><small>DISCORD ROLE SYNC</small><b>Unavailable</b><span>${escapeHtml(error.message || "Try again shortly.")}</span></div>
+    `;
+  }
+}
+
 async function loadStatus() {
   const me = await window.HDS.loadMe();
   const statusEl = document.getElementById("supporter-status");
@@ -196,7 +264,7 @@ async function loadTiers(status = currentStatus) {
 }
 
 async function loadPage() {
-  const status = await loadStatus();
+  const [status] = await Promise.all([loadStatus(), loadDiscordStatus()]);
   await loadTiers(status);
 }
 
