@@ -1,6 +1,7 @@
 const { api, escapeHtml } = window.HDS;
 
 let restoreState = null;
+let validatedRestoreSnapshot = null;
 
 const TRIKE_76_RECOVERY = Object.freeze({
   version: 2,
@@ -21,6 +22,36 @@ function setMessage(message, isError = false) {
   if (!el) return;
   el.textContent = message || "";
   el.classList.toggle("error", Boolean(isError));
+}
+
+function currentRestoreSnapshot() {
+  return JSON.stringify({
+    restoreJson: document.getElementById("restore-json")?.value.trim() || "",
+    fullNutrients: Boolean(document.getElementById("restore-full-nutrients")?.checked),
+    slot: document.getElementById("restore-slot")?.value.trim() || "",
+  });
+}
+
+function restoreReadyToUpload() {
+  return Boolean(
+    restoreState?.builderReady &&
+    restoreState?.writeEnabled &&
+    restoreState?.ftpConfigured &&
+    validatedRestoreSnapshot &&
+    validatedRestoreSnapshot === currentRestoreSnapshot()
+  );
+}
+
+function updateUploadAvailability() {
+  const upload = document.getElementById("restore-upload");
+  if (upload) upload.disabled = !restoreReadyToUpload();
+}
+
+function invalidateRestoreValidation() {
+  const wasValidated = Boolean(validatedRestoreSnapshot);
+  validatedRestoreSnapshot = null;
+  updateUploadAvailability();
+  if (wasValidated) setMessage("Restore changed. Validate it again before uploading.");
 }
 
 function parseRestoreJson() {
@@ -49,12 +80,14 @@ function populateBuilderFields(restore) {
 }
 
 function loadTrikeRecoveryPreset() {
+  invalidateRestoreValidation();
   renderRestoreJson(TRIKE_76_RECOVERY);
   populateBuilderFields(TRIKE_76_RECOVERY);
   setMessage("Loaded the 76% Triceratops recovery preset. Review it, then use Validate & build JSON. Nothing has been uploaded.");
 }
 
 function clearRestoreJson() {
+  invalidateRestoreValidation();
   document.getElementById("restore-json").value = "";
   document.getElementById("restore-slot").value = "admin_restore";
   document.getElementById("restore-class-path").value = "";
@@ -101,6 +134,7 @@ function buildRestoreFromFields() {
     restore.fullNutrients = true;
   }
 
+  invalidateRestoreValidation();
   renderRestoreJson(restore);
   setMessage("Built recovery JSON from the quick fields. Run Validate & build JSON before uploading.");
 }
@@ -112,8 +146,7 @@ function renderState(result) {
   document.getElementById("restore-write-state").textContent = state.writeEnabled ? "Enabled" : "Locked";
   document.getElementById("restore-ftp-state").textContent = state.ftpConfigured ? "Ready" : "Unavailable";
 
-  const upload = document.getElementById("restore-upload");
-  upload.disabled = !(state.builderReady && state.writeEnabled && state.ftpConfigured);
+  updateUploadAvailability();
 
   if (!state.ftpConfigured && state.ftpError) {
     setMessage(state.ftpError, true);
@@ -177,8 +210,12 @@ document.getElementById("restore-build")?.addEventListener("click", async (event
       document.getElementById("restore-json").value = built.json;
       populateBuilderFields(built.state || restore);
     }
-    setMessage(`Valid restore JSON · slot ${built?.state?.slot || "not set"} · ${built?.fullNutrients ? "full nutrients enabled" : "nutrients unchanged"}.`);
+    validatedRestoreSnapshot = currentRestoreSnapshot();
+    updateUploadAvailability();
+    setMessage(`Valid restore JSON · slot ${built?.state?.slot || "not set"} · ${built?.fullNutrients ? "full nutrients enabled" : "nutrients unchanged"} · upload unlocked for this exact payload.`);
   } catch (error) {
+    validatedRestoreSnapshot = null;
+    updateUploadAvailability();
     setMessage(error.message || "Restore validation failed.", true);
   } finally {
     button.disabled = false;
@@ -187,7 +224,11 @@ document.getElementById("restore-build")?.addEventListener("click", async (event
 });
 
 document.getElementById("restore-upload")?.addEventListener("click", async (event) => {
-  if (!restoreState?.writeEnabled || !restoreState?.ftpConfigured) return;
+  if (!restoreReadyToUpload()) {
+    setMessage("Validate this exact restore payload before uploading.", true);
+    updateUploadAvailability();
+    return;
+  }
   const button = event.currentTarget;
 
   try {
@@ -214,13 +255,19 @@ document.getElementById("restore-upload")?.addEventListener("click", async (even
       }),
     });
     const upload = result?.upload;
-    setMessage(`Uploaded ${escapeHtml(upload?.fileName || "restore file")} to guarded DinoStorage. Auto-redeem is disabled.`);
+    validatedRestoreSnapshot = null;
+    updateUploadAvailability();
+    setMessage(`Uploaded ${escapeHtml(upload?.fileName || "restore file")} to guarded DinoStorage. Auto-redeem is disabled. Revalidate before any further upload.`);
   } catch (error) {
     setMessage(error.message || "Restore upload failed.", true);
   } finally {
-    button.disabled = !(restoreState?.writeEnabled && restoreState?.ftpConfigured);
     button.innerHTML = 'Upload restore <b>→</b>';
+    updateUploadAvailability();
   }
 });
+
+document.getElementById("restore-json")?.addEventListener("input", invalidateRestoreValidation);
+document.getElementById("restore-full-nutrients")?.addEventListener("change", invalidateRestoreValidation);
+document.getElementById("restore-slot")?.addEventListener("input", invalidateRestoreValidation);
 
 loadState();
