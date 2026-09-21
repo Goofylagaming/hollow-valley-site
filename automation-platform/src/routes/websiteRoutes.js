@@ -14,6 +14,7 @@ const dinoMarketplace = require('../services/dinoMarketplaceService');
 const parkedDinoMutations = require('../services/parkedDinoMutationService');
 const skinPresets = require('../services/skinPresetService');
 const officialMarketplaceFulfillment = require('../services/officialMarketplaceFulfillmentService');
+const playerPresence = require('../services/playerPresenceService');
 
 const router = express.Router();
 router.use(requireWebsiteToken);
@@ -108,6 +109,27 @@ router.get('/quests/:steamId', (req, res) => {
     });
   } catch (error) {
     res.status(400).json({ error: error.message || 'Unable to read playtime quests.' });
+  }
+});
+
+router.get('/leaderboards/playtime', (req, res) => {
+  try {
+    const hours = Math.max(1, Math.min(24 * 31, Number(req.query.hours) || 24 * 31));
+    const analytics = playerPresence.getPresenceAnalytics({ hours });
+    const players = (analytics.topPlayers || []).map((player) => ({
+      username: player.name || 'Unknown',
+      playtime_minutes: Number(player.trackedMinutes || 0),
+      sessions: Number(player.sessions || 0),
+    }));
+    res.json({
+      windowHours: analytics.hours,
+      windowStart: analytics.windowStart,
+      windowEnd: analytics.windowEnd,
+      trackingEnabled: analytics.enabled,
+      players,
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Unable to read playtime leaderboard.' });
   }
 });
 
