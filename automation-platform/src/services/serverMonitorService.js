@@ -131,7 +131,8 @@ async function checkServerMonitor({ force = false } = {}) {
 
 function startServerMonitor() {
   if (!enabled()) return null;
-  const intervalMs = Math.max(30_000, Number(process.env.SERVER_MONITOR_INTERVAL_MS || 60_000));
+  const configuredInterval = Number(process.env.SERVER_MONITOR_INTERVAL_MS || 300_000);
+  const intervalMs = Math.max(300_000, Math.min(600_000, Number.isFinite(configuredInterval) ? configuredInterval : 300_000));
   checkServerMonitor().catch((error) => console.warn('[server-monitor]', error.message));
   const timer = setInterval(() => {
     checkServerMonitor().catch((error) => console.warn('[server-monitor]', error.message));
