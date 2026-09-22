@@ -24,9 +24,9 @@ function directRconConfigured() {
 }
 
 function pollIntervalMs() {
-  const fallback = automationConfigured() ? 60_000 : 120_000;
+  const fallback = 300_000;
   const value = Number(process.env.SERVER_STATUS_POLL_INTERVAL_MS || fallback);
-  return Math.max(30_000, Math.min(300_000, Number.isFinite(value) ? value : fallback));
+  return Math.max(300_000, Math.min(600_000, Number.isFinite(value) ? value : fallback));
 }
 
 const state = {
