@@ -49,6 +49,8 @@ services:
         sync: false
       - key: RCON_TIMEOUT_MS
         value: 6000
+      - key: RCON_DISABLED
+        value: false
       # Quiet-mode baseline: one shared RCON snapshot every five minutes.
       # Manual actions may still force a fresh check when explicitly requested.
       - key: RCON_STATUS_CACHE_MS
