@@ -111,7 +111,7 @@ After read-only RCON has been stable, optionally enable:
 
 ```text
 PLAYER_PRESENCE_ENABLED=true
-PLAYER_PRESENCE_INTERVAL_MS=60000
+PLAYER_PRESENCE_INTERVAL_MS=300000
 PLAYER_PRESENCE_RETENTION_HOURS=744
 ```
 
@@ -173,7 +173,7 @@ After the HerbyBot bridge, HerbyBot alert channel and read-only RCON are stable,
 ```text
 SERVER_MONITOR_ENABLED=true
 SERVER_MONITOR_FAILURE_THRESHOLD=3
-SERVER_MONITOR_INTERVAL_MS=60000
+SERVER_MONITOR_INTERVAL_MS=300000
 ```
 
 The monitor requires multiple consecutive failed checks before declaring an outage and persists confirmed state to avoid alert flapping across ordinary redeploys.

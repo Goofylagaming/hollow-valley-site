@@ -4,8 +4,8 @@ const { PUBLISHER_ACK } = require('./commandBridgeService');
 const store = require('./automationStore');
 
 function cacheMs() {
-  const value = Number(process.env.RCON_STATUS_CACHE_MS || 55000);
-  return Math.max(15000, Math.min(120000, Number.isFinite(value) ? value : 55000));
+  const value = Number(process.env.RCON_STATUS_CACHE_MS || 300000);
+  return Math.max(300000, Math.min(600000, Number.isFinite(value) ? value : 300000));
 }
 
 let cachedAt = 0;

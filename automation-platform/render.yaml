@@ -27,7 +27,7 @@ services:
       - key: HOLLOW_VALLEY_API_TOKEN
         generateValue: true
       - key: AUTOMATION_SCHEDULER_INTERVAL_MS
-        value: 15000
+        value: 300000
 
       # Consistent SQLite snapshots use the same persistent disk. Enable only
       # after the disk has been verified to survive redeploys.
@@ -49,10 +49,10 @@ services:
         sync: false
       - key: RCON_TIMEOUT_MS
         value: 6000
-      # One roughly-minute RCON snapshot is shared by presence, status,
-      # monitoring and the website instead of each consumer polling separately.
+      # Quiet-mode baseline: one shared RCON snapshot every five minutes.
+      # Manual actions may still force a fresh check when explicitly requested.
       - key: RCON_STATUS_CACHE_MS
-        value: 55000
+        value: 300000
       - key: MAX_PLAYERS
         value: 100
       - key: RCON_WRITE_ENABLED
@@ -71,7 +71,7 @@ services:
       - key: PLAYER_PRESENCE_ENABLED
         value: false
       - key: PLAYER_PRESENCE_INTERVAL_MS
-        value: 60000
+        value: 300000
       - key: PLAYER_PRESENCE_RETENTION_HOURS
         value: 744
 
@@ -82,7 +82,7 @@ services:
       - key: WALLET_PLAYTIME_COINS_PER_5_MINUTES
         value: 0
       - key: WALLET_PLAYTIME_MAX_SAMPLE_GAP_SECONDS
-        value: 90
+        value: 600
       - key: ECONOMY_TIMEZONE
         value: Australia/Brisbane
       - key: WALLET_QUEST_DAILY_1H_BOOST_PERCENT
@@ -102,11 +102,11 @@ services:
       - key: MARKETPLACE_WRITE_ENABLED
         value: false
       - key: MARKETPLACE_RECONCILE_INTERVAL_MS
-        value: 15000
+        value: 300000
       - key: OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED
         value: false
       - key: OFFICIAL_MARKETPLACE_FULFILLMENT_INTERVAL_MS
-        value: 15000
+        value: 300000
       - key: PARKED_DINO_EDIT_ENABLED
         value: false
       - key: SKIN_SYSTEM_ENABLED
@@ -122,7 +122,7 @@ services:
       - key: SERVER_HEALTH_HISTORY_ENABLED
         value: false
       - key: SERVER_HEALTH_HISTORY_INTERVAL_MS
-        value: 60000
+        value: 300000
       - key: SERVER_HEALTH_HISTORY_RETENTION_HOURS
         value: 720
 
@@ -130,7 +130,7 @@ services:
       - key: SERVER_MONITOR_ENABLED
         value: false
       - key: SERVER_MONITOR_INTERVAL_MS
-        value: 60000
+        value: 300000
       - key: SERVER_MONITOR_FAILURE_THRESHOLD
         value: 3
 
@@ -168,14 +168,14 @@ services:
       - key: BODYDROP_UNKNOWN_AFTER_SECONDS
         value: 60
       - key: BODYDROP_RECONCILE_INTERVAL_MS
-        value: 5000
+        value: 300000
 
       - key: DINOSTORAGE_RESULT_MODE
         value: bridge_ack
       - key: DINOSTORAGE_UNKNOWN_AFTER_SECONDS
         value: 60
       - key: DINOSTORAGE_RECONCILE_INTERVAL_MS
-        value: 5000
+        value: 300000
       # Admin restore JSON generation is always available to authenticated
       # operators. Actual FTP slot uploads remain separately locked.
       - key: ADMIN_RESTORE_WRITE_ENABLED
@@ -186,7 +186,7 @@ services:
       - key: HERBYBOT_AUTOMATION_TOKEN
         generateValue: true
       - key: HERBYBOT_AUTOMATION_POLL_INTERVAL_MS
-        value: 15000
+        value: 300000
       - key: HERBYBOT_AUTOMATION_BATCH_SIZE
         value: 10
       - key: HERBYBOT_AUTOMATION_LEASE_SECONDS

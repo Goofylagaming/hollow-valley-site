@@ -27,8 +27,8 @@ function enabled() {
 }
 
 function intervalMs() {
-  const value = Number(process.env.SERVER_HEALTH_HISTORY_INTERVAL_MS || 60000);
-  return Math.max(30000, Math.min(600000, Number.isFinite(value) ? value : 60000));
+  const value = Number(process.env.SERVER_HEALTH_HISTORY_INTERVAL_MS || 300000);
+  return Math.max(300000, Math.min(600000, Number.isFinite(value) ? value : 300000));
 }
 
 function retentionHours() {
