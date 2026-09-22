@@ -70,6 +70,28 @@ test('RCON writes fail closed unless the specific action is enabled', async () =
   }
 });
 
+test('RCON_DISABLED overrides every direct RCON write gate', async () => {
+  const previousDisabled = process.env.RCON_DISABLED;
+  const previousGlobal = process.env.RCON_WRITE_ENABLED;
+  const previousAnnouncement = process.env.RCON_ANNOUNCEMENT_WRITE_ENABLED;
+  process.env.RCON_DISABLED = 'true';
+  process.env.RCON_WRITE_ENABLED = 'true';
+  process.env.RCON_ANNOUNCEMENT_WRITE_ENABLED = 'true';
+
+  assert.equal(rcon.rconDisabled(), true);
+  assert.equal(rcon.writeEnabled('announce'), false);
+  assert.equal(rcon.getState().configured, false);
+  assert.equal(rcon.getState().rconDisabled, true);
+  await assert.rejects(() => rcon.execute('announce', { message: 'test' }), /writes are disabled/);
+
+  if (previousDisabled === undefined) delete process.env.RCON_DISABLED;
+  else process.env.RCON_DISABLED = previousDisabled;
+  if (previousGlobal === undefined) delete process.env.RCON_WRITE_ENABLED;
+  else process.env.RCON_WRITE_ENABLED = previousGlobal;
+  if (previousAnnouncement === undefined) delete process.env.RCON_ANNOUNCEMENT_WRITE_ENABLED;
+  else process.env.RCON_ANNOUNCEMENT_WRITE_ENABLED = previousAnnouncement;
+});
+
 test('legacy RCON_WRITE_ENABLED remains a fallback when no per-action gate is set', () => {
   const previousGlobal = process.env.RCON_WRITE_ENABLED;
   const previousAnnouncement = process.env.RCON_ANNOUNCEMENT_WRITE_ENABLED;

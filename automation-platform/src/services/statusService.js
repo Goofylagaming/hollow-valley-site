@@ -31,6 +31,10 @@ function configured(name) {
   return Boolean(String(process.env[name] || '').trim());
 }
 
+function rconDisabled() {
+  return String(process.env.RCON_DISABLED || '').trim().toLowerCase() === 'true';
+}
+
 function commandBridgePublisherReady() {
   return process.env.COMMAND_BRIDGE_ENABLED === 'true' &&
     String(process.env.COMMAND_BRIDGE_SINGLE_PUBLISHER_ACK || '').trim() === PUBLISHER_ACK;
@@ -38,7 +42,7 @@ function commandBridgePublisherReady() {
 
 function integrationConfig() {
   return {
-    rcon: configured('RCON_HOST') && configured('RCON_PORT') && configured('RCON_PASSWORD'),
+    rcon: !rconDisabled() && configured('RCON_HOST') && configured('RCON_PORT') && configured('RCON_PASSWORD'),
     commandBridge: commandBridgePublisherReady() && configured('SFTP_HOST') && configured('SFTP_PORT') && configured('SFTP_USER') && configured('SFTP_PASSWORD') && configured('SFTP_BASE_PATH'),
     discord: configured('HERBYBOT_AUTOMATION_TOKEN'),
     herbyBot: configured('HERBYBOT_AUTOMATION_TOKEN'),
@@ -205,4 +209,5 @@ module.exports = {
   commandBridgePublisherReady,
   requestSummary,
   classifyRconError,
+  rconDisabled,
 };

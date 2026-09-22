@@ -20,11 +20,16 @@ function envEnabled(name) {
   return String(process.env[name] || '').toLowerCase() === 'true';
 }
 
+function rconDisabled() {
+  return envEnabled('RCON_DISABLED');
+}
+
 function legacyWriteEnabled() {
-  return envEnabled('RCON_WRITE_ENABLED');
+  return !rconDisabled() && envEnabled('RCON_WRITE_ENABLED');
 }
 
 function writeEnabled(action = null) {
+  if (rconDisabled()) return false;
   if (!action) {
     return legacyWriteEnabled() || Object.keys(ACTION_GATES).some((key) => writeEnabled(key));
   }
@@ -45,6 +50,11 @@ function getActionGates() {
 }
 
 function getConfig() {
+  if (rconDisabled()) {
+    const error = new Error('RCON is temporarily disabled by RCON_DISABLED=true');
+    error.code = 'RCON_DISABLED';
+    throw error;
+  }
   const host = String(process.env.RCON_HOST || '').trim();
   const port = Number(process.env.RCON_PORT);
   const password = String(process.env.RCON_PASSWORD || '');
@@ -125,7 +135,8 @@ async function execute(action, payload = {}) {
 function getState() {
   const actionGates = getActionGates();
   return {
-    configured: Boolean(String(process.env.RCON_HOST || '').trim() && String(process.env.RCON_PORT || '').trim() && String(process.env.RCON_PASSWORD || '')),
+    configured: !rconDisabled() && Boolean(String(process.env.RCON_HOST || '').trim() && String(process.env.RCON_PORT || '').trim() && String(process.env.RCON_PASSWORD || '')),
+    rconDisabled: rconDisabled(),
     writeEnabled: Object.values(actionGates).some(Boolean),
     legacyWriteEnabled: legacyWriteEnabled(),
     actionGates,
@@ -136,6 +147,7 @@ function getState() {
 module.exports = {
   COMMANDS,
   ACTION_GATES,
+  rconDisabled,
   writeEnabled,
   getActionGates,
   validateMessage,
