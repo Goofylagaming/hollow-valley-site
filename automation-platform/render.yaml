@@ -82,7 +82,7 @@ services:
       - key: WALLET_PLAYTIME_COINS_PER_5_MINUTES
         value: 0
       - key: WALLET_PLAYTIME_MAX_SAMPLE_GAP_SECONDS
-        value: 90
+        value: 600
       - key: ECONOMY_TIMEZONE
         value: Australia/Brisbane
       - key: WALLET_QUEST_DAILY_1H_BOOST_PERCENT
