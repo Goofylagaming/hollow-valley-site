@@ -85,7 +85,7 @@ function render(data) {
 
   const integrations = status.integrations || {};
   document.getElementById("ops-integrations").innerHTML = [
-    ["RCON read", integrations.rcon],
+    ["BinaryLane presence feed", integrations.externalPresence],
     ["CommandBridge", integrations.commandBridge],
     ["Discord / HerbyBot", integrations.herbyBot ?? integrations.discord],
     ["Automation database", integrations.database],
