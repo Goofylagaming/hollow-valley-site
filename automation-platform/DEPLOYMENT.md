@@ -88,7 +88,7 @@ rcon configured=false
 ftp configured=false
 ```
 
-So Stage 1 persistence is verified, but Stage 2/3 connectivity is intentionally blocked until the RCON and VeryGames FTP settings are copied to the isolated service. Keep every write gate disabled while adding those credentials.
+Stage 1 persistence is verified. Live game-server connectivity now uses the BinaryLane presence feed and HTTP-pull CommandBridge; the retired hosted-file-transfer path is no longer part of deployment.
 
 ## Stage 2 — read-only RCON
 
@@ -121,7 +121,7 @@ The admin console can then switch between 24-hour, 7-day and 30-day views showin
 
 ## Stage 3 — FTP diagnostics only
 
-Configure VeryGames file access while leaving:
+Legacy file-transfer configuration is retired. Leave these write gates disabled:
 
 ```text
 COMMAND_BRIDGE_ENABLED=false
