@@ -172,7 +172,7 @@ services:
       - key: BODYDROP_BRIDGE_MODE
         value: commandbridge
       - key: BODYDROP_COOLDOWN_SECONDS
-        value: 900
+        value: 600
       - key: BODYDROP_UNKNOWN_AFTER_SECONDS
         value: 60
       - key: BODYDROP_RECONCILE_INTERVAL_MS
