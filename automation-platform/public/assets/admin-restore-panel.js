@@ -82,7 +82,7 @@
       uploadHelp.textContent = 'JSON building is available. FTP slot uploads are locked by ADMIN_RESTORE_WRITE_ENABLED=false.';
     } else if (!state.ftpConfigured) {
       health.textContent = 'FTP setup needed';
-      uploadHelp.textContent = state.ftpError || 'VeryGames FTP must be configured before slot uploads can be used.';
+      uploadHelp.textContent = state.ftpError || 'Direct slot upload is unavailable on the BinaryLane HTTP-pull architecture.';
     } else {
       health.textContent = 'Upload enabled';
       uploadHelp.textContent = 'Controlled upload is enabled. The selected slot must not already exist.';
