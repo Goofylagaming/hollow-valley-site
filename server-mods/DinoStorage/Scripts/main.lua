@@ -8,12 +8,27 @@
 local MOD_NAME    = "DinoStorage"
 local MOD_VERSION = "v003"
 
-local SAVED_DIR     = "Mods/DinoStorage/Saved"
+local function resolveModRoot()
+    local source = ""
+    pcall(function()
+        source = debug.getinfo(1, "S").source or ""
+    end)
+    if source:sub(1, 1) == "@" then
+        source = source:sub(2)
+    end
+    source = source:gsub("\\", "/")
+    return source:match("^(.*)/Scripts/[^/]+$")
+end
+
+local MOD_ROOT      = resolveModRoot()
+local MODS_ROOT     = MOD_ROOT and MOD_ROOT:match("^(.*)/DinoStorage$") or nil
+local SAVED_DIR     = MOD_ROOT and (MOD_ROOT .. "/Saved") or "Mods/DinoStorage/Saved"
 local STORED_DIR    = SAVED_DIR .. "/stored"
 local CMD_FLAG      = SAVED_DIR .. "/cmd.flag"
 local CONFIG_FILE   = SAVED_DIR .. "/config.json"
 local RELOAD_FLAG   = SAVED_DIR .. "/reload.flag"
-local RESULTS_FILE  = "Mods/CommandBridge/Saved/results.ndjson"
+local RESULTS_FILE  = (MODS_ROOT and (MODS_ROOT .. "/CommandBridge/Saved/results.ndjson"))
+    or "Mods/CommandBridge/Saved/results.ndjson"
 
 local POLL_INTERVAL_MS   = 3000
 local STORE_DELAY_MS     = 3000
