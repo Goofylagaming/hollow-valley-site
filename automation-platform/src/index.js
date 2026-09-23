@@ -18,6 +18,8 @@ const bodyDropRoutes = require('./routes/bodyDropRoutes');
 const dinoStorageRoutes = require('./routes/dinoStorageRoutes');
 const combatRoutes = require('./routes/combatRoutes');
 const presenceFeedRoutes = require('./routes/presenceFeedRoutes');
+const binaryLaneCommandBridgeRoutes = require('./routes/binaryLaneCommandBridgeRoutes');
+const commandBridge = require('./services/commandBridgeService');
 const { startBodyDropReconciler } = require('./services/bodyDropService');
 const { startDinoStorageReconciler, recoverInterruptedDinoStorage } = require('./services/dinoStorageService');
 const { startDinoMarketplaceReconciler } = require('./services/dinoMarketplaceService');
@@ -64,6 +66,10 @@ async function runStartupReadOnlyDiagnostics() {
     console.log(
       `[startup-check] rcon configured=true online=${server.online} players=${server.players.length} error=${Boolean(server.error)} errorType=${classifyRconError(server.error)}`
     );
+  }
+
+  if (commandBridge.getTransport() === 'http_pull') {
+    console.log(`[startup-check] commandBridge transport=http_pull configured=${commandBridge.transportConfigured()}`);
   }
 
   try {
@@ -185,6 +191,11 @@ app.use('/api/presence-feed', (_req, res, next) => {
   res.set('Cache-Control', 'no-store');
   next();
 }, presenceFeedRoutes);
+
+app.use('/api/command-bridge', (_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+}, binaryLaneCommandBridgeRoutes);
 
 app.get('*', (_req, res) => {
   res.sendFile(path.join(publicDir, 'index.html'));
