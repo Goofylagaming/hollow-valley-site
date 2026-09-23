@@ -44,7 +44,7 @@ function saveSnapshot({ sampleId, sampledAt, players = [], maxPlayers = null }) 
       mutations: Array.isArray(player.mutations) ? player.mutations : [],
       location: player.location || null,
     })),
-    maxPlayers: Number.isFinite(Number(maxPlayers))
+    maxPlayers: maxPlayers !== null && maxPlayers !== undefined && Number.isFinite(Number(maxPlayers))
       ? Number(maxPlayers)
       : (Number(process.env.MAX_PLAYERS || 0) || null),
   };
