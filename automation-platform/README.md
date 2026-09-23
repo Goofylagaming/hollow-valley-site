@@ -27,7 +27,7 @@ The project is a separate Hollow Valley control plane that keeps the existing HD
 - Native Evrima RCON protocol client.
 - Player list, character data, growth/vitals/location and server slot reads.
 - Gated RCON actions for announcement, direct message, save, corpse wipe and AI density.
-- VeryGames plain-FTP adapter.
+- Legacy plain-FTP adapter retained only for compatibility tests.
 - Atomic CommandBridge publication that refuses to overwrite a busy queue.
 - Strict bridge acknowledgement vs. sub-mod completion handling.
 - BodyDrop worker using live RCON coordinates, cooldowns and reconciliation.
@@ -109,7 +109,7 @@ Game actions remain conservative:
 automation-platform/
   public/                     # HDS-style Automation Center
   src/
-    adapters/                 # Evrima RCON + VeryGames FTP
+    adapters/                 # Evrima RCON + legacy file bridge
     middleware/               # admin + website auth
     routes/                   # admin/player-service endpoints
     services/                 # workers, reconciliation, scheduler, analytics
@@ -210,7 +210,7 @@ Verified on September 18, 2026:
 - the service boots successfully on port 10000;
 - SQLite is using the persistent `/var/data` disk and retained the same persistence marker across a controlled redeploy;
 - the existing HerbyBot service is successfully polling the durable outbox;
-- RCON and VeryGames FTP are not yet configured on the isolated automation service;
+- Direct RCON/file-host access is not required by the BinaryLane HTTP-pull architecture;
 - CommandBridge publishing and all game/file write gates remain disabled;
 - branch-side Wallet, Quests, Marketplace, My Dinos reads and BodyDrop status reads are prepared to use the automation API;
 - My Dinos Store/Redeem and BodyDrop POST still use the legacy publisher until the deliberate single-publisher cutover.

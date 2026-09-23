@@ -63,39 +63,9 @@ services:
         sync: false
       - key: SERVER_STATUS_POLL_INTERVAL_MS
         value: 300000
-      - key: COMMAND_BRIDGE_ENABLED
-        value: true
-      - key: COMMAND_BRIDGE_TRANSPORT
-        value: file
-      - key: COMMAND_BRIDGE_SAVED_PATH
-        value: Mods/CommandBridge/Saved
-      - key: COMMAND_BRIDGE_TIMEOUT_MS
-        value: 20000
-      - key: DINOSTORAGE_RESULT_MODE
-        value: submod
-      - key: BODYDROP_BRIDGE_MODE
-        value: commandbridge
       - key: MAX_PLAYERS
         value: 100
-      - key: GAME_FILE_PROTOCOL
-        value: ftp
-      - key: SFTP_HOST
-        sync: false
-      - key: SFTP_PORT
-        sync: false
-      - key: SFTP_USER
-        sync: false
-      - key: SFTP_PASSWORD
-        sync: false
-      - key: SFTP_BASE_PATH
-        sync: false
-      - key: FTP_SECURE
-        value: false
-      - key: BODYDROP_SHARED_SECRET
-        sync: false
-      - key: BODYDROP_INBOX_PATH
-        value: Mods/HollowValleyBodyDrop/Saved/inbox.ndjson
       - key: BODYDROP_COOLDOWN_SECONDS
-        value: 300
+        value: 600
       - key: BODYDROP_TYPES
         value: "small:Small body:A small emergency food drop:Compsognathus:1,medium:Medium body:A balanced body drop for a small group:Dryosaurus:1,large:Large body:A larger drop for bigger carnivores or packs:Triceratops:1"

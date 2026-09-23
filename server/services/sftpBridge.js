@@ -131,9 +131,8 @@ async function publishFtpCommand(client, buffer, remotePath) {
   let tempMayExist = false;
 
   try {
-    // VeryGames normally accepts the full absolute CWD, but some remote
-    // connections are routed through an FTP frontend that rejects the same
-    // absolute path. Fall back to walking from / one segment at a time.
+    // Some legacy FTP frontends reject an otherwise valid absolute CWD.
+    // Fall back to walking from / one segment at a time.
     try {
       await client.cd(directory);
     } catch (absoluteCwdError) {

@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const { Client: FtpClient } = require("basic-ftp");
 const files = require("../server/services/sftpBridge");
 
-test("explicit FTPS passes the VeryGames certificate override only to basic-ftp", async (t) => {
+test("explicit FTPS passes the legacy certificate override only to basic-ftp", async (t) => {
   const env = {
     GAME_FILE_PROTOCOL: "ftp",
     SFTP_HOST: "host.invalid",

@@ -136,26 +136,10 @@ services:
       - key: SERVER_MONITOR_FAILURE_THRESHOLD
         value: 3
 
-      # VeryGames FTP credentials may be added for diagnostics, but publishing
-      # stays disabled until CommandBridge queue ownership is reviewed.
-      - key: GAME_FILE_PROTOCOL
-        value: ftp
-      - key: SFTP_HOST
-        sync: false
-      - key: SFTP_PORT
-        value: 21
-      - key: SFTP_USER
-        sync: false
-      - key: SFTP_PASSWORD
-        sync: false
-      - key: SFTP_BASE_PATH
-        value: /
-      - key: FTP_SECURE
-        value: false
       - key: COMMAND_BRIDGE_TRANSPORT
-        value: file
-      # For BinaryLane, switch COMMAND_BRIDGE_TRANSPORT to http_pull and set a
-      # dedicated random token here and in the game-side CommandBridge config.
+        value: http_pull
+      # BinaryLane pulls commands outbound over HTTPS; no inbound VPS port is opened.
+      # Use the same dedicated token on the BinaryLane agent and this service.
       - key: BINARYLANE_COMMAND_TOKEN
         sync: false
       - key: COMMAND_BRIDGE_ENABLED
@@ -186,8 +170,8 @@ services:
         value: 60
       - key: DINOSTORAGE_RECONCILE_INTERVAL_MS
         value: 300000
-      # Admin restore JSON generation is always available to authenticated
-      # operators. Actual FTP slot uploads remain separately locked.
+      # Admin restore JSON generation remains available to authenticated operators.
+      # Direct remote slot upload is retired on the BinaryLane architecture.
       - key: ADMIN_RESTORE_WRITE_ENABLED
         value: false
 
