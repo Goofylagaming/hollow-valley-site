@@ -14,6 +14,13 @@ function getMigrationReadiness() {
   const dbPersistent = Boolean(dbPath) && dbPath !== ':memory:' && !path.resolve(dbPath).includes(`${path.sep}tmp${path.sep}`);
   const rconConfigured = configured('RCON_HOST') && configured('RCON_PORT') && configured('RCON_PASSWORD');
   const ftpConfigured = configured('SFTP_HOST') && configured('SFTP_PORT') && configured('SFTP_USER') && configured('SFTP_PASSWORD') && configured('SFTP_BASE_PATH');
+  const bridgeTransport = String(process.env.COMMAND_BRIDGE_TRANSPORT || 'file').trim().toLowerCase();
+  const binaryLaneHttpConfigured = configured('BINARYLANE_COMMAND_TOKEN');
+  const bridgeTransportConfigured = bridgeTransport === 'http_pull'
+    ? binaryLaneHttpConfigured
+    : bridgeTransport === 'file'
+      ? ftpConfigured
+      : false;
   const bridgeEnabled = process.env.COMMAND_BRIDGE_ENABLED === 'true';
   const solePublisherAck = String(process.env.COMMAND_BRIDGE_SINGLE_PUBLISHER_ACK || '').trim() === PUBLISHER_ACK;
   const rconWritesEnabled = process.env.RCON_WRITE_ENABLED === 'true';
@@ -36,7 +43,19 @@ function getMigrationReadiness() {
     check('website-token', 'Website integration token', configured('HOLLOW_VALLEY_API_TOKEN'), configured('HOLLOW_VALLEY_API_TOKEN') ? 'Separate server-to-server credential is configured.' : 'Set a dedicated HOLLOW_VALLEY_API_TOKEN before connecting the live website.'),
     check('database', 'Persistent automation database', dbPersistent, dbPersistent ? `Automation state uses ${dbPath}.` : 'Use a persistent disk path for AUTOMATION_DB_PATH; in-memory/temporary storage is not production-safe.'),
     check('rcon-read', 'Read-only Evrima RCON', rconConfigured, rconConfigured ? 'RCON credentials are configured.' : 'Add RCON_HOST, RCON_PORT and RCON_PASSWORD for server/player reads.'),
-    check('ftp', 'VeryGames file access', ftpConfigured, ftpConfigured ? 'FTP credentials and base path are configured.' : 'Add SFTP_HOST/PORT/USER/PASSWORD/BASE_PATH (names retained for compatibility).'),
+    check('bridge-transport', 'CommandBridge transport', bridgeTransportConfigured,
+      bridgeTransport === 'http_pull'
+        ? binaryLaneHttpConfigured
+          ? 'BinaryLane outbound HTTPS command transport is configured.'
+          : 'Set BINARYLANE_COMMAND_TOKEN for the BinaryLane HTTP pull bridge.'
+        : bridgeTransport === 'file'
+          ? ftpConfigured
+            ? 'Legacy file transport is configured.'
+            : 'Add SFTP_HOST/PORT/USER/PASSWORD/BASE_PATH for legacy file transport.'
+          : 'COMMAND_BRIDGE_TRANSPORT must be file or http_pull.'),
+    check('ftp', 'Legacy file access', ftpConfigured, ftpConfigured
+      ? 'FTP credentials remain available for file-backed features.'
+      : 'Optional for the BinaryLane command bridge; some parked-dino/file features still need a replacement transport.', 'optional'),
     check('bridge-off', 'CommandBridge writes remain gated', !bridgeEnabled || solePublisherAck, bridgeEnabled
       ? solePublisherAck
         ? 'CommandBridge is enabled and the sole-publisher migration acknowledgement is present.'
@@ -95,7 +114,7 @@ function getMigrationReadiness() {
           ? 'isolated-ready'
           : 'migration-ready',
     readyForIsolatedDeployment: required.every((item) => item.ready) && safetyReady,
-    readyForCommandBridgeMigration: required.every((item) => item.ready) && safetyReady && activationReady && ftpConfigured,
+    readyForCommandBridgeMigration: required.every((item) => item.ready) && safetyReady && activationReady && bridgeTransportConfigured,
     requiredReady,
     requiredTotal: required.length,
     checks,
