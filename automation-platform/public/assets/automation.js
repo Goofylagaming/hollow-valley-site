@@ -148,7 +148,7 @@ function renderAdminStatus(status) {
   const bridgeHealthy = bridge.enabled && bridge.connected && !bridge.resultsOversize;
   const bridgeLabel = !bridge.enabled ? 'Disabled' : bridge.resultsOversize ? 'Needs attention' : bridge.connected ? bridge.queueBusy ? 'Queue busy' : 'Connected' : 'Offline';
   setState('bridge-state', bridgeLabel, bridgeHealthy ? 'online' : 'offline');
-  $('bridge-detail').textContent = bridge.error || (bridge.queueBusy ? 'An unconsumed command is waiting' : bridge.resultsOversize ? 'Results log must be rotated' : bridge.connected ? `${bridge.resultsBytes || 0} bytes of results` : 'VeryGames FTP queue');
+  $('bridge-detail').textContent = bridge.error || (bridge.queueBusy ? 'An unconsumed command is waiting' : bridge.resultsOversize ? 'Results log must be rotated' : bridge.connected ? `${bridge.resultsBytes || 0} bytes of results` : 'BinaryLane HTTP command queue');
 
   $('pending-count').textContent = String(requests.pending || 0);
   $('pending-detail').textContent = requests.pending ? 'Awaiting bridge/sub-mod result' : 'No queued work';
