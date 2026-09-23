@@ -1,6 +1,6 @@
 -- CommandBridge v006.1
 -- Hollow Valley / HDS
--- Focus: file bridge for DinoStorage and BodyDrop on VeryGames, with optional HTTP fallback.
+-- Focus: local file bridge for DinoStorage and BodyDrop, with optional HTTP fallback.
 --
 -- This build probes several Wine/host launch paths and caches the first one that
 -- can run curl. It never logs the configured authorization header.
@@ -187,8 +187,8 @@ local httpFetchedBody = nil
 local lastHttpPollAt = 0
 local forwardedResults = {}
 
--- VeryGames runs the Windows server through Wine. Different images expose
--- different launch helpers, so try a few safe candidates and remember the one
+-- Some hosted Windows/Wine environments expose different curl launch helpers.
+-- Try a few safe candidates and remember the one
 -- that actually creates curl's output file.
 local curlLauncher = nil
 local curlLauncherName = nil
