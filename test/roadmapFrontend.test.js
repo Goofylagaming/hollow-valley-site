@@ -135,8 +135,9 @@ test("website server status reuses the automation snapshot instead of duplicate 
   const client = read("server/services/automationWebsiteClient.js");
 
   assert.match(status, /if \(automationConfigured\(\)\) \{\s*return automation\.getServerSnapshot\(\);/s);
-  assert.match(status, /const fallback = 300_000/);
-  assert.match(status, /Math\.max\(300_000, Math\.min\(600_000/);
+  assert.match(status, /const fallback = usingAutomation \? 30_000 : 300_000/);
+  assert.match(status, /const minimum = usingAutomation \? 15_000 : 300_000/);
+  assert.match(status, /Math\.max\(minimum, Math\.min\(600_000/);
   assert.match(status, /source: automationConfigured\(\) \? "automation-cache" : "direct-rcon"/);
   assert.match(client, /function getServerSnapshot\(\)/);
   assert.match(client, /call\('\/server-snapshot'\)/);

@@ -3,6 +3,8 @@ const assert = require('node:assert/strict');
 
 process.env.AUTOMATION_DB_PATH = ':memory:';
 process.env.PRESENCE_FEED_TOKEN = 'presence-feed-test-secret-1234567890';
+process.env.HOLLOW_VALLEY_API_TOKEN = 'presence-website-test-secret';
+process.env.MAX_PLAYERS = '100';
 process.env.PLAYER_PRESENCE_ENABLED = 'false';
 process.env.WALLET_PLAYTIME_REWARDS_ENABLED = 'false';
 process.env.SUPPORTER_COIN_BONUSES_ENABLED = 'false';
@@ -49,9 +51,16 @@ test('BinaryLane presence feed is private, validated, deduplicated and reconcile
     players: [{
       PlayerID: steamId,
       Name: 'Goofy',
+      Gender: 'Male',
       Class: 'Tyrannosaurus',
       Growth: 0.33,
       Health: 1,
+      Stamina: 0.84,
+      Hunger: 0.66,
+      Thirst: 0.69,
+      PrimeElder: false,
+      Mutations: ['Efficient Digestion', 'Gastronomic Regeneration'],
+      Location: { X: -169860.983, Y: -54752.917, Z: 20379.301 },
     }],
   };
 
@@ -75,6 +84,27 @@ test('BinaryLane presence feed is private, validated, deduplicated and reconcile
   assert.equal(acceptedBody.opened, 1);
   assert.equal(acceptedBody.online, 1);
   assert.equal(acceptedBody.rewards.skipped, true);
+
+  const snapshotResponse = await fetch(`${base}/api/website/server-snapshot`, {
+    headers: { Authorization: 'Bearer presence-website-test-secret' },
+  });
+  assert.equal(snapshotResponse.status, 200);
+  const snapshot = await snapshotResponse.json();
+  assert.equal(snapshot.online, true);
+  assert.equal(snapshot.players.length, 1);
+  assert.equal(snapshot.characters.length, 1);
+  assert.equal(snapshot.characters[0].steamId, steamId);
+  assert.equal(snapshot.characters[0].gender, 'Male');
+  assert.equal(snapshot.characters[0].growth, 0.33);
+  assert.equal(snapshot.characters[0].stamina, 0.84);
+  assert.equal(snapshot.characters[0].isPrime, false);
+  assert.deepEqual(snapshot.characters[0].mutations, ['Efficient Digestion', 'Gastronomic Regeneration']);
+  assert.deepEqual(snapshot.characters[0].location, {
+    x: -169860.983,
+    y: -54752.917,
+    z: 20379.301,
+  });
+  assert.equal(snapshot.maxPlayers, 100);
 
   const duplicate = await post(base, first);
   assert.equal(duplicate.status, 200);

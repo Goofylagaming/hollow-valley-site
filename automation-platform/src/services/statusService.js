@@ -2,6 +2,7 @@ const { fetchServerStatus } = require('../adapters/evrimaRcon');
 const fileBridge = require('../adapters/fileBridge');
 const { PUBLISHER_ACK } = require('./commandBridgeService');
 const store = require('./automationStore');
+const externalServerSnapshot = require('./externalServerSnapshotService');
 
 function cacheMs() {
   const value = Number(process.env.RCON_STATUS_CACHE_MS || 300000);
@@ -43,6 +44,7 @@ function commandBridgePublisherReady() {
 function integrationConfig() {
   return {
     rcon: !rconDisabled() && configured('RCON_HOST') && configured('RCON_PORT') && configured('RCON_PASSWORD'),
+    externalPresence: configured('PRESENCE_FEED_TOKEN'),
     commandBridge: commandBridgePublisherReady() && configured('SFTP_HOST') && configured('SFTP_PORT') && configured('SFTP_USER') && configured('SFTP_PASSWORD') && configured('SFTP_BASE_PATH'),
     discord: configured('HERBYBOT_AUTOMATION_TOKEN'),
     herbyBot: configured('HERBYBOT_AUTOMATION_TOKEN'),
@@ -52,6 +54,27 @@ function integrationConfig() {
 
 async function getServerSnapshot({ force = false } = {}) {
   const integrations = integrationConfig();
+
+  // When the BinaryLane presence feed is configured, it is the authoritative
+  // read source for website/player-map snapshots. This keeps public RCON closed.
+  if (integrations.externalPresence) {
+    const latest = externalServerSnapshot.readLatest();
+    if (latest) return latest;
+
+    const stale = externalServerSnapshot.readLatest({ allowStale: true });
+    return {
+      online: false,
+      configured: true,
+      players: [],
+      characters: [],
+      maxPlayers: Number(process.env.MAX_PLAYERS || 0) || null,
+      checkedAt: stale?.checkedAt || null,
+      cached: true,
+      source: 'external-presence',
+      error: stale ? 'External presence snapshot is stale' : 'External presence snapshot is not available yet',
+    };
+  }
+
   if (!integrations.rcon) {
     return { online: false, configured: false, players: [], characters: [], maxPlayers: null, error: null };
   }
