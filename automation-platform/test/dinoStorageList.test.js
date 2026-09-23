@@ -89,7 +89,7 @@ for (const outcome of [null, { state: 'acknowledged', message: 'routed' }]) {
     const queue = t.mock.method(bridge, 'queueCommand', async () => {});
     let now = 0;
     t.mock.method(Date, 'now', () => now);
-    t.mock.method(bridge, 'readOutcome', async () => { now += 6000; return outcome; });
+    t.mock.method(bridge, 'readOutcome', async () => { now += 7000; return outcome; });
     await assert.rejects(service.listStoredDinos(steam), /timed out/);
     assert.equal(queue.mock.callCount(), 1);
   });

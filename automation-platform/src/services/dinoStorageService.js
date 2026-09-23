@@ -75,7 +75,7 @@ async function listStoredDinosViaCommandBridge(steamId) {
 
   // Leave time for the website's default eight-second API timeout to receive
   // an explicit error. A routing acknowledgement is not a DinoStorage list.
-  const deadline = Date.now() + 6000;
+  const deadline = Date.now() + 7000;
   do {
     const outcome = await commandBridge.readOutcome(command);
     if (outcome?.state === 'failed') {
