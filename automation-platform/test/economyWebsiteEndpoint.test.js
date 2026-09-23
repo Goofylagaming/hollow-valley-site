@@ -9,6 +9,7 @@ const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hv-economy-endpoint-'));
 process.env.AUTOMATION_DB_PATH = path.join(dir, 'economy.sqlite');
 process.env.HOLLOW_VALLEY_API_TOKEN = 'economy-website-secret';
 process.env.PLAYER_PRESENCE_ENABLED = 'false';
+process.env.PRESENCE_FEED_TOKEN = 'economy-presence-feed-secret';
 process.env.WALLET_PLAYTIME_REWARDS_ENABLED = 'false';
 process.env.MARKETPLACE_WRITE_ENABLED = 'true';
 process.env.OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED = 'true';
@@ -78,6 +79,7 @@ test('website wallet and marketplace APIs are protected and preserve atomic purc
   const quests = await questsResponse.json();
   assert.equal(quests.quests.length, 5);
   assert.equal(quests.activeBoostPercent, 0);
+  assert.equal(quests.trackingEnabled, true);
   assert.deepEqual(quests.quests.map((quest) => quest.id), [
     'daily-consecutive-1h',
     'daily-total-3h',
