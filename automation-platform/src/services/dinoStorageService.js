@@ -248,6 +248,45 @@ function parseSqliteDate(value) {
   return Number.isFinite(timestamp) ? timestamp : null;
 }
 
+async function reconcileDinoStorageRequest(requestId) {
+  if (process.env.COMMAND_BRIDGE_ENABLED !== 'true') return store.getRequest(String(requestId || '').trim());
+
+  const id = String(requestId || '').trim();
+  const request = store.getRequest(id);
+  if (!request || request.kind !== 'dinostorage') return request;
+  if (!['queued', 'acknowledged', 'unknown'].includes(request.status)) return request;
+
+  const command = request.details?.command;
+  if (!command) return request;
+
+  const outcome = await commandBridge.readOutcome(command);
+  if (!outcome) return request;
+
+  if (outcome.state === 'failed') {
+    return store.updateRequest(request.id, {
+      status: 'failed',
+      message: outcome.message,
+      error: outcome.message,
+    });
+  }
+
+  if (outcome.state === 'confirmed') {
+    const action = request.details?.action || 'action';
+    const deferred = action === 'store' ? 'kill' : 'restore';
+    return store.updateRequest(request.id, {
+      status: 'accepted',
+      message: `${outcome.message} DinoStorage accepted the ${action}; the deferred in-game ${deferred} is not independently confirmed.`,
+      error: null,
+    });
+  }
+
+  return store.updateRequest(request.id, {
+    status: 'acknowledged',
+    message: outcome.message,
+    error: null,
+  });
+}
+
 async function reconcileDinoStorage() {
   if (process.env.COMMAND_BRIDGE_ENABLED !== 'true') return { checked: 0, changed: 0 };
   const requests = store.listRequests({ kind: 'dinostorage', statuses: ['queued', 'acknowledged', 'unknown'], limit: 200 });
@@ -308,6 +347,7 @@ module.exports = {
   requestDinoStorageAction,
   publishDinoStorageRequest,
   recoverInterruptedDinoStorage,
+  reconcileDinoStorageRequest,
   reconcileDinoStorage,
   startDinoStorageReconciler,
 };
