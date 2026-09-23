@@ -1,6 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { randomUUID } = require('node:crypto');
+const { randomUUID, createHash } = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
 const { getServerSnapshot } = require('./statusService');
 const playtimeRewards = require('./playtimeRewardsService');
@@ -35,13 +35,30 @@ db.exec(`
   );
   CREATE INDEX IF NOT EXISTS idx_presence_samples_time
     ON player_presence_samples(sampled_at DESC);
+
+  CREATE TABLE IF NOT EXISTS player_presence_external_samples (
+    sample_id TEXT PRIMARY KEY,
+    sampled_at TEXT NOT NULL,
+    payload_hash TEXT NOT NULL,
+    ingested_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_presence_external_samples_time
+    ON player_presence_external_samples(sampled_at DESC);
 `);
 
 let running = false;
 let joinMessagesPrimed = false;
 
-function enabled() {
+function pollingEnabled() {
   return String(process.env.PLAYER_PRESENCE_ENABLED || '').toLowerCase() === 'true';
+}
+
+function externalFeedConfigured() {
+  return Boolean(String(process.env.PRESENCE_FEED_TOKEN || '').trim());
+}
+
+function enabled() {
+  return pollingEnabled() || externalFeedConfigured();
 }
 
 function intervalMs() {
@@ -212,9 +229,189 @@ function reconcilePresence(onlinePlayers, nowIso = new Date().toISOString()) {
   return { opened, updated, closed, online: onlinePlayers.length };
 }
 
+function presenceFeedError(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
+}
+
+function normalizeExternalPlayers(input) {
+  if (!Array.isArray(input) || input.length > 500) {
+    throw presenceFeedError('PRESENCE_SAMPLE_INVALID', 'players must be an array with at most 500 entries');
+  }
+
+  const seen = new Set();
+  return input.map((player, index) => {
+    if (!player || typeof player !== 'object' || Array.isArray(player)) {
+      throw presenceFeedError('PRESENCE_SAMPLE_INVALID', `players[${index}] must be an object`);
+    }
+
+    const steamId = String(player.steamId || player.PlayerID || '').trim();
+    if (!/^\d{17}$/.test(steamId)) {
+      throw presenceFeedError('PRESENCE_SAMPLE_INVALID', `players[${index}] has an invalid SteamID64`);
+    }
+    if (seen.has(steamId)) {
+      throw presenceFeedError('PRESENCE_SAMPLE_INVALID', `Duplicate SteamID64 in players: ${steamId}`);
+    }
+    seen.add(steamId);
+
+    const name = String(player.name ?? player.Name ?? 'Unknown')
+      .replace(/[\x00\r\n]/g, '')
+      .trim();
+    if (name.length > 80) {
+      throw presenceFeedError('PRESENCE_SAMPLE_INVALID', `players[${index}] name is too long`);
+    }
+
+    const rawSpecies = player.species ?? player.Class ?? null;
+    const species = rawSpecies === null || rawSpecies === undefined || String(rawSpecies).trim() === ''
+      ? null
+      : String(rawSpecies).replace(/[\x00\r\n]/g, '').trim();
+    if (species && species.length > 120) {
+      throw presenceFeedError('PRESENCE_SAMPLE_INVALID', `players[${index}] species is too long`);
+    }
+
+    return {
+      steamId,
+      name: name || 'Unknown',
+      species,
+    };
+  });
+}
+
+function externalSampleHash(sampledAt, players) {
+  const stablePlayers = [...players]
+    .sort((left, right) => left.steamId.localeCompare(right.steamId))
+    .map((player) => ({
+      steamId: player.steamId,
+      name: player.name,
+      species: player.species,
+    }));
+  return createHash('sha256')
+    .update(JSON.stringify({ sampledAt, players: stablePlayers }))
+    .digest('hex');
+}
+
+async function ingestExternalPresenceSnapshot(input = {}) {
+  if (running) return { skipped: true, reason: 'sample-already-running' };
+
+  const sampleId = String(input.sampleId || '').trim();
+  if (!/^[A-Za-z0-9_.:@+-]{8,180}$/.test(sampleId)) {
+    throw presenceFeedError('PRESENCE_SAMPLE_INVALID', 'sampleId must be 8-180 safe characters');
+  }
+
+  const sampledAtMs = Date.parse(String(input.sampledAt || ''));
+  if (!Number.isFinite(sampledAtMs)) {
+    throw presenceFeedError('PRESENCE_SAMPLE_INVALID', 'sampledAt must be a valid ISO-8601 timestamp');
+  }
+  if (sampledAtMs > Date.now() + 120000) {
+    throw presenceFeedError('PRESENCE_SAMPLE_INVALID', 'sampledAt cannot be more than 2 minutes in the future');
+  }
+
+  const sampledAt = new Date(sampledAtMs).toISOString();
+  const players = normalizeExternalPlayers(input.players);
+  const payloadHash = externalSampleHash(sampledAt, players);
+
+  const existing = db.prepare(`
+    SELECT sample_id, sampled_at, payload_hash
+    FROM player_presence_external_samples
+    WHERE sample_id = ?
+  `).get(sampleId);
+
+  if (existing) {
+    if (existing.payload_hash !== payloadHash) {
+      throw presenceFeedError(
+        'PRESENCE_SAMPLE_CONFLICT',
+        'sampleId has already been used for a different presence payload'
+      );
+    }
+    return {
+      skipped: false,
+      duplicate: true,
+      stale: false,
+      sampleId,
+      sampledAt: existing.sampled_at,
+    };
+  }
+
+  const latest = db.prepare(`
+    SELECT sample_id, sampled_at
+    FROM player_presence_external_samples
+    ORDER BY sampled_at DESC
+    LIMIT 1
+  `).get();
+  if (latest && sampledAtMs <= Date.parse(latest.sampled_at)) {
+    return {
+      skipped: false,
+      duplicate: false,
+      stale: true,
+      reason: 'out-of-order',
+      sampleId,
+      sampledAt,
+      latestAcceptedSampleId: latest.sample_id,
+      latestAcceptedAt: latest.sampled_at,
+    };
+  }
+
+  running = true;
+  try {
+    const newPlayers = findNewPlayers(players);
+    const reconciliation = reconcilePresence(players, sampledAt);
+    const sample = recordPresenceSample(players, sampledAt);
+    prunePresenceSamples({
+      retentionHours: Number(process.env.PLAYER_PRESENCE_RETENTION_HOURS || 24 * 31),
+      nowIso: sampledAt,
+    });
+
+    let supporterMemberships;
+    try {
+      supporterMemberships = await supporterBonuses.refreshMemberships(
+        players.map((player) => player.steamId)
+      );
+    } catch (error) {
+      console.warn('[supporter-bonuses]', error.message);
+      supporterMemberships = {
+        skipped: true,
+        reason: 'refresh-error',
+        error: error.message,
+        requested: players.length,
+        entitled: 0,
+      };
+    }
+
+    let rewards;
+    try {
+      rewards = playtimeRewards.rewardOnlinePlayers(players, { nowMs: sampledAtMs });
+    } catch (error) {
+      console.warn('[playtime-rewards]', error.message);
+      rewards = { skipped: true, reason: 'reward-error', error: error.message };
+    }
+
+    db.prepare(`
+      INSERT INTO player_presence_external_samples
+        (sample_id, sampled_at, payload_hash)
+      VALUES (?, ?, ?)
+    `).run(sampleId, sampledAt, payloadHash);
+
+    return {
+      skipped: false,
+      duplicate: false,
+      stale: false,
+      sampleId,
+      sampledAt,
+      newPlayers: newPlayers.length,
+      ...reconciliation,
+      sample,
+      supporterMemberships,
+      rewards,
+    };
+  } finally {
+    running = false;
+  }
+}
+
 async function samplePresence({ force = false } = {}) {
   if (running) return { skipped: true, reason: 'sample-already-running' };
-  if (!enabled()) return { skipped: true, reason: 'disabled' };
+  if (!pollingEnabled()) return { skipped: true, reason: 'disabled' };
   running = true;
   try {
     const snapshot = await getServerSnapshot({ force });
@@ -469,7 +666,7 @@ function getPresenceAnalytics({ hours = 24, nowMs = Date.now() } = {}) {
 }
 
 function startPlayerPresence() {
-  if (!enabled()) return null;
+  if (!pollingEnabled()) return null;
   samplePresence({ force: false }).catch((error) => console.warn('[player-presence]', error.message));
   const timer = setInterval(() => {
     samplePresence({ force: false }).catch((error) => console.warn('[player-presence]', error.message));
@@ -480,6 +677,8 @@ function startPlayerPresence() {
 
 module.exports = {
   enabled,
+  pollingEnabled,
+  externalFeedConfigured,
   intervalMs,
   joinMessagesEnabled,
   buildJoinMessage,
@@ -492,6 +691,7 @@ module.exports = {
   prunePresenceSamples,
   buildActivityTrend,
   reconcilePresence,
+  ingestExternalPresenceSnapshot,
   samplePresence,
   listSessions,
   getPresenceSummary,
