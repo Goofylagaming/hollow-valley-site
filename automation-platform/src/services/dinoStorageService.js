@@ -63,6 +63,51 @@ function storedDirectory(steamId) {
 }
 
 async function listStoredDinos(steamId) {
+  if (commandBridge.getTransport() === 'http_pull') {
+    return listStoredDinosViaCommandBridge(steamId);
+  }
+  return listStoredDinosViaFiles(steamId);
+}
+
+async function listStoredDinosViaCommandBridge(steamId) {
+  const command = commandBridge.buildCommand('dino_list', validateSteamId(steamId), []);
+  await commandBridge.queueCommand(command);
+
+  // Leave time for the website's default eight-second API timeout to receive
+  // an explicit error. A routing acknowledgement is not a DinoStorage list.
+  const deadline = Date.now() + 6000;
+  do {
+    const outcome = await commandBridge.readOutcome(command);
+    if (outcome?.state === 'failed') {
+      throw new Error(outcome.message || 'DinoStorage list command failed');
+    }
+    if (outcome?.state === 'confirmed') {
+      let states;
+      try {
+        states = JSON.parse(outcome.message);
+      } catch (error) {
+        throw new Error(`DinoStorage list returned invalid JSON: ${error.message}`);
+      }
+      if (!Array.isArray(states)) throw new Error('DinoStorage list returned a non-array result');
+      const dinos = states.map((state) => {
+        if (!state || typeof state !== 'object' || Array.isArray(state) ||
+            typeof state.slot !== 'string' || !SLOT_RE.test(state.slot)) {
+          throw new Error('DinoStorage list returned an invalid stored slot');
+        }
+        return normalizeStoredDino(state, state.slot);
+      });
+      dinos.sort((a, b) => Number(b.capturedAt || 0) - Number(a.capturedAt || 0));
+      return dinos;
+    }
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) break;
+    await new Promise((resolve) => setTimeout(resolve, Math.min(250, remaining)));
+  } while (true);
+
+  throw new Error('DinoStorage list timed out waiting for a matching DinoStorage result');
+}
+
+async function listStoredDinosViaFiles(steamId) {
   const directory = storedDirectory(steamId);
   return fileBridge.withClient(async (client) => {
     try {
