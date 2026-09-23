@@ -6,6 +6,7 @@ const { getServerSnapshot } = require('./statusService');
 const playtimeRewards = require('./playtimeRewardsService');
 const supporterBonuses = require('./supporterBonusService');
 const rconControl = require('./rconControlService');
+const externalServerSnapshot = require('./externalServerSnapshotService');
 
 const dbPath = process.env.AUTOMATION_DB_PATH || path.join(__dirname, '..', '..', 'data', 'automation.sqlite');
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
@@ -235,6 +236,34 @@ function presenceFeedError(code, message) {
   return error;
 }
 
+function finiteOrNull(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function normalizeLocation(value) {
+  if (!value) return null;
+
+  if (typeof value === 'object' && !Array.isArray(value)) {
+    const x = finiteOrNull(value.x ?? value.X);
+    const y = finiteOrNull(value.y ?? value.Y);
+    const z = finiteOrNull(value.z ?? value.Z);
+    return x === null || y === null || z === null ? null : { x, y, z };
+  }
+
+  const match = /X=(-?[\d.]+)[;,\s]+Y=(-?[\d.]+)[;,\s]+Z=(-?[\d.]+)/i.exec(String(value));
+  if (!match) return null;
+  return { x: Number(match[1]), y: Number(match[2]), z: Number(match[3]) };
+}
+
+function normalizeMutations(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => String(item || '').trim())
+    .filter((item) => item && item.toLowerCase() !== 'none')
+    .slice(0, 16);
+}
+
 function normalizeExternalPlayers(input) {
   if (!Array.isArray(input) || input.length > 500) {
     throw presenceFeedError('PRESENCE_SAMPLE_INVALID', 'players must be an array with at most 500 entries');
@@ -270,22 +299,31 @@ function normalizeExternalPlayers(input) {
       throw presenceFeedError('PRESENCE_SAMPLE_INVALID', `players[${index}] species is too long`);
     }
 
+    const rawGender = player.gender ?? player.Gender ?? null;
+    const gender = rawGender === null || rawGender === undefined || String(rawGender).trim() === ''
+      ? null
+      : String(rawGender).replace(/[\x00\r\n]/g, '').trim().slice(0, 32);
+
     return {
       steamId,
       name: name || 'Unknown',
+      gender,
       species,
+      growth: finiteOrNull(player.growth ?? player.Growth),
+      health: finiteOrNull(player.health ?? player.Health),
+      stamina: finiteOrNull(player.stamina ?? player.Stamina),
+      hunger: finiteOrNull(player.hunger ?? player.Hunger),
+      thirst: finiteOrNull(player.thirst ?? player.Thirst),
+      isPrime: player.isPrime === true || player.PrimeElder === true || String(player.PrimeElder || '').toLowerCase() === 'true',
+      mutations: normalizeMutations(player.mutations ?? player.Mutations),
+      location: normalizeLocation(player.location ?? player.Location),
     };
   });
 }
 
 function externalSampleHash(sampledAt, players) {
   const stablePlayers = [...players]
-    .sort((left, right) => left.steamId.localeCompare(right.steamId))
-    .map((player) => ({
-      steamId: player.steamId,
-      name: player.name,
-      species: player.species,
-    }));
+    .sort((left, right) => left.steamId.localeCompare(right.steamId));
   return createHash('sha256')
     .update(JSON.stringify({ sampledAt, players: stablePlayers }))
     .digest('hex');
@@ -391,6 +429,13 @@ async function ingestExternalPresenceSnapshot(input = {}) {
         (sample_id, sampled_at, payload_hash)
       VALUES (?, ?, ?)
     `).run(sampleId, sampledAt, payloadHash);
+
+    externalServerSnapshot.saveSnapshot({
+      sampleId,
+      sampledAt,
+      players,
+      maxPlayers: input.maxPlayers,
+    });
 
     return {
       skipped: false,
