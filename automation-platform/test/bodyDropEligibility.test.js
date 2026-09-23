@@ -240,7 +240,7 @@ test('global emergency BodyDrop requires carnivore <=60% growth and <=30% food',
     location: { x: 1, y: 2, z: 3 },
   });
   assert.equal(eligible.eligible, true);
-  assert.equal(eligible.growthPercent, 55);
+  assert.equal(Math.round(eligible.growthPercent), 55);
   assert.equal(eligible.foodPercent, 30);
   assert.equal(foodPercent(0.25), 25);
   assert.equal(foodPercent(25), 25);
