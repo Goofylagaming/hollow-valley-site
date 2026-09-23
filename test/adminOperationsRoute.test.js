@@ -81,3 +81,61 @@ test("Admin Operations backup endpoint is admin-only and proxies snapshot creati
   const body = await response.json();
   assert.equal(body.backup.fileName, "automation-test.sqlite");
 });
+
+
+test("Admin Operations proxies guarded global BodyDrop controls", async (t) => {
+  const originals = {
+    getAdminGlobalBodyDropState: automation.getAdminGlobalBodyDropState,
+    setAdminGlobalBodyDropEnabled: automation.setAdminGlobalBodyDropEnabled,
+    activateAdminGlobalBodyDrop: automation.activateAdminGlobalBodyDrop,
+  };
+  t.after(() => {
+    for (const [name, fn] of Object.entries(originals)) automation[name] = fn;
+  });
+
+  let enabled = false;
+  automation.getAdminGlobalBodyDropState = async () => ({
+    globalBodyDrop: { enabled, defaultOff: true, running: false },
+  });
+  automation.setAdminGlobalBodyDropEnabled = async (next) => {
+    enabled = next === true;
+    return { ok: true, globalBodyDrop: { enabled, defaultOff: true, running: false } };
+  };
+  automation.activateAdminGlobalBodyDrop = async () => {
+    enabled = false;
+    return {
+      ok: true,
+      globalBodyDrop: {
+        enabled: false,
+        defaultOff: true,
+        running: false,
+        lastRun: { scheduledCount: 2, queuedCount: 0 },
+      },
+    };
+  };
+
+  const server = await listen(appFor({ id: 1, is_admin: 1 }));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  let response = await fetch(`${baseUrl(server)}/api/admin-operations/bodydrop-global`);
+  assert.equal(response.status, 200);
+  let body = await response.json();
+  assert.equal(body.globalBodyDrop.enabled, false);
+
+  response = await fetch(`${baseUrl(server)}/api/admin-operations/bodydrop-global/toggle`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ enabled: true }),
+  });
+  assert.equal(response.status, 200);
+  body = await response.json();
+  assert.equal(body.globalBodyDrop.enabled, true);
+
+  response = await fetch(`${baseUrl(server)}/api/admin-operations/bodydrop-global/activate`, {
+    method: "POST",
+  });
+  assert.equal(response.status, 202);
+  body = await response.json();
+  assert.equal(body.globalBodyDrop.enabled, false);
+  assert.equal(body.globalBodyDrop.lastRun.scheduledCount, 2);
+});
