@@ -17,6 +17,7 @@ const herbyBotRoutes = require('./routes/herbyBotRoutes');
 const bodyDropRoutes = require('./routes/bodyDropRoutes');
 const dinoStorageRoutes = require('./routes/dinoStorageRoutes');
 const combatRoutes = require('./routes/combatRoutes');
+const presenceFeedRoutes = require('./routes/presenceFeedRoutes');
 const { startBodyDropReconciler } = require('./services/bodyDropService');
 const { startDinoStorageReconciler, recoverInterruptedDinoStorage } = require('./services/dinoStorageService');
 const { startDinoMarketplaceReconciler } = require('./services/dinoMarketplaceService');
@@ -180,6 +181,10 @@ app.use('/api/herbybot', (_req, res, next) => {
 app.use('/api/bodydrop', bodyDropRoutes);
 app.use('/api/dinostorage', dinoStorageRoutes);
 app.use('/api/combat', combatRoutes);
+app.use('/api/presence-feed', (_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+}, presenceFeedRoutes);
 
 app.get('*', (_req, res) => {
   res.sendFile(path.join(publicDir, 'index.html'));
