@@ -312,4 +312,4 @@ CommandBridge mode. Changing only the folder name does not translate schemas.
 In either mode, `BODYDROP_TYPES` maps UI tiers to
 `id:name:description:species:growth`. Defaults are Compsognathus, Dryosaurus
 and Triceratops at growth 1. Verify those species exist in the installed mod's
-catalog. `BODYDROP_COOLDOWN_SECONDS` defaults to 900.
+catalog. `BODYDROP_COOLDOWN_SECONDS` defaults to 600 (10 minutes).
