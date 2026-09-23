@@ -152,6 +152,12 @@ services:
         value: /
       - key: FTP_SECURE
         value: false
+      - key: COMMAND_BRIDGE_TRANSPORT
+        value: file
+      # For BinaryLane, switch COMMAND_BRIDGE_TRANSPORT to http_pull and set a
+      # dedicated random token here and in the game-side CommandBridge config.
+      - key: BINARYLANE_COMMAND_TOKEN
+        sync: false
       - key: COMMAND_BRIDGE_ENABLED
         value: false
       # Set manually only after the old website publisher is disabled. Expected
