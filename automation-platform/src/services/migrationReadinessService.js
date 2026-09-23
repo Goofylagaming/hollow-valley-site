@@ -18,7 +18,9 @@ function getMigrationReadiness() {
   const solePublisherAck = String(process.env.COMMAND_BRIDGE_SINGLE_PUBLISHER_ACK || '').trim() === PUBLISHER_ACK;
   const rconWritesEnabled = process.env.RCON_WRITE_ENABLED === 'true';
   const adminRestoreWritesEnabled = process.env.ADMIN_RESTORE_WRITE_ENABLED === 'true';
-  const presenceEnabled = process.env.PLAYER_PRESENCE_ENABLED === 'true';
+  const rconPresenceEnabled = process.env.PLAYER_PRESENCE_ENABLED === 'true';
+  const externalPresenceConfigured = configured('PRESENCE_FEED_TOKEN');
+  const presenceEnabled = rconPresenceEnabled || externalPresenceConfigured;
   const monitorEnabled = process.env.SERVER_MONITOR_ENABLED === 'true';
   const herbyBotConfigured = configured('HERBYBOT_AUTOMATION_TOKEN');
   const playtimeRewardsEnabled = process.env.WALLET_PLAYTIME_REWARDS_ENABLED === 'true';
@@ -52,7 +54,11 @@ function getMigrationReadiness() {
     check('herbybot', 'HerbyBot automation bridge', herbyBotConfigured, herbyBotConfigured
       ? 'Dedicated HerbyBot server-to-server token is configured; Discord credentials remain on HerbyBot only.'
       : 'Optional: set HERBYBOT_AUTOMATION_TOKEN to enable durable announcements and alerts through the existing HerbyBot.', 'optional'),
-    check('presence', 'Presence tracking', presenceEnabled, presenceEnabled ? 'Read-only session tracking is enabled.' : 'Optional: enable only after stable read-only RCON verification.', 'optional'),
+    check('presence', 'Presence tracking', presenceEnabled, presenceEnabled
+      ? externalPresenceConfigured && !rconPresenceEnabled
+        ? 'BinaryLane external presence feed is configured; direct automation RCON polling can remain disabled.'
+        : 'Read-only RCON session tracking is enabled.'
+      : 'Optional: enable stable RCON polling or configure the dedicated BinaryLane presence feed.', 'optional'),
     check('playtime-rewards', 'Valley Coin playtime rewards', playtimeRewardsSafe, playtimeRewardsEnabled
       ? playtimeRewardsSafe
         ? `Rewards are enabled at ${playtimeRewardCoins} Valley Coin per verified 5 minutes.`
