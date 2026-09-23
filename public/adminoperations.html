@@ -38,6 +38,16 @@
           </div>
 
           <section class="ops-panel">
+            <div class="list-heading"><span>GLOBAL EMERGENCY BODY DROP</span><small>admin-only · default off</small></div>
+            <p class="section-intro">Backup-only tool. When activated it targets spawned carnivores at 60% growth or below and 30% food or below, respects each player's normal BodyDrop cooldown, and staggers small-body drops to reduce load.</p>
+            <div class="page-toolbar ops-toolbar">
+              <button class="small-button" id="ops-global-bodydrop-toggle" type="button">Loading…</button>
+              <button class="primary-button green" id="ops-global-bodydrop-activate" type="button" disabled>Activate Global Drop <b>→</b></button>
+              <span id="ops-global-bodydrop-message">Loading emergency drop state…</span>
+            </div>
+          </section>
+
+          <section class="ops-panel">
             <div class="list-heading"><span>SERVER MOD DEPLOYMENT</span><small>approved UE4SS scripts only</small></div>
             <p class="section-intro">Deploy the current Hollow Valley CommandBridge and SkinStudio scripts through the automation service's existing VeryGames FTP connection. Saved data and configuration folders are never replaced.</p>
             <div class="page-toolbar ops-toolbar">
@@ -75,6 +85,6 @@
     <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="/assets/common.js?v=16"></script>
-  <script src="/assets/adminoperations.js?v=2"></script>
+  <script src="/assets/adminoperations.js?v=3"></script>
 </body>
 </html>
