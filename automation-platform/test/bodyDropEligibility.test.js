@@ -225,3 +225,111 @@ test('simultaneous BodyDrop requests for one player publish only once', async (t
   assert.equal(rejected.reason.code, 'BODYDROP_COOLDOWN');
   assert.equal(rejected.reason.cooldown.reason, 'pending');
 });
+
+
+test('global emergency BodyDrop requires carnivore <=60% growth and <=30% food', (t) => {
+  const fixture = loadService();
+  t.after(fixture.restore);
+  const { globalBodyDropEligibility, foodPercent } = fixture.service;
+
+  const eligible = globalBodyDropEligibility({
+    steamId: '76561198000001001',
+    species: 'Tyrannosaurus',
+    growth: 0.55,
+    hunger: 0.30,
+    location: { x: 1, y: 2, z: 3 },
+  });
+  assert.equal(eligible.eligible, true);
+  assert.equal(eligible.growthPercent, 55);
+  assert.equal(eligible.foodPercent, 30);
+  assert.equal(foodPercent(0.25), 25);
+  assert.equal(foodPercent(25), 25);
+
+  const fed = globalBodyDropEligibility({
+    steamId: '76561198000001002',
+    species: 'Carnotaurus',
+    growth: 0.40,
+    hunger: 31,
+    location: { x: 1, y: 2, z: 3 },
+  });
+  assert.equal(fed.eligible, false);
+  assert.match(fed.reason, /30% food or below/i);
+
+  const herbivore = globalBodyDropEligibility({
+    steamId: '76561198000001003',
+    species: 'Triceratops',
+    growth: 0.20,
+    hunger: 10,
+    location: { x: 1, y: 2, z: 3 },
+  });
+  assert.equal(herbivore.eligible, false);
+});
+
+test('global emergency BodyDrop is default-off, one-shot and only queues eligible players', async (t) => {
+  const previousStagger = process.env.GLOBAL_BODYDROP_STAGGER_MS;
+  process.env.GLOBAL_BODYDROP_STAGGER_MS = '0';
+  t.after(() => {
+    if (previousStagger === undefined) delete process.env.GLOBAL_BODYDROP_STAGGER_MS;
+    else process.env.GLOBAL_BODYDROP_STAGGER_MS = previousStagger;
+  });
+
+  let commandCounter = 0;
+  let queueCalls = 0;
+  const snapshot = {
+    online: true,
+    players: [],
+    maxPlayers: 100,
+    characters: [
+      {
+        steamId: '76561198000002001',
+        species: 'Tyrannosaurus',
+        growth: 0.55,
+        hunger: 0.25,
+        location: { x: 10, y: 20, z: 30 },
+      },
+      {
+        steamId: '76561198000002002',
+        species: 'Carnotaurus',
+        growth: 0.40,
+        hunger: 0.80,
+        location: { x: 40, y: 50, z: 60 },
+      },
+    ],
+  };
+
+  const fixture = loadService({
+    snapshot,
+    bridge: {
+      buildCommand(verb, steam, args) {
+        commandCounter += 1;
+        return { id: `global-bodydrop-${commandCounter}`, ts: 1, verb, steam, args };
+      },
+      async queueCommand() {
+        queueCalls += 1;
+      },
+    },
+  });
+  t.after(fixture.restore);
+
+  const service = fixture.service;
+  assert.equal(service.getGlobalBodyDropState().enabled, false);
+  await assert.rejects(
+    service.activateGlobalBodyDrop(),
+    (error) => error.code === 'GLOBAL_BODYDROP_DISABLED'
+  );
+
+  const armed = service.setGlobalBodyDropEnabled(true);
+  assert.equal(armed.enabled, true);
+
+  const activated = await service.activateGlobalBodyDrop();
+  assert.equal(activated.enabled, false);
+  assert.equal(activated.lastRun.scheduledCount, 1);
+  assert.equal(activated.lastRun.eligibleCount, 1);
+
+  await new Promise((resolve) => setTimeout(resolve, 25));
+  const finished = service.getGlobalBodyDropState();
+  assert.equal(queueCalls, 1);
+  assert.equal(finished.enabled, false);
+  assert.equal(finished.lastRun.queuedCount, 1);
+  assert.equal(finished.lastRun.status, 'completed');
+});
