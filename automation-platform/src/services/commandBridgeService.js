@@ -1,5 +1,6 @@
 const { randomUUID } = require('node:crypto');
 const fileBridge = require('../adapters/fileBridge');
+const httpBridge = require('./commandBridgeHttpService');
 
 const SOURCES = {
   bd: 'BodyDrop',
@@ -9,6 +10,27 @@ const SOURCES = {
   skin_apply: 'SkinStudio',
 };
 const PUBLISHER_ACK = 'automation-platform-is-sole-publisher';
+
+function getTransport() {
+  const transport = String(process.env.COMMAND_BRIDGE_TRANSPORT || 'file').trim().toLowerCase();
+  if (!['file', 'http_pull'].includes(transport)) {
+    throw new Error('COMMAND_BRIDGE_TRANSPORT must be file or http_pull');
+  }
+  return transport;
+}
+
+function transportConfigured() {
+  if (getTransport() === 'http_pull') {
+    return Boolean(String(process.env.BINARYLANE_COMMAND_TOKEN || '').trim());
+  }
+  return Boolean(
+    String(process.env.SFTP_HOST || '').trim() &&
+    String(process.env.SFTP_PORT || '').trim() &&
+    String(process.env.SFTP_USER || '').trim() &&
+    String(process.env.SFTP_PASSWORD || '').trim() &&
+    String(process.env.SFTP_BASE_PATH || '').trim()
+  );
+}
 
 function buildCommand(verb, steamId, tokens = []) {
   if (!Object.hasOwn(SOURCES, verb)) throw new Error(`Unsupported CommandBridge verb: ${verb}`);
@@ -37,6 +59,15 @@ function assertPublisherReady() {
 
 async function queueCommand(command) {
   assertPublisherReady();
+
+  if (getTransport() === 'http_pull') {
+    if (!transportConfigured()) {
+      throw new Error('BINARYLANE_COMMAND_TOKEN must be configured for COMMAND_BRIDGE_TRANSPORT=http_pull');
+    }
+    httpBridge.enqueue(command, SOURCES[command.verb]);
+    return command;
+  }
+
   await fileBridge.publishCommandLine(JSON.stringify(command));
   return command;
 }
@@ -91,16 +122,60 @@ function findOutcome(text, command) {
 }
 
 async function readOutcome(command) {
+  if (getTransport() === 'http_pull') {
+    const row = httpBridge.getRequest(command.id);
+    if (!row || row.steam !== command.steam || row.verb !== command.verb || !row.result_json) return null;
+    return findOutcome(`${row.result_json}\n`, command);
+  }
+
   const text = await fileBridge.readResultsText();
   return findOutcome(text, command);
+}
+
+async function getBridgeHealth() {
+  const enabled = process.env.COMMAND_BRIDGE_ENABLED === 'true';
+  const transport = getTransport();
+
+  if (!enabled) {
+    return {
+      enabled: false,
+      configured: transportConfigured(),
+      connected: false,
+      transport,
+      queueBusy: false,
+      error: null,
+    };
+  }
+
+  if (transport === 'http_pull') {
+    const configured = transportConfigured();
+    const summary = httpBridge.getSummary();
+    return {
+      enabled: true,
+      configured,
+      connected: configured,
+      transport,
+      queueBusy: summary.pending > 0 || summary.dispatched > 0 || summary.acknowledged > 0,
+      summary,
+      error: configured ? null : 'BINARYLANE_COMMAND_TOKEN is not configured',
+    };
+  }
+
+  return {
+    ...(await fileBridge.getBridgeHealth()),
+    transport,
+  };
 }
 
 module.exports = {
   SOURCES,
   PUBLISHER_ACK,
+  getTransport,
+  transportConfigured,
   buildCommand,
   assertPublisherReady,
   queueCommand,
   readOutcome,
   findOutcome,
+  getBridgeHealth,
 };
