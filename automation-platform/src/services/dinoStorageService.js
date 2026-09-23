@@ -208,14 +208,13 @@ async function reconcileDinoStorage() {
   const requests = store.listRequests({ kind: 'dinostorage', statuses: ['queued', 'acknowledged', 'unknown'], limit: 200 });
   if (!requests.length) return { checked: 0, changed: 0 };
 
-  const resultsText = await fileBridge.readResultsText();
   const unknownAfterMs = Math.max(10, Number(process.env.DINOSTORAGE_UNKNOWN_AFTER_SECONDS || 60)) * 1000;
   let changed = 0;
 
   for (const request of requests) {
     const command = request.details?.command;
     if (!command) continue;
-    const outcome = commandBridge.findOutcome(resultsText, command);
+    const outcome = await commandBridge.readOutcome(command);
 
     if (outcome) {
       if (outcome.state === 'failed') {
