@@ -355,7 +355,7 @@ test("bodydrop bridge builds the UE4SS spawn job with raw player coordinates", (
 test("bodydrop bridge rejects unsafe relative inbox paths", () => {
   const originalBase = process.env.SFTP_BASE_PATH;
   const originalInbox = process.env.BODYDROP_INBOX_PATH;
-  process.env.SFTP_BASE_PATH = "verygames-root";
+  process.env.SFTP_BASE_PATH = "legacy-file-root";
   process.env.BODYDROP_INBOX_PATH = "Mods/../outside/inbox.ndjson";
 
   try {
