@@ -7,7 +7,7 @@ const store = require('../services/automationStore');
 const router = express.Router();
 
 router.get('/options', (_req, res) => {
-  res.json({ options: bodyDrop.getDropTypes(), cooldownSeconds: Number(process.env.BODYDROP_COOLDOWN_SECONDS || 900) });
+  res.json({ options: bodyDrop.getDropTypes(), cooldownSeconds: Number(process.env.BODYDROP_COOLDOWN_SECONDS || 600) });
 });
 
 router.get('/requests', requireAdminToken, (req, res) => {

@@ -1,5 +1,8 @@
 const { api, escapeHtml } = window.HDS;
 
+let globalBodyDropState = null;
+let globalBodyDropRefreshTimer = null;
+
 function text(id, value) {
   const el = document.getElementById(id);
   if (el) el.textContent = value ?? "—";
@@ -175,6 +178,54 @@ async function loadServerMods() {
   }
 }
 
+function renderGlobalBodyDrop(payload) {
+  const state = payload?.globalBodyDrop || {};
+  globalBodyDropState = state;
+
+  const toggle = document.getElementById("ops-global-bodydrop-toggle");
+  const activate = document.getElementById("ops-global-bodydrop-activate");
+  const message = document.getElementById("ops-global-bodydrop-message");
+  const lastRun = state.lastRun || null;
+
+  if (toggle) {
+    toggle.disabled = Boolean(state.running);
+    toggle.textContent = state.enabled ? "Turn Global Drop OFF" : "Turn Global Drop ON";
+  }
+  if (activate) {
+    activate.disabled = !state.enabled || Boolean(state.running);
+  }
+
+  if (message) {
+    if (state.running) {
+      message.textContent = `Running · ${Number(lastRun?.completedCount || 0)}/${Number(lastRun?.scheduledCount || 0)} processed · ${Number(lastRun?.queuedCount || 0)} queued`;
+    } else if (state.enabled) {
+      message.textContent = "ARMED for one activation · small bodies only · tool auto-disables after activation.";
+    } else if (lastRun) {
+      message.textContent = `OFF · last run: ${Number(lastRun.scheduledCount || 0)} scheduled · ${Number(lastRun.queuedCount || 0)} queued · ${Number(lastRun.skippedCount || 0)} skipped · ${Number(lastRun.failedCount || 0)} failed`;
+    } else {
+      message.textContent = "OFF by default. Enable it to arm one emergency global run.";
+    }
+  }
+
+  clearTimeout(globalBodyDropRefreshTimer);
+  if (state.running) {
+    globalBodyDropRefreshTimer = setTimeout(loadGlobalBodyDrop, 2000);
+  }
+}
+
+async function loadGlobalBodyDrop() {
+  try {
+    renderGlobalBodyDrop(await api("/api/admin-operations/bodydrop-global"));
+  } catch (error) {
+    const message = document.getElementById("ops-global-bodydrop-message");
+    const toggle = document.getElementById("ops-global-bodydrop-toggle");
+    const activate = document.getElementById("ops-global-bodydrop-activate");
+    if (message) message.textContent = error.message || "Global BodyDrop controls unavailable.";
+    if (toggle) toggle.disabled = true;
+    if (activate) activate.disabled = true;
+  }
+}
+
 async function loadOperations({ force = false } = {}) {
   const message = document.getElementById("ops-message");
   const refresh = document.getElementById("ops-refresh");
@@ -195,8 +246,51 @@ async function loadOperations({ force = false } = {}) {
 document.getElementById("ops-refresh")?.addEventListener("click", () => {
   loadOperations({ force: true });
   loadServerMods();
+  loadGlobalBodyDrop();
 });
 document.getElementById("ops-refresh-server-mods")?.addEventListener("click", loadServerMods);
+
+document.getElementById("ops-global-bodydrop-toggle")?.addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  const message = document.getElementById("ops-global-bodydrop-message");
+  const enabled = !globalBodyDropState?.enabled;
+  button.disabled = true;
+  if (message) message.textContent = enabled ? "Arming global emergency BodyDrop…" : "Turning global emergency BodyDrop off…";
+  try {
+    const result = await api("/api/admin-operations/bodydrop-global/toggle", {
+      method: "POST",
+      body: JSON.stringify({ enabled }),
+    });
+    renderGlobalBodyDrop(result);
+  } catch (error) {
+    if (message) message.textContent = error.message || "Could not change global BodyDrop state.";
+    await loadGlobalBodyDrop();
+  }
+});
+
+document.getElementById("ops-global-bodydrop-activate")?.addEventListener("click", async (event) => {
+  if (!window.confirm(
+    "Activate ONE global emergency BodyDrop run now?\n\n" +
+    "Eligible targets: spawned carnivores at 60% growth or below AND 30% food or below. " +
+    "Small bodies are staggered between players and normal per-player cooldowns are respected. " +
+    "The global tool will switch OFF immediately after activation."
+  )) return;
+
+  const button = event.currentTarget;
+  const message = document.getElementById("ops-global-bodydrop-message");
+  button.disabled = true;
+  button.textContent = "Activating…";
+  if (message) message.textContent = "Scanning live players and scheduling eligible drops…";
+  try {
+    const result = await api("/api/admin-operations/bodydrop-global/activate", { method: "POST" });
+    renderGlobalBodyDrop(result);
+  } catch (error) {
+    if (message) message.textContent = error.message || "Global BodyDrop activation failed.";
+    await loadGlobalBodyDrop();
+  } finally {
+    button.textContent = "Activate Global Drop →";
+  }
+});
 
 document.getElementById("ops-deploy-server-mods")?.addEventListener("click", async (event) => {
   const button = event.currentTarget;
@@ -259,7 +353,7 @@ async function init() {
 
   guard.hidden = true;
   content.hidden = false;
-  await Promise.all([loadOperations(), loadServerMods()]);
+  await Promise.all([loadOperations(), loadServerMods(), loadGlobalBodyDrop()]);
 }
 
 init();

@@ -9,6 +9,8 @@ const DEFAULT_DROP_TYPES = [
 ];
 
 const BODYDROP_MAX_GROWTH_PERCENT = 60;
+const GLOBAL_BODYDROP_MAX_FOOD_PERCENT = 30;
+const GLOBAL_BODYDROP_DROP_TYPE = 'small';
 const CARNIVORE_SPECIES = [
   'Allosaurus',
   'Austroraptor',
@@ -27,6 +29,9 @@ const CARNIVORE_SPECIES = [
   'Utahraptor',
 ];
 
+let globalBodyDropEnabled = false;
+let globalBodyDropRun = null;
+
 function normalizeSpecies(value) {
   return String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 }
@@ -37,11 +42,19 @@ function isCarnivoreSpecies(value) {
   return CARNIVORE_SPECIES.some((species) => normalized.includes(normalizeSpecies(species)));
 }
 
-function growthPercent(value) {
+function percentValue(value) {
   if (value === null || value === undefined || value === '') return null;
-  const growth = Number(value);
-  if (!Number.isFinite(growth) || growth < 0) return null;
-  return growth <= 1 ? growth * 100 : growth;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < 0) return null;
+  return numeric <= 1 ? numeric * 100 : numeric;
+}
+
+function growthPercent(value) {
+  return percentValue(value);
+}
+
+function foodPercent(value) {
+  return percentValue(value);
 }
 
 function bodyDropEligibility(character) {
@@ -81,9 +94,55 @@ function bodyDropEligibility(character) {
   };
 }
 
+function globalBodyDropEligibility(character) {
+  const base = bodyDropEligibility(character);
+  if (!base.eligible) return base;
+
+  const food = foodPercent(character?.hunger);
+  if (food === null) {
+    return {
+      ...base,
+      eligible: false,
+      reason: 'Food level could not be verified for the global emergency drop.',
+      foodPercent: null,
+    };
+  }
+
+  if (food > GLOBAL_BODYDROP_MAX_FOOD_PERCENT) {
+    return {
+      ...base,
+      eligible: false,
+      reason: `Global emergency drops require ${GLOBAL_BODYDROP_MAX_FOOD_PERCENT}% food or below.`,
+      foodPercent: food,
+    };
+  }
+
+  const location = character?.location;
+  if (!location || !['x', 'y', 'z'].every((axis) => Number.isFinite(location[axis]))) {
+    return {
+      ...base,
+      eligible: false,
+      reason: 'A live player position is required for the global emergency drop.',
+      foodPercent: food,
+    };
+  }
+
+  return {
+    ...base,
+    eligible: true,
+    foodPercent: food,
+    maxFoodPercent: GLOBAL_BODYDROP_MAX_FOOD_PERCENT,
+  };
+}
+
 function getCooldownSeconds() {
   const value = Number(process.env.BODYDROP_COOLDOWN_SECONDS);
-  return Number.isFinite(value) && value >= 0 ? value : 900;
+  return Number.isFinite(value) && value >= 0 ? value : 600;
+}
+
+function getGlobalBodyDropStaggerMs() {
+  const value = Number(process.env.GLOBAL_BODYDROP_STAGGER_MS);
+  return Number.isFinite(value) && value >= 0 ? Math.min(30000, value) : 2500;
 }
 
 function getDropTypes() {
@@ -181,7 +240,7 @@ async function getBodyDropState(steamId) {
   };
 }
 
-async function requestBodyDrop({ steamId, dropType }) {
+async function requestBodyDrop({ steamId, dropType, maxFoodPercent = null }) {
   steamId = String(steamId || '').trim();
   if (!/^\d{17}$/.test(steamId)) throw new Error('A valid 17-digit Steam ID is required');
 
@@ -199,6 +258,23 @@ async function requestBodyDrop({ steamId, dropType }) {
     error.code = 'BODYDROP_INELIGIBLE';
     error.eligibility = eligibility;
     throw error;
+  }
+
+  let requesterFoodPercent = foodPercent(character?.hunger);
+  if (maxFoodPercent !== null) {
+    const maxFood = Number(maxFoodPercent);
+    if (!Number.isFinite(maxFood) || maxFood < 0 || maxFood > 100) throw new Error('Invalid maximum food percentage');
+    if (requesterFoodPercent === null || requesterFoodPercent > maxFood) {
+      const error = new Error(`Global emergency drops require ${Math.round(maxFood)}% food or below.`);
+      error.code = 'BODYDROP_INELIGIBLE';
+      error.eligibility = {
+        ...eligibility,
+        eligible: false,
+        foodPercent: requesterFoodPercent,
+        maxFoodPercent: maxFood,
+      };
+      throw error;
+    }
   }
 
   const location = character?.location;
@@ -233,6 +309,7 @@ async function requestBodyDrop({ steamId, dropType }) {
       growth: option.growth,
       requesterSpecies: eligibility.species,
       requesterGrowthPercent: eligibility.growthPercent,
+      requesterFoodPercent,
       location,
       command,
     },
@@ -253,6 +330,134 @@ async function requestBodyDrop({ steamId, dropType }) {
     });
     throw error;
   }
+}
+
+function globalRunIsActive() {
+  return Boolean(globalBodyDropRun && globalBodyDropRun.status === 'running');
+}
+
+function getGlobalBodyDropState() {
+  return {
+    enabled: globalBodyDropEnabled,
+    defaultOff: true,
+    running: globalRunIsActive(),
+    dropType: GLOBAL_BODYDROP_DROP_TYPE,
+    staggerMs: getGlobalBodyDropStaggerMs(),
+    criteria: {
+      carnivoreOnly: true,
+      maxGrowthPercent: BODYDROP_MAX_GROWTH_PERCENT,
+      maxFoodPercent: GLOBAL_BODYDROP_MAX_FOOD_PERCENT,
+      requiresLivePosition: true,
+      respectsPlayerCooldown: true,
+    },
+    lastRun: globalBodyDropRun ? { ...globalBodyDropRun } : null,
+  };
+}
+
+function setGlobalBodyDropEnabled(enabled) {
+  const next = enabled === true;
+  if (next && globalRunIsActive()) {
+    const error = new Error('A global emergency BodyDrop run is already in progress');
+    error.code = 'GLOBAL_BODYDROP_RUNNING';
+    throw error;
+  }
+  globalBodyDropEnabled = next;
+  return getGlobalBodyDropState();
+}
+
+function getGlobalBodyDropCandidates(snapshot) {
+  const seen = new Set();
+  const candidates = [];
+
+  for (const character of snapshot?.characters || []) {
+    const steamId = String(character?.steamId || '').trim();
+    if (!/^\d{17}$/.test(steamId) || seen.has(steamId)) continue;
+    seen.add(steamId);
+
+    const eligibility = globalBodyDropEligibility(character);
+    if (!eligibility.eligible) continue;
+
+    const cooldown = getCooldown(steamId);
+    if (cooldown.active) continue;
+
+    candidates.push({
+      steamId,
+      species: eligibility.species,
+      growthPercent: eligibility.growthPercent,
+      foodPercent: eligibility.foodPercent,
+    });
+  }
+
+  return candidates;
+}
+
+async function activateGlobalBodyDrop() {
+  if (!globalBodyDropEnabled) {
+    const error = new Error('Global emergency BodyDrop is OFF. Enable it before activating a run.');
+    error.code = 'GLOBAL_BODYDROP_DISABLED';
+    throw error;
+  }
+  if (globalRunIsActive()) {
+    const error = new Error('A global emergency BodyDrop run is already in progress');
+    error.code = 'GLOBAL_BODYDROP_RUNNING';
+    throw error;
+  }
+
+  // Fail closed: every activation is one-shot and immediately returns the
+  // feature to OFF so a second run always requires a fresh admin enable.
+  globalBodyDropEnabled = false;
+
+  const snapshot = await statusService.getServerSnapshot({ force: true });
+  if (!snapshot.online) {
+    const error = new Error(snapshot.error || 'The Isle server is not online or the live player snapshot is unavailable');
+    error.code = 'GLOBAL_BODYDROP_SERVER_OFFLINE';
+    throw error;
+  }
+
+  const candidates = getGlobalBodyDropCandidates(snapshot);
+  const run = {
+    startedAt: new Date().toISOString(),
+    finishedAt: candidates.length ? null : new Date().toISOString(),
+    status: candidates.length ? 'running' : 'completed',
+    eligibleCount: candidates.length,
+    scheduledCount: candidates.length,
+    completedCount: 0,
+    queuedCount: 0,
+    skippedCount: 0,
+    failedCount: 0,
+    lastError: null,
+  };
+  globalBodyDropRun = run;
+
+  const staggerMs = getGlobalBodyDropStaggerMs();
+  candidates.forEach((candidate, index) => {
+    const timer = setTimeout(async () => {
+      try {
+        await requestBodyDrop({
+          steamId: candidate.steamId,
+          dropType: GLOBAL_BODYDROP_DROP_TYPE,
+          maxFoodPercent: GLOBAL_BODYDROP_MAX_FOOD_PERCENT,
+        });
+        run.queuedCount += 1;
+      } catch (error) {
+        if (error.code === 'BODYDROP_COOLDOWN' || error.code === 'BODYDROP_INELIGIBLE') {
+          run.skippedCount += 1;
+        } else {
+          run.failedCount += 1;
+          run.lastError = error.message || String(error);
+        }
+      } finally {
+        run.completedCount += 1;
+        if (run.completedCount >= run.scheduledCount) {
+          run.status = 'completed';
+          run.finishedAt = new Date().toISOString();
+        }
+      }
+    }, index * staggerMs);
+    timer.unref?.();
+  });
+
+  return getGlobalBodyDropState();
 }
 
 async function reconcileBodyDrops() {
@@ -302,15 +507,22 @@ function startBodyDropReconciler() {
 
 module.exports = {
   BODYDROP_MAX_GROWTH_PERCENT,
+  GLOBAL_BODYDROP_MAX_FOOD_PERCENT,
   assertBodyDropAvailable,
   bodyDropEligibility,
+  globalBodyDropEligibility,
   cooldownForRequest,
   growthPercent,
+  foodPercent,
   isCarnivoreSpecies,
   getCooldown,
   getDropTypes,
   getBodyDropState,
   requestBodyDrop,
+  getGlobalBodyDropState,
+  setGlobalBodyDropEnabled,
+  getGlobalBodyDropCandidates,
+  activateGlobalBodyDrop,
   reconcileBodyDrops,
   startBodyDropReconciler,
 };

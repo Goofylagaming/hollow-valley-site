@@ -77,6 +77,53 @@ router.get('/requests', (req, res) => {
   res.json({ requests: store.listRequests({ kind, limit }) });
 });
 
+router.get('/bodydrop/global', (_req, res) => {
+  res.json({ globalBodyDrop: bodyDrop.getGlobalBodyDropState() });
+});
+
+router.post('/bodydrop/global/toggle', async (req, res) => {
+  try {
+    const enabled = req.body?.enabled === true;
+    const result = await audit.run(
+      'bodydrop',
+      enabled ? 'global_enable' : 'global_disable',
+      { enabled },
+      () => bodyDrop.setGlobalBodyDropEnabled(enabled),
+      (value) => ({
+        enabled: Boolean(value.enabled),
+        running: Boolean(value.running),
+      })
+    );
+    res.json({ ok: true, globalBodyDrop: result });
+  } catch (error) {
+    const status = error.code === 'GLOBAL_BODYDROP_RUNNING' ? 409 : 400;
+    res.status(status).json({ error: error.message || 'Unable to change global BodyDrop state.', code: error.code || null });
+  }
+});
+
+router.post('/bodydrop/global/activate', async (_req, res) => {
+  try {
+    const result = await audit.run(
+      'bodydrop',
+      'global_activate',
+      {},
+      () => bodyDrop.activateGlobalBodyDrop(),
+      (value) => ({
+        enabled: Boolean(value.enabled),
+        running: Boolean(value.running),
+        scheduledCount: Number(value.lastRun?.scheduledCount || 0),
+        eligibleCount: Number(value.lastRun?.eligibleCount || 0),
+      })
+    );
+    res.status(202).json({ ok: true, globalBodyDrop: result });
+  } catch (error) {
+    const status = error.code === 'GLOBAL_BODYDROP_DISABLED' || error.code === 'GLOBAL_BODYDROP_RUNNING'
+      ? 409
+      : error.code === 'GLOBAL_BODYDROP_SERVER_OFFLINE' ? 503 : 400;
+    res.status(status).json({ error: error.message || 'Unable to activate global BodyDrop.', code: error.code || null });
+  }
+});
+
 router.get('/dinostorage/admin-restore', (_req, res) => {
   res.json({ adminRestore: adminRestore.getAdminRestoreState() });
 });

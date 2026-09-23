@@ -436,6 +436,23 @@ function getAdminServerMods() {
   return callAdmin('/server-mods');
 }
 
+function getAdminGlobalBodyDropState() {
+  return callAdmin('/bodydrop/global');
+}
+
+function setAdminGlobalBodyDropEnabled(enabled) {
+  return callAdmin('/bodydrop/global/toggle', {
+    method: 'POST',
+    body: { enabled: enabled === true },
+  });
+}
+
+function activateAdminGlobalBodyDrop() {
+  return callAdmin('/bodydrop/global/activate', {
+    method: 'POST',
+  });
+}
+
 function deployAdminServerMods() {
   return callAdmin('/server-mods/deploy', {
     method: 'POST',
@@ -554,6 +571,9 @@ module.exports = {
   getAdminMigrationReadiness,
   getAdminBackupState,
   getAdminServerMods,
+  getAdminGlobalBodyDropState,
+  setAdminGlobalBodyDropEnabled,
+  activateAdminGlobalBodyDrop,
   deployAdminServerMods,
   createAdminBackup,
   getAdminServerHealth,
