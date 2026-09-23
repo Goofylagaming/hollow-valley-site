@@ -1,15 +1,31 @@
--- SkinStudio v002
+-- SkinStudio v003
 -- Hollow Valley live skin application + reconnect persistence.
 -- Commands arrive from CommandBridge as inbox.ndjson records.
 
 local MOD_NAME = "SkinStudio"
-local MOD_VERSION = "v002"
+local MOD_VERSION = "v003"
 
-local SAVED_DIR = "Mods/SkinStudio/Saved"
+local function resolveModRoot()
+    local source = ""
+    pcall(function()
+        source = debug.getinfo(1, "S").source or ""
+    end)
+    if source:sub(1, 1) == "@" then
+        source = source:sub(2)
+    end
+    source = source:gsub("\\", "/")
+    return source:match("^(.*)/Scripts/[^/]+$")
+end
+
+local MOD_ROOT = resolveModRoot()
+local MODS_ROOT = MOD_ROOT and MOD_ROOT:match("^(.*)/SkinStudio$") or nil
+local SAVED_DIR = MOD_ROOT and (MOD_ROOT .. "/Saved") or "Mods/SkinStudio/Saved"
 local INBOX_PATH = SAVED_DIR .. "/inbox.ndjson"
 local PROFILES_PATH = SAVED_DIR .. "/profiles.ndjson"
 local RELOAD_FLAG = SAVED_DIR .. "/reload.flag"
-local RESULTS_FILE = "Mods/CommandBridge/Saved/results.ndjson"
+local RESULTS_FILE =
+    (MODS_ROOT and (MODS_ROOT .. "/CommandBridge/Saved/results.ndjson"))
+    or "Mods/CommandBridge/Saved/results.ndjson"
 local POLL_INTERVAL_MS = 1500
 local REAPPLY_INTERVAL_MS = 10000
 
@@ -446,7 +462,7 @@ local function safeCall(label, fn)
     if not ok then log(label .. " failed: " .. tostring(err)) end
 end
 
-log(string.format("Loading; version=%s", MOD_VERSION))
+log(string.format("Loading; version=%s saved=%s", MOD_VERSION, tostring(SAVED_DIR)))
 ensureDir(SAVED_DIR)
 loadProfiles()
 
