@@ -1,6 +1,7 @@
 const { fetchServerStatus } = require('../adapters/evrimaRcon');
 const fileBridge = require('../adapters/fileBridge');
-const { PUBLISHER_ACK } = require('./commandBridgeService');
+const commandBridge = require('./commandBridgeService');
+const { PUBLISHER_ACK } = commandBridge;
 const store = require('./automationStore');
 const externalServerSnapshot = require('./externalServerSnapshotService');
 
@@ -45,7 +46,7 @@ function integrationConfig() {
   return {
     rcon: !rconDisabled() && configured('RCON_HOST') && configured('RCON_PORT') && configured('RCON_PASSWORD'),
     externalPresence: configured('PRESENCE_FEED_TOKEN'),
-    commandBridge: commandBridgePublisherReady() && configured('SFTP_HOST') && configured('SFTP_PORT') && configured('SFTP_USER') && configured('SFTP_PASSWORD') && configured('SFTP_BASE_PATH'),
+    commandBridge: commandBridgePublisherReady() && commandBridge.transportConfigured(),
     discord: configured('HERBYBOT_AUTOMATION_TOKEN'),
     herbyBot: configured('HERBYBOT_AUTOMATION_TOKEN'),
     database: true,
@@ -192,7 +193,7 @@ async function getAdminStatus(options = {}) {
     };
   });
 
-  const rawBridge = await fileBridge.getBridgeHealth();
+  const rawBridge = await commandBridge.getBridgeHealth();
   const publisherReady = commandBridgePublisherReady();
   const publisherAckRequired = process.env.COMMAND_BRIDGE_ENABLED === 'true' && !publisherReady;
   const bridge = {
