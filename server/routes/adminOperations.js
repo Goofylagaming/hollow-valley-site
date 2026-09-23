@@ -34,6 +34,34 @@ router.get("/", async (req, res) => {
   }
 });
 
+
+router.get("/bodydrop-global", async (_req, res) => {
+  try {
+    return res.json(await automation.getAdminGlobalBodyDropState());
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not load global BodyDrop state.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.post("/bodydrop-global/toggle", async (req, res) => {
+  try {
+    return res.json(await automation.setAdminGlobalBodyDropEnabled(req.body?.enabled === true));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not change global BodyDrop state.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.post("/bodydrop-global/activate", async (_req, res) => {
+  try {
+    return res.status(202).json(await automation.activateAdminGlobalBodyDrop());
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not activate global BodyDrop.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
 router.get("/server-mods", async (_req, res) => {
   try {
     return res.json(await automation.getAdminServerMods());
