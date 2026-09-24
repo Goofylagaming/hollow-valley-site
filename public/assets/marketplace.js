@@ -28,27 +28,26 @@ const DINO_ATLAS_PARTS = [
 ];
 
 const DINO_ATLAS_SPRITES = Object.freeze({
-  dryosaurus: [0, -4.5],
-  hypsilophodon: [-16.6667, -4.5],
-  pachycephalosaurus: [-33.3333, -4.5],
-  stegosaurus: [-50, -4.5],
-  triceratops: [-66.6667, -4.5],
-  tenontosaurus: [-83.3333, -4.5],
+  dryosaurus: [0, 0],
+  hypsilophodon: [1, 0],
+  pachycephalosaurus: [2, 0],
+  stegosaurus: [3, 0],
+  triceratops: [4, 0],
+  tenontosaurus: [5, 0],
 
-  deinosuchus: [0, -29.2],
-  dilophosaurus: [-16.6667, -29.2],
-  herrerasaurus: [-33.3333, -29.2],
-  omniraptor: [-50, -29.2],
-  pteranodon: [-66.6667, -29.2],
-  troodon: [-83.3333, -29.2],
+  deinosuchus: [0, 1],
+  dilophosaurus: [1, 1],
+  herrerasaurus: [2, 1],
+  omniraptor: [3, 1],
+  pteranodon: [4, 1],
+  troodon: [5, 1],
 
-  beipiaosaurus: [0, -54.1],
-  gallimimus: [-16.6667, -54.1],
-  ceratosaurus: [-33.3333, -54.1],
-  maiasaura: [-50, -54.1],
-  tyrannosaurus: [-83.3333, -54.1],
+  beipiaosaurus: [0, 2],
+  gallimimus: [1, 2],
+  ceratosaurus: [2, 2],
+  maiasaura: [3, 2],
+  tyrannosaurus: [5, 2],
 });
-
 async function loadDinoAtlas() {
   try {
     const parts = await Promise.all(DINO_ATLAS_PARTS.map(async (url) => {
@@ -71,11 +70,48 @@ function dinoThumbnail(speciesId, species) {
   if (!dinoAtlasUrl || !sprite) {
     return `<div class="market-dino-thumb dino-art ${escapeHtml(species.art || "carno")}" role="img" aria-label="${escapeHtml(species.name)} thumbnail"></div>`;
   }
-  return `<div class="market-dino-thumb atlas-thumb" role="img" aria-label="${escapeHtml(species.name)} thumbnail">
-    <img src="${dinoAtlasUrl}" alt="" aria-hidden="true" style="--atlas-x:${sprite[0]}%;--atlas-y:${sprite[1]}%">
-  </div>`;
+  return `<canvas class="market-dino-thumb atlas-thumb" width="360" height="240"
+    data-species="${escapeHtml(speciesId)}" role="img" aria-label="${escapeHtml(species.name)} thumbnail"></canvas>`;
 }
 
+async function paintDinoThumbnails(root) {
+  if (!dinoAtlasUrl) return;
+  const canvases = [...root.querySelectorAll("canvas.atlas-thumb")];
+  if (!canvases.length) return;
+
+  const image = new Image();
+  await new Promise((resolve, reject) => {
+    image.onload = resolve;
+    image.onerror = reject;
+    image.src = dinoAtlasUrl;
+  });
+
+  const cellWidth = image.naturalWidth / 6;
+  // The generated poster has a category title strip above each row.
+  // These coordinates crop only the dinosaur artwork and exclude labels.
+  const rowTop = [22, 140, 260];
+  const cropHeight = 82;
+
+  for (const canvas of canvases) {
+    const sprite = DINO_ATLAS_SPRITES[String(canvas.dataset.species || "").toLowerCase()];
+    if (!sprite) continue;
+    const [column, row] = sprite;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) continue;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(
+      image,
+      column * cellWidth + 4,
+      rowTop[row] + 4,
+      cellWidth - 8,
+      cropHeight,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+  }
+}
 
 function renderMarketplaceState() {
   const banner = document.getElementById("market-state-banner");
@@ -172,7 +208,7 @@ function renderCatalog() {
         <div class="market-tier-meta"><span>${entry.price.toLocaleString()} Valley Coin</span><span>${entry.size_percent}% growth</span></div>
         <div class="market-tier-actions">
           <button class="small-button buy-catalog-btn" data-id="${entry.id}" data-size="${entry.size_percent}" ${marketplaceState.officialWritesEnabled === true ? "" : "disabled"}>${marketplaceState.officialWritesEnabled === true ? "Buy" : "Offline"}</button>
-          ${currentUser?.is_admin ? `<button class="small-button admin-catalog-edit" data-id="${entry.id}">Edit</button>` : ""}
+          ${currentUser?.user?.is_admin ? `<button class="small-button admin-catalog-edit" data-id="${entry.id}">Edit</button>` : ""}
         </div>
       </div>`).join("");
 
@@ -182,6 +218,8 @@ function renderCatalog() {
       <div class="market-tier-list">${options}</div>
     </article>`;
   }).join("");
+
+  paintDinoThumbnails(grid).catch((error) => console.warn("Could not paint AI dinosaur thumbnails", error));
 
   grid.querySelectorAll(".buy-catalog-btn").forEach((btn) => btn.addEventListener("click", async () => {
     if (marketplaceState.officialWritesEnabled !== true) return;
