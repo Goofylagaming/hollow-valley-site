@@ -224,6 +224,7 @@ local function speciesMatches(pawn, expected)
     local className = pawnClassName(pawn):lower()
     local wanted = tostring(expected or ""):lower()
     if className == "" or wanted == "" then return false end
+    if wanted == "universal" then return true end
     return className:find("bp_" .. wanted, 1, true) ~= nil
         or className:find(wanted, 1, true) ~= nil
 end
@@ -577,10 +578,16 @@ local function pollInbox()
 end
 
 local function matchingProfileForPawn(steam, pawn)
+    local universalConfig, universalSpecies = nil, nil
     for species, config in pairs(profiles[steam] or {}) do
-        if speciesMatches(pawn, config.species) then
+        if profileSpeciesKey(config.species) == "universal" then
+            universalConfig, universalSpecies = config, species
+        elseif speciesMatches(pawn, config.species) then
             return config, species
         end
+    end
+    if universalConfig ~= nil then
+        return universalConfig, universalSpecies
     end
     return nil, nil
 end
