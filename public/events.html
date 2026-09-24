@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Hollow Valley community events and Steam-linked Valley Coin event rewards.">
+  <meta name="description" content="Hollow Valley community events, attendance and Valley Coin rewards.">
   <title>Events | Hollow Valley</title>
-  <link rel="stylesheet" href="assets/styles.css?v=20">
+  <link rel="stylesheet" href="assets/styles.css?v=21">
 </head>
 <body>
   <div class="app-shell">
@@ -14,7 +14,7 @@
       <section class="page-header">
         <p class="overline green">COMMUNITY CALENDAR</p>
         <h1>Hollow Valley events.</h1>
-        <p class="section-intro">Upcoming community events, plus Steam-linked Valley Coin rewards issued by Hollow Valley admins.</p>
+        <p class="section-intro">RSVP to upcoming events, then admins can confirm attendance and issue your Valley Coin reward.</p>
       </section>
 
       <section class="roster-section">
@@ -46,47 +46,79 @@
         <section class="event-admin-panel" id="event-admin-panel" hidden>
           <div class="section-top">
             <div>
-              <p class="overline green">ADMIN · EVENT REWARDS</p>
-              <h2>Award Valley Coin.</h2>
+              <p class="overline green">ADMIN · EVENT ATTENDANCE</p>
+              <h2>Attendance &amp; payouts.</h2>
             </div>
-            <p class="section-intro">One reward per Steam-linked player per event. Supporter multipliers apply automatically inside automation.</p>
+            <p class="section-intro">Add Steam IDs, confirm who actually attended, and issue custom winner bonuses. Attendance payments are protected against duplicates.</p>
           </div>
 
-          <div class="event-admin-status" id="event-admin-status">Loading event reward gate…</div>
+          <div class="event-admin-status" id="event-admin-status">Loading attendance reward settings…</div>
 
-          <form id="event-reward-form" class="event-reward-form">
-            <label>
-              <span>EVENT ID</span>
-              <input id="event-reward-event-id" maxlength="80" placeholder="Discord event ID or custom-event-01" required>
-            </label>
-            <label>
-              <span>EVENT TITLE</span>
-              <input id="event-reward-event-title" maxlength="120" placeholder="e.g. Migration Night" required>
-            </label>
-            <label>
-              <span>PLAYER</span>
-              <select id="event-reward-player" required>
-                <option value="">Loading Steam-linked players…</option>
-              </select>
-            </label>
-            <label>
-              <span>BASE VALLEY COIN</span>
-              <input id="event-reward-base" type="number" min="1" max="1000000" step="1" value="500" required>
-            </label>
-            <button class="primary-button" id="event-reward-submit" type="submit" disabled>Award event reward <b>→</b></button>
-          </form>
+          <div class="event-admin-selected">
+            <div>
+              <small>SELECTED EVENT</small>
+              <strong id="event-admin-selected-title">Choose an event above</strong>
+              <span id="event-admin-selected-time">Use “Manage attendance” on an event card.</span>
+            </div>
+            <button class="small-button" id="event-confirm-all" type="button" disabled>✓ Confirm all attendees</button>
+          </div>
 
+          <div class="event-admin-grid">
+            <section class="event-admin-box">
+              <div class="list-heading"><span>ATTENDING LIST</span><small id="event-attendance-count">No event selected</small></div>
+              <form id="event-attendance-add-form" class="event-inline-form">
+                <label>
+                  <span>ADD STEAM ID</span>
+                  <input id="event-attendance-steam" list="event-player-options" inputmode="numeric" maxlength="17" placeholder="7656119..." required>
+                </label>
+                <button class="small-button" type="submit" disabled id="event-attendance-add-submit">+ Add attendee</button>
+              </form>
+              <div class="ops-table-wrap">
+                <table class="ops-table">
+                  <thead><tr><th>Player</th><th>Source</th><th>Status</th><th>Payout</th><th>Action</th></tr></thead>
+                  <tbody id="event-attendance-table">
+                    <tr><td colspan="5" class="ops-empty">Select an event to manage attendance.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="event-admin-box">
+              <div class="list-heading"><span>CUSTOM BONUS</span><small>Winner / objective payout</small></div>
+              <form id="event-bonus-form" class="event-bonus-form">
+                <label>
+                  <span>STEAM ID</span>
+                  <input id="event-bonus-steam" list="event-player-options" inputmode="numeric" maxlength="17" placeholder="7656119..." required>
+                </label>
+                <label>
+                  <span>REASON</span>
+                  <input id="event-bonus-label" maxlength="100" value="Winner bonus" required>
+                </label>
+                <label>
+                  <span>VALLEY COIN</span>
+                  <input id="event-bonus-amount" type="number" min="1" max="1000000" step="1" placeholder="25000" required>
+                </label>
+                <label class="event-check">
+                  <input id="event-bonus-multiplier" type="checkbox">
+                  <span>Apply supporter multiplier</span>
+                </label>
+                <button class="primary-button" type="submit" id="event-bonus-submit" disabled>Pay bonus <b>→</b></button>
+              </form>
+            </section>
+          </div>
+
+          <datalist id="event-player-options"></datalist>
           <p class="section-intro event-admin-message" id="event-admin-message" role="status"></p>
 
           <div class="list-heading event-admin-history-heading">
             <span>RECENT EVENT PAYOUTS</span>
-            <small>automation ledger</small>
+            <small>attendance + bonus ledger</small>
           </div>
           <div class="ops-table-wrap">
             <table class="ops-table">
-              <thead><tr><th>Event</th><th>Player</th><th>Base</th><th>Multiplier</th><th>Payout</th><th>Time</th></tr></thead>
+              <thead><tr><th>Event</th><th>Player</th><th>Type</th><th>Base</th><th>Multiplier</th><th>Payout</th><th>Time</th></tr></thead>
               <tbody id="event-admin-history">
-                <tr><td colspan="6" class="ops-empty">Loading…</td></tr>
+                <tr><td colspan="7" class="ops-empty">Loading…</td></tr>
               </tbody>
             </table>
           </div>
@@ -98,6 +130,6 @@
   </div>
 
   <script src="assets/common.js?v=16"></script>
-  <script src="assets/events.js?v=3"></script>
+  <script src="assets/events.js?v=4"></script>
 </body>
 </html>
