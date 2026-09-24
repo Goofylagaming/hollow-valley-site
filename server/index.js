@@ -25,6 +25,7 @@ const bodydropRouter = require("./routes/bodydrop");
 const dinoStorageRouter = require("./routes/dinoStorage");
 const serverStatusRouter = require("./routes/serverStatus");
 const eventsRouter = require("./routes/events");
+const friendsRouter = require("./routes/friends");
 const mapdataRouter = require("./routes/mapdata");
 const commandBridgeInternalRouter = require("./routes/commandBridgeInternal");
 const supporterInternalRouter = require("./routes/supporterInternal");
@@ -164,6 +165,7 @@ function createApp() {
   app.use("/api/dinostorage", dinoStorageRouter);
   app.use("/api/server-status", serverStatusRouter);
   app.use("/api/events", eventsRouter);
+  app.use("/api/friends", friendsRouter);
   app.use("/api/admin-restore", adminRestoreRouter);
   app.use("/api/admin-operations", adminOperationsRouter);
   app.use("/api/admin-comms", adminCommsRouter);
@@ -175,7 +177,7 @@ function createApp() {
   app.all("/api/parked", parkedHandler);
   app.all("/api/admin", adminHandler);
 
-  const PAGE_ROUTES = ["dashboard", "wallet", "quests", "mydinos", "bodydrop", "marketplace", "livemap", "leaderboard", "supporter", "events"];
+  const PAGE_ROUTES = ["dashboard", "wallet", "quests", "mydinos", "bodydrop", "friends", "marketplace", "livemap", "leaderboard", "supporter", "events"];
   for (const page of PAGE_ROUTES) {
     app.get(`/${page}`, (req, res) => {
       res.sendFile(path.join(__dirname, "..", "public", `${page}.html`));
