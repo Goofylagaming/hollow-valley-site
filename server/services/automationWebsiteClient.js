@@ -504,7 +504,10 @@ function activateAdminGlobalBodyDrop() {
   });
 }
 
-function wipeAdminCorpses() {
+function wipeAdminCorpses(confirm) {
+  if (String(confirm || '') !== 'WIPE CORPSES') {
+    throw new Error('Corpse wipe requires the exact confirmation WIPE CORPSES');
+  }
   return callAdmin('/rcon/wipe-corpses', {
     method: 'POST',
     body: { confirm: 'WIPE CORPSES' },
