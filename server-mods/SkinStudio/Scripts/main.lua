@@ -184,6 +184,7 @@ local function parseTokens(args)
         variation = tonumber(raw.variation),
         pattern = tonumber(raw.pattern),
         theme = tonumber(raw.theme),
+        preserveIndices = tostring(raw.preserveIndices or "") == "1",
     }
 
     for _, key in ipairs(COLOR_KEYS) do
@@ -307,9 +308,11 @@ local function applyConfigToPawn(pawn, config)
     local variation = math.floor(config.variation)
     local pattern = math.floor(config.pattern)
     local theme = math.floor(config.theme)
-    writeScalar("SkinVariation", variation)
-    if pattern >= 0 then writeScalar("PatternIndex", pattern) end
-    if theme >= 0 then writeScalar("ThemeIndex", theme) end
+    if not config.preserveIndices then
+        writeScalar("SkinVariation", variation)
+        if pattern >= 0 then writeScalar("PatternIndex", pattern) end
+        if theme >= 0 then writeScalar("ThemeIndex", theme) end
+    end
 
     local netOk, netErr = pcall(function() pawn:ForceNetUpdate() end)
     if not netOk then
@@ -326,9 +329,9 @@ local function applyConfigToPawn(pawn, config)
         tostring(config.species),
         pawnClassName(pawn),
         writes,
-        pattern,
-        theme,
-        variation
+        config.preserveIndices and -1 or pattern,
+        config.preserveIndices and -1 or theme,
+        config.preserveIndices and -1 or variation
     ))
     return true, "Skin applied and verified on the live customizer."
 end
