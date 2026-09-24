@@ -177,6 +177,43 @@ db.exec(`
   }
 })();
 
+(function ensureFriendsSchema() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS friend_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sender_steam_id TEXT NOT NULL,
+      receiver_steam_id TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      responded_at TEXT,
+      UNIQUE(sender_steam_id, receiver_steam_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_friend_requests_receiver
+      ON friend_requests(receiver_steam_id, status, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_friend_requests_sender
+      ON friend_requests(sender_steam_id, status, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS friendships (
+      steam_a TEXT NOT NULL,
+      steam_b TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (steam_a, steam_b),
+      CHECK (steam_a < steam_b)
+    );
+    CREATE INDEX IF NOT EXISTS idx_friendships_a ON friendships(steam_a, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_friendships_b ON friendships(steam_b, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS friend_blocks (
+      blocker_steam_id TEXT NOT NULL,
+      blocked_steam_id TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (blocker_steam_id, blocked_steam_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_friend_blocks_blocked
+      ON friend_blocks(blocked_steam_id, created_at DESC);
+  `);
+})();
+
 function getUserByUsername(username) {
   return db.prepare("SELECT * FROM users WHERE username = ? COLLATE NOCASE").get(username);
 }
@@ -553,6 +590,322 @@ function getRecentBodyDropRequests(userId, limit = 5) {
     .all(userId, limit);
 }
 
+// ---------- Friends ----------
+const FRIEND_ONLINE_WINDOW_MS = 5 * 60 * 1000;
+
+function normalizeFriendPair(firstSteamId, secondSteamId) {
+  const first = String(firstSteamId || "").trim();
+  const second = String(secondSteamId || "").trim();
+  if (!/^\d{17}$/.test(first) || !/^\d{17}$/.test(second)) throw new Error("A valid 17-digit Steam ID is required");
+  if (first === second) throw new Error("You cannot add yourself as a friend");
+  return first < second ? [first, second] : [second, first];
+}
+
+function getFriendUser(steamId) {
+  return db.prepare(
+    "SELECT id, steam_id, username, avatar FROM users WHERE steam_id = ?"
+  ).get(String(steamId || "").trim()) || null;
+}
+
+function isFriendBlocked(firstSteamId, secondSteamId) {
+  return Boolean(db.prepare(`
+    SELECT 1 FROM friend_blocks
+    WHERE (blocker_steam_id = ? AND blocked_steam_id = ?)
+       OR (blocker_steam_id = ? AND blocked_steam_id = ?)
+    LIMIT 1
+  `).get(firstSteamId, secondSteamId, secondSteamId, firstSteamId));
+}
+
+function areFriends(firstSteamId, secondSteamId) {
+  const [steamA, steamB] = normalizeFriendPair(firstSteamId, secondSteamId);
+  return Boolean(db.prepare(
+    "SELECT 1 FROM friendships WHERE steam_a = ? AND steam_b = ?"
+  ).get(steamA, steamB));
+}
+
+function friendPresence(steamId, now = Date.now()) {
+  const row = db.prepare("SELECT last_seen_at FROM player_activity WHERE steam_id = ?").get(String(steamId));
+  const lastSeenAt = Number(row?.last_seen_at || 0);
+  return {
+    online: lastSeenAt > 0 && now - lastSeenAt <= FRIEND_ONLINE_WINDOW_MS,
+    lastSeenAt: lastSeenAt || null,
+  };
+}
+
+function decorateFriendUser(user, now = Date.now()) {
+  if (!user) return null;
+  const presence = friendPresence(user.steam_id, now);
+  return {
+    id: user.id,
+    steamId: user.steam_id,
+    username: user.username,
+    avatar: user.avatar || null,
+    online: presence.online,
+    lastSeenAt: presence.lastSeenAt,
+  };
+}
+
+function getFriendState(steamId) {
+  const steam = String(steamId || "").trim();
+  if (!/^\d{17}$/.test(steam)) throw new Error("A valid 17-digit Steam ID is required");
+  const now = Date.now();
+
+  const friendRows = db.prepare(`
+    SELECT CASE WHEN steam_a = ? THEN steam_b ELSE steam_a END AS friend_steam_id, created_at
+    FROM friendships
+    WHERE steam_a = ? OR steam_b = ?
+    ORDER BY created_at DESC
+  `).all(steam, steam, steam);
+
+  const incomingRows = db.prepare(`
+    SELECT id, sender_steam_id, created_at
+    FROM friend_requests
+    WHERE receiver_steam_id = ? AND status = 'pending'
+    ORDER BY created_at DESC
+  `).all(steam);
+
+  const outgoingRows = db.prepare(`
+    SELECT id, receiver_steam_id, created_at
+    FROM friend_requests
+    WHERE sender_steam_id = ? AND status = 'pending'
+    ORDER BY created_at DESC
+  `).all(steam);
+
+  const blockedRows = db.prepare(`
+    SELECT blocked_steam_id, created_at
+    FROM friend_blocks
+    WHERE blocker_steam_id = ?
+    ORDER BY created_at DESC
+  `).all(steam);
+
+  const friends = friendRows.map((row) => ({
+    ...decorateFriendUser(getFriendUser(row.friend_steam_id), now),
+    friendsSince: row.created_at,
+  })).filter((row) => row.steamId);
+
+  const incoming = incomingRows.map((row) => ({
+    requestId: row.id,
+    createdAt: row.created_at,
+    user: decorateFriendUser(getFriendUser(row.sender_steam_id), now),
+  })).filter((row) => row.user);
+
+  const outgoing = outgoingRows.map((row) => ({
+    requestId: row.id,
+    createdAt: row.created_at,
+    user: decorateFriendUser(getFriendUser(row.receiver_steam_id), now),
+  })).filter((row) => row.user);
+
+  const blocked = blockedRows.map((row) => ({
+    blockedAt: row.created_at,
+    user: decorateFriendUser(getFriendUser(row.blocked_steam_id), now),
+  })).filter((row) => row.user);
+
+  return { friends, incoming, outgoing, blocked };
+}
+
+function searchFriendUsers(steamId, query, { limit = 20 } = {}) {
+  const steam = String(steamId || "").trim();
+  if (!/^\d{17}$/.test(steam)) throw new Error("A valid 17-digit Steam ID is required");
+  const q = String(query || "").trim();
+  if (q.length < 2) return [];
+  const safeLimit = Math.max(1, Math.min(50, Number(limit) || 20));
+  const like = `%${q}%`;
+  const rows = db.prepare(`
+    SELECT id, steam_id, username, avatar
+    FROM users
+    WHERE steam_id IS NOT NULL
+      AND steam_id <> ''
+      AND steam_id <> ?
+      AND (username LIKE ? COLLATE NOCASE OR steam_id LIKE ?)
+    ORDER BY username COLLATE NOCASE ASC
+    LIMIT ?
+  `).all(steam, like, like, safeLimit);
+
+  const now = Date.now();
+  return rows.map((user) => {
+    const pendingIncoming = db.prepare(`
+      SELECT id FROM friend_requests
+      WHERE sender_steam_id = ? AND receiver_steam_id = ? AND status = 'pending'
+    `).get(user.steam_id, steam);
+    const pendingOutgoing = db.prepare(`
+      SELECT id FROM friend_requests
+      WHERE sender_steam_id = ? AND receiver_steam_id = ? AND status = 'pending'
+    `).get(steam, user.steam_id);
+    const blockedByMe = Boolean(db.prepare(
+      "SELECT 1 FROM friend_blocks WHERE blocker_steam_id = ? AND blocked_steam_id = ?"
+    ).get(steam, user.steam_id));
+    const blockedMe = Boolean(db.prepare(
+      "SELECT 1 FROM friend_blocks WHERE blocker_steam_id = ? AND blocked_steam_id = ?"
+    ).get(user.steam_id, steam));
+    return {
+      ...decorateFriendUser(user, now),
+      relationship: areFriends(steam, user.steam_id) ? "friend" :
+        pendingIncoming ? "incoming" :
+        pendingOutgoing ? "outgoing" :
+        blockedByMe ? "blocked" :
+        blockedMe ? "unavailable" : "none",
+      requestId: pendingIncoming?.id || pendingOutgoing?.id || null,
+    };
+  });
+}
+
+function sendFriendRequest(senderSteamId, receiverSteamId) {
+  const sender = String(senderSteamId || "").trim();
+  const receiver = String(receiverSteamId || "").trim();
+  normalizeFriendPair(sender, receiver);
+  if (!getFriendUser(receiver)) throw new Error("That Hollow Valley player was not found");
+  if (isFriendBlocked(sender, receiver)) {
+    const error = new Error("A friend request cannot be sent between these accounts");
+    error.code = "FRIEND_BLOCKED";
+    throw error;
+  }
+  if (areFriends(sender, receiver)) return { alreadyFriends: true };
+
+  const reciprocal = db.prepare(`
+    SELECT id FROM friend_requests
+    WHERE sender_steam_id = ? AND receiver_steam_id = ? AND status = 'pending'
+  `).get(receiver, sender);
+  if (reciprocal) {
+    return acceptFriendRequest(receiver, reciprocal.id);
+  }
+
+  db.prepare(`
+    INSERT INTO friend_requests (sender_steam_id, receiver_steam_id, status, created_at, responded_at)
+    VALUES (?, ?, 'pending', datetime('now'), NULL)
+    ON CONFLICT(sender_steam_id, receiver_steam_id) DO UPDATE SET
+      status = 'pending',
+      created_at = datetime('now'),
+      responded_at = NULL
+  `).run(sender, receiver);
+
+  return db.prepare(`
+    SELECT id, sender_steam_id, receiver_steam_id, status, created_at
+    FROM friend_requests
+    WHERE sender_steam_id = ? AND receiver_steam_id = ?
+  `).get(sender, receiver);
+}
+
+function acceptFriendRequest(receiverSteamId, requestId) {
+  const receiver = String(receiverSteamId || "").trim();
+  const id = Number(requestId);
+  const request = db.prepare(`
+    SELECT * FROM friend_requests
+    WHERE id = ? AND receiver_steam_id = ? AND status = 'pending'
+  `).get(id, receiver);
+  if (!request) {
+    const error = new Error("Friend request was not found");
+    error.code = "FRIEND_REQUEST_NOT_FOUND";
+    throw error;
+  }
+  if (isFriendBlocked(request.sender_steam_id, receiver)) {
+    const error = new Error("This friend request is no longer available");
+    error.code = "FRIEND_BLOCKED";
+    throw error;
+  }
+
+  const [steamA, steamB] = normalizeFriendPair(request.sender_steam_id, receiver);
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    db.prepare(`
+      INSERT INTO friendships (steam_a, steam_b)
+      VALUES (?, ?)
+      ON CONFLICT(steam_a, steam_b) DO NOTHING
+    `).run(steamA, steamB);
+    db.prepare(`
+      UPDATE friend_requests
+      SET status = 'accepted', responded_at = datetime('now')
+      WHERE id = ?
+    `).run(id);
+    db.prepare(`
+      UPDATE friend_requests
+      SET status = 'accepted', responded_at = datetime('now')
+      WHERE sender_steam_id = ? AND receiver_steam_id = ? AND status = 'pending'
+    `).run(receiver, request.sender_steam_id);
+    db.exec("COMMIT");
+  } catch (error) {
+    try { db.exec("ROLLBACK"); } catch {}
+    throw error;
+  }
+  return { accepted: true, friend: decorateFriendUser(getFriendUser(request.sender_steam_id)) };
+}
+
+function declineFriendRequest(receiverSteamId, requestId) {
+  const receiver = String(receiverSteamId || "").trim();
+  const result = db.prepare(`
+    UPDATE friend_requests
+    SET status = 'declined', responded_at = datetime('now')
+    WHERE id = ? AND receiver_steam_id = ? AND status = 'pending'
+  `).run(Number(requestId), receiver);
+  if (!result.changes) {
+    const error = new Error("Friend request was not found");
+    error.code = "FRIEND_REQUEST_NOT_FOUND";
+    throw error;
+  }
+  return { declined: true };
+}
+
+function cancelFriendRequest(senderSteamId, requestId) {
+  const sender = String(senderSteamId || "").trim();
+  const result = db.prepare(`
+    UPDATE friend_requests
+    SET status = 'cancelled', responded_at = datetime('now')
+    WHERE id = ? AND sender_steam_id = ? AND status = 'pending'
+  `).run(Number(requestId), sender);
+  if (!result.changes) {
+    const error = new Error("Friend request was not found");
+    error.code = "FRIEND_REQUEST_NOT_FOUND";
+    throw error;
+  }
+  return { cancelled: true };
+}
+
+function removeFriend(steamId, friendSteamId) {
+  const [steamA, steamB] = normalizeFriendPair(steamId, friendSteamId);
+  const result = db.prepare(
+    "DELETE FROM friendships WHERE steam_a = ? AND steam_b = ?"
+  ).run(steamA, steamB);
+  return { removed: Number(result.changes || 0) > 0 };
+}
+
+function blockFriendUser(steamId, blockedSteamId) {
+  const blocker = String(steamId || "").trim();
+  const blocked = String(blockedSteamId || "").trim();
+  normalizeFriendPair(blocker, blocked);
+  if (!getFriendUser(blocked)) throw new Error("That Hollow Valley player was not found");
+
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const [steamA, steamB] = normalizeFriendPair(blocker, blocked);
+    db.prepare("DELETE FROM friendships WHERE steam_a = ? AND steam_b = ?").run(steamA, steamB);
+    db.prepare(`
+      UPDATE friend_requests
+      SET status = 'cancelled', responded_at = datetime('now')
+      WHERE status = 'pending'
+        AND ((sender_steam_id = ? AND receiver_steam_id = ?)
+          OR (sender_steam_id = ? AND receiver_steam_id = ?))
+    `).run(blocker, blocked, blocked, blocker);
+    db.prepare(`
+      INSERT INTO friend_blocks (blocker_steam_id, blocked_steam_id)
+      VALUES (?, ?)
+      ON CONFLICT(blocker_steam_id, blocked_steam_id) DO NOTHING
+    `).run(blocker, blocked);
+    db.exec("COMMIT");
+  } catch (error) {
+    try { db.exec("ROLLBACK"); } catch {}
+    throw error;
+  }
+  return { blocked: true };
+}
+
+function unblockFriendUser(steamId, blockedSteamId) {
+  const blocker = String(steamId || "").trim();
+  const blocked = String(blockedSteamId || "").trim();
+  const result = db.prepare(
+    "DELETE FROM friend_blocks WHERE blocker_steam_id = ? AND blocked_steam_id = ?"
+  ).run(blocker, blocked);
+  return { unblocked: Number(result.changes || 0) > 0 };
+}
+
 // ---------- Dashboard ----------
 function getDashboardSummary(userId) {
   const wallet = getWallet(userId);
@@ -610,5 +963,14 @@ module.exports = {
   updateBodyDropRequest,
   getLatestBodyDropRequest,
   getRecentBodyDropRequests,
+  getFriendState,
+  searchFriendUsers,
+  sendFriendRequest,
+  acceptFriendRequest,
+  declineFriendRequest,
+  cancelFriendRequest,
+  removeFriend,
+  blockFriendUser,
+  unblockFriendUser,
   getDashboardSummary,
 };
