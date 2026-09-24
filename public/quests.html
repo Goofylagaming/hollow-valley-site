@@ -3,42 +3,84 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Hollow Valley automatic playtime quests.">
+  <meta name="description" content="Hollow Valley daily and weekly quest board.">
   <title>Quests | Hollow Valley</title>
-  <link rel="stylesheet" href="/assets/styles.css?v=16">
+  <link rel="stylesheet" href="/assets/styles.css?v=17">
 </head>
 <body>
   <div class="app-shell">
     <div id="nav-slot"></div>
     <main>
-      <section class="page-header">
-        <p class="overline green">ACTIVITY</p>
-        <h1>Your quests.</h1>
-        <p class="section-intro">Daily and weekly playtime quests complete automatically from verified server activity. No manual claiming.</p>
+      <section class="page-header quest-page-header">
+        <div>
+          <p class="overline green">QUEST BOARD</p>
+          <h1>Valley challenges.</h1>
+          <p class="section-intro">Complete daily and weekly objectives simply by playing on Hollow Valley. Progress is verified automatically from server activity and rewards apply without manual claiming.</p>
+        </div>
+        <div class="quest-header-mark" aria-hidden="true">
+          <span>HV</span>
+          <small>QUESTS</small>
+        </div>
       </section>
 
-      <section class="roster-section">
-        <div id="quests-guard"><p class="section-intro">Sign in with Steam to view your quests.</p></div>
+      <section class="roster-section quest-board-shell">
+        <div id="quests-guard" class="quest-signin-card">
+          <div class="quest-card-icon">Q</div>
+          <div>
+            <strong>Sign in to view your quest board</strong>
+            <span>Connect with Steam to see live progress and completed rewards.</span>
+          </div>
+        </div>
+
         <div id="quests-content" hidden>
-          <div class="section-top">
-            <div>
-              <p class="overline green">DAILY &amp; WEEKLY</p>
-              <h2>Valley<br><em>activity.</em></h2>
-            </div>
-            <div class="quest-summary">
+          <div class="quest-stats-grid">
+            <div class="quest-stat-card quest-stat-primary">
               <small>ACTIVE COIN BOOST</small>
               <b id="quest-active-boost">+0%</b>
-              <span>Completed boosts stack on eligible future playtime payouts.</span>
+              <span>Stacks on eligible future playtime payouts.</span>
+            </div>
+            <div class="quest-stat-card">
+              <small>QUESTS COMPLETE</small>
+              <b id="quest-completed-count">0 / 0</b>
+              <span>Current daily + weekly rotation.</span>
+            </div>
+            <div class="quest-stat-card">
+              <small>DAILY RESET</small>
+              <b>MIDNIGHT</b>
+              <span>Australia / Brisbane</span>
+            </div>
+            <div class="quest-stat-card">
+              <small>WEEKLY RESET</small>
+              <b>MONDAY</b>
+              <span>00:00 Brisbane time</span>
             </div>
           </div>
-          <p class="section-intro quest-section-intro">Verified online time completes these automatically.</p>
-          <div class="quest-list" id="quest-list"><p class="section-intro">Loading quests…</p></div>
+
+          <div class="quest-board-intro">
+            <div>
+              <p class="overline green">ACTIVE ROTATION</p>
+              <h2>Choose your<br><em>challenge.</em></h2>
+            </div>
+            <p class="section-intro quest-section-intro">Verified online time completes these automatically. No manual claiming.</p>
+          </div>
+
+          <div class="quest-list" id="quest-list">
+            <p class="section-intro">Loading quests…</p>
+          </div>
+
+          <div class="quest-board-note">
+            <span class="quest-note-dot"></span>
+            <div>
+              <strong>Automatic tracking</strong>
+              <p>Quest progress comes from verified server presence. Closing the website does not stop progress while you remain properly connected in-game.</p>
+            </div>
+          </div>
         </div>
       </section>
     </main>
     <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="/assets/common.js?v=16"></script>
-  <script src="/assets/quests.js?v=1"></script>
+  <script src="/assets/quests.js?v=2"></script>
 </body>
 </html>
