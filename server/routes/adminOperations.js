@@ -62,6 +62,15 @@ router.post("/bodydrop-global/activate", async (_req, res) => {
   }
 });
 
+router.post("/corpse-wipe", async (_req, res) => {
+  try {
+    return res.json(await automation.wipeAdminCorpses());
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not wipe corpses.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
 router.post("/backup", async (_req, res) => {
   try {
     return res.status(201).json(await automation.createAdminBackup());
