@@ -394,6 +394,12 @@ local function boolStr(v)
     return (v == true) and "true" or "false"
 end
 
+local function boolOrNull(v)
+    if v == true then return "true" end
+    if v == false then return "false" end
+    return "null"
+end
+
 local function numStr(v, fmt)
     if v == nil then return "null" end
     return string.format(fmt or "%.6f", v)
@@ -1514,7 +1520,7 @@ local function pollCmdFlag()
                         '{"slot":"%s","classPath":"%s","growth":%.6f,"capturedAt":%d,' ..
                         '"isFemale":%s,"isPrime":%s,"skin":%s,"mutations":%s}',
                         jsonEscape(s.slot), jsonEscape(s.classPath), s.growth, s.capturedAt,
-                        boolStr(state and state.isFemale == true), boolStr(state and state.isPrime == true),
+                        boolOrNull(state and state.isFemale), boolOrNull(state and state.isPrime),
                         skinJson, mutJson
                     )
                 end
