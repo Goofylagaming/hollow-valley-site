@@ -101,6 +101,8 @@ services:
         value: 100
       - key: EVENT_REWARDS_ENABLED
         value: false
+      - key: EVENT_ATTENDANCE_BASE_VC
+        value: 10000
       - key: MARKETPLACE_WRITE_ENABLED
         value: false
       - key: MARKETPLACE_RECONCILE_INTERVAL_MS
