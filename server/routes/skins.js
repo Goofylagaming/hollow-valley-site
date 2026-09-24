@@ -220,6 +220,49 @@ router.post("/:id/apply", requireAuth, async (req, res) => {
   }
 });
 
+router.post("/:id/grant", requireAdmin, async (req, res) => {
+  const targetSteamId = String(req.body?.steamId || "").trim();
+  if (!/^\d{17}$/.test(targetSteamId)) {
+    return res.status(400).json({ error: "Enter a valid 17-digit Steam ID to grant this skin." });
+  }
+  try {
+    return res.status(201).json(await automation.grantExclusiveSkin({
+      presetId: req.params.id,
+      steamId: targetSteamId,
+      grantedBySteamId: req.user?.steam_id || null,
+      note: req.body?.note,
+    }));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not grant this exclusive skin.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.post("/:id/revoke", requireAdmin, async (req, res) => {
+  const targetSteamId = String(req.body?.steamId || "").trim();
+  if (!/^\d{17}$/.test(targetSteamId)) {
+    return res.status(400).json({ error: "Enter a valid 17-digit Steam ID to revoke this skin." });
+  }
+  try {
+    return res.json(await automation.revokeExclusiveSkin({
+      presetId: req.params.id,
+      steamId: targetSteamId,
+    }));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not revoke this exclusive skin.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.get("/:id/grants", requireAdmin, async (req, res) => {
+  try {
+    return res.json(await automation.listExclusiveSkinGrants(req.params.id));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not load exclusive skin grants.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
 router.post("/:id/publish", requireAdmin, async (req, res) => {
   try {
     return res.json(await automation.publishSkin({
