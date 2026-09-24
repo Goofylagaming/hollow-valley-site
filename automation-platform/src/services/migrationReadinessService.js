@@ -46,41 +46,41 @@ function getMigrationReadiness() {
           ? 'BinaryLane outbound HTTPS command transport is configured.'
           : 'Set BINARYLANE_COMMAND_TOKEN for the BinaryLane HTTP-pull bridge.'
         : 'Production requires COMMAND_BRIDGE_TRANSPORT=http_pull.'),
-    check('bridge-off', 'CommandBridge writes remain gated', !bridgeEnabled || solePublisherAck, bridgeEnabled
+    check('bridge-off', 'CommandBridge publishing', bridgeEnabled && solePublisherAck, bridgeEnabled
       ? solePublisherAck
-        ? 'CommandBridge is enabled and the sole-publisher migration acknowledgement is present.'
-        : 'CommandBridge is enabled but publishing remains locked until sole-publisher acknowledgement is set.'
-      : 'CommandBridge publishing is disabled, which is correct before migration.', 'safety'),
+        ? 'CommandBridge is online and the automation platform is the sole publisher.'
+        : 'CommandBridge is enabled but the sole-publisher acknowledgement is missing.'
+      : 'CommandBridge publishing is disabled.', 'safety'),
     check('publisher', 'Single CommandBridge publisher', solePublisherAck, solePublisherAck
       ? 'Automation platform is explicitly acknowledged as the sole publisher.'
       : 'Set the acknowledgement only after the automation service is the sole publisher.', 'activation'),
-    check('rcon-writes', 'RCON writes remain disabled', !rconWritesEnabled, rconWritesEnabled
-      ? 'RCON write actions are enabled. Only do this after read-only validation and controlled testing.'
-      : 'RCON writes are disabled.', 'safety'),
-    check('admin-restore-writes', 'Admin restore uploads remain disabled', !adminRestoreWritesEnabled, adminRestoreWritesEnabled
-      ? 'Direct remote restore-file writes are enabled. Disable this on the BinaryLane architecture.'
-      : 'Admin restore JSON can be built; direct remote slot-file upload remains disabled.', 'safety'),
+    check('rcon-writes', 'Render RCON writes', !rconWritesEnabled, rconWritesEnabled
+      ? 'Direct Render-to-game RCON writes are enabled; BinaryLane should normally own local RCON.'
+      : 'Correct for BinaryLane: direct Render RCON writes stay off while the local agent owns game-server RCON.', 'safety'),
+    check('admin-restore-writes', 'Admin restore path', !adminRestoreWritesEnabled, adminRestoreWritesEnabled
+      ? 'Legacy direct remote restore-file writes are enabled.'
+      : 'Correct for BinaryLane: restore JSON remains available and legacy remote slot upload stays retired.', 'safety'),
     check('herbybot', 'HerbyBot automation bridge', herbyBotConfigured, herbyBotConfigured
       ? 'Dedicated HerbyBot server-to-server token is configured; Discord credentials remain on HerbyBot only.'
       : 'Optional: set HERBYBOT_AUTOMATION_TOKEN to enable durable announcements and alerts through the existing HerbyBot.', 'optional'),
-    check('playtime-rewards', 'Valley Coin playtime rewards', playtimeRewardsSafe, playtimeRewardsEnabled
+    check('playtime-rewards', 'Valley Coin playtime rewards', playtimeRewardsEnabled && playtimeRewardsSafe, playtimeRewardsEnabled
       ? playtimeRewardsSafe
-        ? `Rewards are enabled at ${playtimeRewardCoins} Valley Coin per verified 5 minutes.`
-        : 'Rewards are enabled without both presence tracking and a positive integer coin rate. Disable rewards or complete the configuration.'
-      : 'Playtime rewards are disabled, which is correct until the economy rate and presence sampling are approved.', 'safety'),
-    check('marketplace-writes', 'Marketplace writes remain disabled', !marketplaceWritesEnabled, marketplaceWritesEnabled
-      ? 'Marketplace buying/selling is enabled. Use only after wallet migration and DinoStorage escrow testing.'
-      : 'Official and player-to-player marketplace writes are disabled.', 'safety'),
-    check('official-marketplace-fulfillment', 'Official marketplace fulfillment remains disabled', !officialMarketplaceFulfillmentEnabled, officialMarketplaceFulfillmentEnabled
-      ? 'Official catalog fulfillment is enabled and can create DinoStorage files. Use only after controlled BinaryLane fulfillment tests.'
-      : 'Official catalog DinoStorage fulfillment is locked.', 'safety'),
-    check('parked-dino-edits', 'Parked dino edits remain disabled', !parkedDinoEditsEnabled, parkedDinoEditsEnabled
-      ? 'Mutation/skin writes to parked DinoStorage JSON are enabled.'
-      : 'Parked dinosaur mutation/skin writes remain locked.', 'safety'),
-    check('skin-system', 'Skin system remains disabled', !skinSystemEnabled, skinSystemEnabled
-      ? 'Skin preset creation/application is enabled.'
-      : 'Skin preset system is disabled until controlled validation.', 'safety'),
-    check('monitor', 'Server outage monitoring', monitorEnabled, monitorEnabled ? 'Persistent outage/recovery monitoring is enabled and alerts are queued for HerbyBot.' : 'Optional: enable after the HerbyBot bridge and BinaryLane presence feed are verified.', 'optional'),
+        ? `Rewards are online at ${playtimeRewardCoins} Valley Coin per verified 5 minutes.`
+        : 'Rewards are enabled but need a working presence feed and a positive base coin rate.'
+      : 'Playtime rewards are still offline until a positive base Valley Coin rate is chosen.', 'safety'),
+    check('marketplace-writes', 'Marketplace buying & selling', marketplaceWritesEnabled, marketplaceWritesEnabled
+      ? 'Official and player-to-player marketplace writes are online.'
+      : 'Marketplace buying/selling is disabled.', 'safety'),
+    check('official-marketplace-fulfillment', 'Official DinoStorage delivery', officialMarketplaceFulfillmentEnabled, officialMarketplaceFulfillmentEnabled
+      ? 'Official catalog purchases are being delivered into DinoStorage.'
+      : 'Official catalog DinoStorage fulfillment is disabled.', 'safety'),
+    check('parked-dino-edits', 'Parked dino edits', parkedDinoEditsEnabled, parkedDinoEditsEnabled
+      ? 'Mutation and skin edits for parked DinoStorage dinos are online.'
+      : 'Parked dinosaur mutation/skin editing is disabled.', 'safety'),
+    check('skin-system', 'Skin Studio', skinSystemEnabled, skinSystemEnabled
+      ? 'Skin preset creation and application are online.'
+      : 'Skin Studio is disabled.', 'safety'),
+    check('monitor', 'Server outage monitoring', monitorEnabled, monitorEnabled ? 'Persistent outage/recovery monitoring is online and alerts are queued for HerbyBot.' : 'Server outage monitoring is disabled.', 'optional'),
   ];
 
   const required = checks.filter((item) => item.level === 'required');
