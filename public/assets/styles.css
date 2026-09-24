@@ -1027,3 +1027,43 @@
 @media(max-width:520px){
   .quest-live-banner{flex-direction:column;gap:6px}
 }
+
+
+/* Accurate Sketchfab T-Rex viewer — replaces the AI-generated placeholder mesh */
+#skin-model-frame{
+  position:absolute;
+  z-index:1;
+  inset:0;
+  width:100%;
+  height:100%;
+  border:0;
+  background:#010605;
+}
+.skin-model-stage{
+  min-height:520px!important;
+  height:min(58vw,660px)!important;
+  background:
+    radial-gradient(ellipse at 52% 82%,rgba(72,103,99,.34),transparent 35%),
+    linear-gradient(180deg,#010605,#020907 65%,#071713)!important;
+}
+.skin-model-stage:before{
+  z-index:2!important;
+  box-shadow:inset 0 0 70px rgba(0,0,0,.34);
+}
+.skin-model-code,.skin-model-rail,.skin-model-hud,.skin-model-loader{z-index:4!important}
+.skin-model-rail{pointer-events:none}
+.skin-model-rail label{pointer-events:auto}
+.skin-model-credit{
+  display:inline-flex;
+  margin-top:7px;
+  color:#708b7d;
+  font:700 7px Manrope,sans-serif;
+  text-decoration:none;
+}
+.skin-model-credit:hover{color:#43df8c}
+@media(max-width:980px){
+  .skin-model-stage{height:62vw!important;min-height:420px!important}
+}
+@media(max-width:650px){
+  .skin-model-stage{height:80vw!important;min-height:340px!important}
+}
