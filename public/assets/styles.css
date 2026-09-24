@@ -556,3 +556,12 @@
 .market-tier-actions{justify-content:flex-end}
 .prime-badge{font:700 10px Oswald,sans-serif;letter-spacing:.12em;color:#d7bd66}
 @media(max-width:700px){.market-dino-thumb{height:96px}}
+
+
+.account-link-panel{display:flex;align-items:center;justify-content:space-between;gap:18px;border:1px solid var(--line);background:var(--panel);padding:16px 18px;margin:0 0 18px}
+.account-link-panel>div{display:flex;flex-direction:column;gap:4px}
+.account-link-panel small{font:600 10px Oswald,sans-serif;letter-spacing:.14em;color:#9c8a72}
+.account-link-panel b{font-size:18px}
+.account-link-panel span{color:#9c8a72;font-size:13px}
+.small-button.disabled,.small-button[aria-disabled="true"]{opacity:.55;pointer-events:none}
+@media(max-width:700px){.account-link-panel{align-items:flex-start;flex-direction:column}}
