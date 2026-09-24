@@ -142,6 +142,7 @@ db.exec(`
     is_premium INTEGER NOT NULL DEFAULT 0,
     active INTEGER NOT NULL DEFAULT 1,
     published INTEGER NOT NULL DEFAULT 0,
+    exclusive INTEGER NOT NULL DEFAULT 0,
     price INTEGER NOT NULL DEFAULT 0 CHECK(price >= 0),
     share_code TEXT,
     create_key TEXT,
@@ -165,6 +166,21 @@ db.exec(`
   );
   CREATE INDEX IF NOT EXISTS idx_economy_skin_unlocks_steam
     ON economy_skin_unlocks(steam_id, unlocked_at DESC);
+  CREATE TABLE IF NOT EXISTS economy_skin_grants (
+    steam_id TEXT NOT NULL,
+    preset_id TEXT NOT NULL,
+    granted_by_steam_id TEXT,
+    note TEXT NOT NULL DEFAULT '',
+    granted_at TEXT NOT NULL DEFAULT (datetime('now')),
+    revoked_at TEXT,
+    PRIMARY KEY (steam_id, preset_id),
+    FOREIGN KEY (steam_id) REFERENCES economy_wallets(steam_id),
+    FOREIGN KEY (preset_id) REFERENCES economy_skin_presets(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_economy_skin_grants_steam
+    ON economy_skin_grants(steam_id, granted_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_economy_skin_grants_preset
+    ON economy_skin_grants(preset_id, granted_at DESC);
 `);
 
 (function ensureSkinPresetStoreSchema() {
@@ -173,6 +189,7 @@ db.exec(`
   const additions = [
     ['description', "TEXT NOT NULL DEFAULT ''"],
     ['published', 'INTEGER NOT NULL DEFAULT 0'],
+    ['exclusive', 'INTEGER NOT NULL DEFAULT 0'],
     ['price', 'INTEGER NOT NULL DEFAULT 0'],
     ['share_code', 'TEXT'],
     ['create_key', 'TEXT'],
@@ -197,6 +214,21 @@ db.exec(`
     );
     CREATE INDEX IF NOT EXISTS idx_economy_skin_unlocks_steam
       ON economy_skin_unlocks(steam_id, unlocked_at DESC);
+    CREATE TABLE IF NOT EXISTS economy_skin_grants (
+      steam_id TEXT NOT NULL,
+      preset_id TEXT NOT NULL,
+      granted_by_steam_id TEXT,
+      note TEXT NOT NULL DEFAULT '',
+      granted_at TEXT NOT NULL DEFAULT (datetime('now')),
+      revoked_at TEXT,
+      PRIMARY KEY (steam_id, preset_id),
+      FOREIGN KEY (steam_id) REFERENCES economy_wallets(steam_id),
+      FOREIGN KEY (preset_id) REFERENCES economy_skin_presets(id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_economy_skin_grants_steam
+      ON economy_skin_grants(steam_id, granted_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_economy_skin_grants_preset
+      ON economy_skin_grants(preset_id, granted_at DESC);
   `);
 })();
 
@@ -466,6 +498,10 @@ function mapSkinPreset(row, { owned = false } = {}) {
     isPremium: Boolean(row.is_premium),
     active: Boolean(row.active),
     published: Boolean(row.published),
+    exclusive: Boolean(row.exclusive),
+    granted: Boolean(row.granted_flag),
+    grantNote: row.grant_note || '',
+    grantedAt: row.granted_at || null,
     owned: Boolean(owned),
     price: Math.max(0, Number(row.price) || 0),
     skin: parseJson(row.skin_json),
@@ -494,6 +530,75 @@ function hasSkinUnlock(steamId, presetId) {
   return Boolean(db.prepare(
     'SELECT 1 FROM economy_skin_unlocks WHERE steam_id = ? AND preset_id = ?'
   ).get(steam, String(presetId || '').trim()));
+}
+
+
+function hasSkinGrant(steamId, presetId) {
+  const steam = validateSteamId(steamId);
+  return Boolean(db.prepare(
+    'SELECT 1 FROM economy_skin_grants WHERE steam_id = ? AND preset_id = ? AND revoked_at IS NULL'
+  ).get(steam, String(presetId || '').trim()));
+}
+
+function grantSkinPreset({ steamId, presetId, grantedBySteamId = null, note = '' }) {
+  const steam = validateSteamId(steamId);
+  const id = String(presetId || '').trim();
+  const preset = getSkinPreset(id);
+  if (!preset || !preset.active) {
+    const error = new Error('Skin preset not found');
+    error.code = 'SKIN_PRESET_NOT_FOUND';
+    throw error;
+  }
+  ensureWallet(steam);
+  const grantedBy = grantedBySteamId ? validateSteamId(grantedBySteamId) : null;
+  const grantNote = String(note || '').trim().slice(0, 240);
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    db.prepare(`
+      UPDATE economy_skin_presets
+      SET exclusive = 1, published = 0, is_premium = 0, price = 0, updated_at = datetime('now')
+      WHERE id = ?
+    `).run(id);
+    db.prepare(`
+      INSERT INTO economy_skin_grants
+        (steam_id, preset_id, granted_by_steam_id, note, granted_at, revoked_at)
+      VALUES (?, ?, ?, ?, datetime('now'), NULL)
+      ON CONFLICT(steam_id, preset_id) DO UPDATE SET
+        granted_by_steam_id = excluded.granted_by_steam_id,
+        note = excluded.note,
+        granted_at = datetime('now'),
+        revoked_at = NULL
+    `).run(steam, id, grantedBy, grantNote);
+    db.exec('COMMIT');
+  } catch (error) {
+    try { db.exec('ROLLBACK'); } catch {}
+    throw error;
+  }
+  return {
+    preset: { ...getSkinPreset(id), owned: true, granted: true, grantNote, grantedAt: new Date().toISOString() },
+    grant: db.prepare('SELECT * FROM economy_skin_grants WHERE steam_id = ? AND preset_id = ?').get(steam, id),
+  };
+}
+
+function revokeSkinGrant({ steamId, presetId }) {
+  const steam = validateSteamId(steamId);
+  const id = String(presetId || '').trim();
+  const result = db.prepare(`
+    UPDATE economy_skin_grants
+    SET revoked_at = datetime('now')
+    WHERE steam_id = ? AND preset_id = ? AND revoked_at IS NULL
+  `).run(steam, id);
+  return { steamId: steam, presetId: id, revoked: Number(result.changes || 0) > 0 };
+}
+
+function listSkinGrants(presetId, { activeOnly = true } = {}) {
+  const id = String(presetId || '').trim();
+  return db.prepare(`
+    SELECT steam_id, preset_id, granted_by_steam_id, note, granted_at, revoked_at
+    FROM economy_skin_grants
+    WHERE preset_id = ? ${activeOnly ? 'AND revoked_at IS NULL' : ''}
+    ORDER BY granted_at DESC
+  `).all(id);
 }
 
 function listSkinPresets({
@@ -539,46 +644,61 @@ function listSkinPresets({
 
 function listSkinStore({ steamId = null, species = null, limit = 300 } = {}) {
   const safeLimit = Math.max(1, Math.min(500, Number(limit) || 300));
-  const clauses = ['p.active = 1', 'p.published = 1'];
-  const params = [];
+  const clauses = ['p.active = 1', 'p.published = 1', 'COALESCE(p.exclusive, 0) = 0'];
+  const filters = [];
   if (species) {
     clauses.push('lower(p.species) = lower(?)');
-    params.push(String(species));
+    filters.push(String(species));
   }
 
-  let join = '';
-  let ownedExpr = '0';
-  if (steamId) {
-    const steam = validateSteamId(steamId);
-    join = 'LEFT JOIN economy_skin_unlocks u ON u.preset_id = p.id AND u.steam_id = ?';
-    params.unshift(steam);
-    ownedExpr = 'CASE WHEN p.owner_steam_id = ? OR p.is_premium = 1 OR u.preset_id IS NOT NULL THEN 1 ELSE 0 END';
-    params.splice(1, 0, steam);
+  if (!steamId) {
+    return db.prepare(`
+      SELECT p.*, 0 AS owned_flag, 0 AS granted_flag, '' AS grant_note, NULL AS granted_at
+      FROM economy_skin_presets p
+      WHERE ${clauses.join(' AND ')}
+      ORDER BY p.is_premium DESC, p.price ASC, p.created_at DESC
+      LIMIT ?
+    `).all(...filters, safeLimit).map((row) => mapSkinPreset(row, { owned: false }));
   }
 
-  const sql = `
-    SELECT p.*, ${ownedExpr} AS owned_flag
+  const steam = validateSteamId(steamId);
+  return db.prepare(`
+    SELECT p.*,
+      CASE WHEN p.owner_steam_id = ? OR p.is_premium = 1 OR u.preset_id IS NOT NULL OR g.preset_id IS NOT NULL THEN 1 ELSE 0 END AS owned_flag,
+      CASE WHEN g.preset_id IS NOT NULL THEN 1 ELSE 0 END AS granted_flag,
+      COALESCE(g.note, '') AS grant_note,
+      g.granted_at AS granted_at
     FROM economy_skin_presets p
-    ${join}
+    LEFT JOIN economy_skin_unlocks u ON u.preset_id = p.id AND u.steam_id = ?
+    LEFT JOIN economy_skin_grants g ON g.preset_id = p.id AND g.steam_id = ? AND g.revoked_at IS NULL
     WHERE ${clauses.join(' AND ')}
     ORDER BY p.is_premium DESC, p.price ASC, p.created_at DESC
     LIMIT ?
-  `;
-  return db.prepare(sql).all(...params, safeLimit).map((row) => mapSkinPreset(row, { owned: Boolean(row.owned_flag) }));
+  `).all(steam, steam, steam, ...filters, safeLimit)
+    .map((row) => mapSkinPreset(row, { owned: Boolean(row.owned_flag) }));
 }
 
 function listOwnedSkinPresets(steamId, { limit = 300 } = {}) {
   const steam = validateSteamId(steamId);
   const safeLimit = Math.max(1, Math.min(500, Number(limit) || 300));
   return db.prepare(`
-    SELECT p.*, CASE WHEN p.owner_steam_id = ? OR p.is_premium = 1 OR u.preset_id IS NOT NULL THEN 1 ELSE 0 END AS owned_flag
+    SELECT p.*,
+      1 AS owned_flag,
+      CASE WHEN g.preset_id IS NOT NULL THEN 1 ELSE 0 END AS granted_flag,
+      COALESCE(g.note, '') AS grant_note,
+      g.granted_at AS granted_at
     FROM economy_skin_presets p
     LEFT JOIN economy_skin_unlocks u ON u.preset_id = p.id AND u.steam_id = ?
-    WHERE p.active = 1 AND (p.owner_steam_id = ? OR p.is_premium = 1 OR u.preset_id IS NOT NULL)
-    ORDER BY p.owner_steam_id = ? DESC, p.published DESC, p.created_at DESC
+    LEFT JOIN economy_skin_grants g ON g.preset_id = p.id AND g.steam_id = ? AND g.revoked_at IS NULL
+    WHERE p.active = 1
+      AND (p.owner_steam_id = ? OR p.is_premium = 1 OR u.preset_id IS NOT NULL OR g.preset_id IS NOT NULL)
+    ORDER BY
+      CASE WHEN p.owner_steam_id = ? THEN 0 WHEN g.preset_id IS NOT NULL THEN 1 ELSE 2 END,
+      p.published DESC,
+      p.created_at DESC
     LIMIT ?
   `).all(steam, steam, steam, steam, safeLimit)
-    .map((row) => mapSkinPreset(row, { owned: Boolean(row.owned_flag) }));
+    .map((row) => mapSkinPreset(row, { owned: true }));
 }
 
 function getDinoListing(id) {
@@ -668,6 +788,10 @@ module.exports = {
   getSkinPresetByShareCode,
   getSkinPresetByCreateKey,
   hasSkinUnlock,
+  hasSkinGrant,
+  grantSkinPreset,
+  revokeSkinGrant,
+  listSkinGrants,
   listSkinPresets,
   listSkinStore,
   listOwnedSkinPresets,
