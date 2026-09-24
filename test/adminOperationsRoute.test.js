@@ -139,3 +139,36 @@ test("Admin Operations proxies guarded global BodyDrop controls", async (t) => {
   assert.equal(body.globalBodyDrop.enabled, false);
   assert.equal(body.globalBodyDrop.lastRun.scheduledCount, 2);
 });
+
+
+test("Admin Operations corpse wipe requires exact confirmation and proxies only after confirmation", async (t) => {
+  const original = automation.wipeAdminCorpses;
+  const confirmations = [];
+  automation.wipeAdminCorpses = async (confirm) => {
+    confirmations.push(confirm);
+    return { ok: true, result: { action: "wipeCorpses", sent: true, confirmed: true } };
+  };
+  t.after(() => { automation.wipeAdminCorpses = original; });
+
+  const server = await listen(appFor({ id: 1, is_admin: 1 }));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  let response = await fetch(`${baseUrl(server)}/api/admin-operations/corpse-wipe`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ confirm: "no" }),
+  });
+  assert.equal(response.status, 400);
+  assert.deepEqual(confirmations, []);
+
+  response = await fetch(`${baseUrl(server)}/api/admin-operations/corpse-wipe`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ confirm: "WIPE CORPSES" }),
+  });
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.result.action, "wipeCorpses");
+  assert.equal(body.result.confirmed, true);
+  assert.deepEqual(confirmations, ["WIPE CORPSES"]);
+});
