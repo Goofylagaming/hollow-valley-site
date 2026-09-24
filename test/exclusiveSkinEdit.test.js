@@ -5,7 +5,7 @@ const os = require("node:os");
 const path = require("node:path");
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "hv-exclusive-skin-edit-"));
-process.env.ECONOMY_DB_PATH = path.join(tempDir, "economy.sqlite");
+process.env.AUTOMATION_DB_PATH = path.join(tempDir, "economy.sqlite");
 process.env.SKIN_SYSTEM_ENABLED = "true";
 
 const store = require("../automation-platform/src/services/economyStore");
