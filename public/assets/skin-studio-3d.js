@@ -52,19 +52,59 @@
     return [fallback[index % fallback.length], index === 0 ? 0.38 : 0.30];
   }
 
+  function colorChannel(channel, target, strength) {
+    if (!channel) return false;
+
+    const base = Array.isArray(channel.color) && channel.color.length >= 3
+      ? channel.color.slice(0, 3)
+      : [1, 1, 1];
+
+    // Sketchfab models can use any of the classic Diffuse, specular-PBR
+    // DiffusePBR, or metalness-PBR AlbedoPBR channels. Keep the source
+    // texture/normal detail, but make the selected colour factor obvious.
+    channel.enable = true;
+    channel.color = mixRgb(base, target, strength);
+    return true;
+  }
+
   function applyPaletteNow(palette) {
     if (!api || !materials.length || !palette) return;
+
+    const oneMaterialModel = materials.length === 1;
+
     materials.forEach((material, index) => {
       const original = originalMaterials[index];
       if (!original) return;
-      const [zone, strength] = materialZone(material, index);
+
+      const [mappedZone, mappedStrength] = materialZone(material, index);
+      // If the model is a single textured material, separate Body/Flank/etc.
+      // cannot be addressed independently without a custom UV mask. Make Body
+      // visibly control the whole rex instead of silently doing nothing.
+      const zone = oneMaterialModel ? "body" : mappedZone;
+      const strength = oneMaterialModel ? 0.86 : Math.max(mappedStrength, 0.68);
       const target = hexToRgb01(palette[zone] || palette.body || "#6f7652");
       const clone = JSON.parse(JSON.stringify(original));
-      const channel = clone.channels?.AlbedoPBR || clone.channels?.DiffuseColor;
-      if (!channel) return;
-      const base = Array.isArray(channel.color) ? channel.color.slice(0, 3) : [1, 1, 1];
-      channel.color = mixRgb(base, target, strength);
-      api.setMaterial(clone);
+      const channels = clone.channels || {};
+
+      let changed = false;
+      changed = colorChannel(channels.AlbedoPBR, target, strength) || changed;
+      changed = colorChannel(channels.DiffusePBR, target, strength) || changed;
+      changed = colorChannel(channels.DiffuseColor, target, strength) || changed;
+
+      // Some uploads expose only an emissive colour channel as a tintable
+      // surface. Use it as a fallback, but keep it subtle so the model does
+      // not look self-illuminated.
+      if (!changed && channels.EmitColor) {
+        channels.EmitColor.enable = true;
+        channels.EmitColor.color = mixRgb(
+          Array.isArray(channels.EmitColor.color) ? channels.EmitColor.color.slice(0, 3) : [0, 0, 0],
+          target,
+          0.35
+        );
+        changed = true;
+      }
+
+      if (changed) api.setMaterial(clone);
     });
   }
 
@@ -164,7 +204,18 @@
             if (err || !Array.isArray(list)) return;
             materials = list;
             originalMaterials = list.map((material) => JSON.parse(JSON.stringify(material)));
-            queuePalette(currentPalette());
+
+            const materialCount = materials.length;
+            if (statusEl) {
+              statusEl.textContent = materialCount === 1
+                ? "Tyrannosaurus rex · live body tint"
+                : "Tyrannosaurus rex · live material colours";
+            }
+
+            // Apply immediately after materials are available so the current
+            // picker values are reflected on the actual 3D rex on first load.
+            applyPaletteNow(currentPalette());
+            window.setTimeout(() => applyPaletteNow(currentPalette()), 250);
           });
         });
       });
