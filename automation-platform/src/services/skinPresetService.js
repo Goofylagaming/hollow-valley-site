@@ -126,7 +126,7 @@ function listAvailablePresets(steamId, { species = null } = {}) {
   const steam = store.validateSteamId(steamId);
   const wanted = species ? validateSpecies(species).toLowerCase() : null;
   return store.listOwnedSkinPresets(steam, { limit: 300 })
-    .filter((preset) => !wanted || String(preset.species).toLowerCase() === wanted);
+    .filter((preset) => !wanted || String(preset.species).toLowerCase() === wanted || String(preset.species).toLowerCase() === 'universal');
 }
 
 function listStore(steamId = null, { species = null } = {}) {
@@ -423,7 +423,7 @@ async function applyPreset({ steamId, slot, presetId }) {
 
   const updated = await files.updateStoredDino(steam, selectedSlot, (state) => {
     const targetSpecies = speciesFromClassPath(state.classPath);
-    if (targetSpecies.toLowerCase() !== String(preset.species).toLowerCase()) {
+    if (String(preset.species).toLowerCase() !== 'universal' && targetSpecies.toLowerCase() !== String(preset.species).toLowerCase()) {
       const error = new Error(`This skin preset is for ${preset.species}, not ${targetSpecies}`);
       error.code = 'SKIN_SPECIES_MISMATCH';
       throw error;
