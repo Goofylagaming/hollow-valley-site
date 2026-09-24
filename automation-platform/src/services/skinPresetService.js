@@ -112,7 +112,8 @@ function getPresetForPlayer(steamId, presetId) {
     preset.owner_steam_id === steam ||
     preset.isPremium ||
     Number(preset.price) === 0 && preset.published ||
-    store.hasSkinUnlock(steam, preset.id)
+    store.hasSkinUnlock(steam, preset.id) ||
+    store.hasSkinGrant(steam, preset.id)
   );
   if (!accessible) {
     const error = new Error('Skin preset not found or not unlocked');
@@ -139,7 +140,7 @@ function listStore(steamId = null, { species = null } = {}) {
 
 function getSharedPreset(shareCode) {
   const preset = store.getSkinPresetByShareCode(shareCode);
-  if (!preset || !preset.active) {
+  if (!preset || !preset.active || preset.exclusive) {
     const error = new Error('Skin share code not found');
     error.code = 'SKIN_SHARE_NOT_FOUND';
     throw error;
@@ -275,6 +276,11 @@ function publishPreset({ presetId, price = 0, description = '', published = true
     error.code = 'SKIN_PRESET_NOT_FOUND';
     throw error;
   }
+  if (preset.exclusive && published) {
+    const error = new Error('Exclusive skins cannot be published in the public Skin Shop');
+    error.code = 'SKIN_EXCLUSIVE';
+    throw error;
+  }
   const amount = Number(price);
   if (!Number.isSafeInteger(amount) || amount < 0 || amount > 1000000) {
     throw new Error('Skin price must be a whole number between 0 and 1,000,000');
@@ -286,6 +292,49 @@ function publishPreset({ presetId, price = 0, description = '', published = true
     WHERE id = ?
   `).run(published ? 1 : 0, amount, desc, published && amount === 0 ? 1 : 0, preset.id);
   return store.getSkinPreset(preset.id);
+}
+
+function grantExclusivePreset({ presetId, steamId, grantedBySteamId = null, note = '' }) {
+  if (!systemEnabled()) {
+    const error = new Error('Skin preset system is disabled');
+    error.code = 'SKIN_SYSTEM_DISABLED';
+    throw error;
+  }
+  const preset = store.getSkinPreset(presetId);
+  if (!preset || !preset.active) {
+    const error = new Error('Skin preset not found');
+    error.code = 'SKIN_PRESET_NOT_FOUND';
+    throw error;
+  }
+  return store.grantSkinPreset({
+    steamId,
+    presetId: preset.id,
+    grantedBySteamId,
+    note,
+  });
+}
+
+function revokeExclusiveGrant({ presetId, steamId }) {
+  const preset = store.getSkinPreset(presetId);
+  if (!preset || !preset.active) {
+    const error = new Error('Skin preset not found');
+    error.code = 'SKIN_PRESET_NOT_FOUND';
+    throw error;
+  }
+  return store.revokeSkinGrant({ steamId, presetId: preset.id });
+}
+
+function listExclusiveGrants(presetId) {
+  const preset = store.getSkinPreset(presetId);
+  if (!preset || !preset.active) {
+    const error = new Error('Skin preset not found');
+    error.code = 'SKIN_PRESET_NOT_FOUND';
+    throw error;
+  }
+  return {
+    preset,
+    grants: store.listSkinGrants(preset.id),
+  };
 }
 
 function updatePreset({ steamId, presetId, species, name, description = '', skin }) {
@@ -463,6 +512,9 @@ module.exports = {
   createPresetFromStored,
   importSharedPreset,
   publishPreset,
+  grantExclusivePreset,
+  revokeExclusiveGrant,
+  listExclusiveGrants,
   updatePreset,
   deletePreset,
   purchasePreset,
