@@ -988,3 +988,24 @@
 }
 #skin-model-canvas{z-index:1}
 .skin-model-code,.skin-model-rail,.skin-model-hud,.skin-model-loader{z-index:3}
+
+
+/* Experimental quest rotation */
+.quest-experimental-group{margin-top:8px;padding-top:28px;border-top:1px solid #26291f}
+.quest-experimental-banner{display:flex;align-items:flex-start;gap:18px;margin-bottom:2px;padding:14px 16px;border:1px solid #42523d;background:linear-gradient(90deg,#10150e,#0d0f0c)}
+.quest-experimental-banner strong{flex:0 0 auto;color:#91aa86;font:700 9px Oswald;letter-spacing:.14em}
+.quest-experimental-banner span{color:#7d8575;font-size:9px;line-height:1.6}
+.quest-concept-card{border-style:dashed;background:linear-gradient(145deg,#10130e,#0b0d0a)}
+.quest-concept-card:hover{border-color:#61735b}
+.quest-concept-card:before{border-color:#70906714}
+.quest-concept-badge{padding:4px 7px;border:1px solid #53674e;background:#11170f;color:#8faa84;font:800 7px Oswald;letter-spacing:.12em}
+.quest-concept-target{margin-top:auto;margin-bottom:15px;padding:11px 12px;border:1px solid #292f25;background:#0b0e0a}
+.quest-concept-target small{display:block;color:#697465;font:700 7px Oswald;letter-spacing:.12em}
+.quest-concept-target strong{display:block;margin-top:4px;color:#cacbbf;font:600 10px Oswald}
+.quest-concept-tracker{max-width:150px;padding:4px 7px;border:1px solid #3e4c3a;color:#74856f;font:700 7px Oswald;letter-spacing:.08em;text-align:right}
+.quest-concept-card .quest-card-description{min-height:52px}
+.quest-concept-card .quest-reward-block strong{color:#c7a94f}
+@media(max-width:520px){
+  .quest-experimental-banner{flex-direction:column;gap:6px}
+  .quest-concept-tracker{max-width:none;text-align:left}
+}
