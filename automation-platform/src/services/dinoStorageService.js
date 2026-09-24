@@ -143,6 +143,79 @@ async function listStoredDinosViaFiles(steamId) {
   });
 }
 
+async function getStoredDino(steamId, slot) {
+  const steam = validateSteamId(steamId);
+  const selectedSlot = validateSlot(slot);
+  const dinos = await listStoredDinos(steam);
+  const found = dinos.find((dino) => dino.slot === selectedSlot);
+  if (!found) {
+    const error = new Error(`Stored DinoStorage slot not found: ${selectedSlot}`);
+    error.code = 'DINO_FILE_NOT_FOUND';
+    throw error;
+  }
+  return found;
+}
+
+async function runImmediateCommand({ verb, steamId, tokens = [], timeoutMs = 7000 }) {
+  const steam = validateSteamId(steamId);
+  commandBridge.assertPublisherReady();
+  const command = commandBridge.buildCommand(verb, steam, tokens);
+  await commandBridge.queueCommand(command);
+
+  const deadline = Date.now() + Math.max(1000, Number(timeoutMs) || 7000);
+  do {
+    const outcome = await commandBridge.readOutcome(command);
+    if (outcome?.state === 'failed') {
+      const error = new Error(outcome.message || `${verb} failed`);
+      error.code = 'DINOSTORAGE_COMMAND_FAILED';
+      error.requestId = command.id;
+      throw error;
+    }
+    if (outcome?.state === 'confirmed') {
+      return { command, outcome };
+    }
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) break;
+    await new Promise((resolve) => setTimeout(resolve, Math.min(250, remaining)));
+  } while (true);
+
+  const error = new Error(`${verb} timed out waiting for DinoStorage confirmation`);
+  error.code = 'DINOSTORAGE_COMMAND_TIMEOUT';
+  error.requestId = command.id;
+  throw error;
+}
+
+async function editStoredDino({ steamId, slot, mode, values = {} }) {
+  const selectedSlot = validateSlot(slot);
+  if (!['mutations', 'skin'].includes(mode)) throw new Error('Unsupported parked dino edit mode');
+
+  const tokens = [selectedSlot, mode];
+  if (mode === 'mutations') {
+    for (const key of ['Slot1', 'Slot2', 'Slot3', 'Slot4']) {
+      tokens.push(`${key}=${encodeURIComponent(String(values[key] || ''))}`);
+    }
+  } else {
+    const colorKeys = ['maleDisplay','markings','body','flank','underbelly','teeth','mouth','claws','detail1','eyes'];
+    for (const key of colorKeys) {
+      if (typeof values[key] !== 'string' || !/^-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?$/.test(values[key])) {
+        throw new Error(`Invalid parked skin colour token: ${key}`);
+      }
+      tokens.push(`${key}=${values[key]}`);
+    }
+    for (const key of ['skinVariation','patternIndex','themeIndex']) {
+      if (!Number.isFinite(Number(values[key]))) throw new Error(`Invalid parked skin value: ${key}`);
+      tokens.push(`${key}=${Number(values[key])}`);
+    }
+  }
+
+  return runImmediateCommand({ verb: 'dino_edit', steamId, tokens });
+}
+
+async function deleteStoredDino({ steamId, slot }) {
+  const selectedSlot = validateSlot(slot);
+  return runImmediateCommand({ verb: 'dino_delete', steamId, tokens: [selectedSlot] });
+}
+
 function latestPending(steamId) {
   const latest = store.getLatestForSteam(steamId, 'dinostorage');
   return latest && ['preparing', 'publishing', 'queued', 'acknowledged', 'unknown'].includes(latest.status) ? latest : null;
@@ -344,6 +417,10 @@ module.exports = {
   validateSlot,
   normalizeStoredDino,
   listStoredDinos,
+  getStoredDino,
+  editStoredDino,
+  deleteStoredDino,
+  runImmediateCommand,
   requestDinoStorageAction,
   publishDinoStorageRequest,
   recoverInterruptedDinoStorage,
