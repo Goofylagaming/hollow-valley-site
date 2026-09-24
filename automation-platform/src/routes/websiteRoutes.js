@@ -481,6 +481,27 @@ router.post('/skins/from-stored', async (req, res) => {
   }
 });
 
+router.put('/skins/:presetId', async (req, res) => {
+  try {
+    const steamId = validateSteamId(req.body?.steamId);
+    const preset = await audit.run('website', 'skin_preset_update', {
+      steamId,
+      presetId: req.params.presetId,
+    }, async () => skinPresets.updatePreset({
+      steamId,
+      presetId: req.params.presetId,
+      species: req.body?.species,
+      name: req.body?.name,
+      description: req.body?.description,
+      skin: req.body?.skin,
+    }));
+    res.json({ ok: true, preset });
+  } catch (error) {
+    const status = error.code === 'SKIN_PRESET_NOT_FOUND' ? 404 : 400;
+    res.status(status).json({ error: error.message || 'Unable to update skin preset.', code: error.code || null });
+  }
+});
+
 router.delete('/skins/:presetId', async (req, res) => {
   try {
     const steamId = validateSteamId(req.body?.steamId);
