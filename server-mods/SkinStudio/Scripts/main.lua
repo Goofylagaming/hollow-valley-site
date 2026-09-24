@@ -1,9 +1,9 @@
--- SkinStudio v005
+-- SkinStudio v006
 -- Hollow Valley live skin application + reconnect persistence.
 -- Commands arrive from CommandBridge as inbox.ndjson records.
 
 local MOD_NAME = "SkinStudio"
-local MOD_VERSION = "v005"
+local MOD_VERSION = "v006"
 
 local function resolveModRoot()
     local source = ""
@@ -264,10 +264,63 @@ local function applyColor(cdata, field, color)
     return true, nil
 end
 
+local function mirrorCustomizerToTemporary(pawn, config)
+    local okTemp, temp = pcall(function() return pawn.TemporarySkinData end)
+    if not okTemp or temp == nil then
+        log("TemporarySkinData unavailable on " .. pawnClassName(pawn))
+        return false, "TemporarySkinData unavailable"
+    end
+
+    local failures = {}
+    local writes = 0
+    for key, field in pairs(FIELD_MAP) do
+        local ok, err = applyColor(temp, field, config.colors[key])
+        if ok then
+            writes = writes + 1
+        else
+            table.insert(failures, field .. ": " .. tostring(err))
+        end
+    end
+
+    if not config.preserveIndices then
+        local scalarWrites = {
+            SkinVariation = math.floor(config.variation),
+            PatternIndex = math.floor(config.pattern),
+            ThemeIndex = math.floor(config.theme),
+        }
+        for field, value in pairs(scalarWrites) do
+            local ok, err = pcall(function() temp[field] = value end)
+            if not ok then
+                table.insert(failures, field .. ": " .. tostring(err))
+            end
+        end
+    end
+
+    if #failures > 0 then
+        log("Temporary skin mirror failed: " .. table.concat(failures, " | "))
+        return false, table.concat(failures, " | ")
+    end
+
+    log(string.format(
+        "Temporary skin mirror verified species=%s pawn=%s colors=%d",
+        tostring(config.species),
+        pawnClassName(pawn),
+        writes
+    ))
+    return true, nil
+end
+
 local function applyConfigToPawn(pawn, config)
     if pawn == nil then return false, "You need a live dinosaur in game." end
     if not speciesMatches(pawn, config.species) then
         return false, "This skin is for " .. tostring(config.species) .. ", not your current dinosaur."
+    end
+
+    local paletteModeOk, paletteModeErr = pcall(function()
+        pawn.bUseSkinPalette = true
+    end)
+    if not paletteModeOk then
+        log("bUseSkinPalette write failed: " .. tostring(paletteModeErr))
     end
 
     local okCdata, cdata = pcall(function() return pawn.CustomizerData end)
@@ -316,6 +369,11 @@ local function applyConfigToPawn(pawn, config)
         if theme >= 0 then writeScalar("ThemeIndex", theme) end
     end
 
+    local mirrorOk, mirrorErr = mirrorCustomizerToTemporary(pawn, config)
+    if not mirrorOk then
+        log("Temporary skin mirror warning: " .. tostring(mirrorErr))
+    end
+
     local netOk, netErr = pcall(function() pawn:ForceNetUpdate() end)
     if not netOk then
         table.insert(failures, "ForceNetUpdate: " .. tostring(netErr))
@@ -327,13 +385,14 @@ local function applyConfigToPawn(pawn, config)
     end
 
     log(string.format(
-        "Verified skin write species=%s pawn=%s colors=%d pattern=%d theme=%d variation=%d",
+        "Verified skin write species=%s pawn=%s colors=%d pattern=%d theme=%d variation=%d temporary=%s",
         tostring(config.species),
         pawnClassName(pawn),
         writes,
         config.preserveIndices and -1 or pattern,
         config.preserveIndices and -1 or theme,
-        config.preserveIndices and -1 or variation
+        config.preserveIndices and -1 or variation,
+        tostring(mirrorOk == true)
     ))
     return true, "Skin applied and verified on the live customizer."
 end
