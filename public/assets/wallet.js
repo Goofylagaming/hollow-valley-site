@@ -38,6 +38,34 @@ async function loadWallet() {
   guard.hidden = true;
   content.hidden = false;
 
+  const adminPanel = document.getElementById("wallet-admin-panel");
+  if (adminPanel) adminPanel.hidden = !Boolean(me.user?.is_admin);
+
+  try {
+    const summary = await api("/api/dashboard");
+    document.getElementById("wallet-dino-count").textContent = Number(summary.dinoCount || 0);
+    const supporter = summary.supporter;
+    document.getElementById("wallet-supporter").textContent = supporter
+      ? `${supporter.tierLabel || supporter.tier} ${supporter.auto_renew ? "(auto-renews)" : "(ending)"}`
+      : "None";
+    document.getElementById("wallet-dashboard-multiplier").textContent =
+      supporter?.entitled ? `×${Number(supporter.multiplier || 1)}` : "×1";
+  } catch (error) {
+    console.warn("Dashboard summary unavailable", error);
+  }
+
+  try {
+    const bonus = await api("/api/daily-bonus");
+    if (bonus.claimed) {
+      document.getElementById("wallet-bonus-state").textContent = "Claimed";
+      const bonusButton = document.getElementById("wallet-claim-daily");
+      bonusButton.disabled = true;
+      bonusButton.textContent = "Come back tomorrow";
+    }
+  } catch (error) {
+    console.warn("Daily bonus state unavailable", error);
+  }
+
   try {
     const wallet = await api("/api/wallet");
     const earning = wallet?.earning || {};
@@ -89,3 +117,44 @@ async function loadWallet() {
 }
 
 loadWallet();
+
+
+document.getElementById("wallet-claim-daily")?.addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  button.textContent = "Rolling…";
+  try {
+    const result = await api("/api/daily-bonus/claim", { method: "POST" });
+    document.getElementById("wallet-balance").textContent = Number(result.wallet?.balance || 0).toLocaleString();
+    document.getElementById("wallet-bonus-state").textContent = "Claimed";
+    button.textContent = `+${result.amount} Valley Coin!`;
+    setTimeout(loadWallet, 1200);
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = "Roll daily bonus";
+    alert(error.message || "Could not claim daily bonus.");
+  }
+});
+
+document.getElementById("wallet-admin-credit")?.addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  const input = document.getElementById("wallet-admin-amount");
+  const resultEl = document.getElementById("wallet-admin-result");
+  button.disabled = true;
+  resultEl.textContent = "Crediting…";
+  try {
+    const result = await api("/api/wallet/admin-credit", {
+      method: "POST",
+      body: JSON.stringify({ amount: Number(input?.value) }),
+    });
+    const balance = Number(result.wallet?.balance);
+    resultEl.textContent = Number.isFinite(balance)
+      ? `Added ${result.amount} · Wallet: ${balance.toLocaleString()}`
+      : `Added ${result.amount} Valley Coin`;
+    await loadWallet();
+  } catch (error) {
+    resultEl.textContent = error.message || "Could not credit wallet.";
+  } finally {
+    button.disabled = false;
+  }
+});
