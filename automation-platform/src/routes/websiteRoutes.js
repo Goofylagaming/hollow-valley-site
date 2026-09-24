@@ -1,4 +1,5 @@
 const express = require('express');
+const officialCatalog = require('../services/officialMarketplaceCatalogService');
 const { requireWebsiteToken } = require('../middleware/websiteAuth');
 const bodyDrop = require('../services/bodyDropService');
 const dinoStorage = require('../services/dinoStorageService');
@@ -189,6 +190,21 @@ router.get('/leaderboards/playtime', (req, res) => {
 
 router.get('/marketplace/catalog', (_req, res) => {
   res.json({ catalog: economy.listCatalog({ activeOnly: true }) });
+});
+
+router.put('/marketplace/catalog/:catalogId', (req, res) => {
+  try {
+    const item = officialCatalog.updateOfficialCatalogItem({
+      catalogId: String(req.params.catalogId || '').trim(),
+      price: req.body?.price,
+      growthPercent: req.body?.growthPercent,
+      active: req.body?.active,
+      isPrime: req.body?.isPrime,
+    });
+    res.json({ ok: true, item });
+  } catch (error) {
+    res.status(error.code === 'CATALOG_ITEM_UNAVAILABLE' ? 404 : 400).json({ error: error.message || 'Unable to update marketplace item.' });
+  }
 });
 
 router.get('/marketplace/orders/:steamId', (req, res) => {
