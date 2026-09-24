@@ -185,6 +185,28 @@ function getEventRewards(steamId) {
   return call(`/events/rewards/${encodeURIComponent(validateSteamId(steamId))}`);
 }
 
+function getEventAttendance(steamId) {
+  return call(`/events/attendance/${encodeURIComponent(validateSteamId(steamId))}`);
+}
+
+function setEventAttendance({ steamId, eventId, eventTitle, eventStart = null, eventEnd = null, attending = true }) {
+  const id = String(eventId || '').trim();
+  if (!/^[A-Za-z0-9:_-]{2,80}$/.test(id)) throw new Error('Invalid event ID');
+  const title = String(eventTitle || '').trim();
+  if (title.length < 2 || title.length > 120) throw new Error('Invalid event title');
+  return call('/events/attendance', {
+    method: 'POST',
+    body: {
+      steamId: validateSteamId(steamId),
+      eventId: id,
+      eventTitle: title,
+      eventStart,
+      eventEnd,
+      attending: attending !== false,
+    },
+  });
+}
+
 function getMapActivity({ hours = 24 } = {}) {
   const safeHours = Math.max(1, Math.min(24 * 31, Number(hours) || 24));
   return call(`/map/activity?hours=${safeHours}`);
@@ -472,6 +494,88 @@ function awardAdminEventReward({ steamId, eventId, eventTitle, baseAmount }) {
   });
 }
 
+function getAdminEventAttendance({ eventId = null, limit = 500 } = {}) {
+  const params = new URLSearchParams();
+  if (eventId) params.set('eventId', String(eventId));
+  params.set('limit', String(Math.max(1, Math.min(1000, Number(limit) || 500))));
+  return callAdmin(`/events/attendance?${params.toString()}`);
+}
+
+function addAdminEventAttendee({ steamId, eventId, eventTitle, eventStart = null, eventEnd = null, addedBySteamId = null }) {
+  return callAdmin('/events/attendance/add', {
+    method: 'POST',
+    body: {
+      steamId: validateSteamId(steamId),
+      eventId,
+      eventTitle,
+      eventStart,
+      eventEnd,
+      addedBySteamId: addedBySteamId ? validateSteamId(addedBySteamId) : null,
+    },
+  });
+}
+
+function removeAdminEventAttendee({ steamId, eventId, removedBySteamId = null }) {
+  return callAdmin('/events/attendance/remove', {
+    method: 'POST',
+    body: {
+      steamId: validateSteamId(steamId),
+      eventId,
+      removedBySteamId: removedBySteamId ? validateSteamId(removedBySteamId) : null,
+    },
+  });
+}
+
+function confirmAdminEventAttendance({ steamId, eventId, confirmedBySteamId = null }) {
+  return callAdmin('/events/attendance/confirm', {
+    method: 'POST',
+    body: {
+      steamId: validateSteamId(steamId),
+      eventId,
+      confirmedBySteamId: confirmedBySteamId ? validateSteamId(confirmedBySteamId) : null,
+    },
+  });
+}
+
+function confirmAllAdminEventAttendance({ eventId, confirmedBySteamId = null }) {
+  return callAdmin('/events/attendance/confirm-all', {
+    method: 'POST',
+    body: {
+      eventId,
+      confirmedBySteamId: confirmedBySteamId ? validateSteamId(confirmedBySteamId) : null,
+    },
+  });
+}
+
+function awardAdminEventBonus({
+  steamId,
+  eventId,
+  eventTitle,
+  amount,
+  label,
+  bonusId,
+  applySupporterMultiplier = false,
+  awardedBySteamId = null,
+}) {
+  const payout = Number(amount);
+  if (!Number.isSafeInteger(payout) || payout <= 0 || payout > 1000000) {
+    throw new Error('Bonus payout must be a whole number between 1 and 1,000,000');
+  }
+  return callAdmin('/events/bonus', {
+    method: 'POST',
+    body: {
+      steamId: validateSteamId(steamId),
+      eventId,
+      eventTitle,
+      amount: payout,
+      label,
+      bonusId,
+      applySupporterMultiplier: applySupporterMultiplier === true,
+      awardedBySteamId: awardedBySteamId ? validateSteamId(awardedBySteamId) : null,
+    },
+  });
+}
+
 function getAdminOperationsStatus({ force = false } = {}) {
   return callAdmin(`/status${force ? '?force=1' : ''}`);
 }
@@ -611,6 +715,8 @@ module.exports = {
   claimDailyLoginBonus,
   getDiscordScheduledEvents,
   getEventRewards,
+  getEventAttendance,
+  setEventAttendance,
   getMapActivity,
   getPlaytimeLeaderboard,
   getCombatLeaderboard,
@@ -644,6 +750,12 @@ module.exports = {
   publishSkin,
   getAdminEventRewards,
   awardAdminEventReward,
+  getAdminEventAttendance,
+  addAdminEventAttendee,
+  removeAdminEventAttendee,
+  confirmAdminEventAttendance,
+  confirmAllAdminEventAttendance,
+  awardAdminEventBonus,
   getAdminOperationsStatus,
   getAdminAudit,
   getAdminRequests,
