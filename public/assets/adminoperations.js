@@ -83,6 +83,27 @@ function render(data) {
   text("ops-availability", health.availabilityPercent == null ? "No data" : `${health.availabilityPercent}%`);
   text("ops-health-detail", `${Number(health.samples || 0)} samples · ${Number(health.outageTransitions || 0)} outage transitions`);
 
+  const rcon = status.rconControl || {};
+  const corpseWipeReady = Boolean(rcon.configured && rcon.actionGates?.wipeCorpses);
+  const corpseState = document.getElementById("ops-corpse-wipe-state");
+  const corpseButton = document.getElementById("ops-corpse-wipe");
+  const corpseMessage = document.getElementById("ops-corpse-wipe-message");
+  if (corpseState) {
+    corpseState.textContent = corpseWipeReady ? "ARMED" : (rcon.configured ? "GATE OFF" : "RCON UNAVAILABLE");
+    corpseState.className = `ops-status-label ${corpseWipeReady ? "ready" : "attention"}`;
+  }
+  if (corpseButton) {
+    corpseButton.disabled = !corpseWipeReady;
+    corpseButton.title = corpseWipeReady
+      ? "Requires WIPE CORPSES confirmation."
+      : (rcon.configured ? "RCON corpse-wipe write gate is disabled." : "Automation RCON is not configured.");
+  }
+  if (corpseMessage && !corpseMessage.dataset.busy) {
+    corpseMessage.textContent = corpseWipeReady
+      ? 'Ready. Click Wipe Corpses and type "WIPE CORPSES" to confirm.'
+      : (rcon.configured ? "Corpse wipe is present but the backend safety gate is OFF." : "Automation RCON is not currently available.");
+  }
+
   const integrations = status.integrations || {};
   document.getElementById("ops-integrations").innerHTML = [
     ["BinaryLane presence feed", integrations.externalPresence],
@@ -223,6 +244,48 @@ document.getElementById("ops-global-bodydrop-activate")?.addEventListener("click
     await loadGlobalBodyDrop();
   } finally {
     button.textContent = "Activate Global Drop →";
+  }
+});
+
+document.getElementById("ops-corpse-wipe")?.addEventListener("click", async (event) => {
+  const confirmText = window.prompt(
+    'This removes dead bodies from the live server.\n\nType WIPE CORPSES exactly to continue:',
+    ""
+  );
+  if (confirmText === null) return;
+  if (confirmText !== "WIPE CORPSES") {
+    window.alert('Corpse wipe cancelled. The confirmation must be exactly "WIPE CORPSES".');
+    return;
+  }
+
+  const button = event.currentTarget;
+  const message = document.getElementById("ops-corpse-wipe-message");
+  button.disabled = true;
+  button.textContent = "Wiping…";
+  if (message) {
+    message.dataset.busy = "1";
+    message.textContent = "Sending corpse wipe to Evrima RCON…";
+  }
+
+  try {
+    const result = await api("/api/admin-operations/corpse-wipe", {
+      method: "POST",
+      body: JSON.stringify({ confirm: confirmText }),
+    });
+    const action = result.result || result;
+    if (message) {
+      message.textContent = action.confirmed
+        ? "Corpse wipe confirmed by the server."
+        : action.sent
+          ? "Corpse wipe sent but not confirmed. Check game state before retrying."
+          : "Corpse wipe request completed without a confirmed send.";
+    }
+  } catch (error) {
+    if (message) message.textContent = error.message || "Corpse wipe failed.";
+  } finally {
+    if (message) delete message.dataset.busy;
+    button.textContent = "Wipe Corpses";
+    await loadOperations({ force: true });
   }
 });
 
