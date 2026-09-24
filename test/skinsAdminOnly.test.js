@@ -7,22 +7,33 @@ function read(relativePath) {
   return fs.readFileSync(path.join(__dirname, "..", relativePath), "utf8");
 }
 
-test("Skin Studio API is admin-only while testing", () => {
+test("Skin Studio player routes are no longer globally admin-only", () => {
   const route = read("server/routes/skins.js");
-  assert.match(route, /router\.use\(requireAdmin\)/);
+  assert.doesNotMatch(route, /router\.use\(requireAdmin\)/);
+  assert.match(route, /router\.post\("\/studio", requireAuth/);
+  assert.match(route, /router\.post\("\/:id\/wear", requireAuth/);
+  assert.match(route, /router\.post\("\/:id\/apply", requireAuth/);
 });
 
-test("Skin Studio page cannot be reached through public page or static html routes", () => {
+test("Skin Studio page is accessible without an admin gate", () => {
   const server = read("server/index.js");
-  assert.doesNotMatch(server, /PAGE_ROUTES[^\n]*"skins"/);
   assert.match(server, /app\.get\(\["\/skins", "\/skins\.html"\]/);
-  assert.match(server, /if \(!req\.user\.is_admin\) return res\.status\(403\)/);
+  assert.doesNotMatch(server, /Admin access required/);
 });
 
-test("Skin Studio navigation is hidden by default and only revealed for admins", () => {
+test("Skin Studio navigation is visible to everyone", () => {
   const nav = read("public/partials/nav.html");
   const common = read("public/assets/common.js");
-  assert.match(nav, /id="skin-studio-nav" hidden/);
-  assert.match(common, /const skinStudioNav = document\.getElementById\("skin-studio-nav"\)/);
-  assert.match(common, /skinStudioNav\.hidden = !isAdmin/);
+  assert.match(nav, /href="\/skins" id="skin-studio-nav"/);
+  assert.doesNotMatch(nav, /id="skin-studio-nav" hidden/);
+  assert.doesNotMatch(common, /skinStudioNav\.hidden = !isAdmin/);
+});
+
+test("Admin-only skin management remains protected", () => {
+  const route = read("server/routes/skins.js");
+  assert.match(route, /router\.post\("\/external\/batch-preview", requireAdmin/);
+  assert.match(route, /router\.post\("\/:id\/grant", requireAdmin/);
+  assert.match(route, /router\.post\("\/:id\/revoke", requireAdmin/);
+  assert.match(route, /router\.get\("\/:id\/grants", requireAdmin/);
+  assert.match(route, /router\.post\("\/:id\/publish", requireAdmin/);
 });
