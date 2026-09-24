@@ -1,6 +1,6 @@
 const { api, escapeHtml } = window.HDS;
 
-const REFRESH_MS = 30_000;
+const REFRESH_MS = 17_000;
 
 // Static Gateway layer data - fetched once, then re-rendered locally whenever a
 // layer toggle changes.
