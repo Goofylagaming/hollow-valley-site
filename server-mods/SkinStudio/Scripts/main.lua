@@ -1,9 +1,9 @@
--- SkinStudio v006
+-- SkinStudio v007
 -- Hollow Valley live skin application + reconnect persistence.
 -- Commands arrive from CommandBridge as inbox.ndjson records.
 
 local MOD_NAME = "SkinStudio"
-local MOD_VERSION = "v006"
+local MOD_VERSION = "v007"
 
 local function resolveModRoot()
     local source = ""
@@ -159,6 +159,13 @@ local COLOR_KEYS = {
     "mouth", "claws", "detail1", "eyes", "maleDisplay",
 }
 
+-- TemporarySkinData is a reduced customizer payload on current EVRIMA builds.
+-- Do not write teeth/mouth/claws here; those fields are valid on CustomizerData
+-- but are not present on TemporarySkinData for every species/build.
+local TEMP_FIELD_KEYS = {
+    "maleDisplay", "markings", "body", "flank", "underbelly", "detail1", "eyes",
+}
+
 local function parseColor(raw)
     local r, g, b, a = tostring(raw or ""):match("^([%d%.]+),([%d%.]+),([%d%.]+),([%d%.]+)$")
     r, g, b, a = tonumber(r), tonumber(g), tonumber(b), tonumber(a)
@@ -273,7 +280,8 @@ local function mirrorCustomizerToTemporary(pawn, config)
 
     local failures = {}
     local writes = 0
-    for key, field in pairs(FIELD_MAP) do
+    for _, key in ipairs(TEMP_FIELD_KEYS) do
+        local field = FIELD_MAP[key]
         local ok, err = applyColor(temp, field, config.colors[key])
         if ok then
             writes = writes + 1
