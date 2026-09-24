@@ -594,10 +594,11 @@ function getAdminRequests({ limit = 50, kind = null } = {}) {
   return callAdmin(`/requests?${params.toString()}`);
 }
 
-function getAdminPresence({ limit = 50, activeOnly = false } = {}) {
+function getAdminPresence({ limit = 50, activeOnly = false, steamId = null } = {}) {
   const params = new URLSearchParams();
-  params.set('limit', String(Math.max(1, Math.min(200, Number(limit) || 50))));
+  params.set('limit', String(Math.max(1, Math.min(500, Number(limit) || 50))));
   if (activeOnly) params.set('active', '1');
+  if (steamId) params.set('steamId', validateSteamId(steamId));
   return callAdmin(`/presence?${params.toString()}`);
 }
 
