@@ -15,7 +15,7 @@ function buildWearTokens(preset) {
   const paletteOnly = /fangs\s*&\s*ferns/i.test(String(preset.description || ''));
   return [
     `preset=${preset.id}`,
-    `species=${skinPresets.validateSpecies(preset.species)}`,
+    ...(String(preset.species).toLowerCase() === 'universal' ? [] : [`species=${skinPresets.validateSpecies(preset.species)}`]),
     ...skinPresets.COLOR_KEYS.map((key) => encodeColor(key, skin[key])),
     `variation=${skin.skinVariation}`,
     `pattern=${skin.patternIndex}`,
