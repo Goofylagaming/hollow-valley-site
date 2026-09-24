@@ -232,3 +232,155 @@ test('official fulfillment requires both write gates', (t) => {
   process.env.OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED = 'false';
   assert.equal(fixture.fulfillment.enabled(), false);
 });
+
+
+function loadBridgeFixture() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hv-official-market-bridge-'));
+  const previous = {
+    db: process.env.AUTOMATION_DB_PATH,
+    writes: process.env.MARKETPLACE_WRITE_ENABLED,
+    fulfillment: process.env.OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED,
+    transport: process.env.COMMAND_BRIDGE_TRANSPORT,
+    enabled: process.env.COMMAND_BRIDGE_ENABLED,
+    ack: process.env.COMMAND_BRIDGE_SINGLE_PUBLISHER_ACK,
+  };
+
+  process.env.AUTOMATION_DB_PATH = path.join(dir, 'economy.sqlite');
+  process.env.MARKETPLACE_WRITE_ENABLED = 'true';
+  process.env.OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED = 'true';
+  process.env.COMMAND_BRIDGE_TRANSPORT = 'http_pull';
+  process.env.COMMAND_BRIDGE_ENABLED = 'true';
+  process.env.COMMAND_BRIDGE_SINGLE_PUBLISHER_ACK = 'automation-platform-is-sole-publisher';
+
+  const storePath = require.resolve('../src/services/economyStore');
+  const marketPath = require.resolve('../src/services/marketplaceService');
+  const catalogPath = require.resolve('../src/services/officialMarketplaceCatalogService');
+  const fulfillPath = require.resolve('../src/services/officialMarketplaceFulfillmentService');
+  const bridgePath = require.resolve('../src/services/commandBridgeService');
+  const httpPath = require.resolve('../src/services/commandBridgeHttpService');
+  const filePath = require.resolve('../src/services/parkedDinoFileService');
+
+  for (const modulePath of [storePath, marketPath, catalogPath, fulfillPath, bridgePath, httpPath, filePath]) {
+    delete require.cache[modulePath];
+  }
+
+  const requests = new Map();
+  let sequence = 0;
+  require.cache[bridgePath] = {
+    id: bridgePath,
+    filename: bridgePath,
+    loaded: true,
+    exports: {
+      getTransport() { return 'http_pull'; },
+      buildCommand(verb, steam, args) {
+        sequence += 1;
+        return { id: `bridge-${sequence}`, ts: Math.floor(Date.now() / 1000), verb, steam, args: { args } };
+      },
+      async queueCommand(command) {
+        requests.set(command.id, {
+          id: command.id,
+          status: 'pending',
+          result_json: null,
+          command: JSON.parse(JSON.stringify(command)),
+        });
+        return command;
+      },
+    },
+  };
+  require.cache[httpPath] = {
+    id: httpPath,
+    filename: httpPath,
+    loaded: true,
+    exports: {
+      getRequest(id) { return requests.get(id) || null; },
+    },
+  };
+  require.cache[filePath] = {
+    id: filePath,
+    filename: filePath,
+    loaded: true,
+    exports: {
+      storedExists() { throw new Error('legacy file bridge must not be used'); },
+      readStoredDino() { throw new Error('legacy file bridge must not be used'); },
+      createStoredDino() { throw new Error('legacy file bridge must not be used'); },
+    },
+  };
+
+  const store = require(storePath);
+  const marketplace = require(marketPath);
+  const catalog = require(catalogPath);
+  const fulfillment = require(fulfillPath);
+
+  return {
+    store,
+    marketplace,
+    catalog,
+    fulfillment,
+    requests,
+    cleanup() {
+      for (const modulePath of [storePath, marketPath, catalogPath, fulfillPath, bridgePath, httpPath, filePath]) {
+        delete require.cache[modulePath];
+      }
+      for (const [key, value] of Object.entries(previous)) {
+        const envKey = {
+          db: 'AUTOMATION_DB_PATH',
+          writes: 'MARKETPLACE_WRITE_ENABLED',
+          fulfillment: 'OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED',
+          transport: 'COMMAND_BRIDGE_TRANSPORT',
+          enabled: 'COMMAND_BRIDGE_ENABLED',
+          ack: 'COMMAND_BRIDGE_SINGLE_PUBLISHER_ACK',
+        }[key];
+        if (value === undefined) delete process.env[envKey];
+        else process.env[envKey] = value;
+      }
+      fs.rmSync(dir, { recursive: true, force: true });
+    },
+  };
+}
+
+test('BinaryLane HTTP-pull fulfillment queues a local DinoStorage grant and waits for proof', async (t) => {
+  const fixture = loadBridgeFixture();
+  t.after(fixture.cleanup);
+  const purchase = fundAndBuy(fixture, '76561198000000611');
+
+  const queued = await fixture.fulfillment.fulfillOrder(purchase.order.id);
+  assert.equal(queued.pending, true);
+  assert.equal(queued.queued, true);
+
+  const progress = fixture.store.getOrder(purchase.order.id).fulfillment;
+  assert.equal(progress.transport, 'command_bridge');
+  assert.ok(progress.commandId);
+
+  const row = fixture.requests.get(progress.commandId);
+  assert.equal(row.command.verb, 'dino_grant');
+  assert.equal(row.command.steam, '76561198000000611');
+  assert.equal(row.command.args.args[0], fixture.fulfillment.slotForOrder(purchase.order.id));
+  assert.equal(row.command.args.args[1], '/Game/TheIsle/Core/Characters/Dinosaurs/Carnotaurus/BP_Carnotaurus.BP_Carnotaurus_C');
+  assert.equal(row.command.args.args[2], '0.750000');
+  assert.equal(row.command.args.args[4], purchase.order.id);
+
+  assert.equal(fixture.store.getOrder(purchase.order.id).status, 'pending');
+});
+
+test('BinaryLane DinoStorage grant confirmation marks the official order fulfilled', async (t) => {
+  const fixture = loadBridgeFixture();
+  t.after(fixture.cleanup);
+  const purchase = fundAndBuy(fixture, '76561198000000612');
+
+  await fixture.fulfillment.fulfillOrder(purchase.order.id);
+  const progress = fixture.store.getOrder(purchase.order.id).fulfillment;
+  const row = fixture.requests.get(progress.commandId);
+  row.status = 'completed';
+  row.result_json = JSON.stringify({
+    id: progress.commandId,
+    source: 'DinoStorage',
+    steam: purchase.order.steam_id,
+    ok: true,
+    msg: 'marketplace slot created',
+  });
+
+  const result = await fixture.fulfillment.fulfillOrder(purchase.order.id);
+  assert.equal(result.order.status, 'fulfilled');
+  assert.equal(result.order.fulfillment.transport, 'command_bridge');
+  assert.equal(result.order.fulfillment.slot, fixture.fulfillment.slotForOrder(purchase.order.id));
+});
