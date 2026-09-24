@@ -14,12 +14,29 @@
       <section class="page-header">
         <p class="overline green">VALLEY COIN</p>
         <h1>Your wallet.</h1>
-        <p class="section-intro">Your Steam-linked balance, current earning rate, payout progress and recent Valley Coin activity.</p>
+        <p class="section-intro">Your account dashboard, Valley Coin balance, earning rate, storage and supporter status in one place.</p>
       </section>
 
       <section class="wallet-section">
         <div id="wallet-guard"><p class="section-intro">Sign in with Steam to view your wallet.</p></div>
         <div id="wallet-content" hidden>
+          <div class="summary-grid">
+            <div class="summary-tile"><small>DINOS IN STORAGE</small><b id="wallet-dino-count">0</b></div>
+            <div class="summary-tile"><small>SUPPORTER STATUS</small><b id="wallet-supporter">None</b></div>
+            <div class="summary-tile"><small>SUPPORTER MULTIPLIER</small><b id="wallet-dashboard-multiplier">×1</b></div>
+            <div class="summary-tile"><small>DAILY BONUS</small><b id="wallet-bonus-state">Ready</b></div>
+          </div>
+          <div class="page-toolbar">
+            <button class="small-button" id="wallet-claim-daily">Roll daily bonus</button>
+          </div>
+          <div id="wallet-admin-panel" hidden>
+            <div class="list-heading"><span>ADMIN · VALLEY COIN</span></div>
+            <div class="page-toolbar">
+              <input id="wallet-admin-amount" type="number" min="1" max="1000000" step="1" value="10000" aria-label="Valley Coin amount">
+              <button class="small-button" id="wallet-admin-credit">Credit my wallet</button>
+              <span id="wallet-admin-result"></span>
+            </div>
+          </div>
           <div class="wallet-balance wallet-balance-v2">
             <small>CURRENT BALANCE</small>
             <b id="wallet-balance">0</b>
@@ -39,7 +56,7 @@
             <small id="wallet-progress-text">0s / 5m verified</small>
           </div>
 
-          <div class="list-heading wallet-activity-heading"><span>RECENT WALLET ACTIVITY</span></div>
+          <div class="list-heading wallet-activity-heading"><span>RECENT ACTIVITY</span></div>
           <div class="activity-list" id="wallet-transactions">
             <div class="empty-roster"><strong>No transactions yet</strong><span>Your Valley Coin earnings and spending will appear here.</span></div>
           </div>
@@ -49,6 +66,6 @@
     <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="/assets/common.js?v=16"></script>
-  <script src="/assets/wallet.js?v=1"></script>
+  <script src="/assets/wallet.js?v=2"></script>
 </body>
 </html>
