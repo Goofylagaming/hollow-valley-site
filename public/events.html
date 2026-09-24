@@ -55,10 +55,13 @@
           <div class="event-admin-status" id="event-admin-status">Loading attendance reward settings…</div>
 
           <div class="event-admin-selected">
-            <div>
+            <div class="event-admin-event-picker">
               <small>SELECTED EVENT</small>
+              <select id="event-admin-event-select">
+                <option value="">Choose an event…</option>
+              </select>
               <strong id="event-admin-selected-title">Choose an event above</strong>
-              <span id="event-admin-selected-time">Use “Manage attendance” on an event card.</span>
+              <span id="event-admin-selected-time">Use “Manage attendance” on an event card, or choose a saved attendance event.</span>
             </div>
             <button class="small-button" id="event-confirm-all" type="button" disabled>✓ Confirm all attendees</button>
           </div>
