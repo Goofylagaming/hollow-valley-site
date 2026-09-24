@@ -133,8 +133,6 @@ window.HDS = (function () {
     const isAdmin = Boolean(me?.user?.is_admin);
     const adminNavGroup = document.getElementById("admin-nav-group");
     if (adminNavGroup) adminNavGroup.hidden = !isAdmin;
-    const skinStudioNav = document.getElementById("skin-studio-nav");
-    if (skinStudioNav) skinStudioNav.hidden = !isAdmin;
     await claimDailyLoginBonus(me);
 
     document.getElementById("auth-area")?.addEventListener("click", (event) => {
