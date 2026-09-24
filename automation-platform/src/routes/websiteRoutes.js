@@ -481,6 +481,20 @@ router.post('/skins/from-stored', async (req, res) => {
   }
 });
 
+router.delete('/skins/:presetId', async (req, res) => {
+  try {
+    const steamId = validateSteamId(req.body?.steamId);
+    const result = await audit.run('website', 'skin_preset_delete', {
+      steamId,
+      presetId: req.params.presetId,
+    }, async () => skinPresets.deletePreset({ steamId, presetId: req.params.presetId }));
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    const status = error.code === 'SKIN_PRESET_NOT_FOUND' ? 404 : 400;
+    res.status(status).json({ error: error.message || 'Unable to delete skin preset.', code: error.code || null });
+  }
+});
+
 router.post('/skins/:presetId/buy', async (req, res) => {
   try {
     const steamId = validateSteamId(req.body?.steamId);
