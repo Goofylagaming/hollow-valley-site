@@ -364,6 +364,15 @@ function buySkin({ steamId, presetId, idempotencyKey }) {
   });
 }
 
+function deleteSkin({ steamId, presetId }) {
+  const id = String(presetId || '').trim();
+  if (!/^[A-Za-z0-9_-]{8,128}$/.test(id)) throw new Error('Invalid skin preset ID');
+  return call(`/skins/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    body: { steamId: validateSteamId(steamId) },
+  });
+}
+
 function wearSkin({ steamId, presetId }) {
   const id = String(presetId || '').trim();
   if (!/^[A-Za-z0-9_-]{8,128}$/.test(id)) throw new Error('Invalid skin preset ID');
@@ -549,6 +558,7 @@ module.exports = {
   importSharedSkin,
   getSharedSkin,
   buySkin,
+  deleteSkin,
   wearSkin,
   publishSkin,
   getAdminEventRewards,
