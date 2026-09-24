@@ -257,7 +257,7 @@ async function confirmAttendance({
     throw error;
   }
 
-  const base = attendanceBaseAmount(env);
+  let base = attendanceBaseAmount(env);
   const idempotencyKey = `event-attendance:${id}:${steam}`;
   const existing = economy.getLedgerByIdempotency(idempotencyKey);
 
@@ -270,6 +270,7 @@ async function confirmAttendance({
 
   if (existing) {
     const metadata = existing.metadata || {};
+    base = Number(metadata.baseAmount || base);
     membership = {
       tier: metadata.supporterTier || null,
       entitled: Boolean(metadata.supporterTier),
