@@ -132,7 +132,7 @@ async function awardReward({
 function listRewards({ steamId = null, limit = 100 } = {}) {
   const safeLimit = Math.max(1, Math.min(500, Number(limit) || 100));
   const params = [];
-  let where = "kind = 'event_reward'";
+  let where = "kind IN ('event_reward','event_attendance_reward','event_bonus_reward')";
 
   if (steamId) {
     where += ' AND steam_id = ?';
