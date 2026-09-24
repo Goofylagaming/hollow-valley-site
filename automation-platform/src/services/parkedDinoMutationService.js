@@ -153,7 +153,13 @@ async function updateMutations({ steamId, slot, mutations }) {
     values: nextSlots,
   });
 
-  const updated = await dinoStorage.getStoredDino(steam, selectedSlot);
+  const updated = {
+    ...state,
+    mutations: {
+      ...(state.mutations && typeof state.mutations === 'object' ? state.mutations : {}),
+      ...nextSlots,
+    },
+  };
   return editorState(updated, selectedSlot);
 }
 
