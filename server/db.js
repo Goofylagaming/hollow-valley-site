@@ -766,7 +766,7 @@ function sendFriendRequest(senderSteamId, receiverSteamId) {
     WHERE sender_steam_id = ? AND receiver_steam_id = ? AND status = 'pending'
   `).get(receiver, sender);
   if (reciprocal) {
-    return acceptFriendRequest(receiver, reciprocal.id);
+    return acceptFriendRequest(sender, reciprocal.id);
   }
 
   db.prepare(`
