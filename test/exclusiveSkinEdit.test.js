@@ -95,3 +95,23 @@ test("non-owner players without an exclusive grant still cannot edit the skin", 
     skin: skin(0.9),
   }), /not editable|not found/i);
 });
+
+
+test("granted exclusive can be deleted from one player's library without deleting the master skin", () => {
+  const result = skins.deletePreset({ steamId: PLAYER, presetId: PRESET_ID });
+  assert.equal(result.deleted, true);
+  assert.equal(result.grantRemoved, true);
+
+  const master = store.getSkinPreset(PRESET_ID);
+  assert.equal(master.active, true);
+  assert.equal(master.name, "Original Exclusive");
+  assert.equal(store.hasSkinGrant(PLAYER, PRESET_ID), false);
+
+  assert.throws(
+    () => skins.getPresetForPlayer(PLAYER, PRESET_ID),
+    /not found|not unlocked/i
+  );
+
+  const ownerView = skins.getPresetForPlayer(OWNER, PRESET_ID);
+  assert.equal(ownerView.name, "Original Exclusive");
+});
