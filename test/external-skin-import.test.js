@@ -8,6 +8,7 @@ test("parses current Fangs & Ferns seven-zone share codes", () => {
     "FNF-TYRA-AB09E · C42021-2A3A4F-B09E7E-9A5A2C-E6DAB8-FFB347-FF6A1F"
   );
   assert.equal(parsed.source, "fangs-ferns");
+  assert.equal(parsed.speciesCode, "TYRA");
   assert.deepEqual(Object.keys(parsed.skinPatch), [
     "maleDisplay", "markings", "body", "flank", "underbelly", "detail1", "eyes",
   ]);
