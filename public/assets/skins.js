@@ -265,7 +265,7 @@ function wireCardActions(root) {
     const selectedDino = storedDinos.find((dino) => String(dino.slot || dino.name || "") === slot);
     const presetSpecies = String(button.dataset.species || "").trim();
     const dinoSpecies = String(selectedDino?.species || selectedDino?.speciesId || "").trim();
-    if (presetSpecies && dinoSpecies && presetSpecies.toLowerCase() !== dinoSpecies.toLowerCase()) {
+    if (presetSpecies && presetSpecies.toLowerCase() !== "universal" && dinoSpecies && presetSpecies.toLowerCase() !== dinoSpecies.toLowerCase()) {
       return showAlert(`This skin is for ${presetSpecies}, but the selected parked dinosaur is ${dinoSpecies}.`, "warning");
     }
 
@@ -467,12 +467,12 @@ function wireTabs() {
 async function initSpecies() {
   speciesList = await api("/api/species");
   const options = speciesList.map((species) => `<option value="${escapeHtml(species.id)}">${escapeHtml(species.name)}</option>`).join("");
-  document.getElementById("skin-species").innerHTML = options;
+  document.getElementById("skin-species").innerHTML = '<option value="Universal">Universal / Any Species</option>' + options;
   document.getElementById("skin-store-species").innerHTML = '<option value="">All species</option>' + options;
   const externalSpecies = document.getElementById("skin-external-species");
-  if (externalSpecies) externalSpecies.innerHTML = options;
+  if (externalSpecies) externalSpecies.innerHTML = '<option value="Universal">Universal / Any Species</option>' + options;
   const librarySpecies = document.getElementById("skin-library-species");
-  if (librarySpecies) librarySpecies.innerHTML = options;
+  if (librarySpecies) librarySpecies.innerHTML = '<option value="Universal">Universal / Any Species</option>' + options;
   updatePreview();
 }
 
@@ -651,7 +651,7 @@ document.getElementById("skin-external-load")?.addEventListener("click", async (
     });
     applySkinToEditor(result.skin);
 
-    const selectedTargetSpecies = targetSpecies || document.getElementById("skin-species").value;
+    const selectedTargetSpecies = targetSpecies || "Universal";
     if (selectedTargetSpecies) {
       document.getElementById("skin-species").value = selectedTargetSpecies;
     }
