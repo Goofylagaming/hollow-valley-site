@@ -1,4 +1,4 @@
-const files = require('./parkedDinoFileService');
+const dinoStorage = require('./dinoStorageService');
 
 const SLOT_KEYS = Object.freeze(['Slot1', 'Slot2', 'Slot3', 'Slot4']);
 
@@ -128,9 +128,9 @@ function editorState(state, slot) {
 }
 
 async function getMutationEditor(steamId, slot) {
-  const steam = files.validateSteamId(steamId);
-  const selectedSlot = files.validateSlot(slot);
-  const state = await files.readStoredDino(steam, selectedSlot);
+  const steam = dinoStorage.validateSteamId(steamId);
+  const selectedSlot = dinoStorage.validateSlot(slot);
+  const state = await dinoStorage.getStoredDino(steam, selectedSlot);
   return editorState(state, selectedSlot);
 }
 
@@ -141,22 +141,19 @@ async function updateMutations({ steamId, slot, mutations }) {
     throw error;
   }
 
-  const steam = files.validateSteamId(steamId);
-  const selectedSlot = files.validateSlot(slot);
+  const steam = dinoStorage.validateSteamId(steamId);
+  const selectedSlot = dinoStorage.validateSlot(slot);
+  const state = await dinoStorage.getStoredDino(steam, selectedSlot);
+  const nextSlots = normalizeSlots(mutations, { isFemale: state?.isFemale === true });
 
-  const updated = await files.updateStoredDino(steam, selectedSlot, (state) => {
-    const nextSlots = normalizeSlots(mutations, { isFemale: state?.isFemale === true });
-    if (!state.mutations || typeof state.mutations !== 'object' || Array.isArray(state.mutations)) {
-      state.mutations = {};
-    }
-    for (const key of SLOT_KEYS) state.mutations[key] = nextSlots[key];
-    state.websiteEdits = {
-      ...(state.websiteEdits && typeof state.websiteEdits === 'object' ? state.websiteEdits : {}),
-      mutationsEditedAt: new Date().toISOString(),
-    };
-    return state;
+  await dinoStorage.editStoredDino({
+    steamId: steam,
+    slot: selectedSlot,
+    mode: 'mutations',
+    values: nextSlots,
   });
 
+  const updated = await dinoStorage.getStoredDino(steam, selectedSlot);
   return editorState(updated, selectedSlot);
 }
 
