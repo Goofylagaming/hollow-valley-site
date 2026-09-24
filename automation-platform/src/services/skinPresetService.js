@@ -1,6 +1,6 @@
 const { randomBytes, randomUUID } = require('node:crypto');
 const store = require('./economyStore');
-const files = require('./parkedDinoFileService');
+const dinoStorage = require('./dinoStorageService');
 
 const COLOR_KEYS = Object.freeze([
   'body',
@@ -231,14 +231,14 @@ async function createPresetFromStored({ steamId, slot, name, idempotencyKey }) {
   }
 
   const steam = store.validateSteamId(steamId);
-  const selectedSlot = files.validateSlot(slot);
+  const selectedSlot = dinoStorage.validateSlot(slot);
   const presetName = validateName(name);
   const requestKey = validateIdempotencyKey(idempotencyKey);
   const createKey = `skin-stored:${steam}:${requestKey}`;
   const existingPreset = store.getSkinPresetByCreateKey(createKey);
   if (existingPreset) return { duplicate: true, preset: existingPreset, wallet: store.getWallet(steam) };
 
-  const state = await files.readStoredDino(steam, selectedSlot);
+  const state = await dinoStorage.getStoredDino(steam, selectedSlot);
   const skin = sanitizeSkin(state.skin);
   const species = speciesFromClassPath(state.classPath);
   const cost = createCost();
@@ -525,6 +525,19 @@ async function importSharedPreset({ steamId, shareCode, idempotencyKey }) {
   return { duplicate: false, preset };
 }
 
+function parkedSkinTokens(skinInput) {
+  const skin = sanitizeSkin(skinInput);
+  const values = {};
+  for (const key of COLOR_KEYS) {
+    const color = skin[key];
+    values[key] = ['r','g','b','a'].map((channel) => Number(color[channel]).toFixed(6)).join(',');
+  }
+  values.skinVariation = Number(skin.skinVariation);
+  values.patternIndex = Number(skin.patternIndex);
+  values.themeIndex = Number(skin.themeIndex);
+  return values;
+}
+
 async function applyPreset({ steamId, slot, presetId }) {
   if (!applyEnabled()) {
     const error = new Error('Applying skins to parked dinosaurs is disabled');
@@ -533,25 +546,26 @@ async function applyPreset({ steamId, slot, presetId }) {
   }
 
   const steam = store.validateSteamId(steamId);
-  const selectedSlot = files.validateSlot(slot);
+  const selectedSlot = dinoStorage.validateSlot(slot);
   const preset = getPresetForPlayer(steam, presetId);
+  const state = await dinoStorage.getStoredDino(steam, selectedSlot);
+  const targetSpecies = speciesFromClassPath(state.classPath);
 
-  const updated = await files.updateStoredDino(steam, selectedSlot, (state) => {
-    const targetSpecies = speciesFromClassPath(state.classPath);
-    if (String(preset.species).toLowerCase() !== 'universal' && targetSpecies.toLowerCase() !== String(preset.species).toLowerCase()) {
-      const error = new Error(`This skin preset is for ${preset.species}, not ${targetSpecies}`);
-      error.code = 'SKIN_SPECIES_MISMATCH';
-      throw error;
-    }
-    state.skin = JSON.parse(JSON.stringify(preset.skin));
-    state.websiteEdits = {
-      ...(state.websiteEdits && typeof state.websiteEdits === 'object' ? state.websiteEdits : {}),
-      skinAppliedAt: new Date().toISOString(),
-      skinPresetId: preset.id,
-    };
-    return state;
+  if (String(preset.species).toLowerCase() !== 'universal' &&
+      targetSpecies.toLowerCase() !== String(preset.species).toLowerCase()) {
+    const error = new Error(`This skin preset is for ${preset.species}, not ${targetSpecies}`);
+    error.code = 'SKIN_SPECIES_MISMATCH';
+    throw error;
+  }
+
+  await dinoStorage.editStoredDino({
+    steamId: steam,
+    slot: selectedSlot,
+    mode: 'skin',
+    values: parkedSkinTokens(preset.skin),
   });
 
+  const updated = await dinoStorage.getStoredDino(steam, selectedSlot);
   return {
     preset,
     slot: selectedSlot,
