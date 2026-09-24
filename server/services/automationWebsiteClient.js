@@ -400,6 +400,34 @@ function wearSkin({ steamId, presetId }) {
   });
 }
 
+function grantExclusiveSkin({ presetId, steamId, grantedBySteamId = null, note = '' }) {
+  const id = String(presetId || '').trim();
+  if (!/^[A-Za-z0-9_-]{8,128}$/.test(id)) throw new Error('Invalid skin preset ID');
+  return call(`/skins/${encodeURIComponent(id)}/grant`, {
+    method: 'POST',
+    body: {
+      steamId: validateSteamId(steamId),
+      grantedBySteamId: grantedBySteamId ? validateSteamId(grantedBySteamId) : null,
+      note: String(note || '').trim().slice(0, 240),
+    },
+  });
+}
+
+function revokeExclusiveSkin({ presetId, steamId }) {
+  const id = String(presetId || '').trim();
+  if (!/^[A-Za-z0-9_-]{8,128}$/.test(id)) throw new Error('Invalid skin preset ID');
+  return call(`/skins/${encodeURIComponent(id)}/revoke`, {
+    method: 'POST',
+    body: { steamId: validateSteamId(steamId) },
+  });
+}
+
+function listExclusiveSkinGrants(presetId) {
+  const id = String(presetId || '').trim();
+  if (!/^[A-Za-z0-9_-]{8,128}$/.test(id)) throw new Error('Invalid skin preset ID');
+  return call(`/skins/${encodeURIComponent(id)}/grants`);
+}
+
 function publishSkin({ presetId, price, description, published = true }) {
   const id = String(presetId || '').trim();
   if (!/^[A-Za-z0-9_-]{8,128}$/.test(id)) throw new Error('Invalid skin preset ID');
@@ -580,6 +608,9 @@ module.exports = {
   updateSkin,
   deleteSkin,
   wearSkin,
+  grantExclusiveSkin,
+  revokeExclusiveSkin,
+  listExclusiveSkinGrants,
   publishSkin,
   getAdminEventRewards,
   awardAdminEventReward,
