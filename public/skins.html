@@ -50,7 +50,7 @@
             <div class="skin-editor-card">
               <div class="list-heading"><span>DESIGN SETTINGS</span><span id="skin-system-state">Checking…</span></div>
               <div class="skin-editor-fields">
-                <label>Species<select id="skin-species"></select></label>
+                <label>Compatibility<select id="skin-species"></select></label>
                 <label>Skin name<input id="skin-name" maxlength="60" placeholder="e.g. Ashen Valley"></label>
                 <label class="wide">Description<input id="skin-description" maxlength="240" placeholder="Short description for the shop or share page"></label>
                 <label>Pattern index<input id="skin-pattern" type="number" min="0" max="65535" value="0"></label>
@@ -119,7 +119,7 @@
 
           <div class="skin-editor-card">
             <div class="skin-editor-fields">
-              <label>Target species<select id="skin-library-species"></select></label>
+              <label>Compatibility<select id="skin-library-species"></select></label>
               <label>Draft name prefix<input id="skin-library-prefix" maxlength="50" value="Imported Skin" placeholder="e.g. Rex Collection"></label>
             </div>
             <textarea id="skin-library-batch" class="comms-textarea" maxlength="60000" spellcheck="false" placeholder="Paste up to 50 Fangs & Ferns codes (one per line), a Dino Den-style JSON array, or separated JSON blocks."></textarea>
@@ -158,7 +158,7 @@
               <h2>External skin code.</h2>
               <p class="section-intro">Paste a Fangs & Ferns share code or Dino Den-style JSON code. Choose the Hollow Valley target species yourself; FNF species prefixes are treated as source metadata, so the same palette can be tested across species.</p>
               <div class="skin-editor-fields">
-                <label class="wide">Target species<select id="skin-external-species"></select></label>
+                <label class="wide">Compatibility<select id="skin-external-species"></select></label>
               </div>
               <textarea id="skin-external-code" class="comms-textarea" maxlength="12000" spellcheck="false" placeholder="FNF-TYRA-... · HEX-HEX-...  or  {&quot;PatternIndex&quot;:3,&quot;BodyColor&quot;:{...}}"></textarea>
               <div class="skin-editor-actions">
@@ -179,6 +179,6 @@
 
   <script src="assets/common.js?v=16"></script>
   <script src="assets/external-skin-import.js?v=4"></script>
-  <script src="assets/skins.js?v=13"></script>
+  <script src="assets/skins.js?v=14"></script>
 </body>
 </html>
