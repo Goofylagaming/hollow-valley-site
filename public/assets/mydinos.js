@@ -158,9 +158,12 @@ function renderDinoCard(dino) {
   const mutations = Array.isArray(dino.mutationList) ? dino.mutationList : [];
   const storedAt = dino.capturedAt ? new Date(Number(dino.capturedAt) * 1000).toLocaleString() : "Unknown time";
   const listing = listingForSlot(dino.slot);
+  const scrap = dino.scrap || {};
   const sellAction = listing
     ? `<button class="btn-dino-action sell" disabled>◇ Listed · ${Number(listing.price).toLocaleString()} Valley Coin</button>`
     : `<button class="btn-dino-action sell stored-sell" data-slot="${escapeHtml(dino.slot)}" ${marketplaceState.p2pWritesEnabled ? "" : "disabled"}>◇ ${marketplaceState.p2pWritesEnabled ? "List for Sale" : "Player Selling Coming Online"}</button>`;
+  const scrapAction = `<button class="btn-dino-action prime stored-scrap" data-slot="${escapeHtml(dino.slot)}" ${listing || !scrap.enabled ? "disabled" : ""}>♻ ${listing ? "Listed dinos cannot be scrapped" : scrap.enabled ? `Scrap · ${Number(scrap.payout || 0).toLocaleString()} VC` : (scrap.reason || "Scrap unavailable")}</button>`;
+  const deleteAction = `<button class="btn-dino-action danger stored-delete" data-slot="${escapeHtml(dino.slot)}" ${listing ? "disabled" : ""}>✕ Delete</button>`;
 
   return `
     <article class="dino-card-v2 storage-dino-card" data-prime="${dino.isPrime ? "true" : "false"}">
@@ -190,6 +193,8 @@ function renderDinoCard(dino) {
         <button class="btn-dino-action parked-tool" data-tool="mutations" data-slot="${escapeHtml(dino.slot)}" ${listing ? "disabled" : ""}>🧬 Mutations</button>
         <button class="btn-dino-action parked-tool" data-tool="skins" data-slot="${escapeHtml(dino.slot)}" ${listing ? "disabled" : ""}>◈ Skins</button>
         ${sellAction}
+        ${scrapAction}
+        ${deleteAction}
       </div>
     </article>`;
 }
@@ -413,6 +418,48 @@ function wireStorageActions(grid) {
         await refresh();
       } catch (err) {
         alert(err.message || "Failed to list dino");
+        await refresh();
+      }
+    });
+  });
+
+
+  grid.querySelectorAll(".stored-scrap:not([disabled])").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const slot = button.dataset.slot;
+      const dino = storedDinos.find((item) => item.slot === slot);
+      if (!dino) return;
+      const payout = Number(dino.scrap?.payout || 0);
+      if (!payout) return alert("This dinosaur does not currently have a scrap value.");
+      if (!confirm(`Scrap your parked ${dino.species} for ${payout.toLocaleString()} Valley Coin?\n\nThe dinosaur will be permanently deleted. This cannot be undone.`)) return;
+      button.disabled = true;
+      button.textContent = "Scrapping...";
+      try {
+        const result = await api(`/api/mydinos/stored/${encodeURIComponent(slot)}/scrap`, { method: "POST" });
+        const balance = Number(result.wallet?.balance);
+        alert(`${result.species || dino.species} scrapped for ${Number(result.payout || payout).toLocaleString()} Valley Coin.${Number.isFinite(balance) ? `\nNew balance: ${balance.toLocaleString()} VC` : ""}`);
+        await refresh();
+      } catch (err) {
+        alert(err.message || "Could not scrap dinosaur.");
+        await refresh();
+      }
+    });
+  });
+
+  grid.querySelectorAll(".stored-delete:not([disabled])").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const slot = button.dataset.slot;
+      const dino = storedDinos.find((item) => item.slot === slot);
+      if (!dino) return;
+      if (!confirm(`Permanently DELETE your parked ${dino.species}?\n\nYou will receive NO Valley Coin. This cannot be undone.`)) return;
+      button.disabled = true;
+      button.textContent = "Deleting...";
+      try {
+        await api(`/api/mydinos/stored/${encodeURIComponent(slot)}/delete`, { method: "POST" });
+        alert(`${dino.species} permanently deleted.`);
+        await refresh();
+      } catch (err) {
+        alert(err.message || "Could not delete dinosaur.");
         await refresh();
       }
     });
