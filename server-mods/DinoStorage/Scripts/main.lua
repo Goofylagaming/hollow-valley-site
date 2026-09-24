@@ -1,12 +1,12 @@
--- DinoStorage v004
+-- DinoStorage v005
 -- Store/retrieve dino state across respawns.
 -- All commands are Discord-only via IPC (cmd.flag).
--- IPC verbs: store, retrieve, delete, list
+-- IPC verbs: store, retrieve, delete, list, grant
 --
 -- Website-backed multi-slot storage with exact state round-tripping.
 
 local MOD_NAME    = "DinoStorage"
-local MOD_VERSION = "v004"
+local MOD_VERSION = "v005"
 
 local function resolveModRoot()
     local source = ""
@@ -658,6 +658,65 @@ local function deleteSlot(steam, slot)
     return os.remove(path)
 end
 
+local function validSteamId(steam)
+    return type(steam) == "string" and steam:match("^%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d$") ~= nil
+end
+
+local function validClassPath(classPath)
+    if type(classPath) ~= "string" then return false end
+    return classPath:match("^/Game/TheIsle/Core/Characters/Dinosaurs/[%w_]+/BP_[%w_]+%.BP_[%w_]+_C$") ~= nil
+end
+
+local function marketplaceOrderIdFromBody(body)
+    return jsonReadString(body or "", "orderId")
+end
+
+local function writeMarketplaceGrant(steam, slot, classPath, growth, isPrime, orderId, catalogId, speciesId)
+    if not validSteamId(steam) then return false, "invalid Steam ID" end
+    if not validSlotName(slot) then return false, "invalid slot name" end
+    if not validClassPath(classPath) then return false, "invalid class path" end
+    growth = tonumber(growth)
+    if growth == nil or growth <= 0 or growth > 1 then return false, "invalid growth" end
+    if type(orderId) ~= "string" or orderId == "" or #orderId > 80 then return false, "invalid marketplace order ID" end
+
+    local path = slotFile(steam, slot)
+    if fileExists(path) then
+        local existing = readAll(path) or ""
+        if marketplaceOrderIdFromBody(existing) == orderId then
+            return true, "marketplace slot already exists for this order"
+        end
+        return false, "target slot contains another dinosaur"
+    end
+
+    ensureDir(playerDir(steam))
+    local prime = tostring(isPrime or "") == "1"
+    local parts = {
+        "{",
+        '  "version": 2,',
+        string.format('  "slot": "%s",', jsonEscape(slot)),
+        string.format('  "capturedAt": %d,', os.time()),
+        string.format('  "classPath": "%s",', jsonEscape(classPath)),
+        string.format('  "growth": %.6f,', growth),
+    }
+
+    if prime then
+        parts[#parts+1] = '  "isPrime": true,'
+        parts[#parts+1] = '  "primeData": {"eligible":true,"cond1":true,"cond2":true},'
+    end
+
+    parts[#parts+1] = '  "marketplacePurchase": {'
+    parts[#parts+1] = string.format('    "orderId": "%s",', jsonEscape(orderId))
+    parts[#parts+1] = string.format('    "catalogId": "%s",', jsonEscape(catalogId or ""))
+    parts[#parts+1] = string.format('    "speciesId": "%s"', jsonEscape(speciesId or ""))
+    parts[#parts+1] = "  }"
+    parts[#parts+1] = "}"
+
+    if not writeAllAtomic(path, table.concat(parts, "\n")) then
+        return false, "marketplace slot write failed"
+    end
+    return true, "marketplace slot created: " .. slot
+end
+
 -- Lists the .json slot filenames in a player's stored directory by shelling
 -- out to `dir /b`. There is no native directory-listing API in this Lua
 -- environment, but os.execute (used by ensureDir for mkdir) proves shelling
@@ -1284,6 +1343,19 @@ local function pollCmdFlag()
                     deleteSlot(steam, slot)
                     ok = true; msg = "slot deleted"
                 end
+            elseif verb == "grant" then
+                local slot = extraArgs[1]
+                local classPath = extraArgs[2]
+                local growth = extraArgs[3]
+                local isPrime = extraArgs[4]
+                local orderId = extraArgs[5]
+                local catalogId = extraArgs[6]
+                local speciesId = extraArgs[7]
+                ok, msg = writeMarketplaceGrant(
+                    steam, slot, classPath, growth, isPrime,
+                    orderId, catalogId, speciesId
+                )
+                ok = ok == true
             elseif verb == "rename" then
                 local oldSlot = extraArgs[1] or "default"
                 local newSlot = extraArgs[2]
