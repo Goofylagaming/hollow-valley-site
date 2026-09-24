@@ -133,7 +133,7 @@
       skinPatch,
       indices: {},
       warnings: [
-        "Fangs & Ferns share codes expose the seven colour zones; choose the matching Hollow Valley species and verify pattern/theme/variation before saving.",
+        "Fangs & Ferns share codes expose seven colour zones. The FNF species prefix is source metadata only; choose any Hollow Valley target species and review the palette before saving.",
         "Teeth, mouth and claws remain unchanged because they are not present in this code format.",
       ],
     };
