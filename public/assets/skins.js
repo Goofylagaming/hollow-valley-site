@@ -149,8 +149,11 @@ function skinCard(preset, mode) {
   const price = Number(preset.price) || 0;
   const externalMeta = externalLibraryMeta(preset.description);
   const description = externalMeta.description || (preset.published ? "Published Hollow Valley skin." : "Saved Skin Studio design.");
-  const ownerBadge = preset.owner_steam_id && me.user?.steam_id === preset.owner_steam_id ? "Creator" : "";
-  const status = preset.published ? (preset.isPremium ? "Free" : `${price.toLocaleString()} VC`) : "Draft";
+  const isCreator = Boolean(preset.owner_steam_id && me.user?.steam_id === preset.owner_steam_id);
+  const ownerBadge = isCreator ? "Creator" : "";
+  const status = preset.exclusive
+    ? (preset.granted ? "Exclusive · Granted" : "Exclusive")
+    : preset.published ? (preset.isPremium ? "Free" : `${price.toLocaleString()} VC`) : "Draft";
 
   const actions = [];
   if (mode === "store" && !owned) {
@@ -163,9 +166,13 @@ function skinCard(preset, mode) {
   if (mode === "library" && me.user?.is_admin) {
     actions.push(`<button class="small-button skin-library-edit" data-id="${preset.id}">Open in Studio</button>`);
   }
-  if ((mode === "mine" || mode === "library") && me.user?.is_admin) {
+  if ((mode === "mine" || mode === "library") && me.user?.is_admin && isCreator) {
     if (mode === "mine") actions.push(`<button class="small-button skin-edit" data-id="${preset.id}">Edit</button>`);
-    actions.push(`<button class="small-button skin-publish" data-id="${preset.id}" data-price="${price}">${preset.published ? "Update shop" : "Publish"}</button>`);
+    actions.push(`<button class="small-button skin-grant" data-id="${preset.id}" data-name="${escapeHtml(preset.name)}">Grant exclusive</button>`);
+    actions.push(`<button class="small-button skin-grants" data-id="${preset.id}" data-name="${escapeHtml(preset.name)}">Grants</button>`);
+    if (!preset.exclusive) {
+      actions.push(`<button class="small-button skin-publish" data-id="${preset.id}" data-price="${price}">${preset.published ? "Update shop" : "Publish"}</button>`);
+    }
     actions.push(`<button class="small-button skin-delete" data-id="${preset.id}" data-name="${escapeHtml(preset.name)}">Delete</button>`);
   }
 
@@ -189,9 +196,11 @@ function skinCard(preset, mode) {
           <span>Theme ${Number(preset.skin?.themeIndex) || 0}</span>
           <span>Variation ${Number(preset.skin?.skinVariation) || 0}</span>
           ${ownerBadge ? `<span>${ownerBadge}</span>` : ""}
+          ${preset.exclusive ? "<span>🔒 Non-transferable</span>" : ""}
+          ${preset.granted ? "<span>Admin granted</span>" : ""}
           ${mode === "library" && externalMeta.source ? `<span>Source: ${escapeHtml(externalMeta.source)}</span>` : ""}
         </div>
-        <div class="skin-card-code">${preset.share_code ? `Share: <strong>${escapeHtml(preset.share_code)}</strong>` : ""}</div>
+        <div class="skin-card-code">${(!preset.exclusive && !preset.granted && preset.share_code) ? `Share: <strong>${escapeHtml(preset.share_code)}</strong>` : (preset.exclusive ? "Exclusive skin · share code hidden" : "")}</div>
         <div class="skin-card-actions">${actions.join("")}</div>
       </div>
     </article>
@@ -229,6 +238,59 @@ function wireCardActions(root) {
     updatePreview();
     activateSkinTab("studio");
     showAlert(`Editing ${preset.name}. Save will update this existing skin.`, "info");
+  }));
+
+  root.querySelectorAll(".skin-grant").forEach((button) => button.addEventListener("click", async () => {
+    const skinName = button.dataset.name || "this skin";
+    const steamId = prompt(`Grant "${skinName}" exclusively to which Steam ID?\nEnter the player's 17-digit Steam ID.`, "");
+    if (steamId === null) return;
+    const target = String(steamId || "").trim();
+    if (!/^\d{17}$/.test(target)) return showAlert("Enter a valid 17-digit Steam ID.", "warning");
+    const note = prompt("Optional grant note (event reward, supporter reward, staff skin, etc.):", "") ?? "";
+    if (!confirm(`Grant "${skinName}" to Steam ${target}?\n\nThis will make the skin EXCLUSIVE, remove it from the public shop, hide its share code, and add it directly to that player's My Skins library.`)) return;
+    button.disabled = true;
+    try {
+      await api(`/api/skins/${button.dataset.id}/grant`, {
+        method: "POST",
+        body: JSON.stringify({ steamId: target, note }),
+      });
+      showAlert(`Granted ${skinName} exclusively to ${target}. The skin is now private and non-transferable.`, "success");
+      await Promise.all([loadMine(), loadStore()]);
+    } catch (err) {
+      showAlert(err.message, "error");
+      button.disabled = false;
+    }
+  }));
+
+  root.querySelectorAll(".skin-grants").forEach((button) => button.addEventListener("click", async () => {
+    button.disabled = true;
+    try {
+      const result = await api(`/api/skins/${button.dataset.id}/grants`);
+      const grants = Array.isArray(result.grants) ? result.grants : [];
+      if (!grants.length) {
+        alert(`No active grants for ${button.dataset.name || "this skin"}.`);
+        return;
+      }
+      const summary = grants.map((grant) => {
+        const note = grant.note ? ` · ${grant.note}` : "";
+        return `${grant.steam_id}${note}`;
+      }).join("\n");
+      const revoke = prompt(`Active grants for ${button.dataset.name || "skin"}:\n\n${summary}\n\nTo revoke one, enter its Steam ID below. Leave blank to close.`, "");
+      if (revoke === null || !String(revoke).trim()) return;
+      const target = String(revoke).trim();
+      if (!/^\d{17}$/.test(target)) return showAlert("Enter a valid 17-digit Steam ID.", "warning");
+      if (!confirm(`Revoke this skin from Steam ${target}? They will immediately lose access to Wear Live and parked-dino application for this skin.`)) return;
+      await api(`/api/skins/${button.dataset.id}/revoke`, {
+        method: "POST",
+        body: JSON.stringify({ steamId: target }),
+      });
+      showAlert(`Exclusive skin access revoked from ${target}.`, "success");
+      await loadMine();
+    } catch (err) {
+      showAlert(err.message, "error");
+    } finally {
+      button.disabled = false;
+    }
   }));
 
   root.querySelectorAll(".skin-delete").forEach((button) => button.addEventListener("click", async () => {
