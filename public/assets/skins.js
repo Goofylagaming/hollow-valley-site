@@ -19,20 +19,8 @@ let storeState = null;
 let mineState = null;
 let storedDinos = [];
 let externalQueue = [];
-let detectedExternalSpecies = "";
 
 const EXTERNAL_LIBRARY_RE = /^\[External Library:([^\]]+)\]\s*/;
-
-function resolveExternalSpecies(speciesCode, fallbackSpecies = "") {
-  const code = String(speciesCode || "").trim().toLowerCase();
-  if (!code) return fallbackSpecies;
-  const match = speciesList.find((species) => {
-    const id = String(species.id || "").toLowerCase();
-    const name = String(species.name || "").toLowerCase();
-    return id.startsWith(code) || name.startsWith(code);
-  });
-  return match?.id || fallbackSpecies;
-}
 
 function requestKey(prefix) {
   const id = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -473,12 +461,6 @@ document.getElementById("skin-reset").addEventListener("click", resetEditor);
 
 document.getElementById("skin-save").addEventListener("click", async () => {
   if (!me.loggedIn || !me.user?.steam_id) return showAlert("Sign in with Steam before saving a skin.", "warning");
-  const selectedSpecies = document.getElementById("skin-species").value;
-  if (detectedExternalSpecies && selectedSpecies !== detectedExternalSpecies) {
-    const expected = speciesList.find((item) => String(item.id) === String(detectedExternalSpecies))?.name || detectedExternalSpecies;
-    const selected = speciesList.find((item) => String(item.id) === String(selectedSpecies))?.name || selectedSpecies;
-    return showAlert(`This imported skin is for ${expected}, but Skin Studio is set to ${selected}. Switch back to ${expected} before saving.`, "warning");
-  }
   const name = document.getElementById("skin-name").value.trim();
   if (name.length < 2) return showAlert("Give the skin a name first.", "warning");
   const button = document.getElementById("skin-save");
@@ -527,7 +509,7 @@ document.getElementById("skin-library-parse")?.addEventListener("click", async (
         speciesCode: item.speciesCode || null,
         warnings: item.warnings || [],
       },
-      species: resolveExternalSpecies(item.speciesCode, species),
+      species,
       name: `${prefix} ${index + 1}`.slice(0, 60),
       skin: item.skin,
     }));
@@ -631,12 +613,9 @@ document.getElementById("skin-external-load")?.addEventListener("click", async (
     });
     applySkinToEditor(result.skin);
 
-    const resolvedSpecies = resolveExternalSpecies(result.speciesCode, targetSpecies);
-    detectedExternalSpecies = resolvedSpecies || "";
-    if (resolvedSpecies) {
-      document.getElementById("skin-species").value = resolvedSpecies;
-      const externalSpeciesSelect = document.getElementById("skin-external-species");
-      if (externalSpeciesSelect) externalSpeciesSelect.value = resolvedSpecies;
+    const selectedTargetSpecies = targetSpecies || document.getElementById("skin-species").value;
+    if (selectedTargetSpecies) {
+      document.getElementById("skin-species").value = selectedTargetSpecies;
     }
     if (!document.getElementById("skin-description").value.trim()) {
       document.getElementById("skin-description").value = `Imported from ${result.sourceLabel || "external skin code"}.`;
@@ -645,10 +624,11 @@ document.getElementById("skin-external-load")?.addEventListener("click", async (
     activateSkinTab("studio");
 
     const warningText = (result.warnings || []).join(" ");
-    const detectedName = speciesList.find((item) => String(item.id) === String(resolvedSpecies))?.name || resolvedSpecies || "selected species";
-    resultEl.textContent = `${result.sourceLabel || "External skin"} detected · Species: ${detectedName} · ${Number(result.importedColorCount) || 0} colour zones${result.importedIndexCount ? ` · ${result.importedIndexCount} native index values` : ""} loaded.`;
+    const targetName = document.getElementById("skin-species").selectedOptions[0]?.textContent || "the selected species";
+    const sourcePrefix = result.speciesCode ? ` · Source prefix: ${result.speciesCode}` : "";
+    resultEl.textContent = `${result.sourceLabel || "External skin"} detected${sourcePrefix} · Target: ${targetName} · ${Number(result.importedColorCount) || 0} colour zones${result.importedIndexCount ? ` · ${result.importedIndexCount} native index values` : ""} loaded.`;
     showAlert(
-      `Loaded ${result.sourceLabel || "external skin"} into Skin Studio for ${document.getElementById("skin-species").selectedOptions[0]?.textContent || "the selected species"}. Review the preview before saving.${warningText ? ` ${warningText}` : ""}`,
+      `Loaded ${result.sourceLabel || "external skin"} palette into Skin Studio for ${targetName}. The external species prefix does not restrict the target species. Review the preview before saving.${warningText ? ` ${warningText}` : ""}`,
       warningText ? "warning" : "success"
     );
   } catch (err) {
