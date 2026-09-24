@@ -171,6 +171,11 @@ db.exec(`
     preset_id TEXT NOT NULL,
     granted_by_steam_id TEXT,
     note TEXT NOT NULL DEFAULT '',
+    custom_species TEXT,
+    custom_name TEXT,
+    custom_description TEXT,
+    custom_skin_json TEXT,
+    customized_at TEXT,
     granted_at TEXT NOT NULL DEFAULT (datetime('now')),
     revoked_at TEXT,
     PRIMARY KEY (steam_id, preset_id),
@@ -230,6 +235,19 @@ db.exec(`
     CREATE INDEX IF NOT EXISTS idx_economy_skin_grants_preset
       ON economy_skin_grants(preset_id, granted_at DESC);
   `);
+
+  const grantColumns = db.prepare('PRAGMA table_info(economy_skin_grants)').all();
+  const grantNames = new Set(grantColumns.map((column) => column.name));
+  const grantAdditions = [
+    ['custom_species', 'TEXT'],
+    ['custom_name', 'TEXT'],
+    ['custom_description', 'TEXT'],
+    ['custom_skin_json', 'TEXT'],
+    ['customized_at', 'TEXT'],
+  ];
+  for (const [name, definition] of grantAdditions) {
+    if (!grantNames.has(name)) db.exec(`ALTER TABLE economy_skin_grants ADD COLUMN ${name} ${definition};`);
+  }
 })();
 
 function validateSteamId(value) {
@@ -493,18 +511,27 @@ function listCatalog({ activeOnly = true } = {}) {
 
 function mapSkinPreset(row, { owned = false } = {}) {
   if (!row) return null;
+  const granted = Boolean(row.granted_flag);
+  const customized = granted && Boolean(row.grant_customized_at);
   return {
     ...row,
+    species: customized && row.grant_custom_species ? row.grant_custom_species : row.species,
+    name: customized && row.grant_custom_name ? row.grant_custom_name : row.name,
+    description: customized && row.grant_custom_description !== null && row.grant_custom_description !== undefined
+      ? row.grant_custom_description
+      : row.description,
     isPremium: Boolean(row.is_premium),
     active: Boolean(row.active),
     published: Boolean(row.published),
     exclusive: Boolean(row.exclusive),
-    granted: Boolean(row.granted_flag),
+    granted,
+    grantCustomized: customized,
     grantNote: row.grant_note || '',
     grantedAt: row.granted_at || null,
+    customizedAt: row.grant_customized_at || null,
     owned: Boolean(owned),
     price: Math.max(0, Number(row.price) || 0),
-    skin: parseJson(row.skin_json),
+    skin: parseJson(customized && row.grant_custom_skin_json ? row.grant_custom_skin_json : row.skin_json),
   };
 }
 
@@ -538,6 +565,42 @@ function hasSkinGrant(steamId, presetId) {
   return Boolean(db.prepare(
     'SELECT 1 FROM economy_skin_grants WHERE steam_id = ? AND preset_id = ? AND revoked_at IS NULL'
   ).get(steam, String(presetId || '').trim()));
+}
+
+function getSkinGrant(steamId, presetId) {
+  const steam = validateSteamId(steamId);
+  return db.prepare(`
+    SELECT *
+    FROM economy_skin_grants
+    WHERE steam_id = ? AND preset_id = ? AND revoked_at IS NULL
+  `).get(steam, String(presetId || '').trim()) || null;
+}
+
+function customizeSkinGrant({ steamId, presetId, species, name, description, skin }) {
+  const steam = validateSteamId(steamId);
+  const id = String(presetId || '').trim();
+  const result = db.prepare(`
+    UPDATE economy_skin_grants
+    SET custom_species = ?,
+        custom_name = ?,
+        custom_description = ?,
+        custom_skin_json = ?,
+        customized_at = datetime('now')
+    WHERE steam_id = ? AND preset_id = ? AND revoked_at IS NULL
+  `).run(
+    String(species || '').trim(),
+    String(name || '').trim(),
+    String(description || '').trim(),
+    JSON.stringify(skin || {}),
+    steam,
+    id
+  );
+  if (!result.changes) {
+    const error = new Error('Exclusive skin grant was not found');
+    error.code = 'SKIN_GRANT_NOT_FOUND';
+    throw error;
+  }
+  return getSkinGrant(steam, id);
 }
 
 function grantSkinPreset({ steamId, presetId, grantedBySteamId = null, note = '' }) {
@@ -667,6 +730,11 @@ function listSkinStore({ steamId = null, species = null, limit = 300 } = {}) {
       CASE WHEN p.owner_steam_id = ? OR p.is_premium = 1 OR u.preset_id IS NOT NULL OR g.preset_id IS NOT NULL THEN 1 ELSE 0 END AS owned_flag,
       CASE WHEN g.preset_id IS NOT NULL THEN 1 ELSE 0 END AS granted_flag,
       COALESCE(g.note, '') AS grant_note,
+      g.custom_species AS grant_custom_species,
+      g.custom_name AS grant_custom_name,
+      g.custom_description AS grant_custom_description,
+      g.custom_skin_json AS grant_custom_skin_json,
+      g.customized_at AS grant_customized_at,
       g.granted_at AS granted_at
     FROM economy_skin_presets p
     LEFT JOIN economy_skin_unlocks u ON u.preset_id = p.id AND u.steam_id = ?
@@ -686,6 +754,11 @@ function listOwnedSkinPresets(steamId, { limit = 300 } = {}) {
       1 AS owned_flag,
       CASE WHEN g.preset_id IS NOT NULL THEN 1 ELSE 0 END AS granted_flag,
       COALESCE(g.note, '') AS grant_note,
+      g.custom_species AS grant_custom_species,
+      g.custom_name AS grant_custom_name,
+      g.custom_description AS grant_custom_description,
+      g.custom_skin_json AS grant_custom_skin_json,
+      g.customized_at AS grant_customized_at,
       g.granted_at AS granted_at
     FROM economy_skin_presets p
     LEFT JOIN economy_skin_unlocks u ON u.preset_id = p.id AND u.steam_id = ?
@@ -789,6 +862,8 @@ module.exports = {
   getSkinPresetByCreateKey,
   hasSkinUnlock,
   hasSkinGrant,
+  getSkinGrant,
+  customizeSkinGrant,
   grantSkinPreset,
   revokeSkinGrant,
   listSkinGrants,
