@@ -151,6 +151,7 @@ function skinCard(preset, mode) {
   const description = externalMeta.description || (preset.published ? "Published Hollow Valley skin." : "Saved Skin Studio design.");
   const isCreator = Boolean(preset.owner_steam_id && me.user?.steam_id === preset.owner_steam_id);
   const canEdit = isCreator || Boolean(preset.exclusive && preset.granted);
+  const canDelete = isCreator || Boolean(preset.exclusive && preset.granted);
   const ownerBadge = isCreator ? "Creator" : "";
   const status = preset.exclusive
     ? (preset.granted ? "Exclusive · Granted" : "Exclusive")
@@ -170,13 +171,18 @@ function skinCard(preset, mode) {
   if (mode === "mine" && canEdit) {
     actions.push(`<button class="small-button skin-edit" data-id="${preset.id}">Edit</button>`);
   }
+  if (mode === "mine" && canDelete) {
+    actions.push(`<button class="small-button skin-delete" data-id="${preset.id}" data-name="${escapeHtml(preset.name)}" data-granted="${preset.exclusive && preset.granted && !isCreator ? "1" : "0"}">Delete</button>`);
+  }
   if ((mode === "mine" || mode === "library") && me.user?.is_admin && isCreator) {
     actions.push(`<button class="small-button skin-grant" data-id="${preset.id}" data-name="${escapeHtml(preset.name)}">Grant exclusive</button>`);
     actions.push(`<button class="small-button skin-grants" data-id="${preset.id}" data-name="${escapeHtml(preset.name)}">Grants</button>`);
     if (!preset.exclusive) {
       actions.push(`<button class="small-button skin-publish" data-id="${preset.id}" data-price="${price}">${preset.published ? "Update shop" : "Publish"}</button>`);
     }
-    actions.push(`<button class="small-button skin-delete" data-id="${preset.id}" data-name="${escapeHtml(preset.name)}">Delete</button>`);
+    if (mode === "library") {
+      actions.push(`<button class="small-button skin-delete" data-id="${preset.id}" data-name="${escapeHtml(preset.name)}" data-granted="0">Delete</button>`);
+    }
   }
 
   return `
@@ -241,6 +247,7 @@ function wireCardActions(root) {
     document.getElementById("skin-save").textContent = "Update design →";
     updatePreview();
     activateSkinTab("studio");
+    const isCreator = Boolean(preset.owner_steam_id && me.user?.steam_id === preset.owner_steam_id);
     showAlert(
       preset.exclusive && preset.granted && !isCreator
         ? `Editing your personal version of ${preset.name}. This will not change anyone else's exclusive skin.`
@@ -304,11 +311,18 @@ function wireCardActions(root) {
 
   root.querySelectorAll(".skin-delete").forEach((button) => button.addEventListener("click", async () => {
     const name = button.dataset.name || "this skin";
-    if (!confirm(`Delete "${name}" from My Skins? This cannot be undone.`)) return;
+    const grantedExclusive = button.dataset.granted === "1";
+    const message = grantedExclusive
+      ? `Remove "${name}" from My Skins? This removes only your exclusive copy; the original skin and other players' grants are not affected.`
+      : `Delete "${name}" from My Skins? This cannot be undone.`;
+    if (!confirm(message)) return;
     button.disabled = true;
     try {
-      await api(`/api/skins/${button.dataset.id}`, { method: "DELETE", body: "{}" });
-      showAlert(`Deleted ${name}.`, "success");
+      const result = await api(`/api/skins/${button.dataset.id}`, { method: "DELETE", body: "{}" });
+      showAlert(
+        result.grantRemoved ? `Removed ${name} from your exclusive skins.` : `Deleted ${name}.`,
+        "success"
+      );
       await Promise.all([loadMine(), loadStore()]);
     } catch (err) {
       showAlert(err.message, "error");
