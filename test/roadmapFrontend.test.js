@@ -207,26 +207,35 @@ test("Live Map keeps offline history separate from live coordinates", () => {
   assert.match(client, /\/map\/activity\?hours=/);
 });
 
-test("Events page exposes Steam-linked reward history and guarded admin payouts", () => {
+test("Events page supports RSVP, admin-confirmed attendance payouts and custom bonuses", () => {
   const html = read("public/events.html");
   const js = read("public/assets/events.js");
   const route = read("server/routes/events.js");
   const client = read("server/services/automationWebsiteClient.js");
   const wallet = read("public/assets/wallet.js");
-  const eventService = read("automation-platform/src/services/eventRewardService.js");
+  const attendance = read("automation-platform/src/services/eventAttendanceService.js");
 
   assert.match(html, /YOUR EVENT REWARDS/);
   assert.match(html, /id="event-admin-panel" hidden/);
-  assert.match(html, /Award Valley Coin/);
-  assert.match(js, /\/api\/events\/rewards\/mine/);
-  assert.match(js, /\/api\/events\/admin\/reward/);
-  assert.match(js, /supporterMultiplier/);
+  assert.match(html, /ATTENDING LIST/);
+  assert.match(html, /CUSTOM BONUS/);
+  assert.match(html, /Confirm all attendees/);
+  assert.match(js, /\/api\/events\/attendance/);
+  assert.match(js, /\/api\/events\/admin\/attendance\/confirm/);
+  assert.match(js, /\/api\/events\/admin\/bonus/);
+  assert.match(js, /They attended/);
   assert.match(route, /requireAdmin/);
-  assert.match(client, /awardAdminEventReward/);
-  assert.match(wallet, /event_reward/);
-  assert.match(eventService, /EVENT_REWARDS_ENABLED/);
-  assert.match(eventService, /kind: 'event_reward'/);
-  assert.match(eventService, /supporterBonuses\.applyBonus/);
+  assert.match(route, /admin\/attendance\/add/);
+  assert.match(client, /confirmAdminEventAttendance/);
+  assert.match(client, /awardAdminEventBonus/);
+  assert.match(wallet, /event_attendance_reward/);
+  assert.match(wallet, /event_bonus_reward/);
+  assert.match(attendance, /ATTENDANCE_BASE_VC_DEFAULT = 10000/);
+  assert.match(attendance, /supporter: 1\.5/);
+  assert.match(attendance, /guardian: 3/);
+  assert.match(attendance, /legend: 5/);
+  assert.match(attendance, /event_attendance_reward/);
+  assert.match(attendance, /event_bonus_reward/);
 });
 
 test("consolidated admin hub replaces scattered admin navigation", () => {
