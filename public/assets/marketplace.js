@@ -70,7 +70,7 @@ function dinoThumbnail(speciesId, species) {
   if (!dinoAtlasUrl || !sprite) {
     return `<div class="market-dino-thumb dino-art ${escapeHtml(species.art || "carno")}" role="img" aria-label="${escapeHtml(species.name)} thumbnail"></div>`;
   }
-  return `<canvas class="market-dino-thumb atlas-thumb" width="360" height="240"
+  return `<canvas class="market-dino-thumb atlas-thumb" width="244" height="170"
     data-species="${escapeHtml(speciesId)}" role="img" aria-label="${escapeHtml(species.name)} thumbnail"></canvas>`;
 }
 
@@ -89,8 +89,8 @@ async function paintDinoThumbnails(root) {
   const cellWidth = image.naturalWidth / 6;
   // The generated poster has a category title strip above each row.
   // These coordinates crop only the dinosaur artwork and exclude labels.
-  const rowTop = [22, 140, 260];
-  const cropHeight = 82;
+  const rowTop = [46, 300, 556];
+  const cropHeight = 170;
 
   for (const canvas of canvases) {
     const sprite = DINO_ATLAS_SPRITES[String(canvas.dataset.species || "").toLowerCase()];
@@ -99,11 +99,14 @@ async function paintDinoThumbnails(root) {
     const ctx = canvas.getContext("2d");
     if (!ctx) continue;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.filter = "contrast(1.04) saturate(1.03)";
     ctx.drawImage(
       image,
-      column * cellWidth + 4,
-      rowTop[row] + 4,
-      cellWidth - 8,
+      column * cellWidth + 6,
+      rowTop[row],
+      cellWidth - 12,
       cropHeight,
       0,
       0,
@@ -361,6 +364,7 @@ async function loadMyOrders() {
           <span class="listing-status-pill">${escapeHtml(status)}</span>
         </div>
         <p class="section-intro">${detail}</p>
+        ${status === "fulfilled" ? `<div class="actions"><a class="small-button" href="/mydinos">Open My Dinos</a></div>` : ""}
       </div>`;
     }).join("");
   } catch (error) {
