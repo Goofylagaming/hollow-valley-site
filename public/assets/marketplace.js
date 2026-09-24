@@ -5,6 +5,7 @@ let catalog = [];
 let activeFilter = "all";
 let marketplaceState = { officialWritesEnabled: false, p2pWritesEnabled: false, p2pBuyEnabled: false };
 let myListingIds = new Set();
+let currentUser = null;
 
 
 function renderMarketplaceState() {
@@ -87,43 +88,84 @@ function renderCatalog() {
     grid.innerHTML = '<p class="section-intro">No dinos match that filter.</p>';
     return;
   }
-  grid.innerHTML = filtered
-    .map((entry) => {
-      const species = speciesById[entry.species_id] || { name: entry.species_id, art: "carno", role: "" };
-      return `<article class="dino-card" data-id="${entry.id}">
-        <div class="dino-art ${species.art}"><span>${species.name.toUpperCase()}</span></div>
-        <div class="dino-info"><div><small>${(species.role || "").toUpperCase()}</small><h3>${escapeHtml(species.name)}</h3></div></div>
-        <div class="dino-meta"><span>${entry.price.toLocaleString()} Valley Coin</span><span>Size ${entry.size_percent}%</span></div>
-        <div class="actions" style="padding:0 15px 15px"><button class="small-button buy-catalog-btn" data-id="${entry.id}" data-size="${entry.size_percent}" ${marketplaceState.officialWritesEnabled === true ? "" : "disabled"}>${marketplaceState.officialWritesEnabled === true ? `Buy (${entry.size_percent}% Size)` : "Purchases Offline"}</button></div>
-      </article>`;
-    })
-    .join("");
 
-  grid.querySelectorAll(".buy-catalog-btn").forEach((btn) =>
-    btn.addEventListener("click", async () => {
-      if (marketplaceState.officialWritesEnabled !== true) return;
-      const me = await window.HDS.loadMe();
-      if (!me.loggedIn) return alert("Log in with Discord or Steam to buy a dino.");
-      const origText = btn.textContent;
-      btn.disabled = true;
-      btn.textContent = "Purchasing...";
-      try {
-        const result = await api(`/api/marketplace/catalog/${btn.dataset.id}/buy`, { method: "POST" });
-        if (result.fulfilled || result.order?.status === "fulfilled") {
-          alert("Purchased! The dino is now available in My Dinos.");
-          window.location.href = "/mydinos";
-          return;
-        }
-        alert("Order accepted. DinoStorage delivery is processing. Track it under Your Store Orders.");
-        btn.textContent = "Order processing";
-        await loadMyOrders();
-      } catch (err) {
-        alert(err.message || "Failed to purchase dino");
-        btn.disabled = false;
-        btn.textContent = origText;
+  const groups = new Map();
+  filtered.forEach((entry) => {
+    if (!groups.has(entry.species_id)) groups.set(entry.species_id, []);
+    groups.get(entry.species_id).push(entry);
+  });
+
+  grid.innerHTML = [...groups.entries()].map(([speciesId, entries]) => {
+    const species = speciesById[speciesId] || { name: speciesId, art: "carno", role: "" };
+    const options = entries.map((entry) => `
+      <div class="market-tier ${entry.is_prime ? "prime" : ""}" data-id="${entry.id}">
+        <div class="market-tier-title"><b>${escapeHtml(entry.growth_tier_label || (entry.is_prime ? "Prime" : entry.size_percent + "%"))}</b>${entry.is_prime ? '<span class="prime-badge">PRIME</span>' : ""}</div>
+        <div class="market-tier-meta"><span>${entry.price.toLocaleString()} Valley Coin</span><span>${entry.size_percent}% growth</span></div>
+        <div class="market-tier-actions">
+          <button class="small-button buy-catalog-btn" data-id="${entry.id}" data-size="${entry.size_percent}" ${marketplaceState.officialWritesEnabled === true ? "" : "disabled"}>${marketplaceState.officialWritesEnabled === true ? "Buy" : "Offline"}</button>
+          ${currentUser?.is_admin ? `<button class="small-button admin-catalog-edit" data-id="${entry.id}">Edit</button>` : ""}
+        </div>
+      </div>`).join("");
+
+    return `<article class="dino-card market-species-card" data-species="${escapeHtml(speciesId)}">
+      <div class="market-dino-thumb dino-art ${escapeHtml(species.art || "carno")}" role="img" aria-label="${escapeHtml(species.name)} thumbnail"></div>
+      <div class="dino-info"><div><small>${escapeHtml((species.role || "").toUpperCase())}</small><h3>${escapeHtml(species.name)}</h3></div></div>
+      <div class="market-tier-list">${options}</div>
+    </article>`;
+  }).join("");
+
+  grid.querySelectorAll(".buy-catalog-btn").forEach((btn) => btn.addEventListener("click", async () => {
+    if (marketplaceState.officialWritesEnabled !== true) return;
+    const me = await window.HDS.loadMe();
+    if (!me.loggedIn) return alert("Log in with Discord or Steam to buy a dino.");
+    const origText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Purchasing...";
+    try {
+      const result = await api(`/api/marketplace/catalog/${btn.dataset.id}/buy`, { method: "POST" });
+      if (result.fulfilled || result.order?.status === "fulfilled") {
+        alert("Purchased! The dino is now available in My Dinos.");
+        window.location.href = "/mydinos";
+        return;
       }
-    })
-  );
+      alert("Order accepted. DinoStorage delivery is processing. Track it under Your Store Orders.");
+      btn.textContent = "Processing";
+      await loadMyOrders();
+    } catch (err) {
+      alert(err.message || "Failed to purchase dino");
+      btn.disabled = false;
+      btn.textContent = origText;
+    }
+  }));
+
+  grid.querySelectorAll(".admin-catalog-edit").forEach((btn) => btn.addEventListener("click", async () => {
+    const entry = catalog.find((item) => String(item.id) === String(btn.dataset.id));
+    if (!entry) return;
+    const priceRaw = prompt("Valley Coin price:", String(entry.price));
+    if (priceRaw === null) return;
+    const growthRaw = prompt("Exact growth percentage:", String(entry.size_percent));
+    if (growthRaw === null) return;
+    const active = confirm("Keep this marketplace option enabled?\nOK = enabled · Cancel = disabled");
+    const isPrime = entry.growth_tier === "prime" ? true : confirm("Grant Prime status for this option?\nOK = Prime · Cancel = normal");
+    btn.disabled = true;
+    try {
+      const result = await api(`/api/marketplace/catalog/${encodeURIComponent(entry.id)}`, {
+        method: "PUT",
+        body: JSON.stringify({ price: Number(priceRaw), growthPercent: Number(growthRaw), active, isPrime }),
+      });
+      const updated = result.item;
+      if (updated) {
+        entry.price = Number(updated.price);
+        entry.size_percent = Number(updated.payload?.growthPercent ?? updated.payload?.sizePercent ?? entry.size_percent);
+        entry.is_prime = Boolean(updated.payload?.isPrime);
+      }
+      if (!active) catalog = catalog.filter((item) => item.id !== entry.id);
+      renderCatalog();
+    } catch (err) {
+      alert(err.message || "Could not update marketplace option.");
+      btn.disabled = false;
+    }
+  }));
 }
 
 async function loadListings() {
@@ -284,6 +326,7 @@ document.getElementById("sort-select")?.addEventListener("change", renderCatalog
 
 async function init() {
   await loadSpeciesMap();
+  currentUser = await window.HDS.loadMe();
   try {
     marketplaceState = await api("/api/marketplace/state");
   } catch {
