@@ -113,6 +113,8 @@
 
   function parseFangsAndFerns(raw) {
     if (!/\bFNF-/i.test(raw)) return null;
+    const speciesMatch = /\bFNF-([A-Z0-9]+)-/i.exec(raw);
+    const speciesCode = speciesMatch ? speciesMatch[1].toUpperCase() : null;
     const matches = raw.match(/(?<![0-9A-F])[0-9A-F]{6}(?![0-9A-F])/gi) || [];
     if (matches.length < 7) {
       throw new Error("Fangs & Ferns code was detected, but seven colour zones could not be read.");
@@ -127,6 +129,7 @@
     return {
       source: "fangs-ferns",
       sourceLabel: "Fangs & Ferns",
+      speciesCode,
       skinPatch,
       indices: {},
       warnings: [
