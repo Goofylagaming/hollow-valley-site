@@ -164,6 +164,7 @@ function skinCard(preset, mode) {
   }
   if ((mode === "mine" || mode === "library") && me.user?.is_admin) {
     actions.push(`<button class="small-button skin-publish" data-id="${preset.id}" data-price="${price}">${preset.published ? "Update shop" : "Publish"}</button>`);
+    actions.push(`<button class="small-button skin-delete" data-id="${preset.id}" data-name="${escapeHtml(preset.name)}">Delete</button>`);
   }
 
   return `
@@ -209,6 +210,20 @@ function wireCardActions(root) {
     } catch (err) {
       showAlert(err.message, "error");
     } finally {
+      button.disabled = false;
+    }
+  }));
+
+  root.querySelectorAll(".skin-delete").forEach((button) => button.addEventListener("click", async () => {
+    const name = button.dataset.name || "this skin";
+    if (!confirm(`Delete "${name}" from My Skins? This cannot be undone.`)) return;
+    button.disabled = true;
+    try {
+      await api(`/api/skins/${button.dataset.id}`, { method: "DELETE", body: "{}" });
+      showAlert(`Deleted ${name}.`, "success");
+      await Promise.all([loadMine(), loadStore()]);
+    } catch (err) {
+      showAlert(err.message, "error");
       button.disabled = false;
     }
   }));
