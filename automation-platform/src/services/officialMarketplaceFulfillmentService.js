@@ -43,6 +43,7 @@ function validateDinoOrder(order) {
     growth,
     speciesId: String(payload.speciesId || '').trim(),
     species: String(payload.species || item.name || 'Dinosaur').trim(),
+    isPrime: Boolean(payload.isPrime),
   };
 }
 
@@ -55,6 +56,7 @@ function buildStoredState(order) {
     capturedAt: Math.floor(Date.now() / 1000),
     classPath: dino.classPath,
     growth: dino.growth,
+    ...(dino.isPrime ? { isPrime: true, primeData: { eligible: true, cond1: true, cond2: true } } : {}),
     marketplacePurchase: {
       orderId: order.id,
       catalogId: order.catalog_id,
