@@ -12,6 +12,7 @@ function encodeColor(name, color) {
 
 function buildWearTokens(preset) {
   const skin = skinPresets.sanitizeSkin(preset.skin);
+  const paletteOnly = /fangs\s*&\s*ferns/i.test(String(preset.description || ''));
   return [
     `preset=${preset.id}`,
     `species=${skinPresets.validateSpecies(preset.species)}`,
@@ -19,6 +20,7 @@ function buildWearTokens(preset) {
     `variation=${skin.skinVariation}`,
     `pattern=${skin.patternIndex}`,
     `theme=${skin.themeIndex}`,
+    ...(paletteOnly ? ['preserveIndices=1'] : []),
   ];
 }
 
