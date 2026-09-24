@@ -6,9 +6,6 @@ const externalSkinImport = require("../../public/assets/external-skin-import.js"
 
 const router = express.Router();
 
-// Skin Studio is temporarily admin-only while live testing is in progress.
-router.use(requireAdmin);
-
 function mapAutomationError(error, fallback) {
   if (Number.isInteger(error?.status)) {
     return { status: error.status, body: { error: error.message || fallback } };
@@ -95,7 +92,7 @@ router.post("/external/preview", requireAuth, async (req, res) => {
   }
 });
 
-router.post("/external/batch-preview", requireAuth, async (req, res) => {
+router.post("/external/batch-preview", requireAdmin, async (req, res) => {
   try {
     const parsedBatch = externalSkinImport.parseExternalSkinBatch(req.body?.rawCode);
     const baseSkin = req.body?.baseSkin;
