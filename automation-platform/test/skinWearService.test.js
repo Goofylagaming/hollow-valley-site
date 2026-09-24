@@ -31,9 +31,8 @@ function samplePreset() {
   };
 }
 
-function loadFixture({ outcome = { state: 'confirmed', message: 'Skin applied.', source: 'SkinStudio' }, enabled = true } = {}) {
+function loadFixture({ outcome = { state: 'confirmed', message: 'Skin applied.', source: 'SkinStudio' }, enabled = true, preset = samplePreset() } = {}) {
   const calls = { queued: [], read: [] };
-  const preset = samplePreset();
 
   require.cache[bridgePath] = {
     id: bridgePath,
@@ -98,6 +97,24 @@ test('live skin wear sends species plus native variation, pattern and theme toke
   assert.equal(command.args.includes('pattern=2'), true);
   assert.equal(command.args.includes('theme=3'), true);
   assert.equal(command.args.some((token) => token.startsWith('body=')), true);
+});
+
+
+test('universal live skin sends wildcard species and preserves species-native indices', async (t) => {
+  const preset = samplePreset();
+  preset.species = 'Universal';
+  const fixture = loadFixture({ preset });
+  t.after(fixture.cleanup);
+
+  const result = await fixture.service.wearPreset({
+    steamId: '76561198000000604',
+    presetId: 'preset-live-001',
+  });
+
+  assert.equal(result.confirmed, true);
+  const command = fixture.calls.queued[0];
+  assert.equal(command.args.includes('species=Universal'), true);
+  assert.equal(command.args.includes('preserveIndices=1'), true);
 });
 
 test('live skin wear fails closed when the feature gate is disabled', async (t) => {
