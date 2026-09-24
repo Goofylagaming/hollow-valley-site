@@ -111,6 +111,10 @@ services:
         value: 300000
       - key: PARKED_DINO_EDIT_ENABLED
         value: false
+      - key: DINO_SCRAP_ENABLED
+        value: true
+      - key: DINO_SCRAP_PERCENT
+        value: 20
       - key: SKIN_SYSTEM_ENABLED
         value: false
       - key: SKIN_PRESET_CREATE_COST
