@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Design, unlock, share and wear Hollow Valley dinosaur skins.">
   <title>Skin Studio | Hollow Valley</title>
-  <link rel="stylesheet" href="assets/styles.css?v=31">
+  <link rel="stylesheet" href="assets/styles.css?v=32">
 </head>
 <body>
   <div class="app-shell">
@@ -36,7 +36,7 @@
                 <div class="skin-model-status"><span id="skin-model-status-dot"></span><strong id="skin-model-status">Tyrannosaurus · loading 3D preview</strong></div>
                 <div class="skin-model-tools">
                   <button class="small-button" id="skin-model-reset" type="button">Reset view</button>
-                  <button class="small-button active" id="skin-model-auto" type="button" aria-pressed="true">Auto-rotate</button>
+                  <button class="small-button" id="skin-model-auto" type="button" aria-pressed="false">Manual orbit</button>
                 </div>
               </div>
 
@@ -56,8 +56,8 @@
 
                 <aside class="skin-model-rail">
                   <small>3D PAINT MODEL</small>
-                  <strong>Tyrannosaurus</strong>
-                  <span>CC0 preview model</span>
+                  <strong>Tyrannosaurus rex</strong>
+                  <span>Primeval Frontier · CC0 preview model</span>
                   <label>LIGHT
                     <input id="skin-model-light" type="range" min="35" max="180" value="105">
                   </label>
@@ -208,6 +208,6 @@
   <script type="importmap">
     {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}
   </script>
-  <script type="module" src="/assets/skin-studio-3d.js?v=1"></script>
+  <script type="module" src="/assets/skin-studio-3d.js?v=2"></script>
 </body>
 </html>

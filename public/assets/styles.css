@@ -967,3 +967,24 @@
   .quest-card-footer{align-items:flex-start;flex-direction:column}
   .quest-group-heading{align-items:flex-start;flex-direction:column}
 }
+
+
+/* Accurate T-Rex silhouette presentation — test branch */
+.skin-model-stage{
+  background:
+    radial-gradient(ellipse at 53% 80%,rgba(99,124,121,.38),transparent 35%),
+    radial-gradient(ellipse at 50% 26%,rgba(16,46,31,.34),transparent 48%),
+    linear-gradient(180deg,#010605 0,#020907 58%,#071713 100%)!important;
+}
+.skin-model-stage:before{
+  content:"";
+  position:absolute;
+  z-index:0;
+  inset:0;
+  pointer-events:none;
+  background:
+    linear-gradient(90deg,rgba(0,0,0,.22),transparent 18%,transparent 82%,rgba(0,0,0,.24)),
+    linear-gradient(180deg,rgba(0,0,0,.12),transparent 35%,rgba(0,0,0,.10));
+}
+#skin-model-canvas{z-index:1}
+.skin-model-code,.skin-model-rail,.skin-model-hud,.skin-model-loader{z-index:3}
