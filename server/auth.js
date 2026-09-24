@@ -19,6 +19,10 @@ router.get("/discord", (req, res) => {
   if (!isConfigured) {
     return res.status(503).send("Discord login is not configured yet. Set DISCORD_CLIENT_ID / DISCORD_CLIENT_SECRET / DISCORD_REDIRECT_URI.");
   }
+  const returnTo = typeof req.query.returnTo === "string" && req.query.returnTo.startsWith("/") && !req.query.returnTo.startsWith("//")
+    ? req.query.returnTo
+    : (req.user ? "/wallet" : "/");
+  req.session.discordReturnPath = returnTo;
   const params = new URLSearchParams({
     client_id: DISCORD_CLIENT_ID,
     redirect_uri: DISCORD_REDIRECT_URI,
@@ -68,10 +72,18 @@ router.get("/discord/callback", async (req, res) => {
     }
 
     req.session.userId = user.id;
+    const returnPath = req.session.discordReturnPath || "/wallet";
+    delete req.session.discordReturnPath;
     syncDiscordMembershipForUser(user.id).catch((error) => {
       console.warn("Discord membership role sync warning:", error.message);
     });
-    res.redirect("/");
+    req.session.save((saveError) => {
+      if (saveError) {
+        console.error("Discord session save failed:", saveError);
+        return res.redirect("/?login=failed");
+      }
+      res.redirect(returnPath);
+    });
   } catch (error) {
     console.error("Discord OAuth error:", error);
     res.redirect("/?login=failed");
