@@ -150,6 +150,7 @@ function skinCard(preset, mode) {
   const externalMeta = externalLibraryMeta(preset.description);
   const description = externalMeta.description || (preset.published ? "Published Hollow Valley skin." : "Saved Skin Studio design.");
   const isCreator = Boolean(preset.owner_steam_id && me.user?.steam_id === preset.owner_steam_id);
+  const canEdit = isCreator || Boolean(preset.exclusive && preset.granted);
   const ownerBadge = isCreator ? "Creator" : "";
   const status = preset.exclusive
     ? (preset.granted ? "Exclusive · Granted" : "Exclusive")
@@ -166,7 +167,7 @@ function skinCard(preset, mode) {
   if (mode === "library" && me.user?.is_admin) {
     actions.push(`<button class="small-button skin-library-edit" data-id="${preset.id}">Open in Studio</button>`);
   }
-  if (mode === "mine" && isCreator) {
+  if (mode === "mine" && canEdit) {
     actions.push(`<button class="small-button skin-edit" data-id="${preset.id}">Edit</button>`);
   }
   if ((mode === "mine" || mode === "library") && me.user?.is_admin && isCreator) {
@@ -200,6 +201,7 @@ function skinCard(preset, mode) {
           ${ownerBadge ? `<span>${ownerBadge}</span>` : ""}
           ${preset.exclusive ? "<span>🔒 Non-transferable</span>" : ""}
           ${preset.granted ? "<span>Admin granted</span>" : ""}
+          ${preset.grantCustomized ? "<span>Personal edit</span>" : ""}
           ${mode === "library" && externalMeta.source ? `<span>Source: ${escapeHtml(externalMeta.source)}</span>` : ""}
         </div>
         <div class="skin-card-code">${(!preset.exclusive && !preset.granted && preset.share_code) ? `Share: <strong>${escapeHtml(preset.share_code)}</strong>` : (preset.exclusive ? "Exclusive skin · share code hidden" : "")}</div>
@@ -239,7 +241,12 @@ function wireCardActions(root) {
     document.getElementById("skin-save").textContent = "Update design →";
     updatePreview();
     activateSkinTab("studio");
-    showAlert(`Editing ${preset.name}. Save will update this existing skin.`, "info");
+    showAlert(
+      preset.exclusive && preset.granted && !isCreator
+        ? `Editing your personal version of ${preset.name}. This will not change anyone else's exclusive skin.`
+        : `Editing ${preset.name}. Save will update this existing skin.`,
+      "info"
+    );
   }));
 
   root.querySelectorAll(".skin-grant").forEach((button) => button.addEventListener("click", async () => {
