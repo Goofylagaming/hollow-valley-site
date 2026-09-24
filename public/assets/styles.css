@@ -541,3 +541,18 @@
 .admin-hub-card small{color:#9d8a70;font:9px Oswald;letter-spacing:.14em}.admin-hub-card h2{margin:5px 0 7px;color:#eee7d3;font:600 21px Cinzel}.admin-hub-card p{margin:0;color:#8f806f;font-size:10px;line-height:1.55}.admin-hub-card>b{color:var(--gold);font-size:20px;font-weight:400}
 @media(max-width:900px){.admin-hub-status-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.admin-hub-grid{grid-template-columns:1fr}}
 @media(max-width:520px){.admin-hub-status-grid{grid-template-columns:1fr}.admin-hub-card{grid-template-columns:auto 1fr}.admin-hub-card>b{display:none}}
+
+
+/* Compact official marketplace species cards */
+.market-species-card{overflow:hidden}
+.market-dino-thumb{height:112px;margin:12px 12px 0;border:1px solid var(--line);border-radius:8px}
+.market-dino-thumb.dino-art span{display:none}
+.market-tier-list{display:grid;gap:8px;padding:0 15px 15px}
+.market-tier{border:1px solid var(--line);padding:10px;background:rgba(0,0,0,.12)}
+.market-tier.prime{border-color:#8b6d25}
+.market-tier-title,.market-tier-meta,.market-tier-actions{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.market-tier-title b{font:600 13px Oswald,sans-serif;letter-spacing:.08em;text-transform:uppercase}
+.market-tier-meta{margin:6px 0 9px;color:#9c8a72;font-size:12px}
+.market-tier-actions{justify-content:flex-end}
+.prime-badge{font:700 10px Oswald,sans-serif;letter-spacing:.12em;color:#d7bd66}
+@media(max-width:700px){.market-dino-thumb{height:96px}}
