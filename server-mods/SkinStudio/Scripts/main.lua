@@ -1,9 +1,9 @@
--- SkinStudio v004
+-- SkinStudio v005
 -- Hollow Valley live skin application + reconnect persistence.
 -- Commands arrive from CommandBridge as inbox.ndjson records.
 
 local MOD_NAME = "SkinStudio"
-local MOD_VERSION = "v004"
+local MOD_VERSION = "v005"
 
 local function resolveModRoot()
     local source = ""
@@ -28,6 +28,8 @@ local RESULTS_FILE =
     or "Mods/CommandBridge/Saved/results.ndjson"
 local POLL_INTERVAL_MS = 1500
 local REAPPLY_INTERVAL_MS = 10000
+local LIVE_REFRESH_INTERVAL_MS = 3000
+local LIVE_REFRESH_ATTEMPTS = 3
 
 local function log(msg)
     print(string.format("[%s] %s\n", MOD_NAME, tostring(msg)))
@@ -340,6 +342,7 @@ local profiles = {}
 local profileArgs = {}
 local lastPawnAddress = {}
 local lastProfileSpecies = {}
+local pendingLiveRefresh = {}
 
 local function profileSpeciesKey(species)
     return tostring(species or ""):lower()
@@ -481,6 +484,10 @@ local function processLine(line)
                 lastProfileSpecies[steam] = profileSpeciesKey(config.species)
             end
         end
+        pendingLiveRefresh[steam] = {
+            config = config,
+            remaining = LIVE_REFRESH_ATTEMPTS,
+        }
         safeNotify(steam, "Hollow Valley skin equipped: " .. tostring(config.preset ~= "" and config.preset or "custom skin"))
     end
     emitResult(id, steam, ok, msg)
@@ -543,6 +550,36 @@ local function reapplyProfiles()
     end
 end
 
+local function refreshLiveApplies()
+    for steam, state in pairs(pendingLiveRefresh) do
+        if state == nil or state.config == nil or (tonumber(state.remaining) or 0) <= 0 then
+            pendingLiveRefresh[steam] = nil
+        else
+            local ok, msg = applyForSteam(steam, state.config)
+            state.remaining = (tonumber(state.remaining) or 1) - 1
+            if ok then
+                log(string.format(
+                    "Live refresh verified steam=%s species=%s remaining=%d",
+                    tostring(steam),
+                    tostring(state.config.species),
+                    state.remaining
+                ))
+            else
+                log(string.format(
+                    "Live refresh failed steam=%s species=%s remaining=%d msg=%s",
+                    tostring(steam),
+                    tostring(state.config.species),
+                    state.remaining,
+                    tostring(msg)
+                ))
+            end
+            if state.remaining <= 0 then
+                pendingLiveRefresh[steam] = nil
+            end
+        end
+    end
+end
+
 local function safeCall(label, fn)
     local ok, err = pcall(fn)
     if not ok then log(label .. " failed: " .. tostring(err)) end
@@ -566,7 +603,11 @@ if LoopInGameThreadWithDelay ~= nil then
         safeCall("reapplyProfiles", reapplyProfiles)
     end)
 
-    log("Poll and persistence loops registered")
+    LoopInGameThreadWithDelay(LIVE_REFRESH_INTERVAL_MS, function()
+        safeCall("refreshLiveApplies", refreshLiveApplies)
+    end)
+
+    log("Poll, persistence and live-refresh loops registered")
 else
     log("ERROR: LoopInGameThreadWithDelay is unavailable")
 end
