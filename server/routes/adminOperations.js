@@ -62,9 +62,12 @@ router.post("/bodydrop-global/activate", async (_req, res) => {
   }
 });
 
-router.post("/corpse-wipe", async (_req, res) => {
+router.post("/corpse-wipe", async (req, res) => {
+  if (String(req.body?.confirm || "") !== "WIPE CORPSES") {
+    return res.status(400).json({ error: 'Type "WIPE CORPSES" exactly to confirm this action.' });
+  }
   try {
-    return res.json(await automation.wipeAdminCorpses());
+    return res.json(await automation.wipeAdminCorpses(req.body.confirm));
   } catch (error) {
     const mapped = mapAutomationError(error, "Could not wipe corpses.");
     return res.status(mapped.status).json(mapped.body);
