@@ -147,6 +147,17 @@ router.post("/from-stored", requireAuth, async (req, res) => {
   }
 });
 
+router.delete("/:id", requireAuth, async (req, res) => {
+  const steamId = requireSteam(req, res);
+  if (!steamId) return;
+  try {
+    return res.json(await automation.deleteSkin({ steamId, presetId: req.params.id }));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not delete this skin.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
 router.post("/:id/buy", requireAuth, async (req, res) => {
   const steamId = requireSteam(req, res);
   if (!steamId) return;
