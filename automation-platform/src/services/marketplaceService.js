@@ -105,6 +105,19 @@ function purchaseCatalogItem({ steamId, catalogId, idempotencyKey }) {
   }
 }
 
+function updateOrderFulfillmentProgress(orderId, fulfillment = {}) {
+  const id = String(orderId || '').trim();
+  const order = store.getOrder(id);
+  if (!order) throw new Error('Marketplace order not found');
+  if (order.status !== 'pending') return order;
+  db.prepare(`
+    UPDATE economy_marketplace_orders
+    SET fulfillment_json = ?, updated_at = datetime('now')
+    WHERE id = ? AND status = 'pending'
+  `).run(JSON.stringify(fulfillment || {}), id);
+  return store.getOrder(id);
+}
+
 function markOrderFulfilled(orderId, fulfillment = {}) {
   const id = String(orderId || '').trim();
   const order = store.getOrder(id);
@@ -177,6 +190,7 @@ module.exports = {
   assertWriteEnabled,
   assertOfficialPurchaseEnabled,
   purchaseCatalogItem,
+  updateOrderFulfillmentProgress,
   markOrderFulfilled,
   markOrderFailed,
   refundOrder,
