@@ -6,6 +6,68 @@ let activeFilter = "all";
 let marketplaceState = { officialWritesEnabled: false, p2pWritesEnabled: false, p2pBuyEnabled: false };
 let myListingIds = new Set();
 let currentUser = null;
+let dinoAtlasUrl = "";
+
+const DINO_ATLAS_PARTS = [
+  "/assets/dino-atlas/part1.txt",
+  "/assets/dino-atlas/part2.txt",
+  "/assets/dino-atlas/part3.txt",
+  "/assets/dino-atlas/part4a.txt",
+  "/assets/dino-atlas/part4b.txt",
+  "/assets/dino-atlas/part4c.txt",
+  "/assets/dino-atlas/part4d.txt",
+  "/assets/dino-atlas/part4e.txt",
+  "/assets/dino-atlas/part4f.txt",
+];
+
+const DINO_ATLAS_SPRITES = Object.freeze({
+  dryosaurus: [0, -4.5],
+  hypsilophodon: [-16.6667, -4.5],
+  pachycephalosaurus: [-33.3333, -4.5],
+  stegosaurus: [-50, -4.5],
+  triceratops: [-66.6667, -4.5],
+  tenontosaurus: [-83.3333, -4.5],
+
+  deinosuchus: [0, -29.2],
+  dilophosaurus: [-16.6667, -29.2],
+  herrerasaurus: [-33.3333, -29.2],
+  omniraptor: [-50, -29.2],
+  pteranodon: [-66.6667, -29.2],
+  troodon: [-83.3333, -29.2],
+
+  beipiaosaurus: [0, -54.1],
+  gallimimus: [-16.6667, -54.1],
+  ceratosaurus: [-33.3333, -54.1],
+  maiasaura: [-50, -54.1],
+  tyrannosaurus: [-83.3333, -54.1],
+});
+
+async function loadDinoAtlas() {
+  try {
+    const parts = await Promise.all(DINO_ATLAS_PARTS.map(async (url) => {
+      const response = await fetch(url, { cache: "force-cache" });
+      if (!response.ok) throw new Error(`Could not load ${url}`);
+      return (await response.text()).trim();
+    }));
+    const raw = atob(parts.join(""));
+    const bytes = new Uint8Array(raw.length);
+    for (let index = 0; index < raw.length; index += 1) bytes[index] = raw.charCodeAt(index);
+    dinoAtlasUrl = URL.createObjectURL(new Blob([bytes], { type: "image/jpeg" }));
+  } catch (error) {
+    dinoAtlasUrl = "";
+    console.warn("AI dinosaur thumbnails could not be loaded; using marketplace fallbacks.", error);
+  }
+}
+
+function dinoThumbnail(speciesId, species) {
+  const sprite = DINO_ATLAS_SPRITES[String(speciesId || "").toLowerCase()];
+  if (!dinoAtlasUrl || !sprite) {
+    return `<div class="market-dino-thumb dino-art ${escapeHtml(species.art || "carno")}" role="img" aria-label="${escapeHtml(species.name)} thumbnail"></div>`;
+  }
+  return `<div class="market-dino-thumb atlas-thumb" role="img" aria-label="${escapeHtml(species.name)} thumbnail">
+    <img src="${dinoAtlasUrl}" alt="" aria-hidden="true" style="--atlas-x:${sprite[0]}%;--atlas-y:${sprite[1]}%">
+  </div>`;
+}
 
 
 function renderMarketplaceState() {
@@ -108,7 +170,7 @@ function renderCatalog() {
       </div>`).join("");
 
     return `<article class="dino-card market-species-card" data-species="${escapeHtml(speciesId)}">
-      <div class="market-dino-thumb dino-art ${escapeHtml(species.art || "carno")}" role="img" aria-label="${escapeHtml(species.name)} thumbnail"></div>
+      ${dinoThumbnail(speciesId, species)}
       <div class="dino-info"><div><small>${escapeHtml((species.role || "").toUpperCase())}</small><h3>${escapeHtml(species.name)}</h3></div></div>
       <div class="market-tier-list">${options}</div>
     </article>`;
@@ -325,7 +387,7 @@ document.querySelectorAll(".filter").forEach((filter) => {
 document.getElementById("sort-select")?.addEventListener("change", renderCatalog);
 
 async function init() {
-  await loadSpeciesMap();
+  await Promise.all([loadSpeciesMap(), loadDinoAtlas()]);
   currentUser = await window.HDS.loadMe();
   try {
     marketplaceState = await api("/api/marketplace/state");
