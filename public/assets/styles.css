@@ -634,3 +634,5 @@
 .event-row-actions{display:flex;gap:6px;align-items:center}.event-paid-chip{display:inline-flex;padding:5px 8px;border:1px solid #687a36;background:#17200f;color:#b6d27b;font:700 9px Oswald;letter-spacing:.1em}
 .event-steam-id{display:block;margin-top:4px;color:#665b4d;font-size:8px}
 @media(max-width:1000px){.event-admin-grid{grid-template-columns:1fr}.event-admin-selected{align-items:flex-start;flex-direction:column}.event-inline-form{align-items:stretch;flex-direction:column}.event-row-actions{align-items:flex-start;flex-direction:column}}
+
+.event-admin-event-picker select{min-width:min(520px,70vw);padding:9px 10px;border:1px solid var(--line);background:#0b0b09;color:var(--text);font:600 10px Manrope}
