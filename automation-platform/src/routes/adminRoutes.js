@@ -12,6 +12,7 @@ const playerPresence = require('../services/playerPresenceService');
 const audit = require('../services/auditService');
 const store = require('../services/automationStore');
 const eventRewards = require('../services/eventRewardService');
+const eventAttendance = require('../services/eventAttendanceService');
 
 const router = express.Router();
 router.use(requireAdminToken);
@@ -193,6 +194,192 @@ router.post('/events/reward', async (req, res) => {
       error: error.message || 'Unable to issue event reward.',
       code: error.code || null,
     });
+  }
+});
+
+router.get('/events/attendance', (req, res) => {
+  try {
+    const eventId = String(req.query.eventId || '').trim() || null;
+    res.json({
+      state: eventAttendance.state(),
+      attendance: eventAttendance.listAttendance({
+        eventId,
+        includeWithdrawn: true,
+        limit: Number(req.query.limit) || 500,
+      }),
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Unable to read event attendance.', code: error.code || null });
+  }
+});
+
+router.post('/events/attendance/add', async (req, res) => {
+  try {
+    const result = await audit.run(
+      'economy',
+      'event_attendance_add',
+      {
+        steamId: String(req.body?.steamId || '').trim(),
+        eventId: String(req.body?.eventId || '').trim(),
+        addedBySteamId: String(req.body?.addedBySteamId || '').trim() || null,
+      },
+      () => eventAttendance.upsertAttendee({
+        steamId: req.body?.steamId,
+        event: {
+          eventId: req.body?.eventId,
+          eventTitle: req.body?.eventTitle,
+          eventStart: req.body?.eventStart,
+          eventEnd: req.body?.eventEnd,
+        },
+        source: 'admin',
+        addedBySteamId: req.body?.addedBySteamId || null,
+      }),
+      (value) => ({
+        duplicate: Boolean(value.duplicate),
+        eventId: value.attendance?.eventId || null,
+        steamId: value.attendance?.steamId || null,
+        status: value.attendance?.status || null,
+      })
+    );
+    res.status(result.duplicate ? 200 : 201).json({ ok: true, ...result });
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Unable to add event attendee.', code: error.code || null });
+  }
+});
+
+router.post('/events/attendance/remove', async (req, res) => {
+  try {
+    const result = await audit.run(
+      'economy',
+      'event_attendance_remove',
+      {
+        steamId: String(req.body?.steamId || '').trim(),
+        eventId: String(req.body?.eventId || '').trim(),
+        removedBySteamId: String(req.body?.removedBySteamId || '').trim() || null,
+      },
+      () => eventAttendance.withdrawAttendee({
+        steamId: req.body?.steamId,
+        eventId: req.body?.eventId,
+      }),
+      (value) => ({
+        changed: Boolean(value.changed),
+        status: value.attendance?.status || null,
+      })
+    );
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    const status = error.code === 'EVENT_ATTENDANCE_ALREADY_PAID' ? 409 : 400;
+    res.status(status).json({ error: error.message || 'Unable to remove event attendee.', code: error.code || null });
+  }
+});
+
+router.post('/events/attendance/confirm', async (req, res) => {
+  try {
+    const result = await audit.run(
+      'economy',
+      'event_attendance_confirm',
+      {
+        steamId: String(req.body?.steamId || '').trim(),
+        eventId: String(req.body?.eventId || '').trim(),
+        confirmedBySteamId: String(req.body?.confirmedBySteamId || '').trim() || null,
+      },
+      () => eventAttendance.confirmAttendance({
+        steamId: req.body?.steamId,
+        eventId: req.body?.eventId,
+        confirmedBySteamId: req.body?.confirmedBySteamId || null,
+      }),
+      (value) => ({
+        duplicate: Boolean(value.duplicate),
+        steamId: value.attendance?.steamId || null,
+        eventId: value.attendance?.eventId || null,
+        baseAmount: value.baseAmount,
+        supporterTier: value.supporterTier,
+        supporterMultiplier: value.supporterMultiplier,
+        payoutAmount: value.payoutAmount,
+        balance: value.wallet?.balance ?? null,
+      })
+    );
+    res.status(result.duplicate ? 200 : 201).json({ ok: true, ...result });
+  } catch (error) {
+    const status = error.code === 'EVENT_REWARDS_DISABLED' ? 503 :
+      ['EVENT_REWARD_SUPPORTER_LOOKUP_UNAVAILABLE', 'EVENT_REWARD_SUPPORTER_LOOKUP_FAILED'].includes(error.code) ? 503 :
+      error.code === 'EVENT_ATTENDANCE_NOT_FOUND' ? 404 : 400;
+    res.status(status).json({ error: error.message || 'Unable to confirm event attendance.', code: error.code || null });
+  }
+});
+
+router.post('/events/attendance/confirm-all', async (req, res) => {
+  try {
+    const result = await audit.run(
+      'economy',
+      'event_attendance_confirm_all',
+      {
+        eventId: String(req.body?.eventId || '').trim(),
+        confirmedBySteamId: String(req.body?.confirmedBySteamId || '').trim() || null,
+      },
+      () => eventAttendance.confirmAll({
+        eventId: req.body?.eventId,
+        confirmedBySteamId: req.body?.confirmedBySteamId || null,
+      }),
+      (value) => ({
+        eventId: value.eventId,
+        attempted: value.attempted,
+        paid: value.paid,
+        duplicates: value.duplicates,
+        failed: value.failed,
+        payoutAmount: value.payoutAmount,
+      })
+    );
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    const status = error.code === 'EVENT_REWARDS_DISABLED' ? 503 :
+      ['EVENT_REWARD_SUPPORTER_LOOKUP_UNAVAILABLE', 'EVENT_REWARD_SUPPORTER_LOOKUP_FAILED'].includes(error.code) ? 503 : 400;
+    res.status(status).json({ error: error.message || 'Unable to confirm all event attendance.', code: error.code || null });
+  }
+});
+
+router.post('/events/bonus', async (req, res) => {
+  try {
+    const result = await audit.run(
+      'economy',
+      'event_bonus_reward',
+      {
+        steamId: String(req.body?.steamId || '').trim(),
+        eventId: String(req.body?.eventId || '').trim(),
+        eventTitle: String(req.body?.eventTitle || '').trim(),
+        amount: Number(req.body?.amount) || 0,
+        label: String(req.body?.label || '').trim(),
+        applySupporterMultiplier: req.body?.applySupporterMultiplier === true,
+        awardedBySteamId: String(req.body?.awardedBySteamId || '').trim() || null,
+      },
+      () => eventAttendance.awardBonus({
+        steamId: req.body?.steamId,
+        eventId: req.body?.eventId,
+        eventTitle: req.body?.eventTitle,
+        amount: req.body?.amount,
+        label: req.body?.label,
+        bonusId: req.body?.bonusId,
+        applySupporterMultiplier: req.body?.applySupporterMultiplier === true,
+        awardedBySteamId: req.body?.awardedBySteamId || null,
+      }),
+      (value) => ({
+        duplicate: Boolean(value.duplicate),
+        bonusId: value.bonusId,
+        steamId: value.wallet?.steamId || null,
+        eventId: value.event?.id || null,
+        label: value.label,
+        baseAmount: value.baseAmount,
+        supporterTier: value.supporterTier,
+        supporterMultiplier: value.supporterMultiplier,
+        payoutAmount: value.payoutAmount,
+        balance: value.wallet?.balance ?? null,
+      })
+    );
+    res.status(result.duplicate ? 200 : 201).json({ ok: true, ...result });
+  } catch (error) {
+    const status = error.code === 'EVENT_REWARDS_DISABLED' ? 503 :
+      ['EVENT_REWARD_SUPPORTER_LOOKUP_UNAVAILABLE', 'EVENT_REWARD_SUPPORTER_LOOKUP_FAILED'].includes(error.code) ? 503 : 400;
+    res.status(status).json({ error: error.message || 'Unable to issue event bonus.', code: error.code || null });
   }
 });
 
