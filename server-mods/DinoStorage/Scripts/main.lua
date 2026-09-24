@@ -1,4 +1,4 @@
--- DinoStorage v003
+-- DinoStorage v004
 -- Store/retrieve dino state across respawns.
 -- All commands are Discord-only via IPC (cmd.flag).
 -- IPC verbs: store, retrieve, delete, list
@@ -6,7 +6,7 @@
 -- Website-backed multi-slot storage with exact state round-tripping.
 
 local MOD_NAME    = "DinoStorage"
-local MOD_VERSION = "v003"
+local MOD_VERSION = "v004"
 
 local function resolveModRoot()
     local source = ""
@@ -32,6 +32,7 @@ local RESULTS_FILE  = (MODS_ROOT and (MODS_ROOT .. "/CommandBridge/Saved/results
 
 local POLL_INTERVAL_MS   = 3000
 local STORE_DELAY_MS     = 3000
+local STORE_CORPSE_CLEANUP_MS = 1500
 local RETRIEVE_DELAY_MS  = 3000
 local DEFERRED_MS        = 500
 
@@ -1110,9 +1111,28 @@ local function cmdStore(steam, slot)
                 local ctrl2; pcall(function() ctrl2 = gm2:GetControllerBySteamId(steamSnap) end)
                 if ctrl2 == nil then return end
                 local pawn2 = livePawnFromCtrl(ctrl2); if pawn2 == nil then return end
-                -- Zero growth before killing so the corpse left behind is tiny
-                pcall(function() pawn2:SetGrowth(0) end)
+                -- Kill at the original growth so Evrima does not render the
+                -- stretched/tiny zero-growth corpse seen after parking.
                 pcall(function() pawn2:SetHealth(0) end)
+
+                -- Let the normal death/respawn transition run, then remove only
+                -- the parked pawn's corpse. Never reacquire the controller here:
+                -- it may already own a newly spawned pawn by cleanup time.
+                local parkedPawn = pawn2
+                if LoopInGameThreadWithDelay ~= nil then
+                    local cleanupHandle
+                    cleanupHandle = LoopInGameThreadWithDelay(STORE_CORPSE_CLEANUP_MS, function()
+                        if cleanupHandle ~= nil and CancelDelayedAction ~= nil then
+                            pcall(function() CancelDelayedAction(cleanupHandle) end)
+                        end
+                        pcall(function() parkedPawn:SetActorEnableCollision(false) end)
+                        pcall(function() parkedPawn:SetActorHiddenInGame(true) end)
+                        local destroyed = pcall(function() parkedPawn:K2_DestroyActor() end)
+                        if not destroyed then
+                            pcall(function() parkedPawn:DestroyActor() end)
+                        end
+                    end)
+                end
             end)
         end
         local species = (state.classPath:match("BP_(.-)%.") or "dino"):gsub("_C$","")
