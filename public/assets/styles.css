@@ -589,4 +589,4 @@
   background:linear-gradient(0deg,rgba(8,10,8,.48),transparent 42%);
 }
 
-.market-dino-thumb.atlas-thumb{display:block;width:min(220px,calc(100% - 24px));height:120px;margin:12px auto 0;border:1px solid var(--line);border-radius:8px;object-fit:cover;background:#090d0b}
+.market-dino-thumb.atlas-thumb{display:block;width:min(244px,calc(100% - 24px));height:170px;margin:12px auto 0;border:1px solid var(--line);border-radius:8px;object-fit:cover;background:#090d0b;filter:contrast(1.03) saturate(1.03)}
