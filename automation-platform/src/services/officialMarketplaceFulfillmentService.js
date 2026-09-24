@@ -4,7 +4,7 @@ const files = require('./parkedDinoFileService');
 const commandBridge = require('./commandBridgeService');
 const httpBridge = require('./commandBridgeHttpService');
 
-const BRIDGE_RETRY_MS = 30000;
+const BRIDGE_RETRY_MS = 300000;
 
 function enabled() {
   return String(process.env.OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED || '').toLowerCase() === 'true'
