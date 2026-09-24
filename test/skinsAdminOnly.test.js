@@ -39,9 +39,17 @@ test("Admin-only skin management remains protected", () => {
 });
 
 
-test("normal players can edit skins they created in My Skins", () => {
+test("normal players can edit their created or granted exclusive skins in My Skins", () => {
   const client = read("public/assets/skins.js");
-  assert.match(client, /if \(mode === "mine" && isCreator\)/);
+  assert.match(client, /const canEdit = isCreator \|\| Boolean\(preset\.exclusive && preset\.granted\)/);
+  assert.match(client, /if \(mode === "mine" && canEdit\)/);
   assert.match(client, /class="small-button skin-edit"/);
-  assert.doesNotMatch(client, /mode === "mine"\) actions\.push\([^\n]*skin-edit[^\n]*\).*me\.user\?\.is_admin/);
+});
+
+test("normal players get Delete for removable My Skins entries", () => {
+  const client = read("public/assets/skins.js");
+  assert.match(client, /const canDelete = isCreator \|\| Boolean\(preset\.exclusive && preset\.granted\)/);
+  assert.match(client, /if \(mode === "mine" && canDelete\)/);
+  assert.match(client, /class="small-button skin-delete"/);
+  assert.match(client, /removes only your exclusive copy/);
 });
