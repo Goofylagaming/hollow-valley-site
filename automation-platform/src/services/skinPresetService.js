@@ -108,19 +108,48 @@ function generateShareCode() {
 function getPresetForPlayer(steamId, presetId) {
   const steam = store.validateSteamId(steamId);
   const preset = store.getSkinPreset(presetId);
+  const grant = preset ? store.getSkinGrant(steam, preset.id) : null;
   const accessible = preset && preset.active && (
     preset.owner_steam_id === steam ||
     preset.isPremium ||
     Number(preset.price) === 0 && preset.published ||
     store.hasSkinUnlock(steam, preset.id) ||
-    store.hasSkinGrant(steam, preset.id)
+    Boolean(grant)
   );
   if (!accessible) {
     const error = new Error('Skin preset not found or not unlocked');
     error.code = 'SKIN_PRESET_NOT_FOUND';
     throw error;
   }
-  return { ...preset, owned: true };
+
+  if (grant?.customized_at) {
+    let customSkin = preset.skin;
+    try {
+      customSkin = sanitizeSkin(JSON.parse(grant.custom_skin_json || '{}'));
+    } catch {}
+    return {
+      ...preset,
+      species: grant.custom_species || preset.species,
+      name: grant.custom_name || preset.name,
+      description: grant.custom_description ?? preset.description,
+      skin: customSkin,
+      owned: true,
+      granted: true,
+      grantCustomized: true,
+      grantNote: grant.note || '',
+      grantedAt: grant.granted_at || null,
+      customizedAt: grant.customized_at || null,
+    };
+  }
+
+  return {
+    ...preset,
+    owned: true,
+    granted: Boolean(grant),
+    grantCustomized: false,
+    grantNote: grant?.note || '',
+    grantedAt: grant?.granted_at || null,
+  };
 }
 
 function listAvailablePresets(steamId, { species = null } = {}) {
@@ -340,17 +369,42 @@ function listExclusiveGrants(presetId) {
 function updatePreset({ steamId, presetId, species, name, description = '', skin }) {
   const steam = store.validateSteamId(steamId);
   const preset = store.getSkinPreset(presetId);
-  if (!preset || !preset.active || preset.owner_steam_id !== steam) {
-    const error = new Error('Skin preset not found or is not yours');
+  if (!preset || !preset.active) {
+    const error = new Error('Skin preset not found');
     error.code = 'SKIN_PRESET_NOT_FOUND';
     throw error;
   }
-  store.db.prepare(`
-    UPDATE economy_skin_presets
-    SET species = ?, name = ?, description = ?, skin_json = ?, updated_at = datetime('now')
-    WHERE id = ? AND owner_steam_id = ? AND active = 1
-  `).run(validateSpecies(species), validateName(name), validateDescription(description), JSON.stringify(sanitizeSkin(skin)), preset.id, steam);
-  return store.getSkinPreset(preset.id);
+
+  const safeSpecies = validateSpecies(species);
+  const safeName = validateName(name);
+  const safeDescription = validateDescription(description);
+  const safeSkin = sanitizeSkin(skin);
+
+  if (preset.owner_steam_id === steam) {
+    store.db.prepare(`
+      UPDATE economy_skin_presets
+      SET species = ?, name = ?, description = ?, skin_json = ?, updated_at = datetime('now')
+      WHERE id = ? AND owner_steam_id = ? AND active = 1
+    `).run(safeSpecies, safeName, safeDescription, JSON.stringify(safeSkin), preset.id, steam);
+    return store.getSkinPreset(preset.id);
+  }
+
+  const grant = store.getSkinGrant(steam, preset.id);
+  if (preset.exclusive && grant) {
+    store.customizeSkinGrant({
+      steamId: steam,
+      presetId: preset.id,
+      species: safeSpecies,
+      name: safeName,
+      description: safeDescription,
+      skin: safeSkin,
+    });
+    return getPresetForPlayer(steam, preset.id);
+  }
+
+  const error = new Error('Skin preset not found or is not editable by this account');
+  error.code = 'SKIN_PRESET_NOT_FOUND';
+  throw error;
 }
 
 function deletePreset({ steamId, presetId }) {
