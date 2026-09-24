@@ -37,3 +37,11 @@ test("Admin-only skin management remains protected", () => {
   assert.match(route, /router\.get\("\/:id\/grants", requireAdmin/);
   assert.match(route, /router\.post\("\/:id\/publish", requireAdmin/);
 });
+
+
+test("normal players can edit skins they created in My Skins", () => {
+  const client = read("public/assets/skins.js");
+  assert.match(client, /if \(mode === "mine" && isCreator\)/);
+  assert.match(client, /class="small-button skin-edit"/);
+  assert.doesNotMatch(client, /mode === "mine"\) actions\.push\([^\n]*skin-edit[^\n]*\).*me\.user\?\.is_admin/);
+});
