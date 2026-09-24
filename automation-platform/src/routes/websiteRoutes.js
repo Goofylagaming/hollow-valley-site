@@ -3,6 +3,7 @@ const officialCatalog = require('../services/officialMarketplaceCatalogService')
 const { requireWebsiteToken } = require('../middleware/websiteAuth');
 const bodyDrop = require('../services/bodyDropService');
 const dinoStorage = require('../services/dinoStorageService');
+const dinoScrap = require('../services/dinoScrapService');
 const audit = require('../services/auditService');
 const store = require('../services/automationStore');
 const statusService = require('../services/statusService');
@@ -737,10 +738,24 @@ router.get('/dinostorage/active-character/:steamId', async (req, res) => {
 router.get('/dinostorage/:steamId', async (req, res) => {
   try {
     const steamId = validateSteamId(req.params.steamId);
-    const dinos = await dinoStorage.listStoredDinos(steamId);
+    const dinos = (await dinoStorage.listStoredDinos(steamId)).map((dino) => ({
+      ...dino,
+      scrap: dinoScrap.quoteFromDino(dino),
+    }));
     res.json({ steamId, dinos });
   } catch (error) {
     res.status(502).json({ error: error.message || 'Unable to list DinoStorage slots.' });
+  }
+});
+
+router.get('/dinostorage/stored/:steamId/:slot/scrap-quote', async (req, res) => {
+  try {
+    const steamId = validateSteamId(req.params.steamId);
+    const result = await dinoScrap.quoteStoredDino(steamId, req.params.slot);
+    res.json({ ok: true, slot: result.dino.slot, species: result.dino.species, ...result.quote });
+  } catch (error) {
+    const status = error.code === 'DINO_FILE_NOT_FOUND' ? 404 : 400;
+    res.status(status).json({ error: error.message || 'Unable to quote dinosaur scrap value.', code: error.code || null });
   }
 });
 
@@ -765,6 +780,42 @@ async function dinoAction(req, res, action) {
 
 router.post('/dinostorage/store', (req, res) => dinoAction(req, res, 'store'));
 router.post('/dinostorage/redeem', (req, res) => dinoAction(req, res, 'redeem'));
+
+router.post('/dinostorage/delete', async (req, res) => {
+  try {
+    const steamId = validateSteamId(req.body?.steamId);
+    const slot = dinoStorage.validateSlot(req.body?.slot);
+    dinoScrap.assertNotListed(steamId, slot);
+    const dino = await dinoStorage.getStoredDino(steamId, slot);
+    const result = await audit.run('website', 'dinostorage_delete', { steamId, slot },
+      () => dinoStorage.deleteStoredDino({ steamId, slot }),
+      (value) => ({ requestId: value.command?.id || null, slot }));
+    res.json({ ok: true, slot, species: dino.species, message: `${dino.species} deleted from My Dinos.`, result });
+  } catch (error) {
+    const status = error.code === 'DINO_FILE_NOT_FOUND' ? 404 :
+      error.code === 'DINO_LISTED' ? 409 :
+      error.code === 'DINOSTORAGE_COMMAND_TIMEOUT' ? 504 : 400;
+    res.status(status).json({ error: error.message || 'Unable to delete parked dinosaur.', code: error.code || null });
+  }
+});
+
+router.post('/dinostorage/scrap', async (req, res) => {
+  try {
+    const steamId = validateSteamId(req.body?.steamId);
+    const slot = dinoStorage.validateSlot(req.body?.slot);
+    const result = await audit.run('website', 'dinostorage_scrap', { steamId, slot },
+      () => dinoScrap.scrapStoredDino({ steamId, slot }),
+      (value) => ({ slot: value.slot, species: value.species, payout: value.payout, balance: value.wallet?.balance ?? null }));
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    const status = error.code === 'DINO_FILE_NOT_FOUND' ? 404 :
+      error.code === 'DINO_LISTED' ? 409 :
+      error.code === 'DINO_SCRAP_DISABLED' ? 503 :
+      error.code === 'DINO_SCRAP_UNAVAILABLE' ? 409 :
+      error.code === 'DINOSTORAGE_COMMAND_TIMEOUT' ? 504 : 400;
+    res.status(status).json({ error: error.message || 'Unable to scrap parked dinosaur.', code: error.code || null });
+  }
+});
 
 router.get('/requests/:id', (req, res) => {
   try {
