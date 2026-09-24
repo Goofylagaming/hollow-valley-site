@@ -1,5 +1,6 @@
 const bridge = require('./commandBridgeService');
 const skinPresets = require('./skinPresetService');
+const statusService = require('./statusService');
 
 function timeoutMs() {
   const value = Number(process.env.SKIN_WEAR_TIMEOUT_MS || 12000);
@@ -10,13 +11,14 @@ function encodeColor(name, color) {
   return `${name}=${['r','g','b','a'].map((channel) => Number(color[channel]).toFixed(6)).join(',')}`;
 }
 
-function buildWearTokens(preset) {
+function buildWearTokens(preset, targetSpecies = null) {
   const skin = skinPresets.sanitizeSkin(preset.skin);
   const universal = String(preset.species || '').toLowerCase() === 'universal';
   const paletteOnly = universal || /fangs\s*&\s*ferns/i.test(String(preset.description || ''));
+  const species = skinPresets.validateSpecies(targetSpecies || preset.species);
   return [
     `preset=${preset.id}`,
-    `species=${skinPresets.validateSpecies(preset.species)}`,
+    `species=${species}`,
     ...skinPresets.COLOR_KEYS.map((key) => encodeColor(key, skin[key])),
     `variation=${skin.skinVariation}`,
     `pattern=${skin.patternIndex}`,
@@ -33,7 +35,23 @@ async function wearPreset({ steamId, presetId }) {
   }
 
   const preset = skinPresets.getPresetForPlayer(steamId, presetId);
-  const command = bridge.buildCommand('skin_apply', steamId, buildWearTokens(preset));
+  let targetSpecies = null;
+  if (String(preset.species || '').toLowerCase() === 'universal') {
+    const snapshot = await statusService.getServerSnapshot();
+    if (!snapshot?.online) {
+      const error = new Error('The game server must be online to equip a universal skin.');
+      error.code = 'SKIN_SERVER_OFFLINE';
+      throw error;
+    }
+    const active = (snapshot.characters || []).find((entry) => String(entry?.steamId || '') === String(steamId));
+    if (!active?.species) {
+      const error = new Error('Spawn a dinosaur in game before equipping a universal skin.');
+      error.code = 'SKIN_ACTIVE_DINO_REQUIRED';
+      throw error;
+    }
+    targetSpecies = active.species;
+  }
+  const command = bridge.buildCommand('skin_apply', steamId, buildWearTokens(preset, targetSpecies));
   await bridge.queueCommand(command);
 
   const deadline = Date.now() + timeoutMs();
