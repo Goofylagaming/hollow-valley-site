@@ -245,7 +245,7 @@ async function confirmAttendance({
   eventId,
   steamId,
   confirmedBySteamId = null,
-}, { env = process.env } = {}) {
+}, { env = process.env, membershipOverride = null } = {}) {
   requireRewardsEnabled(env);
   const id = validateEventId(eventId);
   const steam = validateSteamId(steamId);
@@ -280,7 +280,7 @@ async function confirmAttendance({
     wallet = economy.getWallet(steam);
     duplicate = true;
   } else {
-    membership = await refreshMembership(steam, env);
+    membership = membershipOverride || await refreshMembership(steam, env);
     multiplier = multiplierForTier(membership.tier);
     payout = Math.round(base * multiplier);
 
@@ -349,12 +349,32 @@ async function confirmAttendance({
 
 async function confirmAll({ eventId, confirmedBySteamId = null }, options = {}) {
   const id = validateEventId(eventId);
+  const env = options.env || process.env;
+  requireRewardsEnabled(env);
+
   const attendees = listAttendance({ eventId: id, includeWithdrawn: false, limit: 1000 })
     .filter((entry) => entry.status !== 'paid');
+
+  if (supporterBonuses.enabled(env) && attendees.length) {
+    if (!supporterBonuses.configuration(env)) {
+      const error = new Error('Supporter lookup is not configured; event rewards were not issued');
+      error.code = 'EVENT_REWARD_SUPPORTER_LOOKUP_UNAVAILABLE';
+      throw error;
+    }
+    try {
+      await supporterBonuses.refreshMemberships(attendees.map((entry) => entry.steamId), { env });
+    } catch (cause) {
+      const error = new Error('Supporter lookup failed; event rewards were not issued');
+      error.code = 'EVENT_REWARD_SUPPORTER_LOOKUP_FAILED';
+      error.cause = cause;
+      throw error;
+    }
+  }
 
   const results = [];
   for (const attendance of attendees) {
     try {
+      const membershipOverride = supporterBonuses.membershipForSteamId(attendance.steamId, env);
       results.push({
         ok: true,
         steamId: attendance.steamId,
@@ -362,7 +382,7 @@ async function confirmAll({ eventId, confirmedBySteamId = null }, options = {}) 
           eventId: id,
           steamId: attendance.steamId,
           confirmedBySteamId,
-        }, options)),
+        }, { env, membershipOverride })),
       });
     } catch (error) {
       results.push({
