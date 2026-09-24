@@ -490,31 +490,37 @@ document.getElementById("skin-store-species").addEventListener("change", loadSto
 document.getElementById("skin-mine-refresh").addEventListener("click", loadMine);
 document.getElementById("skin-library-refresh")?.addEventListener("click", loadMine);
 
-document.getElementById("skin-library-parse")?.addEventListener("click", () => {
-  const adapter = window.HDSSkinImport;
-  if (!adapter?.parseExternalSkinBatch || !adapter?.mergeWithSkin) {
-    return showAlert("External skin batch importer is unavailable.", "error");
-  }
-
+document.getElementById("skin-library-parse")?.addEventListener("click", async () => {
   const raw = document.getElementById("skin-library-batch").value.trim();
   const species = document.getElementById("skin-library-species").value;
   const prefix = document.getElementById("skin-library-prefix").value.trim() || "Imported Skin";
+  const button = document.getElementById("skin-library-parse");
+  button.disabled = true;
   try {
-    const parsedBatch = adapter.parseExternalSkinBatch(raw);
-    const base = editorSkin();
-    externalQueue = parsedBatch.map((parsed, index) => ({
-      parsed,
+    const result = await api("/api/skins/external/batch-preview", {
+      method: "POST",
+      body: JSON.stringify({ rawCode: raw, baseSkin: editorSkin() }),
+    });
+    const items = Array.isArray(result.items) ? result.items : [];
+    externalQueue = items.map((item, index) => ({
+      parsed: {
+        source: item.source,
+        sourceLabel: item.sourceLabel,
+        warnings: item.warnings || [],
+      },
       species,
       name: `${prefix} ${index + 1}`.slice(0, 60),
-      skin: adapter.mergeWithSkin(base, parsed),
+      skin: item.skin,
     }));
     renderExternalQueue();
-    const sources = [...new Set(parsedBatch.map((item) => item.sourceLabel).filter(Boolean))];
+    const sources = [...new Set(items.map((item) => item.sourceLabel).filter(Boolean))];
     showAlert(`Prepared ${externalQueue.length} external skin${externalQueue.length === 1 ? "" : "s"} for review from ${sources.join(" + ") || "supported external formats"}.`, "success");
   } catch (err) {
     externalQueue = [];
     renderExternalQueue();
     showAlert(err.message, "error");
+  } finally {
+    button.disabled = false;
   }
 });
 
@@ -591,41 +597,41 @@ document.getElementById("skin-share-import").addEventListener("click", async () 
   }
 });
 
-document.getElementById("skin-external-load")?.addEventListener("click", () => {
-  const adapter = window.HDSSkinImport;
-  if (!adapter?.parseExternalSkinCode || !adapter?.mergeWithSkin) {
-    return showAlert("External skin importer is unavailable.", "error");
-  }
-
+document.getElementById("skin-external-load")?.addEventListener("click", async () => {
   const raw = document.getElementById("skin-external-code").value.trim();
   const targetSpecies = document.getElementById("skin-external-species").value;
   const resultEl = document.getElementById("skin-external-result");
+  const button = document.getElementById("skin-external-load");
 
+  button.disabled = true;
+  resultEl.textContent = "Checking external skin code…";
   try {
-    const parsed = adapter.parseExternalSkinCode(raw);
-    const merged = adapter.mergeWithSkin(editorSkin(), parsed);
-    applySkinToEditor(merged);
+    const result = await api("/api/skins/external/preview", {
+      method: "POST",
+      body: JSON.stringify({ rawCode: raw, baseSkin: editorSkin() }),
+    });
+    applySkinToEditor(result.skin);
 
     if (targetSpecies) {
       document.getElementById("skin-species").value = targetSpecies;
     }
     if (!document.getElementById("skin-description").value.trim()) {
-      document.getElementById("skin-description").value = `Imported from ${parsed.sourceLabel}.`;
+      document.getElementById("skin-description").value = `Imported from ${result.sourceLabel || "external skin code"}.`;
     }
     updatePreview();
     activateSkinTab("studio");
 
-    const importedCount = Object.keys(parsed.skinPatch || {}).length;
-    const indexCount = Object.keys(parsed.indices || {}).length;
-    const warningText = (parsed.warnings || []).join(" ");
-    resultEl.textContent = `${parsed.sourceLabel} detected · ${importedCount} colour zones${indexCount ? ` · ${indexCount} native index values` : ""} loaded.`;
+    const warningText = (result.warnings || []).join(" ");
+    resultEl.textContent = `${result.sourceLabel || "External skin"} detected · ${Number(result.importedColorCount) || 0} colour zones${result.importedIndexCount ? ` · ${result.importedIndexCount} native index values` : ""} loaded.`;
     showAlert(
-      `Loaded ${parsed.sourceLabel} into Skin Studio for ${document.getElementById("skin-species").selectedOptions[0]?.textContent || "the selected species"}. Review the preview before saving.${warningText ? ` ${warningText}` : ""}`,
+      `Loaded ${result.sourceLabel || "external skin"} into Skin Studio for ${document.getElementById("skin-species").selectedOptions[0]?.textContent || "the selected species"}. Review the preview before saving.${warningText ? ` ${warningText}` : ""}`,
       warningText ? "warning" : "success"
     );
   } catch (err) {
     resultEl.textContent = err.message;
     showAlert(err.message, "error");
+  } finally {
+    button.disabled = false;
   }
 });
 
