@@ -504,6 +504,13 @@ function activateAdminGlobalBodyDrop() {
   });
 }
 
+function wipeAdminCorpses() {
+  return callAdmin('/rcon/wipe-corpses', {
+    method: 'POST',
+    body: { confirm: 'WIPE CORPSES' },
+  });
+}
+
 function createAdminBackup() {
   return callAdmin('/backups', { method: 'POST' });
 }
@@ -623,6 +630,7 @@ module.exports = {
   getAdminGlobalBodyDropState,
   setAdminGlobalBodyDropEnabled,
   activateAdminGlobalBodyDrop,
+  wipeAdminCorpses,
   createAdminBackup,
   getAdminServerHealth,
   getAdminDiscordState,
