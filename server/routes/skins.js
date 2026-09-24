@@ -2,6 +2,7 @@ const express = require("express");
 const { randomUUID } = require("node:crypto");
 const { requireAuth, requireAdmin } = require("../middleware/requireAuth");
 const automation = require("../services/automationWebsiteClient");
+const externalSkinImport = require("../../public/assets/external-skin-import.js");
 
 const router = express.Router();
 
@@ -73,6 +74,41 @@ router.post("/studio", requireAuth, async (req, res) => {
   } catch (error) {
     const mapped = mapAutomationError(error, "Could not save the Skin Studio design.");
     return res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.post("/external/preview", requireAuth, async (req, res) => {
+  try {
+    const parsed = externalSkinImport.parseExternalSkinCode(req.body?.rawCode);
+    const skin = externalSkinImport.mergeWithSkin(req.body?.baseSkin, parsed);
+    return res.json({
+      source: parsed.source,
+      sourceLabel: parsed.sourceLabel,
+      warnings: Array.isArray(parsed.warnings) ? parsed.warnings : [],
+      importedColorCount: Object.keys(parsed.skinPatch || {}).length,
+      importedIndexCount: Object.keys(parsed.indices || {}).length,
+      skin,
+    });
+  } catch (error) {
+    return res.status(400).json({ error: error?.message || "Could not parse external skin code." });
+  }
+});
+
+router.post("/external/batch-preview", requireAuth, async (req, res) => {
+  try {
+    const parsedBatch = externalSkinImport.parseExternalSkinBatch(req.body?.rawCode);
+    const baseSkin = req.body?.baseSkin;
+    const items = parsedBatch.map((parsed) => ({
+      source: parsed.source,
+      sourceLabel: parsed.sourceLabel,
+      warnings: Array.isArray(parsed.warnings) ? parsed.warnings : [],
+      importedColorCount: Object.keys(parsed.skinPatch || {}).length,
+      importedIndexCount: Object.keys(parsed.indices || {}).length,
+      skin: externalSkinImport.mergeWithSkin(baseSkin, parsed),
+    }));
+    return res.json({ items });
+  } catch (error) {
+    return res.status(400).json({ error: error?.message || "Could not parse external skin batch." });
   }
 });
 
