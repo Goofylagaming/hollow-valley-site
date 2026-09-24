@@ -19,6 +19,7 @@ const skinWear = require('../services/skinWearService');
 const officialMarketplaceFulfillment = require('../services/officialMarketplaceFulfillmentService');
 const playerPresence = require('../services/playerPresenceService');
 const eventRewards = require('../services/eventRewardService');
+const eventAttendance = require('../services/eventAttendanceService');
 const combatEvents = require('../services/combatEventService');
 const discordEvents = require('../services/discordEventService');
 
@@ -131,6 +132,63 @@ router.get('/events/rewards/:steamId', (req, res) => {
     });
   } catch (error) {
     res.status(400).json({ error: error.message || 'Unable to read event rewards.' });
+  }
+});
+
+router.get('/events/attendance/:steamId', (req, res) => {
+  try {
+    const steamId = validateSteamId(req.params.steamId);
+    res.json({
+      state: eventAttendance.state(),
+      attendance: eventAttendance.listAttendance({ steamId, includeWithdrawn: true, limit: 250 }),
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Unable to read event attendance.' });
+  }
+});
+
+router.post('/events/attendance', async (req, res) => {
+  try {
+    const steamId = validateSteamId(req.body?.steamId);
+    const event = {
+      eventId: req.body?.eventId,
+      eventTitle: req.body?.eventTitle,
+      eventStart: req.body?.eventStart,
+      eventEnd: req.body?.eventEnd,
+    };
+    if (req.body?.attending === false) {
+      const result = await audit.run('economy', 'event_rsvp_withdraw', {
+        steamId,
+        eventId: String(req.body?.eventId || '').trim(),
+      }, async () => eventAttendance.withdrawAttendee({
+        steamId,
+        eventId: req.body?.eventId,
+      }), (value) => ({
+        changed: Boolean(value.changed),
+        status: value.attendance?.status || null,
+      }));
+      return res.json({ ok: true, ...result });
+    }
+
+    const result = await audit.run('economy', 'event_rsvp', {
+      steamId,
+      eventId: String(req.body?.eventId || '').trim(),
+      eventTitle: String(req.body?.eventTitle || '').trim(),
+    }, async () => eventAttendance.upsertAttendee({
+      steamId,
+      event,
+      source: 'website_rsvp',
+    }), (value) => ({
+      duplicate: Boolean(value.duplicate),
+      status: value.attendance?.status || null,
+    }));
+    res.status(result.duplicate ? 200 : 201).json({ ok: true, ...result });
+  } catch (error) {
+    const status = error.code === 'EVENT_ATTENDANCE_ALREADY_PAID' ? 409 : 400;
+    res.status(status).json({
+      error: error.message || 'Unable to update event attendance.',
+      code: error.code || null,
+    });
   }
 });
 
