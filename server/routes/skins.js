@@ -84,6 +84,7 @@ router.post("/external/preview", requireAuth, async (req, res) => {
     return res.json({
       source: parsed.source,
       sourceLabel: parsed.sourceLabel,
+      speciesCode: parsed.speciesCode || null,
       warnings: Array.isArray(parsed.warnings) ? parsed.warnings : [],
       importedColorCount: Object.keys(parsed.skinPatch || {}).length,
       importedIndexCount: Object.keys(parsed.indices || {}).length,
@@ -101,6 +102,7 @@ router.post("/external/batch-preview", requireAuth, async (req, res) => {
     const items = parsedBatch.map((parsed) => ({
       source: parsed.source,
       sourceLabel: parsed.sourceLabel,
+      speciesCode: parsed.speciesCode || null,
       warnings: Array.isArray(parsed.warnings) ? parsed.warnings : [],
       importedColorCount: Object.keys(parsed.skinPatch || {}).length,
       importedIndexCount: Object.keys(parsed.indices || {}).length,
