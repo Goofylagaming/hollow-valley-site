@@ -186,6 +186,15 @@ function listMarketplaceCatalog() {
   return call('/marketplace/catalog');
 }
 
+function updateMarketplaceCatalogItem({ catalogId, price, growthPercent, active, isPrime }) {
+  const id = String(catalogId || '').trim();
+  if (!/^[A-Za-z0-9:_-]{2,80}$/.test(id)) throw new Error('Invalid marketplace catalog ID');
+  return call(`/marketplace/catalog/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: { price, growthPercent, active, isPrime },
+  });
+}
+
 function listMarketplaceOrders(steamId) {
   return call(`/marketplace/orders/${encodeURIComponent(validateSteamId(steamId))}`);
 }
@@ -548,6 +557,7 @@ module.exports = {
   getPlaytimeLeaderboard,
   getCombatLeaderboard,
   listMarketplaceCatalog,
+  updateMarketplaceCatalogItem,
   listMarketplaceOrders,
   purchaseMarketplaceItem,
   adminCreditWallet,
