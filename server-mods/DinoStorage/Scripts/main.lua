@@ -1,12 +1,12 @@
--- DinoStorage v005
+-- DinoStorage v006
 -- Store/retrieve dino state across respawns.
 -- All commands are Discord-only via IPC (cmd.flag).
--- IPC verbs: store, retrieve, delete, list, grant
+-- IPC verbs: store, retrieve, delete, list, grant, edit
 --
 -- Website-backed multi-slot storage with exact state round-tripping.
 
 local MOD_NAME    = "DinoStorage"
-local MOD_VERSION = "v005"
+local MOD_VERSION = "v006"
 
 local function resolveModRoot()
     local source = ""
@@ -1286,6 +1286,81 @@ end
 -- IPC: cmd.flag polling (DinoStorage legacy format)
 -- ============================================================
 
+local function percentDecode(value)
+    return (tostring(value or ""):gsub("%%(%x%x)", function(hex)
+        return string.char(tonumber(hex, 16))
+    end))
+end
+
+local function keyValueTokens(tokens, startIndex)
+    local out = {}
+    for i = startIndex or 1, #(tokens or {}) do
+        local key, value = tostring(tokens[i] or ""):match("^([A-Za-z0-9_]+)=(.*)$")
+        if key then out[key] = value end
+    end
+    return out
+end
+
+local function parseEditColor(raw)
+    local r, g, b, a = tostring(raw or ""):match("^([%d%.%-]+),([%d%.%-]+),([%d%.%-]+),([%d%.%-]+)$")
+    r, g, b, a = tonumber(r), tonumber(g), tonumber(b), tonumber(a)
+    if r == nil or g == nil or b == nil or a == nil then return nil end
+    if r < 0 or r > 1 or g < 0 or g > 1 or b < 0 or b > 1 or a < 0 or a > 1 then return nil end
+    return { r=r, g=g, b=b, a=a }
+end
+
+local function applyParkedEdit(steam, extraArgs)
+    local slot = extraArgs[1] or ""
+    local mode = extraArgs[2] or ""
+    if not validSteamId(steam) then return false, "invalid Steam ID" end
+    if not validSlotName(slot) then return false, "invalid slot name" end
+
+    local state = loadState(steam, slot)
+    if state == nil then return false, "slot not found: " .. tostring(slot) end
+    local values = keyValueTokens(extraArgs, 3)
+
+    if mode == "mutations" then
+        state.mutations = state.mutations or {}
+        for i = 1, 4 do
+            local key = "Slot" .. tostring(i)
+            local encoded = values[key]
+            if encoded == nil then return false, "missing " .. key end
+            state.mutations["MutationSlot" .. tostring(i)] = percentDecode(encoded)
+        end
+    elseif mode == "skin" then
+        local keys = {
+            "maleDisplay", "markings", "body", "flank", "underbelly",
+            "teeth", "mouth", "claws", "detail1", "eyes",
+        }
+        local skin = {}
+        for _, key in ipairs(keys) do
+            local color = parseEditColor(values[key])
+            if color == nil then return false, "invalid skin colour: " .. key end
+            skin[key] = color
+        end
+        local variation = tonumber(values.skinVariation)
+        local pattern = tonumber(values.patternIndex)
+        local theme = tonumber(values.themeIndex)
+        if variation == nil or pattern == nil or theme == nil then
+            return false, "missing skin pattern data"
+        end
+        if pattern < 0 or pattern > 65535 or theme < 0 or theme > 65535 then
+            return false, "invalid skin pattern data"
+        end
+        skin.skinVariation = variation
+        skin.patternIndex = math.floor(pattern)
+        skin.themeIndex = math.floor(theme)
+        state.skin = skin
+    else
+        return false, "unknown edit mode"
+    end
+
+    if not saveState(steam, slot, state) then
+        return false, "could not write parked dino slot"
+    end
+    return true, mode == "skin" and "parked skin updated" or "parked mutations updated"
+end
+
 local function emitResult(id, steam, tokens, ok, msg)
     local tokensJson = "["
     for i, t in ipairs(tokens) do
@@ -1340,9 +1415,21 @@ local function pollCmdFlag()
                 if not validSlotName(slot) then
                     ok = false; msg = "invalid slot name"
                 else
-                    deleteSlot(steam, slot)
-                    ok = true; msg = "slot deleted"
+                    local path = slotFile(steam, slot)
+                    if not fileExists(path) then
+                        ok = false; msg = "slot not found: " .. tostring(slot)
+                    else
+                        local removed = deleteSlot(steam, slot)
+                        if removed and not fileExists(path) then
+                            ok = true; msg = "slot deleted"
+                        else
+                            ok = false; msg = "slot delete failed"
+                        end
+                    end
                 end
+            elseif verb == "edit" then
+                ok, msg = applyParkedEdit(steam, extraArgs)
+                ok = ok == true
             elseif verb == "grant" then
                 local slot = extraArgs[1]
                 local classPath = extraArgs[2]
@@ -1412,9 +1499,23 @@ local function pollCmdFlag()
                         jsonEscape(mut.ElderMutationSlot3A or ""), jsonEscape(mut.ElderMutationSlot3B or ""),
                         jsonEscape(mut.ElderMutationSlot4A or ""), jsonEscape(mut.ElderMutationSlot4B or "")
                     )
+                    local skin = (state and state.skin) or {}
+                    local skinJson = string.format(
+                        '{"maleDisplay":%s,"markings":%s,"body":%s,"flank":%s,"underbelly":%s,' ..
+                        '"teeth":%s,"mouth":%s,"claws":%s,"detail1":%s,"eyes":%s,' ..
+                        '"skinVariation":%.6f,"patternIndex":%d,"themeIndex":%d}',
+                        colorJson(skin.maleDisplay), colorJson(skin.markings), colorJson(skin.body),
+                        colorJson(skin.flank), colorJson(skin.underbelly), colorJson(skin.teeth),
+                        colorJson(skin.mouth), colorJson(skin.claws), colorJson(skin.detail1),
+                        colorJson(skin.eyes), tonumber(skin.skinVariation) or 0,
+                        math.floor(tonumber(skin.patternIndex) or 0), math.floor(tonumber(skin.themeIndex) or 0)
+                    )
                     listJson = listJson .. string.format(
-                        '{"slot":"%s","classPath":"%s","growth":%.6f,"capturedAt":%d,"mutations":%s}',
-                        jsonEscape(s.slot), jsonEscape(s.classPath), s.growth, s.capturedAt, mutJson
+                        '{"slot":"%s","classPath":"%s","growth":%.6f,"capturedAt":%d,' ..
+                        '"isFemale":%s,"isPrime":%s,"skin":%s,"mutations":%s}',
+                        jsonEscape(s.slot), jsonEscape(s.classPath), s.growth, s.capturedAt,
+                        boolStr(state and state.isFemale == true), boolStr(state and state.isPrime == true),
+                        skinJson, mutJson
                     )
                 end
                 listJson = listJson .. "]"
