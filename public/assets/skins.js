@@ -22,6 +22,17 @@ let externalQueue = [];
 
 const EXTERNAL_LIBRARY_RE = /^\[External Library:([^\]]+)\]\s*/;
 
+function resolveExternalSpecies(speciesCode, fallbackSpecies = "") {
+  const code = String(speciesCode || "").trim().toLowerCase();
+  if (!code) return fallbackSpecies;
+  const match = speciesList.find((species) => {
+    const id = String(species.id || "").toLowerCase();
+    const name = String(species.name || "").toLowerCase();
+    return id.startsWith(code) || name.startsWith(code);
+  });
+  return match?.id || fallbackSpecies;
+}
+
 function requestKey(prefix) {
   const id = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
   return `${prefix}:${id}`;
@@ -506,9 +517,10 @@ document.getElementById("skin-library-parse")?.addEventListener("click", async (
       parsed: {
         source: item.source,
         sourceLabel: item.sourceLabel,
+        speciesCode: item.speciesCode || null,
         warnings: item.warnings || [],
       },
-      species,
+      species: resolveExternalSpecies(item.speciesCode, species),
       name: `${prefix} ${index + 1}`.slice(0, 60),
       skin: item.skin,
     }));
@@ -612,8 +624,11 @@ document.getElementById("skin-external-load")?.addEventListener("click", async (
     });
     applySkinToEditor(result.skin);
 
-    if (targetSpecies) {
-      document.getElementById("skin-species").value = targetSpecies;
+    const resolvedSpecies = resolveExternalSpecies(result.speciesCode, targetSpecies);
+    if (resolvedSpecies) {
+      document.getElementById("skin-species").value = resolvedSpecies;
+      const externalSpeciesSelect = document.getElementById("skin-external-species");
+      if (externalSpeciesSelect) externalSpeciesSelect.value = resolvedSpecies;
     }
     if (!document.getElementById("skin-description").value.trim()) {
       document.getElementById("skin-description").value = `Imported from ${result.sourceLabel || "external skin code"}.`;
