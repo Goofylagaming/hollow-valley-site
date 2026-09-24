@@ -19,6 +19,7 @@ let storeState = null;
 let mineState = null;
 let storedDinos = [];
 let externalQueue = [];
+let editingPresetId = null;
 
 const EXTERNAL_LIBRARY_RE = /^\[External Library:([^\]]+)\]\s*/;
 
@@ -163,6 +164,7 @@ function skinCard(preset, mode) {
     actions.push(`<button class="small-button skin-library-edit" data-id="${preset.id}">Open in Studio</button>`);
   }
   if ((mode === "mine" || mode === "library") && me.user?.is_admin) {
+    if (mode === "mine") actions.push(`<button class="small-button skin-edit" data-id="${preset.id}">Edit</button>`);
     actions.push(`<button class="small-button skin-publish" data-id="${preset.id}" data-price="${price}">${preset.published ? "Update shop" : "Publish"}</button>`);
     actions.push(`<button class="small-button skin-delete" data-id="${preset.id}" data-name="${escapeHtml(preset.name)}">Delete</button>`);
   }
@@ -212,6 +214,21 @@ function wireCardActions(root) {
     } finally {
       button.disabled = false;
     }
+  }));
+
+  root.querySelectorAll(".skin-edit").forEach((button) => button.addEventListener("click", () => {
+    const preset = (mineState?.presets || []).find((item) => String(item.id) === String(button.dataset.id));
+    if (!preset) return showAlert("Skin could not be found.", "error");
+    const meta = externalLibraryMeta(preset.description);
+    editingPresetId = preset.id;
+    document.getElementById("skin-species").value = preset.species;
+    document.getElementById("skin-name").value = preset.name || "";
+    document.getElementById("skin-description").value = meta.description || "";
+    applySkinToEditor(preset.skin);
+    document.getElementById("skin-save").textContent = "Update design →";
+    updatePreview();
+    activateSkinTab("studio");
+    showAlert(`Editing ${preset.name}. Save will update this existing skin.`, "info");
   }));
 
   root.querySelectorAll(".skin-delete").forEach((button) => button.addEventListener("click", async () => {
@@ -472,7 +489,11 @@ document.getElementById("skin-randomize").addEventListener("click", () => {
   updatePreview();
 });
 
-document.getElementById("skin-reset").addEventListener("click", resetEditor);
+document.getElementById("skin-reset").addEventListener("click", () => {
+  editingPresetId = null;
+  document.getElementById("skin-save").textContent = "Save design →";
+  resetEditor();
+});
 
 document.getElementById("skin-save").addEventListener("click", async () => {
   if (!me.loggedIn || !me.user?.steam_id) return showAlert("Sign in with Steam before saving a skin.", "warning");
@@ -481,18 +502,20 @@ document.getElementById("skin-save").addEventListener("click", async () => {
   const button = document.getElementById("skin-save");
   button.disabled = true;
   try {
-    const result = await api("/api/skins/studio", {
-      method: "POST",
+    const result = await api(editingPresetId ? `/api/skins/${editingPresetId}` : "/api/skins/studio", {
+      method: editingPresetId ? "PUT" : "POST",
       body: JSON.stringify({
         species: document.getElementById("skin-species").value,
         name,
         description: document.getElementById("skin-description").value.trim(),
         skin: editorSkin(),
-        idempotencyKey: requestKey("skin-save"),
+        ...(editingPresetId ? {} : { idempotencyKey: requestKey("skin-save") }),
       }),
     });
-    showAlert(`Saved ${result.preset?.name || name}. Share code: ${result.preset?.share_code || "created"}.`, "success");
-    await loadMine();
+    showAlert(editingPresetId ? `Updated ${result.preset?.name || name}.` : `Saved ${result.preset?.name || name}. Share code: ${result.preset?.share_code || "created"}.`, "success");
+    editingPresetId = null;
+    document.getElementById("skin-save").textContent = "Save design →";
+    await Promise.all([loadMine(), loadStore()]);
   } catch (err) {
     showAlert(err.message, "error");
   } finally {
