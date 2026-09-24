@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Manage your Hollow Valley friends, requests and blocked players.">
+  <title>Friends | Hollow Valley</title>
+  <link rel="stylesheet" href="assets/styles.css?v=18">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+
+    <main>
+      <section class="page-header">
+        <p class="overline green">HOLLOW VALLEY SOCIAL</p>
+        <h1>Your <span>Friends.</span></h1>
+        <p class="section-intro">Find Hollow Valley players, send friend requests and keep track of who is online.</p>
+      </section>
+
+      <section class="friends-shell">
+        <div id="friends-alert" class="skin-alert" hidden></div>
+
+        <div class="friends-summary-grid">
+          <div class="summary-tile"><small>FRIENDS</small><b id="friends-count">0</b><span>Your accepted friends</span></div>
+          <div class="summary-tile"><small>ONLINE</small><b id="friends-online-count">0</b><span>Seen in-game recently</span></div>
+          <div class="summary-tile"><small>REQUESTS</small><b id="friends-request-count">0</b><span>Waiting for your response</span></div>
+        </div>
+
+        <section class="friends-search-card">
+          <div>
+            <p class="overline green">FIND PLAYERS</p>
+            <h2>Add a friend.</h2>
+            <p class="section-intro">Search by Hollow Valley username or 17-digit Steam ID.</p>
+          </div>
+          <form id="friends-search-form" class="friends-search-form">
+            <input id="friends-search-input" maxlength="80" autocomplete="off" placeholder="Username or Steam ID">
+            <button class="primary-button green" type="submit">Search <b>→</b></button>
+          </form>
+          <div id="friends-search-results" class="friends-list">
+            <div class="empty-roster"><strong>Search for a player</strong><span>Results will appear here.</span></div>
+          </div>
+        </section>
+
+        <section class="friends-section">
+          <div class="list-heading"><span>INCOMING REQUESTS</span><span id="friends-incoming-label">0 pending</span></div>
+          <div id="friends-incoming" class="friends-list"></div>
+        </section>
+
+        <section class="friends-section">
+          <div class="list-heading"><span>YOUR FRIENDS</span><span id="friends-online-label">0 online</span></div>
+          <div id="friends-list" class="friends-list"></div>
+        </section>
+
+        <section class="friends-section">
+          <div class="list-heading"><span>SENT REQUESTS</span><span id="friends-outgoing-label">0 pending</span></div>
+          <div id="friends-outgoing" class="friends-list"></div>
+        </section>
+
+        <section class="friends-section">
+          <div class="list-heading"><span>BLOCKED PLAYERS</span><span>Only you can see this list</span></div>
+          <div id="friends-blocked" class="friends-list"></div>
+        </section>
+      </section>
+    </main>
+
+    <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
+  </div>
+
+  <script src="assets/common.js?v=17"></script>
+  <script src="assets/friends.js?v=1"></script>
+</body>
+</html>
