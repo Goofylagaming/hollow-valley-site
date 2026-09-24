@@ -166,8 +166,10 @@ function skinCard(preset, mode) {
   if (mode === "library" && me.user?.is_admin) {
     actions.push(`<button class="small-button skin-library-edit" data-id="${preset.id}">Open in Studio</button>`);
   }
+  if (mode === "mine" && isCreator) {
+    actions.push(`<button class="small-button skin-edit" data-id="${preset.id}">Edit</button>`);
+  }
   if ((mode === "mine" || mode === "library") && me.user?.is_admin && isCreator) {
-    if (mode === "mine") actions.push(`<button class="small-button skin-edit" data-id="${preset.id}">Edit</button>`);
     actions.push(`<button class="small-button skin-grant" data-id="${preset.id}" data-name="${escapeHtml(preset.name)}">Grant exclusive</button>`);
     actions.push(`<button class="small-button skin-grants" data-id="${preset.id}" data-name="${escapeHtml(preset.name)}">Grants</button>`);
     if (!preset.exclusive) {
