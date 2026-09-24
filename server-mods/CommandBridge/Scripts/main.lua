@@ -1,4 +1,4 @@
--- CommandBridge v006.1
+-- CommandBridge v006.2
 -- Hollow Valley / HDS
 -- Focus: local file bridge for DinoStorage and BodyDrop, with optional HTTP fallback.
 --
@@ -6,7 +6,7 @@
 -- can run curl. It never logs the configured authorization header.
 
 local MOD_NAME = "CommandBridge"
-local MOD_VERSION = "v006.1"
+local MOD_VERSION = "v006.2"
 
 local function log(msg)
     print(string.format("[%s] %s\n", MOD_NAME, tostring(msg)))
@@ -499,6 +499,7 @@ local function dispatchCommand(id, verb, steam, args)
         dino_redeem = "retrieve",
         dino_delete = "delete",
         dino_list = "list",
+        dino_grant = "grant",
     }
 
     local dinoVerb = dinoVerbMap[verb]
