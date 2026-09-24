@@ -126,6 +126,24 @@ function requestDinoAction(action, { steamId, slot }) {
   });
 }
 
+function deleteStoredDino({ steamId, slot }) {
+  const selectedSlot = String(slot || '').trim();
+  if (!/^[A-Za-z0-9_-]{1,80}$/.test(selectedSlot)) throw new Error('Invalid DinoStorage slot');
+  return call('/dinostorage/delete', {
+    method: 'POST',
+    body: { steamId: validateSteamId(steamId), slot: selectedSlot },
+  });
+}
+
+function scrapStoredDino({ steamId, slot }) {
+  const selectedSlot = String(slot || '').trim();
+  if (!/^[A-Za-z0-9_-]{1,80}$/.test(selectedSlot)) throw new Error('Invalid DinoStorage slot');
+  return call('/dinostorage/scrap', {
+    method: 'POST',
+    body: { steamId: validateSteamId(steamId), slot: selectedSlot },
+  });
+}
+
 function getRequestStatus(requestId, steamId) {
   return call(`/requests/${encodeURIComponent(validateRequestId(requestId))}?steamId=${encodeURIComponent(validateSteamId(steamId))}`);
 }
@@ -582,6 +600,8 @@ module.exports = {
   getActiveCharacter,
   listStoredDinos,
   requestDinoAction,
+  deleteStoredDino,
+  scrapStoredDino,
   getRequestStatus,
   getBodyDropCooldown,
   requestBodyDrop,
