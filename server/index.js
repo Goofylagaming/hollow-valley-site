@@ -195,9 +195,7 @@ function createApp() {
     });
   }
 
-  app.get(["/skins", "/skins.html"], (req, res) => {
-    if (!req.user) return res.status(401).send("Not logged in");
-    if (!req.user.is_admin) return res.status(403).send("Admin access required");
+  app.get(["/skins", "/skins.html"], (_req, res) => {
     return res.sendFile(path.join(__dirname, "..", "public", "skins.html"));
   });
 
