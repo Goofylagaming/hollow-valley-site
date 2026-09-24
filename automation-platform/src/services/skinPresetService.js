@@ -558,19 +558,19 @@ async function applyPreset({ steamId, slot, presetId }) {
     throw error;
   }
 
+  const skin = sanitizeSkin(preset.skin);
   await dinoStorage.editStoredDino({
     steamId: steam,
     slot: selectedSlot,
     mode: 'skin',
-    values: parkedSkinTokens(preset.skin),
+    values: parkedSkinTokens(skin),
   });
 
-  const updated = await dinoStorage.getStoredDino(steam, selectedSlot);
   return {
     preset,
     slot: selectedSlot,
-    species: speciesFromClassPath(updated.classPath),
-    skin: sanitizeSkin(updated.skin),
+    species: targetSpecies,
+    skin,
   };
 }
 
