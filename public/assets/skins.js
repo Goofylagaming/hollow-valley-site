@@ -19,6 +19,7 @@ let storeState = null;
 let mineState = null;
 let storedDinos = [];
 let externalQueue = [];
+let detectedExternalSpecies = "";
 
 const EXTERNAL_LIBRARY_RE = /^\[External Library:([^\]]+)\]\s*/;
 
@@ -472,6 +473,12 @@ document.getElementById("skin-reset").addEventListener("click", resetEditor);
 
 document.getElementById("skin-save").addEventListener("click", async () => {
   if (!me.loggedIn || !me.user?.steam_id) return showAlert("Sign in with Steam before saving a skin.", "warning");
+  const selectedSpecies = document.getElementById("skin-species").value;
+  if (detectedExternalSpecies && selectedSpecies !== detectedExternalSpecies) {
+    const expected = speciesList.find((item) => String(item.id) === String(detectedExternalSpecies))?.name || detectedExternalSpecies;
+    const selected = speciesList.find((item) => String(item.id) === String(selectedSpecies))?.name || selectedSpecies;
+    return showAlert(`This imported skin is for ${expected}, but Skin Studio is set to ${selected}. Switch back to ${expected} before saving.`, "warning");
+  }
   const name = document.getElementById("skin-name").value.trim();
   if (name.length < 2) return showAlert("Give the skin a name first.", "warning");
   const button = document.getElementById("skin-save");
@@ -625,6 +632,7 @@ document.getElementById("skin-external-load")?.addEventListener("click", async (
     applySkinToEditor(result.skin);
 
     const resolvedSpecies = resolveExternalSpecies(result.speciesCode, targetSpecies);
+    detectedExternalSpecies = resolvedSpecies || "";
     if (resolvedSpecies) {
       document.getElementById("skin-species").value = resolvedSpecies;
       const externalSpeciesSelect = document.getElementById("skin-external-species");
@@ -637,7 +645,8 @@ document.getElementById("skin-external-load")?.addEventListener("click", async (
     activateSkinTab("studio");
 
     const warningText = (result.warnings || []).join(" ");
-    resultEl.textContent = `${result.sourceLabel || "External skin"} detected · ${Number(result.importedColorCount) || 0} colour zones${result.importedIndexCount ? ` · ${result.importedIndexCount} native index values` : ""} loaded.`;
+    const detectedName = speciesList.find((item) => String(item.id) === String(resolvedSpecies))?.name || resolvedSpecies || "selected species";
+    resultEl.textContent = `${result.sourceLabel || "External skin"} detected · Species: ${detectedName} · ${Number(result.importedColorCount) || 0} colour zones${result.importedIndexCount ? ` · ${result.importedIndexCount} native index values` : ""} loaded.`;
     showAlert(
       `Loaded ${result.sourceLabel || "external skin"} into Skin Studio for ${document.getElementById("skin-species").selectedOptions[0]?.textContent || "the selected species"}. Review the preview before saving.${warningText ? ` ${warningText}` : ""}`,
       warningText ? "warning" : "success"
