@@ -1,6 +1,6 @@
 const express = require("express");
 const { randomUUID } = require("node:crypto");
-const { requireAuth } = require("../middleware/requireAuth");
+const { requireAuth, requireAdmin } = require("../middleware/requireAuth");
 const automation = require("../services/automationWebsiteClient");
 
 const router = express.Router();
@@ -41,11 +41,31 @@ router.get("/catalog", async (_req, res) => {
       size_percent: Number(item.payload?.sizePercent ?? item.payload?.growthPercent ?? 75),
       name: item.name || null,
       item_type: item.item_type || null,
+      growth_tier: item.payload?.growthTier || null,
+      growth_tier_label: item.payload?.growthTierLabel || null,
+      is_prime: Boolean(item.payload?.isPrime),
+      active: item.active !== false,
     }));
     res.json(catalog);
   } catch (error) {
     const mapped = mapAutomationError(error, "Could not read marketplace catalog.");
     res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.put("/catalog/:id", requireAdmin, async (req, res) => {
+  try {
+    const result = await automation.updateMarketplaceCatalogItem({
+      catalogId: req.params.id,
+      price: req.body?.price,
+      growthPercent: req.body?.growthPercent,
+      active: req.body?.active,
+      isPrime: req.body?.isPrime,
+    });
+    return res.json(result);
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not update marketplace item.");
+    return res.status(mapped.status).json(mapped.body);
   }
 });
 
