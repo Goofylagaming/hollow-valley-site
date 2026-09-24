@@ -1009,3 +1009,21 @@
   .quest-experimental-banner{flex-direction:column;gap:6px}
   .quest-concept-tracker{max-width:none;text-align:left}
 }
+
+
+/* Live tracked challenge cards */
+.quest-live-group{margin-top:8px;padding-top:30px;border-top:1px solid #2d3328}
+.quest-live-banner{display:flex;align-items:flex-start;gap:18px;margin-bottom:2px;padding:14px 16px;border:1px solid #4c613f;background:linear-gradient(90deg,#11180f,#0d100c)}
+.quest-live-banner strong{flex:0 0 auto;color:#9ab88f;font:700 9px Oswald;letter-spacing:.14em}
+.quest-live-banner span{color:#818d7b;font-size:9px;line-height:1.6}
+.quest-live-card{border-color:#394635}
+.quest-live-card:hover{border-color:#64795b}
+.quest-live-badge{padding:4px 7px;border:1px solid #53674e;color:#92ad89;font:800 7px Oswald;letter-spacing:.12em}
+.quest-live-badge.complete{border-color:#826a2e;color:var(--gold)}
+.quest-live-badge.offline{border-color:#4d413e;color:#927b76}
+.quest-live-badge.live{box-shadow:0 0 10px #63835922}
+.quest-live-card .quest-card-track i{background:linear-gradient(90deg,#547149,#9abf79)}
+.quest-live-card.completed .quest-card-track i{background:linear-gradient(90deg,#806220,var(--gold))}
+@media(max-width:520px){
+  .quest-live-banner{flex-direction:column;gap:6px}
+}
