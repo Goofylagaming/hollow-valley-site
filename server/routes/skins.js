@@ -147,6 +147,24 @@ router.post("/from-stored", requireAuth, async (req, res) => {
   }
 });
 
+router.put("/:id", requireAuth, async (req, res) => {
+  const steamId = requireSteam(req, res);
+  if (!steamId) return;
+  try {
+    return res.json(await automation.updateSkin({
+      steamId,
+      presetId: req.params.id,
+      species: req.body?.species,
+      name: req.body?.name,
+      description: req.body?.description,
+      skin: req.body?.skin,
+    }));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not update this skin.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
 router.delete("/:id", requireAuth, async (req, res) => {
   const steamId = requireSteam(req, res);
   if (!steamId) return;
