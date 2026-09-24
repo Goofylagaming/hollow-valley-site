@@ -41,6 +41,29 @@ async function loadWallet() {
   const adminPanel = document.getElementById("wallet-admin-panel");
   if (adminPanel) adminPanel.hidden = !Boolean(me.user?.is_admin);
 
+  const discordStatus = document.getElementById("wallet-discord-status");
+  const discordDetail = document.getElementById("wallet-discord-detail");
+  const discordLink = document.getElementById("wallet-link-discord");
+  if (me.user?.discord_id) {
+    if (discordStatus) discordStatus.textContent = "Discord linked";
+    if (discordDetail) discordDetail.textContent = "Your Discord account is connected and available for role syncing.";
+    if (discordLink) {
+      discordLink.textContent = "Discord linked ✓";
+      discordLink.removeAttribute("href");
+      discordLink.setAttribute("aria-disabled", "true");
+      discordLink.classList.add("disabled");
+    }
+  } else if (!me.discordLoginConfigured) {
+    if (discordStatus) discordStatus.textContent = "Discord linking unavailable";
+    if (discordDetail) discordDetail.textContent = "Discord OAuth is not configured on the website.";
+    if (discordLink) {
+      discordLink.textContent = "Unavailable";
+      discordLink.removeAttribute("href");
+      discordLink.setAttribute("aria-disabled", "true");
+      discordLink.classList.add("disabled");
+    }
+  }
+
   try {
     const summary = await api("/api/dashboard");
     document.getElementById("wallet-dino-count").textContent = Number(summary.dinoCount || 0);
