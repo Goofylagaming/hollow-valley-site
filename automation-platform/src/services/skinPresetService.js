@@ -288,6 +288,22 @@ function publishPreset({ presetId, price = 0, description = '', published = true
   return store.getSkinPreset(preset.id);
 }
 
+function updatePreset({ steamId, presetId, species, name, description = '', skin }) {
+  const steam = store.validateSteamId(steamId);
+  const preset = store.getSkinPreset(presetId);
+  if (!preset || !preset.active || preset.owner_steam_id !== steam) {
+    const error = new Error('Skin preset not found or is not yours');
+    error.code = 'SKIN_PRESET_NOT_FOUND';
+    throw error;
+  }
+  store.db.prepare(`
+    UPDATE economy_skin_presets
+    SET species = ?, name = ?, description = ?, skin_json = ?, updated_at = datetime('now')
+    WHERE id = ? AND owner_steam_id = ? AND active = 1
+  `).run(validateSpecies(species), validateName(name), validateDescription(description), JSON.stringify(sanitizeSkin(skin)), preset.id, steam);
+  return store.getSkinPreset(preset.id);
+}
+
 function deletePreset({ steamId, presetId }) {
   const steam = store.validateSteamId(steamId);
   const preset = store.getSkinPreset(presetId);
@@ -447,6 +463,7 @@ module.exports = {
   createPresetFromStored,
   importSharedPreset,
   publishPreset,
+  updatePreset,
   deletePreset,
   purchasePreset,
   applyPreset,
