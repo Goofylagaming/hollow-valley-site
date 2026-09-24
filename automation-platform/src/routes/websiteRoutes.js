@@ -497,6 +497,58 @@ router.post('/skins/from-stored', async (req, res) => {
   }
 });
 
+router.post('/skins/:presetId/grant', async (req, res) => {
+  try {
+    const steamId = validateSteamId(req.body?.steamId);
+    const grantedBySteamId = req.body?.grantedBySteamId ? validateSteamId(req.body.grantedBySteamId) : null;
+    const result = await audit.run('website', 'skin_exclusive_grant', {
+      steamId,
+      presetId: req.params.presetId,
+      grantedBySteamId,
+    }, async () => skinPresets.grantExclusivePreset({
+      presetId: req.params.presetId,
+      steamId,
+      grantedBySteamId,
+      note: req.body?.note,
+    }), (value) => ({
+      presetId: value.preset?.id || null,
+      steamId: value.grant?.steam_id || steamId,
+      exclusive: Boolean(value.preset?.exclusive),
+    }));
+    res.status(201).json({ ok: true, ...result });
+  } catch (error) {
+    const status = error.code === 'SKIN_SYSTEM_DISABLED' ? 503 :
+      error.code === 'SKIN_PRESET_NOT_FOUND' ? 404 : 400;
+    res.status(status).json({ error: error.message || 'Unable to grant exclusive skin.', code: error.code || null });
+  }
+});
+
+router.post('/skins/:presetId/revoke', async (req, res) => {
+  try {
+    const steamId = validateSteamId(req.body?.steamId);
+    const result = await audit.run('website', 'skin_exclusive_revoke', {
+      steamId,
+      presetId: req.params.presetId,
+    }, async () => skinPresets.revokeExclusiveGrant({
+      presetId: req.params.presetId,
+      steamId,
+    }));
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    const status = error.code === 'SKIN_PRESET_NOT_FOUND' ? 404 : 400;
+    res.status(status).json({ error: error.message || 'Unable to revoke exclusive skin.', code: error.code || null });
+  }
+});
+
+router.get('/skins/:presetId/grants', (req, res) => {
+  try {
+    res.json({ ok: true, ...skinPresets.listExclusiveGrants(req.params.presetId) });
+  } catch (error) {
+    res.status(error.code === 'SKIN_PRESET_NOT_FOUND' ? 404 : 400)
+      .json({ error: error.message || 'Unable to list exclusive skin grants.', code: error.code || null });
+  }
+});
+
 router.put('/skins/:presetId', async (req, res) => {
   try {
     const steamId = validateSteamId(req.body?.steamId);
