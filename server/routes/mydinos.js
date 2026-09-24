@@ -144,4 +144,32 @@ router.post("/stored/:slot/redeem", requireAuth, async (req, res) => {
   return runDinoAction(req, res, "redeem", slot);
 });
 
+router.post("/stored/:slot/delete", requireAuth, async (req, res) => {
+  const steamId = requireSteam(req, res);
+  if (!steamId) return;
+  let slot;
+  try { slot = validateSlot(req.params.slot); }
+  catch (err) { return res.status(400).json({ error: err.message }); }
+  try {
+    return res.json(await automation.deleteStoredDino({ steamId, slot }));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not delete parked dinosaur.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.post("/stored/:slot/scrap", requireAuth, async (req, res) => {
+  const steamId = requireSteam(req, res);
+  if (!steamId) return;
+  let slot;
+  try { slot = validateSlot(req.params.slot); }
+  catch (err) { return res.status(400).json({ error: err.message }); }
+  try {
+    return res.json(await automation.scrapStoredDino({ steamId, slot }));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not scrap parked dinosaur.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
 module.exports = router;
