@@ -7,6 +7,7 @@ let myAttendance = new Map();
 let rewardAdmin = null;
 let rewardPlayers = [];
 let adminAttendance = [];
+let adminAttendanceHistory = [];
 let selectedAdminEvent = null;
 visibleMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), 1);
 
@@ -164,6 +165,7 @@ function wireEventActions() {
       const event = eventById(button.dataset.eventId);
       if (!event) return;
       selectedAdminEvent = event;
+      renderAdminEventSelect();
       renderSelectedAdminEvent();
       await loadAdminAttendance();
       document.getElementById("event-admin-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -271,6 +273,43 @@ function renderAdminRewardHistory(rewards) {
       <td>${escapeHtml(formatRewardTime(reward.createdAt))}</td>
     </tr>`;
   }).join("");
+}
+
+function adminEventOptions() {
+  const byId = new Map();
+  for (const event of events) {
+    byId.set(String(event.id), {
+      id: String(event.id),
+      title: event.title,
+      startTime: event.startTime || null,
+      endTime: event.endTime || null,
+    });
+  }
+  for (const item of adminAttendanceHistory) {
+    if (!byId.has(String(item.eventId))) {
+      byId.set(String(item.eventId), {
+        id: String(item.eventId),
+        title: item.eventTitle || item.eventId,
+        startTime: item.eventStart || null,
+        endTime: item.eventEnd || null,
+      });
+    }
+  }
+  return [...byId.values()].sort((a, b) => {
+    const aa = Date.parse(a.startTime || "") || 0;
+    const bb = Date.parse(b.startTime || "") || 0;
+    return bb - aa;
+  });
+}
+
+function renderAdminEventSelect() {
+  const select = document.getElementById("event-admin-event-select");
+  if (!select) return;
+  const options = adminEventOptions();
+  select.innerHTML = '<option value="">Choose an event…</option>' + options.map((event) =>
+    `<option value="${escapeHtml(event.id)}">${escapeHtml(event.title)} · ${escapeHtml(formatEventTime(event.startTime))}</option>`
+  ).join("");
+  if (selectedAdminEvent) select.value = String(selectedAdminEvent.id);
 }
 
 function renderSelectedAdminEvent() {
@@ -391,11 +430,13 @@ async function loadAdminRewards() {
     const [playersData, rewardsData, attendanceData] = await Promise.all([
       api("/api/events/admin/players?limit=500"),
       api("/api/events/admin/rewards?limit=100"),
-      api("/api/events/admin/attendance?limit=1"),
+      api("/api/events/admin/attendance?limit=500"),
     ]);
     rewardPlayers = Array.isArray(playersData.players) ? playersData.players : [];
+    adminAttendanceHistory = Array.isArray(attendanceData.attendance) ? attendanceData.attendance : [];
     rewardAdmin = { ...(rewardsData.state || {}), ...(attendanceData.state || {}) };
     renderPlayerDatalist();
+    renderAdminEventSelect();
     renderAdminRewardHistory(Array.isArray(rewardsData.rewards) ? rewardsData.rewards : []);
     renderAdminStatus();
   } catch (error) {
@@ -442,6 +483,20 @@ async function removeOneAttendance(steamId, button) {
     button.disabled = false;
   }
 }
+
+document.getElementById("event-admin-event-select")?.addEventListener("change", async (event) => {
+  const id = String(event.currentTarget.value || "");
+  if (!id) {
+    selectedAdminEvent = null;
+    adminAttendance = [];
+    renderSelectedAdminEvent();
+    renderAdminAttendance();
+    return;
+  }
+  selectedAdminEvent = adminEventOptions().find((entry) => String(entry.id) === id) || null;
+  renderSelectedAdminEvent();
+  await loadAdminAttendance();
+});
 
 document.getElementById("event-attendance-add-form")?.addEventListener("submit", async (event) => {
   event.preventDefault();
