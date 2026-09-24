@@ -1,9 +1,9 @@
--- SkinStudio v003
+-- SkinStudio v004
 -- Hollow Valley live skin application + reconnect persistence.
 -- Commands arrive from CommandBridge as inbox.ndjson records.
 
 local MOD_NAME = "SkinStudio"
-local MOD_VERSION = "v003"
+local MOD_VERSION = "v004"
 
 local function resolveModRoot()
     local source = ""
@@ -218,13 +218,47 @@ local function speciesMatches(pawn, expected)
         or className:find(wanted, 1, true) ~= nil
 end
 
+local function nearlyEqual(a, b)
+    local left, right = tonumber(a), tonumber(b)
+    if left == nil or right == nil then return false end
+    return math.abs(left - right) <= 0.0005
+end
+
 local function applyColor(cdata, field, color)
-    pcall(function()
-        cdata[field].R = color.r
-        cdata[field].G = color.g
-        cdata[field].B = color.b
-        cdata[field].A = color.a
+    local ok, err = pcall(function()
+        local target = cdata[field]
+        if target == nil then error(field .. " is unavailable") end
+        target.R = color.r
+        target.G = color.g
+        target.B = color.b
+        target.A = color.a
     end)
+    if not ok then
+        return false, tostring(err)
+    end
+
+    local verifyOk, verifyErr = pcall(function()
+        local actual = cdata[field]
+        if actual == nil then error(field .. " disappeared during verification") end
+        if not nearlyEqual(actual.R, color.r)
+            or not nearlyEqual(actual.G, color.g)
+            or not nearlyEqual(actual.B, color.b)
+            or not nearlyEqual(actual.A, color.a) then
+            error(string.format(
+                "%s readback mismatch wanted=%.6f,%.6f,%.6f,%.6f actual=%.6f,%.6f,%.6f,%.6f",
+                field,
+                color.r, color.g, color.b, color.a,
+                tonumber(actual.R) or -999,
+                tonumber(actual.G) or -999,
+                tonumber(actual.B) or -999,
+                tonumber(actual.A) or -999
+            ))
+        end
+    end)
+    if not verifyOk then
+        return false, tostring(verifyErr)
+    end
+    return true, nil
 end
 
 local function applyConfigToPawn(pawn, config)
@@ -233,21 +267,70 @@ local function applyConfigToPawn(pawn, config)
         return false, "This skin is for " .. tostring(config.species) .. ", not your current dinosaur."
     end
 
-    local cdata
-    pcall(function() cdata = pawn.CustomizerData end)
-    if cdata == nil then
+    local okCdata, cdata = pcall(function() return pawn.CustomizerData end)
+    if not okCdata or cdata == nil then
         return false, "The live dinosaur customizer is unavailable."
     end
 
+    local failures = {}
+    local writes = 0
     for key, field in pairs(FIELD_MAP) do
-        applyColor(cdata, field, config.colors[key])
+        local ok, err = applyColor(cdata, field, config.colors[key])
+        if ok then
+            writes = writes + 1
+        else
+            table.insert(failures, field .. ": " .. tostring(err))
+            log("WRITE FAILED " .. field .. " steam-pawn=" .. pawnClassName(pawn) .. " err=" .. tostring(err))
+        end
     end
 
-    pcall(function() cdata.SkinVariation = math.floor(config.variation) end)
-    pcall(function() cdata.PatternIndex = math.floor(config.pattern) end)
-    pcall(function() cdata.ThemeIndex = math.floor(config.theme) end)
-    pcall(function() pawn:ForceNetUpdate() end)
-    return true, "Skin applied."
+    local function writeScalar(field, value)
+        local ok, err = pcall(function() cdata[field] = value end)
+        if not ok then
+            table.insert(failures, field .. ": " .. tostring(err))
+            log("WRITE FAILED " .. field .. " err=" .. tostring(err))
+            return false
+        end
+        local verifyOk, actual = pcall(function() return cdata[field] end)
+        if not verifyOk or tonumber(actual) ~= tonumber(value) then
+            local msg = field .. " readback mismatch wanted=" .. tostring(value) .. " actual=" .. tostring(actual)
+            table.insert(failures, msg)
+            log("WRITE FAILED " .. msg)
+            return false
+        end
+        return true
+    end
+
+    -- PatternIndex is species-table validated by EVRIMA. A bad value can make
+    -- the client drop the entire skin rebuild, so only write a non-negative
+    -- integer supplied by the preset and verify the live property accepted it.
+    local variation = math.floor(config.variation)
+    local pattern = math.floor(config.pattern)
+    local theme = math.floor(config.theme)
+    writeScalar("SkinVariation", variation)
+    if pattern >= 0 then writeScalar("PatternIndex", pattern) end
+    if theme >= 0 then writeScalar("ThemeIndex", theme) end
+
+    local netOk, netErr = pcall(function() pawn:ForceNetUpdate() end)
+    if not netOk then
+        table.insert(failures, "ForceNetUpdate: " .. tostring(netErr))
+        log("WRITE FAILED ForceNetUpdate err=" .. tostring(netErr))
+    end
+
+    if #failures > 0 then
+        return false, "Skin write failed: " .. table.concat(failures, " | ")
+    end
+
+    log(string.format(
+        "Verified skin write species=%s pawn=%s colors=%d pattern=%d theme=%d variation=%d",
+        tostring(config.species),
+        pawnClassName(pawn),
+        writes,
+        pattern,
+        theme,
+        variation
+    ))
+    return true, "Skin applied and verified on the live customizer."
 end
 
 local profiles = {}
