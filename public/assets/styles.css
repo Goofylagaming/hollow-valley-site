@@ -1067,3 +1067,40 @@
 @media(max-width:650px){
   .skin-model-stage{height:80vw!important;min-height:340px!important}
 }
+
+
+/* Skin Studio live-vs-saved colour feedback */
+.skin-zone-limit-note{
+  grid-column:1/-1;
+  padding:7px 9px;
+  border:1px solid rgba(76,159,112,.16);
+  border-radius:5px;
+  background:#06160f;
+  color:#7f968a;
+  font:700 6.5px Manrope,sans-serif;
+  letter-spacing:.04em;
+}
+.skin-zone-limit-note strong{color:#35df88}
+.skin-color-control.skin-zone-live-control{
+  border-color:rgba(53,225,132,.34)!important;
+  box-shadow:inset 2px 0 0 rgba(53,225,132,.72);
+}
+.skin-color-control.skin-zone-live-control:after{
+  content:"LIVE 3D";
+  color:#35df88;
+  font:800 6px Manrope,sans-serif;
+  letter-spacing:.08em;
+}
+.skin-color-control.skin-zone-saved-only{
+  opacity:.58;
+}
+.skin-color-control.skin-zone-saved-only:after{
+  content:"EVRIMA ONLY";
+  color:#6f7f77;
+  font:800 6px Manrope,sans-serif;
+  letter-spacing:.07em;
+}
+.skin-model-zone.skin-zone-live{
+  border-color:rgba(53,225,132,.35);
+  box-shadow:inset 2px 0 0 rgba(53,225,132,.72);
+}

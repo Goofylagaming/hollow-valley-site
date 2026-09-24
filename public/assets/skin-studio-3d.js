@@ -52,18 +52,26 @@
     return [fallback[index % fallback.length], index === 0 ? 0.38 : 0.30];
   }
 
-  function colorChannel(channel, target, strength) {
+  function paintChannel(channel, target, { solid = false, strength = 0.7 } = {}) {
     if (!channel) return false;
+
+    channel.enable = true;
+    channel.factor = 1;
+
+    if (solid) {
+      // Sketchfab's own material example disables the base-colour texture
+      // before applying a direct colour. This guarantees the selected colour
+      // is visible on the actual mesh instead of being swallowed by the
+      // baked albedo texture.
+      channel.texture = false;
+      channel.color = [target[0], target[1], target[2], 1];
+      return true;
+    }
 
     const base = Array.isArray(channel.color) && channel.color.length >= 3
       ? channel.color.slice(0, 3)
       : [1, 1, 1];
-
-    // Sketchfab models can use any of the classic Diffuse, specular-PBR
-    // DiffusePBR, or metalness-PBR AlbedoPBR channels. Keep the source
-    // texture/normal detail, but make the selected colour factor obvious.
-    channel.enable = true;
-    channel.color = mixRgb(base, target, strength);
+    channel.color = [...mixRgb(base, target, strength), 1];
     return true;
   }
 
@@ -87,9 +95,11 @@
       const channels = clone.channels || {};
 
       let changed = false;
-      changed = colorChannel(channels.AlbedoPBR, target, strength) || changed;
-      changed = colorChannel(channels.DiffusePBR, target, strength) || changed;
-      changed = colorChannel(channels.DiffuseColor, target, strength) || changed;
+      const solidPaint = oneMaterialModel;
+
+      changed = paintChannel(channels.AlbedoPBR, target, { solid: solidPaint, strength }) || changed;
+      changed = paintChannel(channels.DiffusePBR, target, { solid: solidPaint, strength }) || changed;
+      changed = paintChannel(channels.DiffuseColor, target, { solid: solidPaint, strength }) || changed;
 
       // Some uploads expose only an emissive colour channel as a tintable
       // surface. Use it as a fallback, but keep it subtle so the model does
@@ -121,15 +131,34 @@
     if (!zoneStrip) return;
     const inputs = [...document.querySelectorAll("#skin-colors .skin-color-control input[type=color]")];
     if (!inputs.length) return;
-    zoneStrip.innerHTML = inputs.map((input) => {
+
+    const oneMaterialModel = materials.length === 1;
+    const liveInputs = oneMaterialModel
+      ? inputs.filter((input) => input.id === "skin-color-body")
+      : inputs;
+
+    zoneStrip.innerHTML = liveInputs.map((input) => {
       const label = input.closest(".skin-color-control")?.querySelector("span")?.textContent || input.id;
-      return '<button type="button" class="skin-model-zone" data-input="' + input.id + '">' +
+      return '<button type="button" class="skin-model-zone skin-zone-live" data-input="' + input.id + '">' +
         '<i style="background:' + input.value + '"></i>' +
         '<span>' + label + '</span>' +
         '<b>' + input.value.toUpperCase() + '</b></button>';
-    }).join("");
+    }).join("") + (oneMaterialModel
+      ? '<div class="skin-zone-limit-note"><strong>LIVE 3D:</strong> Body only on this source mesh. Other zones are still saved for EVRIMA.</div>'
+      : "");
+
     zoneStrip.querySelectorAll(".skin-model-zone").forEach((button) => {
       button.addEventListener("click", () => document.getElementById(button.dataset.input)?.click());
+    });
+
+    document.querySelectorAll("#skin-colors .skin-color-control").forEach((control) => {
+      const input = control.querySelector('input[type="color"]');
+      const isBody = input?.id === "skin-color-body";
+      control.classList.toggle("skin-zone-live-control", !oneMaterialModel || isBody);
+      control.classList.toggle("skin-zone-saved-only", oneMaterialModel && !isBody);
+      control.title = oneMaterialModel && !isBody
+        ? "Saved for EVRIMA, but this 3D source mesh does not expose a separate material for this zone."
+        : "Live on the 3D preview.";
     });
   }
 
@@ -208,12 +237,13 @@
             const materialCount = materials.length;
             if (statusEl) {
               statusEl.textContent = materialCount === 1
-                ? "Tyrannosaurus rex · live body tint"
+                ? "Tyrannosaurus rex · live body paint"
                 : "Tyrannosaurus rex · live material colours";
             }
 
             // Apply immediately after materials are available so the current
             // picker values are reflected on the actual 3D rex on first load.
+            syncZoneStrip();
             applyPaletteNow(currentPalette());
             window.setTimeout(() => applyPaletteNow(currentPalette()), 250);
           });
