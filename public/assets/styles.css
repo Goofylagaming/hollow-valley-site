@@ -590,3 +590,33 @@
 }
 
 .market-dino-thumb.atlas-thumb{display:block;width:min(244px,calc(100% - 24px));height:170px;margin:12px auto 0;border:1px solid var(--line);border-radius:8px;object-fit:cover;background:#090d0b;filter:contrast(1.03) saturate(1.03)}
+
+
+/* Hollow Valley Friends */
+.friends-shell{display:grid;gap:24px}
+.friends-summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.friends-summary-grid .summary-tile span{display:block;margin-top:6px;color:#8d7c69;font-size:9px}
+.friends-search-card,.friends-section{border:1px solid var(--line);background:var(--panel);padding:20px}
+.friends-search-card h2{margin:6px 0 8px;color:#eee7d3;font:600 clamp(26px,3vw,38px)/1 Cinzel}
+.friends-search-form{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;margin:18px 0}
+.friends-search-form input{width:100%;min-height:45px;padding:11px 13px;border:1px solid var(--line);background:#0b0b09;color:var(--text);font:600 11px Manrope}
+.friends-list{display:grid;gap:9px}
+.friend-card{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:13px 14px;border:1px solid #30271d;background:#0f0d0a}
+.friend-identity{display:flex;align-items:center;gap:12px;min-width:0}
+.friend-avatar{width:48px;height:48px;border:1px solid #4a402f;border-radius:50%;object-fit:cover;flex:0 0 auto}
+.friend-avatar-fallback{display:grid;place-items:center;background:#17130d;color:var(--gold);font:600 18px Cinzel}
+.friend-identity>div{min-width:0}
+.friend-name-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.friend-name-row strong{color:#eee7d3;font:600 14px Cinzel}
+.friend-identity small{display:block;margin-top:4px;color:#796b5d;font-size:9px}
+.friend-extra{display:block;margin-top:4px;color:#9d8c77;font-size:9px}
+.friend-presence{display:inline-flex;align-items:center;gap:5px;color:#7e7164;font-size:9px}
+.friend-presence i{display:block;width:7px;height:7px;border-radius:50%;background:#675b4f}
+.friend-presence.online{color:#a9c678}
+.friend-presence.online i{background:#86b35f;box-shadow:0 0 8px rgba(134,179,95,.45)}
+.friend-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap}
+.friend-actions .small-button{white-space:nowrap}
+.friend-actions .danger{border-color:#6b342e;color:#db8a80}
+.friend-status-pill{padding:5px 8px;border:1px solid #526537;color:#a9c678;font:9px Oswald;letter-spacing:.08em;text-transform:uppercase}
+.friend-status-pill.muted{border-color:#51483f;color:#8a7c6f}
+@media(max-width:800px){.friends-summary-grid{grid-template-columns:1fr}.friend-card{align-items:flex-start;flex-direction:column}.friend-actions{justify-content:flex-start}.friends-search-form{grid-template-columns:1fr}}
