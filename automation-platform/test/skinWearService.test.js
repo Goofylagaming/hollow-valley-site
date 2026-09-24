@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 
 const bridgePath = require.resolve('../src/services/commandBridgeService');
 const presetsPath = require.resolve('../src/services/skinPresetService');
+const statusPath = require.resolve('../src/services/statusService');
 const wearPath = require.resolve('../src/services/skinWearService');
 
 function color(seed) {
@@ -31,7 +32,12 @@ function samplePreset() {
   };
 }
 
-function loadFixture({ outcome = { state: 'confirmed', message: 'Skin applied.', source: 'SkinStudio' }, enabled = true, preset = samplePreset() } = {}) {
+function loadFixture({
+  outcome = { state: 'confirmed', message: 'Skin applied.', source: 'SkinStudio' },
+  enabled = true,
+  preset = samplePreset(),
+  snapshot = { online: true, characters: [{ steamId: '76561198000000604', species: 'Carnotaurus' }] },
+} = {}) {
   const calls = { queued: [], read: [] };
 
   require.cache[bridgePath] = {
@@ -49,6 +55,15 @@ function loadFixture({ outcome = { state: 'confirmed', message: 'Skin applied.',
         calls.read.push(command.id);
         return outcome;
       },
+    },
+  };
+
+  require.cache[statusPath] = {
+    id: statusPath,
+    filename: statusPath,
+    loaded: true,
+    exports: {
+      async getServerSnapshot() { return snapshot; },
     },
   };
 
@@ -75,6 +90,7 @@ function loadFixture({ outcome = { state: 'confirmed', message: 'Skin applied.',
       delete require.cache[wearPath];
       delete require.cache[bridgePath];
       delete require.cache[presetsPath];
+      delete require.cache[statusPath];
     },
   };
 }
@@ -100,7 +116,7 @@ test('live skin wear sends species plus native variation, pattern and theme toke
 });
 
 
-test('universal live skin sends wildcard species and preserves species-native indices', async (t) => {
+test('universal live skin resolves the active dinosaur species and preserves species-native indices', async (t) => {
   const preset = samplePreset();
   preset.species = 'Universal';
   const fixture = loadFixture({ preset });
@@ -113,8 +129,25 @@ test('universal live skin sends wildcard species and preserves species-native in
 
   assert.equal(result.confirmed, true);
   const command = fixture.calls.queued[0];
-  assert.equal(command.args.includes('species=Universal'), true);
+  assert.equal(command.args.includes('species=Carnotaurus'), true);
+  assert.equal(command.args.includes('species=Universal'), false);
   assert.equal(command.args.includes('preserveIndices=1'), true);
+});
+
+test('universal live skin requires an active dinosaur', async (t) => {
+  const preset = samplePreset();
+  preset.species = 'Universal';
+  const fixture = loadFixture({ preset, snapshot: { online: true, characters: [] } });
+  t.after(fixture.cleanup);
+
+  await assert.rejects(
+    fixture.service.wearPreset({
+      steamId: '76561198000000604',
+      presetId: 'preset-live-001',
+    }),
+    (error) => error.code === 'SKIN_ACTIVE_DINO_REQUIRED'
+  );
+  assert.equal(fixture.calls.queued.length, 0);
 });
 
 test('live skin wear fails closed when the feature gate is disabled', async (t) => {
