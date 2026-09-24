@@ -629,6 +629,11 @@ function grantSkinPreset({ steamId, presetId, grantedBySteamId = null, note = ''
       ON CONFLICT(steam_id, preset_id) DO UPDATE SET
         granted_by_steam_id = excluded.granted_by_steam_id,
         note = excluded.note,
+        custom_species = NULL,
+        custom_name = NULL,
+        custom_description = NULL,
+        custom_skin_json = NULL,
+        customized_at = NULL,
         granted_at = datetime('now'),
         revoked_at = NULL
     `).run(steam, id, grantedBy, grantNote);
