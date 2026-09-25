@@ -1,9 +1,9 @@
--- BodyDrop v003.6
+-- BodyDrop v003.7
 -- Admin-only corpse spawner. Bodies are only dropped when explicitly requested.
 -- IPC: bodydrop commands routed from CommandBridge.
 
 local MOD_NAME    = "BodyDrop"
-local MOD_VERSION = "v003.6"
+local MOD_VERSION = "v003.7"
 
 local function resolveModRoot()
     local source = debug.getinfo(1, "S").source or ""
@@ -55,9 +55,9 @@ local SPECIES_PATHS = {
 -- Small, verified whitelist for the herbivore plant-spawn probe.
 -- These are documented EVRIMA edible plant interactables.
 local PLANT_PATHS = {
-    fern = "/Game/TheIsle/Core/Foliage/Plants/BP_Fern.BP_Fern_C",
-    cycad = "/Game/TheIsle/Core/Foliage/Plants/BP_Cycad.BP_Cycad_C",
-    mushroom = "/Game/TheIsle/Core/Foliage/Plants/BP_Mushroom_Edible.BP_Mushroom_Edible_C",
+    banana = "/Game/TheIsle/Core/Spawnables/EdiblePlants/BP_BananaTreeStaticSpawner.BP_BananaTreeStaticSpawner_C",
+    mango = "/Game/TheIsle/Core/Spawnables/EdiblePlants/BP_MangoTreeStaticSpawner.BP_MangoTreeStaticSpawner_C",
+    pumpkin = "/Game/TheIsle/Core/Spawnables/EdiblePlants/BP_PumpkinStaticSpawner.BP_PumpkinStaticSpawner_C",
 }
 
 local function fileExists(path)
@@ -257,7 +257,7 @@ local function spawnPlantForPlayer(plantKey, steam)
     local key = tostring(plantKey or ""):lower()
     local classPath = PLANT_PATHS[key]
     if classPath == nil then
-        return false, "unknown plant; allowed: fern, cycad, mushroom"
+        return false, "unknown plant; allowed: banana, mango, pumpkin"
     end
 
     local location, err, forward, playerPawn = getPlayerPlacement(steam)
@@ -543,11 +543,11 @@ local function handleCommand(steam, tokens)
         return spawnCorpse(species, location, growth, forward, playerPawn)
 
     elseif verb == "plant" then
-        local plantKey = tokens[2] or "fern"
+        local plantKey = tokens[2] or "banana"
         local target = tokens[3]
         if target == nil or target == "" then target = steam end
         if target == nil or target == "" then
-            return false, "usage: plant <fern|cycad|mushroom> [targetSteam]"
+            return false, "usage: plant <banana|mango|pumpkin> [targetSteam]"
         end
         return spawnPlantForPlayer(plantKey, target)
 
