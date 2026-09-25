@@ -709,6 +709,13 @@ function grantAdminPrime(steamId) {
   });
 }
 
+function slayAdminPlayer(steamId) {
+  return callAdmin('/admin-actions/slay', {
+    method: 'POST',
+    body: { steamId: validateSteamId(steamId) },
+  });
+}
+
 function getAdminRestoreState() {
   return callAdmin('/dinostorage/admin-restore');
 }
@@ -807,6 +814,7 @@ module.exports = {
   scheduleAdminDiscordAnnouncement,
   cancelAdminJob,
   grantAdminPrime,
+  slayAdminPlayer,
   getAdminRestoreState,
   buildAdminRestoreJson,
   uploadAdminRestore,
