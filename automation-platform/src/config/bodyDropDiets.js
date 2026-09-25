@@ -1,4 +1,4 @@
-const DIET_VERSION = '2026-09-26-v2';
+const DIET_VERSION = '2026-09-26-v3';
 
 const NUTRIENTS = {
   protein: { id: 'protein', label: 'Protein', symbol: 'S' },
@@ -24,6 +24,15 @@ const DIETS = {
       lipid: ['Maiasaura', 'Dryosaurus'],
     },
     emergency: ['lipid', 'Dryosaurus'],
+  },
+  austroraptor: {
+    species: 'Austroraptor',
+    groups: {
+      protein: ['Deinosuchus', 'Hypsilophodon'],
+      carbohydrate: [],
+      lipid: ['Beipiaosaurus'],
+    },
+    emergency: ['protein', 'Hypsilophodon'],
   },
   carnotaurus: {
     species: 'Carnotaurus',

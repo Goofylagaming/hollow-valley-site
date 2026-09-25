@@ -252,7 +252,7 @@ test('legacy small BodyDrop remains accepted for admin/global compatibility', as
   assert.equal(Number(built.args[5]), 1);
 });
 
-test('unsupported carnivore stays legacy-eligible but exposes no player diet choices', async (t) => {
+test('Austroraptor exposes only spawnable on-diet carcasses', async (t) => {
   const steamId = '76561198000000447';
   const fixture = loadService({
     snapshot: {
@@ -272,10 +272,18 @@ test('unsupported carnivore stays legacy-eligible but exposes no player diet cho
 
   const state = await fixture.service.getBodyDropState(steamId);
   assert.equal(state.eligibility.eligible, true);
-  assert.equal(state.dietEligibility.eligible, false);
-  assert.equal(state.dietEligibility.configured, false);
-  assert.equal(state.options.length, 0);
-  assert.match(state.dietEligibility.reason, /not configured/i);
+  assert.equal(state.dietEligibility.eligible, true);
+  assert.equal(state.dietEligibility.configured, true);
+  assert.equal(state.corpseGrowthPercent, 30);
+  assert.deepEqual(
+    state.options.map((option) => [option.nutrient, option.species]),
+    [
+      ['protein', 'Deinosuchus'],
+      ['protein', 'Hypsilophodon'],
+      ['lipid', 'Beipiaosaurus'],
+    ]
+  );
+  assert.equal(state.options.some((option) => option.nutrient === 'carbohydrate'), false);
 });
 
 test('failed or cancelled BodyDrop requests do not consume cooldown', (t) => {
