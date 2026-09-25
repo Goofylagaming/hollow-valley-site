@@ -65,21 +65,26 @@ test("Skin Studio website client targets automation skin endpoints", async (t) =
 });
 
 
-test("Skin Studio v009 never carries an applied skin onto a future pawn", () => {
+test("Skin Studio v010 never seeds a future pawn through persistence or TemporarySkinData", () => {
   const fs = require("node:fs");
   const path = require("node:path");
   const lua = fs.readFileSync(path.join(__dirname, "..", "server-mods", "SkinStudio", "Scripts", "main.lua"), "utf8");
   const browser = fs.readFileSync(path.join(__dirname, "..", "public", "assets", "skins.js"), "utf8");
 
-  assert.match(lua, /SkinStudio v009/);
+  assert.match(lua, /SkinStudio v010/);
   assert.match(lua, /CURRENT pawn only/);
   assert.match(lua, /never auto-restores an old applied skin onto a future pawn/);
+  assert.match(lua, /TemporarySkinData and bUseSkinPalette are intentionally never modified/);
   assert.match(lua, /Cleared legacy auto-restore profiles/);
   assert.equal(lua.includes("loadProfiles()\n\nif LoopInGameThreadWithDelay"), false);
   assert.equal(lua.includes('safeCall("reapplyProfiles", reapplyProfiles)'), false);
   assert.match(lua, /state\.pawnAddress/);
   assert.match(lua, /state\.controllerAddress/);
   assert.match(lua, /Cancelled live skin refresh after dinosaur life changed/);
+  assert.equal(lua.includes("mirrorCustomizerToTemporary"), false);
+  assert.equal(lua.includes("pawn.TemporarySkinData"), false);
+  assert.equal(lua.includes("bUseSkinPalette = true"), false);
+  assert.match(lua, /temporary=false/);
 
   assert.match(browser, /data-species=/);
   assert.match(browser, /storedDinos\.find/);
