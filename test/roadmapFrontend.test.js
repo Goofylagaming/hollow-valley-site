@@ -150,6 +150,8 @@ test("permanent progression profile uses the shared Steam-keyed automation sourc
   assert.match(service, /LEVEL_REWARD_VC = 100/);
   assert.match(service, /PLAYTIME_XP_PER_5_MINUTES = 10/);
   assert.match(service, /progression_level_reward/);
+  const nav = read("public/partials/nav.html");
+  assert.match(nav, /My profile/);
 });
 
 
