@@ -176,6 +176,9 @@ function skinCard(preset, mode) {
   const status = preset.exclusive
     ? (preset.granted ? "Exclusive · Granted" : "Exclusive")
     : preset.published ? (preset.isPremium ? "Free" : `${price.toLocaleString()} VC`) : "Draft";
+  const swatchMarkup = mode === "store"
+    ? ""
+    : `<div class="skin-swatch-row">${swatches(preset.skin)}</div>`;
 
   const actions = [];
   if (mode === "store" && !owned) {
@@ -219,7 +222,7 @@ function skinCard(preset, mode) {
         <div class="skin-card-topline"><span>${escapeHtml(preset.species)}</span><b>${escapeHtml(status)}</b></div>
         <h3>${escapeHtml(preset.name)}</h3>
         <p>${escapeHtml(description)}</p>
-        <div class="skin-swatch-row">${swatches(preset.skin)}</div>
+        ${swatchMarkup}
         <div class="skin-card-meta">
           <span>Pattern ${Number(preset.skin?.patternIndex) || 0}</span>
           <span>Theme ${Number(preset.skin?.themeIndex) || 0}</span>

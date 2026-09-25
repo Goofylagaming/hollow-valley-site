@@ -83,3 +83,18 @@ test("Skin Studio v007 keeps reconnect profiles per species and blocks obvious p
   assert.match(browser, /presetSpecies\.toLowerCase\(\) !== dinoSpecies\.toLowerCase\(\)/);
   assert.match(browser, /Variation \$\{Number\(preset\.skin\?\.skinVariation\)/);
 });
+
+
+test("Skin Shop published cards hide raw colour swatches but editing views keep them", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const browser = fs.readFileSync(path.join(__dirname, "..", "public", "assets", "skins.js"), "utf8");
+
+  assert.equal(browser.includes('const swatchMarkup = mode === "store"'), true);
+  assert.equal(browser.includes('? ""\n    : \`<div class="skin-swatch-row">\${swatches(preset.skin)}</div>\`;'), true);
+  assert.equal(browser.includes("\${swatchMarkup}"), true);
+  assert.equal(
+    browser.includes('<p>\${escapeHtml(description)}</p>\n        <div class="skin-swatch-row">\${swatches(preset.skin)}</div>'),
+    false
+  );
+});
