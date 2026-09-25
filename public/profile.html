@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Your permanent Hollow Valley level, dinosaur rank and achievements.">
+  <title>Profile | Hollow Valley</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=18">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main>
+      <section class="page-header">
+        <p class="overline green">PERMANENT PROGRESSION</p>
+        <h1>My profile.</h1>
+        <p class="section-intro">Level up through Hollow Valley dinosaur ranks. XP and achievements never reset, and every level awards 100 Valley Coin.</p>
+      </section>
+
+      <section class="roster-section">
+        <div id="profile-guard"><p class="section-intro">Sign in with Steam to view your Hollow Valley progression.</p></div>
+        <div id="profile-content" hidden>
+          <section class="reward-overview">
+            <div class="list-heading"><span>LEVEL &amp; DINO RANK</span><span id="profile-permanent-label">PERMANENT</span></div>
+            <div class="profile-level-heading">
+              <div>
+                <small>CURRENT RANK</small>
+                <h2 id="profile-rank">Hypsilophodon</h2>
+              </div>
+              <strong id="profile-level">LEVEL 1</strong>
+            </div>
+            <div class="quest-progress-track profile-xp-track"><i id="profile-xp-fill" style="width:0%"></i></div>
+            <div class="profile-xp-copy">
+              <span id="profile-xp">0 XP</span>
+              <span id="profile-xp-next">250 XP to next level</span>
+            </div>
+          </section>
+
+          <div class="summary-grid">
+            <div class="summary-tile"><small>LEVEL-UP REWARD</small><b id="profile-vc-reward">+100 VC</b></div>
+            <div class="summary-tile"><small>ACHIEVEMENTS</small><b id="profile-achievement-count">0</b></div>
+            <div class="summary-tile"><small>VERIFIED PLAYTIME</small><b id="profile-playtime">0h</b></div>
+            <div class="summary-tile"><small>QUESTS COMPLETED</small><b id="profile-quests">0</b></div>
+            <div class="summary-tile"><small>EVENTS ATTENDED</small><b id="profile-events">0</b></div>
+            <div class="summary-tile"><small>NEXT DINO RANK</small><b id="profile-next-rank">Dryosaurus · Lv 5</b></div>
+          </div>
+
+          <div class="list-heading"><span>DINO RANK LADDER</span><small>milestone ranks</small></div>
+          <div class="profile-rank-ladder" id="profile-rank-ladder"></div>
+
+          <div class="list-heading profile-achievement-heading"><span>ACHIEVEMENTS</span><small>permanent unlocks</small></div>
+          <div class="profile-achievements" id="profile-achievements"></div>
+        </div>
+      </section>
+    </main>
+    <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
+  </div>
+  <script src="/assets/common.js?v=16"></script>
+  <script src="/assets/profile.js?v=1"></script>
+</body>
+</html>

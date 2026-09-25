@@ -7,6 +7,7 @@ const scheduler = require('../services/schedulerService');
 const audit = require('../services/auditService');
 const playerPresence = require('../services/playerPresenceService');
 const discordEvents = require('../services/discordEventService');
+const progression = require('../services/progressionService');
 
 const router = express.Router();
 router.use(requireHerbyBotToken);
@@ -49,6 +50,29 @@ router.get('/activity', (_req, res) => {
     res.json({ analytics: buildStaffActivityAnalytics(analytics) });
   } catch (error) {
     res.status(400).json({ error: error.message || 'Unable to read HerbyBot player activity analytics.' });
+  }
+});
+
+router.get('/progression/:discordId', (req, res) => {
+  try {
+    const profile = progression.getProfileByDiscord(req.params.discordId);
+    if (!profile) {
+      return res.status(404).json({
+        error: 'Your Discord account is not linked to a Hollow Valley Steam account yet. Link Discord on the Hollow Valley website first.',
+        code: 'PROGRESSION_ACCOUNT_NOT_LINKED',
+      });
+    }
+    return res.json({ profile });
+  } catch (error) {
+    return res.status(400).json({ error: error.message || 'Unable to read Hollow Valley progression.' });
+  }
+});
+
+router.get('/leaderboards/progression', (_req, res) => {
+  try {
+    return res.json({ players: progression.getLeaderboard({ limit: 25 }) });
+  } catch (error) {
+    return res.status(400).json({ error: error.message || 'Unable to read progression leaderboard.' });
   }
 });
 

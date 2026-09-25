@@ -1,22 +1,24 @@
 const { api, escapeHtml } = window.HDS;
 
-let data = { mostKills: [], bestKd: [], mostPlaytime: [] };
+let data = { mostKills: [], bestKd: [], mostPlaytime: [], mostLevels: [] };
 let activeTab = "mostKills";
 
-const labels = { mostKills: "Kills", bestKd: "K:D", mostPlaytime: "Verified minutes · 31 days" };
+const labels = { mostKills: "Kills", bestKd: "K:D", mostPlaytime: "Verified minutes · 31 days", mostLevels: "Level · XP" };
 
 function render() {
   const body = document.getElementById("lb-body");
   document.getElementById("lb-metric-label").textContent = labels[activeTab];
   const rows = data[activeTab] || [];
   if (!rows.length) {
-    const message = activeTab === "mostPlaytime"
-      ? (data.playtimeTrackingEnabled === false
-          ? "Verified playtime tracking is currently unavailable."
-          : "No verified playtime has been recorded in this 31-day window.")
-      : (data.combatFeedEnabled
-          ? "No verified combat events have been recorded in this 31-day window."
-          : "Combat ranking unavailable — waiting for an authoritative kill/death feed.");
+    const message = activeTab === "mostLevels"
+      ? "No permanent progression has been recorded yet."
+      : activeTab === "mostPlaytime"
+        ? (data.playtimeTrackingEnabled === false
+            ? "Verified playtime tracking is currently unavailable."
+            : "No verified playtime has been recorded in this 31-day window.")
+        : (data.combatFeedEnabled
+            ? "No verified combat events have been recorded in this 31-day window."
+            : "Combat ranking unavailable — waiting for an authoritative kill/death feed.");
     body.innerHTML = `<tr><td colspan="3">${message}</td></tr>`;
     return;
   }
@@ -26,7 +28,9 @@ function render() {
         ? row.kills
         : activeTab === "bestKd"
           ? row.kd
-          : Number(row.playtime_minutes || 0).toLocaleString();
+          : activeTab === "mostLevels"
+            ? `Lv ${Number(row.level || 1).toLocaleString()} · ${Number(row.xp || 0).toLocaleString()} XP · ${escapeHtml(row.rank?.name || "Hollow Valley")}`
+            : Number(row.playtime_minutes || 0).toLocaleString();
       return `<tr><td>${i + 1}</td><td>${escapeHtml(row.username || "Unknown")}</td><td>${value}</td></tr>`;
     })
     .join("");
@@ -42,7 +46,7 @@ document.querySelectorAll(".filter").forEach((tab) => {
 
 function applyTabFromQuery() {
   const tab = new URLSearchParams(window.location.search).get("tab");
-  const tabMap = { kills: "mostKills", kd: "bestKd", playtime: "mostPlaytime" };
+  const tabMap = { levels: "mostLevels", kills: "mostKills", kd: "bestKd", playtime: "mostPlaytime" };
   if (tab && tabMap[tab]) {
     activeTab = tabMap[tab];
     document.querySelectorAll(".filter").forEach((t) => t.classList.toggle("active", t.dataset.tab === activeTab));

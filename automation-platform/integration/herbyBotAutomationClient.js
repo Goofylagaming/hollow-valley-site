@@ -61,6 +61,16 @@ function getActivity(hours = 24, options = {}) {
   return call(`/activity?hours=${safeHours}`, options);
 }
 
+function getProgression(discordId, options = {}) {
+  const id = String(discordId || '').trim();
+  if (!/^\d{15,22}$/.test(id)) throw new Error('A valid Discord user ID is required');
+  return call(`/progression/${encodeURIComponent(id)}`, options);
+}
+
+function getProgressionLeaderboard(options = {}) {
+  return call('/leaderboards/progression', options);
+}
+
 function queueAnnouncement(message, nonce, options = {}) {
   return call('/commands/announcement', {
     ...options,
@@ -105,6 +115,8 @@ module.exports = {
   getStatus,
   getStaffOverview,
   getActivity,
+  getProgression,
+  getProgressionLeaderboard,
   queueAnnouncement,
   scheduleAnnouncement,
   claimMessages,

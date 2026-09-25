@@ -4,6 +4,7 @@ const { randomUUID, createHash } = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
 const { getServerSnapshot } = require('./statusService');
 const playtimeRewards = require('./playtimeRewardsService');
+const progression = require('./progressionService');
 const supporterBonuses = require('./supporterBonusService');
 const rconControl = require('./rconControlService');
 const externalServerSnapshot = require('./externalServerSnapshotService');
@@ -424,6 +425,14 @@ async function ingestExternalPresenceSnapshot(input = {}) {
       rewards = { skipped: true, reason: 'reward-error', error: error.message };
     }
 
+    let progressionRewards;
+    try {
+      progressionRewards = progression.trackOnlinePlayers(players, { nowMs: sampledAtMs });
+    } catch (error) {
+      console.warn('[progression]', error.message);
+      progressionRewards = { skipped: true, reason: 'progression-error', error: error.message };
+    }
+
     db.prepare(`
       INSERT INTO player_presence_external_samples
         (sample_id, sampled_at, payload_hash)
@@ -448,6 +457,7 @@ async function ingestExternalPresenceSnapshot(input = {}) {
       sample,
       supporterMemberships,
       rewards,
+      progression: progressionRewards,
     };
   } finally {
     running = false;
@@ -499,6 +509,14 @@ async function samplePresence({ force = false } = {}) {
       rewards = { skipped: true, reason: 'reward-error', error: error.message };
     }
 
+    let progressionRewards;
+    try {
+      progressionRewards = progression.trackOnlinePlayers(players, { nowMs: Date.parse(nowIso) });
+    } catch (error) {
+      console.warn('[progression]', error.message);
+      progressionRewards = { skipped: true, reason: 'progression-error', error: error.message };
+    }
+
     let joinMessages;
     if (!joinMessagesPrimed) {
       // Never greet everyone merely because the automation service restarted.
@@ -517,7 +535,7 @@ async function samplePresence({ force = false } = {}) {
       joinMessages = await sendJoinMessages(newPlayers);
     }
 
-    return { skipped: false, ...reconciliation, sample, supporterMemberships, rewards, joinMessages };
+    return { skipped: false, ...reconciliation, sample, supporterMemberships, rewards, progression: progressionRewards, joinMessages };
   } finally {
     running = false;
   }

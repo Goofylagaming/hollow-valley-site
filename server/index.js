@@ -11,6 +11,7 @@ const authSteamRouter = require("./authSteam");
 const speciesRouter = require("./routes/species");
 const walletRouter = require("./routes/wallet");
 const questsRouter = require("./routes/quests");
+const progressionRouter = require("./routes/progression");
 const rosterRouter = require("./routes/roster");
 const leaderboardsRouter = require("./routes/leaderboards");
 const mapRouter = require("./routes/map");
@@ -33,6 +34,7 @@ const adminRestoreRouter = require("./routes/adminRestore");
 const adminOperationsRouter = require("./routes/adminOperations");
 const adminCommsRouter = require("./routes/adminComms");
 const serverStatusService = require("./services/serverStatus");
+const automationWebsiteClient = require("./services/automationWebsiteClient");
 const { syncSteamProfiles } = require("./services/steamProfile");
 const herbyBot = require("./herbyBot");
 
@@ -112,6 +114,14 @@ function createApp() {
   });
 
   app.get("/api/me", (req, res) => {
+    if (req.user?.steam_id && req.user?.discord_id) {
+      automationWebsiteClient.linkProgressionIdentity({
+        steamId: String(req.user.steam_id),
+        discordId: String(req.user.discord_id),
+      }).catch((error) => {
+        console.warn("[progression] automatic Discord link sync failed:", error.message);
+      });
+    }
     res.json({
       loggedIn: Boolean(req.user),
       user: req.user || null,
@@ -153,6 +163,7 @@ function createApp() {
   app.use("/api/species", speciesRouter);
   app.use("/api/wallet", walletRouter);
   app.use("/api/quests", questsRouter);
+  app.use("/api/progression", progressionRouter);
   app.use("/api/roster", rosterRouter);
   app.use("/api/leaderboards", leaderboardsRouter);
   app.use("/api/map", mapRouter);
@@ -178,7 +189,7 @@ function createApp() {
   app.all("/api/parked", parkedHandler);
   app.all("/api/admin", adminHandler);
 
-  const PAGE_ROUTES = ["dashboard", "wallet", "quests", "mydinos", "bodydrop", "friends", "marketplace", "livemap", "leaderboard", "supporter", "events"];
+  const PAGE_ROUTES = ["dashboard", "wallet", "quests", "profile", "mydinos", "bodydrop", "friends", "marketplace", "livemap", "leaderboard", "supporter", "events"];
   for (const page of PAGE_ROUTES) {
     app.get(`/${page}`, (req, res) => {
       res.sendFile(path.join(__dirname, "..", "public", `${page}.html`));

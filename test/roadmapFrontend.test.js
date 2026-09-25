@@ -22,6 +22,7 @@ test("roadmap browser scripts parse", () => {
     "public/assets/admincomms.js",
     "public/assets/wallet.js",
     "public/assets/quests.js",
+    "public/assets/profile.js",
     "public/assets/leaderboard.js",
     "public/assets/livemap.js",
     "public/assets/events.js",
@@ -34,8 +35,10 @@ test("shared navigation exposes Wallet and Quests as separate tabs", () => {
   const nav = read("public/partials/nav.html");
   assert.equal(nav.includes('href="/">Command</a>'), false);
   assert.equal(nav.includes('href="/#join">How to join</a>'), false);
-  assert.match(nav, /href="\\/wallet">WALLET<\\/a>/);
-  assert.match(nav, /href="\\/quests">QUESTS<\\/a>/);
+  assert.equal(nav.includes('href="/wallet">WALLET</a>'), true);
+  assert.equal(nav.includes('href="/quests">QUESTS</a>'), true);
+  assert.equal(nav.includes('href="/profile"'), true);
+  assert.equal(nav.includes('href="/leaderboard?tab=levels"'), true);
   assert.equal(nav.includes('href="/#wallet"'), false);
   assert.equal(nav.includes('href="/#quests"'), false);
   assert.match(nav, /id="admin-nav-group" hidden/);
@@ -129,6 +132,27 @@ test("server exposes Wallet and Quests as dedicated page routes", () => {
   assert.match(server, /"quests"/);
 });
 
+test("permanent progression profile uses the shared Steam-keyed automation source", () => {
+  const html = read("public/profile.html");
+  const js = read("public/assets/profile.js");
+  const route = read("server/routes/progression.js");
+  const client = read("server/services/automationWebsiteClient.js");
+  const service = read("automation-platform/src/services/progressionService.js");
+  const websiteRoutes = read("automation-platform/src/routes/websiteRoutes.js");
+
+  assert.match(html, /PERMANENT PROGRESSION/);
+  assert.match(html, /every level awards 100 Valley Coin/);
+  assert.match(js, /\/api\/progression/);
+  assert.match(js, /Hollow Valley Apex/);
+  assert.match(route, /linkProgressionIdentity/);
+  assert.match(client, /function getProgression/);
+  assert.match(client, /function getProgressionLeaderboard/);
+  assert.match(websiteRoutes, /leaderboards\/progression/);
+  assert.match(service, /LEVEL_REWARD_VC = 100/);
+  assert.match(service, /PLAYTIME_XP_PER_5_MINUTES = 10/);
+  assert.match(service, /progression_level_reward/);
+});
+
 
 test("website server status reuses the automation snapshot instead of duplicate RCON polling", () => {
   const status = read("server/services/serverStatus.js");
@@ -169,6 +193,9 @@ test("leaderboard uses only verified automation sources for playtime and combat"
   assert.match(js, /No verified combat events/);
   assert.match(route, /getPlaytimeLeaderboard/);
   assert.match(route, /getCombatLeaderboard/);
+  assert.match(route, /getProgressionLeaderboard/);
+  assert.match(html, /data-tab="mostLevels"/);
+  assert.match(js, /mostLevels/);
   assert.equal(route.includes("../db"), false);
   assert.equal(route.includes("getLeaderboards"), false);
   assert.match(client, /leaderboards\/playtime/);

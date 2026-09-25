@@ -63,6 +63,9 @@ services:
         sync: false
       - key: HOLLOW_VALLEY_API_TOKEN
         sync: false
+      # Dedicated token used by the existing HerbyBot to call /api/herbybot/*.
+      - key: HERBYBOT_AUTOMATION_TOKEN
+        sync: false
       - key: SERVER_STATUS_POLL_INTERVAL_MS
         value: 15000
       - key: MAX_PLAYERS

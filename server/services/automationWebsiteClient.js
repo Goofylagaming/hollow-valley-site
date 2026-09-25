@@ -169,6 +169,23 @@ function getQuests(steamId) {
   return call(`/quests/${encodeURIComponent(validateSteamId(steamId))}`);
 }
 
+function getProgression(steamId) {
+  return call(`/progression/${encodeURIComponent(validateSteamId(steamId))}`);
+}
+
+function linkProgressionIdentity({ steamId, discordId }) {
+  const discord = String(discordId || '').trim();
+  if (!/^\d{15,22}$/.test(discord)) throw new Error('A valid Discord user ID is required');
+  return call('/progression/link', {
+    method: 'POST',
+    body: { steamId: validateSteamId(steamId), discordId: discord },
+  });
+}
+
+function getProgressionLeaderboard() {
+  return call('/leaderboards/progression');
+}
+
 function getPrimeTracker(steamId) {
   return call(`/prime/${encodeURIComponent(validateSteamId(steamId))}`);
 }
@@ -715,6 +732,9 @@ module.exports = {
   requestBodyDrop,
   getWallet,
   getQuests,
+  getProgression,
+  linkProgressionIdentity,
+  getProgressionLeaderboard,
   getPrimeTracker,
   getDailyLoginBonus,
   claimDailyLoginBonus,

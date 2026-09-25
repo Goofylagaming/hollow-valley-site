@@ -22,6 +22,7 @@ const eventRewards = require('../services/eventRewardService');
 const eventAttendance = require('../services/eventAttendanceService');
 const combatEvents = require('../services/combatEventService');
 const discordEvents = require('../services/discordEventService');
+const progression = require('../services/progressionService');
 
 const router = express.Router();
 router.use(requireWebsiteToken);
@@ -116,6 +117,36 @@ router.get('/quests/:steamId', (req, res) => {
     });
   } catch (error) {
     res.status(400).json({ error: error.message || 'Unable to read playtime quests.' });
+  }
+});
+
+router.get('/progression/:steamId', (req, res) => {
+  try {
+    const steamId = validateSteamId(req.params.steamId);
+    res.json({ profile: progression.getProfile(steamId) });
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Unable to read Hollow Valley progression.' });
+  }
+});
+
+router.post('/progression/link', (req, res) => {
+  try {
+    const steamId = validateSteamId(req.body?.steamId);
+    const link = progression.linkDiscordIdentity({
+      steamId,
+      discordId: req.body?.discordId,
+    });
+    res.json({ ok: true, link, profile: progression.getProfile(steamId) });
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Unable to link Discord progression identity.' });
+  }
+});
+
+router.get('/leaderboards/progression', (_req, res) => {
+  try {
+    res.json({ players: progression.getLeaderboard({ limit: 100 }) });
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Unable to read progression leaderboard.' });
   }
 });
 

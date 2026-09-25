@@ -7,6 +7,7 @@
 // Fully optional: if DISCORD_BOT_TOKEN isn't set, start() is a no-op so the
 // rest of the site keeps working exactly as before.
 const { getState } = require("./services/serverStatus");
+const { createHerbyBotIntegration } = require("../automation-platform/integration/herbyBotIntegration");
 
 const PRESENCE_INTERVAL_MS = 30_000;
 const CHANNEL_RENAME_INTERVAL_MS = 5 * 60_000; // Discord rate-limits channel renames
@@ -14,6 +15,7 @@ const CHANNEL_RENAME_INTERVAL_MS = 5 * 60_000; // Discord rate-limits channel re
 let client = null;
 let lastChannelName = null;
 let lockedChannelId = null;
+let automationIntegration = null;
 
 function isConfigured() {
   return Boolean(process.env.DISCORD_BOT_TOKEN);
@@ -91,11 +93,28 @@ function start() {
   const { Client, GatewayIntentBits } = require("discord.js");
   client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
-  client.once("ready", () => {
+  client.once("ready", async () => {
     console.log(`[herbybot] logged in as ${client.user.tag}`);
     updatePresence();
     updateStatusChannel();
     lockStatusChannel();
+
+    const automationConfigured = Boolean(
+      String(process.env.AUTOMATION_SERVICE_URL || "").trim() &&
+      String(process.env.HERBYBOT_AUTOMATION_TOKEN || "").trim()
+    );
+    if (!automationConfigured) {
+      console.log("[herbybot] automation command bridge not configured");
+      return;
+    }
+
+    try {
+      automationIntegration = createHerbyBotIntegration({ client });
+      const result = await automationIntegration.onReady();
+      console.log(`[herbybot] automation bridge ready; commands=${result.commands?.count ?? "existing"}`);
+    } catch (err) {
+      console.error("[herbybot] automation bridge failed:", err.message);
+    }
   });
 
   client.login(process.env.DISCORD_BOT_TOKEN).catch((err) => {

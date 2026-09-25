@@ -8,6 +8,7 @@ router.get("/", async (_req, res) => {
     mostKills: [],
     bestKd: [],
     mostPlaytime: [],
+    mostLevels: [],
     combatFeedEnabled: false,
     combatFeedConfigured: false,
     combatEventCount: 0,
@@ -41,6 +42,13 @@ router.get("/", async (_req, res) => {
     response.playtimeWindowEnd = playtime.windowEnd || null;
   } catch (error) {
     console.warn("[leaderboards] verified playtime automation unavailable:", error.message);
+  }
+
+  try {
+    const levels = await automation.getProgressionLeaderboard();
+    response.mostLevels = Array.isArray(levels.players) ? levels.players : [];
+  } catch (error) {
+    console.warn("[leaderboards] permanent progression unavailable:", error.message);
   }
 
   res.json(response);
