@@ -151,6 +151,8 @@ Quest completion is automatic from the same verified online-time stream used by 
 | 6 hours | Daily | 6 total verified hours that day | `WALLET_QUEST_DAILY_6H_BOOST_PERCENT` |
 | 12 hours | Weekly | 12 total verified hours that week | `WALLET_QUEST_WEEKLY_12H_BOOST_PERCENT` |
 | 24 hours | Weekly | 24 total verified hours that week | `WALLET_QUEST_WEEKLY_24H_BOOST_PERCENT` |
+| 36 hours — Go Touch Grass | Weekly | 36 total verified hours that week | `WALLET_QUEST_WEEKLY_36H_BOOST_PERCENT` |
+| 72 hours — What Life? | Weekly | 72 total verified hours that week | `WALLET_QUEST_WEEKLY_72H_BOOST_PERCENT` |
 
 Rules:
 
@@ -158,7 +160,7 @@ Rules:
 - Weekly periods begin on Monday in the configured economy timezone.
 - The 1-hour quest resets its current streak after a disconnect or unverified sample gap.
 - 3h/6h daily totals survive normal disconnects during the same day.
-- 12h/24h weekly totals accumulate across the week.
+- 12h/24h/36h/72h weekly totals accumulate across the week and reset with the Monday weekly period.
 - Completed daily and weekly boosts stack additively.
 - The combined boost is limited by `WALLET_QUEST_MAX_TOTAL_BOOST_PERCENT` (100% default safety cap).
 - A quest boost affects future 5-minute payouts only. It does not retroactively increase earlier payouts.
