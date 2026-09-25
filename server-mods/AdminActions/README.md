@@ -2,31 +2,35 @@
 
 Hollow Valley administrator-only live player actions for The Isle: Evrima.
 
-## v002
+## v003
 
-- accepts audited `admin_slay` commands from CommandBridge
-- resolves the target by 17-digit Steam ID
-- requires the player to be connected with a live dinosaur
-- spawns the verified Evrima `BP_SmiteEffect` at the target dinosaur's live location
-- enables replication and calls the effect's `CustomEvent` trigger before the kill
-- never caches or manually destroys the Smite actor; the Blueprint owns its own lifetime
-- treats lightning as best-effort so an effect failure never blocks the proven Slay action
-- sets the current dinosaur's health to zero and forces a network update
-- writes a confirmed `AdminActions` result back to CommandBridge
+- keeps the proven `admin_slay` path unchanged: resolve the target by Steam ID, set live dinosaur health to zero, force a network update
+- removes the experimental `BP_SmiteEffect` call from Slay because the dedicated-server test produced no player-visible/audio lightning
+- adds a read-only, one-shot lightning/weather reflection probe
+- the probe runs only when `Saved/lightning-probe.flag` is present
+- searches loaded UE objects for: `lightning`, `thunder`, `storm`, `weather`, `strike`, and `smite`
+- filters on FName first, then logs full names only for matches
+- when a matching UClass/Blueprint class is found, enumerates its reflected UFunctions so generic callable methods are visible
+- caps diagnostic logging and makes no game-state writes
 
 Install at:
 
 `ue4ss/Mods/AdminActions/Scripts/main.lua`
 
-Because this is a new UE4SS mod, first installation requires enabling the mod and restarting the game server. Later updates can use `Saved/reload.flag`.
+Existing installations can hot-reload AdminActions with `Saved/reload.flag`; no full game-server restart is required.
 
+## Running the probe
 
-### Smite safety
+Create:
 
-The Smite actor class is resolved with:
+`ue4ss/Mods/AdminActions/Saved/lightning-probe.flag`
 
-`/Game/TheIsle/Core/Spawnables/BP_SmiteEffect.BP_SmiteEffect_C`
+with any non-empty token. AdminActions consumes the flag once and logs lines beginning with:
 
-`CustomEvent()` is intentionally the final call made on the spawned effect actor. Do not add delayed cleanup or `K2_DestroyActor`: the effect Blueprint can destroy itself, and touching a stale UE4SS wrapper after that can crash the server.
+`[AdminActions] LightningProbe`
 
-Lightning is diagnostic/best-effort. If the effect cannot be resolved, spawned, replicated, or triggered, AdminActions logs the reason and still applies the existing `SetHealth(0)` Slay path.
+The probe is diagnostic only. It does not change weather, spawn VFX, damage players, or call any discovered function.
+
+## Performance note
+
+UE4SS registry enumeration requires a pass over the loaded global UObject array. Run this manually and only when needed. The implementation keeps the per-object work minimal by checking FName before requesting full object names, and caps logged output.
