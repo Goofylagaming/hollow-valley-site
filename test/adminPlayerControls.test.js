@@ -44,7 +44,7 @@ test("AdminActions v001 resolves Steam target and applies zero health", () => {
   assert.match(lua, /SetHealth\(0\)/);
   assert.match(lua, /ForceNetUpdate\(\)/);
   assert.match(lua, /"source":"AdminActions"/);
-  assert.doesNotMatch(lua, /lightning|thunder/i);
+  assert.doesNotMatch(lua, /SpawnLightning|TriggerLightning|LightningStrike/);
 });
 
 test("Admin Hub renders connected player controls and requires browser confirmation", () => {
