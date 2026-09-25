@@ -28,8 +28,8 @@ function pollIntervalMs() {
   // keeps the conservative five-minute floor so website traffic never hammers
   // the game server.
   const usingAutomation = automationConfigured();
-  const fallback = usingAutomation ? 30_000 : 300_000;
-  const minimum = usingAutomation ? 15_000 : 300_000;
+  const fallback = usingAutomation ? 15_000 : 300_000;
+  const minimum = usingAutomation ? 10_000 : 300_000;
   const value = Number(process.env.SERVER_STATUS_POLL_INTERVAL_MS || fallback);
   return Math.max(minimum, Math.min(600_000, Number.isFinite(value) ? value : fallback));
 }
