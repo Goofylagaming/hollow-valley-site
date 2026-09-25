@@ -1,6 +1,9 @@
 const { api, escapeHtml } = window.HDS;
 
-const REFRESH_MS = 17_000;
+const ACTIVE_REFRESH_MS = 5_000;
+const HIDDEN_REFRESH_MS = 30_000;
+let mapRefreshTimer = null;
+let mapLoadInFlight = false;
 
 // Static Gateway layer data - fetched once, then re-rendered locally whenever a
 // layer toggle changes.
@@ -165,7 +168,7 @@ function renderMe(data) {
     return;
   }
   if (!data.me) {
-    panel.innerHTML = `<div class="empty-roster"><strong>Not currently in-game</strong><span>Join Hollow Valley and your character will show up here within 30 seconds.</span></div>`;
+    panel.innerHTML = `<div class="empty-roster"><strong>Not currently in-game</strong><span>Join Hollow Valley and your character will appear after the next live server snapshot.</span></div>`;
     return;
   }
 
@@ -303,6 +306,8 @@ async function loadLayers() {
 }
 
 async function loadMap() {
+  if (mapLoadInFlight) return;
+  mapLoadInFlight = true;
   const status = document.getElementById("tracker-status");
   try {
     const data = await api("/api/map/positions");
@@ -342,8 +347,24 @@ async function loadMap() {
       contacts.innerHTML = `<div class="empty-roster"><strong>Live feed unavailable</strong><span>No stale player positions are displayed.</span></div>`;
     }
     console.error(err);
+  } finally {
+    mapLoadInFlight = false;
   }
 }
+
+function scheduleMapRefresh({ immediate = false } = {}) {
+  if (mapRefreshTimer) clearTimeout(mapRefreshTimer);
+  const delay = document.hidden ? HIDDEN_REFRESH_MS : ACTIVE_REFRESH_MS;
+  if (immediate) loadMap();
+  mapRefreshTimer = setTimeout(async function refreshMapLoop() {
+    await loadMap();
+    scheduleMapRefresh();
+  }, delay);
+}
+
+document.addEventListener("visibilitychange", () => {
+  scheduleMapRefresh({ immediate: !document.hidden });
+});
 
 for (const key of ALL_LAYERS) {
   const input = document.getElementById(`layer-${key}`);
@@ -535,5 +556,5 @@ initMapZoom();
 loadLayers();
 loadActivityHistory();
 loadMap();
-setInterval(loadMap, REFRESH_MS);
+scheduleMapRefresh();
 setInterval(loadActivityHistory, 5 * 60_000);
