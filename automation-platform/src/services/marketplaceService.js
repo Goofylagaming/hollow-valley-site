@@ -1,5 +1,6 @@
 const { randomUUID } = require('node:crypto');
 const store = require('./economyStore');
+const officialCatalog = require('./officialMarketplaceCatalogService');
 
 const db = store.db;
 
@@ -52,6 +53,10 @@ function purchaseCatalogItem({ steamId, catalogId, idempotencyKey }) {
       const error = new Error('Marketplace item is unavailable');
       error.code = 'CATALOG_ITEM_UNAVAILABLE';
       throw error;
+    }
+
+    if (item.item_type === 'dino') {
+      officialCatalog.assertOfficialDinoSalePolicy(item);
     }
 
     const wallet = db.prepare('SELECT balance FROM economy_wallets WHERE steam_id = ?').get(buyer);
