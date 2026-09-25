@@ -20,6 +20,7 @@ test("roadmap browser scripts parse", () => {
     "public/assets/admin.js",
     "public/assets/adminoperations.js",
     "public/assets/admincomms.js",
+    "public/assets/adminsupporters.js",
     "public/assets/wallet.js",
     "public/assets/quests.js",
     "public/assets/profile.js",
@@ -300,6 +301,30 @@ test("consolidated admin hub replaces scattered admin navigation", () => {
   assert.match(server, /requireAdmin/);
 });
 
+
+test("admin supporter roster exposes paid members, Steam IDs and Discord role repair", () => {
+  const html = read("public/adminsupporters.html");
+  const js = read("public/assets/adminsupporters.js");
+  const route = read("server/routes/adminSupporters.js");
+  const server = read("server/index.js");
+  const admin = read("public/admin.html");
+
+  assert.match(html, /Supporter roster\./);
+  assert.match(html, /MISSING DISCORD/);
+  assert.match(html, /Steam ID/);
+  assert.match(js, /\/api\/admin-supporters/);
+  assert.match(js, /Sync Discord role/);
+  assert.match(js, /PAID · DISCORD NOT LINKED/);
+  assert.match(js, /Copy Steam ID/);
+  assert.match(route, /supporter_subscriptions/);
+  assert.match(route, /stripe_customer_id/);
+  assert.match(route, /stripe_subscription_id/);
+  assert.match(route, /requireAdmin/);
+  assert.match(route, /syncDiscordMembershipForUser/);
+  assert.match(server, /adminSupportersRouter/);
+  assert.match(server, /adminsupporters: "adminsupporters\.html"/);
+  assert.match(admin, /href="\/adminsupporters"/);
+});
 
 test("Supporter account panel makes Steam and Discord linkage explicit", () => {
   const html = read("public/supporter.html");
