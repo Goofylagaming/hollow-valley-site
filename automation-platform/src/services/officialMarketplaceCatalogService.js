@@ -58,7 +58,16 @@ function seedOfficialCatalog() {
       currentIds.push(id);
       const existing = store.getCatalogItem(id);
       const price = desiredTierPrice({ speciesId, tier, basePrice });
-      const active = existing ? existing.active !== false : true;
+      const existingMatchesCurrentTier = Boolean(
+        existing
+        && String(existing.payload?.growthTier || '') === tier.key
+        && Number(existing.payload?.growthPercent ?? existing.payload?.sizePercent) === tier.growth
+        && Boolean(existing.payload?.isPrime) === tier.isPrime
+      );
+      // Legacy :50/:75 rows were previously deactivated by the old mid/high/prime
+      // catalog seeder. Reactivate those rows once as they migrate into the new
+      // fixed policy, but preserve intentional admin disables after migration.
+      const active = existingMatchesCurrentTier ? existing.active !== false : true;
 
       items.push(store.upsertCatalogItem({
         id,
