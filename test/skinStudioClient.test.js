@@ -65,13 +65,13 @@ test("Skin Studio website client targets automation skin endpoints", async (t) =
 });
 
 
-test("Skin Studio v010 never seeds a future pawn through persistence or TemporarySkinData", () => {
+test("Skin Studio v011 keeps current-pawn isolation and required runtime helpers", () => {
   const fs = require("node:fs");
   const path = require("node:path");
   const lua = fs.readFileSync(path.join(__dirname, "..", "server-mods", "SkinStudio", "Scripts", "main.lua"), "utf8");
   const browser = fs.readFileSync(path.join(__dirname, "..", "public", "assets", "skins.js"), "utf8");
 
-  assert.match(lua, /SkinStudio v010/);
+  assert.match(lua, /SkinStudio v011/);
   assert.match(lua, /CURRENT pawn only/);
   assert.match(lua, /never auto-restores an old applied skin onto a future pawn/);
   assert.match(lua, /TemporarySkinData and bUseSkinPalette are intentionally never modified/);
@@ -85,6 +85,12 @@ test("Skin Studio v010 never seeds a future pawn through persistence or Temporar
   assert.equal(lua.includes("pawn.TemporarySkinData"), false);
   assert.equal(lua.includes("bUseSkinPalette = true"), false);
   assert.match(lua, /temporary=false/);
+  assert.match(lua, /local function parseColor/);
+  assert.match(lua, /local function parseTokens/);
+  assert.match(lua, /local function pawnClassName/);
+  assert.match(lua, /local function speciesMatches/);
+  assert.match(lua, /local function nearlyEqual/);
+  assert.match(lua, /local function applyColor/);
 
   assert.match(browser, /data-species=/);
   assert.match(browser, /storedDinos\.find/);
