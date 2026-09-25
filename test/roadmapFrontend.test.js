@@ -337,13 +337,14 @@ test("Discord event calendar is sourced through HerbyBot and automation", () => 
   assert.match(service, /staleAfterMs/);
 });
 
-test("quest page includes approved lifetime playtime milestones", () => {
+test("quest page presents 36h and 72h as weekly quests", () => {
   const js = read("public/assets/quests.js");
+  assert.match(js, /weekly-total-36h/);
   assert.match(js, /Go Touch Grass/);
+  assert.match(js, /weekly-total-72h/);
   assert.match(js, /What Life\?/);
-  assert.match(js, /36 \* 60/);
-  assert.match(js, /72 \* 60/);
-  assert.match(js, /\/api\/progression/);
+  assert.match(js, /weekly reset/);
   assert.match(js, /APPROVED QUEST POOL/);
-  assert.match(js, /LIFETIME PLAYTIME/);
+  assert.equal(js.includes("LIFETIME PLAYTIME"), false);
+  assert.equal(js.includes("/api/progression"), false);
 });
