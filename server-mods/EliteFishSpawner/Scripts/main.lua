@@ -67,13 +67,8 @@ end
 local function actorClassName(actor)
     if actor == nil then return nil end
 
-    local full
-    pcall(function() full = actor:GetFullName() end)
-    if type(full) == "string" then
-        if full:find("BP_Elite_Fish_CatFish_C", 1, true) then return "catfish" end
-        if full:find("BP_Elite_Fish_Coelacanth_C", 1, true) then return "coelacanth" end
-    end
-
+    -- Fast path: only inspect the class FName. This hook sees every actor
+    -- BeginPlay/EndPlay, so avoid constructing a full object path unless needed.
     local className
     pcall(function()
         local cls = actor:GetClass()
@@ -85,6 +80,7 @@ local function actorClassName(actor)
     className = tostring(className or "")
     if className:find("BP_Elite_Fish_CatFish_C", 1, true) then return "catfish" end
     if className:find("BP_Elite_Fish_Coelacanth_C", 1, true) then return "coelacanth" end
+
     return nil
 end
 
