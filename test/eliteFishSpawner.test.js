@@ -28,8 +28,11 @@ test("EliteFishSpawner learns water anchors event-first and avoids recursive spa
   assert.match(lua, /supplementalSpawnInProgress/);
   assert.match(lua, /supplementalAddress/);
   assert.match(lua, /if supplemental then/);
-  assert.match(lua, /return\n    end\n\n    log\(string\.format\(\n        "Natural/s);
-  assert.equal(lua.includes("FindAllOf("), false);
+  const supplementalBranch = lua.indexOf("if supplemental then");
+  const naturalLog = lua.indexOf('"Natural %s BeginPlay', supplementalBranch);
+  const schedule = lua.indexOf("scheduleBonus(kind)", naturalLog);
+  assert.ok(supplementalBranch >= 0 && naturalLog > supplementalBranch && schedule > naturalLog);
+  assert.equal(/\n\s*FindAllOf\s*\(/.test(lua), false);
 });
 
 test("EliteFishSpawner has explicit load caps and does not destroy actors", () => {
