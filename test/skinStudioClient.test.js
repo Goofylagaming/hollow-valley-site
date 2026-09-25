@@ -74,7 +74,7 @@ test("Skin Studio v010 never seeds a future pawn through persistence or Temporar
   assert.match(lua, /SkinStudio v010/);
   assert.match(lua, /CURRENT pawn only/);
   assert.match(lua, /never auto-restores an old applied skin onto a future pawn/);
-  assert.match(lua, /TemporarySkinData is intentionally never modified/);
+  assert.match(lua, /TemporarySkinData and bUseSkinPalette are intentionally never modified/);
   assert.match(lua, /Cleared legacy auto-restore profiles/);
   assert.equal(lua.includes("loadProfiles()\n\nif LoopInGameThreadWithDelay"), false);
   assert.equal(lua.includes('safeCall("reapplyProfiles", reapplyProfiles)'), false);
