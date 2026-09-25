@@ -24,7 +24,7 @@ function configuration(env = process.env) {
   if (!keyOk) return null;
 
   try {
-    const origin = new URL(env.RENDER_EXTERNAL_URL || env.STEAM_REALM);
+    const origin = new URL(env.PUBLIC_SITE_URL || env.RENDER_EXTERNAL_URL || env.STEAM_REALM);
     if (origin.protocol !== "https:" || origin.username || origin.password) return null;
     if (!Object.keys(TIERS).every((tier) => stripePriceId(tier, env))) return null;
     return { secret, origin: origin.origin, live };
