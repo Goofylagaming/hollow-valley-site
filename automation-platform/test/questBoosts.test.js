@@ -14,6 +14,8 @@ function loadQuests() {
     d6: process.env.WALLET_QUEST_DAILY_6H_BOOST_PERCENT,
     w12: process.env.WALLET_QUEST_WEEKLY_12H_BOOST_PERCENT,
     w24: process.env.WALLET_QUEST_WEEKLY_24H_BOOST_PERCENT,
+    w36: process.env.WALLET_QUEST_WEEKLY_36H_BOOST_PERCENT,
+    w72: process.env.WALLET_QUEST_WEEKLY_72H_BOOST_PERCENT,
     cap: process.env.WALLET_QUEST_MAX_TOTAL_BOOST_PERCENT,
   };
 
@@ -24,6 +26,8 @@ function loadQuests() {
   process.env.WALLET_QUEST_DAILY_6H_BOOST_PERCENT = '25';
   process.env.WALLET_QUEST_WEEKLY_12H_BOOST_PERCENT = '10';
   process.env.WALLET_QUEST_WEEKLY_24H_BOOST_PERCENT = '20';
+  process.env.WALLET_QUEST_WEEKLY_36H_BOOST_PERCENT = '25';
+  process.env.WALLET_QUEST_WEEKLY_72H_BOOST_PERCENT = '50';
   process.env.WALLET_QUEST_MAX_TOTAL_BOOST_PERCENT = '100';
 
   const storePath = require.resolve('../src/services/economyStore');
@@ -48,6 +52,8 @@ function loadQuests() {
           d6: 'WALLET_QUEST_DAILY_6H_BOOST_PERCENT',
           w12: 'WALLET_QUEST_WEEKLY_12H_BOOST_PERCENT',
           w24: 'WALLET_QUEST_WEEKLY_24H_BOOST_PERCENT',
+          w36: 'WALLET_QUEST_WEEKLY_36H_BOOST_PERCENT',
+          w72: 'WALLET_QUEST_WEEKLY_72H_BOOST_PERCENT',
           cap: 'WALLET_QUEST_MAX_TOTAL_BOOST_PERCENT',
         })[key];
         if (value === undefined) delete process.env[envName];
@@ -74,6 +80,8 @@ test('quest definitions match requested daily and weekly playtime thresholds', (
     { id: 'daily-total-6h', cadence: 'daily', metric: 'total', thresholdSeconds: 21600 },
     { id: 'weekly-total-12h', cadence: 'weekly', metric: 'total', thresholdSeconds: 43200 },
     { id: 'weekly-total-24h', cadence: 'weekly', metric: 'total', thresholdSeconds: 86400 },
+    { id: 'weekly-total-36h', cadence: 'weekly', metric: 'total', thresholdSeconds: 129600 },
+    { id: 'weekly-total-72h', cadence: 'weekly', metric: 'total', thresholdSeconds: 259200 },
   ]);
 });
 
@@ -171,6 +179,35 @@ test('weekly 12h and 24h achievements stack with daily achievements', (t) => {
   assert.equal(status.quests.find((q) => q.id === 'weekly-total-24h').completed, true);
   assert.equal(status.activeBoostPercent, 80);
 });
+
+test('36h and 72h weekly quests award 25% and 50% only for the active week', (t) => {
+  const fixture = loadQuests();
+  t.after(fixture.cleanup);
+  const { quests } = fixture;
+  const steamId = '76561198000000036';
+  const now = Date.parse('2026-09-18T02:00:00.000Z');
+  process.env.WALLET_QUEST_MAX_TOTAL_BOOST_PERCENT = '200';
+
+  quests.updateQuestProgress(steamId, { elapsedSeconds: 36 * 60 * 60, continuous: true, nowMs: now });
+  let status = quests.getQuestStatus(steamId, { nowMs: now });
+  const grass = status.quests.find((q) => q.id === 'weekly-total-36h');
+  const life = status.quests.find((q) => q.id === 'weekly-total-72h');
+  assert.equal(grass.completed, true);
+  assert.equal(grass.boostPercent, 25);
+  assert.equal(life.completed, false);
+
+  quests.updateQuestProgress(steamId, { elapsedSeconds: 36 * 60 * 60, continuous: true, nowMs: now + 60_000 });
+  status = quests.getQuestStatus(steamId, { nowMs: now + 60_000 });
+  assert.equal(status.quests.find((q) => q.id === 'weekly-total-72h').completed, true);
+  assert.equal(status.quests.find((q) => q.id === 'weekly-total-72h').boostPercent, 50);
+
+  const nextWeek = Date.parse('2026-09-21T02:00:00.000Z');
+  status = quests.getQuestStatus(steamId, { nowMs: nextWeek });
+  assert.equal(status.quests.find((q) => q.id === 'weekly-total-36h').completed, false);
+  assert.equal(status.quests.find((q) => q.id === 'weekly-total-72h').completed, false);
+  assert.equal(status.activeBoostPercent, 0);
+});
+
 
 test('configured total boost cap limits stacked boosts', (t) => {
   const fixture = loadQuests();
