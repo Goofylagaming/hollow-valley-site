@@ -1,4 +1,4 @@
--- DinoStorage v007
+-- DinoStorage v008
 -- Store/retrieve dino state across respawns.
 -- All commands are Discord-only via IPC (cmd.flag).
 -- IPC verbs: store, retrieve, delete, list, grant, edit, prime
@@ -6,7 +6,7 @@
 -- Website-backed multi-slot storage with exact state round-tripping.
 
 local MOD_NAME    = "DinoStorage"
-local MOD_VERSION = "v007"
+local MOD_VERSION = "v008"
 
 local function resolveModRoot()
     local source = ""
@@ -32,12 +32,44 @@ local RESULTS_FILE  = (MODS_ROOT and (MODS_ROOT .. "/CommandBridge/Saved/results
 
 local POLL_INTERVAL_MS   = 3000
 local STORE_DELAY_MS     = 3000
-local STORE_CORPSE_CLEANUP_MS = 1500
+local STORE_CORPSE_LIFETIME_SEC = 3600
 local RETRIEVE_DELAY_MS  = 3000
 local DEFERRED_MS        = 500
 
 local function log(msg)
     print(string.format("[%s] %s\n", MOD_NAME, tostring(msg)))
+end
+
+local function transitionParkedPawnToCorpse(pawn, growth, steam)
+    if pawn == nil then return false, "nil pawn" end
+
+    local failedSteps = {}
+    local function corpseStep(label, fn)
+        local ok, err = pcall(fn)
+        if not ok then
+            failedSteps[#failedSteps + 1] = label .. ": " .. tostring(err)
+        end
+    end
+
+    -- Re-assert the captured growth before death so the carcass uses the
+    -- dinosaur's real size instead of the tiny/stretched transitional scale.
+    corpseStep("SetGrowth", function() pawn:SetGrowth(growth or 1.0) end)
+    corpseStep("SetHealth(0)", function() pawn:SetHealth(0) end)
+    corpseStep("bIsDead=true", function() pawn.bIsDead = true end)
+    corpseStep("OnRep_IsNowDead", function() pawn:OnRep_IsNowDead() end)
+    corpseStep("ToggleServerRagdoll", function() pawn:ToggleServerRagdoll(true) end)
+    corpseStep("ActivateDeadbody", function() pawn:ActivateDeadbody(false, STORE_CORPSE_LIFETIME_SEC) end)
+    corpseStep("ForceNetUpdate", function() pawn:ForceNetUpdate() end)
+
+    if #failedSteps > 0 then
+        return false, table.concat(failedSteps, "; ")
+    end
+
+    log(string.format(
+        "Park corpse transition OK steam=%s growth=%.3f lifetime=%ds",
+        tostring(steam or ""), tonumber(growth) or 0, STORE_CORPSE_LIFETIME_SEC
+    ))
+    return true, nil
 end
 
 -- ============================================================
@@ -1176,27 +1208,15 @@ local function cmdStore(steam, slot)
                 local ctrl2; pcall(function() ctrl2 = gm2:GetControllerBySteamId(steamSnap) end)
                 if ctrl2 == nil then return end
                 local pawn2 = livePawnFromCtrl(ctrl2); if pawn2 == nil then return end
-                -- Kill at the original growth so Evrima does not render the
-                -- stretched/tiny zero-growth corpse seen after parking.
-                pcall(function() pawn2:SetHealth(0) end)
-
-                -- Let the normal death/respawn transition run, then remove only
-                -- the parked pawn's corpse. Never reacquire the controller here:
-                -- it may already own a newly spawned pawn by cleanup time.
-                local parkedPawn = pawn2
-                if LoopInGameThreadWithDelay ~= nil then
-                    local cleanupHandle
-                    cleanupHandle = LoopInGameThreadWithDelay(STORE_CORPSE_CLEANUP_MS, function()
-                        if cleanupHandle ~= nil and CancelDelayedAction ~= nil then
-                            pcall(function() CancelDelayedAction(cleanupHandle) end)
-                        end
-                        pcall(function() parkedPawn:SetActorEnableCollision(false) end)
-                        pcall(function() parkedPawn:SetActorHiddenInGame(true) end)
-                        local destroyed = pcall(function() parkedPawn:K2_DestroyActor() end)
-                        if not destroyed then
-                            pcall(function() parkedPawn:DestroyActor() end)
-                        end
-                    end)
+                -- Convert the exact live dinosaur into a normal replicated corpse.
+                -- This preserves the real species/skin/growth and uses the same
+                -- corpse transition sequence already proven by BodyDrop.
+                local corpseOk, corpseErr = transitionParkedPawnToCorpse(pawn2, growth, steamSnap)
+                if not corpseOk then
+                    log(string.format(
+                        "Park corpse transition PARTIAL steam=%s growth=%.3f errors=%s",
+                        steamSnap, tonumber(growth) or 0, tostring(corpseErr)
+                    ))
                 end
             end)
         end
