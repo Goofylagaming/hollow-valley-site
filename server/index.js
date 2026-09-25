@@ -44,9 +44,13 @@ const adminHandler = require("../api/admin");
 
 const PORT = process.env.PORT || 3000;
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
-const HOLLOW_VALLEY_HOSTNAME = "hollowvalley.herbydeathsquadgames.com";
-const LANDING_HOSTNAMES = new Set(["herbydeathsquadgames.com", "www.herbydeathsquadgames.com"]);
-const LANDING_PAGE_PATH = path.join(__dirname, "..", "landing", "index.html");
+const HOLLOW_VALLEY_HOSTNAME = "hollowvalleyisle.com";
+const LEGACY_HOSTNAMES = new Set([
+  "hollowvalley.herbydeathsquadgames.com",
+  "herbydeathsquadgames.com",
+  "www.herbydeathsquadgames.com",
+  "www.hollowvalleyisle.com",
+]);
 const ADMIN_STEAM_IDS = new Set(
   String(process.env.ADMIN_STEAM_IDS || "")
     .split(/[\s,]+/)
@@ -102,12 +106,9 @@ function createApp() {
 
   app.use((req, res, next) => {
     const hostname = (req.hostname || "").toLowerCase();
-    if (!LANDING_HOSTNAMES.has(hostname)) return next();
-    if (req.path === "/" || req.path === "/index.html") {
-      return res.sendFile(LANDING_PAGE_PATH);
-    }
+    if (!LEGACY_HOSTNAMES.has(hostname)) return next();
     const destination = new URL(req.originalUrl || req.url, `https://${HOLLOW_VALLEY_HOSTNAME}`);
-    return res.redirect(302, destination.toString());
+    return res.redirect(308, destination.toString());
   });
 
   app.get("/api/me", (req, res) => {
