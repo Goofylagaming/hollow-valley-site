@@ -380,3 +380,22 @@ test("quest page presents 36h and 72h as weekly quests", () => {
   assert.equal(js.includes("LIFETIME PLAYTIME"), false);
   assert.equal(js.includes("/api/progression"), false);
 });
+
+
+test("Prime Tracker backend remains wired to verified presence samples", () => {
+  const websiteRoutes = read("automation-platform/src/routes/websiteRoutes.js");
+  const presence = read("automation-platform/src/services/playerPresenceService.js");
+  const prime = read("automation-platform/src/services/primeTrackerService.js");
+  const myDinos = read("public/assets/mydinos.js");
+  const env = read("automation-platform/.env.example");
+
+  assert.match(websiteRoutes, /primeTrackerService/);
+  assert.match(websiteRoutes, /router\.get\('\/prime\/:steamId'/);
+  assert.match(presence, /primeTracker\.recordSnapshot\(players, sampledAt\)/);
+  assert.match(presence, /primeTracker\.recordSnapshot\(players, nowIso\)/);
+  assert.match(prime, /function enabled/);
+  assert.match(prime, /PRIME_TRACKER_ENABLED/);
+  assert.match(prime, /function trackerState/);
+  assert.match(myDinos, /\/api\/mydinos\/prime-tracker/);
+  assert.match(env, /PRIME_TRACKER_ENABLED=false/);
+});
