@@ -80,9 +80,10 @@ function renderCatalog() {
   let filtered = catalog.filter((entry) => {
     const species = speciesById[entry.species_id];
     const growth = Number(entry.size_percent || 0);
-    const officialTier = entry.growth_tier === "50" || entry.growth_tier === "75";
-    const validGrowth = growth === 50 || growth === 75;
-    return officialTier && validGrowth && (activeFilter === "all" || species?.category === activeFilter);
+    const validOfficialTier =
+      (growth === 50 && entry.is_prime !== true)
+      || (growth === 75 && entry.is_prime === true);
+    return validOfficialTier && (activeFilter === "all" || species?.category === activeFilter);
   });
   filtered = sortCatalog(filtered);
   if (!filtered.length) {
