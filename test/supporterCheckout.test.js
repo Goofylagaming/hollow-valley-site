@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { TIERS, checkoutConfigured, createCheckoutSession } = require('../server/services/supporterCheckout');
+const { TIERS, configuration, checkoutConfigured, createCheckoutSession } = require('../server/services/supporterCheckout');
 const env = {
   STRIPE_SECRET_KEY: 'sk_test_fixture',
   STRIPE_PRICE_MEMBER: 'price_1UHAaB2dLCIXuWvnJd8S66oJ',
@@ -11,6 +11,15 @@ const env = {
 };
 const session = { id: 'cs_test_fixture', livemode: false, url: 'https://checkout.stripe.com/c/pay/cs_test_fixture' };
 const ok = async () => ({ ok: true, json: async () => session });
+
+
+test('PUBLIC_SITE_URL overrides the Render service hostname for Stripe return URLs', () => {
+  const configured = configuration({
+    ...env,
+    PUBLIC_SITE_URL: 'https://hollowvalleyisle.com',
+  });
+  assert.equal(configured.origin, 'https://hollowvalleyisle.com');
+});
 
 test('exactly three monthly AUD display tiers', () => {
   assert.deepEqual(TIERS, {
