@@ -169,6 +169,10 @@ function getQuests(steamId) {
   return call(`/quests/${encodeURIComponent(validateSteamId(steamId))}`);
 }
 
+function getPrimeTracker(steamId) {
+  return call(`/prime/${encodeURIComponent(validateSteamId(steamId))}`);
+}
+
 function getDailyLoginBonus(steamId) {
   return call(`/daily-login/${encodeURIComponent(validateSteamId(steamId))}`);
 }
@@ -711,6 +715,7 @@ module.exports = {
   requestBodyDrop,
   getWallet,
   getQuests,
+  getPrimeTracker,
   getDailyLoginBonus,
   claimDailyLoginBonus,
   getDiscordScheduledEvents,
