@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Hollow Valley supporter administration.">
+  <title>Supporter Admin | Hollow Valley</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=22">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main>
+      <section class="page-header">
+        <p class="overline green">HOLLOW VALLEY · ADMIN · SUPPORTERS</p>
+        <h1>Supporter roster.</h1>
+        <p class="section-intro">See who paid through Stripe, identify them by Steam ID, spot missing Discord links and re-sync supporter roles.</p>
+      </section>
+
+      <section class="roster-section">
+        <div id="supporter-admin-guard"><p class="section-intro">Checking admin access…</p></div>
+        <div id="supporter-admin-content" hidden>
+          <div class="admin-supporter-summary">
+            <div class="summary-tile"><small>RECORDED SUBSCRIPTIONS</small><b id="supporter-count-total">0</b><span>All Stripe-linked supporter records</span></div>
+            <div class="summary-tile"><small>PAID / ENTITLED</small><b id="supporter-count-active">0</b><span>Active or trialing memberships</span></div>
+            <div class="summary-tile attention"><small>MISSING DISCORD</small><b id="supporter-count-missing">0</b><span>Paid but role cannot be assigned</span></div>
+            <div class="summary-tile"><small>CANCELLING</small><b id="supporter-count-cancelling">0</b><span>Access remains until period end</span></div>
+          </div>
+
+          <div class="admin-supporter-toolbar">
+            <div class="admin-supporter-filters" role="group" aria-label="Supporter filters">
+              <button type="button" class="filter active" data-supporter-filter="attention">Needs attention</button>
+              <button type="button" class="filter" data-supporter-filter="active">Paid</button>
+              <button type="button" class="filter" data-supporter-filter="linked">Discord linked</button>
+              <button type="button" class="filter" data-supporter-filter="cancelling">Cancelling</button>
+              <button type="button" class="filter" data-supporter-filter="all">All records</button>
+            </div>
+            <div class="admin-supporter-tools">
+              <input id="supporter-admin-search" type="search" placeholder="Player, Steam, Discord or Stripe ID">
+              <button class="small-button" type="button" id="supporter-admin-refresh">Refresh</button>
+            </div>
+          </div>
+
+          <p class="section-intro admin-supporter-status" id="supporter-admin-status" role="status"></p>
+
+          <div class="admin-supporter-table-wrap">
+            <table class="admin-supporter-table">
+              <thead>
+                <tr>
+                  <th>Player</th>
+                  <th>Steam ID</th>
+                  <th>Discord</th>
+                  <th>Tier</th>
+                  <th>Stripe</th>
+                  <th>Renewal</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="supporter-admin-rows">
+                <tr><td colspan="7">Loading supporter records…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+    <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
+  </div>
+  <script src="/assets/common.js?v=16"></script>
+  <script src="/assets/adminsupporters.js?v=1"></script>
+</body>
+</html>
