@@ -202,6 +202,9 @@ test("Live Map keeps offline history separate from live coordinates", () => {
   assert.match(js, /\/api\/map\/activity\?hours=24/);
   assert.match(js, /renderMarkers\(null\)/);
   assert.match(js, /no player positions are shown/);
+  assert.match(js, /ACTIVE_REFRESH_MS = 5_000/);
+  assert.match(js, /HIDDEN_REFRESH_MS = 30_000/);
+  assert.match(js, /visibilitychange/);
   assert.match(route, /router\.get\("\/activity"/);
   assert.match(client, /function getMapActivity/);
   assert.match(client, /\/map\/activity\?hours=/);
