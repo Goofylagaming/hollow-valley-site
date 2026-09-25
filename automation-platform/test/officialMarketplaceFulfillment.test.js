@@ -91,7 +91,7 @@ function fundAndBuy(fixture, steamId = '76561198000000601', catalogId = 'dino:ca
   fixture.catalog.seedOfficialCatalog();
   fixture.store.applyWalletTransaction({
     steamId,
-    amount: 5000,
+    amount: 100000,
     kind: 'test_credit',
     reason: 'Official store funding',
     idempotencyKey: `fund:${steamId}`,
@@ -108,7 +108,7 @@ test('official catalog excludes unreleased Deinocheirus and seeds valid 75% clas
   t.after(fixture.cleanup);
 
   const items = fixture.catalog.seedOfficialCatalog();
-  assert.equal(items.length, 20);
+  assert.equal(items.length, 40);
   assert.equal(items.some((item) => item.payload.speciesId === 'deinocheirus'), false);
 
   const carno = fixture.store.getCatalogItem('dino:carnotaurus:75');
@@ -140,7 +140,9 @@ test('official fulfillment creates a minimal real DinoStorage state and marks or
   );
   assert.equal(state.marketplacePurchase.orderId, purchase.order.id);
 
-  for (const forbidden of ['isFemale', 'health', 'stamina', 'skin', 'mutations', 'nutrients', 'isPrime']) {
+  assert.equal(state.isPrime, true);
+  assert.deepEqual(state.primeData, { eligible: true, cond1: true, cond2: true });
+  for (const forbidden of ['isFemale', 'health', 'stamina', 'skin', 'mutations', 'nutrients']) {
     assert.equal(Object.hasOwn(state, forbidden), false, `${forbidden} should not be fabricated`);
   }
 });
@@ -176,7 +178,7 @@ test('conflicting official target slot refunds buyer exactly once', async (t) =>
   const result = await fixture.fulfillment.fulfillOrder(purchase.order.id);
   assert.equal(result.refunded, true);
   assert.equal(result.order.status, 'refunded');
-  assert.equal(fixture.store.getWallet(steamId).balance, 5000);
+  assert.equal(fixture.store.getWallet(steamId).balance, 100000);
 
   const refunds = fixture.store.getWallet(steamId).transactions
     .filter((transaction) => transaction.kind === 'marketplace_refund');
@@ -195,7 +197,7 @@ test('transient FTP failure leaves official order pending and does not refund pr
   );
 
   assert.equal(fixture.store.getOrder(purchase.order.id).status, 'pending');
-  assert.equal(fixture.store.getWallet(steamId).balance, 2200);
+  assert.equal(fixture.store.getWallet(steamId).balance, 50000);
   assert.equal(
     fixture.store.getWallet(steamId).transactions.some((transaction) => transaction.kind === 'marketplace_refund'),
     false
@@ -357,6 +359,7 @@ test('BinaryLane HTTP-pull fulfillment queues a local DinoStorage grant and wait
   assert.equal(row.command.args.args[0], fixture.fulfillment.slotForOrder(purchase.order.id));
   assert.equal(row.command.args.args[1], '/Game/TheIsle/Core/Characters/Dinosaurs/Carnotaurus/BP_Carnotaurus.BP_Carnotaurus_C');
   assert.equal(row.command.args.args[2], '0.750000');
+  assert.equal(row.command.args.args[3], '1');
   assert.equal(row.command.args.args[4], purchase.order.id);
 
   assert.equal(fixture.store.getOrder(purchase.order.id).status, 'pending');
