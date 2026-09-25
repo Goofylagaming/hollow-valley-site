@@ -185,7 +185,7 @@ function renderPrimeTracker(state) {
       </div>
 
       <div class="prime-tracker-stats">
-        <div><small>PRIME TIME</small><b>${escapeHtml(formatPrimeDuration(progress.primeSeconds))}</b><span>${progress.primeStartedAt ? `Since ${escapeHtml(primeDate(progress.primeStartedAt))}` : "Not reached yet"}</span></div>
+        <div><small>TRACKED PRIME TIME</small><b>${escapeHtml(formatPrimeDuration(progress.primeSeconds))}</b><span>${progress.primePreexisting ? "Prime before tracking · exact date unknown" : progress.primeStartedAt ? `Since ${escapeHtml(primeDate(progress.primeStartedAt))}` : "Not reached yet"}</span></div>
         <div><small>MIGRATION ZONES</small><b>${Number(progress.migrationZonesVisited || 0)}</b><span>Unique mapped footprints visited</span></div>
         <div><small>PATROL ZONES</small><b>${Number(progress.patrolZonesVisited || 0)}</b><span>Unique mapped footprints visited</span></div>
         <div><small>SANCTUARIES</small><b>${Number(progress.sanctuariesVisited || 0)}</b><span>Unique mapped footprints visited</span></div>
