@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Hollow Valley administration hub.">
   <title>Admin Hub | Hollow Valley</title>
-  <link rel="stylesheet" href="/assets/styles.css?v=22">
+  <link rel="stylesheet" href="/assets/styles.css?v=23">
 </head>
 <body>
   <div class="app-shell">
@@ -45,6 +45,19 @@
             </form>
             <p id="admin-prime-target" class="admin-prime-status">Enter a Steam ID to check the connected dinosaur.</p>
             <p id="admin-prime-result" class="admin-prime-status" aria-live="polite"></p>
+          </div>
+
+          <div class="summary-tile admin-player-controls">
+            <div class="admin-player-controls-heading">
+              <div>
+                <small>LIVE PLAYER CONTROLS</small>
+                <h2>Connected players</h2>
+                <p>Live dinosaurs currently reported by Hollow Valley. Slay kills only the selected player's current dinosaur.</p>
+              </div>
+              <button class="small-button" id="admin-player-refresh" type="button">Refresh players</button>
+            </div>
+            <p id="admin-player-status" class="admin-prime-status" aria-live="polite">Loading connected players…</p>
+            <div id="admin-player-list" class="admin-player-list"></div>
           </div>
 
           <div class="admin-hub-grid">
@@ -90,6 +103,6 @@
     <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="/assets/common.js?v=16"></script>
-  <script src="/assets/admin.js?v=4"></script>
+  <script src="/assets/admin.js?v=5"></script>
 </body>
 </html>
