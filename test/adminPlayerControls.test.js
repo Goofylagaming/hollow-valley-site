@@ -53,7 +53,7 @@ test("Admin Hub renders connected player controls and requires browser confirmat
 
   assert.match(html, /LIVE PLAYER CONTROLS/);
   assert.match(html, /id="admin-player-list"/);
-  assert.match(html, />Slay</);
+  assert.match(js, /button\.textContent = "Slay"/);
   assert.match(js, /\/api\/admin-operations\/players/);
   assert.match(js, /\/api\/admin-operations\/slay/);
   assert.match(js, /confirm\(\`Slay/);
