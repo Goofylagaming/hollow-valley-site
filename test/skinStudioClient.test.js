@@ -65,32 +65,27 @@ test("Skin Studio website client targets automation skin endpoints", async (t) =
 });
 
 
-test("Skin Studio v008 restores only the same dinosaur life and preserves nested skins", () => {
+test("Skin Studio v009 never carries an applied skin onto a future pawn", () => {
   const fs = require("node:fs");
   const path = require("node:path");
   const lua = fs.readFileSync(path.join(__dirname, "..", "server-mods", "SkinStudio", "Scripts", "main.lua"), "utf8");
   const browser = fs.readFileSync(path.join(__dirname, "..", "public", "assets", "skins.js"), "utf8");
 
-  assert.match(lua, /SkinStudio v008/);
-  assert.match(lua, /same-life reconnect persistence/);
-  assert.match(lua, /profileGrowth/);
-  assert.match(lua, /pawn:GetGrowth\(\)/);
-  assert.match(lua, /NEW_LIFE_GROWTH_DROP/);
-  assert.match(lua, /pendingNewLife/);
-  assert.match(lua, /connected-respawn-or-nest/);
-  assert.match(lua, /clearProfilesForSteam/);
-  assert.match(lua, /Discarded .* legacy species profile/);
-  assert.match(lua, /Cancelled live skin refresh after dinosaur life changed/);
+  assert.match(lua, /SkinStudio v009/);
+  assert.match(lua, /CURRENT pawn only/);
+  assert.match(lua, /never auto-restores an old applied skin onto a future pawn/);
+  assert.match(lua, /Cleared legacy auto-restore profiles/);
+  assert.equal(lua.includes("loadProfiles()\n\nif LoopInGameThreadWithDelay"), false);
+  assert.equal(lua.includes('safeCall("reapplyProfiles", reapplyProfiles)'), false);
   assert.match(lua, /state\.pawnAddress/);
   assert.match(lua, /state\.controllerAddress/);
-  assert.match(lua, /Your Hollow Valley .* skin was restored/);
+  assert.match(lua, /Cancelled live skin refresh after dinosaur life changed/);
 
   assert.match(browser, /data-species=/);
   assert.match(browser, /storedDinos\.find/);
   assert.match(browser, /presetSpecies\.toLowerCase\(\) !== dinoSpecies\.toLowerCase\(\)/);
   assert.match(browser, /Variation \$\{Number\(preset\.skin\?\.skinVariation\)/);
 });
-
 
 test("Skin Shop published cards hide raw colour swatches but editing views keep them", () => {
   const fs = require("node:fs");
