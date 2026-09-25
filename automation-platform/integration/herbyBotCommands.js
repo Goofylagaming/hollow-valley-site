@@ -10,6 +10,32 @@ const COMMANDS = [
     description: 'Show the current Hollow Valley Evrima server status.',
   },
   {
+    name: 'profile',
+    description: 'Show your permanent Hollow Valley level, dino rank and achievements.',
+  },
+  {
+    name: 'level',
+    description: 'Show your Hollow Valley XP and progress to the next level.',
+  },
+  {
+    name: 'achievements',
+    description: 'Show your permanent Hollow Valley achievements.',
+  },
+  {
+    name: 'leaderboard',
+    description: 'Show the Hollow Valley progression leaderboard.',
+    options: [{
+      type: 3,
+      name: 'type',
+      description: 'Leaderboard to show',
+      required: false,
+      choices: [
+        { name: 'Levels', value: 'levels' },
+        { name: 'Achievements', value: 'achievements' },
+      ],
+    }],
+  },
+  {
     name: 'automation',
     description: 'Show Hollow Valley automation health for staff.',
     default_member_permissions: MANAGE_GUILD_PERMISSION,
@@ -89,6 +115,92 @@ function automationReply(status = {}) {
   };
 }
 
+function formatNumber(value) {
+  return Number(value || 0).toLocaleString('en-AU');
+}
+
+function progressBar(percent) {
+  const filled = Math.max(0, Math.min(10, Math.round(Number(percent || 0) / 10)));
+  return `${'█'.repeat(filled)}${'░'.repeat(10 - filled)}`;
+}
+
+function profileReply(profile = {}) {
+  const nextRank = profile.nextRank
+    ? `${profile.nextRank.name} at level ${profile.nextRank.level}`
+    : 'Apex rank reached';
+  return {
+    embeds: [{
+      title: `${profile.username || 'Hollow Valley Player'} · Level ${formatCount(profile.level)}`,
+      description: `🦖 **${profile.rank?.name || 'Hypsilophodon'}**\n${progressBar(profile.progressPercent)} ${formatCount(profile.progressPercent)}%`,
+      fields: [
+        {
+          name: 'XP',
+          value: profile.xpForNextLevel
+            ? `${formatNumber(profile.xp)} total · ${formatNumber(profile.xpNeededForNextLevel)} to next level`
+            : `${formatNumber(profile.xp)} total`,
+          inline: false,
+        },
+        { name: 'Next dino rank', value: nextRank, inline: true },
+        { name: 'Achievements', value: formatNumber(profile.achievementCount), inline: true },
+        { name: 'Level reward', value: `+${formatNumber(profile.levelRewardVc || 100)} VC every level`, inline: true },
+        { name: 'Verified playtime', value: `${Math.floor(Number(profile.verifiedPlaytimeMinutes || 0) / 60)}h ${Number(profile.verifiedPlaytimeMinutes || 0) % 60}m`, inline: true },
+        { name: 'Quests', value: formatNumber(profile.questsCompleted), inline: true },
+        { name: 'Events', value: formatNumber(profile.eventsAttended), inline: true },
+      ],
+      footer: { text: 'Permanent Hollow Valley progression · does not reset' },
+    }],
+  };
+}
+
+function levelReply(profile = {}) {
+  return {
+    embeds: [{
+      title: `Level ${formatCount(profile.level)} · ${profile.rank?.name || 'Hollow Valley'}`,
+      description: `${progressBar(profile.progressPercent)} **${formatCount(profile.progressPercent)}%**`,
+      fields: [
+        { name: 'Total XP', value: formatNumber(profile.xp), inline: true },
+        { name: 'XP to next level', value: profile.xpForNextLevel ? formatNumber(profile.xpNeededForNextLevel) : '—', inline: true },
+        { name: 'Reward on level-up', value: `+${formatNumber(profile.levelRewardVc || 100)} VC`, inline: true },
+      ],
+      footer: { text: `Verified playtime earns ${formatNumber(profile.xpPer5Minutes || 10)} XP every 5 minutes` },
+    }],
+  };
+}
+
+function achievementsReply(profile = {}) {
+  const achievements = Array.isArray(profile.achievements) ? profile.achievements : [];
+  const lines = achievements.slice(0, 15).map((item) => `🏆 **${item.title}** — ${item.description}`);
+  if (achievements.length > 15) lines.push(`…and ${achievements.length - 15} more.`);
+  return {
+    embeds: [{
+      title: `Achievements · ${formatNumber(achievements.length)} unlocked`,
+      description: lines.length ? lines.join('\n') : 'No achievements unlocked yet. Keep playing Hollow Valley to discover them.',
+      footer: { text: 'Achievements are permanent' },
+    }],
+  };
+}
+
+function leaderboardReply(payload = {}, type = 'levels') {
+  const players = Array.isArray(payload.players) ? [...payload.players] : [];
+  if (type === 'achievements') {
+    players.sort((a, b) => Number(b.achievementCount || 0) - Number(a.achievementCount || 0) || Number(b.xp || 0) - Number(a.xp || 0));
+  }
+  const top = players.slice(0, 10);
+  const lines = top.map((player, index) => {
+    const name = player.username || `Steam ${String(player.steamId || '').slice(-6)}`;
+    return type === 'achievements'
+      ? `**${index + 1}. ${name}** — ${formatNumber(player.achievementCount)} achievements · Lv ${formatCount(player.level)}`
+      : `**${index + 1}. ${name}** — Lv ${formatCount(player.level)} · ${player.rank?.name || 'Hollow Valley'} · ${formatNumber(player.xp)} XP`;
+  });
+  return {
+    embeds: [{
+      title: type === 'achievements' ? 'Hollow Valley Achievement Leaders' : 'Hollow Valley Level Leaders',
+      description: lines.length ? lines.join('\n') : 'No permanent progression has been recorded yet.',
+      footer: { text: 'Permanent progression leaderboard' },
+    }],
+  };
+}
+
 function hasStaffAccess(interaction) {
   const permissions = interaction?.memberPermissions;
   if (!permissions?.has) return false;
@@ -128,6 +240,19 @@ function createHerbyBotCommandHandler({ api = automation } = {}) {
     }
 
     try {
+      if (['profile', 'level', 'achievements'].includes(interaction.commandName)) {
+        const discordId = String(interaction.user?.id || interaction.member?.user?.id || '').trim();
+        const payload = await api.getProgression(discordId);
+        if (interaction.commandName === 'profile') await safeReply(interaction, profileReply(payload.profile));
+        if (interaction.commandName === 'level') await safeReply(interaction, levelReply(payload.profile));
+        if (interaction.commandName === 'achievements') await safeReply(interaction, achievementsReply(payload.profile));
+        return true;
+      }
+      if (interaction.commandName === 'leaderboard') {
+        const type = interaction.options?.getString?.('type') || 'levels';
+        await safeReply(interaction, leaderboardReply(await api.getProgressionLeaderboard(), type));
+        return true;
+      }
       if (isStaffOverviewCommand(interaction.commandName)) {
         await safeReply(interaction, await handleStaffOverviewCommand(interaction, api));
         return true;
@@ -147,11 +272,14 @@ function createHerbyBotCommandHandler({ api = automation } = {}) {
       }
       return false;
     } catch (error) {
+      const progressionCommand = ['profile', 'level', 'achievements', 'leaderboard'].includes(interaction.commandName);
       await safeReply(interaction, {
-        ephemeral: staffCommand,
+        ephemeral: staffCommand || progressionCommand,
         content: interaction.commandName === 'server'
           ? 'Hollow Valley status is temporarily unavailable.'
-          : `Staff automation data is unavailable: ${error.message}`,
+          : progressionCommand
+            ? (error?.payload?.error || error.message || 'Hollow Valley progression is temporarily unavailable.')
+            : `Staff automation data is unavailable: ${error.message}`,
       });
       return true;
     }
@@ -193,6 +321,10 @@ module.exports = {
   commandDefinitions,
   serverReply,
   automationReply,
+  profileReply,
+  levelReply,
+  achievementsReply,
+  leaderboardReply,
   hasStaffAccess,
   createHerbyBotCommandHandler,
   registerHerbyBotCommands,
