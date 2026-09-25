@@ -65,17 +65,24 @@ test("Skin Studio website client targets automation skin endpoints", async (t) =
 });
 
 
-test("Skin Studio v007 keeps reconnect profiles per species and blocks obvious parked-dino mismatches", () => {
+test("Skin Studio v008 restores only the same dinosaur life and preserves nested skins", () => {
   const fs = require("node:fs");
   const path = require("node:path");
   const lua = fs.readFileSync(path.join(__dirname, "..", "server-mods", "SkinStudio", "Scripts", "main.lua"), "utf8");
   const browser = fs.readFileSync(path.join(__dirname, "..", "public", "assets", "skins.js"), "utf8");
 
-  assert.match(lua, /SkinStudio v007/);
-  assert.match(lua, /profiles\[steam\] = profiles\[steam\] or \{\}/);
-  assert.match(lua, /profileSpeciesKey/);
-  assert.match(lua, /matchingProfileForPawn/);
-  assert.match(lua, /persistProfiles/);
+  assert.match(lua, /SkinStudio v008/);
+  assert.match(lua, /same-life reconnect persistence/);
+  assert.match(lua, /profileGrowth/);
+  assert.match(lua, /pawn:GetGrowth\(\)/);
+  assert.match(lua, /NEW_LIFE_GROWTH_DROP/);
+  assert.match(lua, /pendingNewLife/);
+  assert.match(lua, /connected-respawn-or-nest/);
+  assert.match(lua, /clearProfilesForSteam/);
+  assert.match(lua, /Discarded .* legacy species profile/);
+  assert.match(lua, /Cancelled live skin refresh after dinosaur life changed/);
+  assert.match(lua, /state\.pawnAddress/);
+  assert.match(lua, /state\.controllerAddress/);
   assert.match(lua, /Your Hollow Valley .* skin was restored/);
 
   assert.match(browser, /data-species=/);
