@@ -142,6 +142,11 @@ test("permanent progression profile uses the shared Steam-keyed automation sourc
   assert.match(html, /PERMANENT PROGRESSION/);
   assert.match(html, /every level awards 100 Valley Coin/);
   assert.match(js, /\/api\/progression/);
+  assert.match(js, /\/api\/wallet/);
+  assert.match(js, /\/api\/supporter/);
+  assert.match(js, /\/api\/friends/);
+  assert.match(html, /MY STUFF · PROFILE/);
+  assert.match(html, /ACCOUNT LINKS/);
   assert.match(js, /Hollow Valley Apex/);
   assert.match(route, /linkProgressionIdentity/);
   assert.match(client, /function getProgression/);
