@@ -3,6 +3,7 @@ const { requireAdminToken } = require('../middleware/adminAuth');
 const { getAdminStatus } = require('../services/statusService');
 const bodyDrop = require('../services/bodyDropService');
 const dinoStorage = require('../services/dinoStorageService');
+const adminActions = require('../services/adminActionsService');
 const adminRestore = require('../services/adminRestoreService');
 const discordAutomation = require('../services/discordAutomationService');
 const scheduler = require('../services/schedulerService');
@@ -145,6 +146,41 @@ router.post('/dinostorage/prime/grant', async (req, res) => {
       error.code === 'DINOSTORAGE_COMMAND_FAILED' ? 409 : 400;
     return res.status(status).json({
       error: error.message || 'Unable to grant Prime Elder.',
+      code: error.code || null,
+      requestId: error.requestId || null,
+    });
+  }
+});
+
+router.post('/admin-actions/slay', async (req, res) => {
+  try {
+    const steamId = adminActions.validateSteamId(req.body?.steamId);
+    const result = await audit.run(
+      'game_admin',
+      'slay_player',
+      { steamId },
+      () => adminActions.slayPlayer({ steamId }),
+      (value) => ({
+        steamId,
+        confirmed: value?.outcome?.state === 'confirmed',
+        source: value?.outcome?.source || null,
+        message: value?.outcome?.message || null,
+      })
+    );
+    return res.json({
+      ok: true,
+      slay: {
+        steamId,
+        confirmed: result?.outcome?.state === 'confirmed',
+        source: result?.outcome?.source || null,
+        message: result?.outcome?.message || 'Slay confirmed.',
+      },
+    });
+  } catch (error) {
+    const status = error.code === 'ADMIN_ACTION_COMMAND_TIMEOUT' ? 504 :
+      error.code === 'ADMIN_ACTION_COMMAND_FAILED' ? 409 : 400;
+    return res.status(status).json({
+      error: error.message || 'Unable to slay player.',
       code: error.code || null,
       requestId: error.requestId || null,
     });
