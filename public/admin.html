@@ -34,6 +34,19 @@
             <div class="summary-tile"><small>ADMIN RESTORE</small><b id="hub-restore">Checking…</b><span id="hub-restore-detail">—</span></div>
           </div>
 
+          <div class="summary-tile admin-prime-tool">
+            <small>PRIME ELDER OVERRIDE</small>
+            <h2>Grant Prime by Steam ID</h2>
+            <p>Sets Prime on the player's current live dinosaur immediately. Growth is not changed and the player does not need to reach 100% first.</p>
+            <form class="form-row" id="admin-prime-form">
+              <input id="admin-prime-steam" inputmode="numeric" autocomplete="off" maxlength="17" placeholder="17-digit Steam ID" aria-label="Steam ID">
+              <button class="small-button" id="admin-prime-check" type="button">Check player</button>
+              <button class="small-button" id="admin-prime-grant" type="submit" disabled>Grant Prime</button>
+            </form>
+            <p id="admin-prime-target" class="admin-prime-status">Enter a Steam ID to check the connected dinosaur.</p>
+            <p id="admin-prime-result" class="admin-prime-status" aria-live="polite"></p>
+          </div>
+
           <div class="admin-hub-grid">
             <a class="admin-hub-card" href="/adminoperations">
               <span class="admin-hub-icon">◉</span>
@@ -77,6 +90,6 @@
     <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="/assets/common.js?v=16"></script>
-  <script src="/assets/admin.js?v=2"></script>
+  <script src="/assets/admin.js?v=3"></script>
 </body>
 </html>
