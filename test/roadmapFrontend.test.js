@@ -142,6 +142,11 @@ test("permanent progression profile uses the shared Steam-keyed automation sourc
   assert.match(html, /PERMANENT PROGRESSION/);
   assert.match(html, /every level awards 100 Valley Coin/);
   assert.match(js, /\/api\/progression/);
+  assert.match(js, /\/api\/wallet/);
+  assert.match(js, /\/api\/supporter/);
+  assert.match(js, /\/api\/friends/);
+  assert.match(html, /MY STUFF · PROFILE/);
+  assert.match(html, /ACCOUNT LINKS/);
   assert.match(js, /Hollow Valley Apex/);
   assert.match(route, /linkProgressionIdentity/);
   assert.match(client, /function getProgression/);
@@ -150,6 +155,8 @@ test("permanent progression profile uses the shared Steam-keyed automation sourc
   assert.match(service, /LEVEL_REWARD_VC = 100/);
   assert.match(service, /PLAYTIME_XP_PER_5_MINUTES = 10/);
   assert.match(service, /progression_level_reward/);
+  const nav = read("public/partials/nav.html");
+  assert.match(nav, /My profile/);
 });
 
 
