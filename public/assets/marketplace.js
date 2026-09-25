@@ -80,8 +80,9 @@ function renderCatalog() {
   let filtered = catalog.filter((entry) => {
     const species = speciesById[entry.species_id];
     const growth = Number(entry.size_percent || 0);
-    const retiredStarterTier = entry.growth_tier === "starter" || (growth > 0 && growth < 50);
-    return !retiredStarterTier && (activeFilter === "all" || species?.category === activeFilter);
+    const officialTier = entry.growth_tier === "50" || entry.growth_tier === "75";
+    const validGrowth = growth === 50 || growth === 75;
+    return officialTier && validGrowth && (activeFilter === "all" || species?.category === activeFilter);
   });
   filtered = sortCatalog(filtered);
   if (!filtered.length) {
@@ -140,17 +141,26 @@ function renderCatalog() {
   grid.querySelectorAll(".admin-catalog-edit").forEach((btn) => btn.addEventListener("click", async () => {
     const entry = catalog.find((item) => String(item.id) === String(btn.dataset.id));
     if (!entry) return;
-    const priceRaw = prompt("Valley Coin price:", String(entry.price));
+    const minimum = Number(entry.size_percent) === 75 ? 50000 : 1;
+    const priceRaw = prompt(
+      Number(entry.size_percent) === 75
+        ? "Valley Coin price (75% Prime minimum: 50,000):"
+        : "Valley Coin price:",
+      String(entry.price)
+    );
     if (priceRaw === null) return;
-    const growthRaw = prompt("Exact growth percentage:", String(entry.size_percent));
-    if (growthRaw === null) return;
+    const price = Number(priceRaw);
+    if (!Number.isSafeInteger(price) || price < minimum) {
+      return alert(Number(entry.size_percent) === 75
+        ? "75% Prime dinos cannot be priced below 50,000 Valley Coin."
+        : "Price must be a positive whole number.");
+    }
     const active = confirm("Keep this marketplace option enabled?\nOK = enabled · Cancel = disabled");
-    const isPrime = entry.growth_tier === "prime" ? true : confirm("Grant Prime status for this option?\nOK = Prime · Cancel = normal");
     btn.disabled = true;
     try {
       const result = await api(`/api/marketplace/catalog/${encodeURIComponent(entry.id)}`, {
         method: "PUT",
-        body: JSON.stringify({ price: Number(priceRaw), growthPercent: Number(growthRaw), active, isPrime }),
+        body: JSON.stringify({ price, active }),
       });
       const updated = result.item;
       if (updated) {
