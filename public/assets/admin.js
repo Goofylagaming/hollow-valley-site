@@ -114,7 +114,7 @@ async function grantPrime(event) {
   try {
     const data = await api("/api/admin-operations/prime-grant", {
       method: "POST",
-      body: { steamId },
+      body: JSON.stringify({ steamId }),
     });
     if (result) result.textContent = data?.prime?.message || "Prime Elder granted.";
     await new Promise((resolve) => setTimeout(resolve, 1500));
