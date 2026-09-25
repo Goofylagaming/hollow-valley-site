@@ -35,8 +35,10 @@ test("shared navigation exposes Wallet and Quests as separate tabs", () => {
   const nav = read("public/partials/nav.html");
   assert.equal(nav.includes('href="/">Command</a>'), false);
   assert.equal(nav.includes('href="/#join">How to join</a>'), false);
-  assert.match(nav, /href="\\/wallet">WALLET<\\/a>/);
-  assert.match(nav, /href="\\/quests">QUESTS<\\/a>/);
+  assert.equal(nav.includes('href="/wallet">WALLET</a>'), true);
+  assert.equal(nav.includes('href="/quests">QUESTS</a>'), true);
+  assert.equal(nav.includes('href="/profile"'), true);
+  assert.equal(nav.includes('href="/leaderboard?tab=levels"'), true);
   assert.equal(nav.includes('href="/#wallet"'), false);
   assert.equal(nav.includes('href="/#quests"'), false);
   assert.match(nav, /id="admin-nav-group" hidden/);
