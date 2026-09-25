@@ -109,6 +109,50 @@ test('legacy marketplace tiers including 100% Prime are retired on seed', (t) =>
   assert.equal(seventyFive.price, 50000);
 });
 
+test('legacy disabled 75% rows reactivate once, then admin disables are preserved', (t) => {
+  const fixture = loadFixture();
+  t.after(fixture.cleanup);
+
+  fixture.store.upsertCatalogItem({
+    id: 'dino:carnotaurus:75',
+    itemType: 'dino',
+    name: 'Carnotaurus 75%',
+    price: 4200,
+    payload: {
+      speciesId: 'carnotaurus',
+      species: 'Carnotaurus',
+      classPath: fixture.catalog.CLASS_PATHS.carnotaurus,
+      growth: 0.75,
+      growthPercent: 75,
+      sizePercent: 75,
+      growthTier: 'high',
+      growthTierLabel: '75%+',
+      isPrime: false,
+    },
+    active: false,
+    sortOrder: 1,
+  });
+
+  fixture.catalog.seedOfficialCatalog();
+  let migrated = fixture.store.getCatalogItem('dino:carnotaurus:75');
+  assert.equal(migrated.active, true);
+  assert.equal(migrated.payload.growthTier, '75');
+  assert.equal(migrated.payload.growthPercent, 75);
+  assert.equal(migrated.payload.isPrime, true);
+  assert.equal(migrated.price, 50000);
+
+  fixture.catalog.updateOfficialCatalogItem({
+    catalogId: 'dino:carnotaurus:75',
+    price: 60000,
+    active: false,
+  });
+  fixture.catalog.seedOfficialCatalog();
+
+  migrated = fixture.store.getCatalogItem('dino:carnotaurus:75');
+  assert.equal(migrated.active, false);
+  assert.equal(migrated.price, 60000);
+});
+
 test('admin can edit prices but cannot underprice the 75% Prime tier', (t) => {
   const fixture = loadFixture();
   t.after(fixture.cleanup);
