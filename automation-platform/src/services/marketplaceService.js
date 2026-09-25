@@ -1,6 +1,6 @@
 const { randomUUID } = require('node:crypto');
 const store = require('./economyStore');
-const officialCatalog = require('./officialMarketplaceCatalogService');
+const { assertOfficialDinoSalePolicy } = require('./officialMarketplacePolicy');
 
 const db = store.db;
 
@@ -56,7 +56,7 @@ function purchaseCatalogItem({ steamId, catalogId, idempotencyKey }) {
     }
 
     if (item.item_type === 'dino') {
-      officialCatalog.assertOfficialDinoSalePolicy(item);
+      assertOfficialDinoSalePolicy(item);
     }
 
     const wallet = db.prepare('SELECT balance FROM economy_wallets WHERE steam_id = ?').get(buyer);
