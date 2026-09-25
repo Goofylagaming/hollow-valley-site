@@ -1,10 +1,10 @@
--- AdminActions v003
+-- AdminActions v004
 -- Hollow Valley administrator-only live player actions.
 -- Slay remains the proven zero-health admin action.
--- v003 adds a read-only one-shot lightning/weather reflection probe.
+-- v004 adds read-only function-signature logging for the native Smite/weather candidates.
 
 local MOD_NAME    = "AdminActions"
-local MOD_VERSION = "v003"
+local MOD_VERSION = "v004"
 
 local function resolveModRoot()
     local source = debug.getinfo(1, "S").source or ""
@@ -26,6 +26,13 @@ local POLL_INTERVAL_MS = 1000
 local PROBE_MAX_LOG_MATCHES = 300
 local PROBE_MAX_CLASS_FUNCTIONS = 80
 local PROBE_KEYWORDS = {"lightning", "thunder", "storm", "weather", "strike", "smite"}
+local SIGNATURE_TARGETS = {
+    ["Smite"] = true,
+    ["ServerSmite"] = true,
+    ["SetSmited"] = true,
+    ["IsThunderstorm"] = true,
+    ["SetWeather"] = true,
+}
 
 local function log(msg)
     print(string.format("[%s] %s\n", MOD_NAME, tostring(msg)))
@@ -165,6 +172,81 @@ local function safeFullName(obj)
     return value
 end
 
+local function safePropertyTypeName(prop)
+    if prop == nil then return "unknown" end
+    local value = nil
+    pcall(function()
+        local cls = prop:GetClass()
+        if cls ~= nil then
+            local fname = cls:GetFName()
+            if fname ~= nil then value = fname:ToString() end
+        end
+    end)
+    return value or "unknown"
+end
+
+local function safePropertyObjectClass(prop)
+    if prop == nil then return nil end
+    local value = nil
+    pcall(function()
+        if prop.IsA ~= nil and PropertyTypes ~= nil and PropertyTypes.ObjectProperty ~= nil
+            and prop:IsA(PropertyTypes.ObjectProperty) and prop.GetPropertyClass ~= nil then
+            local cls = prop:GetPropertyClass()
+            if cls ~= nil then value = cls:GetFullName() end
+        end
+    end)
+    return value
+end
+
+local function logFunctionSignature(fn)
+    if fn == nil then return end
+
+    local fnName = safeObjectName(fn)
+    if not SIGNATURE_TARGETS[tostring(fnName or "")] then return end
+
+    local fnFull = safeFullName(fn) or tostring(fnName or "unknown")
+    local flags = nil
+    pcall(function() flags = fn:GetFunctionFlags() end)
+    log(string.format(
+        "LightningProbe SIGNATURE function=%s flags=%s",
+        tostring(fnFull), tostring(flags)
+    ))
+
+    local index = 0
+    local ok, err = pcall(function()
+        fn:ForEachProperty(function(prop)
+            index = index + 1
+            local propName = safeObjectName(prop) or "unknown"
+            local propType = safePropertyTypeName(prop)
+            local propFull = nil
+            pcall(function() propFull = prop:GetFullName() end)
+            local objectClass = safePropertyObjectClass(prop)
+            log(string.format(
+                "LightningProbe PARAM function=%s index=%d name=%s type=%s objectClass=%s full=%s",
+                tostring(fnName or "unknown"),
+                index,
+                tostring(propName),
+                tostring(propType),
+                tostring(objectClass or ""),
+                tostring(propFull or "")
+            ))
+            return false
+        end)
+    end)
+
+    if not ok then
+        log(string.format(
+            "LightningProbe SIGNATURE_ERROR function=%s error=%s",
+            tostring(fnFull), tostring(err)
+        ))
+    elseif index == 0 then
+        log(string.format(
+            "LightningProbe PARAM function=%s count=0",
+            tostring(fnName or "unknown")
+        ))
+    end
+end
+
 local function isStructLikeClassKind(kind)
     kind = tostring(kind or "")
     return kind == "Class" or kind == "BlueprintGeneratedClass" or kind == "DynamicClass"
@@ -217,6 +299,10 @@ local function runLightningProbe()
             local fullName = safeFullName(obj)
             emit(kind, shortName, fullName, "registry")
 
+            if kind == "Function" and SIGNATURE_TARGETS[tostring(shortName)] then
+                logFunctionSignature(obj)
+            end
+
             if isStructLikeClassKind(kind) and classesExpanded < 40 then
                 classesExpanded = classesExpanded + 1
                 local perClass = 0
@@ -229,6 +315,9 @@ local function runLightningProbe()
                         local fnFull = safeFullName(fn)
                         local fnKind = safeClassName(fn) or "Function"
                         emit(fnKind, fnName, fnFull, "class-function")
+                        if SIGNATURE_TARGETS[tostring(fnName or "")] then
+                            logFunctionSignature(fn)
+                        end
                         functionsLogged = functionsLogged + 1
                         return false
                     end)
