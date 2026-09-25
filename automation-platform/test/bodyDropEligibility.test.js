@@ -94,7 +94,7 @@ test('ineligible BodyDrop request stops before any CommandBridge publication', a
   await assert.rejects(
     fixture.service.requestBodyDrop({
       steamId: '76561198000000001',
-      dropType: 'small',
+      dropType: 'protein-herrerasaurus',
     }),
     (error) => error.code === 'BODYDROP_INELIGIBLE' &&
       error.eligibility?.eligible === false &&
@@ -122,9 +122,162 @@ test('BodyDrop state exposes live-compatible restrictions and eligibility', asyn
   assert.equal(state.serverOnline, true);
   assert.equal(state.eligibility.eligible, true);
   assert.equal(state.eligibility.growthPercent, 40);
-  assert.deepEqual(state.restrictions, { carnivoreOnly: true, maxGrowthPercent: 60 });
+  assert.equal(state.restrictions.carnivoreOnly, true);
+  assert.equal(state.restrictions.maxGrowthPercent, 60);
+  assert.equal(state.restrictions.dietValidated, true);
+  assert.equal(state.restrictions.corpseGrowthScalePercent, 75);
+  assert.equal(state.corpseGrowthPercent, 30);
+  assert.equal(state.requester.species, 'Carnotaurus');
+  assert.equal(state.dietEligibility.eligible, true);
+  assert.ok(state.options.some((option) =>
+    option.id === 'protein-herrerasaurus' &&
+    option.nutrient === 'protein' &&
+    option.species === 'Herrerasaurus' &&
+    option.growthPercent === 30
+  ));
 });
 
+
+
+test('BodyDrop corpse size is 75% of requester growth clamped to 15-40%', (t) => {
+  const fixture = loadService();
+  t.after(fixture.restore);
+  const { scaleCorpseGrowth } = fixture.service;
+
+  assert.equal(scaleCorpseGrowth(0.10), 0.15);
+  assert.equal(scaleCorpseGrowth(0.20), 0.15);
+  assert.equal(scaleCorpseGrowth(0.40), 0.30);
+  assert.equal(scaleCorpseGrowth(0.55), 0.40);
+  assert.equal(scaleCorpseGrowth(60), 0.40);
+});
+
+test('BodyDrop rejects a carcass that is not on the live dinosaur diet', async (t) => {
+  const steamId = '76561198000000444';
+  const fixture = loadService({
+    snapshot: {
+      online: true,
+      players: [{ steamId, name: 'Young Carno' }],
+      characters: [{
+        steamId,
+        species: 'Carnotaurus',
+        growth: 0.40,
+        hunger: 0.20,
+        location: { x: 10, y: 20, z: 30 },
+      }],
+      maxPlayers: 100,
+    },
+  });
+  t.after(fixture.restore);
+
+  await assert.rejects(
+    fixture.service.requestBodyDrop({
+      steamId,
+      dropType: 'carbohydrate-triceratops',
+    }),
+    (error) =>
+      error.code === 'BODYDROP_DIET_MISMATCH' &&
+      /current Carnotaurus diet/i.test(error.message) &&
+      Array.isArray(error.allowedDropTypes) &&
+      error.allowedDropTypes.includes('protein-herrerasaurus')
+  );
+});
+
+test('BodyDrop publishes the selected diet prey with scaled growth', async (t) => {
+  const steamId = '76561198000000445';
+  let built = null;
+  const fixture = loadService({
+    snapshot: {
+      online: true,
+      players: [{ steamId, name: 'Young Carno' }],
+      characters: [{
+        steamId,
+        species: 'Carnotaurus',
+        growth: 0.40,
+        hunger: 0.20,
+        location: { x: 10, y: 20, z: 30 },
+      }],
+      maxPlayers: 100,
+    },
+    bridge: {
+      buildCommand(verb, steam, args) {
+        built = { verb, steam, args };
+        return { id: 'bodydrop-diet-test-0001', ts: 1, verb, steam, args };
+      },
+      async queueCommand() {},
+    },
+  });
+  t.after(fixture.restore);
+
+  await fixture.service.requestBodyDrop({
+    steamId,
+    dropType: 'protein-herrerasaurus',
+  });
+
+  assert.equal(built.verb, 'bd');
+  assert.equal(built.steam, steamId);
+  assert.equal(built.args[0], 'spawn');
+  assert.equal(built.args[1], 'Herrerasaurus');
+  assert.equal(Number(built.args[5]), 0.30);
+});
+
+
+test('legacy small BodyDrop remains accepted during staged diet rollout', async (t) => {
+  const steamId = '76561198000000446';
+  let built = null;
+  const fixture = loadService({
+    snapshot: {
+      online: true,
+      players: [{ steamId, name: 'Legacy Carno' }],
+      characters: [{
+        steamId,
+        species: 'Carnotaurus',
+        growth: 0.40,
+        hunger: 0.20,
+        location: { x: 10, y: 20, z: 30 },
+      }],
+      maxPlayers: 100,
+    },
+    bridge: {
+      buildCommand(verb, steam, args) {
+        built = { verb, steam, args };
+        return { id: 'bodydrop-legacy-test-0001', ts: 1, verb, steam, args };
+      },
+      async queueCommand() {},
+    },
+  });
+  t.after(fixture.restore);
+
+  await fixture.service.requestBodyDrop({ steamId, dropType: 'small' });
+
+  assert.equal(built.args[1], 'Compsognathus');
+  assert.equal(Number(built.args[5]), 1);
+});
+
+test('unsupported diet species stays legacy-eligible but exposes no TEST diet options', async (t) => {
+  const steamId = '76561198000000447';
+  const fixture = loadService({
+    snapshot: {
+      online: true,
+      players: [{ steamId, name: 'Austro' }],
+      characters: [{
+        steamId,
+        species: 'Austroraptor',
+        growth: 0.40,
+        hunger: 0.20,
+        location: { x: 10, y: 20, z: 30 },
+      }],
+      maxPlayers: 100,
+    },
+  });
+  t.after(fixture.restore);
+
+  const state = await fixture.service.getBodyDropState(steamId);
+  assert.equal(state.eligibility.eligible, true);
+  assert.equal(state.dietEligibility.eligible, false);
+  assert.equal(state.dietEligibility.configured, false);
+  assert.equal(state.options.length, 0);
+  assert.match(state.dietEligibility.reason, /not configured/i);
+});
 
 test('failed or cancelled BodyDrop requests do not consume cooldown', (t) => {
   const fixture = loadService();
@@ -215,8 +368,8 @@ test('simultaneous BodyDrop requests for one player publish only once', async (t
   t.after(fixture.restore);
 
   const results = await Promise.allSettled([
-    fixture.service.requestBodyDrop({ steamId, dropType: 'small' }),
-    fixture.service.requestBodyDrop({ steamId, dropType: 'small' }),
+    fixture.service.requestBodyDrop({ steamId, dropType: 'protein-herrerasaurus' }),
+    fixture.service.requestBodyDrop({ steamId, dropType: 'protein-herrerasaurus' }),
   ]);
 
   assert.equal(queueCalls, 1);
