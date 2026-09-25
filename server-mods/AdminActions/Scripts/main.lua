@@ -1,10 +1,10 @@
--- AdminActions v001
+-- AdminActions v002
 -- Hollow Valley administrator-only live player actions.
--- Initial action: slay a connected player's current dinosaur.
--- Future actions (lightning/heal/feed/grow) belong here once verified.
+-- Slay resolves a connected player's live dinosaur, triggers the verified Smite effect when available,
+-- then applies the proven health-zero kill path. Future actions (heal/feed/grow) belong here.
 
 local MOD_NAME    = "AdminActions"
-local MOD_VERSION = "v001"
+local MOD_VERSION = "v002"
 
 local function resolveModRoot()
     local source = debug.getinfo(1, "S").source or ""
@@ -22,6 +22,8 @@ local RESULTS_FILE = MODS_ROOT .. "/CommandBridge/Saved/results.ndjson"
 local REQUESTS_DIR = SAVED_DIR .. "/requests"
 
 local POLL_INTERVAL_MS = 1000
+local SMITE_ENABLED = true
+local SMITE_CLASS_PATH = "/Game/TheIsle/Core/Spawnables/BP_SmiteEffect.BP_SmiteEffect_C"
 
 local function log(msg)
     print(string.format("[%s] %s\n", MOD_NAME, tostring(msg)))
@@ -121,6 +123,65 @@ local function describePawn(pawn)
     return species, growthText
 end
 
+local function trySmiteAtPawn(gm, pawn)
+    if SMITE_ENABLED ~= true then return false, "disabled" end
+    if StaticFindObject == nil then return false, "StaticFindObject unavailable" end
+
+    local smiteClass
+    local classOk, classErr = pcall(function()
+        smiteClass = StaticFindObject(SMITE_CLASS_PATH)
+    end)
+    if not classOk or smiteClass == nil then
+        return false, "Smite class unavailable: " .. tostring(classErr or "not found")
+    end
+
+    local world
+    local worldOk, worldErr = pcall(function() world = gm:GetWorld() end)
+    if not worldOk or world == nil then
+        return false, "world unavailable: " .. tostring(worldErr or "nil")
+    end
+
+    local loc
+    local locOk, locErr = pcall(function() loc = pawn:K2_GetActorLocation() end)
+    if not locOk or loc == nil then
+        return false, "target location unavailable: " .. tostring(locErr or "nil")
+    end
+
+    local rot
+    local rotOk = pcall(function() rot = pawn:K2_GetActorRotation() end)
+    if not rotOk or rot == nil then
+        return false, "target rotation unavailable"
+    end
+
+    local effect
+    local spawnOk, spawnErr = pcall(function()
+        effect = world:SpawnActor(smiteClass, loc, rot)
+    end)
+    if not spawnOk or effect == nil then
+        return false, "Smite spawn failed: " .. tostring(spawnErr or "nil")
+    end
+
+    local addr
+    pcall(function() addr = effect:GetAddress() end)
+    if addr == nil or addr == 0 then
+        return false, "Smite spawn returned nullptr"
+    end
+
+    -- Replication must be enabled before triggering the Blueprint event.
+    pcall(function() effect:SetReplicates(true) end)
+    pcall(function() effect:ForceNetUpdate() end)
+
+    -- IMPORTANT: CustomEvent is deliberately the final call made on this actor.
+    -- BP_SmiteEffect self-destroys through its own Blueprint lifecycle; retaining
+    -- the wrapper or calling K2_DestroyActor later can dereference freed memory.
+    local eventOk, eventErr = pcall(function() effect:CustomEvent() end)
+    if not eventOk then
+        return false, "Smite CustomEvent failed: " .. tostring(eventErr)
+    end
+
+    return true, "triggered"
+end
+
 local function cmdSlay(steam)
     if not validSteamId(steam) then return false, "invalid Steam ID" end
 
@@ -138,6 +199,15 @@ local function cmdSlay(steam)
     local healthBefore = nil
     pcall(function() healthBefore = pawn:GetHealth() end)
 
+    -- Lightning is best-effort only. Never let a VFX failure block the proven
+    -- admin kill path.
+    local smiteOk, smiteMsg = trySmiteAtPawn(gm, pawn)
+    if smiteOk then
+        log(string.format("Smite triggered steam=%s species=%s", steam, species))
+    else
+        log(string.format("Smite unavailable steam=%s species=%s reason=%s", steam, species, tostring(smiteMsg)))
+    end
+
     local applied, applyErr = pcall(function() pawn:SetHealth(0) end)
     if not applied then
         return false, "Slay write failed: " .. tostring(applyErr)
@@ -148,11 +218,13 @@ local function cmdSlay(steam)
     local healthAfter = nil
     pcall(function() healthAfter = pawn:GetHealth() end)
     log(string.format(
-        "Slay applied steam=%s species=%s healthBefore=%s healthAfter=%s",
-        steam, species, tostring(healthBefore), tostring(healthAfter)
+        "Slay applied steam=%s species=%s healthBefore=%s healthAfter=%s smite=%s",
+        steam, species, tostring(healthBefore), tostring(healthAfter), tostring(smiteOk)
     ))
 
-    return true, string.format("Slay applied to %s%s.", species, growthText)
+    local effectText = smiteOk and " Lightning effect triggered."
+        or " Lightning effect unavailable; slay still applied."
+    return true, string.format("Slay applied to %s%s.%s", species, growthText, effectText)
 end
 
 local function handleCommand(steam, tokens)
