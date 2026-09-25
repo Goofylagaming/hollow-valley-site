@@ -48,11 +48,11 @@ const status = {
   },
 };
 
-test('HerbyBot command definitions expose public /server and staff commands', () => {
+test('HerbyBot command definitions expose public progression and staff commands', () => {
   const commands = commandDefinitions();
-  assert.deepEqual(commands.map((item) => item.name), ['server', 'automation', 'players', 'queue', 'activity', 'announce', 'schedule']);
-  assert.equal(commands[0].default_member_permissions, undefined);
-  assert.ok(commands.slice(1).every((item) => item.default_member_permissions === '32'));
+  assert.deepEqual(commands.map((item) => item.name), ['server', 'profile', 'level', 'achievements', 'leaderboard', 'automation', 'players', 'queue', 'activity', 'announce', 'schedule']);
+  assert.ok(commands.slice(0, 5).every((item) => item.default_member_permissions === undefined));
+  assert.ok(commands.slice(5).every((item) => item.default_member_permissions === '32'));
 });
 
 test('/server response exposes aggregate status only', () => {
@@ -131,8 +131,8 @@ test('command registration uses guild scope when DISCORD_GUILD_ID is configured'
   try {
     const result = await registerHerbyBotCommands(client);
     assert.equal(result.scope, 'guild');
-    assert.equal(result.count, 7);
-    assert.equal(registered.length, 7);
+    assert.equal(result.count, 11);
+    assert.equal(registered.length, 11);
   } finally {
     if (previous === undefined) delete process.env.DISCORD_GUILD_ID;
     else process.env.DISCORD_GUILD_ID = previous;
