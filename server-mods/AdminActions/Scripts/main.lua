@@ -1,10 +1,10 @@
--- AdminActions v002
+-- AdminActions v003
 -- Hollow Valley administrator-only live player actions.
--- Slay resolves a connected player's live dinosaur, triggers the verified Smite effect when available,
--- then applies the proven health-zero kill path. Future actions (heal/feed/grow) belong here.
+-- Slay remains the proven zero-health admin action.
+-- v003 adds a read-only one-shot lightning/weather reflection probe.
 
 local MOD_NAME    = "AdminActions"
-local MOD_VERSION = "v002"
+local MOD_VERSION = "v003"
 
 local function resolveModRoot()
     local source = debug.getinfo(1, "S").source or ""
@@ -18,12 +18,14 @@ local MODS_ROOT = assert(MOD_ROOT:match("^(.*)/[^/]+$"), "AdminActions cannot re
 local SAVED_DIR    = MOD_ROOT .. "/Saved"
 local INBOX_PATH   = SAVED_DIR .. "/inbox.ndjson"
 local RELOAD_FLAG  = SAVED_DIR .. "/reload.flag"
+local LIGHTNING_PROBE_FLAG = SAVED_DIR .. "/lightning-probe.flag"
 local RESULTS_FILE = MODS_ROOT .. "/CommandBridge/Saved/results.ndjson"
 local REQUESTS_DIR = SAVED_DIR .. "/requests"
 
 local POLL_INTERVAL_MS = 1000
-local SMITE_ENABLED = true
-local SMITE_CLASS_PATH = "/Game/TheIsle/Core/Spawnables/BP_SmiteEffect.BP_SmiteEffect_C"
+local PROBE_MAX_LOG_MATCHES = 300
+local PROBE_MAX_CLASS_FUNCTIONS = 80
+local PROBE_KEYWORDS = {"lightning", "thunder", "storm", "weather", "strike", "smite"}
 
 local function log(msg)
     print(string.format("[%s] %s\n", MOD_NAME, tostring(msg)))
@@ -123,63 +125,134 @@ local function describePawn(pawn)
     return species, growthText
 end
 
-local function trySmiteAtPawn(gm, pawn)
-    if SMITE_ENABLED ~= true then return false, "disabled" end
-    if StaticFindObject == nil then return false, "StaticFindObject unavailable" end
+local function probeNameMatches(name)
+    local lower = string.lower(tostring(name or ""))
+    for _, keyword in ipairs(PROBE_KEYWORDS) do
+        if lower:find(keyword, 1, true) ~= nil then
+            return true, keyword
+        end
+    end
+    return false, nil
+end
 
-    local smiteClass
-    local classOk, classErr = pcall(function()
-        smiteClass = StaticFindObject(SMITE_CLASS_PATH)
+local function safeObjectName(obj)
+    if obj == nil then return nil end
+    local value = nil
+    pcall(function()
+        local fname = obj:GetFName()
+        if fname ~= nil then value = fname:ToString() end
     end)
-    if not classOk or smiteClass == nil then
-        return false, "Smite class unavailable: " .. tostring(classErr or "not found")
-    end
+    return value
+end
 
-    local world
-    local worldOk, worldErr = pcall(function() world = gm:GetWorld() end)
-    if not worldOk or world == nil then
-        return false, "world unavailable: " .. tostring(worldErr or "nil")
-    end
-
-    local loc
-    local locOk, locErr = pcall(function() loc = pawn:K2_GetActorLocation() end)
-    if not locOk or loc == nil then
-        return false, "target location unavailable: " .. tostring(locErr or "nil")
-    end
-
-    local rot
-    local rotOk = pcall(function() rot = pawn:K2_GetActorRotation() end)
-    if not rotOk or rot == nil then
-        return false, "target rotation unavailable"
-    end
-
-    local effect
-    local spawnOk, spawnErr = pcall(function()
-        effect = world:SpawnActor(smiteClass, loc, rot)
+local function safeClassName(obj)
+    if obj == nil then return nil end
+    local value = nil
+    pcall(function()
+        local cls = obj:GetClass()
+        if cls ~= nil then
+            local fname = cls:GetFName()
+            if fname ~= nil then value = fname:ToString() end
+        end
     end)
-    if not spawnOk or effect == nil then
-        return false, "Smite spawn failed: " .. tostring(spawnErr or "nil")
+    return value
+end
+
+local function safeFullName(obj)
+    if obj == nil then return nil end
+    local value = nil
+    pcall(function() value = obj:GetFullName() end)
+    return value
+end
+
+local function isStructLikeClassKind(kind)
+    kind = tostring(kind or "")
+    return kind == "Class" or kind == "BlueprintGeneratedClass" or kind == "DynamicClass"
+end
+
+local function runLightningProbe()
+    if ForEachUObject == nil then
+        log("Lightning probe unavailable: ForEachUObject is not exposed by this UE4SS build")
+        return
     end
 
-    local addr
-    pcall(function() addr = effect:GetAddress() end)
-    if addr == nil or addr == 0 then
-        return false, "Smite spawn returned nullptr"
+    local started = os.clock()
+    local scanned = 0
+    local matched = 0
+    local logged = 0
+    local classesExpanded = 0
+    local functionsLogged = 0
+    local seen = {}
+
+    local function emit(kind, shortName, fullName, source)
+        local key = tostring(fullName or shortName or "")
+        if key == "" or seen[key] then return end
+        seen[key] = true
+        matched = matched + 1
+        if logged >= PROBE_MAX_LOG_MATCHES then return end
+        logged = logged + 1
+        log(string.format(
+            "LightningProbe match=%d kind=%s name=%s source=%s full=%s",
+            logged,
+            tostring(kind or "unknown"),
+            tostring(shortName or "unknown"),
+            tostring(source or "registry"),
+            tostring(fullName or "unknown")
+        ))
     end
 
-    -- Replication must be enabled before triggering the Blueprint event.
-    pcall(function() effect:SetReplicates(true) end)
-    pcall(function() effect:ForceNetUpdate() end)
+    log("LightningProbe START keywords=lightning,thunder,storm,weather,strike,smite")
 
-    -- IMPORTANT: CustomEvent is deliberately the final call made on this actor.
-    -- BP_SmiteEffect self-destroys through its own Blueprint lifecycle; retaining
-    -- the wrapper or calling K2_DestroyActor later can dereference freed memory.
-    local eventOk, eventErr = pcall(function() effect:CustomEvent() end)
-    if not eventOk then
-        return false, "Smite CustomEvent failed: " .. tostring(eventErr)
+    local scanOk, scanErr = pcall(function()
+        ForEachUObject(function(obj)
+            scanned = scanned + 1
+
+            local shortName = safeObjectName(obj)
+            if shortName == nil then return end
+
+            local nameMatch = probeNameMatches(shortName)
+            if not nameMatch then return end
+
+            local kind = safeClassName(obj)
+            local fullName = safeFullName(obj)
+            emit(kind, shortName, fullName, "registry")
+
+            if isStructLikeClassKind(kind) and classesExpanded < 40 then
+                classesExpanded = classesExpanded + 1
+                local perClass = 0
+                pcall(function()
+                    obj:ForEachFunction(function(fn)
+                        if perClass >= PROBE_MAX_CLASS_FUNCTIONS then return true end
+                        perClass = perClass + 1
+
+                        local fnName = safeObjectName(fn)
+                        local fnFull = safeFullName(fn)
+                        local fnKind = safeClassName(fn) or "Function"
+                        emit(fnKind, fnName, fnFull, "class-function")
+                        functionsLogged = functionsLogged + 1
+                        return false
+                    end)
+                end)
+            end
+        end)
+    end)
+
+    local elapsed = os.clock() - started
+    if not scanOk then
+        log("LightningProbe FAILED error=" .. tostring(scanErr))
+        return
     end
 
-    return true, "triggered"
+    log(string.format(
+        "LightningProbe DONE scanned=%d matched=%d logged=%d classesExpanded=%d functionsVisited=%d elapsedCpu=%.3fs",
+        scanned, matched, logged, classesExpanded, functionsLogged, elapsed
+    ))
+    if matched > logged then
+        log(string.format(
+            "LightningProbe NOTE %d additional unique matches were suppressed by the log cap",
+            matched - logged
+        ))
+    end
 end
 
 local function cmdSlay(steam)
@@ -199,15 +272,6 @@ local function cmdSlay(steam)
     local healthBefore = nil
     pcall(function() healthBefore = pawn:GetHealth() end)
 
-    -- Lightning is best-effort only. Never let a VFX failure block the proven
-    -- admin kill path.
-    local smiteOk, smiteMsg = trySmiteAtPawn(gm, pawn)
-    if smiteOk then
-        log(string.format("Smite triggered steam=%s species=%s", steam, species))
-    else
-        log(string.format("Smite unavailable steam=%s species=%s reason=%s", steam, species, tostring(smiteMsg)))
-    end
-
     local applied, applyErr = pcall(function() pawn:SetHealth(0) end)
     if not applied then
         return false, "Slay write failed: " .. tostring(applyErr)
@@ -218,13 +282,11 @@ local function cmdSlay(steam)
     local healthAfter = nil
     pcall(function() healthAfter = pawn:GetHealth() end)
     log(string.format(
-        "Slay applied steam=%s species=%s healthBefore=%s healthAfter=%s smite=%s",
-        steam, species, tostring(healthBefore), tostring(healthAfter), tostring(smiteOk)
+        "Slay applied steam=%s species=%s healthBefore=%s healthAfter=%s",
+        steam, species, tostring(healthBefore), tostring(healthAfter)
     ))
 
-    local effectText = smiteOk and " Lightning effect triggered."
-        or " Lightning effect unavailable; slay still applied."
-    return true, string.format("Slay applied to %s%s.%s", species, growthText, effectText)
+    return true, string.format("Slay applied to %s%s.", species, growthText)
 end
 
 local function handleCommand(steam, tokens)
@@ -360,6 +422,13 @@ if LoopInGameThreadWithDelay ~= nil then
 
     LoopInGameThreadWithDelay(POLL_INTERVAL_MS, function()
         safeCall("pollInbox", pollInbox)
+
+        local probe = consumeFlag(LIGHTNING_PROBE_FLAG)
+        if probe ~= nil then
+            log("LightningProbe requested token=" .. tostring(probe))
+            safeCall("lightningProbe", runLightningProbe)
+        end
+
         local reload = consumeFlag(RELOAD_FLAG)
         if reload ~= nil and RestartCurrentMod ~= nil then
             log("RELOAD")
