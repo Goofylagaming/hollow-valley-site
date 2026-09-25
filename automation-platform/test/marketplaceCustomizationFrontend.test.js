@@ -35,6 +35,15 @@ test('marketplace UI exposes order history, seller listings and captured skin pr
   assert.match(html, /YOUR LISTINGS/);
 });
 
+test('official catalog is text-only and hides retired starter growth entries', () => {
+  const js = read('public/assets/marketplace.js');
+  assert.equal(js.includes('DINO_ATLAS_PARTS'), false);
+  assert.equal(js.includes('dinoThumbnail('), false);
+  assert.equal(js.includes('paintDinoThumbnails('), false);
+  assert.match(js, /entry\.growth_tier === "starter"/);
+  assert.match(js, /growth < 50/);
+});
+
 test('marketplace and parked-dino routes use guarded automation-backed writes', () => {
   const myDinos = read('server/routes/mydinos.js');
   const marketplace = read('server/routes/marketplace.js');
