@@ -128,6 +128,7 @@ test('BodyDrop state exposes live-compatible restrictions and eligibility', asyn
   assert.equal(state.restrictions.corpseGrowthScalePercent, 75);
   assert.equal(state.corpseGrowthPercent, 30);
   assert.equal(state.requester.species, 'Carnotaurus');
+  assert.equal(state.dietEligibility.eligible, true);
   assert.ok(state.options.some((option) =>
     option.id === 'protein-herrerasaurus' &&
     option.nutrient === 'protein' &&
@@ -217,6 +218,65 @@ test('BodyDrop publishes the selected diet prey with scaled growth', async (t) =
   assert.equal(built.args[0], 'spawn');
   assert.equal(built.args[1], 'Herrerasaurus');
   assert.equal(Number(built.args[5]), 0.30);
+});
+
+
+test('legacy small BodyDrop remains accepted during staged diet rollout', async (t) => {
+  const steamId = '76561198000000446';
+  let built = null;
+  const fixture = loadService({
+    snapshot: {
+      online: true,
+      players: [{ steamId, name: 'Legacy Carno' }],
+      characters: [{
+        steamId,
+        species: 'Carnotaurus',
+        growth: 0.40,
+        hunger: 0.20,
+        location: { x: 10, y: 20, z: 30 },
+      }],
+      maxPlayers: 100,
+    },
+    bridge: {
+      buildCommand(verb, steam, args) {
+        built = { verb, steam, args };
+        return { id: 'bodydrop-legacy-test-0001', ts: 1, verb, steam, args };
+      },
+      async queueCommand() {},
+    },
+  });
+  t.after(fixture.restore);
+
+  await fixture.service.requestBodyDrop({ steamId, dropType: 'small' });
+
+  assert.equal(built.args[1], 'Compsognathus');
+  assert.equal(Number(built.args[5]), 1);
+});
+
+test('unsupported diet species stays legacy-eligible but exposes no TEST diet options', async (t) => {
+  const steamId = '76561198000000447';
+  const fixture = loadService({
+    snapshot: {
+      online: true,
+      players: [{ steamId, name: 'Austro' }],
+      characters: [{
+        steamId,
+        species: 'Austroraptor',
+        growth: 0.40,
+        hunger: 0.20,
+        location: { x: 10, y: 20, z: 30 },
+      }],
+      maxPlayers: 100,
+    },
+  });
+  t.after(fixture.restore);
+
+  const state = await fixture.service.getBodyDropState(steamId);
+  assert.equal(state.eligibility.eligible, true);
+  assert.equal(state.dietEligibility.eligible, false);
+  assert.equal(state.dietEligibility.configured, false);
+  assert.equal(state.options.length, 0);
+  assert.match(state.dietEligibility.reason, /not configured/i);
 });
 
 test('failed or cancelled BodyDrop requests do not consume cooldown', (t) => {
