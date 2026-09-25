@@ -24,7 +24,7 @@ function copyText(value, label = "Copied") {
 }
 
 function rowMatchesFilter(entry) {
-  if (activeFilter === "attention") return entry.needsDiscord;
+  if (activeFilter === "attention") return entry.needsDiscord || entry.needsReconcile || entry.needsWebsiteLink;
   if (activeFilter === "active") return entry.entitled;
   if (activeFilter === "linked") return entry.entitled && entry.discordLinked;
   if (activeFilter === "cancelling") return entry.entitled && !entry.autoRenew;
@@ -41,11 +41,15 @@ function rowMatchesSearch(entry, query) {
     entry.stripeStatus,
     entry.stripeCustomerId,
     entry.stripeSubscriptionId,
+    entry.stripeCustomerEmail,
+    entry.stripeCustomerName,
   ].filter(Boolean).join(" ").toLowerCase();
   return haystack.includes(query.toLowerCase());
 }
 
 function statusBadge(entry) {
+  if (entry.needsWebsiteLink) return '<span class="supporter-admin-badge danger">PAID · WEBSITE ACCOUNT NOT MATCHED</span>';
+  if (entry.needsReconcile) return '<span class="supporter-admin-badge danger">PAID · MEMBERSHIP REPAIR NEEDED</span>';
   if (entry.needsDiscord) return '<span class="supporter-admin-badge danger">PAID · DISCORD NOT LINKED</span>';
   if (entry.entitled && entry.discordLinked) return '<span class="supporter-admin-badge good">PAID · DISCORD LINKED</span>';
   if (entry.stripeStatus === "past_due" || entry.stripeStatus === "unpaid") {
@@ -71,13 +75,22 @@ function renderRows() {
       ? (entry.renewsAt ? `Renews ${formatDate(entry.renewsAt)}` : "Auto-renew on")
       : (entry.renewsAt ? `Ends ${formatDate(entry.renewsAt)}` : "Cancelling");
 
-    const syncButton = entry.discordLinked && entry.entitled
-      ? `<button type="button" class="small-button supporter-sync-role" data-user-id="${entry.userId}">Sync Discord role</button>`
-      : '<button type="button" class="small-button" disabled>Discord needed</button>';
+    let primaryAction = "";
+    if (entry.needsReconcile && entry.websiteMatched && entry.userId && entry.stripeSubscriptionId) {
+      primaryAction = `<button type="button" class="small-button supporter-repair-membership" data-user-id="${entry.userId}" data-subscription-id="${escapeHtml(entry.stripeSubscriptionId)}">Repair membership</button>`;
+    } else if (entry.needsWebsiteLink) {
+      primaryAction = '<button type="button" class="small-button" disabled>Website account needed</button>';
+    } else if (entry.discordLinked && entry.entitled && entry.localSubscriptionRecorded) {
+      primaryAction = `<button type="button" class="small-button supporter-sync-role" data-user-id="${entry.userId}">Sync Discord role</button>`;
+    } else if (entry.entitled && !entry.discordLinked) {
+      primaryAction = '<button type="button" class="small-button" disabled>Discord needed</button>';
+    }
 
     return `<tr class="${entry.needsDiscord ? "needs-attention" : ""}">
       <td>
         <strong>${escapeHtml(entry.username || "Unknown player")}</strong>
+        ${entry.stripeCustomerName && entry.stripeCustomerName !== entry.username ? `<small>Stripe: ${escapeHtml(entry.stripeCustomerName)}</small>` : ""}
+        ${entry.stripeCustomerEmail ? `<small>${escapeHtml(entry.stripeCustomerEmail)}</small>` : ""}
         <small>${statusBadge(entry)}</small>
       </td>
       <td>
@@ -100,7 +113,7 @@ function renderRows() {
       </td>
       <td>
         <div class="admin-supporter-actions">
-          ${syncButton}
+          ${primaryAction}
           ${entry.steamId ? `<button type="button" class="small-button supporter-copy" data-copy="${escapeHtml(entry.steamId)}">Copy Steam ID</button>` : ""}
         </div>
       </td>
@@ -109,6 +122,32 @@ function renderRows() {
 
   tbody.querySelectorAll(".supporter-copy").forEach((button) => {
     button.addEventListener("click", () => copyText(button.dataset.copy, "Copied to clipboard."));
+  });
+
+  tbody.querySelectorAll(".supporter-repair-membership").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const original = button.textContent;
+      button.disabled = true;
+      button.textContent = "Repairing…";
+      text("supporter-admin-status", "Repairing website membership from the verified Stripe subscription…");
+      try {
+        const result = await api(`/api/admin-supporters/${encodeURIComponent(button.dataset.userId)}/repair-stripe`, {
+          method: "POST",
+          body: JSON.stringify({ subscriptionId: button.dataset.subscriptionId }),
+        });
+        const discordMessage = result.discordSyncError
+          ? ` Membership repaired, but Discord sync reported: ${result.discordSyncError}`
+          : result.discordSync?.linked
+            ? " Membership repaired and Discord role sync completed."
+            : " Membership repaired.";
+        text("supporter-admin-status", discordMessage.trim());
+        await loadSupporters();
+      } catch (error) {
+        text("supporter-admin-status", error.message || "Membership repair failed.");
+        button.disabled = false;
+        button.textContent = original;
+      }
+    });
   });
 
   tbody.querySelectorAll(".supporter-sync-role").forEach((button) => {
@@ -147,13 +186,17 @@ async function loadSupporters() {
     text("supporter-count-total", Number(result.summary?.total || 0));
     text("supporter-count-active", Number(result.summary?.entitled || 0));
     text("supporter-count-missing", Number(result.summary?.missingDiscord || 0));
+    text("supporter-count-repair", Number(result.summary?.needsReconcile || 0));
     text("supporter-count-cancelling", Number(result.summary?.cancelling || 0));
-    text(
-      "supporter-admin-status",
-      result.discordRoleSyncConfigured
-        ? "Supporter data loaded. Discord role sync is available for linked accounts."
-        : "Supporter data loaded. Discord role sync is not configured."
-    );
+    const stripeState = result.stripeLive
+      ? "Live Stripe subscriptions loaded."
+      : result.stripeConfigured
+        ? "Stripe live lookup failed; showing website records."
+        : "Stripe is not configured; showing website records.";
+    const discordState = result.discordRoleSyncConfigured
+      ? "Discord role repair is available for linked accounts."
+      : "Discord role sync is not configured.";
+    text("supporter-admin-status", `${stripeState} ${discordState}`);
     renderRows();
   } catch (error) {
     text("supporter-admin-status", error.message || "Could not load supporter records.");
