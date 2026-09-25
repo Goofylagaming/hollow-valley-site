@@ -1,9 +1,9 @@
--- BodyDrop v003.4
+-- BodyDrop v003.5
 -- Admin-only corpse spawner. Bodies are only dropped when explicitly requested.
 -- IPC: bodydrop commands routed from CommandBridge.
 
 local MOD_NAME    = "BodyDrop"
-local MOD_VERSION = "v003.4"
+local MOD_VERSION = "v003.5"
 
 local function resolveModRoot()
     local source = debug.getinfo(1, "S").source or ""
@@ -301,27 +301,88 @@ local function spawnCorpse(speciesName, location, growthFraction, forward, playe
                 else
                     log(string.format("BODYDROP DIAG | SpawnActor | OK | address=%s", tostring(addr)))
 
-                    local failedSteps = {}
-                    local function corpseStep(label, fn)
+                    local growth = growthFraction or 1.0
+                    local initFailed = {}
+
+                    local function initStep(label, fn)
                         local ok = tryPawnCall(label, fn)
-                        if not ok then failedSteps[#failedSteps + 1] = label end
+                        if not ok then initFailed[#initFailed + 1] = label end
                     end
 
-                    corpseStep("SetReplicates", function() pawn:SetReplicates(true) end)
-                    corpseStep("SetGrowth", function() pawn:SetGrowth(growthFraction or 1.0) end)
-                    corpseStep("SetHealth(0)", function() pawn:SetHealth(0) end)
-                    corpseStep("bIsDead=true", function() pawn.bIsDead = true end)
-                    corpseStep("OnRep_IsNowDead", function() pawn:OnRep_IsNowDead() end)
-                    corpseStep("ToggleServerRagdoll", function() pawn:ToggleServerRagdoll(true) end)
-                    corpseStep("ActivateDeadbody", function() pawn:ActivateDeadbody(false, 3600) end)
-                    corpseStep("ForceNetUpdate", function() pawn:ForceNetUpdate() end)
+                    -- Let the freshly spawned dinosaur exist as a replicated live pawn
+                    -- before converting it to a corpse. Killing it in the same tick can
+                    -- leave clients with an edible interaction actor but no rendered mesh.
+                    initStep("SetReplicates", function() pawn:SetReplicates(true) end)
+                    initStep("SetGrowth", function() pawn:SetGrowth(growth) end)
+                    initStep("ForceNetUpdate(pre-corpse)", function() pawn:ForceNetUpdate() end)
 
-                    if #failedSteps > 0 then
-                        return false, "actor spawned but corpse transition failed at: " .. table.concat(failedSteps, ", ")
+                    if #initFailed > 0 then
+                        return false, "actor spawned but initialization failed at: " .. table.concat(initFailed, ", ")
+                    end
+
+                    local function transitionToCorpse()
+                        local failedSteps = {}
+                        local function corpseStep(label, fn)
+                            local ok = tryPawnCall(label, fn)
+                            if not ok then failedSteps[#failedSteps + 1] = label end
+                        end
+
+                        local valid = true
+                        pcall(function()
+                            if pawn.IsValid ~= nil then valid = pawn:IsValid() end
+                        end)
+                        if valid == false then
+                            log("BODYDROP DIAG | delayed corpse transition | FAILED | pawn invalid")
+                            return false
+                        end
+
+                        -- Re-assert growth immediately before death so the corpse keeps
+                        -- the intended size after the client has initialized the mesh.
+                        corpseStep("SetGrowth(pre-death)", function() pawn:SetGrowth(growth) end)
+                        corpseStep("SetHealth(0)", function() pawn:SetHealth(0) end)
+                        corpseStep("bIsDead=true", function() pawn.bIsDead = true end)
+                        corpseStep("OnRep_IsNowDead", function() pawn:OnRep_IsNowDead() end)
+                        corpseStep("ToggleServerRagdoll", function() pawn:ToggleServerRagdoll(true) end)
+                        corpseStep("ActivateDeadbody", function() pawn:ActivateDeadbody(false, 3600) end)
+                        corpseStep("ForceNetUpdate(post-corpse)", function() pawn:ForceNetUpdate() end)
+
+                        if #failedSteps > 0 then
+                            log("BODYDROP DIAG | delayed corpse transition | PARTIAL | " .. table.concat(failedSteps, ", "))
+                            return false
+                        end
+
+                        log(string.format(
+                            "BODYDROP DIAG | delayed corpse transition | OK | species=%s growth=%.3f delayMs=750",
+                            tostring(speciesName), tonumber(growth) or 0
+                        ))
+                        return true
+                    end
+
+                    if LoopInGameThreadWithDelay ~= nil and CancelDelayedAction ~= nil then
+                        local corpseHandle
+                        local ran = false
+                        corpseHandle = LoopInGameThreadWithDelay(750, function()
+                            if ran then return end
+                            ran = true
+                            if corpseHandle ~= nil then
+                                pcall(function() CancelDelayedAction(corpseHandle) end)
+                            end
+                            transitionToCorpse()
+                        end)
+
+                        return true, string.format(
+                            "corpse queued at X=%.3f Y=%.3f Z=%.3f (ground %.3f; render settle 750ms)",
+                            tonumber(loc.X) or 0, tonumber(loc.Y) or 0, tonumber(loc.Z) or 0, tonumber(groundZ) or 0
+                        )
+                    end
+
+                    log("BODYDROP DIAG | delayed corpse transition unavailable; using immediate fallback")
+                    if not transitionToCorpse() then
+                        return false, "actor spawned but immediate corpse transition failed"
                     end
 
                     return true, string.format(
-                        "corpse confirmed at X=%.3f Y=%.3f Z=%.3f (ground %.3f)",
+                        "corpse confirmed at X=%.3f Y=%.3f Z=%.3f (ground %.3f; immediate fallback)",
                         tonumber(loc.X) or 0, tonumber(loc.Y) or 0, tonumber(loc.Z) or 0, tonumber(groundZ) or 0
                     )
                 end
