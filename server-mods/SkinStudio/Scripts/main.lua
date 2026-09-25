@@ -1,12 +1,13 @@
--- SkinStudio v009
+-- SkinStudio v010
 -- Hollow Valley live skin application scoped to the CURRENT pawn only.
 -- Saved Skin Shop/My Skins presets remain available on the website, but the
 -- game-side mod never auto-restores an old applied skin onto a future pawn.
--- This intentionally protects nesting/inherited skins from old overrides.
+-- TemporarySkinData is intentionally never modified, so a nested/new spawn
+-- keeps the game's own inherited/customizer seed instead of the previous skin.
 -- Commands arrive from CommandBridge as inbox.ndjson records.
 
 local MOD_NAME = "SkinStudio"
-local MOD_VERSION = "v009"
+local MOD_VERSION = "v010"
 
 local function resolveModRoot()
     local source = ""
@@ -167,166 +168,9 @@ local COLOR_KEYS = {
     "mouth", "claws", "detail1", "eyes", "maleDisplay",
 }
 
--- TemporarySkinData is a reduced customizer payload on current EVRIMA builds.
--- Do not write teeth/mouth/claws here; those fields are valid on CustomizerData
--- but are not present on TemporarySkinData for every species/build.
-local TEMP_FIELD_KEYS = {
-    "maleDisplay", "markings", "body", "flank", "underbelly", "detail1", "eyes",
-}
-
-local function parseColor(raw)
-    local r, g, b, a = tostring(raw or ""):match("^([%d%.]+),([%d%.]+),([%d%.]+),([%d%.]+)$")
-    r, g, b, a = tonumber(r), tonumber(g), tonumber(b), tonumber(a)
-    if r == nil or g == nil or b == nil or a == nil then return nil end
-    if r < 0 or r > 1 or g < 0 or g > 1 or b < 0 or b > 1 or a < 0 or a > 1 then return nil end
-    return { r=r, g=g, b=b, a=a }
-end
-
-local function parseTokens(args)
-    local raw = {}
-    for _, token in ipairs(args or {}) do
-        local key, value = tostring(token):match("^([A-Za-z0-9_]+)=(.+)$")
-        if key and value then raw[key] = value end
-    end
-
-    local species = tostring(raw.species or "")
-    if not species:match("^[A-Za-z0-9_-]+$") then
-        return nil, "Skin species is missing or invalid."
-    end
-
-    local config = {
-        preset = tostring(raw.preset or ""),
-        species = species,
-        colors = {},
-        variation = tonumber(raw.variation),
-        pattern = tonumber(raw.pattern),
-        theme = tonumber(raw.theme),
-        preserveIndices = tostring(raw.preserveIndices or "") == "1",
-    }
-
-    for _, key in ipairs(COLOR_KEYS) do
-        local color = parseColor(raw[key])
-        if color == nil then
-            return nil, "Skin colour data is incomplete or invalid."
-        end
-        config.colors[key] = color
-    end
-
-    for _, key in ipairs({"variation", "pattern", "theme"}) do
-        local value = config[key]
-        if value == nil or value < 0 or value > 65535 or value ~= math.floor(value) then
-            return nil, "Skin pattern data is invalid."
-        end
-    end
-
-    return config, nil
-end
-
-local function pawnClassName(pawn)
-    local full
-    pcall(function() full = pawn:GetClass():GetFullName() end)
-    return tostring(full or "")
-end
-
-local function speciesMatches(pawn, expected)
-    local className = pawnClassName(pawn):lower()
-    local wanted = tostring(expected or ""):lower()
-    if className == "" or wanted == "" then return false end
-    if wanted == "universal" then return true end
-    return className:find("bp_" .. wanted, 1, true) ~= nil
-        or className:find(wanted, 1, true) ~= nil
-end
-
-local function nearlyEqual(a, b)
-    local left, right = tonumber(a), tonumber(b)
-    if left == nil or right == nil then return false end
-    return math.abs(left - right) <= 0.0005
-end
-
-local function applyColor(cdata, field, color)
-    local ok, err = pcall(function()
-        local target = cdata[field]
-        if target == nil then error(field .. " is unavailable") end
-        target.R = color.r
-        target.G = color.g
-        target.B = color.b
-        target.A = color.a
-    end)
-    if not ok then
-        return false, tostring(err)
-    end
-
-    local verifyOk, verifyErr = pcall(function()
-        local actual = cdata[field]
-        if actual == nil then error(field .. " disappeared during verification") end
-        if not nearlyEqual(actual.R, color.r)
-            or not nearlyEqual(actual.G, color.g)
-            or not nearlyEqual(actual.B, color.b)
-            or not nearlyEqual(actual.A, color.a) then
-            error(string.format(
-                "%s readback mismatch wanted=%.6f,%.6f,%.6f,%.6f actual=%.6f,%.6f,%.6f,%.6f",
-                field,
-                color.r, color.g, color.b, color.a,
-                tonumber(actual.R) or -999,
-                tonumber(actual.G) or -999,
-                tonumber(actual.B) or -999,
-                tonumber(actual.A) or -999
-            ))
-        end
-    end)
-    if not verifyOk then
-        return false, tostring(verifyErr)
-    end
-    return true, nil
-end
-
-local function mirrorCustomizerToTemporary(pawn, config)
-    local okTemp, temp = pcall(function() return pawn.TemporarySkinData end)
-    if not okTemp or temp == nil then
-        log("TemporarySkinData unavailable on " .. pawnClassName(pawn))
-        return false, "TemporarySkinData unavailable"
-    end
-
-    local failures = {}
-    local writes = 0
-    for _, key in ipairs(TEMP_FIELD_KEYS) do
-        local field = FIELD_MAP[key]
-        local ok, err = applyColor(temp, field, config.colors[key])
-        if ok then
-            writes = writes + 1
-        else
-            table.insert(failures, field .. ": " .. tostring(err))
-        end
-    end
-
-    if not config.preserveIndices then
-        local scalarWrites = {
-            SkinVariation = math.floor(config.variation),
-            PatternIndex = math.floor(config.pattern),
-            ThemeIndex = math.floor(config.theme),
-        }
-        for field, value in pairs(scalarWrites) do
-            local ok, err = pcall(function() temp[field] = value end)
-            if not ok then
-                table.insert(failures, field .. ": " .. tostring(err))
-            end
-        end
-    end
-
-    if #failures > 0 then
-        log("Temporary skin mirror failed: " .. table.concat(failures, " | "))
-        return false, table.concat(failures, " | ")
-    end
-
-    log(string.format(
-        "Temporary skin mirror verified species=%s pawn=%s colors=%d",
-        tostring(config.species),
-        pawnClassName(pawn),
-        writes
-    ))
-    return true, nil
-end
-
+-- v010 deliberately avoids TemporarySkinData. EVRIMA can reuse that transient
+-- payload while constructing later pawns, which risks copying an old Skin
+-- Studio appearance onto a respawn or nested hatchling.
 local function applyConfigToPawn(pawn, config)
     if pawn == nil then return false, "You need a live dinosaur in game." end
     if not speciesMatches(pawn, config.species) then
@@ -386,11 +230,6 @@ local function applyConfigToPawn(pawn, config)
         if theme >= 0 then writeScalar("ThemeIndex", theme) end
     end
 
-    local mirrorOk, mirrorErr = mirrorCustomizerToTemporary(pawn, config)
-    if not mirrorOk then
-        log("Temporary skin mirror warning: " .. tostring(mirrorErr))
-    end
-
     local netOk, netErr = pcall(function() pawn:ForceNetUpdate() end)
     if not netOk then
         table.insert(failures, "ForceNetUpdate: " .. tostring(netErr))
@@ -402,14 +241,13 @@ local function applyConfigToPawn(pawn, config)
     end
 
     log(string.format(
-        "Verified skin write species=%s pawn=%s colors=%d pattern=%d theme=%d variation=%d temporary=%s",
+        "Verified current-pawn skin write species=%s pawn=%s colors=%d pattern=%d theme=%d variation=%d temporary=false",
         tostring(config.species),
         pawnClassName(pawn),
         writes,
         config.preserveIndices and -1 or pattern,
         config.preserveIndices and -1 or theme,
-        config.preserveIndices and -1 or variation,
-        tostring(mirrorOk == true)
+        config.preserveIndices and -1 or variation
     ))
     return true, "Skin applied and verified on the live customizer."
 end
