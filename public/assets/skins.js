@@ -221,7 +221,7 @@ function skinCard(preset, mode) {
           ${preset.grantCustomized ? "<span>Personal edit</span>" : ""}
           ${mode === "library" && externalMeta.source ? `<span>Source: ${escapeHtml(externalMeta.source)}</span>` : ""}
         </div>
-        <div class="skin-card-code">${(!preset.exclusive && !preset.granted && preset.share_code) ? `Share: <strong>${escapeHtml(preset.share_code)}</strong>` : (preset.exclusive ? "Exclusive skin · share code hidden" : "")}</div>
+        ${mode === "store" ? "" : `<div class="skin-card-code">${(!preset.exclusive && !preset.granted && preset.share_code) ? `Share: <strong>${escapeHtml(preset.share_code)}</strong>` : (preset.exclusive ? "Exclusive skin · share code hidden" : "")}</div>`}
         <div class="skin-card-actions">${actions.join("")}</div>
       </div>
     </article>
