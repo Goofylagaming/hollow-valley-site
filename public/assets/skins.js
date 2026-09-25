@@ -82,9 +82,20 @@ function updatePreview() {
   stage.style.setProperty("--skin-flank", colorToHex(skin.flank));
   stage.style.setProperty("--skin-underbelly", colorToHex(skin.underbelly));
   stage.style.setProperty("--skin-eye", colorToHex(skin.eyes));
-  document.getElementById("preview-name").textContent = document.getElementById("skin-name").value.trim() || "Untitled Skin";
+
+  const name = document.getElementById("skin-name").value.trim() || "Untitled Skin";
   const option = document.getElementById("skin-species").selectedOptions[0];
-  document.getElementById("preview-species").textContent = option?.textContent || "Choose a species";
+  const species = option?.textContent || "Choose a species";
+  document.getElementById("preview-name").textContent = name;
+  document.getElementById("preview-species").textContent = species;
+
+  document.dispatchEvent(new CustomEvent("hds:skin-preview-change", {
+    detail: {
+      name,
+      species,
+      skin: Object.fromEntries(Object.entries(skin).map(([key, value]) => [key, colorToHex(value)])),
+    },
+  }));
 }
 
 function buildColorEditor() {

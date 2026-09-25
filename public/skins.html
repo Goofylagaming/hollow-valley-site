@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Design, unlock, share and wear Hollow Valley dinosaur skins.">
   <title>Skin Studio | Hollow Valley</title>
-  <link rel="stylesheet" href="assets/styles.css?v=16">
+  <link rel="stylesheet" href="assets/styles.css?v=37">
 </head>
 <body>
   <div class="app-shell">
@@ -31,19 +31,44 @@
 
         <section class="skin-panel active" data-skin-panel="studio">
           <div class="skin-studio-grid">
-            <div class="skin-preview-card">
-              <div class="skin-preview-stage" id="skin-preview-stage">
-                <div class="skin-preview-orb" id="skin-preview-orb">
-                  <span class="skin-preview-eye"></span>
-                  <span class="skin-preview-mark skin-preview-mark-a"></span>
-                  <span class="skin-preview-mark skin-preview-mark-b"></span>
-                  <span class="skin-preview-flank"></span>
+            <div class="skin-preview-card skin-preview-card-3d">
+              <div class="skin-model-toolbar">
+                <div class="skin-model-status"><span id="skin-model-status-dot"></span><strong id="skin-model-status">Tyrannosaurus · loading 3D preview</strong></div>
+                <div class="skin-model-tools">
+                  <button class="small-button" id="skin-model-reset" type="button">Reset view</button>
                 </div>
               </div>
-              <div class="skin-preview-meta">
-                <span id="preview-species">Choose a species</span>
-                <b id="preview-name">Untitled Skin</b>
-                <small>Colour preview · EVRIMA uses the selected native pattern, theme and variation in game.</small>
+
+              <div class="skin-preview-stage skin-model-stage" id="skin-preview-stage">
+                <canvas id="skin-model-canvas" aria-label="Interactive Tyrannosaurus rex skin preview"></canvas>
+                <div class="skin-model-loader" id="skin-model-loader">Loading Tyrannosaurus…</div>
+
+                <div class="skin-model-hud">
+                  <span>DRAG TO ORBIT</span>
+                  <span>SCROLL TO ZOOM</span>
+                </div>
+
+                <div class="skin-model-code">
+                  <span id="preview-species">Choose a species</span>
+                  <b id="preview-name">Untitled Skin</b>
+                </div>
+
+                <aside class="skin-model-rail">
+                  <small>3D PAINT MODEL</small>
+                  <strong>Tyrannosaurus rex</strong>
+                  <span>Self-hosted Tyrannosaurus · CC BY</span>
+                  <label>LIGHT
+                    <input id="skin-model-light" type="range" min="35" max="180" value="105">
+                  </label>
+                </aside>
+              </div>
+
+              <div class="skin-model-zone-strip" id="skin-model-zone-strip" aria-label="Skin colour zones"></div>
+
+              <div class="skin-preview-meta skin-preview-meta-3d">
+                <span>LIVE 3D PREVIEW</span>
+                <small>Drag to orbit and scroll to zoom. All ten Hollow Valley colour zones now feed a live UV-masked texture on the 3D rex. Drag to orbit, scroll to zoom, and change any colour below to repaint that region.</small>
+                <a class="skin-model-credit" href="https://sketchfab.com/3d-models/tyrannosaurus-rex-939e5dd6af554fccb986db94a85116a1" target="_blank" rel="noopener">3D model by Nobilis the Palaeovespa · CC BY</a>
               </div>
             </div>
 
@@ -179,6 +204,11 @@
 
   <script src="assets/common.js?v=17"></script>
   <script src="assets/external-skin-import.js?v=4"></script>
-  <script src="assets/skins.js?v=19"></script>
+  <script src="assets/skins.js?v=20"></script>
+  <script src="/assets/skin-studio-rex-mask-rle.js?v=1"></script>
+  <script type="importmap">
+    {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}
+  </script>
+  <script type="module" src="/assets/skin-studio-3d.js?v=7"></script>
 </body>
 </html>

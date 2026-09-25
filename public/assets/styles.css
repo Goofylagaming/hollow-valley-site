@@ -636,3 +636,379 @@
 @media(max-width:1000px){.event-admin-grid{grid-template-columns:1fr}.event-admin-selected{align-items:flex-start;flex-direction:column}.event-inline-form{align-items:stretch;flex-direction:column}.event-row-actions{align-items:flex-start;flex-direction:column}}
 
 .event-admin-event-picker select{min-width:min(520px,70vw);padding:9px 10px;border:1px solid var(--line);background:#0b0b09;color:var(--text);font:600 10px Manrope}
+
+
+/* === LIVE Skin Studio 3D model === */
+/* === Skin Studio 3D paint stage · test branch === */
+.skin-studio-grid{
+  grid-template-columns:minmax(0,1.55fr) minmax(380px,.8fr)!important;
+  gap:12px!important;
+  align-items:start;
+}
+.skin-preview-card-3d{
+  position:sticky!important;
+  top:94px!important;
+  min-width:0;
+  padding:10px!important;
+  overflow:hidden!important;
+  border-color:rgba(59,218,133,.22)!important;
+  background:linear-gradient(145deg,#04130c,#020b07)!important;
+}
+.skin-model-toolbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  min-height:40px;
+  padding:0 2px 8px;
+}
+.skin-model-status{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  color:#a6b9af;
+  font-size:8px;
+}
+.skin-model-status strong{color:#dfe9e3;font-size:8px}
+#skin-model-status-dot{
+  width:6px;height:6px;border-radius:50%;
+  background:#7b8b83;box-shadow:none;
+}
+#skin-model-status-dot.ready{
+  background:#36e88b;box-shadow:0 0 9px rgba(54,232,139,.6);
+}
+.skin-model-tools{display:flex;gap:5px}
+.skin-model-tools .small-button{min-height:26px;padding:5px 8px;font-size:7px}
+.skin-model-tools .small-button.active{
+  border-color:rgba(57,230,134,.34);
+  background:#087a45;
+  color:#fff;
+}
+
+.skin-model-stage{
+  position:relative!important;
+  display:block!important;
+  min-height:500px!important;
+  height:min(56vw,620px);
+  max-height:620px;
+  overflow:hidden!important;
+  isolation:isolate;
+  border:1px solid rgba(67,180,118,.18);
+  border-radius:6px;
+  background:
+    radial-gradient(ellipse at 52% 82%,rgba(77,110,105,.48),transparent 33%),
+    linear-gradient(180deg,#010705 0,#020907 62%,#071813 100%)!important;
+}
+#skin-model-canvas{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  display:block;
+  cursor:grab;
+  touch-action:none;
+}
+#skin-model-canvas:active{cursor:grabbing}
+.skin-model-loader{
+  position:absolute;
+  z-index:4;
+  top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  display:grid;
+  gap:6px;
+  min-width:220px;
+  padding:14px 16px;
+  border:1px solid rgba(75,172,118,.18);
+  border-radius:6px;
+  background:rgba(3,14,9,.82);
+  color:#8ca298;
+  text-align:center;
+  font-size:8px;
+  backdrop-filter:blur(7px);
+}
+.skin-model-loader[hidden]{display:none}
+.skin-model-loader strong{color:#d9e7df;font-size:9px}
+.skin-model-loader span{color:#73877d}
+
+.skin-model-hud{
+  position:absolute;
+  z-index:3;
+  bottom:12px;left:12px;
+  display:flex;
+  gap:12px;
+  color:#466156;
+  font:700 6px Manrope,sans-serif;
+  letter-spacing:.18em;
+}
+.skin-model-code{
+  position:absolute;
+  z-index:3;
+  top:12px;left:12px;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  padding:8px 10px;
+  border-left:2px solid #2ee183;
+  background:linear-gradient(90deg,rgba(2,14,9,.78),transparent);
+  text-shadow:0 2px 6px #000;
+}
+.skin-model-code span{
+  color:#7be6a9;
+  font:800 7px Manrope,sans-serif;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.skin-model-code b{
+  color:#f3f7f4;
+  font:800 12px Manrope,sans-serif;
+}
+
+.skin-model-rail{
+  position:absolute;
+  z-index:3;
+  top:10px;right:10px;
+  width:160px;
+  padding:10px;
+  border:1px solid rgba(79,165,119,.17);
+  border-radius:6px;
+  background:rgba(3,14,9,.78);
+  backdrop-filter:blur(8px);
+}
+.skin-model-rail small{
+  display:block;
+  color:#4d695c;
+  font:800 6px Manrope,sans-serif;
+  letter-spacing:.17em;
+}
+.skin-model-rail strong{
+  display:block;
+  margin-top:5px;
+  color:#dce7e1;
+  font:800 10px Manrope,sans-serif;
+}
+.skin-model-rail>span{
+  display:block;
+  margin-top:3px;
+  color:#6c8176;
+  font-size:7px;
+}
+.skin-model-rail label{
+  display:grid;
+  gap:5px;
+  margin-top:12px;
+  color:#61796d;
+  font:800 6px Manrope,sans-serif;
+  letter-spacing:.13em;
+}
+.skin-model-rail input[type=range]{
+  width:100%;
+  min-height:0!important;
+  padding:0!important;
+  accent-color:#2cdb80;
+}
+
+.skin-model-zone-strip{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(100px,1fr));
+  gap:5px;
+  margin-top:7px;
+  overflow-x:auto;
+  padding-bottom:2px;
+}
+.skin-model-zone{
+  position:relative;
+  display:grid;
+  grid-template-columns:24px minmax(70px,1fr);
+  grid-template-rows:auto auto;
+  align-items:center;
+  gap:2px 7px;
+  min-height:48px;
+  padding:6px 7px;
+  overflow:hidden;
+  border:1px solid rgba(76,159,112,.15);
+  border-radius:5px;
+  background:#04120c;
+  color:#c8d6ce;
+  text-align:left;
+  cursor:pointer;
+}
+.skin-model-zone:hover{
+  border-color:rgba(53,229,131,.34);
+  background:#071c12;
+}
+.skin-model-zone i{
+  grid-row:1/3;
+  width:24px;height:32px;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:3px;
+  box-shadow:inset 0 0 10px rgba(0,0,0,.15);
+}
+.skin-model-zone span{
+  overflow:hidden;
+  color:#b9c8c0;
+  font:750 7px Manrope,sans-serif;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+}
+.skin-model-zone b{
+  color:#577166;
+  font:700 6px Manrope,sans-serif;
+}
+.skin-preview-meta-3d{
+  padding:8px 2px 1px!important;
+}
+.skin-preview-meta-3d span{
+  color:#37e489!important;
+  font:800 7px Manrope,sans-serif!important;
+}
+.skin-preview-meta-3d small{
+  margin-top:4px!important;
+  max-width:760px;
+  color:#687f73!important;
+  font-size:7px!important;
+  line-height:1.5;
+}
+
+/* The old CSS paint orb is intentionally retired when the 3D stage is present. */
+.skin-preview-card-3d .skin-preview-orb{display:none!important}
+
+@media(max-width:1250px){
+  .skin-studio-grid{
+    grid-template-columns:minmax(0,1.28fr) minmax(340px,.85fr)!important;
+  }
+  .skin-model-stage{min-height:440px!important;height:48vw}
+  .skin-model-zone-strip{grid-template-columns:repeat(5,minmax(90px,1fr))}
+}
+@media(max-width:980px){
+  .skin-studio-grid{grid-template-columns:1fr!important}
+  .skin-preview-card-3d{position:static!important}
+  .skin-model-stage{height:58vw;min-height:390px!important;max-height:540px}
+}
+@media(max-width:650px){
+  .skin-model-stage{height:76vw;min-height:330px!important}
+  .skin-model-rail{width:130px}
+  .skin-model-zone-strip{grid-template-columns:repeat(10,118px)}
+  .skin-model-hud span:last-child{display:none}
+}
+
+
+
+/* Accurate Sketchfab T-Rex viewer — replaces the AI-generated placeholder mesh */
+#skin-model-frame{
+  position:absolute;
+  z-index:1;
+  inset:0;
+  width:100%;
+  height:100%;
+  border:0;
+  background:#010605;
+}
+.skin-model-stage{
+  min-height:520px!important;
+  height:min(58vw,660px)!important;
+  background:
+    radial-gradient(ellipse at 52% 82%,rgba(72,103,99,.34),transparent 35%),
+    linear-gradient(180deg,#010605,#020907 65%,#071713)!important;
+}
+.skin-model-stage:before{
+  z-index:2!important;
+  box-shadow:inset 0 0 70px rgba(0,0,0,.34);
+}
+.skin-model-code,.skin-model-rail,.skin-model-hud,.skin-model-loader{z-index:4!important}
+.skin-model-rail{pointer-events:none}
+.skin-model-rail label{pointer-events:auto}
+.skin-model-credit{
+  display:inline-flex;
+  margin-top:7px;
+  color:#708b7d;
+  font:700 7px Manrope,sans-serif;
+  text-decoration:none;
+}
+.skin-model-credit:hover{color:#43df8c}
+@media(max-width:980px){
+  .skin-model-stage{height:62vw!important;min-height:420px!important}
+}
+@media(max-width:650px){
+  .skin-model-stage{height:80vw!important;min-height:340px!important}
+}
+
+
+/* Skin Studio live-vs-saved colour feedback */
+.skin-zone-limit-note{
+  grid-column:1/-1;
+  padding:7px 9px;
+  border:1px solid rgba(76,159,112,.16);
+  border-radius:5px;
+  background:#06160f;
+  color:#7f968a;
+  font:700 6.5px Manrope,sans-serif;
+  letter-spacing:.04em;
+}
+.skin-zone-limit-note strong{color:#35df88}
+.skin-color-control.skin-zone-live-control{
+  border-color:rgba(53,225,132,.34)!important;
+  box-shadow:inset 2px 0 0 rgba(53,225,132,.72);
+}
+.skin-color-control.skin-zone-live-control:after{
+  content:"LIVE 3D";
+  color:#35df88;
+  font:800 6px Manrope,sans-serif;
+  letter-spacing:.08em;
+}
+.skin-color-control.skin-zone-saved-only{
+  opacity:.58;
+}
+.skin-color-control.skin-zone-saved-only:after{
+  content:"EVRIMA ONLY";
+  color:#6f7f77;
+  font:800 6px Manrope,sans-serif;
+  letter-spacing:.07em;
+}
+.skin-model-zone.skin-zone-live{
+  border-color:rgba(53,225,132,.35);
+  box-shadow:inset 2px 0 0 rgba(53,225,132,.72);
+}
+
+
+/* Full 10-zone live 3D paint */
+.skin-zone-limit-note{display:none!important}
+.skin-color-control.skin-zone-saved-only{opacity:1!important}
+.skin-color-control.skin-zone-saved-only:after{content:none!important}
+.skin-color-control.skin-zone-live-control{
+  opacity:1!important;
+  border-color:rgba(53,225,132,.34)!important;
+  box-shadow:inset 2px 0 0 rgba(53,225,132,.72)!important;
+}
+.skin-color-control.skin-zone-live-control:after{
+  content:"LIVE 3D"!important;
+  color:#35df88!important;
+  font:800 6px Manrope,sans-serif!important;
+  letter-spacing:.08em!important;
+}
+.skin-model-zone.skin-zone-live{
+  border-color:rgba(53,225,132,.35)!important;
+  box-shadow:inset 2px 0 0 rgba(53,225,132,.72)!important;
+}
+
+
+/* Self-hosted Hollow Valley Tyrannosaurus viewer */
+#skin-model-canvas{
+  position:absolute;
+  z-index:1;
+  inset:0;
+  display:block;
+  width:100%;
+  height:100%;
+  cursor:grab;
+  touch-action:none;
+  background:transparent;
+}
+#skin-model-canvas:active{cursor:grabbing}
+#skin-model-frame{display:none!important}
+.skin-model-stage{
+  background:
+    radial-gradient(ellipse at 51% 80%,rgba(78,108,104,.42),transparent 34%),
+    radial-gradient(ellipse at 50% 25%,rgba(15,48,31,.34),transparent 50%),
+    linear-gradient(180deg,#010605 0,#020907 58%,#071713 100%)!important;
+}
+.skin-model-rail>span{color:#71a087!important}
