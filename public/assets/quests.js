@@ -33,6 +33,23 @@ const QUEST_META = Object.freeze({
   }
 });
 
+const LIFETIME_PLAYTIME_MILESTONES = Object.freeze([
+  {
+    id: "lifetime-playtime-36h",
+    icon: "G",
+    title: "Go Touch Grass",
+    description: "Log 36 verified lifetime hours in Hollow Valley.",
+    thresholdMinutes: 36 * 60
+  },
+  {
+    id: "lifetime-playtime-72h",
+    icon: "?",
+    title: "What Life?",
+    description: "Log 72 verified lifetime hours in Hollow Valley.",
+    thresholdMinutes: 72 * 60
+  }
+]);
+
 const EXPERIMENTAL_QUESTS = Object.freeze([
   {
     id: "combat-two-kills",
@@ -352,7 +369,7 @@ function experimentalCard(quest) {
         </div>
         <h3>${escapeHtml(quest.title)}</h3>
       </div>
-      <div class="quest-concept-badge">TEST</div>
+      <div class="quest-concept-badge">APPROVED</div>
     </div>
 
     <p class="quest-card-description">${escapeHtml(quest.description)}</p>
@@ -380,17 +397,74 @@ function experimentalSection() {
   return `<section class="quest-group quest-experimental-group">
     <div class="quest-group-heading">
       <div>
-        <span>EXPERIMENTAL CHALLENGES</span>
-        <small>Daily rotating test concepts · not awarding rewards yet</small>
+        <span>APPROVED CHALLENGE POOL</span>
+        <small>Daily rotation from the approved Hollow Valley quest pool · tracker rollout staged</small>
       </div>
       <b>ROTATES DAILY</b>
     </div>
     <div class="quest-experimental-banner">
-      <strong>TEST QUEST POOL</strong>
-      <span>These are Hollow Valley concepts inspired by the style of broader community quest systems. They are deliberately not counted in your active boost until each tracker is connected and validated.</span>
+      <strong>APPROVED QUEST POOL</strong>
+      <span>These challenge concepts are approved for Hollow Valley. They remain outside your active boost until each required tracker is connected and validated.</span>
     </div>
     <div class="quest-card-grid">
       ${rotation.map(experimentalCard).join("")}
+    </div>
+  </section>`;
+}
+
+function lifetimeMilestoneCard(milestone, verifiedMinutes) {
+  const thresholdMinutes = Math.max(1, Number(milestone.thresholdMinutes) || 1);
+  const progressMinutes = Math.max(0, Math.min(thresholdMinutes, Number(verifiedMinutes) || 0));
+  const percent = Math.round((progressMinutes / thresholdMinutes) * 100);
+  const completed = progressMinutes >= thresholdMinutes;
+  const remainingMinutes = Math.max(0, thresholdMinutes - progressMinutes);
+
+  return `<article class="quest-card ${completed ? "completed" : ""}" data-lifetime-id="${escapeHtml(milestone.id)}">
+    <div class="quest-card-top">
+      <div class="quest-card-icon">${escapeHtml(milestone.icon)}</div>
+      <div class="quest-card-heading">
+        <div class="quest-card-tags">
+          <span>LIFETIME</span>
+          <em>NO RESET</em>
+        </div>
+        <h3>${escapeHtml(milestone.title)}</h3>
+      </div>
+      <div class="quest-card-status ${completed ? "complete" : ""}">${completed ? "✓" : `${percent}%`}</div>
+    </div>
+
+    <p class="quest-card-description">${escapeHtml(milestone.description)}</p>
+
+    <div class="quest-card-progress-row">
+      <strong>${formatDuration(progressMinutes * 60)} <span>/ ${formatDuration(thresholdMinutes * 60)}</span></strong>
+      <small>${completed ? "Milestone completed" : `${formatDuration(remainingMinutes * 60)} remaining`}</small>
+    </div>
+
+    <div class="quest-progress-track quest-card-track"><i style="width:${percent}%"></i></div>
+
+    <div class="quest-card-footer">
+      <div class="quest-reward-block">
+        <span class="quest-coin-icon">★</span>
+        <div>
+          <small>MILESTONE</small>
+          <strong>PERMANENT PLAYTIME</strong>
+        </div>
+      </div>
+      <span class="quest-auto-label">${completed ? "COMPLETED" : "AUTO TRACKED"}</span>
+    </div>
+  </article>`;
+}
+
+function lifetimePlaytimeSection(verifiedMinutes) {
+  return `<section class="quest-group quest-lifetime-group">
+    <div class="quest-group-heading">
+      <div>
+        <span>LIFETIME PLAYTIME</span>
+        <small>Permanent verified Hollow Valley playtime · never resets</small>
+      </div>
+      <b>${LIFETIME_PLAYTIME_MILESTONES.filter((milestone) => verifiedMinutes >= milestone.thresholdMinutes).length}/${LIFETIME_PLAYTIME_MILESTONES.length} COMPLETE</b>
+    </div>
+    <div class="quest-card-grid">
+      ${LIFETIME_PLAYTIME_MILESTONES.map((milestone) => lifetimeMilestoneCard(milestone, verifiedMinutes)).join("")}
     </div>
   </section>`;
 }
@@ -411,8 +485,12 @@ async function loadQuests() {
 
   const listEl = document.getElementById("quest-list");
   try {
-    const result = await api("/api/quests");
+    const [result, progression] = await Promise.all([
+      api("/api/quests"),
+      api("/api/progression").catch(() => null)
+    ]);
     const quests = Array.isArray(result.quests) ? result.quests : [];
+    const verifiedMinutes = Math.max(0, Number(progression?.profile?.verifiedPlaytimeMinutes) || 0);
     const completed = quests.filter((quest) => quest.completed).length;
 
     document.getElementById("quest-active-boost").textContent = `+${Number(result.activeBoostPercent || 0)}%`;
@@ -431,6 +509,7 @@ async function loadQuests() {
     listEl.innerHTML = [
       questSection("DAILY QUESTS", "Resets every Brisbane day", daily),
       questSection("WEEKLY QUESTS", "Resets Monday at 00:00 Brisbane time", weekly),
+      lifetimePlaytimeSection(verifiedMinutes),
       experimentalSection()
     ].join("");
   } catch (error) {
