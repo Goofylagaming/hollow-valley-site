@@ -35,16 +35,25 @@ test("CommandBridge v006.5 routes admin_slay only to AdminActions", () => {
   assert.match(lua, /writeToAdminActionsInbox\(id, steam, \{"slay"\}\)/);
 });
 
-test("AdminActions v001 resolves Steam target and applies zero health", () => {
+test("AdminActions v002 triggers verified Smite effect before preserving zero-health Slay", () => {
   const lua = read("server-mods/AdminActions/Scripts/main.lua");
-  assert.match(lua, /AdminActions v001/);
-  assert.match(lua, /MOD_VERSION = "v001"/);
+  assert.match(lua, /AdminActions v002/);
+  assert.match(lua, /MOD_VERSION = "v002"/);
   assert.match(lua, /GetControllerBySteamId\(steam\)/);
   assert.match(lua, /K2_GetPawn\(\)/);
+  assert.match(lua, /BP_SmiteEffect\.BP_SmiteEffect_C/);
+  assert.match(lua, /StaticFindObject\(SMITE_CLASS_PATH\)/);
+  assert.match(lua, /K2_GetActorLocation\(\)/);
+  assert.match(lua, /SetReplicates\(true\)/);
+  assert.match(lua, /effect:CustomEvent\(\)/);
   assert.match(lua, /SetHealth\(0\)/);
   assert.match(lua, /ForceNetUpdate\(\)/);
   assert.match(lua, /"source":"AdminActions"/);
-  assert.doesNotMatch(lua, /SpawnLightning|TriggerLightning|LightningStrike/);
+  assert.doesNotMatch(lua, /K2_DestroyActor\(/);
+
+  const smiteIndex = lua.indexOf("effect:CustomEvent()");
+  const slayIndex = lua.indexOf("pawn:SetHealth(0)");
+  assert.ok(smiteIndex >= 0 && slayIndex > smiteIndex, "Smite should trigger before the proven Slay write");
 });
 
 test("Admin Hub renders connected player controls and requires browser confirmation", () => {
