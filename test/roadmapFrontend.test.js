@@ -417,6 +417,7 @@ test("Admin Hub grants Prime to the live dinosaur by Steam ID without changing g
   assert.match(html, /Grant Prime/);
   assert.match(js, /prime-target/);
   assert.match(js, /prime-grant/);
+  assert.match(js, /body: JSON\.stringify\(\{ steamId \}\)/);
   assert.match(js, /Growth will remain unchanged/);
   assert.match(route, /requireAdmin/);
   assert.match(route, /prime-target/);
