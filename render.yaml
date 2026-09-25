@@ -64,7 +64,7 @@ services:
       - key: HOLLOW_VALLEY_API_TOKEN
         sync: false
       - key: SERVER_STATUS_POLL_INTERVAL_MS
-        value: 300000
+        value: 15000
       - key: MAX_PLAYERS
         value: 100
       - key: BODYDROP_COOLDOWN_SECONDS

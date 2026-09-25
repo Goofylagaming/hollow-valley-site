@@ -135,8 +135,8 @@ test("website server status reuses the automation snapshot instead of duplicate 
   const client = read("server/services/automationWebsiteClient.js");
 
   assert.match(status, /if \(automationConfigured\(\)\) \{\s*return automation\.getServerSnapshot\(\);/s);
-  assert.match(status, /const fallback = usingAutomation \? 30_000 : 300_000/);
-  assert.match(status, /const minimum = usingAutomation \? 15_000 : 300_000/);
+  assert.match(status, /const fallback = usingAutomation \? 15_000 : 300_000/);
+  assert.match(status, /const minimum = usingAutomation \? 10_000 : 300_000/);
   assert.match(status, /Math\.max\(minimum, Math\.min\(600_000/);
   assert.match(status, /source: automationConfigured\(\) \? "automation-cache" : "direct-rcon"/);
   assert.match(client, /function getServerSnapshot\(\)/);
@@ -202,6 +202,9 @@ test("Live Map keeps offline history separate from live coordinates", () => {
   assert.match(js, /\/api\/map\/activity\?hours=24/);
   assert.match(js, /renderMarkers\(null\)/);
   assert.match(js, /no player positions are shown/);
+  assert.match(js, /ACTIVE_REFRESH_MS = 5_000/);
+  assert.match(js, /HIDDEN_REFRESH_MS = 30_000/);
+  assert.match(js, /visibilitychange/);
   assert.match(route, /router\.get\("\/activity"/);
   assert.match(client, /function getMapActivity/);
   assert.match(client, /\/map\/activity\?hours=/);
