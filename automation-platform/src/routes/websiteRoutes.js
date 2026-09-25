@@ -297,9 +297,7 @@ router.put('/marketplace/catalog/:catalogId', (req, res) => {
     const item = officialCatalog.updateOfficialCatalogItem({
       catalogId: String(req.params.catalogId || '').trim(),
       price: req.body?.price,
-      growthPercent: req.body?.growthPercent,
       active: req.body?.active,
-      isPrime: req.body?.isPrime,
     });
     res.json({ ok: true, item });
   } catch (error) {
