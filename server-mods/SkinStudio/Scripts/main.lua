@@ -1,11 +1,12 @@
--- SkinStudio v008
--- Hollow Valley live skin application + same-life reconnect persistence.
--- Applied skins are scoped to the current dinosaur life and must never override
--- a newly spawned/nested dinosaur's inherited skin.
+-- SkinStudio v009
+-- Hollow Valley live skin application scoped to the CURRENT pawn only.
+-- Saved Skin Shop/My Skins presets remain available on the website, but the
+-- game-side mod never auto-restores an old applied skin onto a future pawn.
+-- This intentionally protects nesting/inherited skins from old overrides.
 -- Commands arrive from CommandBridge as inbox.ndjson records.
 
 local MOD_NAME = "SkinStudio"
-local MOD_VERSION = "v008"
+local MOD_VERSION = "v009"
 
 local function resolveModRoot()
     local source = ""
@@ -616,8 +617,8 @@ local function processLine(line)
             pcall(function() ctrl = gm:GetControllerBySteamId(steam) end)
             pawn = livePawnFromCtrl(ctrl)
         end
-        local growth = pawnGrowth(pawn)
-        rememberProfile(steam, args, config, growth)
+        -- v009 is current-pawn-only: never persist this applied skin as an
+        -- automatic reconnect/respawn/nesting override.
         if pawn ~= nil then
             lastPawnAddress[steam] = objectAddress(pawn)
             lastControllerAddress[steam] = objectAddress(ctrl)
@@ -829,7 +830,14 @@ end
 
 log(string.format("Loading; version=%s saved=%s", MOD_VERSION, tostring(SAVED_DIR)))
 ensureDir(SAVED_DIR)
-loadProfiles()
+
+-- v009 deliberately retires game-side auto-restore profiles. Website-owned
+-- presets are unaffected; this file only held automatic in-game reapply state.
+-- Removing it guarantees a fresh/nested pawn keeps the engine-generated skin.
+if fileExists(PROFILES_PATH) then
+    os.remove(PROFILES_PATH)
+    log("Cleared legacy auto-restore profiles; skins are now current-pawn-only")
+end
 
 if LoopInGameThreadWithDelay ~= nil then
     LoopInGameThreadWithDelay(POLL_INTERVAL_MS, function()
@@ -841,15 +849,13 @@ if LoopInGameThreadWithDelay ~= nil then
         end
     end)
 
-    LoopInGameThreadWithDelay(REAPPLY_INTERVAL_MS, function()
-        safeCall("reapplyProfiles", reapplyProfiles)
-    end)
-
+    -- No reapplyProfiles loop in v009. A skin application is intentionally
+    -- bound to the pawn that existed when the player clicked Wear.
     LoopInGameThreadWithDelay(LIVE_REFRESH_INTERVAL_MS, function()
         safeCall("refreshLiveApplies", refreshLiveApplies)
     end)
 
-    log("Poll, persistence and live-refresh loops registered")
+    log("Poll and current-pawn live-refresh loops registered; cross-pawn restore disabled")
 else
     log("ERROR: LoopInGameThreadWithDelay is unavailable")
 end
