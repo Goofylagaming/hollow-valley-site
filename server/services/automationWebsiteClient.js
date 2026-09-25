@@ -154,7 +154,7 @@ function getBodyDropCooldown(steamId) {
 
 function requestBodyDrop({ steamId, dropType }) {
   const type = String(dropType || '').trim();
-  if (!/^[A-Za-z0-9_-]{2,32}$/.test(type)) throw new Error('Invalid body drop type');
+  if (!/^[A-Za-z0-9_-]{2,64}$/.test(type)) throw new Error('Invalid body drop type');
   return call('/bodydrop', {
     method: 'POST',
     body: { steamId: validateSteamId(steamId), dropType: type },
