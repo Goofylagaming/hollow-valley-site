@@ -1,12 +1,12 @@
--- DinoStorage v006
+-- DinoStorage v007
 -- Store/retrieve dino state across respawns.
 -- All commands are Discord-only via IPC (cmd.flag).
--- IPC verbs: store, retrieve, delete, list, grant, edit
+-- IPC verbs: store, retrieve, delete, list, grant, edit, prime
 --
 -- Website-backed multi-slot storage with exact state round-tripping.
 
 local MOD_NAME    = "DinoStorage"
-local MOD_VERSION = "v006"
+local MOD_VERSION = "v007"
 
 local function resolveModRoot()
     local source = ""
@@ -1274,6 +1274,64 @@ local function cmdRetrieve(steam, slot)
     return true, string.format("Retrieving **%s** from slot '%s'. Spawn the same species now!", species, slot)
 end
 
+local function cmdGrantPrime(steam)
+    if not validSteamId(steam) then return false, "invalid Steam ID" end
+
+    local gm = findGameMode()
+    if gm == nil then return false, "Server not ready." end
+
+    local ctrl
+    pcall(function() ctrl = gm:GetControllerBySteamId(steam) end)
+    if ctrl == nil then return false, "Player is not connected to the server." end
+
+    local pawn = livePawnFromCtrl(ctrl)
+    if pawn == nil then return false, "Player does not have a live dinosaur." end
+
+    local growth = nil
+    pcall(function() growth = pawn:GetGrowth() end)
+
+    local pe
+    pcall(function() pe = pawn:GetEligiblePrimeElderData() end)
+    if pe == nil then return false, "Prime Elder data is unavailable for this dinosaur." end
+
+    local alreadyPrime = pe.bIsEligiblePrime == true
+    for i = 1, 10 do
+        pe["bPrimeCondition" .. tostring(i)] = true
+    end
+    pe.bIsEligiblePrime = true
+
+    local applied, applyErr = pcall(function()
+        pawn:SetEligiblePrimeElderData(pe)
+    end)
+    if not applied then
+        return false, "Prime Elder write failed: " .. tostring(applyErr)
+    end
+
+    pcall(function() pawn:ForceNetUpdate() end)
+
+    local className = "dinosaur"
+    pcall(function()
+        local full = pawn:GetClass():GetFullName()
+        className = ((full and full:match("BP_(.-)%.")) or "dinosaur"):gsub("_C$", "")
+    end)
+
+    local growthText = ""
+    if tonumber(growth) ~= nil then
+        local pct = tonumber(growth)
+        if pct <= 1.5 then pct = pct * 100 end
+        growthText = string.format(" at %.0f%% growth", pct)
+    end
+
+    local message
+    if alreadyPrime then
+        message = string.format("%s is already Prime Elder%s.", className, growthText)
+    else
+        message = string.format("Prime Elder granted to %s%s. Growth was not changed.", className, growthText)
+        queueNotify(steam, "An admin granted Prime Elder to your current dinosaur.")
+    end
+    return true, message
+end
+
 local function cmdStoreInfo(steam)
     local slots = listSlots(steam)
     if #slots == 0 then
@@ -1435,6 +1493,9 @@ local function pollCmdFlag()
                 end
             elseif verb == "edit" then
                 ok, msg = applyParkedEdit(steam, extraArgs)
+                ok = ok == true
+            elseif verb == "prime" then
+                ok, msg = cmdGrantPrime(steam)
                 ok = ok == true
             elseif verb == "grant" then
                 local slot = extraArgs[1]
