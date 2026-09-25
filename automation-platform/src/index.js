@@ -202,7 +202,10 @@ app.get('*', (_req, res) => {
 });
 
 if (require.main === module) {
-  seedOfficialCatalog();
+  const seededOfficialCatalog = seedOfficialCatalog();
+  const active50 = seededOfficialCatalog.filter((item) => item.active !== false && Number(item.payload?.growthPercent) === 50).length;
+  const active75Prime = seededOfficialCatalog.filter((item) => item.active !== false && Number(item.payload?.growthPercent) === 75 && item.payload?.isPrime === true).length;
+  console.log(`[marketplace-catalog] seeded=${seededOfficialCatalog.length} active50=${active50} active75Prime=${active75Prime} policyV=${seededOfficialCatalog[0]?.payload?.officialCatalogPolicyVersion || 0}`);
   const recoveredDinoStorage = recoverInterruptedDinoStorage();
   if (recoveredDinoStorage) {
     console.warn(`[dinostorage-recover] marked ${recoveredDinoStorage} interrupted request(s) unknown; none were replayed`);
