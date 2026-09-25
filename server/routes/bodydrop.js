@@ -59,7 +59,7 @@ router.get("/", requireAuth, async (req, res) => {
       cooldown: { active: false, nextAvailableAt: null, remainingSeconds: 0 },
       eligibility: { eligible: false, reason: null },
       restrictions: { carnivoreOnly: true, maxGrowthPercent: 60 },
-      options: getDropTypes(),
+      options: [],
       latest: null,
       recent: [],
     });
@@ -76,7 +76,11 @@ router.get("/", requireAuth, async (req, res) => {
       cooldown,
       eligibility: result.eligibility || { eligible: false, reason: null },
       restrictions: result.restrictions || { carnivoreOnly: true, maxGrowthPercent: 60 },
-      options: getDropTypes(),
+      requester: result.requester || null,
+      dietVersion: result.dietVersion || null,
+      corpseGrowth: result.corpseGrowth ?? null,
+      corpseGrowthPercent: result.corpseGrowthPercent ?? null,
+      options: Array.isArray(result.options) ? result.options : [],
       latest,
       recent: latest ? [latest] : [],
     });
