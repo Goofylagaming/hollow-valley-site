@@ -59,6 +59,7 @@ function renderBodyDropStatus(data) {
 
   currentBodyDropData = data;
   const eligibilityBlocked = data.eligibility?.eligible === false && Boolean(data.eligibility?.reason);
+  const dietBlocked = data.dietEligibility?.eligible === false && Boolean(data.dietEligibility?.reason);
   const status = !data.steamLinked
     ? "Steam account required"
     : !data.serverOnline
@@ -69,9 +70,11 @@ function renderBodyDropStatus(data) {
           : `Cooldown ${formatCooldown(remainingCooldownSeconds(data))}`
         : eligibilityBlocked
           ? data.eligibility.reason
-          : "Available now";
+          : dietBlocked
+            ? data.dietEligibility.reason
+            : "Available now";
 
-  const disabled = !data.steamLinked || !data.serverOnline || data.cooldown?.active || eligibilityBlocked;
+  const disabled = !data.steamLinked || !data.serverOnline || data.cooldown?.active || eligibilityBlocked || dietBlocked;
   const requester = data.requester || null;
   const requesterSpecies = requester?.species || data.eligibility?.species || "No live dinosaur";
   const requesterGrowth = Number.isFinite(requester?.growthPercent) ? Math.round(requester.growthPercent) : null;
@@ -107,7 +110,7 @@ function renderBodyDropStatus(data) {
     }).join("");
 
   const noOptions = !groups
-    ? `<div class="bodydrop-empty-diet"><strong>No configured diet drops</strong><span>${escapeHtml(data.eligibility?.reason || "This dinosaur does not have a Hollow Valley BodyDrop diet configured yet.")}</span></div>`
+    ? `<div class="bodydrop-empty-diet"><strong>No configured diet drops</strong><span>${escapeHtml(data.dietEligibility?.reason || data.eligibility?.reason || "This dinosaur does not have a Hollow Valley BodyDrop diet configured yet.")}</span></div>`
     : "";
 
   container.innerHTML = `
