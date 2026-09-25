@@ -289,6 +289,9 @@ router.get('/leaderboards/playtime', (req, res) => {
 });
 
 router.get('/marketplace/catalog', (_req, res) => {
+  // Re-run the idempotent official catalog migration on read so any stale rows
+  // from earlier marketplace versions self-heal without waiting for a restart.
+  officialCatalog.seedOfficialCatalog();
   res.json({ catalog: economy.listCatalog({ activeOnly: true }) });
 });
 
