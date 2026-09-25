@@ -1012,3 +1012,42 @@
     linear-gradient(180deg,#010605 0,#020907 58%,#071713 100%)!important;
 }
 .skin-model-rail>span{color:#71a087!important}
+
+/* Prime Tracker — keep aligned with the existing My Dinos UI */
+.prime-tracker-panel{padding:22px}
+.prime-tracker-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding-bottom:16px;border-bottom:1px solid #2d3029}
+.prime-tracker-heading h3{margin:2px 0 4px;color:#e6e1d2;font:600 18px Cinzel}
+.prime-tracker-heading>div>small{color:#776f61;font-size:9px}
+.prime-tracker-status{padding:6px 9px;border:1px solid #3c4138;color:#868e7f;font:700 8px Oswald;letter-spacing:.12em;white-space:nowrap}
+.prime-tracker-status.is-prime{border-color:#76612f;color:var(--gold)}
+.prime-tracker-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:16px 0}
+.prime-tracker-stats>div{padding:13px 14px;border:1px solid #2d3029;background:#0e100d}
+.prime-tracker-stats small{display:block;color:#746d60;font:700 7px Oswald;letter-spacing:.12em}
+.prime-tracker-stats b{display:block;margin:6px 0 3px;color:#ddd7c7;font:600 18px Oswald}
+.prime-tracker-stats span{display:block;color:#6f6a5e;font-size:8px;line-height:1.45}
+.prime-current-zone{padding:13px 14px;border:1px solid #31362e;background:#0d100c}
+.prime-current-zone>small{display:block;margin-bottom:8px;color:#778172;font:700 7px Oswald;letter-spacing:.12em}
+.prime-current-zone-chips{display:flex;flex-wrap:wrap;gap:7px}
+.prime-current-zone-chips span{padding:4px 7px;border:1px solid #394334;color:#9ba595;font:600 8px Oswald}
+.prime-tracker-note{display:flex;gap:12px;margin:10px 0 18px;padding:10px 12px;border-left:2px solid #5e5335;background:#11120e}
+.prime-tracker-note strong{flex:0 0 auto;color:#a79259;font:700 7px Oswald;letter-spacing:.12em}
+.prime-tracker-note span{color:#746f63;font-size:8px;line-height:1.5}
+.prime-history-heading{margin-top:6px}
+.prime-zone-history{display:grid;border-top:1px solid #292c26}
+.prime-zone-row{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:11px 2px;border-bottom:1px solid #292c26}
+.prime-zone-row>div:first-child{min-width:0}
+.prime-zone-row strong{display:block;margin:3px 0;color:#d7d1c2;font:600 10px Oswald}
+.prime-zone-row small{display:block;color:#6e695e;font-size:8px}
+.prime-zone-type{color:#7d8f76;font:700 7px Oswald;letter-spacing:.11em}
+.prime-zone-meta{text-align:right}
+.prime-zone-meta b{display:block;color:#c4b071;font:600 9px Oswald}
+.prime-zone-meta span{display:block;margin-top:3px;color:#756f62;font:700 6px Oswald;letter-spacing:.08em}
+.prime-tracker-empty{padding:14px 0;color:#746f63;font-size:9px}
+@media(max-width:850px){
+  .prime-tracker-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:560px){
+  .prime-tracker-heading,.prime-zone-row{align-items:flex-start;flex-direction:column}
+  .prime-tracker-stats{grid-template-columns:1fr 1fr}
+  .prime-zone-meta{text-align:left}
+}
