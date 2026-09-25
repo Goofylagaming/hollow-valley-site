@@ -1,9 +1,9 @@
--- BodyDrop v003.5
+-- BodyDrop v003.6
 -- Admin-only corpse spawner. Bodies are only dropped when explicitly requested.
 -- IPC: bodydrop commands routed from CommandBridge.
 
 local MOD_NAME    = "BodyDrop"
-local MOD_VERSION = "v003.5"
+local MOD_VERSION = "v003.6"
 
 local function resolveModRoot()
     local source = debug.getinfo(1, "S").source or ""
@@ -50,6 +50,14 @@ local SPECIES_PATHS = {
     Compsognathus      = "/Game/TheIsle/Core/Characters/Dinosaurs/Compsognathus/BP_Compsognathus.BP_Compsognathus_C",
     Kentrosaurus       = "/Game/TheIsle/Core/Characters/Dinosaurs/Kentrosaurus/BP_Kentrosaurus.BP_Kentrosaurus_C",
     Austroraptor       = "/Game/TheIsle/Core/Characters/Dinosaurs/Austroraptor/BP_Austroraptor.BP_Austroraptor_C",
+}
+
+-- Small, verified whitelist for the herbivore plant-spawn probe.
+-- These are documented EVRIMA edible plant interactables.
+local PLANT_PATHS = {
+    fern = "/Game/TheIsle/Core/Foliage/Plants/BP_Fern.BP_Fern_C",
+    cycad = "/Game/TheIsle/Core/Foliage/Plants/BP_Cycad.BP_Cycad_C",
+    mushroom = "/Game/TheIsle/Core/Foliage/Plants/BP_Mushroom_Edible.BP_Mushroom_Edible_C",
 }
 
 local function fileExists(path)
@@ -243,6 +251,98 @@ local function traceGround(worldContext, x, y, anchorZ, actorToIgnore)
     if z == nil then return nil, "ground trace returned no hit Z" end
 
     return z, nil
+end
+
+local function spawnPlantForPlayer(plantKey, steam)
+    local key = tostring(plantKey or ""):lower()
+    local classPath = PLANT_PATHS[key]
+    if classPath == nil then
+        return false, "unknown plant; allowed: fern, cycad, mushroom"
+    end
+
+    local location, err, forward, playerPawn = getPlayerPlacement(steam)
+    if location == nil then
+        return false, "cannot locate target: " .. tostring(err)
+    end
+
+    local plantCls
+    pcall(function() plantCls = StaticFindObject(classPath) end)
+    if plantCls == nil then
+        return false, "plant class not found: " .. classPath
+    end
+
+    local gm = findGameMode()
+    if gm == nil then return false, "no game mode" end
+
+    local world
+    pcall(function() world = gm:GetWorld() end)
+    if world == nil then return false, "no world" end
+
+    local spawnOffsets = buildSpawnOffsets(forward)
+    local lastError = nil
+
+    for i, offset in ipairs(spawnOffsets) do
+        local x = (tonumber(location.X) or 0) + offset[1]
+        local y = (tonumber(location.Y) or 0) + offset[2]
+        local groundZ, groundErr = traceGround(gm, x, y, location.Z, playerPawn)
+
+        if groundZ == nil then
+            lastError = groundErr
+            log(string.format("PLANT PROBE | ground trace | attempt=%d | FAILED | %s", i, tostring(groundErr)))
+        else
+            local loc = { X = x, Y = y, Z = groundZ + 10 }
+            local actor
+            local spawnOk, spawnErr = pcall(function()
+                actor = world:SpawnActor(
+                    plantCls,
+                    loc,
+                    { Pitch = 0, Yaw = 0, Roll = 0 }
+                )
+            end)
+
+            if not spawnOk then
+                lastError = "SpawnActor failed: " .. tostring(spawnErr)
+                log("PLANT PROBE | SpawnActor | FAILED | " .. tostring(spawnErr))
+            else
+                local addr
+                if actor ~= nil then
+                    pcall(function() addr = actor:GetAddress() end)
+                end
+
+                if actor == nil or addr == nil or addr == 0 then
+                    lastError = "SpawnActor returned invalid/null actor"
+                    log("PLANT PROBE | SpawnActor | FAILED | invalid/null actor")
+                else
+                    local replicateOk = tryPawnCall("Plant SetReplicates", function()
+                        actor:SetReplicates(true)
+                    end)
+                    local updateOk = tryPawnCall("Plant ForceNetUpdate", function()
+                        actor:ForceNetUpdate()
+                    end)
+
+                    if not replicateOk or not updateOk then
+                        return false, "plant spawned but replication setup failed"
+                    end
+
+                    log(string.format(
+                        "PLANT PROBE | OK | plant=%s address=%s X=%.3f Y=%.3f Z=%.3f",
+                        key, tostring(addr),
+                        tonumber(loc.X) or 0, tonumber(loc.Y) or 0, tonumber(loc.Z) or 0
+                    ))
+
+                    -- Intentionally do not retain/destroy this actor later.
+                    -- Edible world actors may be consumed independently.
+                    return true, string.format(
+                        "%s plant spawned at X=%.3f Y=%.3f Z=%.3f",
+                        key, tonumber(loc.X) or 0, tonumber(loc.Y) or 0, tonumber(loc.Z) or 0
+                    )
+                end
+            end
+        end
+    end
+
+    return false, "no safe plant spawn position found" ..
+        (lastError and (": " .. tostring(lastError)) or "")
 end
 
 local function spawnCorpse(speciesName, location, growthFraction, forward, playerPawn)
@@ -441,6 +541,15 @@ local function handleCommand(steam, tokens)
         end
 
         return spawnCorpse(species, location, growth, forward, playerPawn)
+
+    elseif verb == "plant" then
+        local plantKey = tokens[2] or "fern"
+        local target = tokens[3]
+        if target == nil or target == "" then target = steam end
+        if target == nil or target == "" then
+            return false, "usage: plant <fern|cycad|mushroom> [targetSteam]"
+        end
+        return spawnPlantForPlayer(plantKey, target)
 
     elseif verb == "status" then
         return true, string.format("BodyDrop %s | ready", MOD_VERSION)
