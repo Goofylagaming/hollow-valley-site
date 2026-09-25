@@ -13,6 +13,8 @@ test('approved quest boosts are application defaults when env overrides are abse
     'WALLET_QUEST_DAILY_6H_BOOST_PERCENT',
     'WALLET_QUEST_WEEKLY_12H_BOOST_PERCENT',
     'WALLET_QUEST_WEEKLY_24H_BOOST_PERCENT',
+    'WALLET_QUEST_WEEKLY_36H_BOOST_PERCENT',
+    'WALLET_QUEST_WEEKLY_72H_BOOST_PERCENT',
   ];
   const previous = Object.fromEntries(names.map((name) => [name, process.env[name]]));
 
@@ -37,6 +39,6 @@ test('approved quest boosts are application defaults when env overrides are abse
   const quests = require('../src/services/questBoostService');
   assert.deepEqual(
     quests.questDefinitions().map((quest) => quest.boostPercent),
-    [5, 10, 15, 10, 20]
+    [5, 10, 15, 10, 20, 25, 50]
   );
 });

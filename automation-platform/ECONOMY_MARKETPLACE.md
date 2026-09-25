@@ -151,6 +151,8 @@ Quest completion is automatic from the same verified online-time stream used by 
 | 6 hours | Daily | 6 total verified hours that day | `WALLET_QUEST_DAILY_6H_BOOST_PERCENT` |
 | 12 hours | Weekly | 12 total verified hours that week | `WALLET_QUEST_WEEKLY_12H_BOOST_PERCENT` |
 | 24 hours | Weekly | 24 total verified hours that week | `WALLET_QUEST_WEEKLY_24H_BOOST_PERCENT` |
+| 36 hours | Weekly | 36 total verified hours that week | `WALLET_QUEST_WEEKLY_36H_BOOST_PERCENT` |
+| 72 hours | Weekly | 72 total verified hours that week | `WALLET_QUEST_WEEKLY_72H_BOOST_PERCENT` |
 
 Rules:
 
@@ -158,7 +160,7 @@ Rules:
 - Weekly periods begin on Monday in the configured economy timezone.
 - The 1-hour quest resets its current streak after a disconnect or unverified sample gap.
 - 3h/6h daily totals survive normal disconnects during the same day.
-- 12h/24h weekly totals accumulate across the week.
+- 12h/24h/36h/72h weekly totals accumulate across the week and reset on the next Monday period.
 - Completed daily and weekly boosts stack additively.
 - The combined boost is limited by `WALLET_QUEST_MAX_TOTAL_BOOST_PERCENT` (100% default safety cap).
 - A quest boost affects future 5-minute payouts only. It does not retroactively increase earlier payouts.
@@ -176,9 +178,11 @@ Approved default quest boosts:
 | Daily 6h total | +15% |
 | Weekly 12h total | +10% |
 | Weekly 24h total | +20% |
-| **Maximum combined** | **+60%** |
+| Weekly 36h total — Go Touch Grass | +25% |
+| Weekly 72h total — What Life? | +50% |
+| **Maximum combined** | **+100% safety cap** |
 
-With a 20 Coin base payout, that would progress from 20 Coin/5m to a maximum of 32 Coin/5m when every active daily and weekly boost has been earned.
+Boosts remain additive, but the existing +100% quest safety cap limits the final quest multiplier. With a 20 Coin base payout, quest boosts therefore cannot raise the quest-adjusted payout above 40 Coin/5m before any separately applied supporter multiplier.
 
 These percentage defaults are now configured on the isolated automation branch. Playtime coin earning itself still remains disabled until `WALLET_PLAYTIME_REWARDS_ENABLED=true` and a positive base `WALLET_PLAYTIME_COINS_PER_5_MINUTES` value are deliberately chosen.
 
