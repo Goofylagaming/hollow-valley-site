@@ -1,400 +1,376 @@
-(() => {
-  const MODEL_UID = "939e5dd6af554fccb986db94a85116a1";
-  const iframe = document.getElementById("skin-model-frame");
-  const loaderEl = document.getElementById("skin-model-loader");
-  const statusEl = document.getElementById("skin-model-status");
-  const statusDot = document.getElementById("skin-model-status-dot");
-  const lightInput = document.getElementById("skin-model-light");
-  const resetButton = document.getElementById("skin-model-reset");
-  const zoneStrip = document.getElementById("skin-model-zone-strip");
-  const maskData = window.HV_REX_MASK_RLE;
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
-  if (!iframe) return;
+const canvas = document.getElementById("skin-model-canvas");
+const stage = document.getElementById("skin-preview-stage");
+const loaderEl = document.getElementById("skin-model-loader");
+const statusEl = document.getElementById("skin-model-status");
+const statusDot = document.getElementById("skin-model-status-dot");
+const lightInput = document.getElementById("skin-model-light");
+const resetButton = document.getElementById("skin-model-reset");
+const zoneStrip = document.getElementById("skin-model-zone-strip");
+const maskData = window.HV_REX_MASK_RLE;
 
-  const OUTPUT_SIZE = 256;
-  const ZONE_ORDER = [
-    "flank",
-    "underbelly",
-    "markings",
-    "detail1",
-    "maleDisplay",
-    "mouth",
-    "teeth",
-    "claws",
-    "eyes",
-  ];
-  const FALLBACKS = {
-    body: "#6f7652",
-    markings: "#232713",
-    flank: "#59613d",
-    underbelly: "#b7ae8d",
-    detail1: "#9c7b46",
-    eyes: "#b7ff35",
-    teeth: "#ded6b8",
-    mouth: "#6d2e34",
-    claws: "#28251e",
-    maleDisplay: "#a6732b",
+if (!canvas || !stage) throw new Error("Skin Studio 3D stage is missing");
+
+const CHUNK_COUNT = 22;
+const CHUNK_ROOT = "/assets/skin-models/tyrannosaurus/chunks";
+const FALLBACKS = Object.freeze({
+  body: "#6f7652",
+  markings: "#232713",
+  flank: "#59613d",
+  underbelly: "#b7ae8d",
+  detail1: "#9c7b46",
+  eyes: "#b7ff35",
+  teeth: "#ded6b8",
+  mouth: "#6d2e34",
+  claws: "#28251e",
+  maleDisplay: "#a6732b",
+});
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "high-performance" });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.08;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x06110d, 0.035);
+
+const camera = new THREE.PerspectiveCamera(32, 1, 0.01, 100);
+camera.position.set(9.5, 2.5, 0.8);
+
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = 0.075;
+controls.enablePan = false;
+controls.minDistance = 4.5;
+controls.maxDistance = 18;
+controls.minPolarAngle = Math.PI * 0.13;
+controls.maxPolarAngle = Math.PI * 0.82;
+controls.autoRotate = false;
+
+const hemi = new THREE.HemisphereLight(0xc6e9d4, 0x07100c, 1.05);
+scene.add(hemi);
+
+const key = new THREE.DirectionalLight(0xffedd2, 3.5);
+key.position.set(6, 8, 5);
+key.castShadow = true;
+key.shadow.mapSize.set(1024, 1024);
+scene.add(key);
+
+const rim = new THREE.DirectionalLight(0x5cffad, 1.6);
+rim.position.set(-7, 5, -6);
+scene.add(rim);
+
+const fill = new THREE.DirectionalLight(0x8eb2c4, 0.65);
+fill.position.set(4, 2, -8);
+scene.add(fill);
+
+const ground = new THREE.Mesh(
+  new THREE.CircleGeometry(10, 72),
+  new THREE.MeshStandardMaterial({ color: 0x07110d, roughness: 0.95, metalness: 0.01, transparent: true, opacity: 0.72 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+let model = null;
+let homeCamera = null;
+let shaderControllers = [];
+let maskAtlases = [];
+let currentPalette = { ...FALLBACKS };
+
+function setStatus(ok, message) {
+  if (loaderEl) loaderEl.hidden = ok;
+  if (statusEl) statusEl.textContent = message;
+  statusDot?.classList.toggle("ready", ok);
+}
+
+function paletteFromEditor() {
+  const get = (key) => document.getElementById("skin-color-" + key)?.value || FALLBACKS[key];
+  return {
+    body: get("body"), markings: get("markings"), flank: get("flank"), underbelly: get("underbelly"),
+    detail1: get("detail1"), eyes: get("eyes"), teeth: get("teeth"), mouth: get("mouth"),
+    claws: get("claws"), maleDisplay: get("maleDisplay"),
   };
+}
 
-  let api = null;
-  let homeCamera = null;
-  let materials = [];
-  let originalMaterials = [];
-  let environment = null;
-  let liveTextureUid = null;
-  let activePalette = { ...FALLBACKS };
-  let updateTimer = null;
-  let textureBusy = false;
-  let textureDirty = false;
-  let masks = null;
-  let textureCanvas = null;
-  let textureCtx = null;
-
-  function setStatus(ok, message) {
-    if (loaderEl) loaderEl.hidden = ok;
-    if (statusEl) statusEl.textContent = message;
-    statusDot?.classList.toggle("ready", ok);
+function unpackZone(zoneName, target, channel) {
+  const runs = maskData?.zones?.[zoneName];
+  if (!Array.isArray(runs)) return;
+  const total = maskData.size * maskData.size;
+  for (let i = 0; i < runs.length; i += 2) {
+    const start = Math.max(0, runs[i] | 0);
+    const end = Math.min(total, start + (runs[i + 1] | 0));
+    for (let pixel = start; pixel < end; pixel += 1) target[pixel * 4 + channel] = 255;
   }
+}
 
-  function deepClone(value) {
-    return JSON.parse(JSON.stringify(value));
-  }
+function buildMaskAtlases() {
+  if (!maskData?.size || !maskData?.zones) throw new Error("Rex UV mask data is unavailable");
+  const size = maskData.size;
+  const make = () => new Uint8Array(size * size * 4);
+  const atlas0 = make();
+  const atlas1 = make();
+  const atlas2 = make();
 
-  function currentPalette() {
-    const get = (key) => document.getElementById("skin-color-" + key)?.value || FALLBACKS[key];
-    return {
-      body: get("body"),
-      markings: get("markings"),
-      flank: get("flank"),
-      underbelly: get("underbelly"),
-      detail1: get("detail1"),
-      eyes: get("eyes"),
-      teeth: get("teeth"),
-      mouth: get("mouth"),
-      claws: get("claws"),
-      maleDisplay: get("maleDisplay"),
-    };
-  }
+  unpackZone("body", atlas0, 0);
+  unpackZone("markings", atlas0, 1);
+  unpackZone("flank", atlas0, 2);
+  unpackZone("underbelly", atlas0, 3);
+  unpackZone("detail1", atlas1, 0);
+  unpackZone("eyes", atlas1, 1);
+  unpackZone("teeth", atlas1, 2);
+  unpackZone("mouth", atlas1, 3);
+  unpackZone("claws", atlas2, 0);
+  unpackZone("maleDisplay", atlas2, 1);
 
-  function hexRgb(hex) {
-    const clean = String(hex || "#000000").replace("#", "").padEnd(6, "0").slice(0, 6);
-    return [
-      parseInt(clean.slice(0, 2), 16) || 0,
-      parseInt(clean.slice(2, 4), 16) || 0,
-      parseInt(clean.slice(4, 6), 16) || 0,
-    ];
-  }
+  const makeTexture = (data) => {
+    const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat, THREE.UnsignedByteType);
+    texture.colorSpace = THREE.NoColorSpace;
+    texture.flipY = false;
+    texture.magFilter = THREE.LinearFilter;
+    texture.minFilter = THREE.LinearFilter;
+    texture.wrapS = THREE.ClampToEdgeWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.needsUpdate = true;
+    return texture;
+  };
+  return [makeTexture(atlas0), makeTexture(atlas1), makeTexture(atlas2)];
+}
 
-  function unpackMasks() {
-    if (!maskData?.size || !maskData?.zones) return null;
+function injectMaskShader(shader, uniforms) {
+  Object.assign(shader.uniforms, uniforms);
+  shader.fragmentShader = shader.fragmentShader.replace(
+    "#include <common>",
+    `#include <common>
+uniform sampler2D hvMask0;
+uniform sampler2D hvMask1;
+uniform sampler2D hvMask2;
+uniform vec3 hvBody;
+uniform vec3 hvMarkings;
+uniform vec3 hvFlank;
+uniform vec3 hvUnderbelly;
+uniform vec3 hvDetail;
+uniform vec3 hvEyes;
+uniform vec3 hvTeeth;
+uniform vec3 hvMouth;
+uniform vec3 hvClaws;
+uniform vec3 hvMaleDisplay;`
+  );
 
-    const total = maskData.size * maskData.size;
-    const decoded = {};
+  shader.fragmentShader = shader.fragmentShader.replace(
+    "#include <map_fragment>",
+    `#include <map_fragment>
+vec4 hvM0 = texture2D(hvMask0, vMapUv);
+vec4 hvM1 = texture2D(hvMask1, vMapUv);
+vec4 hvM2 = texture2D(hvMask2, vMapUv);
+float hvLuma = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+float hvShade = clamp(0.34 + hvLuma * 1.06, 0.28, 1.22);
+diffuseColor.rgb = mix(diffuseColor.rgb, hvBody * hvShade, clamp(hvM0.r * 0.90, 0.0, 1.0));
+diffuseColor.rgb = mix(diffuseColor.rgb, hvMarkings * hvShade, clamp(hvM0.g * 0.96, 0.0, 1.0));
+diffuseColor.rgb = mix(diffuseColor.rgb, hvFlank * hvShade, clamp(hvM0.b * 0.92, 0.0, 1.0));
+diffuseColor.rgb = mix(diffuseColor.rgb, hvUnderbelly * hvShade, clamp(hvM0.a * 0.94, 0.0, 1.0));
+diffuseColor.rgb = mix(diffuseColor.rgb, hvDetail * hvShade, clamp(hvM1.r * 0.96, 0.0, 1.0));
+diffuseColor.rgb = mix(diffuseColor.rgb, hvEyes * max(hvShade, 0.72), clamp(hvM1.g, 0.0, 1.0));
+diffuseColor.rgb = mix(diffuseColor.rgb, hvTeeth * max(hvShade, 0.72), clamp(hvM1.b, 0.0, 1.0));
+diffuseColor.rgb = mix(diffuseColor.rgb, hvMouth * max(hvShade, 0.62), clamp(hvM1.a, 0.0, 1.0));
+diffuseColor.rgb = mix(diffuseColor.rgb, hvClaws * max(hvShade, 0.68), clamp(hvM2.r, 0.0, 1.0));
+diffuseColor.rgb = mix(diffuseColor.rgb, hvMaleDisplay * hvShade, clamp(hvM2.g * 0.98, 0.0, 1.0));`
+  );
+}
 
-    for (const [zone, runs] of Object.entries(maskData.zones)) {
-      const pixels = new Uint8Array(total);
-      for (let i = 0; i < runs.length; i += 2) {
-        const start = runs[i];
-        const length = runs[i + 1];
-        pixels.fill(255, start, Math.min(total, start + length));
-      }
-      decoded[zone] = pixels;
-    }
-    return decoded;
-  }
+function maskedMaterial(source) {
+  const material = source.clone();
+  const uniforms = {
+    hvMask0: { value: maskAtlases[0] }, hvMask1: { value: maskAtlases[1] }, hvMask2: { value: maskAtlases[2] },
+    hvBody: { value: new THREE.Color(currentPalette.body) },
+    hvMarkings: { value: new THREE.Color(currentPalette.markings) },
+    hvFlank: { value: new THREE.Color(currentPalette.flank) },
+    hvUnderbelly: { value: new THREE.Color(currentPalette.underbelly) },
+    hvDetail: { value: new THREE.Color(currentPalette.detail1) },
+    hvEyes: { value: new THREE.Color(currentPalette.eyes) },
+    hvTeeth: { value: new THREE.Color(currentPalette.teeth) },
+    hvMouth: { value: new THREE.Color(currentPalette.mouth) },
+    hvClaws: { value: new THREE.Color(currentPalette.claws) },
+    hvMaleDisplay: { value: new THREE.Color(currentPalette.maleDisplay) },
+  };
+  material.onBeforeCompile = (shader) => injectMaskShader(shader, uniforms);
+  material.customProgramCacheKey = () => "hollow-valley-rex-live-zones-v2";
+  material.needsUpdate = true;
+  shaderControllers.push({
+    setPalette(palette) {
+      uniforms.hvBody.value.set(palette.body);
+      uniforms.hvMarkings.value.set(palette.markings);
+      uniforms.hvFlank.value.set(palette.flank);
+      uniforms.hvUnderbelly.value.set(palette.underbelly);
+      uniforms.hvDetail.value.set(palette.detail1);
+      uniforms.hvEyes.value.set(palette.eyes);
+      uniforms.hvTeeth.value.set(palette.teeth);
+      uniforms.hvMouth.value.set(palette.mouth);
+      uniforms.hvClaws.value.set(palette.claws);
+      uniforms.hvMaleDisplay.value.set(palette.maleDisplay);
+    },
+  });
+  return material;
+}
 
-  function maskAt(zone, x, y) {
-    const source = masks?.[zone];
-    if (!source || !maskData?.size) return 0;
+function applyMaterials(root) {
+  shaderControllers = [];
+  root.traverse((child) => {
+    if (!child.isMesh || !child.geometry?.attributes?.uv || !child.material) return;
+    child.castShadow = true;
+    child.receiveShadow = true;
+    child.material = Array.isArray(child.material)
+      ? child.material.map((mat) => maskedMaterial(mat))
+      : maskedMaterial(child.material);
+  });
+}
 
-    const sx = Math.min(maskData.size - 1, Math.floor((x / OUTPUT_SIZE) * maskData.size));
-    const sy = Math.min(maskData.size - 1, Math.floor((y / OUTPUT_SIZE) * maskData.size));
-    return source[sy * maskData.size + sx] / 255;
-  }
+function frameModel(root) {
+  const first = new THREE.Box3().setFromObject(root);
+  const size = first.getSize(new THREE.Vector3());
+  const longest = Math.max(size.x, size.y, size.z) || 1;
+  root.scale.multiplyScalar(7.5 / longest);
 
-  function deterministicNoise(x, y) {
-    const n = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
-    return n - Math.floor(n);
-  }
+  const box = new THREE.Box3().setFromObject(root);
+  const center = box.getCenter(new THREE.Vector3());
+  root.position.sub(center);
 
-  function blendRgb(base, over, weight) {
-    const w = Math.max(0, Math.min(1, weight));
-    return [
-      base[0] * (1 - w) + over[0] * w,
-      base[1] * (1 - w) + over[1] * w,
-      base[2] * (1 - w) + over[2] * w,
-    ];
-  }
+  let centered = new THREE.Box3().setFromObject(root);
+  root.position.y += -centered.min.y + 0.04;
+  centered = new THREE.Box3().setFromObject(root);
+  const finalSize = centered.getSize(new THREE.Vector3());
+  const target = new THREE.Vector3(0, centered.min.y + finalSize.y * 0.52, 0);
+  ground.position.y = centered.min.y - 0.035;
 
-  function buildTextureDataUrl(palette) {
-    if (!textureCanvas) {
-      textureCanvas = document.createElement("canvas");
-      textureCanvas.width = OUTPUT_SIZE;
-      textureCanvas.height = OUTPUT_SIZE;
-      textureCtx = textureCanvas.getContext("2d", { alpha: false });
-    }
+  const rect = stage.getBoundingClientRect();
+  const aspect = Math.max(0.7, rect.width / Math.max(1, rect.height));
+  const vfov = THREE.MathUtils.degToRad(camera.fov);
+  const hfov = 2 * Math.atan(Math.tan(vfov / 2) * aspect);
+  const length = Math.max(finalSize.x, finalSize.z);
+  const distance = Math.max(
+    7.8,
+    (length * 0.57) / Math.tan(hfov / 2),
+    (finalSize.y * 0.62) / Math.tan(vfov / 2)
+  );
 
-    const image = textureCtx.createImageData(OUTPUT_SIZE, OUTPUT_SIZE);
-    const body = hexRgb(palette.body);
+  camera.position.set(distance, target.y + finalSize.y * 0.10, distance * 0.075);
+  controls.target.copy(target);
+  controls.update();
+  homeCamera = { position: camera.position.clone(), target: controls.target.clone() };
+}
 
-    for (let y = 0; y < OUTPUT_SIZE; y++) {
-      for (let x = 0; x < OUTPUT_SIZE; x++) {
-        const pixel = y * OUTPUT_SIZE + x;
-        const i = pixel * 4;
+function updatePalette(palette) {
+  currentPalette = { ...currentPalette, ...(palette || {}) };
+  for (const controller of shaderControllers) controller.setPalette(currentPalette);
+  syncZoneStrip();
+}
 
-        const broad = 0.94 + Math.sin(x * 0.085) * 0.025 + Math.cos(y * 0.071) * 0.02;
-        const grain = (deterministicNoise(x, y) - 0.5) * 0.085;
-        const scale = Math.max(0.72, Math.min(1.12, broad + grain));
+function syncZoneStrip() {
+  if (!zoneStrip) return;
+  const inputs = [...document.querySelectorAll("#skin-colors .skin-color-control input[type=color]")];
+  if (!inputs.length) return;
+  zoneStrip.innerHTML = inputs.map((input) => {
+    const label = input.closest(".skin-color-control")?.querySelector("span")?.textContent || input.id;
+    return '<button type="button" class="skin-model-zone skin-zone-live" data-input="' + input.id + '">' +
+      '<i style="background:' + input.value + '"></i><span>' + label + '</span><b>' + input.value.toUpperCase() + '</b></button>';
+  }).join("");
+  zoneStrip.querySelectorAll(".skin-model-zone").forEach((button) => {
+    button.addEventListener("click", () => document.getElementById(button.dataset.input)?.click());
+  });
+  document.querySelectorAll("#skin-colors .skin-color-control").forEach((control) => {
+    control.classList.add("skin-zone-live-control");
+    control.classList.remove("skin-zone-saved-only");
+    control.title = "Live on the self-hosted 3D Tyrannosaurus.";
+  });
+}
 
-        let rgb = [
-          body[0] * scale,
-          body[1] * scale,
-          body[2] * scale,
-        ];
+async function loadChunkedGlb() {
+  let completed = 0;
+  const urls = Array.from({ length: CHUNK_COUNT }, (_, index) =>
+    `${CHUNK_ROOT}/rex-${String(index).padStart(2, "0")}.b64?v=1`
+  );
+  const chunks = await Promise.all(urls.map(async (url) => {
+    const response = await fetch(url, { cache: "force-cache" });
+    if (!response.ok) throw new Error(`Model chunk failed: ${response.status} ${url}`);
+    const text = (await response.text()).replace(/\s+/g, "");
+    completed += 1;
+    if (loaderEl) loaderEl.textContent = `Loading Tyrannosaurus… ${Math.round((completed / CHUNK_COUNT) * 72)}%`;
+    return text;
+  }));
+  const base64 = chunks.join("");
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
 
-        for (const zone of ZONE_ORDER) {
-          const mask = maskAt(zone, x, y);
-          if (mask <= 0) continue;
-
-          const color = hexRgb(palette[zone]);
-          let weight = mask;
-
-          if (zone === "markings") weight *= 0.92;
-          else if (zone === "flank" || zone === "underbelly") weight *= 0.88;
-          else weight *= 0.98;
-
-          rgb = blendRgb(rgb, color, weight);
-        }
-
-        const micro = 0.97 + (deterministicNoise(x + 193, y + 47) - 0.5) * 0.045;
-        image.data[i] = Math.max(0, Math.min(255, Math.round(rgb[0] * micro)));
-        image.data[i + 1] = Math.max(0, Math.min(255, Math.round(rgb[1] * micro)));
-        image.data[i + 2] = Math.max(0, Math.min(255, Math.round(rgb[2] * micro)));
-        image.data[i + 3] = 255;
-      }
-    }
-
-    textureCtx.putImageData(image, 0, 0);
-    return textureCanvas.toDataURL("image/png");
-  }
-
-  function albedoChannel(material) {
-    return material?.channels?.AlbedoPBR
-      ? ["AlbedoPBR", material.channels.AlbedoPBR]
-      : material?.channels?.DiffusePBR
-        ? ["DiffusePBR", material.channels.DiffusePBR]
-        : material?.channels?.DiffuseColor
-          ? ["DiffuseColor", material.channels.DiffuseColor]
-          : [null, null];
-  }
-
-  function attachTexture(uid, done) {
-    let remaining = originalMaterials.length;
-    if (!remaining) {
-      done?.();
-      return;
-    }
-
-    originalMaterials.forEach((source, index) => {
-      const material = deepClone(source);
-      const [channelName, channel] = albedoChannel(material);
-
-      if (!channelName || !channel) {
-        remaining -= 1;
-        if (!remaining) done?.();
-        return;
-      }
-
-      channel.enable = true;
-      channel.factor = 1;
-      channel.color = [1, 1, 1, 1];
-
-      const texture = channel.texture && typeof channel.texture === "object"
-        ? { ...channel.texture }
-        : {};
-      texture.uid = uid;
-      channel.texture = texture;
-
-      api.setMaterial(material, () => {
-        materials[index] = material;
-        remaining -= 1;
-        if (!remaining) done?.();
-      });
-    });
-  }
-
-  function finishTextureUpdate(error) {
-    textureBusy = false;
-
-    if (error) {
-      console.error("Skin Studio live texture update failed", error);
-      setStatus(false, "Tyrannosaurus rex · live skin update failed");
-    } else {
-      setStatus(true, "Tyrannosaurus rex · 10-zone live skin");
-    }
-
-    if (textureDirty) {
-      textureDirty = false;
-      pushLiveTexture();
-    }
-  }
-
-  function pushLiveTexture() {
-    if (!api || !originalMaterials.length || !masks) return;
-
-    if (textureBusy) {
-      textureDirty = true;
-      return;
-    }
-
-    textureBusy = true;
-    const dataUrl = buildTextureDataUrl(activePalette);
-
-    if (!liveTextureUid) {
-      api.addTexture(dataUrl, (err, uid) => {
-        if (err || !uid) {
-          finishTextureUpdate(err || new Error("No texture UID returned"));
-          return;
-        }
-
-        liveTextureUid = uid;
-        attachTexture(uid, () => finishTextureUpdate(null));
-      });
-      return;
-    }
-
-    api.updateTexture(dataUrl, liveTextureUid, (err) => {
-      finishTextureUpdate(err || null);
-    });
-  }
-
-  function queuePalette(palette) {
-    activePalette = { ...activePalette, ...(palette || {}) };
+async function loadModel() {
+  try {
+    setStatus(false, "Tyrannosaurus rex · loading self-hosted model");
+    maskAtlases = buildMaskAtlases();
+    currentPalette = paletteFromEditor();
     syncZoneStrip();
 
-    window.clearTimeout(updateTimer);
-    updateTimer = window.setTimeout(pushLiveTexture, 100);
-  }
-
-  function syncZoneStrip() {
-    if (!zoneStrip) return;
-
-    const inputs = [...document.querySelectorAll("#skin-colors .skin-color-control input[type=color]")];
-    if (!inputs.length) return;
-
-    zoneStrip.innerHTML = inputs.map((input) => {
-      const label = input.closest(".skin-color-control")?.querySelector("span")?.textContent || input.id;
-      return '<button type="button" class="skin-model-zone skin-zone-live" data-input="' + input.id + '">' +
-        '<i style="background:' + input.value + '"></i>' +
-        '<span>' + label + '</span>' +
-        '<b>' + input.value.toUpperCase() + '</b></button>';
-    }).join("");
-
-    zoneStrip.querySelectorAll(".skin-model-zone").forEach((button) => {
-      button.addEventListener("click", () => document.getElementById(button.dataset.input)?.click());
-    });
-
-    document.querySelectorAll("#skin-colors .skin-color-control").forEach((control) => {
-      control.classList.add("skin-zone-live-control");
-      control.classList.remove("skin-zone-saved-only");
-      control.title = "Live on the 3D preview.";
-    });
-  }
-
-  document.addEventListener("hds:skin-preview-change", (event) => {
-    queuePalette(event.detail?.skin || currentPalette());
-  });
-
-  document.addEventListener("input", (event) => {
-    if (event.target?.matches?.("#skin-colors input[type=color]")) {
-      queuePalette(currentPalette());
-    }
-  });
-
-  resetButton?.addEventListener("click", () => {
-    if (!api) return;
-    if (homeCamera?.position && homeCamera?.target) {
-      api.setCameraLookAt(homeCamera.position, homeCamera.target, 0.6);
-    } else {
-      api.recenterCamera();
-    }
-  });
-
-  lightInput?.addEventListener("input", () => {
-    if (!api || !environment) return;
-
-    const factor = Number(lightInput.value || 105) / 105;
-    api.setEnvironment({
-      ...environment,
-      exposure: Number(environment.exposure || 1) * factor,
-      lightIntensity: Math.max(0.15, Math.min(2.5, Number(environment.lightIntensity || 1) * factor)),
-    });
-  });
-
-  masks = unpackMasks();
-  activePalette = currentPalette();
-  syncZoneStrip();
-
-  if (!masks) {
-    setStatus(false, "Tyrannosaurus rex · UV masks unavailable");
-    return;
-  }
-
-  if (!window.Sketchfab) {
-    setStatus(false, "Tyrannosaurus rex · viewer unavailable");
+    const buffer = await loadChunkedGlb();
+    if (loaderEl) loaderEl.textContent = "Loading Tyrannosaurus… 80%";
+    const gltf = await new GLTFLoader().parseAsync(buffer, "");
+    model = gltf.scene;
+    applyMaterials(model);
+    scene.add(model);
+    frameModel(model);
+    updatePalette(paletteFromEditor());
+    if (loaderEl) loaderEl.textContent = "Loading Tyrannosaurus… 100%";
+    setStatus(true, "Tyrannosaurus rex · self-hosted 10-zone live skin");
+  } catch (error) {
+    console.error("Failed to load self-hosted Skin Studio rex", error);
+    setStatus(false, "Tyrannosaurus rex · model load failed");
     if (loaderEl) {
-      loaderEl.innerHTML = "<strong>3D viewer failed to load</strong><span>Refresh the page to retry.</span>";
+      loaderEl.hidden = false;
+      loaderEl.innerHTML = "<strong>3D model failed to load</strong><span>Refresh the page to retry the Hollow Valley model.</span>";
     }
-    return;
   }
+}
 
-  const client = new window.Sketchfab("1.12.1", iframe);
-  client.init(MODEL_UID, {
-    autostart: 1,
-    preload: 1,
-    autospin: 0,
-    ui_theme: "dark",
-    ui_controls: 1,
-    ui_infos: 0,
-    ui_help: 0,
-    ui_hint: 0,
-    ui_stop: 0,
-    success(viewerApi) {
-      api = viewerApi;
+document.addEventListener("hds:skin-preview-change", (event) => updatePalette(event.detail?.skin || paletteFromEditor()));
+document.addEventListener("input", (event) => {
+  if (event.target?.matches?.("#skin-colors input[type=color]")) updatePalette(paletteFromEditor());
+});
 
-      api.start(() => {
-        api.addEventListener("viewerready", () => {
-          setStatus(true, "Tyrannosaurus rex · preparing 10-zone skin");
-          api.setTextureQuality("hd");
+resetButton?.addEventListener("click", () => {
+  if (!homeCamera) return;
+  camera.position.copy(homeCamera.position);
+  controls.target.copy(homeCamera.target);
+  controls.update();
+});
 
-          api.getCameraLookAt((err, camera) => {
-            if (!err && camera) homeCamera = camera;
-          });
+lightInput?.addEventListener("input", () => {
+  const factor = Number(lightInput.value || 105) / 105;
+  key.intensity = 3.5 * factor;
+  hemi.intensity = 1.05 * Math.max(0.55, factor);
+  rim.intensity = 1.6 * Math.max(0.6, factor);
+});
 
-          api.getEnvironment((err, env) => {
-            if (!err && env) environment = env;
-          });
+function resize() {
+  const rect = stage.getBoundingClientRect();
+  const width = Math.max(1, Math.floor(rect.width));
+  const height = Math.max(1, Math.floor(rect.height));
+  renderer.setSize(width, height, false);
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(stage);
+resize();
 
-          api.getMaterialList((err, list) => {
-            if (err || !Array.isArray(list) || !list.length) {
-              setStatus(false, "Tyrannosaurus rex · materials unavailable");
-              return;
-            }
-
-            materials = list;
-            originalMaterials = list.map(deepClone);
-            activePalette = currentPalette();
-            syncZoneStrip();
-            pushLiveTexture();
-          });
-        });
-      });
-    },
-    error() {
-      setStatus(false, "Tyrannosaurus rex · viewer unavailable");
-      if (loaderEl) {
-        loaderEl.innerHTML = "<strong>3D viewer failed to load</strong><span>The skin editor still works. Refresh to retry the model.</span>";
-      }
-    },
-  });
-})();
+function animate() {
+  controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+animate();
+loadModel();

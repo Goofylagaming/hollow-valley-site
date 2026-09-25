@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Design, unlock, share and wear Hollow Valley dinosaur skins.">
   <title>Skin Studio | Hollow Valley</title>
-  <link rel="stylesheet" href="assets/styles.css?v=35">
+  <link rel="stylesheet" href="assets/styles.css?v=36">
 </head>
 <body>
   <div class="app-shell">
@@ -40,13 +40,7 @@
               </div>
 
               <div class="skin-preview-stage skin-model-stage" id="skin-preview-stage">
-                <iframe
-                  id="skin-model-frame"
-                  title="Interactive Tyrannosaurus rex skin preview"
-                  src=""
-                  allow="autoplay; fullscreen; xr-spatial-tracking"
-                  allowfullscreen
-                ></iframe>
+                <canvas id="skin-model-canvas" aria-label="Interactive Tyrannosaurus rex skin preview"></canvas>
                 <div class="skin-model-loader" id="skin-model-loader">Loading Tyrannosaurus…</div>
 
                 <div class="skin-model-hud">
@@ -62,7 +56,7 @@
                 <aside class="skin-model-rail">
                   <small>3D PAINT MODEL</small>
                   <strong>Tyrannosaurus rex</strong>
-                  <span>Palaeo reference model · CC BY</span>
+                  <span>Self-hosted Tyrannosaurus · CC BY</span>
                   <label>LIGHT
                     <input id="skin-model-light" type="range" min="35" max="180" value="105">
                   </label>
@@ -211,8 +205,10 @@
   <script src="assets/common.js?v=17"></script>
   <script src="assets/external-skin-import.js?v=4"></script>
   <script src="assets/skins.js?v=20"></script>
-  <script src="https://static.sketchfab.com/api/sketchfab-viewer-1.12.1.js"></script>
   <script src="/assets/skin-studio-rex-mask-rle.js?v=1"></script>
-  <script src="/assets/skin-studio-3d.js?v=6"></script>
+  <script type="importmap">
+    {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}
+  </script>
+  <script type="module" src="/assets/skin-studio-3d.js?v=7"></script>
 </body>
 </html>

@@ -1125,3 +1125,26 @@
   border-color:rgba(53,225,132,.35)!important;
   box-shadow:inset 2px 0 0 rgba(53,225,132,.72)!important;
 }
+
+
+/* Self-hosted Hollow Valley Tyrannosaurus viewer */
+#skin-model-canvas{
+  position:absolute;
+  z-index:1;
+  inset:0;
+  display:block;
+  width:100%;
+  height:100%;
+  cursor:grab;
+  touch-action:none;
+  background:transparent;
+}
+#skin-model-canvas:active{cursor:grabbing}
+#skin-model-frame{display:none!important}
+.skin-model-stage{
+  background:
+    radial-gradient(ellipse at 51% 80%,rgba(78,108,104,.42),transparent 34%),
+    radial-gradient(ellipse at 50% 25%,rgba(15,48,31,.34),transparent 50%),
+    linear-gradient(180deg,#010605 0,#020907 58%,#071713 100%)!important;
+}
+.skin-model-rail>span{color:#71a087!important}
