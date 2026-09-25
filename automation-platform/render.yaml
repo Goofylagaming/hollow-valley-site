@@ -97,6 +97,10 @@ services:
         value: 10
       - key: WALLET_QUEST_WEEKLY_24H_BOOST_PERCENT
         value: 20
+      - key: WALLET_QUEST_WEEKLY_36H_BOOST_PERCENT
+        value: 25
+      - key: WALLET_QUEST_WEEKLY_72H_BOOST_PERCENT
+        value: 50
       - key: WALLET_QUEST_MAX_TOTAL_BOOST_PERCENT
         value: 100
       - key: EVENT_REWARDS_ENABLED
