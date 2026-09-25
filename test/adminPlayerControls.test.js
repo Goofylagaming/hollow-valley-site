@@ -35,10 +35,10 @@ test("CommandBridge v006.5 routes admin_slay only to AdminActions", () => {
   assert.match(lua, /writeToAdminActionsInbox\(id, steam, \{"slay"\}\)/);
 });
 
-test("AdminActions v003 keeps Slay stable and adds a read-only lightning registry probe", () => {
+test("AdminActions v004 keeps Slay stable and inspects native Smite signatures", () => {
   const lua = read("server-mods/AdminActions/Scripts/main.lua");
-  assert.match(lua, /AdminActions v003/);
-  assert.match(lua, /MOD_VERSION = "v003"/);
+  assert.match(lua, /AdminActions v004/);
+  assert.match(lua, /MOD_VERSION = "v004"/);
   assert.match(lua, /GetControllerBySteamId\(steam\)/);
   assert.match(lua, /K2_GetPawn\(\)/);
   assert.match(lua, /SetHealth\(0\)/);
@@ -49,6 +49,10 @@ test("AdminActions v003 keeps Slay stable and adds a read-only lightning registr
   assert.match(lua, /ForEachFunction/);
   assert.match(lua, /lightning.*thunder.*storm.*weather.*strike.*smite/s);
   assert.match(lua, /LightningProbe DONE/);
+  assert.match(lua, /LightningProbe PARAM/);
+  assert.match(lua, /ServerSmite/);
+  assert.match(lua, /SetSmited/);
+  assert.match(lua, /ForEachProperty/);
   assert.match(lua, /"source":"AdminActions"/);
 
   assert.doesNotMatch(lua, /BP_SmiteEffect/);
