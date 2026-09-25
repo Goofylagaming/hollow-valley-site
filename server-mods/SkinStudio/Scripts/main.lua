@@ -2,8 +2,9 @@
 -- Hollow Valley live skin application scoped to the CURRENT pawn only.
 -- Saved Skin Shop/My Skins presets remain available on the website, but the
 -- game-side mod never auto-restores an old applied skin onto a future pawn.
--- TemporarySkinData is intentionally never modified, so a nested/new spawn
--- keeps the game's own inherited/customizer seed instead of the previous skin.
+-- TemporarySkinData and bUseSkinPalette are intentionally never modified, so
+-- a nested/new spawn keeps the game's own inherited/customizer seed instead
+-- of the previous Skin Studio appearance.
 -- Commands arrive from CommandBridge as inbox.ndjson records.
 
 local MOD_NAME = "SkinStudio"
@@ -175,13 +176,6 @@ local function applyConfigToPawn(pawn, config)
     if pawn == nil then return false, "You need a live dinosaur in game." end
     if not speciesMatches(pawn, config.species) then
         return false, "This skin is for " .. tostring(config.species) .. ", not your current dinosaur."
-    end
-
-    local paletteModeOk, paletteModeErr = pcall(function()
-        pawn.bUseSkinPalette = true
-    end)
-    if not paletteModeOk then
-        log("bUseSkinPalette write failed: " .. tostring(paletteModeErr))
     end
 
     local okCdata, cdata = pcall(function() return pawn.CustomizerData end)
