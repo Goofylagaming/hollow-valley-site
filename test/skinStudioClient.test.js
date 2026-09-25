@@ -90,8 +90,11 @@ test("Skin Shop published cards hide raw colour swatches but editing views keep 
   const path = require("node:path");
   const browser = fs.readFileSync(path.join(__dirname, "..", "public", "assets", "skins.js"), "utf8");
 
-  assert.match(browser, /const swatchMarkup = mode === "store"/);
-  assert.match(browser, /<div class="skin-swatch-row">\\$\\{swatches\\(preset\\.skin\\)\\}<\\/div>/);
-  assert.match(browser, /\\$\\{swatchMarkup\\}/);
-  assert.equal(browser.includes('<div class="skin-swatch-row">${swatches(preset.skin)}</div>\\n        <div class="skin-card-meta">'), false);
+  assert.equal(browser.includes('const swatchMarkup = mode === "store"'), true);
+  assert.equal(browser.includes('? ""\n    : \`<div class="skin-swatch-row">\${swatches(preset.skin)}</div>\`;'), true);
+  assert.equal(browser.includes("\${swatchMarkup}"), true);
+  assert.equal(
+    browser.includes('<p>\${escapeHtml(description)}</p>\n        <div class="skin-swatch-row">\${swatches(preset.skin)}</div>'),
+    false
+  );
 });
