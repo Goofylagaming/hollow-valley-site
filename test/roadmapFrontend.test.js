@@ -330,3 +330,14 @@ test("Discord event calendar is sourced through HerbyBot and automation", () => 
   assert.match(service, /discord:scheduled-events/);
   assert.match(service, /staleAfterMs/);
 });
+
+test("quest page includes approved lifetime playtime milestones", () => {
+  const js = read("public/assets/quests.js");
+  assert.match(js, /Go Touch Grass/);
+  assert.match(js, /What Life\?/);
+  assert.match(js, /36 \* 60/);
+  assert.match(js, /72 \* 60/);
+  assert.match(js, /\/api\/progression/);
+  assert.match(js, /APPROVED QUEST POOL/);
+  assert.match(js, /LIFETIME PLAYTIME/);
+});
