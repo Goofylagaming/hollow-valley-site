@@ -58,9 +58,7 @@ router.put("/catalog/:id", requireAdmin, async (req, res) => {
     const result = await automation.updateMarketplaceCatalogItem({
       catalogId: req.params.id,
       price: req.body?.price,
-      growthPercent: req.body?.growthPercent,
       active: req.body?.active,
-      isPrime: req.body?.isPrime,
     });
     return res.json(result);
   } catch (error) {
