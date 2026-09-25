@@ -1243,3 +1243,9 @@
 .admin-supporter-empty{padding:24px!important;color:#817765!important;text-align:center!important}
 @media(max-width:1050px){.admin-supporter-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.admin-supporter-toolbar{align-items:stretch;flex-direction:column}.admin-supporter-tools{width:100%;margin-left:0}.admin-supporter-tools input{min-width:0;flex:1}}
 @media(max-width:560px){.admin-supporter-summary{grid-template-columns:1fr}.admin-supporter-tools{align-items:stretch;flex-direction:column}.admin-supporter-tools input{width:100%}}
+
+.admin-prime-tool{margin:18px 0;text-align:left}
+.admin-prime-tool h2{margin:5px 0 6px}
+.admin-prime-tool p{margin:5px 0;color:var(--muted)}
+.admin-prime-tool .form-row input{min-width:260px;flex:1}
+.admin-prime-status{font-size:12px;min-height:18px}
