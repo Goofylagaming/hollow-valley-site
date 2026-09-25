@@ -224,3 +224,82 @@ test("Admin Operations looks up and grants Prime by Steam ID", async (t) => {
   assert.equal(body.prime.confirmed, true);
   assert.match(body.prime.message, /Growth was not changed/);
 });
+
+
+test("Admin Operations lists connected players and guards Slay with explicit confirmation", async (t) => {
+  const originals = {
+    getServerSnapshot: automation.getServerSnapshot,
+    slayAdminPlayer: automation.slayAdminPlayer,
+  };
+  t.after(() => {
+    automation.getServerSnapshot = originals.getServerSnapshot;
+    automation.slayAdminPlayer = originals.slayAdminPlayer;
+  });
+
+  automation.getServerSnapshot = async () => ({
+    online: true,
+    checkedAt: "2026-09-26T00:00:00.000Z",
+    players: [
+      { steamId: "76561198000000801", name: "Alpha" },
+      { steamId: "76561198000000802", name: "Bravo" },
+    ],
+    characters: [{
+      steamId: "76561198000000801",
+      name: "Alpha",
+      species: "Deinosuchus",
+      growth: 0.82,
+      isPrime: true,
+    }],
+  });
+
+  const slayed = [];
+  automation.slayAdminPlayer = async (steamId) => {
+    slayed.push(steamId);
+    return {
+      ok: true,
+      slay: {
+        steamId,
+        confirmed: true,
+        source: "AdminActions",
+        message: "Slay applied to Deinosuchus at 82% growth.",
+      },
+    };
+  };
+
+  const server = await listen(appFor({ id: 1, is_admin: 1 }));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  let response = await fetch(`${baseUrl(server)}/api/admin-operations/players`);
+  assert.equal(response.status, 200);
+  let body = await response.json();
+  assert.equal(body.serverOnline, true);
+  assert.equal(body.players.length, 2);
+  assert.deepEqual(body.players[0], {
+    steamId: "76561198000000801",
+    name: "Alpha",
+    species: "Deinosuchus",
+    growth: 0.82,
+    isPrime: true,
+  });
+  assert.equal(body.players[1].name, "Bravo");
+  assert.equal(body.players[1].species, null);
+
+  response = await fetch(`${baseUrl(server)}/api/admin-operations/slay`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ steamId: "76561198000000801" }),
+  });
+  assert.equal(response.status, 400);
+  assert.deepEqual(slayed, []);
+
+  response = await fetch(`${baseUrl(server)}/api/admin-operations/slay`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ steamId: "76561198000000801", confirm: "SLAY" }),
+  });
+  assert.equal(response.status, 200);
+  body = await response.json();
+  assert.equal(body.slay.confirmed, true);
+  assert.equal(body.slay.source, "AdminActions");
+  assert.deepEqual(slayed, ["76561198000000801"]);
+});

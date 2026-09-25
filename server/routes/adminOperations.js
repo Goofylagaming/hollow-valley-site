@@ -26,6 +26,52 @@ function validateSteamId(value) {
   return steamId;
 }
 
+function snapshotSteamId(entry) {
+  return String(entry?.steamId ?? entry?.SteamId ?? entry?.PlayerID ?? entry?.playerId ?? "").trim();
+}
+
+function normalizeConnectedPlayers(snapshot) {
+  if (!snapshot?.online) return [];
+  const bySteam = new Map();
+
+  for (const entry of Array.isArray(snapshot?.players) ? snapshot.players : []) {
+    const steamId = snapshotSteamId(entry);
+    if (!/^\d{17}$/.test(steamId)) continue;
+    bySteam.set(steamId, {
+      steamId,
+      name: entry?.name || entry?.Name || "Unknown player",
+      species: null,
+      growth: null,
+      isPrime: false,
+    });
+  }
+
+  for (const entry of Array.isArray(snapshot?.characters) ? snapshot.characters : []) {
+    const steamId = snapshotSteamId(entry);
+    if (!/^\d{17}$/.test(steamId)) continue;
+    const existing = bySteam.get(steamId) || {
+      steamId,
+      name: "Unknown player",
+      species: null,
+      growth: null,
+      isPrime: false,
+    };
+    const rawGrowth = Number(entry?.growth ?? entry?.Growth);
+    bySteam.set(steamId, {
+      ...existing,
+      name: entry?.name || entry?.Name || existing.name,
+      species: entry?.species || entry?.Class || entry?.class || existing.species,
+      growth: Number.isFinite(rawGrowth) ? rawGrowth : null,
+      isPrime: entry?.isPrime === true || entry?.PrimeElder === true ||
+        String(entry?.PrimeElder || "").toLowerCase() === "true",
+    });
+  }
+
+  return [...bySteam.values()].sort((a, b) =>
+    String(a.name || "").localeCompare(String(b.name || "")) || a.steamId.localeCompare(b.steamId)
+  );
+}
+
 router.get("/", async (req, res) => {
   try {
     const [status, readiness, backups, health, requests, audit, presence] = await Promise.all([
@@ -44,6 +90,40 @@ router.get("/", async (req, res) => {
   }
 });
 
+
+router.get("/players", async (_req, res) => {
+  try {
+    const snapshot = await automation.getServerSnapshot();
+    return res.json({
+      serverOnline: Boolean(snapshot?.online),
+      checkedAt: snapshot?.checkedAt || snapshot?.lastChecked || null,
+      players: normalizeConnectedPlayers(snapshot),
+    });
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not load connected players.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.post("/slay", async (req, res) => {
+  if (String(req.body?.confirm || "") !== "SLAY") {
+    return res.status(400).json({ error: 'Slay requires the exact confirmation "SLAY".' });
+  }
+
+  let steamId;
+  try {
+    steamId = validateSteamId(req.body?.steamId);
+  } catch (error) {
+    return res.status(error.status || 400).json({ error: error.message });
+  }
+
+  try {
+    return res.json(await automation.slayAdminPlayer(steamId));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not slay the selected player.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
 
 router.get("/prime-target/:steamId", async (req, res) => {
   let steamId;

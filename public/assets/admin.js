@@ -49,6 +49,108 @@ function renderRestore(data) {
   setText("hub-restore-detail", writable ? "Guarded upload is enabled" : "Writes remain locked");
 }
 
+let connectedAdminPlayers = [];
+
+function adminGrowthText(value) {
+  const growth = Number(value);
+  if (!Number.isFinite(growth)) return "Growth unknown";
+  return `${Math.round(growth * (growth <= 1.5 ? 100 : 1))}% growth`;
+}
+
+function renderAdminPlayers(data) {
+  const list = document.getElementById("admin-player-list");
+  const status = document.getElementById("admin-player-status");
+  if (!list || !status) return;
+
+  connectedAdminPlayers = Array.isArray(data?.players) ? data.players : [];
+  list.replaceChildren();
+
+  if (data?.serverOnline === false) {
+    status.textContent = "The Isle server is offline.";
+    return;
+  }
+  if (!connectedAdminPlayers.length) {
+    status.textContent = "No connected players are currently reported.";
+    return;
+  }
+
+  status.textContent = `${connectedAdminPlayers.length} connected player${connectedAdminPlayers.length === 1 ? "" : "s"}.`;
+
+  for (const player of connectedAdminPlayers) {
+    const row = document.createElement("div");
+    row.className = "admin-player-row";
+
+    const identity = document.createElement("div");
+    identity.className = "admin-player-identity";
+
+    const name = document.createElement("strong");
+    name.textContent = player.name || "Unknown player";
+
+    const details = document.createElement("span");
+    details.textContent = [
+      player.species || "Species unknown",
+      adminGrowthText(player.growth),
+      player.steamId,
+    ].join(" · ");
+
+    identity.append(name, details);
+
+    const button = document.createElement("button");
+    button.className = "small-button admin-slay-button";
+    button.type = "button";
+    button.textContent = "Slay";
+    button.dataset.steamId = player.steamId;
+    button.addEventListener("click", () => slayAdminPlayer(player, button));
+
+    row.append(identity, button);
+    list.append(row);
+  }
+}
+
+async function loadAdminPlayers() {
+  const refresh = document.getElementById("admin-player-refresh");
+  const status = document.getElementById("admin-player-status");
+  if (refresh) refresh.disabled = true;
+  if (status) status.textContent = "Refreshing connected players…";
+  try {
+    const data = await api("/api/admin-operations/players");
+    renderAdminPlayers(data);
+  } catch (error) {
+    connectedAdminPlayers = [];
+    const list = document.getElementById("admin-player-list");
+    if (list) list.replaceChildren();
+    if (status) status.textContent = error.message || "Could not load connected players.";
+  } finally {
+    if (refresh) refresh.disabled = false;
+  }
+}
+
+async function slayAdminPlayer(player, button) {
+  const steamId = String(player?.steamId || "");
+  if (!/^\d{17}$/.test(steamId)) return;
+  const label = `${player?.name || steamId} · ${player?.species || "current dinosaur"}`;
+  if (!confirm(`Slay ${label}? This will kill their current live dinosaur immediately.`)) return;
+
+  const status = document.getElementById("admin-player-status");
+  if (button) button.disabled = true;
+  if (status) status.textContent = `Slaying ${player?.name || steamId}…`;
+
+  try {
+    const data = await api("/api/admin-operations/slay", {
+      method: "POST",
+      body: JSON.stringify({ steamId, confirm: "SLAY" }),
+    });
+    if (status) status.textContent = data?.slay?.message || `Slay confirmed for ${player?.name || steamId}.`;
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await loadAdminPlayers();
+  } catch (error) {
+    if (status) status.textContent = error.message || "Slay failed.";
+    if (button) button.disabled = false;
+  }
+}
+
+document.getElementById("admin-player-refresh")?.addEventListener("click", loadAdminPlayers);
+
 let currentPrimeTarget = null;
 
 function primeSteamId() {
@@ -146,6 +248,7 @@ async function loadHub() {
     api("/api/admin-comms"),
     api("/api/events/admin/rewards?limit=25"),
     api("/api/admin-restore"),
+    api("/api/admin-operations/players"),
   ]);
 
   if (results[0].status === "fulfilled") renderOperations(results[0].value);
@@ -163,6 +266,14 @@ async function loadHub() {
 
   if (results[3].status === "fulfilled") renderRestore(results[3].value);
   else setText("hub-restore", "Unavailable");
+
+  if (results[4].status === "fulfilled") renderAdminPlayers(results[4].value);
+  else {
+    connectedAdminPlayers = [];
+    const playerList = document.getElementById("admin-player-list");
+    if (playerList) playerList.replaceChildren();
+    setText("admin-player-status", "Connected player list unavailable.");
+  }
 
   if (updated) updated.textContent = `Updated ${new Date().toLocaleTimeString()}`;
   if (refresh) refresh.disabled = false;

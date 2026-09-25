@@ -1250,3 +1250,5 @@
 .admin-prime-tool p{margin:5px 0;color:var(--muted)}
 .admin-prime-tool .form-row input{min-width:260px;flex:1}
 .admin-prime-status{font-size:12px;min-height:18px}
+
+.admin-player-controls{margin-top:18px}.admin-player-controls-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}.admin-player-controls-heading h2{margin:6px 0 8px}.admin-player-controls-heading p{margin:0;color:#9c8a72;font-size:11px;line-height:1.6}.admin-player-list{display:grid;gap:8px;margin-top:14px}.admin-player-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 13px;border:1px solid #3a2420;background:#100908}.admin-player-identity{display:flex;min-width:0;flex-direction:column;gap:4px}.admin-player-identity strong{color:#eee9d6;font:600 13px Manrope}.admin-player-identity span{overflow-wrap:anywhere;color:#8a7a6c;font:10px Oswald;letter-spacing:.04em}.admin-slay-button{border-color:#7d2721;color:#efb1a8}.admin-slay-button:hover{border-color:#b0201a;color:#fff}@media(max-width:700px){.admin-player-controls-heading,.admin-player-row{align-items:stretch;flex-direction:column}.admin-slay-button{width:100%}}

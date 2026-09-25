@@ -11,6 +11,7 @@ const SOURCES = {
   dino_delete: 'DinoStorage',
   dino_edit: 'DinoStorage',
   prime_grant: 'DinoStorage',
+  admin_slay: 'AdminActions',
   skin_apply: 'SkinStudio',
 };
 const PUBLISHER_ACK = 'automation-platform-is-sole-publisher';

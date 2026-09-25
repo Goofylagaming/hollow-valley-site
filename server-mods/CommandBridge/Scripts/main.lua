@@ -1,4 +1,4 @@
--- CommandBridge v006.4
+-- CommandBridge v006.5
 -- Hollow Valley / HDS
 -- Focus: local file bridge for DinoStorage and BodyDrop, with optional HTTP fallback.
 --
@@ -6,7 +6,7 @@
 -- can run curl. It never logs the configured authorization header.
 
 local MOD_NAME = "CommandBridge"
-local MOD_VERSION = "v006.4"
+local MOD_VERSION = "v006.5"
 
 local function log(msg)
     print(string.format("[%s] %s\n", MOD_NAME, tostring(msg)))
@@ -485,6 +485,36 @@ local function writeToSkinStudioInbox(cmdId, steam, args)
     return true, "queued"
 end
 
+local function writeToAdminActionsInbox(cmdId, steam, args)
+    local inboxPath =
+        (MODS_ROOT and (MODS_ROOT .. "/AdminActions/Saved/inbox.ndjson"))
+        or "Mods/AdminActions/Saved/inbox.ndjson"
+
+    local tokensJson = "["
+    for i, token in ipairs(args or {}) do
+        if i > 1 then tokensJson = tokensJson .. "," end
+        tokensJson = tokensJson .. '"' .. jsonEscape(token) .. '"'
+    end
+    tokensJson = tokensJson .. "]"
+
+    local line = string.format(
+        '{"id":"%s","ts":%d,"steam":"%s","args":%s}',
+        jsonEscape(cmdId),
+        os.time(),
+        jsonEscape(steam),
+        tokensJson
+    )
+
+    local ok = appendLine(inboxPath, line)
+    if not ok then
+        log("AdminActions inbox write failed: " .. inboxPath)
+        return false, "AdminActions inbox write failed"
+    end
+
+    log(string.format("Queued AdminActions command id=%s steam=%s", tostring(cmdId), tostring(steam)))
+    return true, "queued"
+end
+
 local function dispatchCommand(id, verb, steam, args)
     args = args or {}
 
@@ -516,6 +546,14 @@ local function dispatchCommand(id, verb, steam, args)
 
     if verb == "bd" then
         local ok, msg = writeToBodyDropInbox(id, steam, args)
+        if not ok then
+            emitResult(id, verb, steam, false, msg)
+        end
+        return
+    end
+
+    if verb == "admin_slay" then
+        local ok, msg = writeToAdminActionsInbox(id, steam, {"slay"})
         if not ok then
             emitResult(id, verb, steam, false, msg)
         end
