@@ -109,15 +109,17 @@ test('legacy marketplace tiers including 100% Prime are retired on seed', (t) =>
   assert.equal(seventyFive.price, 50000);
 });
 
-test('legacy disabled 75% rows reactivate once, then admin disables are preserved', (t) => {
+test('faulty pre-v2 75% rows reactivate once, then admin disables are preserved', (t) => {
   const fixture = loadFixture();
   t.after(fixture.cleanup);
 
+  // Reproduce the bad first migration: row already looks like a valid 75% Prime
+  // item, but it inherited active=false and has no policy-version stamp.
   fixture.store.upsertCatalogItem({
     id: 'dino:carnotaurus:75',
     itemType: 'dino',
-    name: 'Carnotaurus 75%',
-    price: 4200,
+    name: 'Carnotaurus 75% Prime',
+    price: 50000,
     payload: {
       speciesId: 'carnotaurus',
       species: 'Carnotaurus',
@@ -125,9 +127,9 @@ test('legacy disabled 75% rows reactivate once, then admin disables are preserve
       growth: 0.75,
       growthPercent: 75,
       sizePercent: 75,
-      growthTier: 'high',
-      growthTierLabel: '75%+',
-      isPrime: false,
+      growthTier: '75',
+      growthTierLabel: '75%',
+      isPrime: true,
     },
     active: false,
     sortOrder: 1,
@@ -139,6 +141,7 @@ test('legacy disabled 75% rows reactivate once, then admin disables are preserve
   assert.equal(migrated.payload.growthTier, '75');
   assert.equal(migrated.payload.growthPercent, 75);
   assert.equal(migrated.payload.isPrime, true);
+  assert.equal(migrated.payload.officialCatalogPolicyVersion, fixture.catalog.OFFICIAL_CATALOG_POLICY_VERSION);
   assert.equal(migrated.price, 50000);
 
   fixture.catalog.updateOfficialCatalogItem({
