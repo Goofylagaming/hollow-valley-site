@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Hollow Valley administration hub.">
   <title>Admin Hub | Hollow Valley</title>
-  <link rel="stylesheet" href="/assets/styles.css?v=21">
+  <link rel="stylesheet" href="/assets/styles.css?v=22">
 </head>
 <body>
   <div class="app-shell">
@@ -32,6 +32,19 @@
             <div class="summary-tile"><small>EVENT REWARDS</small><b id="hub-event-rewards">Checking…</b><span id="hub-event-detail">—</span></div>
             <div class="summary-tile"><small>BACKUPS</small><b id="hub-backups">Checking…</b><span id="hub-backup-detail">—</span></div>
             <div class="summary-tile"><small>ADMIN RESTORE</small><b id="hub-restore">Checking…</b><span id="hub-restore-detail">—</span></div>
+          </div>
+
+          <div class="summary-tile admin-prime-tool">
+            <small>PRIME ELDER OVERRIDE</small>
+            <h2>Grant Prime by Steam ID</h2>
+            <p>Sets Prime on the player's current live dinosaur immediately. Growth is not changed and the player does not need to reach 100% first.</p>
+            <form class="form-row" id="admin-prime-form">
+              <input id="admin-prime-steam" inputmode="numeric" autocomplete="off" maxlength="17" placeholder="17-digit Steam ID" aria-label="Steam ID">
+              <button class="small-button" id="admin-prime-check" type="button">Check player</button>
+              <button class="small-button" id="admin-prime-grant" type="submit" disabled>Grant Prime</button>
+            </form>
+            <p id="admin-prime-target" class="admin-prime-status">Enter a Steam ID to check the connected dinosaur.</p>
+            <p id="admin-prime-result" class="admin-prime-status" aria-live="polite"></p>
           </div>
 
           <div class="admin-hub-grid">
@@ -77,6 +90,6 @@
     <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="/assets/common.js?v=16"></script>
-  <script src="/assets/admin.js?v=2"></script>
+  <script src="/assets/admin.js?v=3"></script>
 </body>
 </html>

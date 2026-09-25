@@ -399,3 +399,40 @@ test("Prime Tracker backend remains wired to verified presence samples", () => {
   assert.match(myDinos, /\/api\/mydinos\/prime-tracker/);
   assert.match(env, /PRIME_TRACKER_ENABLED=false/);
 });
+
+
+test("Admin Hub grants Prime to the live dinosaur by Steam ID without changing growth", () => {
+  const html = read("public/admin.html");
+  const js = read("public/assets/admin.js");
+  const route = read("server/routes/adminOperations.js");
+  const client = read("server/services/automationWebsiteClient.js");
+  const adminRoutes = read("automation-platform/src/routes/adminRoutes.js");
+  const storageService = read("automation-platform/src/services/dinoStorageService.js");
+  const bridge = read("automation-platform/src/services/commandBridgeService.js");
+  const commandBridgeLua = read("server-mods/CommandBridge/Scripts/main.lua");
+  const dinoStorageLua = read("server-mods/DinoStorage/Scripts/main.lua");
+
+  assert.match(html, /PRIME ELDER OVERRIDE/);
+  assert.match(html, /id="admin-prime-steam"/);
+  assert.match(html, /Grant Prime/);
+  assert.match(js, /prime-target/);
+  assert.match(js, /prime-grant/);
+  assert.match(js, /Growth will remain unchanged/);
+  assert.match(route, /requireAdmin/);
+  assert.match(route, /prime-target/);
+  assert.match(route, /prime-grant/);
+  assert.match(client, /function grantAdminPrime/);
+  assert.match(adminRoutes, /admin_grant_prime/);
+  assert.match(adminRoutes, /dinostorage\/prime\/grant/);
+  assert.match(storageService, /verb: 'prime_grant'/);
+  assert.match(bridge, /prime_grant: 'DinoStorage'/);
+  assert.match(commandBridgeLua, /prime_grant = "prime"/);
+  assert.match(dinoStorageLua, /cmdGrantPrime/);
+  assert.match(dinoStorageLua, /SetEligiblePrimeElderData/);
+  assert.match(dinoStorageLua, /bIsEligiblePrime = true/);
+
+  const primeStart = dinoStorageLua.indexOf("local function cmdGrantPrime");
+  const primeEnd = dinoStorageLua.indexOf("local function cmdStoreInfo", primeStart);
+  const primeBlock = dinoStorageLua.slice(primeStart, primeEnd);
+  assert.equal(/SetGrowth\(/.test(primeBlock), false);
+});

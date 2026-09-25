@@ -172,3 +172,55 @@ test("Admin Operations corpse wipe requires exact confirmation and proxies only 
   assert.equal(body.result.confirmed, true);
   assert.deepEqual(confirmations, ["WIPE CORPSES"]);
 });
+
+
+test("Admin Operations looks up and grants Prime by Steam ID", async (t) => {
+  const originals = {
+    getServerSnapshot: automation.getServerSnapshot,
+    grantAdminPrime: automation.grantAdminPrime,
+  };
+  t.after(() => {
+    automation.getServerSnapshot = originals.getServerSnapshot;
+    automation.grantAdminPrime = originals.grantAdminPrime;
+  });
+
+  automation.getServerSnapshot = async () => ({
+    online: true,
+    characters: [{
+      steamId: "76561198000000999",
+      name: "Prime Test",
+      species: "Triceratops",
+      growth: 0.63,
+      isPrime: false,
+    }],
+  });
+  automation.grantAdminPrime = async (steamId) => ({
+    ok: true,
+    prime: {
+      steamId,
+      confirmed: true,
+      message: "Prime Elder granted to Triceratops at 63% growth. Growth was not changed.",
+    },
+  });
+
+  const server = await listen(appFor({ id: 1, is_admin: 1 }));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  let response = await fetch(`${baseUrl(server)}/api/admin-operations/prime-target/76561198000000999`);
+  assert.equal(response.status, 200);
+  let body = await response.json();
+  assert.equal(body.target.name, "Prime Test");
+  assert.equal(body.target.species, "Triceratops");
+  assert.equal(body.target.growth, 0.63);
+  assert.equal(body.target.isPrime, false);
+
+  response = await fetch(`${baseUrl(server)}/api/admin-operations/prime-grant`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ steamId: "76561198000000999" }),
+  });
+  assert.equal(response.status, 200);
+  body = await response.json();
+  assert.equal(body.prime.confirmed, true);
+  assert.match(body.prime.message, /Growth was not changed/);
+});

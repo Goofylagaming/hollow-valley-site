@@ -216,6 +216,16 @@ async function deleteStoredDino({ steamId, slot }) {
   return runImmediateCommand({ verb: 'dino_delete', steamId, tokens: [selectedSlot] });
 }
 
+async function grantLivePrime({ steamId }) {
+  const steam = validateSteamId(steamId);
+  return runImmediateCommand({
+    verb: 'prime_grant',
+    steamId: steam,
+    tokens: [],
+    timeoutMs: 7000,
+  });
+}
+
 function latestPending(steamId) {
   const latest = store.getLatestForSteam(steamId, 'dinostorage');
   return latest && ['preparing', 'publishing', 'queued', 'acknowledged', 'unknown'].includes(latest.status) ? latest : null;
@@ -420,6 +430,7 @@ module.exports = {
   getStoredDino,
   editStoredDino,
   deleteStoredDino,
+  grantLivePrime,
   runImmediateCommand,
   requestDinoStorageAction,
   publishDinoStorageRequest,

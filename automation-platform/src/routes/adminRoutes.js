@@ -116,6 +116,41 @@ router.post('/dinostorage/admin-restore-json', async (req, res) => {
   }
 });
 
+router.post('/dinostorage/prime/grant', async (req, res) => {
+  try {
+    const steamId = dinoStorage.validateSteamId(req.body?.steamId);
+    const result = await audit.run(
+      'dinostorage',
+      'admin_grant_prime',
+      { steamId },
+      () => dinoStorage.grantLivePrime({ steamId }),
+      (value) => ({
+        steamId,
+        confirmed: value?.outcome?.state === 'confirmed',
+        source: value?.outcome?.source || null,
+        message: value?.outcome?.message || null,
+      })
+    );
+    return res.json({
+      ok: true,
+      prime: {
+        steamId,
+        confirmed: result?.outcome?.state === 'confirmed',
+        source: result?.outcome?.source || null,
+        message: result?.outcome?.message || 'Prime grant confirmed.',
+      },
+    });
+  } catch (error) {
+    const status = error.code === 'DINOSTORAGE_COMMAND_TIMEOUT' ? 504 :
+      error.code === 'DINOSTORAGE_COMMAND_FAILED' ? 409 : 400;
+    return res.status(status).json({
+      error: error.message || 'Unable to grant Prime Elder.',
+      code: error.code || null,
+      requestId: error.requestId || null,
+    });
+  }
+});
+
 router.post('/dinostorage/admin-restore/upload', async (req, res) => {
   try {
     const upload = await audit.run(
