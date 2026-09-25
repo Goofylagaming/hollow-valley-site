@@ -78,16 +78,41 @@ test('RCON outage skips reconciliation and leaves open sessions intact', async (
   assert.equal(p.listSessions({ activeOnly: true }).length, 1);
 });
 
-test('presence normalizes player list and character species without exposing locations', (t) => {
+test('presence normalization preserves rich character state for internal trackers', (t) => {
   const fixture = loadPresence({ snapshot: { configured: true, online: true, players: [], characters: [] } });
   t.after(fixture.cleanup);
   const p = fixture.presence;
 
   const result = p.normalizeOnline({
     players: [{ steamId: '76561198000000000', name: 'Alpha' }],
-    characters: [{ steamId: '76561198000000000', species: 'Triceratops', location: { x: 1, y: 2, z: 3 } }],
+    characters: [{
+      steamId: '76561198000000000',
+      species: 'Triceratops',
+      growth: 0.76,
+      health: 0.9,
+      stamina: 0.8,
+      hunger: 0.7,
+      thirst: 0.6,
+      isPrime: true,
+      mutations: ['MutationA'],
+      location: { x: 1, y: 2, z: 3 },
+    }],
   });
-  assert.deepEqual(result, [{ steamId: '76561198000000000', name: 'Alpha', species: 'Triceratops' }]);
+
+  assert.deepEqual(result, [{
+    steamId: '76561198000000000',
+    name: 'Alpha',
+    gender: null,
+    species: 'Triceratops',
+    growth: 0.76,
+    health: 0.9,
+    stamina: 0.8,
+    hunger: 0.7,
+    thirst: 0.6,
+    isPrime: true,
+    mutations: ['MutationA'],
+    location: { x: 1, y: 2, z: 3 },
+  }]);
 });
 
 
