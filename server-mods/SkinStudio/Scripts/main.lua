@@ -539,23 +539,33 @@ local function loadProfiles()
     local body = readAll(PROFILES_PATH)
     if body == nil or body == "" then return end
     local records = 0
+    local legacySkipped = 0
     for line in string.gmatch(body .. "\n", "([^\r\n]+)\r?\n") do
         local steam = jsonReadString(line, "steam")
         local args = jsonReadStringArray(line, "tokens")
         local growth = jsonReadNumber(line, "growth")
         if steam and steam:match("^%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d$") then
             local config = parseTokens(args)
-            if config ~= nil and setProfile(steam, args, config, growth) then
+            if config ~= nil and growth ~= nil and setProfile(steam, args, config, growth) then
                 records = records + 1
+            elseif config ~= nil and growth == nil then
+                -- v007 profiles had no life marker, so they are unsafe to restore:
+                -- a nested/new dinosaur of the same species could receive them.
+                legacySkipped = legacySkipped + 1
             end
         end
+    end
+
+    if legacySkipped > 0 then
+        persistProfiles()
+        log("Discarded " .. tostring(legacySkipped) .. " legacy species profile(s) without a life marker")
     end
 
     local unique = 0
     for _, bucket in pairs(profiles) do
         for _, _ in pairs(bucket) do unique = unique + 1 end
     end
-    log("Loaded " .. tostring(unique) .. " persisted species skin profile(s) from " .. tostring(records) .. " record(s)")
+    log("Loaded " .. tostring(unique) .. " life-scoped skin profile(s) from " .. tostring(records) .. " record(s)")
 end
 
 local function emitResult(id, steam, ok, msg)
@@ -618,6 +628,8 @@ local function processLine(line)
         pendingLiveRefresh[steam] = {
             config = config,
             remaining = LIVE_REFRESH_ATTEMPTS,
+            pawnAddress = objectAddress(pawn),
+            controllerAddress = objectAddress(ctrl),
         }
         safeNotify(steam, "Hollow Valley skin equipped: " .. tostring(config.preset ~= "" and config.preset or "custom skin"))
     end
@@ -763,30 +775,48 @@ local function reapplyProfiles()
 end
 
 local function refreshLiveApplies()
+    local gm = findGameMode()
     for steam, state in pairs(pendingLiveRefresh) do
         if state == nil or state.config == nil or (tonumber(state.remaining) or 0) <= 0 then
             pendingLiveRefresh[steam] = nil
+        elseif gm == nil then
+            pendingLiveRefresh[steam] = nil
         else
-            local ok, msg = applyForSteam(steam, state.config)
-            state.remaining = (tonumber(state.remaining) or 1) - 1
-            if ok then
-                log(string.format(
-                    "Live refresh verified steam=%s species=%s remaining=%d",
-                    tostring(steam),
-                    tostring(state.config.species),
-                    state.remaining
-                ))
-            else
-                log(string.format(
-                    "Live refresh failed steam=%s species=%s remaining=%d msg=%s",
-                    tostring(steam),
-                    tostring(state.config.species),
-                    state.remaining,
-                    tostring(msg)
-                ))
-            end
-            if state.remaining <= 0 then
+            local ctrl
+            pcall(function() ctrl = gm:GetControllerBySteamId(steam) end)
+            local pawn = livePawnFromCtrl(ctrl)
+            local ctrlAddr = objectAddress(ctrl)
+            local pawnAddr = objectAddress(pawn)
+
+            if pawn == nil
+                or (state.pawnAddress ~= nil and pawnAddr ~= state.pawnAddress)
+                or (state.controllerAddress ~= nil and ctrlAddr ~= state.controllerAddress) then
+                -- Never let a delayed refresh write cross a pawn/controller boundary.
+                -- A new hatchling/respawn keeps its game-generated inherited skin.
+                log("Cancelled live skin refresh after dinosaur life changed steam=" .. tostring(steam))
                 pendingLiveRefresh[steam] = nil
+            else
+                local ok, msg = applyConfigToPawn(pawn, state.config)
+                state.remaining = (tonumber(state.remaining) or 1) - 1
+                if ok then
+                    log(string.format(
+                        "Live refresh verified steam=%s species=%s remaining=%d",
+                        tostring(steam),
+                        tostring(state.config.species),
+                        state.remaining
+                    ))
+                else
+                    log(string.format(
+                        "Live refresh failed steam=%s species=%s remaining=%d msg=%s",
+                        tostring(steam),
+                        tostring(state.config.species),
+                        state.remaining,
+                        tostring(msg)
+                    ))
+                end
+                if state.remaining <= 0 then
+                    pendingLiveRefresh[steam] = nil
+                end
             end
         end
     end
