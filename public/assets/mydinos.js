@@ -6,6 +6,7 @@ let storedDinos = [];
 let currentFilter = "all";
 let marketplaceState = { p2pWritesEnabled: false };
 let myMarketplaceListings = [];
+let primeTrackerState = null;
 
 function pct(value, max, fallback = 0) {
   const n = Number(value);
@@ -88,6 +89,139 @@ async function runDinoStorageStore() {
   } catch (err) {
     alert(err.message || "Failed to store active dinosaur");
     return null;
+  }
+}
+
+function formatPrimeDuration(seconds) {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  if (hours) return minutes ? `${hours}h ${minutes}m` : `${hours}h`;
+  if (minutes) return `${minutes}m`;
+  return total ? `${total}s` : "0m";
+}
+
+function primeDate(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? date.toLocaleString() : "—";
+}
+
+function primeZoneLabel(kind) {
+  if (kind === "migration") return "MIGRATION";
+  if (kind === "patrol") return "PATROL";
+  if (kind === "sanctuary") return "SANCTUARY";
+  return String(kind || "ZONE").toUpperCase();
+}
+
+function renderPrimeZoneHistory(visits) {
+  if (!visits.length) {
+    return '<div class="prime-tracker-empty">No mapped zone visits recorded for this dino yet.</div>';
+  }
+  return `<div class="prime-zone-history">
+    ${visits.map((visit) => `
+      <div class="prime-zone-row">
+        <div>
+          <span class="prime-zone-type">${escapeHtml(primeZoneLabel(visit.kind))}</span>
+          <strong>${escapeHtml(visit.name || "Unnamed zone")}</strong>
+          <small>First seen ${escapeHtml(primeDate(visit.firstSeenAt))}</small>
+        </div>
+        <div class="prime-zone-meta">
+          <b>${escapeHtml(formatPrimeDuration(visit.secondsInside))}</b>
+          <span>${visit.kind === "sanctuary" ? "VISITED" : "VISITED · ACTIVE STATE UNKNOWN"}</span>
+        </div>
+      </div>
+    `).join("")}
+  </div>`;
+}
+
+function renderPrimeTracker(state) {
+  const container = document.getElementById("prime-tracker-card");
+  if (!container) return;
+
+  if (!state?.enabled) {
+    container.innerHTML = `
+      <div class="panel prime-tracker-panel">
+        <div class="prime-tracker-heading">
+          <div><p class="overline green">PRIME TRACKER</p><h3>Prime tracking is staged.</h3></div>
+          <span class="tag-pill">OFFLINE</span>
+        </div>
+        <p class="section-intro">Prime and zone-history tracking is installed but not enabled on the automation feed yet.</p>
+      </div>`;
+    return;
+  }
+
+  const life = state.activeLife;
+  if (!life) {
+    container.innerHTML = `
+      <div class="panel prime-tracker-panel">
+        <div class="prime-tracker-heading">
+          <div><p class="overline green">PRIME TRACKER</p><h3>No tracked dino life yet.</h3></div>
+          <span class="tag-pill">READY</span>
+        </div>
+        <p class="section-intro">Spawn in-game and the next verified presence sample will start this dino's Prime history.</p>
+      </div>`;
+    return;
+  }
+
+  const progress = state.progress || {};
+  const growth = Math.round((Number(life.growth) || 0) * 100);
+  const current = state.currentZones || {};
+  const currentZones = [
+    ...(current.migrations || []).map((name) => `Migration: ${name}`),
+    ...(current.patrolZones || []).map((name) => `Patrol: ${name}`),
+    ...(current.sanctuaries || []).map((name) => `Sanctuary: ${name}`)
+  ];
+
+  container.innerHTML = `
+    <div class="panel prime-tracker-panel">
+      <div class="prime-tracker-heading">
+        <div>
+          <p class="overline green">PRIME TRACKER</p>
+          <h3>${escapeHtml(life.species || "Unknown")} · ${growth}% growth</h3>
+          <small>Tracking this dino life since ${escapeHtml(primeDate(life.startedAt))}</small>
+        </div>
+        <span class="prime-tracker-status ${life.isPrime ? "is-prime" : ""}">${life.isPrime ? "● PRIME" : "○ NOT PRIME"}</span>
+      </div>
+
+      <div class="prime-tracker-stats">
+        <div><small>PRIME TIME</small><b>${escapeHtml(formatPrimeDuration(progress.primeSeconds))}</b><span>${progress.primeStartedAt ? `Since ${escapeHtml(primeDate(progress.primeStartedAt))}` : "Not reached yet"}</span></div>
+        <div><small>MIGRATION ZONES</small><b>${Number(progress.migrationZonesVisited || 0)}</b><span>Unique mapped footprints visited</span></div>
+        <div><small>PATROL ZONES</small><b>${Number(progress.patrolZonesVisited || 0)}</b><span>Unique mapped footprints visited</span></div>
+        <div><small>SANCTUARIES</small><b>${Number(progress.sanctuariesVisited || 0)}</b><span>Unique mapped footprints visited</span></div>
+      </div>
+
+      <div class="prime-current-zone">
+        <small>CURRENT MAPPED ZONE</small>
+        <div class="prime-current-zone-chips">
+          ${currentZones.length
+            ? currentZones.map((label) => `<span>${escapeHtml(label)}</span>`).join("")
+            : "<span>Outside tracked migration / patrol / sanctuary zones</span>"}
+        </div>
+      </div>
+
+      <div class="prime-tracker-note">
+        <strong>ZONE STATUS</strong>
+        <span>${escapeHtml(state.activeStateNote || "Migration and patrol activity state is not available from the current game feed.")}</span>
+      </div>
+
+      <div class="list-heading prime-history-heading">
+        <span>ZONE HISTORY</span>
+        <small>${(state.zoneVisits || []).length} unique visits</small>
+      </div>
+      ${renderPrimeZoneHistory(state.zoneVisits || [])}
+    </div>`;
+}
+
+async function loadPrimeTracker() {
+  const container = document.getElementById("prime-tracker-card");
+  if (!container) return;
+  try {
+    primeTrackerState = await api("/api/mydinos/prime-tracker");
+    renderPrimeTracker(primeTrackerState);
+  } catch (error) {
+    primeTrackerState = null;
+    container.innerHTML = `<div class="panel prime-tracker-panel"><p class="overline green">PRIME TRACKER</p><p class="section-intro">Prime tracker unavailable: ${escapeHtml(error.message || "Unknown error")}</p></div>`;
   }
 }
 
@@ -508,7 +642,7 @@ async function loadMarketplaceSellingState() {
 }
 
 async function refresh() {
-  await loadActiveCharacter();
+  await Promise.all([loadActiveCharacter(), loadPrimeTracker()]);
   try {
     storedDinos = await api("/api/mydinos");
   } catch (err) {

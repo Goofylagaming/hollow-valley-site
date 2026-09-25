@@ -58,6 +58,17 @@ router.get("/active-character", requireAuth, async (req, res) => {
   }
 });
 
+router.get("/prime-tracker", requireAuth, async (req, res) => {
+  const steamId = requireSteam(req, res);
+  if (!steamId) return;
+  try {
+    return res.json(await automation.getPrimeTracker(steamId));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Prime tracker unavailable.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
 router.get("/requests/:id", requireAuth, async (req, res) => {
   const steamId = requireSteam(req, res);
   if (!steamId) return;
