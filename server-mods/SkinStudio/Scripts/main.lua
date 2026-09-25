@@ -1,9 +1,11 @@
--- SkinStudio v007
--- Hollow Valley live skin application + reconnect persistence.
+-- SkinStudio v008
+-- Hollow Valley live skin application + same-life reconnect persistence.
+-- Applied skins are scoped to the current dinosaur life and must never override
+-- a newly spawned/nested dinosaur's inherited skin.
 -- Commands arrive from CommandBridge as inbox.ndjson records.
 
 local MOD_NAME = "SkinStudio"
-local MOD_VERSION = "v007"
+local MOD_VERSION = "v008"
 
 local function resolveModRoot()
     local source = ""
@@ -104,6 +106,11 @@ local function jsonReadStringArray(body, field)
         table.insert(out, value)
     end
     return out
+end
+
+local function jsonReadNumber(body, field)
+    local raw = string.match(body or "", '"' .. field .. '"%s*:%s*(-?[%d%.]+)')
+    return tonumber(raw)
 end
 
 local function findGameMode()
@@ -408,9 +415,15 @@ end
 
 local profiles = {}
 local profileArgs = {}
+local profileGrowth = {}
 local lastPawnAddress = {}
+local lastControllerAddress = {}
 local lastProfileSpecies = {}
+local hadPawnThisConnection = {}
+local pendingNewLife = {}
 local pendingLiveRefresh = {}
+local NEW_LIFE_GROWTH_DROP = 0.05
+local PROFILE_GROWTH_PERSIST_STEP = 0.01
 
 local function profileSpeciesKey(species)
     return tostring(species or ""):lower()
@@ -419,27 +432,67 @@ end
 local function ensureProfileBucket(steam)
     profiles[steam] = profiles[steam] or {}
     profileArgs[steam] = profileArgs[steam] or {}
-    return profiles[steam], profileArgs[steam]
+    profileGrowth[steam] = profileGrowth[steam] or {}
+    return profiles[steam], profileArgs[steam], profileGrowth[steam]
 end
 
-local function setProfile(steam, args, config)
+local function objectAddress(object)
+    if object == nil then return nil end
+    local address
+    pcall(function() address = object:GetAddress() end)
+    if address == nil or address == 0 then return nil end
+    return address
+end
+
+local function pawnGrowth(pawn)
+    if pawn == nil then return nil end
+    local growth
+    pcall(function() growth = pawn:GetGrowth() end)
+    growth = tonumber(growth)
+    if growth == nil then return nil end
+    if growth > 1.5 then growth = growth / 100 end
+    return math.max(0, math.min(1, growth))
+end
+
+local function setProfile(steam, args, config, growth)
     local key = profileSpeciesKey(config and config.species)
     if key == "" then return false end
-    local bucket, argBucket = ensureProfileBucket(steam)
+    local bucket, argBucket, growthBucket = ensureProfileBucket(steam)
     bucket[key] = config
     argBucket[key] = args
+    if tonumber(growth) ~= nil then
+        growthBucket[key] = math.max(0, math.min(1, tonumber(growth)))
+    end
     return true
 end
 
-local function profileLine(steam, args, config)
+local function clearProfilesForSteam(steam, reason)
+    if profiles[steam] == nil and profileArgs[steam] == nil and profileGrowth[steam] == nil then
+        return false
+    end
+    profiles[steam] = nil
+    profileArgs[steam] = nil
+    profileGrowth[steam] = nil
+    pendingLiveRefresh[steam] = nil
+    lastProfileSpecies[steam] = nil
+    log("Cleared persisted skin for new dinosaur life steam=" .. tostring(steam) .. " reason=" .. tostring(reason or "new-life"))
+    return true
+end
+
+local function profileLine(steam, args, config, growth)
     local parts = {}
     for i, token in ipairs(args or {}) do
         parts[i] = '"' .. jsonEscape(token) .. '"'
     end
+    local growthField = ""
+    if tonumber(growth) ~= nil then
+        growthField = string.format(',"growth":%.6f', math.max(0, math.min(1, tonumber(growth))))
+    end
     return string.format(
-        '{"steam":"%s","species":"%s","tokens":[%s]}',
+        '{"steam":"%s","species":"%s"%s,"tokens":[%s]}',
         jsonEscape(steam),
         jsonEscape(config and config.species or ""),
+        growthField,
         table.concat(parts, ",")
     )
 end
@@ -458,7 +511,8 @@ local function persistProfiles()
         for _, species in ipairs(speciesKeys) do
             local config = profiles[steam][species]
             local args = profileArgs[steam] and profileArgs[steam][species] or {}
-            table.insert(lines, profileLine(steam, args, config))
+            local growth = profileGrowth[steam] and profileGrowth[steam][species] or nil
+            table.insert(lines, profileLine(steam, args, config, growth))
         end
     end
 
@@ -467,8 +521,13 @@ local function persistProfiles()
     return writeAll(PROFILES_PATH, body)
 end
 
-local function rememberProfile(steam, args, config)
-    if not setProfile(steam, args, config) then return false end
+local function rememberProfile(steam, args, config, growth)
+    -- A skin follows one dinosaur life, not the player's account/species history.
+    -- Applying a new skin replaces any older reconnect profile for this Steam ID.
+    profiles[steam] = {}
+    profileArgs[steam] = {}
+    profileGrowth[steam] = {}
+    if not setProfile(steam, args, config, growth) then return false end
     if not persistProfiles() then
         log("WARNING: could not persist skin profiles")
         return false
@@ -483,9 +542,10 @@ local function loadProfiles()
     for line in string.gmatch(body .. "\n", "([^\r\n]+)\r?\n") do
         local steam = jsonReadString(line, "steam")
         local args = jsonReadStringArray(line, "tokens")
+        local growth = jsonReadNumber(line, "growth")
         if steam and steam:match("^%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d$") then
             local config = parseTokens(args)
-            if config ~= nil and setProfile(steam, args, config) then
+            if config ~= nil and setProfile(steam, args, config, growth) then
                 records = records + 1
             end
         end
@@ -539,18 +599,21 @@ local function processLine(line)
 
     local ok, msg = applyForSteam(steam, config)
     if ok then
-        rememberProfile(steam, args, config)
         local gm = findGameMode()
+        local ctrl = nil
+        local pawn = nil
         if gm ~= nil then
-            local ctrl
             pcall(function() ctrl = gm:GetControllerBySteamId(steam) end)
-            local pawn = livePawnFromCtrl(ctrl)
-            if pawn ~= nil then
-                local addr
-                pcall(function() addr = pawn:GetAddress() end)
-                lastPawnAddress[steam] = addr
-                lastProfileSpecies[steam] = profileSpeciesKey(config.species)
-            end
+            pawn = livePawnFromCtrl(ctrl)
+        end
+        local growth = pawnGrowth(pawn)
+        rememberProfile(steam, args, config, growth)
+        if pawn ~= nil then
+            lastPawnAddress[steam] = objectAddress(pawn)
+            lastControllerAddress[steam] = objectAddress(ctrl)
+            lastProfileSpecies[steam] = profileSpeciesKey(config.species)
+            hadPawnThisConnection[steam] = true
+            pendingNewLife[steam] = false
         end
         pendingLiveRefresh[steam] = {
             config = config,
@@ -596,31 +659,106 @@ local function reapplyProfiles()
     local gm = findGameMode()
     if gm == nil then return end
 
-    for steam, _ in pairs(profiles) do
+    local steamIds = {}
+    for steam, _ in pairs(profiles) do table.insert(steamIds, steam) end
+    table.sort(steamIds)
+
+    local profilesChanged = false
+    for _, steam in ipairs(steamIds) do
         local ctrl
         pcall(function() ctrl = gm:GetControllerBySteamId(steam) end)
-        local pawn = livePawnFromCtrl(ctrl)
-        if pawn ~= nil then
-            local config, speciesKey = matchingProfileForPawn(steam, pawn)
-            if config ~= nil then
-                local addr
-                pcall(function() addr = pawn:GetAddress() end)
-                if addr ~= nil and (addr ~= lastPawnAddress[steam] or speciesKey ~= lastProfileSpecies[steam]) then
-                    local ok = applyConfigToPawn(pawn, config)
-                    if ok then
-                        lastPawnAddress[steam] = addr
-                        lastProfileSpecies[steam] = speciesKey
-                        safeNotify(steam, "Your Hollow Valley " .. tostring(config.species) .. " skin was restored.")
-                    end
-                end
-            else
+
+        if ctrl == nil then
+            -- Full disconnect: preserve the life profile so the same dinosaur can
+            -- regain its applied skin when the player reconnects.
+            lastControllerAddress[steam] = nil
+            lastPawnAddress[steam] = nil
+            lastProfileSpecies[steam] = nil
+            hadPawnThisConnection[steam] = nil
+            pendingNewLife[steam] = nil
+        else
+            local ctrlAddr = objectAddress(ctrl)
+            local previousCtrl = lastControllerAddress[steam]
+            if ctrlAddr ~= nil and previousCtrl ~= nil and ctrlAddr ~= previousCtrl then
+                -- New controller means a reconnect. Do not classify the next pawn as
+                -- a new life solely because its object address changed.
+                hadPawnThisConnection[steam] = false
+                pendingNewLife[steam] = false
                 lastPawnAddress[steam] = nil
                 lastProfileSpecies[steam] = nil
             end
-        else
-            lastPawnAddress[steam] = nil
-            lastProfileSpecies[steam] = nil
+            if ctrlAddr ~= nil then lastControllerAddress[steam] = ctrlAddr end
+
+            local pawn = livePawnFromCtrl(ctrl)
+            if pawn == nil then
+                -- The controller stayed connected but its dinosaur disappeared.
+                -- The next pawn is a respawn/nest/new life, never a reconnect.
+                if hadPawnThisConnection[steam] then
+                    pendingNewLife[steam] = true
+                end
+                lastPawnAddress[steam] = nil
+                lastProfileSpecies[steam] = nil
+            else
+                local addr = objectAddress(pawn)
+                local config, speciesKey = matchingProfileForPawn(steam, pawn)
+                local previousPawn = lastPawnAddress[steam]
+                local changedPawnSameConnection =
+                    hadPawnThisConnection[steam] == true
+                    and previousPawn ~= nil
+                    and addr ~= nil
+                    and addr ~= previousPawn
+                local isNewLife = pendingNewLife[steam] == true or changedPawnSameConnection
+                local growth = pawnGrowth(pawn)
+                local rememberedGrowth =
+                    speciesKey ~= nil
+                    and profileGrowth[steam] ~= nil
+                    and tonumber(profileGrowth[steam][speciesKey])
+                    or nil
+                local growthReset =
+                    growth ~= nil
+                    and rememberedGrowth ~= nil
+                    and growth + NEW_LIFE_GROWTH_DROP < rememberedGrowth
+
+                hadPawnThisConnection[steam] = true
+                pendingNewLife[steam] = false
+
+                if config ~= nil and (isNewLife or growthReset) then
+                    local reason = isNewLife and "connected-respawn-or-nest" or "growth-reset"
+                    if clearProfilesForSteam(steam, reason) then
+                        profilesChanged = true
+                    end
+                    lastPawnAddress[steam] = addr
+                    lastProfileSpecies[steam] = nil
+                elseif config ~= nil then
+                    if addr ~= nil and (addr ~= lastPawnAddress[steam] or speciesKey ~= lastProfileSpecies[steam]) then
+                        local ok = applyConfigToPawn(pawn, config)
+                        if ok then
+                            lastPawnAddress[steam] = addr
+                            lastProfileSpecies[steam] = speciesKey
+                            safeNotify(steam, "Your Hollow Valley " .. tostring(config.species) .. " skin was restored.")
+                        end
+                    else
+                        lastPawnAddress[steam] = addr
+                    end
+
+                    if growth ~= nil and speciesKey ~= nil then
+                        local prior = tonumber(profileGrowth[steam] and profileGrowth[steam][speciesKey])
+                        if prior == nil or growth >= prior + PROFILE_GROWTH_PERSIST_STEP then
+                            profileGrowth[steam] = profileGrowth[steam] or {}
+                            profileGrowth[steam][speciesKey] = growth
+                            profilesChanged = true
+                        end
+                    end
+                else
+                    lastPawnAddress[steam] = addr
+                    lastProfileSpecies[steam] = nil
+                end
+            end
         end
+    end
+
+    if profilesChanged and not persistProfiles() then
+        log("WARNING: could not persist life-scoped skin profiles")
     end
 end
 
