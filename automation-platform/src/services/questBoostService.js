@@ -51,6 +51,26 @@ const QUESTS = Object.freeze([
     boostEnv: 'WALLET_QUEST_WEEKLY_24H_BOOST_PERCENT',
     defaultBoostPercent: 20,
   },
+  {
+    id: 'weekly-total-36h',
+    cadence: 'weekly',
+    metric: 'total',
+    thresholdSeconds: 36 * 60 * 60,
+    title: 'Go Touch Grass',
+    description: 'Accumulate 36 verified hours online this week.',
+    boostEnv: 'WALLET_QUEST_WEEKLY_36H_BOOST_PERCENT',
+    defaultBoostPercent: 25,
+  },
+  {
+    id: 'weekly-total-72h',
+    cadence: 'weekly',
+    metric: 'total',
+    thresholdSeconds: 72 * 60 * 60,
+    title: 'What Life?',
+    description: 'Accumulate 72 verified hours online this week.',
+    boostEnv: 'WALLET_QUEST_WEEKLY_72H_BOOST_PERCENT',
+    defaultBoostPercent: 50,
+  },
 ]);
 
 function timezone() {
