@@ -7,6 +7,7 @@ const playtimeRewards = require('./playtimeRewardsService');
 const supporterBonuses = require('./supporterBonusService');
 const rconControl = require('./rconControlService');
 const externalServerSnapshot = require('./externalServerSnapshotService');
+const primeTracker = require('./primeTrackerService');
 
 const dbPath = process.env.AUTOMATION_DB_PATH || path.join(__dirname, '..', '..', 'data', 'automation.sqlite');
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
@@ -128,11 +129,19 @@ function normalizeOnline(snapshot) {
     return {
       steamId,
       name: player.name || character?.name || 'Unknown',
+      gender: character?.gender ?? null,
       species: character?.species || null,
+      growth: Number.isFinite(character?.growth) ? character.growth : null,
+      health: Number.isFinite(character?.health) ? character.health : null,
+      stamina: Number.isFinite(character?.stamina) ? character.stamina : null,
+      hunger: Number.isFinite(character?.hunger) ? character.hunger : null,
+      thirst: Number.isFinite(character?.thirst) ? character.thirst : null,
+      isPrime: character?.isPrime === true,
+      mutations: Array.isArray(character?.mutations) ? character.mutations : [],
+      location: character?.location || null,
     };
   }).filter((player) => /^\d{17}$/.test(player.steamId));
 }
-
 function speciesCounts(onlinePlayers = []) {
   const counts = {};
   for (const player of onlinePlayers) {
@@ -394,6 +403,7 @@ async function ingestExternalPresenceSnapshot(input = {}) {
   try {
     const newPlayers = findNewPlayers(players);
     const reconciliation = reconcilePresence(players, sampledAt);
+    const primeTracking = primeTracker.recordSnapshot(players, sampledAt);
     const sample = recordPresenceSample(players, sampledAt);
     prunePresenceSamples({
       retentionHours: Number(process.env.PLAYER_PRESENCE_RETENTION_HOURS || 24 * 31),
@@ -448,6 +458,7 @@ async function ingestExternalPresenceSnapshot(input = {}) {
       sample,
       supporterMemberships,
       rewards,
+      primeTracking,
     };
   } finally {
     running = false;
@@ -472,6 +483,7 @@ async function samplePresence({ force = false } = {}) {
     const nowIso = new Date().toISOString();
     const newPlayers = findNewPlayers(players);
     const reconciliation = reconcilePresence(players, nowIso);
+    const primeTracking = primeTracker.recordSnapshot(players, nowIso);
     const sample = recordPresenceSample(players, nowIso);
     prunePresenceSamples({ retentionHours: Number(process.env.PLAYER_PRESENCE_RETENTION_HOURS || 24 * 31) });
 
@@ -517,7 +529,7 @@ async function samplePresence({ force = false } = {}) {
       joinMessages = await sendJoinMessages(newPlayers);
     }
 
-    return { skipped: false, ...reconciliation, sample, supporterMemberships, rewards, joinMessages };
+    return { skipped: false, ...reconciliation, sample, supporterMemberships, rewards, primeTracking, joinMessages };
   } finally {
     running = false;
   }
