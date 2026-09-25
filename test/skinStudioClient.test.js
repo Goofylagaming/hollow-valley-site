@@ -83,6 +83,7 @@ test("Skin Studio v010 never seeds a future pawn through persistence or Temporar
   assert.match(lua, /Cancelled live skin refresh after dinosaur life changed/);
   assert.equal(lua.includes("mirrorCustomizerToTemporary"), false);
   assert.equal(lua.includes("pawn.TemporarySkinData"), false);
+  assert.equal(lua.includes("bUseSkinPalette = true"), false);
   assert.match(lua, /temporary=false/);
 
   assert.match(browser, /data-species=/);
