@@ -29,6 +29,8 @@ services:
         value: 3000
       - key: DB_PATH
         value: /app/data/hollowvalley.sqlite
+      - key: PUBLIC_SITE_URL
+        value: https://hollowvalleyisle.com
       - key: SESSION_SECRET
         generateValue: true
       - key: STEAM_RETURN_URL
