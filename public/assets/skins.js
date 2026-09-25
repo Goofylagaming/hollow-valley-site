@@ -155,6 +155,15 @@ function externalLibraryDescription(source, description = "") {
   return `[External Library:${safeSource}] ${body}`.slice(0, 240);
 }
 
+function skinCardShareMarkup(preset, mode) {
+  if (mode === "store") return "";
+  if (preset.exclusive) return '<div class="skin-card-code">Exclusive skin · share code hidden</div>';
+  if (!preset.granted && preset.share_code) {
+    return `<div class="skin-card-code">Share: <strong>${escapeHtml(preset.share_code)}</strong></div>`;
+  }
+  return '<div class="skin-card-code"></div>';
+}
+
 function skinCard(preset, mode) {
   const owned = Boolean(preset.owned || preset.isPremium || mode === "mine" || mode === "library");
   const price = Number(preset.price) || 0;
@@ -221,7 +230,7 @@ function skinCard(preset, mode) {
           ${preset.grantCustomized ? "<span>Personal edit</span>" : ""}
           ${mode === "library" && externalMeta.source ? `<span>Source: ${escapeHtml(externalMeta.source)}</span>` : ""}
         </div>
-        <div class="skin-card-code">${(!preset.exclusive && !preset.granted && preset.share_code) ? `Share: <strong>${escapeHtml(preset.share_code)}</strong>` : (preset.exclusive ? "Exclusive skin · share code hidden" : "")}</div>
+        ${skinCardShareMarkup(preset, mode)}
         <div class="skin-card-actions">${actions.join("")}</div>
       </div>
     </article>
