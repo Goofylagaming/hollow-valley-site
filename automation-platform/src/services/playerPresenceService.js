@@ -8,6 +8,7 @@ const progression = require('./progressionService');
 const supporterBonuses = require('./supporterBonusService');
 const rconControl = require('./rconControlService');
 const externalServerSnapshot = require('./externalServerSnapshotService');
+const primeTracker = require('./primeTrackerService');
 
 const dbPath = process.env.AUTOMATION_DB_PATH || path.join(__dirname, '..', '..', 'data', 'automation.sqlite');
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
@@ -395,6 +396,7 @@ async function ingestExternalPresenceSnapshot(input = {}) {
   try {
     const newPlayers = findNewPlayers(players);
     const reconciliation = reconcilePresence(players, sampledAt);
+    const primeTracking = primeTracker.recordSnapshot(players, sampledAt);
     const sample = recordPresenceSample(players, sampledAt);
     prunePresenceSamples({
       retentionHours: Number(process.env.PLAYER_PRESENCE_RETENTION_HOURS || 24 * 31),
@@ -458,6 +460,7 @@ async function ingestExternalPresenceSnapshot(input = {}) {
       supporterMemberships,
       rewards,
       progression: progressionRewards,
+      primeTracking,
     };
   } finally {
     running = false;
@@ -482,6 +485,7 @@ async function samplePresence({ force = false } = {}) {
     const nowIso = new Date().toISOString();
     const newPlayers = findNewPlayers(players);
     const reconciliation = reconcilePresence(players, nowIso);
+    const primeTracking = primeTracker.recordSnapshot(players, nowIso);
     const sample = recordPresenceSample(players, nowIso);
     prunePresenceSamples({ retentionHours: Number(process.env.PLAYER_PRESENCE_RETENTION_HOURS || 24 * 31) });
 
@@ -535,7 +539,7 @@ async function samplePresence({ force = false } = {}) {
       joinMessages = await sendJoinMessages(newPlayers);
     }
 
-    return { skipped: false, ...reconciliation, sample, supporterMemberships, rewards, progression: progressionRewards, joinMessages };
+    return { skipped: false, ...reconciliation, sample, supporterMemberships, rewards, progression: progressionRewards, primeTracking, joinMessages };
   } finally {
     running = false;
   }
