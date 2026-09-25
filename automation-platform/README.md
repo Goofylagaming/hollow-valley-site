@@ -50,7 +50,7 @@ The project is a separate Hollow Valley control plane that keeps the existing HD
 - Presence analytics: unique/returning players, tracked playtime, average/median/longest sessions, average/peak concurrency, bucketed activity trend, sampled species mix and top tracked players.
 - Steam-keyed Valley Coin wallets with immutable idempotent ledger transactions.
 - Configurable five-minute verified-online playtime rewards, disabled by default until the economy rate is chosen.
-- Automatic daily/weekly verified-playtime quests with approved default boosts of +5%, +10%, +15%, +10% and +20% on future Valley Coin payouts (maximum +60% from the current quest set).
+- Automatic daily/weekly verified-playtime quests with approved default boosts of +5%, +10%, +15%, +10%, +20%, +25% (36h) and +50% (72h) on future Valley Coin payouts, bounded by the existing +100% quest-boost safety cap.
 - Atomic official marketplace debit + pending-order creation, with gated real DinoStorage fulfillment and exact-once refunds.
 - Real DinoStorage P2P escrow selling with buyer holds, seller credit after proven transfer, cancellation and restart reconciliation.
 - Parked-dino mutation editor for active slots 1–4 with duplicate/current slot restrictions and inherited/elder preservation.
