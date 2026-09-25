@@ -2,11 +2,12 @@
 
 Hollow Valley administrator-only live player actions for The Isle: Evrima.
 
-## v003
+## v004
 
 - keeps the proven `admin_slay` path unchanged: resolve the target by Steam ID, set live dinosaur health to zero, force a network update
 - removes the experimental `BP_SmiteEffect` call from Slay because the dedicated-server test produced no player-visible/audio lightning
 - adds a read-only, one-shot lightning/weather reflection probe
+- logs parameter names/types for native candidates: `Smite`, `ServerSmite`, `SetSmited`, `IsThunderstorm`, and `SetWeather`
 - the probe runs only when `Saved/lightning-probe.flag` is present
 - searches loaded UE objects for: `lightning`, `thunder`, `storm`, `weather`, `strike`, and `smite`
 - filters on FName first, then logs full names only for matches
@@ -29,7 +30,7 @@ with any non-empty token. AdminActions consumes the flag once and logs lines beg
 
 `[AdminActions] LightningProbe`
 
-The probe is diagnostic only. It does not change weather, spawn VFX, damage players, or call any discovered function.
+The probe is diagnostic only. It does not change weather, spawn VFX, damage players, or call any discovered function. v004 also logs UFunction metadata/signatures for the native Smite/weather candidates so they can be invoked safely later.
 
 ## Performance note
 
