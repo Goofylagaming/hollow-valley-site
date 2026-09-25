@@ -65,13 +65,13 @@ test("Skin Studio website client targets automation skin endpoints", async (t) =
 });
 
 
-test("Skin Studio v002 keeps reconnect profiles per species and blocks obvious parked-dino mismatches", () => {
+test("Skin Studio v007 keeps reconnect profiles per species and blocks obvious parked-dino mismatches", () => {
   const fs = require("node:fs");
   const path = require("node:path");
   const lua = fs.readFileSync(path.join(__dirname, "..", "server-mods", "SkinStudio", "Scripts", "main.lua"), "utf8");
   const browser = fs.readFileSync(path.join(__dirname, "..", "public", "assets", "skins.js"), "utf8");
 
-  assert.match(lua, /SkinStudio v002/);
+  assert.match(lua, /SkinStudio v007/);
   assert.match(lua, /profiles\[steam\] = profiles\[steam\] or \{\}/);
   assert.match(lua, /profileSpeciesKey/);
   assert.match(lua, /matchingProfileForPawn/);
