@@ -1,0 +1,27 @@
+name: Validate Elite Fish Spawner
+
+on:
+  pull_request:
+    paths:
+      - "server-mods/EliteFishSpawner/**"
+      - "test/eliteFishSpawner.test.js"
+      - ".github/workflows/validate-elite-fish.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate source contract
+        run: node --test test/eliteFishSpawner.test.js
+      - name: Install Lua
+        run: sudo apt-get update -qq && sudo apt-get install -y lua5.4
+      - name: Validate UE4SS Lua syntax
+        run: luac -p server-mods/EliteFishSpawner/Scripts/main.lua
