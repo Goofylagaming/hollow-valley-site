@@ -1,6 +1,7 @@
 const commandBridge = require('./commandBridgeService');
 const store = require('./automationStore');
 const statusService = require('./statusService');
+const bodyDropDiets = require('../config/bodyDropDiets');
 
 const DEFAULT_DROP_TYPES = [
   { id: 'small', name: 'Small body', description: 'A small emergency food drop.', species: 'Compsognathus', growth: 1 },
@@ -67,6 +68,16 @@ function bodyDropEligibility(character) {
     return { eligible: false, reason: 'Body drops are only available to carnivores.', species };
   }
 
+  const diet = bodyDropDiets.dietForSpecies(species);
+  if (!diet) {
+    return {
+      eligible: false,
+      reason: `BodyDrop diet support is not configured for ${species} yet.`,
+      species,
+      dietConfigured: false,
+    };
+  }
+
   const percent = growthPercent(character.growth);
   if (percent === null) {
     return {
@@ -91,6 +102,8 @@ function bodyDropEligibility(character) {
     species,
     growthPercent: percent,
     maxGrowthPercent: BODYDROP_MAX_GROWTH_PERCENT,
+    dietConfigured: true,
+    dietVersion: bodyDropDiets.DIET_VERSION,
   };
 }
 
@@ -228,14 +241,32 @@ async function getBodyDropState(steamId) {
   }
 
   const character = snapshot.characters.find((entry) => entry.steamId === steamId);
+  const eligibility = bodyDropEligibility(character);
+  const options = character
+    ? bodyDropDiets.optionsForSpecies(character.species, character.growth)
+    : [];
+  const corpseGrowth = character ? bodyDropDiets.scaleCorpseGrowth(character.growth) : null;
   return {
     steamId,
     serverOnline: true,
     cooldown,
-    eligibility: bodyDropEligibility(character),
+    eligibility,
+    requester: character ? {
+      species: character.species || null,
+      growthPercent: growthPercent(character.growth),
+      foodPercent: foodPercent(character.hunger),
+    } : null,
+    dietVersion: bodyDropDiets.DIET_VERSION,
+    options,
+    corpseGrowth,
+    corpseGrowthPercent: corpseGrowth === null ? null : Math.round(corpseGrowth * 100),
     restrictions: {
       carnivoreOnly: true,
       maxGrowthPercent: BODYDROP_MAX_GROWTH_PERCENT,
+      dietValidated: true,
+      corpseGrowthScalePercent: 75,
+      corpseGrowthMinPercent: 15,
+      corpseGrowthMaxPercent: 40,
     },
   };
 }
@@ -244,8 +275,8 @@ async function requestBodyDrop({ steamId, dropType, maxFoodPercent = null }) {
   steamId = String(steamId || '').trim();
   if (!/^\d{17}$/.test(steamId)) throw new Error('A valid 17-digit Steam ID is required');
 
-  const option = getDropTypes().find((item) => item.id === String(dropType || '').trim());
-  if (!option) throw new Error('Unknown body drop type');
+  const selectedDropType = String(dropType || '').trim();
+  if (!/^[a-z0-9_-]{2,64}$/i.test(selectedDropType)) throw new Error('Unknown body drop type');
 
   assertBodyDropAvailable(steamId);
 
@@ -257,6 +288,16 @@ async function requestBodyDrop({ steamId, dropType, maxFoodPercent = null }) {
     const error = new Error(eligibility.reason);
     error.code = 'BODYDROP_INELIGIBLE';
     error.eligibility = eligibility;
+    throw error;
+  }
+
+  const allowedOptions = bodyDropDiets.optionsForSpecies(character.species, character.growth);
+  const option = allowedOptions.find((item) => item.id === selectedDropType);
+  if (!option) {
+    const error = new Error(`That body is not configured for the current ${eligibility.species} diet.`);
+    error.code = 'BODYDROP_DIET_MISMATCH';
+    error.eligibility = eligibility;
+    error.allowedDropTypes = allowedOptions.map((item) => item.id);
     throw error;
   }
 
@@ -305,6 +346,8 @@ async function requestBodyDrop({ steamId, dropType, maxFoodPercent = null }) {
     commandId: command.id,
     details: {
       dropType: option.id,
+      nutrient: option.nutrient,
+      nutrientLabel: option.nutrientLabel,
       species: option.species,
       growth: option.growth,
       requesterSpecies: eligibility.species,
@@ -341,7 +384,7 @@ function getGlobalBodyDropState() {
     enabled: globalBodyDropEnabled,
     defaultOff: true,
     running: globalRunIsActive(),
-    dropType: GLOBAL_BODYDROP_DROP_TYPE,
+    dropType: 'species-diet-auto',
     staggerMs: getGlobalBodyDropStaggerMs(),
     criteria: {
       carnivoreOnly: true,
@@ -349,6 +392,10 @@ function getGlobalBodyDropState() {
       maxFoodPercent: GLOBAL_BODYDROP_MAX_FOOD_PERCENT,
       requiresLivePosition: true,
       respectsPlayerCooldown: true,
+      speciesDietValidated: true,
+      corpseGrowthScalePercent: 75,
+      corpseGrowthMinPercent: 15,
+      corpseGrowthMaxPercent: 40,
     },
     lastRun: globalBodyDropRun ? { ...globalBodyDropRun } : null,
   };
@@ -380,11 +427,20 @@ function getGlobalBodyDropCandidates(snapshot) {
     const cooldown = getCooldown(steamId);
     if (cooldown.active) continue;
 
+    const emergencyOption = bodyDropDiets.emergencyOptionForSpecies(
+      eligibility.species,
+      character.growth
+    );
+    if (!emergencyOption) continue;
+
     candidates.push({
       steamId,
       species: eligibility.species,
       growthPercent: eligibility.growthPercent,
       foodPercent: eligibility.foodPercent,
+      dropType: emergencyOption.id,
+      dropSpecies: emergencyOption.species,
+      nutrient: emergencyOption.nutrient,
     });
   }
 
@@ -435,7 +491,7 @@ async function activateGlobalBodyDrop() {
       try {
         await requestBodyDrop({
           steamId: candidate.steamId,
-          dropType: GLOBAL_BODYDROP_DROP_TYPE,
+          dropType: candidate.dropType,
           maxFoodPercent: GLOBAL_BODYDROP_MAX_FOOD_PERCENT,
         });
         run.queuedCount += 1;
@@ -517,6 +573,9 @@ module.exports = {
   isCarnivoreSpecies,
   getCooldown,
   getDropTypes,
+  getDietCatalog: bodyDropDiets.catalog,
+  getDietOptionsForSpecies: bodyDropDiets.optionsForSpecies,
+  scaleCorpseGrowth: bodyDropDiets.scaleCorpseGrowth,
   getBodyDropState,
   requestBodyDrop,
   getGlobalBodyDropState,
