@@ -702,6 +702,13 @@ function cancelAdminJob(jobId) {
   return callAdmin(`/jobs/${encodeURIComponent(id)}/cancel`, { method: 'POST' });
 }
 
+function grantAdminPrime(steamId) {
+  return callAdmin('/dinostorage/prime/grant', {
+    method: 'POST',
+    body: { steamId: validateSteamId(steamId) },
+  });
+}
+
 function getAdminRestoreState() {
   return callAdmin('/dinostorage/admin-restore');
 }
@@ -799,6 +806,7 @@ module.exports = {
   getAdminJobs,
   scheduleAdminDiscordAnnouncement,
   cancelAdminJob,
+  grantAdminPrime,
   getAdminRestoreState,
   buildAdminRestoreJson,
   uploadAdminRestore,
