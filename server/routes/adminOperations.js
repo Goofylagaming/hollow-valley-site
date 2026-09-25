@@ -16,6 +16,16 @@ function mapAutomationError(error, fallback) {
 
 router.use(requireAdmin);
 
+function validateSteamId(value) {
+  const steamId = String(value || "").trim();
+  if (!/^\d{17}$/.test(steamId)) {
+    const error = new Error("A valid 17-digit Steam ID is required.");
+    error.status = 400;
+    throw error;
+  }
+  return steamId;
+}
+
 router.get("/", async (req, res) => {
   try {
     const [status, readiness, backups, health, requests, audit, presence] = await Promise.all([
@@ -34,6 +44,52 @@ router.get("/", async (req, res) => {
   }
 });
 
+
+router.get("/prime-target/:steamId", async (req, res) => {
+  let steamId;
+  try {
+    steamId = validateSteamId(req.params.steamId);
+  } catch (error) {
+    return res.status(error.status || 400).json({ error: error.message });
+  }
+
+  try {
+    const snapshot = await automation.getServerSnapshot();
+    const characters = Array.isArray(snapshot?.characters) ? snapshot.characters : [];
+    const target = characters.find((entry) =>
+      String(entry?.steamId ?? entry?.PlayerID ?? entry?.playerId ?? "") === steamId
+    ) || null;
+    return res.json({
+      serverOnline: Boolean(snapshot?.online),
+      target: target ? {
+        steamId,
+        name: target.name || target.Name || "Unknown player",
+        species: target.species || target.Class || target.class || "Unknown",
+        growth: Number.isFinite(Number(target.growth ?? target.Growth)) ? Number(target.growth ?? target.Growth) : null,
+        isPrime: target.isPrime === true || target.PrimeElder === true || String(target.PrimeElder || "").toLowerCase() === "true",
+      } : null,
+    });
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not look up the live Prime target.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.post("/prime-grant", async (req, res) => {
+  let steamId;
+  try {
+    steamId = validateSteamId(req.body?.steamId);
+  } catch (error) {
+    return res.status(error.status || 400).json({ error: error.message });
+  }
+
+  try {
+    return res.json(await automation.grantAdminPrime(steamId));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not grant Prime Elder.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
 
 router.get("/bodydrop-global", async (_req, res) => {
   try {
