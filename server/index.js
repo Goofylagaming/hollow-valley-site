@@ -33,6 +33,7 @@ const supporterInternalRouter = require("./routes/supporterInternal");
 const adminRestoreRouter = require("./routes/adminRestore");
 const adminOperationsRouter = require("./routes/adminOperations");
 const adminCommsRouter = require("./routes/adminComms");
+const adminSupportersRouter = require("./routes/adminSupporters");
 const serverStatusService = require("./services/serverStatus");
 const automationWebsiteClient = require("./services/automationWebsiteClient");
 const { syncSteamProfiles } = require("./services/steamProfile");
@@ -181,6 +182,7 @@ function createApp() {
   app.use("/api/admin-restore", adminRestoreRouter);
   app.use("/api/admin-operations", adminOperationsRouter);
   app.use("/api/admin-comms", adminCommsRouter);
+  app.use("/api/admin-supporters", adminSupportersRouter);
   app.use("/api/mapdata", mapdataRouter);
 
   app.all("/api/park", parkHandler);
@@ -201,6 +203,7 @@ function createApp() {
     adminoperations: "adminoperations.html",
     admincomms: "admincomms.html",
     adminrestore: "adminrestore.html",
+    adminsupporters: "adminsupporters.html",
   };
   for (const [route, file] of Object.entries(ADMIN_PAGE_ROUTES)) {
     app.get([`/${route}`, `/${route}.html`], requireAdmin, (_req, res) => {
