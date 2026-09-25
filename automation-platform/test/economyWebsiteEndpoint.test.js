@@ -77,7 +77,7 @@ test('website wallet and marketplace APIs are protected and preserve atomic purc
   const questsResponse = await fetch(`${base}/quests/${steamId}`, { headers });
   assert.equal(questsResponse.status, 200);
   const quests = await questsResponse.json();
-  assert.equal(quests.quests.length, 5);
+  assert.equal(quests.quests.length, 7);
   assert.equal(quests.activeBoostPercent, 0);
   assert.equal(quests.trackingEnabled, true);
   assert.deepEqual(quests.quests.map((quest) => quest.id), [
@@ -86,6 +86,8 @@ test('website wallet and marketplace APIs are protected and preserve atomic purc
     'daily-total-6h',
     'weekly-total-12h',
     'weekly-total-24h',
+    'weekly-total-36h',
+    'weekly-total-72h',
   ]);
 
   const catalogResponse = await fetch(`${base}/marketplace/catalog`, { headers });
