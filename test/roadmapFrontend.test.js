@@ -45,12 +45,11 @@ test("shared navigation exposes Wallet and Quests as separate tabs", () => {
   assert.match(nav, /HOLLOW VALLEY/);
 });
 
-test("dashboard has one prominent wallet balance and official supporter multiplier", () => {
+test("legacy dashboard redirects to the dedicated wallet page", () => {
   const html = read("public/dashboard.html");
-  assert.equal((html.match(/id="dash-wallet"/g) || []).length, 1);
-  assert.match(html, /dashboard-wallet-corner/);
-  assert.match(html, /id="dash-supporter-multiplier"/);
-  assert.match(html, /VALLEY COIN · LIVE REWARDS/);
+  assert.match(html, /content="0;url=\/wallet"/);
+  assert.match(html, /window\.location\.replace\("\/wallet"\)/);
+  assert.match(html, /Open Wallet/);
 });
 
 test("Quests are restored as a dedicated automatic-progress page", () => {
@@ -58,7 +57,7 @@ test("Quests are restored as a dedicated automatic-progress page", () => {
   const html = read("public/quests.html");
   const js = read("public/assets/quests.js");
   assert.equal(homepage.includes('id="quests"'), false);
-  assert.match(html, /Your quests\./);
+  assert.match(html, /Valley challenges\./);
   assert.match(html, /ACTIVE COIN BOOST/);
   assert.match(js, /progressSeconds/);
   assert.match(js, /boostPercent/);
