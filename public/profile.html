@@ -3,25 +3,118 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Your permanent Hollow Valley level, dinosaur rank and achievements.">
-  <title>Profile | Hollow Valley</title>
-  <link rel="stylesheet" href="/assets/styles.css?v=18">
+  <meta name="description" content="Your Hollow Valley player profile, account links, progression and achievements.">
+  <title>My Profile | Hollow Valley</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=20">
 </head>
 <body>
   <div class="app-shell">
     <div id="nav-slot"></div>
     <main>
-      <section class="page-header">
-        <p class="overline green">PERMANENT PROGRESSION</p>
+      <section class="page-header profile-page-header">
+        <p class="overline green">MY STUFF · PROFILE</p>
         <h1>My profile.</h1>
-        <p class="section-intro">Level up through Hollow Valley dinosaur ranks. XP and achievements never reset, and every level awards 100 Valley Coin.</p>
+        <p class="section-intro">Your Hollow Valley identity, account links, supporter status and permanent progression in one place.</p>
       </section>
 
-      <section class="roster-section">
-        <div id="profile-guard"><p class="section-intro">Sign in with Steam to view your Hollow Valley progression.</p></div>
+      <section class="roster-section profile-shell">
+        <div id="profile-guard" class="profile-signin-card">
+          <div class="profile-avatar-fallback">HV</div>
+          <div>
+            <strong>Steam sign-in required</strong>
+            <span>Sign in with Steam to load your Hollow Valley profile.</span>
+            <a class="primary-button" href="/auth/steam?returnTo=/profile">Sign in with Steam <b>→</b></a>
+          </div>
+        </div>
+
         <div id="profile-content" hidden>
-          <section class="reward-overview">
-            <div class="list-heading"><span>LEVEL &amp; DINO RANK</span><span id="profile-permanent-label">PERMANENT</span></div>
+          <section class="profile-identity-panel">
+            <div class="profile-identity-main">
+              <div class="profile-avatar-wrap">
+                <img id="profile-avatar" class="profile-avatar" alt="" hidden>
+                <span id="profile-avatar-fallback" class="profile-avatar-fallback">HV</span>
+                <i class="profile-online-dot" title="Hollow Valley account"></i>
+              </div>
+              <div class="profile-identity-copy">
+                <small>HOLLOW VALLEY PLAYER</small>
+                <h2 id="profile-username">Player</h2>
+                <div class="profile-id-row">
+                  <span>Steam ID <b id="profile-steam-id">—</b></span>
+                  <button type="button" class="profile-copy-button" id="profile-copy-steam">COPY</button>
+                </div>
+                <div class="profile-badges">
+                  <span class="profile-badge good">STEAM LINKED</span>
+                  <span class="profile-badge" id="profile-discord-badge">DISCORD</span>
+                  <span class="profile-badge supporter" id="profile-supporter-badge">NO MEMBERSHIP</span>
+                </div>
+              </div>
+            </div>
+            <div class="profile-current-rank">
+              <small>CURRENT DINO RANK</small>
+              <strong id="profile-hero-rank">Hypsilophodon</strong>
+              <span id="profile-hero-level">Level 1</span>
+            </div>
+          </section>
+
+          <div class="profile-hub-grid">
+            <article class="profile-hub-card">
+              <small>VALLEY COIN</small>
+              <b id="profile-wallet-balance">—</b>
+              <span>Current wallet balance</span>
+              <a href="/wallet">Open wallet →</a>
+            </article>
+            <article class="profile-hub-card">
+              <small>SUPPORTER</small>
+              <b id="profile-supporter">Checking…</b>
+              <span id="profile-supporter-detail">Membership and reward multiplier</span>
+              <a href="/supporter">Manage supporter →</a>
+            </article>
+            <article class="profile-hub-card">
+              <small>FRIENDS</small>
+              <b id="profile-friends-count">—</b>
+              <span id="profile-friends-detail">Hollow Valley friends</span>
+              <a href="/friends">Open friends →</a>
+            </article>
+            <article class="profile-hub-card">
+              <small>MY DINOS</small>
+              <b>DINOSTORAGE</b>
+              <span>Saved dinosaurs, skins and management</span>
+              <a href="/mydinos">Open My Dinos →</a>
+            </article>
+          </div>
+
+          <section class="profile-account-panel">
+            <div class="list-heading"><span>ACCOUNT LINKS</span><small>your Hollow Valley identity</small></div>
+            <div class="profile-account-grid">
+              <article class="profile-account-card">
+                <span class="profile-account-icon">S</span>
+                <div>
+                  <small>STEAM ACCOUNT</small>
+                  <b>Linked</b>
+                  <p id="profile-steam-detail">Your website progression and rewards use this Steam account.</p>
+                </div>
+              </article>
+              <article class="profile-account-card">
+                <span class="profile-account-icon">D</span>
+                <div>
+                  <small>DISCORD ACCOUNT</small>
+                  <b id="profile-discord-status">Checking…</b>
+                  <p id="profile-discord-detail">Checking Discord link status.</p>
+                  <a class="small-button profile-link-action" id="profile-discord-action" href="/auth/discord">Link Discord</a>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <div class="profile-quick-links">
+            <a href="/mydinos"><b>▣</b><span>My Dinos<small>Storage, restore and manage</small></span></a>
+            <a href="/friends"><b>♢</b><span>Friends<small>Requests and online friends</small></span></a>
+            <a href="/skins"><b>◆</b><span>Skin Studio<small>Design and manage skins</small></span></a>
+            <a href="/bodydrop"><b>◌</b><span>Body Drop<small>Food support requests</small></span></a>
+          </div>
+
+          <section class="reward-overview profile-progression-panel">
+            <div class="list-heading"><span>PERMANENT PROGRESSION</span><span id="profile-permanent-label">NEVER RESETS</span></div>
             <div class="profile-level-heading">
               <div>
                 <small>CURRENT RANK</small>
@@ -36,7 +129,7 @@
             </div>
           </section>
 
-          <div class="summary-grid">
+          <div class="summary-grid profile-progression-stats">
             <div class="summary-tile"><small>LEVEL-UP REWARD</small><b id="profile-vc-reward">+100 VC</b></div>
             <div class="summary-tile"><small>ACHIEVEMENTS</small><b id="profile-achievement-count">0</b></div>
             <div class="summary-tile"><small>VERIFIED PLAYTIME</small><b id="profile-playtime">0h</b></div>
@@ -56,6 +149,6 @@
     <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="/assets/common.js?v=16"></script>
-  <script src="/assets/profile.js?v=1"></script>
+  <script src="/assets/profile.js?v=2"></script>
 </body>
 </html>
