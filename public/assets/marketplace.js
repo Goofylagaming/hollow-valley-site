@@ -6,116 +6,6 @@ let activeFilter = "all";
 let marketplaceState = { officialWritesEnabled: false, p2pWritesEnabled: false, p2pBuyEnabled: false };
 let myListingIds = new Set();
 let currentUser = null;
-let dinoAtlasUrl = "";
-
-const DINO_ATLAS_PARTS = [
-  "/assets/dino-atlas/part1.txt",
-  "/assets/dino-atlas/part2.txt",
-  "/assets/dino-atlas/part3a1.txt",
-  "/assets/dino-atlas/part3a2.txt",
-  "/assets/dino-atlas/part3a3a.txt",
-  "/assets/dino-atlas/part3a3b1.txt",
-  "/assets/dino-atlas/part3a3b2.txt",
-  "/assets/dino-atlas/part3a3b3.txt",
-  "/assets/dino-atlas/part3b.txt",
-  "/assets/dino-atlas/part3c.txt",
-  "/assets/dino-atlas/part4a.txt",
-  "/assets/dino-atlas/part4b.txt",
-  "/assets/dino-atlas/part4c.txt",
-  "/assets/dino-atlas/part4d.txt",
-  "/assets/dino-atlas/part4e.txt",
-  "/assets/dino-atlas/part4f.txt",
-];
-
-const DINO_ATLAS_SPRITES = Object.freeze({
-  dryosaurus: [0, 0],
-  hypsilophodon: [1, 0],
-  pachycephalosaurus: [2, 0],
-  stegosaurus: [3, 0],
-  triceratops: [4, 0],
-  tenontosaurus: [5, 0],
-
-  deinosuchus: [0, 1],
-  dilophosaurus: [1, 1],
-  herrerasaurus: [2, 1],
-  omniraptor: [3, 1],
-  pteranodon: [4, 1],
-  troodon: [5, 1],
-
-  beipiaosaurus: [0, 2],
-  gallimimus: [1, 2],
-  ceratosaurus: [2, 2],
-  maiasaura: [3, 2],
-  tyrannosaurus: [5, 2],
-});
-async function loadDinoAtlas() {
-  try {
-    const parts = await Promise.all(DINO_ATLAS_PARTS.map(async (url) => {
-      const response = await fetch(url, { cache: "force-cache" });
-      if (!response.ok) throw new Error(`Could not load ${url}`);
-      return (await response.text()).trim();
-    }));
-    const raw = atob(parts.join(""));
-    const bytes = new Uint8Array(raw.length);
-    for (let index = 0; index < raw.length; index += 1) bytes[index] = raw.charCodeAt(index);
-    dinoAtlasUrl = URL.createObjectURL(new Blob([bytes], { type: "image/jpeg" }));
-  } catch (error) {
-    dinoAtlasUrl = "";
-    console.warn("AI dinosaur thumbnails could not be loaded; using marketplace fallbacks.", error);
-  }
-}
-
-function dinoThumbnail(speciesId, species) {
-  const sprite = DINO_ATLAS_SPRITES[String(speciesId || "").toLowerCase()];
-  if (!dinoAtlasUrl || !sprite) {
-    return `<div class="market-dino-thumb dino-art ${escapeHtml(species.art || "carno")}" role="img" aria-label="${escapeHtml(species.name)} thumbnail"></div>`;
-  }
-  return `<canvas class="market-dino-thumb atlas-thumb" width="244" height="170"
-    data-species="${escapeHtml(speciesId)}" role="img" aria-label="${escapeHtml(species.name)} thumbnail"></canvas>`;
-}
-
-async function paintDinoThumbnails(root) {
-  if (!dinoAtlasUrl) return;
-  const canvases = [...root.querySelectorAll("canvas.atlas-thumb")];
-  if (!canvases.length) return;
-
-  const image = new Image();
-  await new Promise((resolve, reject) => {
-    image.onload = resolve;
-    image.onerror = reject;
-    image.src = dinoAtlasUrl;
-  });
-
-  const cellWidth = image.naturalWidth / 6;
-  // The generated poster has a category title strip above each row.
-  // These coordinates crop only the dinosaur artwork and exclude labels.
-  const rowTop = [46, 300, 556];
-  const cropHeight = 170;
-
-  for (const canvas of canvases) {
-    const sprite = DINO_ATLAS_SPRITES[String(canvas.dataset.species || "").toLowerCase()];
-    if (!sprite) continue;
-    const [column, row] = sprite;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) continue;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-    ctx.filter = "contrast(1.04) saturate(1.03)";
-    ctx.drawImage(
-      image,
-      column * cellWidth + 6,
-      rowTop[row],
-      cellWidth - 12,
-      cropHeight,
-      0,
-      0,
-      canvas.width,
-      canvas.height
-    );
-  }
-}
-
 function renderMarketplaceState() {
   const banner = document.getElementById("market-state-banner");
   const detail = document.getElementById("market-state-detail");
@@ -189,7 +79,9 @@ function renderCatalog() {
   const grid = document.getElementById("catalog-grid");
   let filtered = catalog.filter((entry) => {
     const species = speciesById[entry.species_id];
-    return activeFilter === "all" || species?.category === activeFilter;
+    const growth = Number(entry.size_percent || 0);
+    const retiredStarterTier = entry.growth_tier === "starter" || (growth > 0 && growth < 50);
+    return !retiredStarterTier && (activeFilter === "all" || species?.category === activeFilter);
   });
   filtered = sortCatalog(filtered);
   if (!filtered.length) {
@@ -216,13 +108,10 @@ function renderCatalog() {
       </div>`).join("");
 
     return `<article class="dino-card market-species-card" data-species="${escapeHtml(speciesId)}">
-      ${dinoThumbnail(speciesId, species)}
       <div class="dino-info"><div><small>${escapeHtml((species.role || "").toUpperCase())}</small><h3>${escapeHtml(species.name)}</h3></div></div>
       <div class="market-tier-list">${options}</div>
     </article>`;
   }).join("");
-
-  paintDinoThumbnails(grid).catch((error) => console.warn("Could not paint AI dinosaur thumbnails", error));
 
   grid.querySelectorAll(".buy-catalog-btn").forEach((btn) => btn.addEventListener("click", async () => {
     if (marketplaceState.officialWritesEnabled !== true) return;
@@ -436,7 +325,7 @@ document.querySelectorAll(".filter").forEach((filter) => {
 document.getElementById("sort-select")?.addEventListener("change", renderCatalog);
 
 async function init() {
-  await Promise.all([loadSpeciesMap(), loadDinoAtlas()]);
+  await loadSpeciesMap();
   currentUser = await window.HDS.loadMe();
   try {
     marketplaceState = await api("/api/marketplace/state");

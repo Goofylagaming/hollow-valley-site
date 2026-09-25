@@ -545,8 +545,7 @@
 
 /* Compact official marketplace species cards */
 .market-species-card{overflow:hidden}
-.market-dino-thumb{height:112px;margin:12px 12px 0;border:1px solid var(--line);border-radius:8px}
-.market-dino-thumb.dino-art span{display:none}
+.market-species-card .dino-info{padding:18px 15px 14px;border-bottom:1px solid var(--line);margin-bottom:12px}
 .market-tier-list{display:grid;gap:8px;padding:0 15px 15px}
 .market-tier{border:1px solid var(--line);padding:10px;background:rgba(0,0,0,.12)}
 .market-tier.prime{border-color:#8b6d25}
@@ -555,7 +554,6 @@
 .market-tier-meta{margin:6px 0 9px;color:#9c8a72;font-size:12px}
 .market-tier-actions{justify-content:flex-end}
 .prime-badge{font:700 10px Oswald,sans-serif;letter-spacing:.12em;color:#d7bd66}
-@media(max-width:700px){.market-dino-thumb{height:96px}}
 
 
 .account-link-panel{display:flex;align-items:center;justify-content:space-between;gap:18px;border:1px solid var(--line);background:var(--panel);padding:16px 18px;margin:0 0 18px}
@@ -565,31 +563,6 @@
 .account-link-panel span{color:#9c8a72;font-size:13px}
 .small-button.disabled,.small-button[aria-disabled="true"]{opacity:.55;pointer-events:none}
 @media(max-width:700px){.account-link-panel{align-items:flex-start;flex-direction:column}}
-
-
-/* AI Marketplace dinosaur atlas thumbnails */
-.market-dino-thumb.atlas-thumb{position:relative;overflow:hidden;background:#090d0b}
-.market-dino-thumb.atlas-thumb img{
-  position:absolute;
-  top:0;
-  left:0;
-  width:600%;
-  max-width:none;
-  height:auto;
-  transform:translate(var(--atlas-x),var(--atlas-y));
-  transform-origin:0 0;
-  pointer-events:none;
-  user-select:none;
-}
-.market-dino-thumb.atlas-thumb:after{
-  content:"";
-  position:absolute;
-  inset:0;
-  pointer-events:none;
-  background:linear-gradient(0deg,rgba(8,10,8,.48),transparent 42%);
-}
-
-.market-dino-thumb.atlas-thumb{display:block;width:min(244px,calc(100% - 24px));height:170px;margin:12px auto 0;border:1px solid var(--line);border-radius:8px;object-fit:cover;background:#090d0b;filter:contrast(1.03) saturate(1.03)}
 
 
 /* Hollow Valley Friends */
