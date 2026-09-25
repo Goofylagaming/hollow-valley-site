@@ -1104,3 +1104,24 @@
   border-color:rgba(53,225,132,.35);
   box-shadow:inset 2px 0 0 rgba(53,225,132,.72);
 }
+
+
+/* Full 10-zone live 3D paint */
+.skin-zone-limit-note{display:none!important}
+.skin-color-control.skin-zone-saved-only{opacity:1!important}
+.skin-color-control.skin-zone-saved-only:after{content:none!important}
+.skin-color-control.skin-zone-live-control{
+  opacity:1!important;
+  border-color:rgba(53,225,132,.34)!important;
+  box-shadow:inset 2px 0 0 rgba(53,225,132,.72)!important;
+}
+.skin-color-control.skin-zone-live-control:after{
+  content:"LIVE 3D"!important;
+  color:#35df88!important;
+  font:800 6px Manrope,sans-serif!important;
+  letter-spacing:.08em!important;
+}
+.skin-model-zone.skin-zone-live{
+  border-color:rgba(53,225,132,.35)!important;
+  box-shadow:inset 2px 0 0 rgba(53,225,132,.72)!important;
+}
