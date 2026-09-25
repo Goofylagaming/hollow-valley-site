@@ -6,6 +6,8 @@ const {
   assertOfficialDinoSalePolicy,
 } = require('./officialMarketplacePolicy');
 
+const OFFICIAL_CATALOG_POLICY_VERSION = 2;
+
 const OFFICIAL_DINO_CATALOG = Object.freeze([
   ['tyrannosaurus', 'Tyrannosaurus', 3680],
   ['allosaurus', 'Allosaurus', 3000],
@@ -58,16 +60,13 @@ function seedOfficialCatalog() {
       currentIds.push(id);
       const existing = store.getCatalogItem(id);
       const price = desiredTierPrice({ speciesId, tier, basePrice });
-      const existingMatchesCurrentTier = Boolean(
-        existing
-        && String(existing.payload?.growthTier || '') === tier.key
-        && Number(existing.payload?.growthPercent ?? existing.payload?.sizePercent) === tier.growth
-        && Boolean(existing.payload?.isPrime) === tier.isPrime
-      );
-      // Legacy :50/:75 rows were previously deactivated by the old mid/high/prime
-      // catalog seeder. Reactivate those rows once as they migrate into the new
-      // fixed policy, but preserve intentional admin disables after migration.
-      const active = existingMatchesCurrentTier ? existing.active !== false : true;
+      const migratedToCurrentPolicy = Number(existing?.payload?.officialCatalogPolicyVersion || 0)
+        >= OFFICIAL_CATALOG_POLICY_VERSION;
+      // Policy v2 is the first reliable 50% / 75%-Prime migration. Rows touched
+      // by the earlier faulty migration can already look structurally correct
+      // while still carrying an inherited disabled state. Force them active once,
+      // stamp v2 below, then preserve intentional admin disables on later seeds.
+      const active = migratedToCurrentPolicy ? existing.active !== false : true;
 
       items.push(store.upsertCatalogItem({
         id,
@@ -87,6 +86,7 @@ function seedOfficialCatalog() {
           growthTier: tier.key,
           growthTierLabel: tier.label,
           isPrime: tier.isPrime,
+          officialCatalogPolicyVersion: OFFICIAL_CATALOG_POLICY_VERSION,
         },
         active,
         sortOrder: speciesIndex * 10 + tierIndex,
@@ -141,6 +141,7 @@ function updateOfficialCatalogItem({ catalogId, price, active }) {
       growthTier: tier.key,
       growthTierLabel: tier.label,
       isPrime: tier.isPrime,
+      officialCatalogPolicyVersion: OFFICIAL_CATALOG_POLICY_VERSION,
     },
     active: active !== false,
     sortOrder: item.sort_order,
@@ -155,6 +156,7 @@ function classPathForSpecies(speciesId) {
 
 module.exports = {
   MIN_PRIME_75_PRICE,
+  OFFICIAL_CATALOG_POLICY_VERSION,
   OFFICIAL_DINO_CATALOG,
   OFFICIAL_TIERS,
   CLASS_PATHS,
