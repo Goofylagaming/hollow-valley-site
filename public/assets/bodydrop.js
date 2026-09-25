@@ -46,6 +46,13 @@ function startCountdown() {
   countdownTimer = setInterval(updateCountdownDisplay, 1000);
 }
 
+function nutrientGroupLabel(nutrient) {
+  if (nutrient === "protein") return { symbol: "S", label: "PROTEIN" };
+  if (nutrient === "carbohydrate") return { symbol: "∴", label: "CARBOHYDRATE" };
+  if (nutrient === "lipid") return { symbol: "//", label: "LIPID" };
+  return { symbol: "•", label: String(nutrient || "DIET").toUpperCase() };
+}
+
 function renderBodyDropStatus(data) {
   const container = document.getElementById("bodydrop-content");
   if (!container) return;
@@ -65,21 +72,66 @@ function renderBodyDropStatus(data) {
           : "Available now";
 
   const disabled = !data.steamLinked || !data.serverOnline || data.cooldown?.active || eligibilityBlocked;
-  const options = (data.options || []).map((option) => `
-    <button class="bodydrop-option" data-drop-type="${escapeHtml(option.id)}" ${disabled ? "disabled" : ""}>
-      <strong>${escapeHtml(option.name)}</strong>
-      <span>${escapeHtml(option.description)}</span>
-    </button>`).join("");
+  const requester = data.requester || null;
+  const requesterSpecies = requester?.species || data.eligibility?.species || "No live dinosaur";
+  const requesterGrowth = Number.isFinite(requester?.growthPercent) ? Math.round(requester.growthPercent) : null;
+  const corpseGrowth = Number.isFinite(data.corpseGrowthPercent) ? Math.round(data.corpseGrowthPercent) : null;
+
+  const grouped = new Map();
+  for (const option of data.options || []) {
+    const nutrient = option.nutrient || "diet";
+    if (!grouped.has(nutrient)) grouped.set(nutrient, []);
+    grouped.get(nutrient).push(option);
+  }
+
+  const order = ["protein", "carbohydrate", "lipid"];
+  const groups = order
+    .filter((nutrient) => grouped.has(nutrient))
+    .map((nutrient) => {
+      const meta = nutrientGroupLabel(nutrient);
+      const buttons = grouped.get(nutrient).map((option) => `
+        <button class="bodydrop-option diet-option" data-drop-type="${escapeHtml(option.id)}" data-prey="${escapeHtml(option.species)}" ${disabled ? "disabled" : ""}>
+          <strong>${escapeHtml(option.species)}</strong>
+          <span>${escapeHtml(option.nutrientLabel || meta.label)} diet body</span>
+          <small>${Number.isFinite(option.growthPercent) ? `Spawns at ${Math.round(option.growthPercent)}% growth` : "Scaled to your growth"}</small>
+        </button>`).join("");
+
+      return `
+        <section class="bodydrop-diet-group">
+          <div class="bodydrop-diet-heading">
+            <b>${escapeHtml(meta.symbol)}</b>
+            <span>${escapeHtml(meta.label)}</span>
+          </div>
+          <div class="bodydrop-options">${buttons}</div>
+        </section>`;
+    }).join("");
+
+  const noOptions = !groups
+    ? `<div class="bodydrop-empty-diet"><strong>No configured diet drops</strong><span>${escapeHtml(data.eligibility?.reason || "This dinosaur does not have a Hollow Valley BodyDrop diet configured yet.")}</span></div>`
+    : "";
 
   container.innerHTML = `
+    <div class="bodydrop-character">
+      <div>
+        <small>YOUR CURRENT DINO</small>
+        <strong>${escapeHtml(requesterSpecies)}</strong>
+      </div>
+      <div class="bodydrop-character-stats">
+        <span>Growth <b>${requesterGrowth === null ? "—" : `${requesterGrowth}%`}</b></span>
+        <span>Drop size <b>${corpseGrowth === null ? "—" : `${corpseGrowth}%`}</b></span>
+      </div>
+    </div>
     <div class="bodydrop-status ${disabled ? "blocked" : "ready"}"><b id="bodydrop-status-text">${escapeHtml(status)}</b></div>
-    <div class="bodydrop-options">${options}</div>`;
+    <div class="bodydrop-diet-list">${groups || noOptions}</div>
+    <p class="bodydrop-diet-note">Diet choices are validated again against your live dinosaur before the corpse is queued. Body size is 75% of your current growth, clamped between 15% and 40%.</p>`;
 
   startCountdown();
 
   container.querySelectorAll(".bodydrop-option").forEach((button) => {
     button.addEventListener("click", async () => {
-      if (!confirm("Request this body drop on the live server?")) return;
+      const prey = button.dataset.prey || "this body";
+      const sizeText = corpseGrowth === null ? "" : ` at ${corpseGrowth}% growth`;
+      if (!confirm(`Request ${prey}${sizeText} on the live server?`)) return;
       button.disabled = true;
       try {
         const response = await api("/api/bodydrop", {
