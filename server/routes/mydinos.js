@@ -6,8 +6,6 @@ const automation = require("../services/automationWebsiteClient");
 
 const router = express.Router();
 const STORE_LOCK_MS = Math.max(5000, Number(process.env.DINOSTORAGE_STORE_LOCK_MS || 30000));
-const STORE_SNAPSHOT_GRACE_MS = Math.max(3000, Number(process.env.DINOSTORAGE_STORE_SNAPSHOT_GRACE_MS || 5000));
-const STORE_TRANSITION_MAX_MS = Math.max(60000, Number(process.env.DINOSTORAGE_STORE_TRANSITION_MAX_MS || 300000));
 const activeStoreLocks = new Map();
 const recentStoreTransitions = new Map();
 
@@ -40,22 +38,65 @@ function releaseStoreLock(steamId, lock) {
   if (activeStoreLocks.get(steam) === lock) activeStoreLocks.delete(steam);
 }
 
-function markStoreTransition(steamId, startedAt) {
+function normalizedGrowth(value) {
+  const growth = Number(value);
+  if (!Number.isFinite(growth)) return null;
+  return growth > 1 ? growth / 100 : growth;
+}
+
+function normalizedMutations(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((mutation) => String(mutation || "").trim().toLowerCase())
+    .filter(Boolean)
+    .sort();
+}
+
+function characterFingerprint(character) {
+  if (!character) return null;
+  return {
+    species: String(character.species || "").trim().toLowerCase(),
+    gender: String(character.gender || "").trim().toLowerCase(),
+    growth: normalizedGrowth(character.growth),
+    isPrime: character.isPrime === true,
+    mutations: normalizedMutations(character.mutations),
+  };
+}
+
+function sameCharacterAsFingerprint(character, fingerprint) {
+  if (!character || !fingerprint) return false;
+
+  const current = characterFingerprint(character);
+  if (!current) return false;
+  if (fingerprint.species && current.species !== fingerprint.species) return false;
+  if (fingerprint.gender && current.gender && current.gender !== fingerprint.gender) return false;
+  if (fingerprint.isPrime !== current.isPrime) return false;
+
+  if (fingerprint.growth !== null && current.growth !== null &&
+      Math.abs(current.growth - fingerprint.growth) > 0.025) {
+    return false;
+  }
+
+  if (fingerprint.mutations.length && current.mutations.length &&
+      fingerprint.mutations.join("|") !== current.mutations.join("|")) {
+    return false;
+  }
+
+  return true;
+}
+
+function markStoreTransition(steamId, startedAt, character) {
+  const fingerprint = characterFingerprint(character);
+  if (!fingerprint?.species) return;
+
   recentStoreTransitions.set(String(steamId), {
     startedAt: Number(startedAt) || Date.now(),
-    expiresAt: Date.now() + STORE_TRANSITION_MAX_MS,
+    fingerprint,
   });
 }
 
 function getStoreTransition(steamId) {
-  const steam = String(steamId);
-  const transition = recentStoreTransitions.get(steam);
-  if (!transition) return null;
-  if (Date.now() >= transition.expiresAt) {
-    recentStoreTransitions.delete(steam);
-    return null;
-  }
-  return transition;
+  return recentStoreTransitions.get(String(steamId)) || null;
 }
 
 function clearStoreTransition(steamId) {
@@ -112,6 +153,16 @@ function activeCharacterResponse(character) {
   };
 }
 
+async function captureLiveCharacter(steamId) {
+  try {
+    const snapshot = await automation.getServerSnapshot();
+    if (!snapshot?.online) return null;
+    return (snapshot.characters || []).find((entry) => String(entry.steamId) === String(steamId)) || null;
+  } catch {
+    return null;
+  }
+}
+
 router.get("/", requireAuth, async (req, res) => {
   if (!req.user.steam_id) return res.json([]);
   try {
@@ -145,25 +196,20 @@ router.get("/active-character", requireAuth, async (req, res) => {
     }
 
     const transition = getStoreTransition(steamId);
-    if (transition) {
-      const snapshotAt = Date.parse(snapshot.checkedAt || "");
-      const freshAfterStore = Number.isFinite(snapshotAt) &&
-        snapshotAt >= transition.startedAt + STORE_SNAPSHOT_GRACE_MS;
-
-      if (!freshAfterStore) {
-        return res.json({
-          active: false,
-          reason: "store_pending",
-          storePending: true,
-          snapshotCheckedAt: snapshot.checkedAt || null,
-        });
-      }
-    }
-
     const character = (snapshot.characters || []).find((entry) => String(entry.steamId) === steamId);
+
     if (!character) {
       if (transition) clearStoreTransition(steamId);
       return res.json({ active: false, reason: "not_in_game" });
+    }
+
+    if (transition && sameCharacterAsFingerprint(character, transition.fingerprint)) {
+      return res.json({
+        active: false,
+        reason: "stored_character_suppressed",
+        storePending: false,
+        snapshotCheckedAt: snapshot.checkedAt || null,
+      });
     }
 
     if (transition) clearStoreTransition(steamId);
@@ -201,6 +247,7 @@ async function runDinoAction(req, res, action, slot) {
   if (!steamId) return;
 
   let storeLock = null;
+  let storeCharacter = null;
   if (action === "store") {
     const lockResult = acquireStoreLock(steamId);
     if (!lockResult.acquired) {
@@ -214,11 +261,18 @@ async function runDinoAction(req, res, action, slot) {
       });
     }
     storeLock = lockResult.lock;
+    storeCharacter = await captureLiveCharacter(steamId);
   }
 
   try {
     const result = await automation.requestDinoAction(action, { steamId, slot });
-    if (action === "store" && storeLock) markStoreTransition(steamId, storeLock.startedAt);
+    if (action === "store" && storeLock) {
+      markStoreTransition(steamId, storeLock.startedAt, storeCharacter);
+    }
+    if (action === "redeem") {
+      clearStoreTransition(steamId);
+    }
+
     const request = result.request || null;
     const message = request?.message || `DinoStorage ${action} accepted for processing.`;
     return res.status(202).json({
