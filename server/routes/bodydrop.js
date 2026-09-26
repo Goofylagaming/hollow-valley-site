@@ -4,30 +4,6 @@ const automation = require("../services/automationWebsiteClient");
 
 const router = express.Router();
 
-const DEFAULT_DROP_TYPES = [
-  { id: "small", name: "Small body", description: "A small emergency food drop.", species: "Compsognathus", growth: 1 },
-  { id: "medium", name: "Medium body", description: "A balanced body drop for a small group.", species: "Dryosaurus", growth: 1 },
-  { id: "large", name: "Large body", description: "A larger drop for bigger carnivores or packs.", species: "Triceratops", growth: 1 },
-];
-
-function getDropTypes() {
-  const raw = process.env.BODYDROP_TYPES;
-  if (!raw) return DEFAULT_DROP_TYPES;
-  const parsed = raw.split(",").map((entry) => {
-    const [id, name, description, species, growth] = entry.split(":").map((part) => part?.trim());
-    if (!/^[a-z0-9_-]{2,32}$/i.test(id || "") || !species) return null;
-    const growthNum = Number(growth);
-    return {
-      id,
-      name: name || id,
-      description: description || "Body drop request.",
-      species,
-      growth: Number.isFinite(growthNum) && growthNum > 0 ? Math.min(1, growthNum) : 1,
-    };
-  }).filter(Boolean);
-  return parsed.length ? parsed : DEFAULT_DROP_TYPES;
-}
-
 function mapAutomationError(error, fallback) {
   if (Number.isInteger(error?.status)) {
     return {
@@ -131,4 +107,3 @@ router.delete("/", requireAuth, (_req, res) => {
 });
 
 module.exports = router;
-module.exports._private = { getDropTypes };

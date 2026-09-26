@@ -6,17 +6,17 @@ on:
       - "server-mods/BodyDrop/**"
       - "server-mods/CommandBridge/**"
       - "server/routes/bodydrop.js"
-      - "server/services/bodyDrop.js"
-      - "server/services/commandBridge.js"
+      - "server/index.js"
       - "automation-platform/src/config/bodyDropDiets.js"
       - "automation-platform/src/routes/bodyDropRoutes.js"
+      - "automation-platform/src/routes/websiteRoutes.js"
       - "automation-platform/src/services/bodyDropService.js"
       - "automation-platform/src/services/speciesBodyDropService.js"
       - "automation-platform/test/speciesBodyDropDiets.test.js"
       - "public/bodydrop.html"
       - "public/assets/bodydrop.js"
       - "public/assets/mydinos.js"
-      - "test/commandBridge.test.js"
+      - "test/legacyDirectGameApiGuard.test.js"
       - ".github/workflows/validate-bodydrop.yml"
   workflow_dispatch:
 
@@ -36,14 +36,11 @@ jobs:
           node-version: "22"
           cache: npm
 
-      - name: Install dependencies
+      - name: Install website dependencies
         run: npm ci
 
-      - name: Run BodyDrop and CommandBridge flow tests
-        run: >-
-          node --test
-          --test-name-pattern='reconciliation reads|reconciliation retains|HTTP reconciliation accepts|correlation is persisted|sends bd|result matching|partial NDJSON|disabled or invalid configuration|only routing ACK|ACK mode|sub-mod rejection|preflight read|ambiguous upload|cannot release'
-          test/commandBridge.test.js
+      - name: Verify website legacy paths remain retired
+        run: node --test test/legacyDirectGameApiGuard.test.js
 
       - name: Run species diet tests
         run: node --test automation-platform/test/speciesBodyDropDiets.test.js

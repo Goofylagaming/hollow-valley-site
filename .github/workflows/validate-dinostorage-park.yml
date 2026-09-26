@@ -1,10 +1,14 @@
-name: Validate DinoStorage Park Corpse
+name: Validate DinoStorage Automation Flow
 
 on:
   pull_request:
     paths:
       - "server-mods/DinoStorage/Scripts/main.lua"
-      - "test/dinoStorageParkCorpse.test.js"
+      - "automation-platform/src/services/dinoStorageService.js"
+      - "automation-platform/src/routes/binaryLaneCommandBridgeRoutes.js"
+      - "automation-platform/test/dinoStorageCompatibility.test.js"
+      - "automation-platform/test/dinoStorageHttpReconcile.test.js"
+      - "automation-platform/test/dinoStorageList.test.js"
       - ".github/workflows/validate-dinostorage-park.yml"
   workflow_dispatch:
 
@@ -19,8 +23,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Validate parking corpse contract
-        run: node --test test/dinoStorageParkCorpse.test.js
+      - name: Install automation dependencies
+        run: cd automation-platform && npm install --ignore-scripts --no-audit --no-fund
+      - name: Validate automation-owned DinoStorage flow
+        run: >-
+          cd automation-platform && node --test
+          test/dinoStorageCompatibility.test.js
+          test/dinoStorageHttpReconcile.test.js
+          test/dinoStorageList.test.js
       - name: Install Lua
         run: sudo apt-get update -qq && sudo apt-get install -y lua5.4
       - name: Validate DinoStorage Lua syntax

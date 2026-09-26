@@ -24,12 +24,10 @@ const supporterRouter = require("./routes/supporter");
 const stripeWebhookRouter = require("./routes/stripeWebhook");
 const dailyBonusRouter = require("./routes/dailybonus");
 const bodydropRouter = require("./routes/bodydrop");
-const dinoStorageRouter = require("./routes/dinoStorage");
 const serverStatusRouter = require("./routes/serverStatus");
 const eventsRouter = require("./routes/events");
 const friendsRouter = require("./routes/friends");
 const mapdataRouter = require("./routes/mapdata");
-const commandBridgeInternalRouter = require("./routes/commandBridgeInternal");
 const supporterInternalRouter = require("./routes/supporterInternal");
 const adminRestoreRouter = require("./routes/adminRestore");
 const adminOperationsRouter = require("./routes/adminOperations");
@@ -39,19 +37,9 @@ const serverStatusService = require("./services/serverStatus");
 const automationWebsiteClient = require("./services/automationWebsiteClient");
 const skinSharePolicyClient = require("./services/skinSharePolicyClient");
 const { syncSteamProfiles } = require("./services/steamProfile");
-const herbyBot = require("./herbyBot");
-
-const parkHandler = require("../api/park");
-const playerdataHandler = require("../api/playerdata");
-const redeemHandler = require("../api/redeem");
-const parkedHandler = require("../api/parked");
-const adminHandler = require("../api/admin");
 
 const PORT = process.env.PORT || 3000;
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
-const LEGACY_DIRECT_GAME_API_ENABLED = String(process.env.LEGACY_DIRECT_GAME_API_ENABLED || "true")
-  .trim()
-  .toLowerCase() === "true";
 const HOLLOW_VALLEY_HOSTNAME = "hollowvalleyisle.com";
 const LEGACY_HOSTNAMES = new Set([
   "hollowvalley.herbydeathsquadgames.com",
@@ -90,6 +78,13 @@ async function syncSkinSharePolicy() {
   } catch (error) {
     console.warn("[skin-share-policy] sync warning:", error.message);
   }
+}
+
+function legacyDirectGameApiRetired(_req, res) {
+  return res.status(410).json({
+    error: "Legacy direct game API has been retired. Use the automation-backed Hollow Valley endpoints instead.",
+    code: "LEGACY_DIRECT_GAME_API_RETIRED",
+  });
 }
 
 function createApp() {
@@ -184,7 +179,7 @@ function createApp() {
 
   app.use("/auth", authRouter);
   app.use("/auth/steam", authSteamRouter);
-  app.use("/api/internal/commandbridge", commandBridgeInternalRouter);
+  app.use("/api/internal/commandbridge", legacyDirectGameApiRetired);
   app.use("/api/internal/supporter-memberships", supporterInternalRouter);
   app.use("/api/species", speciesRouter);
   app.use("/api/wallet", walletRouter);
@@ -210,21 +205,8 @@ function createApp() {
   app.use("/api/admin-supporters", adminSupportersRouter);
   app.use("/api/mapdata", mapdataRouter);
 
-  if (LEGACY_DIRECT_GAME_API_ENABLED) {
-    app.use("/api/dinostorage", dinoStorageRouter);
-    app.all("/api/park", parkHandler);
-    app.all("/api/playerdata", playerdataHandler);
-    app.all("/api/redeem", redeemHandler);
-    app.all("/api/parked", parkedHandler);
-    app.all("/api/admin", adminHandler);
-  } else {
-    const legacyDisabled = (_req, res) => res.status(410).json({
-      error: "Legacy direct game API is disabled. Use the automation-backed Hollow Valley endpoints instead.",
-      code: "LEGACY_DIRECT_GAME_API_DISABLED",
-    });
-    app.use("/api/dinostorage", legacyDisabled);
-    app.all(["/api/park", "/api/playerdata", "/api/redeem", "/api/parked", "/api/admin"], legacyDisabled);
-  }
+  app.use("/api/dinostorage", legacyDirectGameApiRetired);
+  app.all(["/api/park", "/api/playerdata", "/api/redeem", "/api/parked", "/api/admin"], legacyDirectGameApiRetired);
 
   const PAGE_ROUTES = ["dashboard", "wallet", "quests", "profile", "mydinos", "bodydrop", "friends", "marketplace", "livemap", "leaderboard", "supporter", "events"];
   for (const page of PAGE_ROUTES) {
@@ -269,9 +251,8 @@ function startServer() {
   const app = createApp();
   return app.listen(PORT, () => {
     console.log(`Herby Death Squad portal running on port ${PORT}`);
-    console.log(`[legacy-api] directGameApiEnabled=${LEGACY_DIRECT_GAME_API_ENABLED}`);
+    console.log("[legacy-api] direct game execution paths retired");
     serverStatusService.start();
-    herbyBot.start();
     syncSkinSharePolicy();
     const skinSharePolicyTimer = setInterval(syncSkinSharePolicy, 5 * 60 * 1000);
     skinSharePolicyTimer.unref?.();
