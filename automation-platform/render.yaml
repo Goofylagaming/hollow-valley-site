@@ -52,6 +52,16 @@ services:
       - key: COMMAND_BRIDGE_TIMEOUT_MS
         value: 20000
 
+      # Serialize UE4SS-facing actions so parking, BodyDrop, Prime/admin and skin
+      # mutations cannot execute concurrently. A final sub-mod result releases
+      # the lock; the short cooldown gives the game thread/replication time to settle.
+      - key: GAME_ACTION_QUEUE_ENABLED
+        value: true
+      - key: GAME_ACTION_QUEUE_COOLDOWN_MS
+        value: 2000
+      - key: GAME_ACTION_QUEUE_LOCK_TIMEOUT_MS
+        value: 45000
+
       # Stable shared application settings. Feature flags and reconcile/monitor
       # intervals are intentionally omitted so this blueprint cannot silently
       # reintroduce migration-era disabled states or five-minute fallbacks.

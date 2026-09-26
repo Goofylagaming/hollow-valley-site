@@ -27,6 +27,22 @@ db.exec(`
 `);
 
 const MAX_BATCH = 10;
+const DEFAULT_ACTION_QUEUE_COOLDOWN_MS = 2000;
+const DEFAULT_ACTION_QUEUE_LOCK_TIMEOUT_MS = 45000;
+
+function boundedMs(name, fallback, min, max) {
+  const value = Number(process.env[name]);
+  if (!Number.isFinite(value)) return fallback;
+  return Math.max(min, Math.min(max, Math.floor(value)));
+}
+
+function actionQueueSettings() {
+  return {
+    enabled: process.env.GAME_ACTION_QUEUE_ENABLED !== 'false',
+    cooldownMs: boundedMs('GAME_ACTION_QUEUE_COOLDOWN_MS', DEFAULT_ACTION_QUEUE_COOLDOWN_MS, 0, 30000),
+    lockTimeoutMs: boundedMs('GAME_ACTION_QUEUE_LOCK_TIMEOUT_MS', DEFAULT_ACTION_QUEUE_LOCK_TIMEOUT_MS, 5000, 300000),
+  };
+}
 
 function cleanupOldRows() {
   db.prepare(`
@@ -63,12 +79,82 @@ function enqueue(command, expectedSource) {
   return command.id;
 }
 
+function activeAction() {
+  return db.prepare(`
+    SELECT id, verb, steam, status,
+           CAST((julianday('now') - julianday(COALESCE(acknowledged_at, dispatched_at, created_at))) * 86400000 AS INTEGER) AS age_ms
+    FROM command_bridge_http_requests
+    WHERE status IN ('dispatched', 'acknowledged')
+    ORDER BY datetime(COALESCE(acknowledged_at, dispatched_at, created_at)) DESC
+    LIMIT 1
+  `).get() || null;
+}
+
+function lastCompletedAction() {
+  return db.prepare(`
+    SELECT id, verb, steam,
+           CAST((julianday('now') - julianday(completed_at)) * 86400000 AS INTEGER) AS age_ms
+    FROM command_bridge_http_requests
+    WHERE status = 'completed' AND completed_at IS NOT NULL
+    ORDER BY datetime(completed_at) DESC
+    LIMIT 1
+  `).get() || null;
+}
+
+function actionQueueState() {
+  const settings = actionQueueSettings();
+  const active = activeAction();
+  const lastCompleted = lastCompletedAction();
+  const activeAgeMs = Number(active?.age_ms);
+  const completedAgeMs = Number(lastCompleted?.age_ms);
+  const lockedByActive = Boolean(
+    settings.enabled && active && Number.isFinite(activeAgeMs) && activeAgeMs < settings.lockTimeoutMs
+  );
+  const coolingDown = Boolean(
+    settings.enabled && lastCompleted && Number.isFinite(completedAgeMs) && completedAgeMs < settings.cooldownMs
+  );
+
+  return {
+    ...settings,
+    locked: lockedByActive || coolingDown,
+    reason: lockedByActive ? 'action_in_flight' : coolingDown ? 'cooldown' : null,
+    active: active ? {
+      id: active.id,
+      verb: active.verb,
+      steam: active.steam,
+      status: active.status,
+      ageMs: activeAgeMs,
+      stale: Number.isFinite(activeAgeMs) ? activeAgeMs >= settings.lockTimeoutMs : false,
+    } : null,
+    lastCompleted: lastCompleted ? {
+      id: lastCompleted.id,
+      verb: lastCompleted.verb,
+      steam: lastCompleted.steam,
+      ageMs: completedAgeMs,
+    } : null,
+  };
+}
+
 function claimPending(limit = MAX_BATCH) {
-  const safeLimit = Math.max(1, Math.min(MAX_BATCH, Number(limit) || MAX_BATCH));
+  const settings = actionQueueSettings();
+  const safeLimit = settings.enabled ? 1 : Math.max(1, Math.min(MAX_BATCH, Number(limit) || MAX_BATCH));
   const claimed = [];
 
   db.exec('BEGIN IMMEDIATE');
   try {
+    // Anti-crash queue: while enabled, only one CommandBridge action may be in
+    // flight at a time. Parking, BodyDrop, Prime, restore/admin actions and skin
+    // mutations all converge here before the BinaryLane agent can touch UE4SS.
+    // A stale in-flight row stops blocking after lockTimeoutMs, but is never
+    // re-dispatched; this avoids duplicate game mutations after a lost result.
+    if (settings.enabled) {
+      const state = actionQueueState();
+      if (state.locked) {
+        db.exec('COMMIT');
+        return [];
+      }
+    }
+
     const rows = db.prepare(`
       SELECT id, payload
       FROM command_bridge_http_requests
@@ -196,7 +282,10 @@ function getSummary() {
     summary.total += count;
   }
 
-  return summary;
+  return {
+    ...summary,
+    actionQueue: actionQueueState(),
+  };
 }
 
 module.exports = {
@@ -205,4 +294,6 @@ module.exports = {
   acceptResult,
   getRequest,
   getSummary,
+  actionQueueSettings,
+  actionQueueState,
 };
