@@ -5,13 +5,17 @@ const files = require('./parkedDinoFileService');
 const ACTIVE_STATUSES = new Set(['escrowing', 'active', 'reserved', 'transfer_uncertain', 'cancelling']);
 
 // Kept for compatibility with the existing marketplace state endpoint. This is
-// the official-catalog write gate; P2P survivor trading has its own gate below.
+// the official-catalog write gate. P2P survivor trading can override it with a
+// dedicated gate, but falls back to this value so existing deployments keep
+// player selling working without requiring a second environment variable.
 function writeEnabled() {
   return String(process.env.MARKETPLACE_WRITE_ENABLED || '').toLowerCase() === 'true';
 }
 
 function p2pWriteEnabled() {
-  return String(process.env.P2P_MARKETPLACE_WRITE_ENABLED || '').toLowerCase() === 'true';
+  const configured = String(process.env.P2P_MARKETPLACE_WRITE_ENABLED ?? '').trim();
+  if (configured) return configured.toLowerCase() === 'true';
+  return writeEnabled();
 }
 
 function assertWriteEnabled() {
