@@ -1,9 +1,9 @@
--- BodyDrop v003.7
+-- BodyDrop v003.8
 -- Admin-only corpse spawner. Bodies are only dropped when explicitly requested.
 -- IPC: bodydrop commands routed from CommandBridge.
 
 local MOD_NAME    = "BodyDrop"
-local MOD_VERSION = "v003.7"
+local MOD_VERSION = "v003.8"
 
 local function resolveModRoot()
     local source = debug.getinfo(1, "S").source or ""
@@ -253,7 +253,7 @@ local function traceGround(worldContext, x, y, anchorZ, actorToIgnore)
     return z, nil
 end
 
-local function spawnPlantForPlayer(plantKey, steam)
+local function spawnPlantForPlayer(plantKey, steam, requestedScale)
     local key = tostring(plantKey or ""):lower()
     local classPath = PLANT_PATHS[key]
     if classPath == nil then
@@ -278,7 +278,26 @@ local function spawnPlantForPlayer(plantKey, steam)
     pcall(function() world = gm:GetWorld() end)
     if world == nil then return false, "no world" end
 
+    local scale = tonumber(requestedScale) or 1.0
+    if scale < 0.25 or scale > 12.0 then
+        return false, "plant scale must be between 0.25 and 12"
+    end
+
     local spawnOffsets = buildSpawnOffsets(forward)
+    if scale >= 4.0 then
+        local fx = tonumber(forward and forward.X) or 1
+        local fy = tonumber(forward and forward.Y) or 0
+        local rightX = -fy
+        local rightY = fx
+        local distance = math.min(1500, math.max(600, scale * 100))
+        spawnOffsets = {
+            { fx * distance, fy * distance },
+            { fx * (distance + 250), fy * (distance + 250) },
+            { (fx * distance) + (rightX * 300), (fy * distance) + (rightY * 300) },
+            { (fx * distance) - (rightX * 300), (fy * distance) - (rightY * 300) },
+        }
+    end
+
     local lastError = nil
 
     for i, offset in ipairs(spawnOffsets) do
@@ -313,6 +332,9 @@ local function spawnPlantForPlayer(plantKey, steam)
                     lastError = "SpawnActor returned invalid/null actor"
                     log("PLANT PROBE | SpawnActor | FAILED | invalid/null actor")
                 else
+                    local scaleOk = tryPawnCall("Plant SetActorScale3D", function()
+                        actor:SetActorScale3D({ X = scale, Y = scale, Z = scale })
+                    end)
                     local replicateOk = tryPawnCall("Plant SetReplicates", function()
                         actor:SetReplicates(true)
                     end)
@@ -320,21 +342,26 @@ local function spawnPlantForPlayer(plantKey, steam)
                         actor:ForceNetUpdate()
                     end)
 
+                    if not scaleOk then
+                        return false, "plant spawned but scale could not be applied"
+                    end
                     if not replicateOk or not updateOk then
                         return false, "plant spawned but replication setup failed"
                     end
 
                     log(string.format(
-                        "PLANT PROBE | OK | plant=%s address=%s X=%.3f Y=%.3f Z=%.3f",
-                        key, tostring(addr),
+                        "PLANT PROBE | OK | plant=%s scale=%.2f address=%s X=%.3f Y=%.3f Z=%.3f",
+                        key, tonumber(scale) or 1,
+                        tostring(addr),
                         tonumber(loc.X) or 0, tonumber(loc.Y) or 0, tonumber(loc.Z) or 0
                     ))
 
                     -- Intentionally do not retain/destroy this actor later.
                     -- Edible world actors may be consumed independently.
                     return true, string.format(
-                        "%s plant spawned at X=%.3f Y=%.3f Z=%.3f",
-                        key, tonumber(loc.X) or 0, tonumber(loc.Y) or 0, tonumber(loc.Z) or 0
+                        "%s plant spawned at %.2fx scale X=%.3f Y=%.3f Z=%.3f",
+                        key, tonumber(scale) or 1,
+                        tonumber(loc.X) or 0, tonumber(loc.Y) or 0, tonumber(loc.Z) or 0
                     )
                 end
             end
@@ -545,11 +572,12 @@ local function handleCommand(steam, tokens)
     elseif verb == "plant" then
         local plantKey = tokens[2] or "banana"
         local target = tokens[3]
+        local scale = tonumber(tokens[4]) or 1.0
         if target == nil or target == "" then target = steam end
         if target == nil or target == "" then
-            return false, "usage: plant <banana|mango|pumpkin> [targetSteam]"
+            return false, "usage: plant <banana|mango|pumpkin> [targetSteam] [scale]"
         end
-        return spawnPlantForPlayer(plantKey, target)
+        return spawnPlantForPlayer(plantKey, target, scale)
 
     elseif verb == "status" then
         return true, string.format("BodyDrop %s | ready", MOD_VERSION)
