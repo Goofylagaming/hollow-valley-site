@@ -3,7 +3,7 @@
 -- IPC: bodydrop commands routed from CommandBridge.
 
 local MOD_NAME    = "BodyDrop"
-local MOD_VERSION = "v003.8"
+local MOD_VERSION = "v003.9-pumpkin-test"
 
 local function resolveModRoot()
     local source = debug.getinfo(1, "S").source or ""
@@ -58,6 +58,17 @@ local PLANT_PATHS = {
     banana = "/Game/TheIsle/Core/Spawnables/EdiblePlants/BP_BananaTreeStaticSpawner.BP_BananaTreeStaticSpawner_C",
     mango = "/Game/TheIsle/Core/Spawnables/EdiblePlants/BP_MangoTreeStaticSpawner.BP_MangoTreeStaticSpawner_C",
     pumpkin = "/Game/TheIsle/Core/Spawnables/EdiblePlants/BP_PumpkinStaticSpawner.BP_PumpkinStaticSpawner_C",
+}
+
+-- Experimental loose-fruit paths. The exact loose pumpkin class is not documented,
+-- so the test safely probes likely Blueprint names with StaticFindObject only.
+local GIANT_PUMPKIN_CANDIDATES = {
+    "/Game/TheIsle/Core/Spawnables/EdiblePlants/BP_Pumpkin.BP_Pumpkin_C",
+    "/Game/TheIsle/Core/Spawnables/EdiblePlants/BP_PumpkinFruit.BP_PumpkinFruit_C",
+    "/Game/TheIsle/Core/Spawnables/EdiblePlants/BP_PumpkinPiece.BP_PumpkinPiece_C",
+    "/Game/TheIsle/Core/Spawnables/EdiblePlants/Pumpkin/BP_Pumpkin.BP_Pumpkin_C",
+    "/Game/TheIsle/Core/Spawnables/EdiblePlants/Pumpkin/BP_PumpkinFruit.BP_PumpkinFruit_C",
+    "/Game/TheIsle/Core/Spawnables/EdiblePlants/Pumpkin/BP_PumpkinPiece.BP_PumpkinPiece_C",
 }
 
 local function fileExists(path)
@@ -372,6 +383,187 @@ local function spawnPlantForPlayer(plantKey, steam, requestedScale)
         (lastError and (": " .. tostring(lastError)) or "")
 end
 
+local function actorDebugName(actor)
+    if actor == nil then return "nil" end
+
+    local full
+    pcall(function() full = actor:GetFullName() end)
+    if full ~= nil then return tostring(full) end
+
+    local name
+    pcall(function() name = actor:GetName() end)
+    return tostring(name or actor)
+end
+
+local function trySpawnGiantPumpkinClass(world, classPath, loc, scaleXY, scaleZ)
+    local cls
+    pcall(function() cls = StaticFindObject(classPath) end)
+    if cls == nil then return nil, "class not loaded: " .. tostring(classPath) end
+
+    local actor
+    local spawnOk, spawnErr = pcall(function()
+        actor = world:SpawnActor(cls, loc, { Pitch = 0, Yaw = 0, Roll = 0 })
+    end)
+    if not spawnOk then return nil, "SpawnActor failed: " .. tostring(spawnErr) end
+
+    local addr
+    if actor ~= nil then pcall(function() addr = actor:GetAddress() end) end
+    if actor == nil or addr == nil or addr == 0 then
+        return nil, "SpawnActor returned invalid/null actor"
+    end
+
+    local scaleOk = tryPawnCall("GiantPumpkin SetActorScale3D", function()
+        actor:SetActorScale3D({ X = scaleXY, Y = scaleXY, Z = scaleZ })
+    end)
+    local replicateOk = tryPawnCall("GiantPumpkin SetReplicates", function()
+        actor:SetReplicates(true)
+    end)
+    local updateOk = tryPawnCall("GiantPumpkin ForceNetUpdate", function()
+        actor:ForceNetUpdate()
+    end)
+
+    if not scaleOk then return nil, "actor spawned but scale failed" end
+    if not replicateOk or not updateOk then return nil, "actor spawned but replication setup failed" end
+
+    log(string.format(
+        "GIANT PUMPKIN | DIRECT OK | class=%s actor=%s scale=(%.2f,%.2f,%.2f)",
+        tostring(classPath), actorDebugName(actor),
+        tonumber(scaleXY) or 0, tonumber(scaleXY) or 0, tonumber(scaleZ) or 0
+    ))
+    return actor, nil
+end
+
+local function spawnGiantPumpkinForPlayer(steam, requestedScale)
+    local location, err, forward, playerPawn = getPlayerPlacement(steam)
+    if location == nil then
+        return false, "cannot locate target: " .. tostring(err)
+    end
+
+    local gm = findGameMode()
+    if gm == nil then return false, "no game mode" end
+
+    local world
+    pcall(function() world = gm:GetWorld() end)
+    if world == nil then return false, "no world" end
+
+    local scaleXY = tonumber(requestedScale) or 8.0
+    if scaleXY < 1.0 or scaleXY > 12.0 then
+        return false, "giant pumpkin scale must be between 1 and 12"
+    end
+    local scaleZ = math.max(1.0, scaleXY * 0.75)
+
+    local fx = tonumber(forward and forward.X) or 1
+    local fy = tonumber(forward and forward.Y) or 0
+    local distance = math.min(1500, math.max(800, scaleXY * 125))
+    local x = (tonumber(location.X) or 0) + (fx * distance)
+    local y = (tonumber(location.Y) or 0) + (fy * distance)
+    local groundZ, groundErr = traceGround(gm, x, y, location.Z, playerPawn)
+    if groundZ == nil then return false, "ground trace failed: " .. tostring(groundErr) end
+
+    local loc = { X = x, Y = y, Z = groundZ + 25 }
+
+    -- Best case: the loose fruit Blueprint is already loaded and can be spawned directly.
+    for _, classPath in ipairs(GIANT_PUMPKIN_CANDIDATES) do
+        local actor = trySpawnGiantPumpkinClass(world, classPath, loc, scaleXY, scaleZ)
+        if actor ~= nil then
+            return true, string.format(
+                "standalone giant pumpkin spawned at %.2fx/%.2fx/%.2fx",
+                scaleXY, scaleXY, scaleZ
+            )
+        end
+    end
+
+    -- Fallback: create the verified pumpkin spawner once so Evrima has a chance to
+    -- instantiate/load its fruit class, then hide the plant and scale exposed children.
+    local spawnerCls
+    pcall(function() spawnerCls = StaticFindObject(PLANT_PATHS.pumpkin) end)
+    if spawnerCls == nil then return false, "pumpkin spawner class not found" end
+
+    local spawner
+    local spawnOk, spawnErr = pcall(function()
+        spawner = world:SpawnActor(spawnerCls, { X = x, Y = y, Z = groundZ + 10 }, { Pitch = 0, Yaw = 0, Roll = 0 })
+    end)
+    if not spawnOk then return false, "pumpkin fallback SpawnActor failed: " .. tostring(spawnErr) end
+
+    local spawnerAddr
+    if spawner ~= nil then pcall(function() spawnerAddr = spawner:GetAddress() end) end
+    if spawner == nil or spawnerAddr == nil or spawnerAddr == 0 then
+        return false, "pumpkin fallback SpawnActor returned invalid/null actor"
+    end
+
+    pcall(function() spawner:SetReplicates(true) end)
+    pcall(function() spawner:ForceNetUpdate() end)
+
+    if LoopInGameThreadWithDelay == nil or CancelDelayedAction == nil then
+        return false, "delayed probe unavailable on this UE4SS build"
+    end
+
+    local probeHandle
+    local ran = false
+    probeHandle = LoopInGameThreadWithDelay(1500, function()
+        if ran then return end
+        ran = true
+        if probeHandle ~= nil then
+            pcall(function() CancelDelayedAction(probeHandle) end)
+        end
+
+        local directActor = nil
+        for _, classPath in ipairs(GIANT_PUMPKIN_CANDIDATES) do
+            local actor = trySpawnGiantPumpkinClass(world, classPath, loc, scaleXY, scaleZ)
+            if actor ~= nil then
+                directActor = actor
+                break
+            end
+        end
+
+        local exposed = {}
+        local attached = {}
+        local children = {}
+
+        pcall(function() spawner:GetAttachedActors(attached, true, true) end)
+        pcall(function() spawner:GetAllChildActors(children, true) end)
+
+        for _, actor in ipairs(attached) do exposed[#exposed + 1] = actor end
+        for _, actor in ipairs(children) do exposed[#exposed + 1] = actor end
+
+        local seen = {}
+        local scaled = 0
+        for _, actor in ipairs(exposed) do
+            local addr
+            if actor ~= nil then pcall(function() addr = actor:GetAddress() end) end
+            local key = tostring(addr or actor)
+            if actor ~= nil and addr ~= nil and addr ~= 0 and not seen[key] then
+                seen[key] = true
+                log("GIANT PUMPKIN | exposed child | " .. actorDebugName(actor))
+                local ok = pcall(function()
+                    actor:SetActorScale3D({ X = scaleXY, Y = scaleXY, Z = scaleZ })
+                    actor:SetReplicates(true)
+                    actor:SetActorHiddenInGame(false)
+                    actor:ForceNetUpdate()
+                end)
+                if ok then scaled = scaled + 1 end
+            end
+        end
+
+        -- Hide only the verified plant/spawner actor. If its pumpkin is a separate actor,
+        -- it remains and is enlarged above; if not, the diagnostic log tells us.
+        pcall(function()
+            spawner:SetActorHiddenInGame(true)
+            spawner:ForceNetUpdate()
+        end)
+
+        log(string.format(
+            "GIANT PUMPKIN | fallback complete | direct=%s attached=%d children=%d scaled=%d",
+            tostring(directActor ~= nil), #attached, #children, scaled
+        ))
+    end)
+
+    return true, string.format(
+        "giant pumpkin probe queued at %.2fx wide / %.2fx tall; plant will hide after 1.5s",
+        scaleXY, scaleZ
+    )
+end
+
 local function spawnCorpse(speciesName, location, growthFraction, forward, playerPawn)
     local classPath = SPECIES_PATHS[speciesName]
     if classPath == nil then return false, "unknown species: " .. tostring(speciesName) end
@@ -578,6 +770,15 @@ local function handleCommand(steam, tokens)
             return false, "usage: plant <banana|mango|pumpkin> [targetSteam] [scale]"
         end
         return spawnPlantForPlayer(plantKey, target, scale)
+
+    elseif verb == "giantpumpkin" then
+        local target = tokens[2]
+        local scale = tonumber(tokens[3]) or 8.0
+        if target == nil or target == "" then target = steam end
+        if target == nil or target == "" then
+            return false, "usage: giantpumpkin [targetSteam] [scale]"
+        end
+        return spawnGiantPumpkinForPlayer(target, scale)
 
     elseif verb == "status" then
         return true, string.format("BodyDrop %s | ready", MOD_VERSION)
