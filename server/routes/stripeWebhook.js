@@ -1,5 +1,6 @@
 const express = require("express");
 const { verifyStripeSignature, processStripeEvent } = require("../services/supporterWebhook");
+const { creditMonthlySubscriberBonus } = require("../services/supporterCoinBonus");
 const { syncDiscordMembershipForUser } = require("../services/discordMembership");
 
 const router = express.Router();
@@ -24,6 +25,13 @@ router.post("/", express.raw({ type: "application/json" }), async (req, res) => 
 
   try {
     const result = processStripeEvent(event);
+
+    // Run this even when Stripe is retrying an event already recorded by the
+    // membership webhook handler. The automation wallet uses the Stripe invoice
+    // ID as an idempotency key, so retries can safely finish an interrupted
+    // Valley Coin payout without ever paying twice.
+    const monthlyBonus = await creditMonthlySubscriberBonus(event);
+
     if (result?.userId) {
       try {
         await syncDiscordMembershipForUser(result.userId);
@@ -31,7 +39,7 @@ router.post("/", express.raw({ type: "application/json" }), async (req, res) => 
         console.warn("Discord membership sync warning:", error.message);
       }
     }
-    return res.json({ received: true, ...result });
+    return res.json({ received: true, ...result, monthlyBonus });
   } catch (error) {
     console.error("Stripe webhook processing failed:", error.message);
     return res.status(500).json({ error: "Webhook processing failed." });
