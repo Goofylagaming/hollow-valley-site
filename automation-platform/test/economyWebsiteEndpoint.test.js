@@ -30,11 +30,17 @@ function close(server) {
 test('website wallet and marketplace APIs are protected and preserve atomic purchase state', async (t) => {
   const steamId = '76561198000000020';
   economy.upsertCatalogItem({
-    id: 'dino:carno:75',
+    id: 'dino:carno:50',
     itemType: 'dino',
-    name: 'Carnotaurus 75%',
+    name: 'Carnotaurus 50%',
     price: 400,
-    payload: { speciesId: 'carnotaurus', sizePercent: 75 },
+    payload: {
+      speciesId: 'carnotaurus',
+      growthTier: '50',
+      growthPercent: 50,
+      sizePercent: 50,
+      isPrime: false,
+    },
   });
   economy.applyWalletTransaction({
     steamId,
@@ -93,15 +99,15 @@ test('website wallet and marketplace APIs are protected and preserve atomic purc
   const catalogResponse = await fetch(`${base}/marketplace/catalog`, { headers });
   assert.equal(catalogResponse.status, 200);
   const catalog = await catalogResponse.json();
-  const catalogItem = catalog.catalog.find((item) => item.id === 'dino:carno:75');
-  assert.ok(catalogItem, 'custom catalog fixture should be present alongside seeded catalog entries');
+  const catalogItem = catalog.catalog.find((item) => item.id === 'dino:carno:50');
+  assert.ok(catalogItem, 'valid 50% fixture should be present alongside seeded catalog entries');
   assert.equal(catalogItem.price, 400);
 
   const body = JSON.stringify({
     steamId,
     idempotencyKey: 'website-marketplace:endpoint-001',
   });
-  const purchase = await fetch(`${base}/marketplace/catalog/dino%3Acarno%3A75/buy`, {
+  const purchase = await fetch(`${base}/marketplace/catalog/dino%3Acarno%3A50/buy`, {
     method: 'POST',
     headers,
     body,
@@ -111,7 +117,7 @@ test('website wallet and marketplace APIs are protected and preserve atomic purc
   assert.equal(purchaseBody.order.status, 'pending');
   assert.equal(purchaseBody.wallet.balance, 600);
 
-  const retry = await fetch(`${base}/marketplace/catalog/dino%3Acarno%3A75/buy`, {
+  const retry = await fetch(`${base}/marketplace/catalog/dino%3Acarno%3A50/buy`, {
     method: 'POST',
     headers,
     body,
