@@ -6,7 +6,10 @@ const automation = require("../services/automationWebsiteClient");
 
 const router = express.Router();
 const STORE_LOCK_MS = Math.max(5000, Number(process.env.DINOSTORAGE_STORE_LOCK_MS || 30000));
+const STORE_SNAPSHOT_GRACE_MS = Math.max(3000, Number(process.env.DINOSTORAGE_STORE_SNAPSHOT_GRACE_MS || 5000));
+const STORE_TRANSITION_MAX_MS = Math.max(60000, Number(process.env.DINOSTORAGE_STORE_TRANSITION_MAX_MS || 300000));
 const activeStoreLocks = new Map();
+const recentStoreTransitions = new Map();
 
 function getActiveStoreLock(steamId) {
   const lock = activeStoreLocks.get(String(steamId));
@@ -35,6 +38,28 @@ function acquireStoreLock(steamId) {
 function releaseStoreLock(steamId, lock) {
   const steam = String(steamId);
   if (activeStoreLocks.get(steam) === lock) activeStoreLocks.delete(steam);
+}
+
+function markStoreTransition(steamId, startedAt) {
+  recentStoreTransitions.set(String(steamId), {
+    startedAt: Number(startedAt) || Date.now(),
+    expiresAt: Date.now() + STORE_TRANSITION_MAX_MS,
+  });
+}
+
+function getStoreTransition(steamId) {
+  const steam = String(steamId);
+  const transition = recentStoreTransitions.get(steam);
+  if (!transition) return null;
+  if (Date.now() >= transition.expiresAt) {
+    recentStoreTransitions.delete(steam);
+    return null;
+  }
+  return transition;
+}
+
+function clearStoreTransition(steamId) {
+  recentStoreTransitions.delete(String(steamId));
 }
 
 function mapAutomationError(error, fallback) {
@@ -68,6 +93,25 @@ function requireSteam(req, res) {
   return String(req.user.steam_id);
 }
 
+function activeCharacterResponse(character) {
+  return {
+    active: true,
+    character: {
+      name: character.name || null,
+      species: character.species || null,
+      gender: character.gender || null,
+      growth: Number.isFinite(character.growth) ? character.growth : null,
+      health: Number.isFinite(character.health) ? character.health : null,
+      stamina: Number.isFinite(character.stamina) ? character.stamina : null,
+      hunger: Number.isFinite(character.hunger) ? character.hunger : null,
+      thirst: Number.isFinite(character.thirst) ? character.thirst : null,
+      isPrime: character.isPrime === true,
+      mutations: Array.isArray(character.mutations) ? character.mutations : [],
+      location: character.location || null,
+    },
+  };
+}
+
 router.get("/", requireAuth, async (req, res) => {
   if (!req.user.steam_id) return res.json([]);
   try {
@@ -95,7 +139,35 @@ router.get("/active-character", requireAuth, async (req, res) => {
   }
 
   try {
-    return res.json(await automation.getActiveCharacter(steamId));
+    const snapshot = await automation.getServerSnapshot();
+    if (!snapshot?.online) {
+      return res.json({ active: false, reason: "server_offline" });
+    }
+
+    const transition = getStoreTransition(steamId);
+    if (transition) {
+      const snapshotAt = Date.parse(snapshot.checkedAt || "");
+      const freshAfterStore = Number.isFinite(snapshotAt) &&
+        snapshotAt >= transition.startedAt + STORE_SNAPSHOT_GRACE_MS;
+
+      if (!freshAfterStore) {
+        return res.json({
+          active: false,
+          reason: "store_pending",
+          storePending: true,
+          snapshotCheckedAt: snapshot.checkedAt || null,
+        });
+      }
+    }
+
+    const character = (snapshot.characters || []).find((entry) => String(entry.steamId) === steamId);
+    if (!character) {
+      if (transition) clearStoreTransition(steamId);
+      return res.json({ active: false, reason: "not_in_game" });
+    }
+
+    if (transition) clearStoreTransition(steamId);
+    return res.json(activeCharacterResponse(character));
   } catch (error) {
     const mapped = mapAutomationError(error, "Live character state unavailable.");
     return res.status(mapped.status).json(mapped.body);
@@ -146,6 +218,7 @@ async function runDinoAction(req, res, action, slot) {
 
   try {
     const result = await automation.requestDinoAction(action, { steamId, slot });
+    if (action === "store" && storeLock) markStoreTransition(steamId, storeLock.startedAt);
     const request = result.request || null;
     const message = request?.message || `DinoStorage ${action} accepted for processing.`;
     return res.status(202).json({
@@ -166,7 +239,10 @@ async function runDinoAction(req, res, action, slot) {
       },
     });
   } catch (error) {
-    if (action === "store" && storeLock) releaseStoreLock(steamId, storeLock);
+    if (action === "store" && storeLock) {
+      releaseStoreLock(steamId, storeLock);
+      clearStoreTransition(steamId);
+    }
     const mapped = mapAutomationError(error, `DinoStorage ${action} failed.`);
     return res.status(mapped.status).json(mapped.body);
   }
