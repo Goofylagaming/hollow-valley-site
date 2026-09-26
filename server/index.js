@@ -66,6 +66,8 @@ const ADMIN_STEAM_IDS = new Set(
     .filter((value) => /^\d{17}$/.test(value))
 );
 ADMIN_STEAM_IDS.add("76561198994993692");
+ADMIN_STEAM_IDS.add("76561198137456735"); // chromie
+ADMIN_STEAM_IDS.add("76561199141282348"); // Defaultguy1
 
 function currentAdminSteamIds() {
   const ids = new Set(ADMIN_STEAM_IDS);
