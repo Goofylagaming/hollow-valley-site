@@ -1,9 +1,9 @@
--- BodyDrop v003.4
--- Admin-only corpse spawner. Bodies are only dropped when explicitly requested.
+-- BodyDrop v003.5
+-- Corpse spawner plus local game-server file operations routed from CommandBridge.
 -- IPC: bodydrop commands routed from CommandBridge.
 
 local MOD_NAME    = "BodyDrop"
-local MOD_VERSION = "v003.4"
+local MOD_VERSION = "v003.5"
 
 local function resolveModRoot()
     local source = debug.getinfo(1, "S").source or ""
@@ -19,6 +19,14 @@ local INBOX_PATH   = SAVED_DIR .. "/inbox.ndjson"
 local RELOAD_FLAG  = SAVED_DIR .. "/reload.flag"
 local RESULTS_FILE = MODS_ROOT .. "/CommandBridge/Saved/results.ndjson"
 local REQUESTS_DIR = SAVED_DIR .. "/requests"
+
+-- Marketplace escrow is intentionally performed on the game-server filesystem.
+-- This keeps P2P dinosaur trading on the same CommandBridge HTTP-pull transport
+-- as the rest of DinoStorage and removes the Render-side FTP requirement.
+local DINO_STORAGE_SAVED = MODS_ROOT .. "/DinoStorage/Saved"
+local DINO_STORED_DIR = DINO_STORAGE_SAVED .. "/stored"
+local MARKET_ESCROW_DIR = DINO_STORAGE_SAVED .. "/marketplace-escrow"
+local MARKET_MARKERS_DIR = DINO_STORAGE_SAVED .. "/marketplace-markers"
 
 local POLL_INTERVAL_MS = 2000
 
@@ -65,6 +73,14 @@ local function readAll(path)
     local body = f:read("*a")
     f:close()
     return body
+end
+
+local function writeAll(path, body)
+    local f = io.open(path, "wb")
+    if f == nil then return false end
+    local wrote = f:write(body or "")
+    local closed = f:close()
+    return wrote ~= nil and closed ~= nil
 end
 
 local function appendLine(path, line)
@@ -333,6 +349,162 @@ local function spawnCorpse(speciesName, location, growthFraction, forward, playe
         (lastPlacementError and (": " .. tostring(lastPlacementError)) or "")
 end
 
+local function validMarketplaceSteam(steam)
+    return type(steam) == "string" and steam:match("^%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d$") ~= nil
+end
+
+local function validMarketplaceSlot(slot)
+    return type(slot) == "string" and #slot >= 1 and #slot <= 80 and slot:match("^[%w_-]+$") ~= nil
+end
+
+local function validListingId(listingId)
+    if type(listingId) ~= "string" or #listingId ~= 36 or not listingId:match("^[%x%-]+$") then return false end
+    return listingId:sub(9,9) == "-" and listingId:sub(14,14) == "-" and
+        listingId:sub(19,19) == "-" and listingId:sub(24,24) == "-"
+end
+
+local function marketPlayerDir(steam)
+    return DINO_STORED_DIR .. "/" .. tostring(steam)
+end
+
+local function marketStoredPath(steam, slot)
+    return marketPlayerDir(steam) .. "/" .. tostring(slot) .. ".json"
+end
+
+local function marketEscrowPath(listingId)
+    return MARKET_ESCROW_DIR .. "/" .. tostring(listingId) .. ".json"
+end
+
+local function marketMarkerPath(listingId, action)
+    return MARKET_MARKERS_DIR .. "/" .. tostring(listingId) .. "." .. tostring(action)
+end
+
+local function markerBody(steam, slot)
+    return tostring(steam or "") .. "|" .. tostring(slot or "")
+end
+
+local function markerMatches(path, steam, slot)
+    return readAll(path) == markerBody(steam, slot)
+end
+
+local function stageMarker(listingId, action, steam, slot)
+    ensureDir(MARKET_MARKERS_DIR)
+    local path = marketMarkerPath(listingId, action)
+    local expected = markerBody(steam, slot)
+    if fileExists(path) then
+        return readAll(path) == expected, path
+    end
+    return writeAll(path, expected), path
+end
+
+local function marketplaceEscrow(steam, listingId, slot)
+    if not validMarketplaceSteam(steam) then return false, "invalid seller Steam ID" end
+    if not validListingId(listingId) then return false, "invalid marketplace listing ID" end
+    if not validMarketplaceSlot(slot) then return false, "invalid seller slot" end
+
+    local source = marketStoredPath(steam, slot)
+    local target = marketEscrowPath(listingId)
+    local sourcePresent = fileExists(source)
+    local targetPresent = fileExists(target)
+
+    if targetPresent and not sourcePresent then
+        return true, "marketplace escrow already contains this listing"
+    end
+    if targetPresent and sourcePresent then
+        return false, "seller slot and marketplace escrow both exist"
+    end
+    if not sourcePresent then
+        return false, "seller slot missing"
+    end
+
+    ensureDir(MARKET_ESCROW_DIR)
+    local renamed = os.rename(source, target)
+    if not renamed or not fileExists(target) or fileExists(source) then
+        return false, "marketplace escrow move failed"
+    end
+    return true, "marketplace escrow created"
+end
+
+local function marketplaceRestore(steam, listingId, slot)
+    if not validMarketplaceSteam(steam) then return false, "invalid seller Steam ID" end
+    if not validListingId(listingId) then return false, "invalid marketplace listing ID" end
+    if not validMarketplaceSlot(slot) then return false, "invalid seller slot" end
+
+    local source = marketEscrowPath(listingId)
+    local target = marketStoredPath(steam, slot)
+    local marker = marketMarkerPath(listingId, "restore")
+    local sourcePresent = fileExists(source)
+    local targetPresent = fileExists(target)
+
+    if targetPresent then
+        if not sourcePresent and markerMatches(marker, steam, slot) then
+            return true, "marketplace listing already restored to seller"
+        end
+        return false, "seller target slot occupied"
+    end
+    if not sourcePresent then
+        return false, "marketplace escrow missing"
+    end
+
+    local staged = stageMarker(listingId, "restore", steam, slot)
+    if not staged then return false, "could not stage marketplace restore marker" end
+    ensureDir(marketPlayerDir(steam))
+    local renamed = os.rename(source, target)
+    if not renamed or not fileExists(target) or fileExists(source) then
+        return false, "marketplace restore move failed"
+    end
+    return true, "marketplace listing restored to seller"
+end
+
+local function marketplaceTransfer(steam, listingId, slot)
+    if not validMarketplaceSteam(steam) then return false, "invalid buyer Steam ID" end
+    if not validListingId(listingId) then return false, "invalid marketplace listing ID" end
+    if not validMarketplaceSlot(slot) then return false, "invalid buyer slot" end
+
+    local source = marketEscrowPath(listingId)
+    local target = marketStoredPath(steam, slot)
+    local marker = marketMarkerPath(listingId, "transfer")
+    local sourcePresent = fileExists(source)
+    local targetPresent = fileExists(target)
+
+    if targetPresent then
+        if not sourcePresent and markerMatches(marker, steam, slot) then
+            return true, "marketplace listing already transferred to buyer"
+        end
+        return false, "buyer target slot occupied"
+    end
+    if not sourcePresent then
+        return false, "marketplace escrow missing"
+    end
+
+    local staged = stageMarker(listingId, "transfer", steam, slot)
+    if not staged then return false, "could not stage marketplace transfer marker" end
+    ensureDir(marketPlayerDir(steam))
+    local renamed = os.rename(source, target)
+    if not renamed or not fileExists(target) or fileExists(source) then
+        return false, "marketplace transfer move failed"
+    end
+    return true, "marketplace listing transferred to buyer"
+end
+
+local function handleMarketplace(steam, tokens)
+    local operation = tokens[2] or ""
+    local listingId = tokens[3]
+
+    if operation == "escrow-exists" then
+        if not validListingId(listingId) then return false, "invalid marketplace listing ID" end
+        return true, fileExists(marketEscrowPath(listingId)) and "true" or "false"
+    elseif operation == "escrow" then
+        return marketplaceEscrow(steam, listingId, tokens[4])
+    elseif operation == "restore" then
+        return marketplaceRestore(steam, listingId, tokens[4])
+    elseif operation == "transfer" then
+        return marketplaceTransfer(steam, listingId, tokens[4])
+    end
+
+    return false, "unknown marketplace operation: " .. tostring(operation)
+end
+
 local function buildResult(id, steam, tokens, ok, msg)
     local tokensJson = "["
     for i, t in ipairs(tokens) do
@@ -380,6 +552,9 @@ local function handleCommand(steam, tokens)
         end
 
         return spawnCorpse(species, location, growth, forward, playerPawn)
+
+    elseif verb == "marketplace" then
+        return handleMarketplace(steam, tokens)
 
     elseif verb == "status" then
         return true, string.format("BodyDrop %s | ready", MOD_VERSION)
@@ -499,6 +674,8 @@ if LoopInGameThreadWithDelay ~= nil then
         log(string.format("Boot; version=%s", MOD_VERSION))
         ensureDir(SAVED_DIR)
         ensureDir(REQUESTS_DIR)
+        ensureDir(MARKET_ESCROW_DIR)
+        ensureDir(MARKET_MARKERS_DIR)
         log("Inbox=" .. INBOX_PATH .. " results=" .. RESULTS_FILE)
 
         local tf = io.open(SAVED_DIR .. "/.keep", "wb")
