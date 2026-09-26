@@ -33,12 +33,34 @@ async function stripeRequest(path, {
       ...(body ? { body } : {}),
       signal: AbortSignal.timeout(15000),
     });
-    if (!response.ok) throw new Error("Stripe rejected membership management request");
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      const code = payload?.error?.code || "stripe_rejected_management";
+      const type = payload?.error?.type || "unknown";
+      const message = payload?.error?.message || "Stripe rejected membership management request";
+      console.error(
+        `[supporter-manage] method=${method} path=${path} status=${response.status} type=${type} code=${code} message=${message}`
+      );
+      throw new Error("Stripe rejected membership management request");
+    }
+
     const payload = await response.json();
-    if (payload?.livemode !== config.live) throw new Error("Stripe mode mismatch");
+    if (payload?.livemode !== config.live) {
+      console.error(`[supporter-manage] Stripe mode mismatch path=${path} expectedLive=${config.live} actualLive=${payload?.livemode}`);
+      throw new Error("Stripe mode mismatch");
+    }
     return payload;
   } catch (error) {
     if (error instanceof ManageError) throw error;
+    if (error?.name === "TimeoutError") {
+      console.error(`[supporter-manage] Stripe request timed out method=${method} path=${path}`);
+    } else if (
+      error?.message !== "Stripe rejected membership management request" &&
+      error?.message !== "Stripe mode mismatch"
+    ) {
+      console.error(`[supporter-manage] Stripe request failed method=${method} path=${path}: ${error?.message || "unknown error"}`);
+    }
     throw new ManageError(502, "Unable to update Stripe membership. Please try again.");
   }
 }
