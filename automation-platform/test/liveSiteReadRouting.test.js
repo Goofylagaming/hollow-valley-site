@@ -11,7 +11,7 @@ test('My Dinos reads and store/redeem writes use the website automation client',
   const source = readRepoFile('server/routes/mydinos.js');
   assert.match(source, /require\("\.\.\/services\/automationWebsiteClient"\)/);
   assert.match(source, /automation\.listStoredDinos/);
-  assert.match(source, /automation\.getActiveCharacter/);
+  assert.match(source, /automation\.getServerSnapshot/);
   assert.match(source, /automation\.requestDinoAction/);
   assert.doesNotMatch(source, /respondToDinoStorageAction/);
 });

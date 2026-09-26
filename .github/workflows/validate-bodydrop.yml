@@ -8,6 +8,13 @@ on:
       - "server/routes/bodydrop.js"
       - "server/services/bodyDrop.js"
       - "server/services/commandBridge.js"
+      - "automation-platform/src/config/bodyDropDiets.js"
+      - "automation-platform/src/routes/bodyDropRoutes.js"
+      - "automation-platform/src/services/bodyDropService.js"
+      - "automation-platform/src/services/speciesBodyDropService.js"
+      - "automation-platform/test/speciesBodyDropDiets.test.js"
+      - "public/bodydrop.html"
+      - "public/assets/bodydrop.js"
       - "public/assets/mydinos.js"
       - "test/commandBridge.test.js"
       - ".github/workflows/validate-bodydrop.yml"
@@ -37,6 +44,9 @@ jobs:
           node --test
           --test-name-pattern='reconciliation reads|reconciliation retains|HTTP reconciliation accepts|correlation is persisted|sends bd|result matching|partial NDJSON|disabled or invalid configuration|only routing ACK|ACK mode|sub-mod rejection|preflight read|ambiguous upload|cannot release'
           test/commandBridge.test.js
+
+      - name: Run species diet tests
+        run: node --test automation-platform/test/speciesBodyDropDiets.test.js
 
       - name: Validate Lua syntax and bd routing
         run: |

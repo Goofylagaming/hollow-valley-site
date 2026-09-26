@@ -12,6 +12,9 @@ const MANAGED = [
   'PRESENCE_FEED_TOKEN', 'COMMAND_BRIDGE_TRANSPORT', 'BINARYLANE_COMMAND_TOKEN',
   'COMMAND_BRIDGE_ENABLED', 'COMMAND_BRIDGE_SINGLE_PUBLISHER_ACK',
   'PLAYER_PRESENCE_ENABLED', 'SERVER_MONITOR_ENABLED',
+  'WALLET_PLAYTIME_REWARDS_ENABLED', 'WALLET_PLAYTIME_COINS_PER_5_MINUTES',
+  'MARKETPLACE_WRITE_ENABLED', 'OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED',
+  'PARKED_DINO_EDIT_ENABLED', 'SKIN_SYSTEM_ENABLED',
 ];
 
 function withEnv(values, fn) {
@@ -42,6 +45,20 @@ function baseReadyEnv() {
   };
 }
 
+function fullyReadyEnv() {
+  return {
+    ...baseReadyEnv(),
+    COMMAND_BRIDGE_ENABLED: 'true',
+    COMMAND_BRIDGE_SINGLE_PUBLISHER_ACK: bridge.PUBLISHER_ACK,
+    WALLET_PLAYTIME_REWARDS_ENABLED: 'true',
+    WALLET_PLAYTIME_COINS_PER_5_MINUTES: '50',
+    MARKETPLACE_WRITE_ENABLED: 'true',
+    OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED: 'true',
+    PARKED_DINO_EDIT_ENABLED: 'true',
+    SKIN_SYSTEM_ENABLED: 'true',
+  };
+}
+
 test('incomplete configuration remains in setup stage', () => {
   withEnv({}, () => {
     const result = readiness.getMigrationReadiness();
@@ -51,23 +68,21 @@ test('incomplete configuration remains in setup stage', () => {
   });
 });
 
-test('safe isolated deployment can be ready while CommandBridge migration remains locked', () => {
+test('configured integrations remain in attention until activation and write gates are enabled', () => {
   withEnv(baseReadyEnv(), () => {
     const result = readiness.getMigrationReadiness();
-    assert.equal(result.stage, 'isolated-ready');
-    assert.equal(result.readyForIsolatedDeployment, true);
+    assert.equal(result.stage, 'attention');
+    assert.equal(result.readyForIsolatedDeployment, false);
     assert.equal(result.readyForCommandBridgeMigration, false);
     const publisher = result.checks.find((item) => item.id === 'publisher');
     assert.equal(publisher.ready, false);
+    const bridgePublishing = result.checks.find((item) => item.id === 'bridge-off');
+    assert.equal(bridgePublishing.ready, false);
   });
 });
 
-test('migration-ready requires the exact sole-publisher acknowledgement', () => {
-  withEnv({
-    ...baseReadyEnv(),
-    COMMAND_BRIDGE_ENABLED: 'true',
-    COMMAND_BRIDGE_SINGLE_PUBLISHER_ACK: bridge.PUBLISHER_ACK,
-  }, () => {
+test('migration-ready requires the sole-publisher acknowledgement and all safety gates', () => {
+  withEnv(fullyReadyEnv(), () => {
     const result = readiness.getMigrationReadiness();
     assert.equal(result.stage, 'migration-ready');
     assert.equal(result.readyForIsolatedDeployment, true);
@@ -85,8 +100,8 @@ test('enabling CommandBridge without acknowledgement creates an attention state'
 });
 
 
-test('enabling admin restore uploads moves isolated readiness to attention', () => {
-  withEnv({ ...baseReadyEnv(), ADMIN_RESTORE_WRITE_ENABLED: 'true' }, () => {
+test('enabling admin restore uploads moves a migration-ready configuration to attention', () => {
+  withEnv({ ...fullyReadyEnv(), ADMIN_RESTORE_WRITE_ENABLED: 'true' }, () => {
     const result = readiness.getMigrationReadiness();
     const check = result.checks.find((item) => item.id === 'admin-restore-writes');
     assert.equal(check.ready, false);
