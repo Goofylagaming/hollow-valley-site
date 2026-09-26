@@ -1,4 +1,4 @@
-const DIET_VERSION = 'hollow-valley-2026-09-26-v2';
+const DIET_VERSION = 'hollow-valley-2026-09-27-v3';
 const DIET_SOURCE_UPDATED_AT = '2026-09-04';
 
 const NUTRIENTS = {
@@ -7,7 +7,7 @@ const NUTRIENTS = {
   lipid: { id: 'lipid', label: 'Lipid', symbol: 'γ' },
 };
 
-// These are real current-diet foods, but the live BodyDrop v003.4 species table
+// These are real current-diet foods, but the live BodyDrop species table
 // does not yet expose a verified corpse actor for them. Keep them visible in the
 // diet UI, but fail closed instead of sending a BodyDrop command that cannot work.
 const UNSPAWNABLE_PREY = new Set([
@@ -69,6 +69,7 @@ const DIETS = {
   },
   deinosuchus: {
     species: 'Deinosuchus',
+    aliases: ['Deino'],
     groups: {
       protein: ['Carnotaurus', 'Omniraptor', 'Diabloceratops', 'Deinosuchus', 'Troodon', 'Bullfrog'],
       carbohydrate: ['Stegosaurus', 'Tenontosaurus', 'Pachycephalosaurus', 'Ceratosaurus', 'Kentrosaurus'],
