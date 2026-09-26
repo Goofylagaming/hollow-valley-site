@@ -49,6 +49,9 @@ const adminHandler = require("../api/admin");
 
 const PORT = process.env.PORT || 3000;
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
+const LEGACY_DIRECT_GAME_API_ENABLED = String(process.env.LEGACY_DIRECT_GAME_API_ENABLED || "true")
+  .trim()
+  .toLowerCase() === "true";
 const HOLLOW_VALLEY_HOSTNAME = "hollowvalleyisle.com";
 const LEGACY_HOSTNAMES = new Set([
   "hollowvalley.herbydeathsquadgames.com",
@@ -90,8 +93,6 @@ async function syncSkinSharePolicy() {
 function createApp() {
   const app = express();
   app.set("trust proxy", 1);
-  // Stripe signature verification requires the exact raw request body.
-  // Mount the webhook before the global JSON parser.
   app.use("/api/stripe/webhook", stripeWebhookRouter);
   app.use(express.json());
 
@@ -156,9 +157,6 @@ function createApp() {
     });
   });
 
-  // Test endpoint for authenticated Steam map tracking.
-  // Uses the SteamID from the verified logged-in session.
-  // The browser does NOT provide the SteamID.
   app.get("/api/map/me-test", (req, res) => {
     if (!req.user) {
       return res.status(401).json({
@@ -201,7 +199,6 @@ function createApp() {
   app.use("/api/supporter", supporterRouter);
   app.use("/api/daily-bonus", dailyBonusRouter);
   app.use("/api/bodydrop", bodydropRouter);
-  app.use("/api/dinostorage", dinoStorageRouter);
   app.use("/api/server-status", serverStatusRouter);
   app.use("/api/events", eventsRouter);
   app.use("/api/friends", friendsRouter);
@@ -211,11 +208,21 @@ function createApp() {
   app.use("/api/admin-supporters", adminSupportersRouter);
   app.use("/api/mapdata", mapdataRouter);
 
-  app.all("/api/park", parkHandler);
-  app.all("/api/playerdata", playerdataHandler);
-  app.all("/api/redeem", redeemHandler);
-  app.all("/api/parked", parkedHandler);
-  app.all("/api/admin", adminHandler);
+  if (LEGACY_DIRECT_GAME_API_ENABLED) {
+    app.use("/api/dinostorage", dinoStorageRouter);
+    app.all("/api/park", parkHandler);
+    app.all("/api/playerdata", playerdataHandler);
+    app.all("/api/redeem", redeemHandler);
+    app.all("/api/parked", parkedHandler);
+    app.all("/api/admin", adminHandler);
+  } else {
+    const legacyDisabled = (_req, res) => res.status(410).json({
+      error: "Legacy direct game API is disabled. Use the automation-backed Hollow Valley endpoints instead.",
+      code: "LEGACY_DIRECT_GAME_API_DISABLED",
+    });
+    app.use("/api/dinostorage", legacyDisabled);
+    app.all(["/api/park", "/api/playerdata", "/api/redeem", "/api/parked", "/api/admin"], legacyDisabled);
+  }
 
   const PAGE_ROUTES = ["dashboard", "wallet", "quests", "profile", "mydinos", "bodydrop", "friends", "marketplace", "livemap", "leaderboard", "supporter", "events"];
   for (const page of PAGE_ROUTES) {
@@ -260,6 +267,7 @@ function startServer() {
   const app = createApp();
   return app.listen(PORT, () => {
     console.log(`Herby Death Squad portal running on port ${PORT}`);
+    console.log(`[legacy-api] directGameApiEnabled=${LEGACY_DIRECT_GAME_API_ENABLED}`);
     serverStatusService.start();
     herbyBot.start();
     syncSkinSharePolicy();
