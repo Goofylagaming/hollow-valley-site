@@ -41,6 +41,59 @@ function stableIdentityRequired(env = process.env) {
   return /^(1|true|yes)$/i.test(String(env.SUPPORTER_REQUIRE_STEAM_ID || "").trim());
 }
 
+async function stripePriceHealth(env = process.env, fetchImpl = globalThis.fetch) {
+  const config = configuration(env);
+  if (!config) {
+    return {
+      configured: false,
+      live: null,
+      tiers: Object.fromEntries(Object.keys(TIERS).map((tier) => [tier, { ok: false, reason: "checkout_not_configured" }])),
+    };
+  }
+
+  const tiers = {};
+  for (const tier of Object.keys(TIERS)) {
+    const priceId = stripePriceId(tier, env);
+    try {
+      const response = await fetchImpl(`https://api.stripe.com/v1/prices/${encodeURIComponent(priceId)}`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${config.secret}` },
+        signal: AbortSignal.timeout(10000),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        tiers[tier] = {
+          ok: false,
+          reason: payload?.error?.code || "stripe_rejected_price",
+          message: payload?.error?.message || null,
+          status: response.status,
+        };
+        continue;
+      }
+
+      const recurring = Boolean(payload?.recurring);
+      const sameMode = payload?.livemode === config.live;
+      const active = payload?.active === true;
+      tiers[tier] = {
+        ok: active && recurring && sameMode,
+        active,
+        recurring,
+        liveModeMatches: sameMode,
+        currency: payload?.currency || null,
+        unitAmount: Number.isInteger(payload?.unit_amount) ? payload.unit_amount : null,
+        interval: payload?.recurring?.interval || null,
+      };
+    } catch (error) {
+      tiers[tier] = {
+        ok: false,
+        reason: error?.name === "TimeoutError" ? "stripe_timeout" : "stripe_request_failed",
+      };
+    }
+  }
+
+  return { configured: true, live: config.live, tiers };
+}
+
 async function createCheckoutSession({ tier, userId, steamId = null, env = process.env, fetchImpl = globalThis.fetch }) {
   const canonicalTier = normalizeTier(tier);
   if (!canonicalTier) throw new CheckoutError(404, "Unknown supporter tier");
@@ -82,7 +135,17 @@ async function createCheckoutSession({ tier, userId, steamId = null, env = proce
       body,
       signal: AbortSignal.timeout(15000),
     });
-    if (!response.ok) throw new Error("Stripe rejected checkout");
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      const code = payload?.error?.code || "stripe_rejected_checkout";
+      const message = payload?.error?.message || "Stripe rejected checkout";
+      console.error(
+        `[supporter-checkout] tier=${canonicalTier} price=${priceId} status=${response.status} code=${code} message=${message}`
+      );
+      throw new Error("Stripe rejected checkout");
+    }
+
     const session = await response.json();
     const url = new URL(session.url);
     const expectedPrefix = config.live ? "cs_live_" : "cs_test_";
@@ -93,10 +156,16 @@ async function createCheckoutSession({ tier, userId, steamId = null, env = proce
       url.username ||
       url.password
     ) {
+      console.error(`[supporter-checkout] Invalid Stripe checkout response for tier=${canonicalTier}`);
       throw new Error("Invalid Stripe checkout response");
     }
     return { url: session.url };
-  } catch {
+  } catch (error) {
+    if (error?.name === "TimeoutError") {
+      console.error(`[supporter-checkout] Stripe checkout timed out for tier=${canonicalTier}`);
+    } else if (error?.message !== "Stripe rejected checkout" && error?.message !== "Invalid Stripe checkout response") {
+      console.error(`[supporter-checkout] Stripe checkout failed for tier=${canonicalTier}: ${error?.message || "unknown error"}`);
+    }
     throw new CheckoutError(502, "Unable to start Stripe checkout. Please try again.");
   }
 }
@@ -108,6 +177,7 @@ module.exports = {
   configuration,
   checkoutConfigured,
   stableIdentityRequired,
+  stripePriceHealth,
   createCheckoutSession,
   CheckoutError,
 };
