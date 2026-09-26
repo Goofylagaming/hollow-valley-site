@@ -3,7 +3,6 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { randomUUID } = require('node:crypto');
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hv-economy-endpoint-'));
 process.env.AUTOMATION_DB_PATH = path.join(dir, 'economy.sqlite');
@@ -29,22 +28,9 @@ function close(server) {
 
 test('website wallet and marketplace APIs are protected and preserve atomic purchase state', async (t) => {
   const steamId = '76561198000000020';
-  economy.upsertCatalogItem({
-    id: 'dino:carno:50',
-    itemType: 'dino',
-    name: 'Carnotaurus 50%',
-    price: 400,
-    payload: {
-      speciesId: 'carnotaurus',
-      growthTier: '50',
-      growthPercent: 50,
-      sizePercent: 50,
-      isPrime: false,
-    },
-  });
   economy.applyWalletTransaction({
     steamId,
-    amount: 1000,
+    amount: 5000,
     kind: 'test_credit',
     reason: 'Endpoint funding',
     idempotencyKey: 'endpoint:funding:001',
@@ -76,7 +62,7 @@ test('website wallet and marketplace APIs are protected and preserve atomic purc
   const walletBefore = await fetch(`${base}/wallet/${steamId}`, { headers });
   assert.equal(walletBefore.status, 200);
   const walletBody = await walletBefore.json();
-  assert.equal(walletBody.balance, 1000);
+  assert.equal(walletBody.balance, 5000);
   assert.equal(walletBody.earning.activeBoostPercent, 0);
   assert.equal(walletBody.earning.boostedCoinsPer5Minutes, 0);
 
@@ -99,15 +85,17 @@ test('website wallet and marketplace APIs are protected and preserve atomic purc
   const catalogResponse = await fetch(`${base}/marketplace/catalog`, { headers });
   assert.equal(catalogResponse.status, 200);
   const catalog = await catalogResponse.json();
-  const catalogItem = catalog.catalog.find((item) => item.id === 'dino:carno:50');
-  assert.ok(catalogItem, 'valid 50% fixture should be present alongside seeded catalog entries');
-  assert.equal(catalogItem.price, 400);
+  const catalogItem = catalog.catalog.find((item) => item.id === 'dino:carnotaurus:50');
+  assert.ok(catalogItem, 'seeded Carnotaurus 50% item should be available');
+  assert.equal(catalogItem.price, 2100);
+  assert.equal(catalogItem.payload.growthTier, '50');
+  assert.equal(catalogItem.payload.isPrime, false);
 
   const body = JSON.stringify({
     steamId,
     idempotencyKey: 'website-marketplace:endpoint-001',
   });
-  const purchase = await fetch(`${base}/marketplace/catalog/dino%3Acarno%3A50/buy`, {
+  const purchase = await fetch(`${base}/marketplace/catalog/dino%3Acarnotaurus%3A50/buy`, {
     method: 'POST',
     headers,
     body,
@@ -115,9 +103,9 @@ test('website wallet and marketplace APIs are protected and preserve atomic purc
   assert.equal(purchase.status, 201);
   const purchaseBody = await purchase.json();
   assert.equal(purchaseBody.order.status, 'pending');
-  assert.equal(purchaseBody.wallet.balance, 600);
+  assert.equal(purchaseBody.wallet.balance, 2900);
 
-  const retry = await fetch(`${base}/marketplace/catalog/dino%3Acarno%3A50/buy`, {
+  const retry = await fetch(`${base}/marketplace/catalog/dino%3Acarnotaurus%3A50/buy`, {
     method: 'POST',
     headers,
     body,
@@ -126,7 +114,7 @@ test('website wallet and marketplace APIs are protected and preserve atomic purc
   const retryBody = await retry.json();
   assert.equal(retryBody.duplicate, true);
   assert.equal(retryBody.order.id, purchaseBody.order.id);
-  assert.equal(retryBody.wallet.balance, 600);
+  assert.equal(retryBody.wallet.balance, 2900);
 
   const ordersResponse = await fetch(`${base}/marketplace/orders/${steamId}`, { headers });
   assert.equal(ordersResponse.status, 200);
