@@ -36,6 +36,7 @@ const adminCommsRouter = require("./routes/adminComms");
 const adminSupportersRouter = require("./routes/adminSupporters");
 const serverStatusService = require("./services/serverStatus");
 const automationWebsiteClient = require("./services/automationWebsiteClient");
+const skinSharePolicyClient = require("./services/skinSharePolicyClient");
 const { syncSteamProfiles } = require("./services/steamProfile");
 const herbyBot = require("./herbyBot");
 
@@ -61,6 +62,29 @@ const ADMIN_STEAM_IDS = new Set(
     .filter((value) => /^\d{17}$/.test(value))
 );
 ADMIN_STEAM_IDS.add("76561198994993692");
+
+function currentAdminSteamIds() {
+  const ids = new Set(ADMIN_STEAM_IDS);
+  const rows = db.prepare(`
+    SELECT steam_id
+    FROM users
+    WHERE is_admin = 1 AND steam_id IS NOT NULL
+  `).all();
+  for (const row of rows) {
+    const steamId = String(row.steam_id || "").trim();
+    if (/^\d{17}$/.test(steamId)) ids.add(steamId);
+  }
+  return [...ids];
+}
+
+async function syncSkinSharePolicy() {
+  try {
+    const result = await skinSharePolicyClient.reconcile(currentAdminSteamIds());
+    console.log(`[skin-share-policy] admins=${result.adminCount ?? 0} removed=${result.removedShareCodes ?? 0}`);
+  } catch (error) {
+    console.warn("[skin-share-policy] sync warning:", error.message);
+  }
+}
 
 function createApp() {
   const app = express();
@@ -236,6 +260,9 @@ function startServer() {
     console.log(`Herby Death Squad portal running on port ${PORT}`);
     serverStatusService.start();
     herbyBot.start();
+    syncSkinSharePolicy();
+    const skinSharePolicyTimer = setInterval(syncSkinSharePolicy, 5 * 60 * 1000);
+    skinSharePolicyTimer.unref?.();
     syncSteamProfiles(db).then((res) => {
       if (res.updated > 0) {
         console.log(`[Steam Profile Sync] Successfully synchronized ${res.updated}/${res.total} Steam user profiles.`);
