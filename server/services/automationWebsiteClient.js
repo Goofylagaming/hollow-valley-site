@@ -735,6 +735,7 @@ function uploadAdminRestore({ steamId, slot, restore, fullNutrients = false }) {
 }
 
 module.exports = {
+  getAdminChat: () => callAdmin('/chat'),
   getServerSnapshot,
   getActiveCharacter,
   listStoredDinos,

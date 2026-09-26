@@ -2,6 +2,45 @@ const { api, escapeHtml } = window.HDS;
 
 let globalBodyDropState = null;
 let globalBodyDropRefreshTimer = null;
+let chatMessages = [];
+let chatChannel = "all";
+
+function renderChat() {
+  const query = document.getElementById("ops-chat-search")?.value.trim().toLowerCase() || "";
+  const lagOnly = document.getElementById("ops-chat-lag")?.checked;
+  const rows = chatMessages.filter((entry) =>
+    (chatChannel === "all" || entry.channel === chatChannel) &&
+    (!query || `${entry.name} ${entry.message}`.toLowerCase().includes(query)) &&
+    (!lagOnly || /\b(lag|lagging|rubberband|rubber band|desync|ping|stutter|freeze|freezing|delay)\b/i.test(entry.message))
+  ).reverse();
+  document.getElementById("ops-chat-messages").innerHTML = rows.length
+    ? rows.map((entry) => `<tr><td>${escapeHtml(formatDate(entry.at))}</td><td>${escapeHtml(entry.channel)}</td><td>${escapeHtml(entry.name)}</td><td style="white-space:normal;overflow-wrap:anywhere">${escapeHtml(entry.message)}</td></tr>`).join("")
+    : emptyRow(4, chatMessages.length ? "No messages match the filter." : "No game chat received yet. Check the game server chat forwarder.");
+}
+
+async function loadChat() {
+  if (document.hidden) return;
+  try {
+    const result = await api("/api/admin-operations/chat");
+    chatMessages = Array.isArray(result.messages) ? result.messages : [];
+    text("ops-chat-status", result.lastReceivedAt ? `Feed last received ${formatDate(result.lastReceivedAt)}` : "Feed not connected");
+    renderChat();
+  } catch (error) {
+    text("ops-chat-status", error.message || "Feed unavailable");
+  }
+}
+
+document.getElementById("ops-chat-search")?.addEventListener("input", renderChat);
+document.getElementById("ops-chat-lag")?.addEventListener("change", renderChat);
+document.getElementById("ops-chat-channels")?.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-channel]");
+  if (!button) return;
+  chatChannel = button.dataset.channel;
+  document.querySelectorAll("#ops-chat-channels button").forEach((item) => {
+    item.setAttribute("aria-pressed", String(item === button));
+  });
+  renderChat();
+});
 
 function text(id, value) {
   const el = document.getElementById(id);
@@ -325,6 +364,8 @@ async function init() {
   guard.hidden = true;
   content.hidden = false;
   await Promise.all([loadOperations(), loadGlobalBodyDrop()]);
+  await loadChat();
+  setInterval(loadChat, 5000);
 }
 
 init();
