@@ -81,8 +81,21 @@ router.get("/", requireAuth, async (req, res) => {
 
 router.get("/active-character", requireAuth, async (req, res) => {
   if (!req.user.steam_id) return res.json({ active: false, reason: "steam_not_linked" });
+
+  const steamId = String(req.user.steam_id);
+  const storeLock = getActiveStoreLock(steamId);
+  if (storeLock) {
+    const retryAfterMs = Math.max(0, storeLock.expiresAt - Date.now());
+    return res.json({
+      active: false,
+      reason: "store_pending",
+      storePending: true,
+      retryAfterSeconds: Math.max(1, Math.ceil(retryAfterMs / 1000)),
+    });
+  }
+
   try {
-    return res.json(await automation.getActiveCharacter(String(req.user.steam_id)));
+    return res.json(await automation.getActiveCharacter(steamId));
   } catch (error) {
     const mapped = mapAutomationError(error, "Live character state unavailable.");
     return res.status(mapped.status).json(mapped.body);
