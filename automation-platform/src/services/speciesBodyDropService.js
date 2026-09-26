@@ -117,14 +117,18 @@ async function requestBodyDrop({ steamId, dropType }) {
     throw error;
   }
 
-  const allowedOptions = bodyDropDiets.optionsForSpecies(character.species, character.growth);
-  const option = allowedOptions.find((entry) => entry.id === dropType) || null;
+  const allOptions = bodyDropDiets.optionsForSpecies(character.species, character.growth);
+  const requestedOption = allOptions.find((entry) => entry.id === dropType) || null;
+  const allowedOptions = allOptions.filter((entry) => entry.available !== false);
+  const option = requestedOption?.available === false ? null : requestedOption;
   if (!option) {
     const diet = bodyDropDiets.dietForSpecies(character.species);
     const error = new Error(
-      diet
-        ? `That body is not configured for the current ${eligibility.species} diet.`
-        : `BodyDrop diet support is not configured for ${eligibility.species} yet.`
+      requestedOption?.available === false
+        ? requestedOption.unavailableReason || 'That diet item cannot be spawned by BodyDrop yet.'
+        : diet
+          ? `That body is not configured for the current ${eligibility.species} diet.`
+          : `BodyDrop diet support is not configured for ${eligibility.species} yet.`
     );
     error.code = 'BODYDROP_DIET_MISMATCH';
     error.eligibility = eligibility;

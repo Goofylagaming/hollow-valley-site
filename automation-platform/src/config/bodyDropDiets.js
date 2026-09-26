@@ -1,91 +1,119 @@
-const DIET_VERSION = 'hollow-valley-2026-09-26-v1';
+const DIET_VERSION = 'hollow-valley-2026-09-26-v2';
+const DIET_SOURCE_UPDATED_AT = '2026-09-04';
 
 const NUTRIENTS = {
-  protein: { id: 'protein', label: 'Protein', symbol: 'S' },
-  carbohydrate: { id: 'carbohydrate', label: 'Carbohydrate', symbol: '∴' },
-  lipid: { id: 'lipid', label: 'Lipid', symbol: '//' },
+  protein: { id: 'protein', label: 'Protein', symbol: 'β' },
+  carbohydrate: { id: 'carbohydrate', label: 'Carbohydrate', symbol: 'α' },
+  lipid: { id: 'lipid', label: 'Lipid', symbol: 'γ' },
 };
+
+// These are real current-diet foods, but the live BodyDrop v003.4 species table
+// does not yet expose a verified corpse actor for them. Keep them visible in the
+// diet UI, but fail closed instead of sending a BodyDrop command that cannot work.
+const UNSPAWNABLE_PREY = new Set([
+  'Boar',
+  'Bullfrog',
+  'Chicken',
+  'Crab',
+  'Deer',
+  'Elite Fish',
+  'Goat',
+  'Psittacosaurus',
+  'Rabbit',
+  'Schooling Fish',
+  'Sea Turtle',
+  'Pterodactylus',
+  'Clam',
+]);
 
 const DIETS = {
   tyrannosaurus: {
     species: 'Tyrannosaurus',
     groups: {
-      protein: ['Stegosaurus', 'Tenontosaurus', 'Pachycephalosaurus'],
-      carbohydrate: ['Diabloceratops', 'Triceratops', 'Hypsilophodon'],
-      lipid: ['Maiasaura', 'Gallimimus', 'Dryosaurus', 'Beipiaosaurus'],
+      protein: ['Diabloceratops', 'Triceratops', 'Hypsilophodon', 'Deer', 'Chicken', 'Rabbit'],
+      carbohydrate: ['Stegosaurus', 'Tenontosaurus', 'Pachycephalosaurus', 'Boar', 'Crab', 'Kentrosaurus'],
+      lipid: ['Maiasaura', 'Gallimimus', 'Dryosaurus', 'Beipiaosaurus', 'Goat', 'Psittacosaurus', 'Sea Turtle'],
     },
   },
   allosaurus: {
     species: 'Allosaurus',
     groups: {
-      protein: ['Stegosaurus', 'Tenontosaurus'],
-      carbohydrate: ['Diabloceratops', 'Triceratops'],
-      lipid: ['Maiasaura', 'Dryosaurus'],
+      protein: ['Diabloceratops', 'Triceratops', 'Deer'],
+      carbohydrate: ['Stegosaurus', 'Tenontosaurus', 'Boar', 'Kentrosaurus'],
+      lipid: ['Maiasaura', 'Dryosaurus', 'Goat'],
+    },
+  },
+  austroraptor: {
+    species: 'Austroraptor',
+    groups: {
+      protein: ['Bullfrog', 'Chicken', 'Rabbit', 'Deinosuchus', 'Hypsilophodon'],
+      carbohydrate: ['Crab', 'Schooling Fish', 'Clam'],
+      lipid: ['Beipiaosaurus', 'Elite Fish', 'Psittacosaurus', 'Sea Turtle'],
     },
   },
   carnotaurus: {
     species: 'Carnotaurus',
     groups: {
-      protein: ['Pachycephalosaurus', 'Tenontosaurus', 'Herrerasaurus'],
-      carbohydrate: ['Omniraptor', 'Diabloceratops', 'Troodon'],
-      lipid: ['Dryosaurus', 'Gallimimus', 'Dilophosaurus'],
+      protein: ['Omniraptor', 'Diabloceratops', 'Troodon', 'Deer'],
+      carbohydrate: ['Pachycephalosaurus', 'Tenontosaurus', 'Herrerasaurus', 'Boar'],
+      lipid: ['Dryosaurus', 'Gallimimus', 'Maiasaura'],
     },
   },
   ceratosaurus: {
     species: 'Ceratosaurus',
     groups: {
-      protein: ['Tenontosaurus', 'Pachycephalosaurus', 'Ceratosaurus'],
-      carbohydrate: ['Carnotaurus', 'Deinosuchus', 'Omniraptor', 'Diabloceratops'],
-      lipid: ['Dilophosaurus', 'Stegosaurus', 'Beipiaosaurus'],
+      protein: ['Carnotaurus', 'Deinosuchus', 'Omniraptor', 'Diabloceratops', 'Deer'],
+      carbohydrate: ['Stegosaurus', 'Tenontosaurus', 'Pachycephalosaurus', 'Ceratosaurus', 'Kentrosaurus'],
+      lipid: ['Dilophosaurus', 'Beipiaosaurus', 'Goat'],
     },
   },
   deinosuchus: {
     species: 'Deinosuchus',
     groups: {
-      protein: ['Tenontosaurus', 'Pachycephalosaurus', 'Ceratosaurus'],
-      carbohydrate: ['Carnotaurus', 'Omniraptor', 'Diabloceratops', 'Deinosuchus', 'Troodon'],
-      lipid: ['Gallimimus', 'Stegosaurus', 'Beipiaosaurus', 'Maiasaura'],
+      protein: ['Carnotaurus', 'Omniraptor', 'Diabloceratops', 'Deinosuchus', 'Troodon', 'Bullfrog'],
+      carbohydrate: ['Stegosaurus', 'Tenontosaurus', 'Pachycephalosaurus', 'Ceratosaurus', 'Kentrosaurus'],
+      lipid: ['Elite Fish', 'Gallimimus', 'Beipiaosaurus', 'Maiasaura', 'Sea Turtle'],
     },
   },
   dilophosaurus: {
     species: 'Dilophosaurus',
     groups: {
-      protein: ['Tenontosaurus', 'Herrerasaurus', 'Ceratosaurus'],
-      carbohydrate: ['Diabloceratops', 'Carnotaurus', 'Hypsilophodon'],
-      lipid: ['Gallimimus', 'Maiasaura', 'Dryosaurus'],
+      protein: ['Diabloceratops', 'Carnotaurus', 'Hypsilophodon', 'Deer', 'Chicken'],
+      carbohydrate: ['Boar', 'Tenontosaurus', 'Herrerasaurus', 'Ceratosaurus'],
+      lipid: ['Gallimimus', 'Maiasaura', 'Goat', 'Sea Turtle', 'Dryosaurus'],
     },
   },
   herrerasaurus: {
     species: 'Herrerasaurus',
     groups: {
-      protein: ['Tenontosaurus', 'Pachycephalosaurus'],
-      carbohydrate: ['Omniraptor', 'Hypsilophodon'],
-      lipid: ['Dryosaurus', 'Pteranodon', 'Beipiaosaurus', 'Gallimimus'],
+      protein: ['Bullfrog', 'Omniraptor', 'Hypsilophodon', 'Chicken'],
+      carbohydrate: ['Crab', 'Schooling Fish', 'Tenontosaurus', 'Pachycephalosaurus', 'Boar'],
+      lipid: ['Dryosaurus', 'Pteranodon', 'Beipiaosaurus', 'Goat', 'Sea Turtle', 'Gallimimus'],
     },
   },
   omniraptor: {
     species: 'Omniraptor',
     aliases: ['Omnoraptor'],
     groups: {
-      protein: ['Herrerasaurus', 'Pachycephalosaurus', 'Ceratosaurus'],
-      carbohydrate: ['Carnotaurus', 'Diabloceratops', 'Troodon'],
-      lipid: ['Dryosaurus', 'Gallimimus', 'Stegosaurus'],
-    },
-  },
-  troodon: {
-    species: 'Troodon',
-    groups: {
-      protein: ['Tenontosaurus', 'Herrerasaurus'],
-      carbohydrate: ['Compsognathus', 'Hypsilophodon', 'Omniraptor'],
-      lipid: ['Dryosaurus', 'Pteranodon'],
+      protein: ['Carnotaurus', 'Diabloceratops', 'Troodon', 'Deer', 'Rabbit'],
+      carbohydrate: ['Boar', 'Herrerasaurus', 'Pachycephalosaurus', 'Ceratosaurus', 'Stegosaurus', 'Kentrosaurus'],
+      lipid: ['Dryosaurus', 'Psittacosaurus', 'Gallimimus', 'Maiasaura'],
     },
   },
   pteranodon: {
     species: 'Pteranodon',
     groups: {
-      protein: [],
-      carbohydrate: ['Hypsilophodon', 'Troodon'],
-      lipid: ['Beipiaosaurus', 'Pteranodon'],
+      protein: ['Chicken', 'Hypsilophodon', 'Bullfrog', 'Rabbit', 'Troodon'],
+      carbohydrate: ['Schooling Fish', 'Crab', 'Clam'],
+      lipid: ['Sea Turtle', 'Psittacosaurus', 'Beipiaosaurus', 'Pterodactylus'],
+    },
+  },
+  troodon: {
+    species: 'Troodon',
+    groups: {
+      protein: ['Bullfrog', 'Chicken', 'Deer', 'Rabbit', 'Compsognathus', 'Hypsilophodon'],
+      carbohydrate: ['Stegosaurus', 'Crab', 'Pachycephalosaurus', 'Tenontosaurus', 'Kentrosaurus'],
+      lipid: ['Goat', 'Psittacosaurus', 'Dryosaurus', 'Pteranodon', 'Maiasaura'],
     },
   },
 };
@@ -128,6 +156,10 @@ function optionsForSpecies(requesterSpecies, requesterGrowth) {
       nutrientSymbol: meta?.symbol || '',
       species,
       name: species,
+      available: !UNSPAWNABLE_PREY.has(species),
+      unavailableReason: UNSPAWNABLE_PREY.has(species)
+        ? `${species} is part of the current diet, but is not BodyDrop-spawnable yet.`
+        : null,
       description: `${meta?.label || nutrient} diet body`,
       growth,
       growthPercent: growth === null ? null : Math.round(growth * 100),
@@ -148,8 +180,10 @@ function catalog() {
 
 module.exports = {
   DIET_VERSION,
+  DIET_SOURCE_UPDATED_AT,
   NUTRIENTS,
   DIETS,
+  UNSPAWNABLE_PREY,
   normalizeSpecies,
   dietForSpecies,
   scaleCorpseGrowth,
