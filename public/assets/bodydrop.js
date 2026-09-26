@@ -46,12 +46,20 @@ function startCountdown() {
   countdownTimer = setInterval(updateCountdownDisplay, 1000);
 }
 
+function nutrientGroupLabel(nutrient) {
+  if (nutrient === "protein") return { symbol: "S", label: "PROTEIN" };
+  if (nutrient === "carbohydrate") return { symbol: "∴", label: "CARBOHYDRATE" };
+  if (nutrient === "lipid") return { symbol: "//", label: "LIPID" };
+  return { symbol: "•", label: String(nutrient || "DIET").toUpperCase() };
+}
+
 function renderBodyDropStatus(data) {
   const container = document.getElementById("bodydrop-content");
   if (!container) return;
 
   currentBodyDropData = data;
   const eligibilityBlocked = data.eligibility?.eligible === false && Boolean(data.eligibility?.reason);
+  const dietBlocked = data.dietEligibility?.eligible === false && Boolean(data.dietEligibility?.reason);
   const status = !data.steamLinked
     ? "Steam account required"
     : !data.serverOnline
@@ -62,24 +70,61 @@ function renderBodyDropStatus(data) {
           : `Cooldown ${formatCooldown(remainingCooldownSeconds(data))}`
         : eligibilityBlocked
           ? data.eligibility.reason
-          : "Available now";
+          : dietBlocked
+            ? data.dietEligibility.reason
+            : "Available now";
 
-  const disabled = !data.steamLinked || !data.serverOnline || data.cooldown?.active || eligibilityBlocked;
-  const options = (data.options || []).map((option) => `
-    <button class="bodydrop-option" data-drop-type="${escapeHtml(option.id)}" ${disabled ? "disabled" : ""}>
-      <strong>${escapeHtml(option.name)}</strong>
-      <span>${escapeHtml(option.description)}</span>
-    </button>`).join("");
+  const disabled = !data.steamLinked || !data.serverOnline || data.cooldown?.active || eligibilityBlocked || dietBlocked;
+  const requester = data.requester || null;
+  const requesterSpecies = requester?.species || data.eligibility?.species || "No live dinosaur";
+  const requesterGrowth = Number.isFinite(requester?.growthPercent) ? Math.round(requester.growthPercent) : null;
+  const corpseGrowth = Number.isFinite(data.corpseGrowthPercent) ? Math.round(data.corpseGrowthPercent) : null;
+
+  const grouped = new Map();
+  for (const option of data.options || []) {
+    const nutrient = option.nutrient || "diet";
+    if (!grouped.has(nutrient)) grouped.set(nutrient, []);
+    grouped.get(nutrient).push(option);
+  }
+
+  const order = ["protein", "carbohydrate", "lipid"];
+  const groups = order
+    .filter((nutrient) => grouped.has(nutrient))
+    .map((nutrient) => {
+      const meta = nutrientGroupLabel(nutrient);
+      const buttons = grouped.get(nutrient).map((option) => `
+        <button class="bodydrop-option" data-drop-type="${escapeHtml(option.id)}" data-prey="${escapeHtml(option.species)}" ${disabled ? "disabled" : ""}>
+          <strong>${escapeHtml(option.species)}</strong>
+          <span>${escapeHtml(option.nutrientLabel || meta.label)} diet body · ${Number.isFinite(option.growthPercent) ? `${Math.round(option.growthPercent)}% growth` : "scaled"}</span>
+        </button>`).join("");
+
+      return `
+        <section>
+          <div class="bodydrop-status ready"><b>${escapeHtml(meta.symbol)} ${escapeHtml(meta.label)}</b></div>
+          <div class="bodydrop-options">${buttons}</div>
+        </section>`;
+    }).join("");
+
+  const noOptions = !groups
+    ? `<p class="section-intro">${escapeHtml(data.dietEligibility?.reason || data.eligibility?.reason || "This dinosaur does not have a Hollow Valley BodyDrop diet configured yet.")}</p>`
+    : "";
 
   container.innerHTML = `
+    <div class="bodydrop-status ready">
+      <b>${escapeHtml(requesterSpecies)}</b>
+      <span>Growth ${requesterGrowth === null ? "—" : `${requesterGrowth}%`} · BodyDrop size ${corpseGrowth === null ? "—" : `${corpseGrowth}%`}</span>
+    </div>
     <div class="bodydrop-status ${disabled ? "blocked" : "ready"}"><b id="bodydrop-status-text">${escapeHtml(status)}</b></div>
-    <div class="bodydrop-options">${options}</div>`;
+    <div class="bodydrop-diet-list">${groups || noOptions}</div>
+    <p class="section-intro">Choose the nutrient you need, then select one of the prey species in your Hollow Valley diet. The server validates your live dinosaur again before spawning the corpse.</p>`;
 
   startCountdown();
 
   container.querySelectorAll(".bodydrop-option").forEach((button) => {
     button.addEventListener("click", async () => {
-      if (!confirm("Request this body drop on the live server?")) return;
+      const prey = button.dataset.prey || "this body";
+      const sizeText = corpseGrowth === null ? "" : ` at ${corpseGrowth}% growth`;
+      if (!confirm(`Request ${prey}${sizeText} on the live server?`)) return;
       button.disabled = true;
       try {
         const response = await api("/api/bodydrop", {
@@ -105,8 +150,6 @@ async function loadBodyDropStatus() {
     if (data.cooldown?.reason === "pending") {
       refreshTimer = setTimeout(loadBodyDropStatus, 10000);
     } else if (data.cooldown?.reason === "cooldown") {
-      // Countdown ticks locally every second; periodically re-sync with the
-      // server so a clock change or operator reconciliation cannot drift.
       refreshTimer = setTimeout(loadBodyDropStatus, 30000);
     }
   } catch (error) {
