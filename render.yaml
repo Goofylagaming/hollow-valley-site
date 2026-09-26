@@ -1,21 +1,15 @@
-# Render Blueprint for Hollow Valley
-# Docs: https://render.com/docs/blueprint-spec
+# Render Blueprint reference for the authoritative Hollow Valley website.
 #
-# This deploys the site as a single Docker web service using the existing
-# Dockerfile, with a persistent disk for the SQLite database.
-#
-# To use: push this file to the repo, then in Render dashboard choose
-# "New +" -> "Blueprint" and point it at this repo/branch. Render will read
-# this file and create the service. Environment variables marked
-# `sync: false` must be filled in manually in the Render dashboard (they are
-# secrets and are intentionally not stored in git).
+# Runtime game integration is owned by the separate hollow-valley-automation
+# service. The website must not be given RCON, FTP/SFTP, CommandBridge-publisher,
+# or Discord bot credentials.
 
 services:
   - type: web
     name: hollow-valley-site
     runtime: docker
     dockerfilePath: ./Dockerfile
-    plan: starter # upgrade if you need more RAM/CPU; starter is fine to begin
+    plan: starter
     autoDeploy: true
     healthCheckPath: /
     disk:
@@ -25,14 +19,14 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 3000
       - key: DB_PATH
         value: /app/data/hollowvalley.sqlite
       - key: PUBLIC_SITE_URL
         value: https://hollowvalleyisle.com
       - key: SESSION_SECRET
         generateValue: true
+
+      # Website account/auth integrations.
       - key: STEAM_RETURN_URL
         sync: false
       - key: STEAM_REALM
@@ -45,26 +39,16 @@ services:
         sync: false
       - key: DISCORD_REDIRECT_URI
         sync: false
-      - key: DISCORD_BOT_TOKEN
-        sync: false
       - key: ADMIN_DISCORD_IDS
         sync: false
       - key: STRIPE_SECRET_KEY
         sync: false
-      - key: RCON_HOST
-        sync: false
-      - key: RCON_PORT
-        sync: false
-      - key: RCON_PASSWORD
-        sync: false
-      # Website reads the automation service's shared RCON cache instead of
-      # opening a second RCON connection to the game server.
+
+      # The website reads game state and submits game actions only through the
+      # authoritative automation service.
       - key: AUTOMATION_SERVICE_URL
         sync: false
       - key: HOLLOW_VALLEY_API_TOKEN
-        sync: false
-      # Dedicated token used by the existing HerbyBot to call /api/herbybot/*.
-      - key: HERBYBOT_AUTOMATION_TOKEN
         sync: false
       - key: SERVER_STATUS_POLL_INTERVAL_MS
         value: 15000
@@ -72,5 +56,3 @@ services:
         value: 100
       - key: BODYDROP_COOLDOWN_SECONDS
         value: 600
-      - key: BODYDROP_TYPES
-        value: "small:Small body:A small emergency food drop:Compsognathus:1,medium:Medium body:A balanced body drop for a small group:Dryosaurus:1,large:Large body:A larger drop for bigger carnivores or packs:Triceratops:1"
