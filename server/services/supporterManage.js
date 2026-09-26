@@ -9,9 +9,16 @@ class ManageError extends Error {
 }
 
 const BLOCKED_STATUSES = new Set(["canceled", "incomplete_expired"]);
+const portalConfigurationCache = new Map();
 
 function validateSubscriptionId(subscriptionId) {
   return typeof subscriptionId === "string" && /^sub_[A-Za-z0-9_]+$/.test(subscriptionId);
+}
+
+function normalizeStripeId(value) {
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object" && typeof value.id === "string") return value.id;
+  return null;
 }
 
 async function stripeRequest(path, {
@@ -46,7 +53,7 @@ async function stripeRequest(path, {
     }
 
     const payload = await response.json();
-    if (payload?.livemode !== config.live) {
+    if (Object.hasOwn(payload || {}, "livemode") && payload.livemode !== config.live) {
       console.error(`[supporter-manage] Stripe mode mismatch path=${path} expectedLive=${config.live} actualLive=${payload?.livemode}`);
       throw new Error("Stripe mode mismatch");
     }
@@ -113,6 +120,129 @@ async function getSubscription({
   return subscription;
 }
 
+async function getTargetPrice({ targetPrice, env = process.env, fetchImpl = globalThis.fetch }) {
+  const price = await stripeRequest(
+    `/v1/prices/${encodeURIComponent(targetPrice)}`,
+    { env, fetchImpl }
+  );
+
+  if (price?.active !== true || !price?.recurring) {
+    throw new ManageError(409, "That membership price is not available for subscription changes.");
+  }
+
+  const productId = normalizeStripeId(price.product);
+  if (!productId || !/^prod_[A-Za-z0-9_]+$/.test(productId)) {
+    throw new ManageError(502, "Stripe membership product configuration is invalid.");
+  }
+
+  return { price, productId };
+}
+
+async function ensurePortalConfiguration({
+  targetPrice,
+  productId,
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+}) {
+  const config = configuration(env);
+  if (!config) throw new ManageError(503, "Supporter management is not configured yet.");
+
+  const cacheKey = `${config.live ? "live" : "test"}:${targetPrice}`;
+  const cached = portalConfigurationCache.get(cacheKey);
+  if (cached) return cached;
+
+  const body = new URLSearchParams({
+    default_return_url: `${config.origin}/supporter`,
+    "features[invoice_history][enabled]": "true",
+    "features[payment_method_update][enabled]": "true",
+    "features[subscription_update][enabled]": "true",
+    "features[subscription_update][default_allowed_updates][0]": "price",
+    "features[subscription_update][proration_behavior]": "always_invoice",
+    "features[subscription_update][billing_cycle_anchor]": "unchanged",
+    "features[subscription_update][products][0][product]": productId,
+    "features[subscription_update][products][0][prices][0]": targetPrice,
+    "metadata[hollow_valley]": "membership_upgrade",
+  });
+
+  const portalConfig = await stripeRequest(
+    "/v1/billing_portal/configurations",
+    { method: "POST", body, env, fetchImpl }
+  );
+
+  if (!portalConfig?.id?.startsWith("bpc_")) {
+    throw new ManageError(502, "Stripe billing portal configuration could not be created.");
+  }
+
+  portalConfigurationCache.set(cacheKey, portalConfig.id);
+  return portalConfig.id;
+}
+
+async function createSubscriptionChangePortal({
+  subscription,
+  targetPrice,
+  targetTier,
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+}) {
+  const config = configuration(env);
+  if (!config) throw new ManageError(503, "Supporter management is not configured yet.");
+
+  const subscriptionId = normalizeStripeId(subscription?.id);
+  const customerId = normalizeStripeId(subscription?.customer);
+  const itemId = currentItemId(subscription);
+
+  if (!subscriptionId || !customerId || !itemId) {
+    throw new ManageError(409, "Stripe subscription cannot be changed through the billing portal.");
+  }
+
+  const { productId } = await getTargetPrice({ targetPrice, env, fetchImpl });
+  const portalConfigurationId = await ensurePortalConfiguration({
+    targetPrice,
+    productId,
+    env,
+    fetchImpl,
+  });
+
+  const returnUrl = `${config.origin}/supporter?membership_change=success`;
+  const body = new URLSearchParams({
+    customer: customerId,
+    configuration: portalConfigurationId,
+    return_url: `${config.origin}/supporter`,
+    "flow_data[type]": "subscription_update_confirm",
+    "flow_data[subscription_update_confirm][subscription]": subscriptionId,
+    "flow_data[subscription_update_confirm][items][0][id]": itemId,
+    "flow_data[subscription_update_confirm][items][0][price]": targetPrice,
+    "flow_data[subscription_update_confirm][items][0][quantity]": String(subscription?.items?.data?.[0]?.quantity || 1),
+    "flow_data[after_completion][type]": "redirect",
+    "flow_data[after_completion][redirect][return_url]": returnUrl,
+  });
+
+  const session = await stripeRequest(
+    "/v1/billing_portal/sessions",
+    { method: "POST", body, env, fetchImpl }
+  );
+
+  let portalUrl;
+  try {
+    portalUrl = new URL(session?.url || "");
+  } catch {
+    throw new ManageError(502, "Stripe did not return a valid billing portal link.");
+  }
+
+  if (portalUrl.protocol !== "https:" || portalUrl.hostname !== "billing.stripe.com") {
+    throw new ManageError(502, "Stripe did not return a valid billing portal link.");
+  }
+
+  return {
+    ok: true,
+    changed: false,
+    tier: targetTier,
+    portal: true,
+    url: session.url,
+    prorationBehavior: "always_invoice",
+  };
+}
+
 async function changeSubscription({
   subscriptionId,
   tier,
@@ -133,27 +263,13 @@ async function changeSubscription({
     return { ok: true, changed: false, tier: canonicalTier, cancelAtPeriodEnd: false };
   }
 
-  const body = new URLSearchParams({
-    "items[0][id]": itemId,
-    "items[0][price]": targetPrice,
-    "metadata[tier]": canonicalTier,
-    cancel_at_period_end: "false",
-    proration_behavior: "create_prorations",
+  return createSubscriptionChangePortal({
+    subscription,
+    targetPrice,
+    targetTier: canonicalTier,
+    env,
+    fetchImpl,
   });
-
-  const updated = await stripeRequest(
-    `/v1/subscriptions/${encodeURIComponent(subscriptionId)}`,
-    { method: "POST", body, env, fetchImpl }
-  );
-  ensureOwnedSubscription(updated, userId, steamId, env);
-
-  return {
-    ok: true,
-    changed: true,
-    tier: canonicalTier,
-    status: updated.status,
-    cancelAtPeriodEnd: Boolean(updated.cancel_at_period_end),
-  };
 }
 
 async function cancelSubscription({
@@ -218,6 +334,7 @@ module.exports = {
   resumeSubscription,
   _test: {
     validateSubscriptionId,
+    normalizeStripeId,
     currentPriceId,
     currentItemId,
     ensureOwnedSubscription,
