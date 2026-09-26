@@ -1,15 +1,22 @@
-# Separate Render Blueprint for the Hollow Valley Automation Platform.
-# This file is intentionally scoped to automation-platform and must create a
-# NEW service. It must not replace or repoint the live Hollow Valley website.
+# Render Blueprint reference for the authoritative Hollow Valley automation service.
+#
+# Architecture:
+#   Website -> hollow-valley-automation -> BinaryLane agent
+#           -> local RCON / UE4SS CommandBridge -> The Isle
+#
+# The live service is intentionally separate from hollow-valley-site and has
+# auto-deploy disabled. Feature-specific runtime flags are managed explicitly in
+# Render and are not frozen here as migration-era false/300000 defaults.
 
 services:
   - type: web
     name: hollow-valley-automation
-    runtime: docker
+    runtime: node
     rootDir: automation-platform
-    dockerfilePath: ./Dockerfile
     plan: starter
     autoDeploy: false
+    buildCommand: npm install --omit=dev --no-audit --no-fund
+    startCommand: mkdir -p /var/data /var/data/backups && npm start
     healthCheckPath: /health
     disk:
       name: hollow-valley-automation-data
@@ -18,185 +25,53 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 3100
       - key: AUTOMATION_DB_PATH
         value: /var/data/automation.sqlite
+
+      # Server-to-server credentials. Keep each token dedicated to its role.
       - key: AUTOMATION_ADMIN_TOKEN
-        generateValue: true
+        sync: false
       - key: HOLLOW_VALLEY_API_TOKEN
-        generateValue: true
-      - key: AUTOMATION_SCHEDULER_INTERVAL_MS
-        value: 300000
-
-      # Consistent SQLite snapshots use the same persistent disk. Enable only
-      # after the disk has been verified to survive redeploys.
-      - key: AUTOMATION_BACKUP_ENABLED
-        value: false
-      - key: AUTOMATION_BACKUP_DIR
-        value: /var/data/backups
-      - key: AUTOMATION_BACKUP_INTERVAL_MS
-        value: 21600000
-      - key: AUTOMATION_BACKUP_RETENTION
-        value: 20
-
-      # RCON read access can be configured without enabling writes.
-      - key: RCON_HOST
         sync: false
-      - key: RCON_PORT
+      - key: PRESENCE_FEED_TOKEN
         sync: false
-      - key: RCON_PASSWORD
-        sync: false
-      - key: RCON_TIMEOUT_MS
-        value: 6000
-      - key: RCON_DISABLED
-        value: false
-      # Quiet-mode baseline: one shared RCON snapshot every five minutes.
-      # Manual actions may still force a fresh check when explicitly requested.
-      - key: RCON_STATUS_CACHE_MS
-        value: 300000
-      - key: MAX_PLAYERS
-        value: 100
-      - key: RCON_WRITE_ENABLED
-        value: false
-
-      # Authoritative kill/death ingestion stays disabled until a trusted
-      # game-side source can provide stable unique event IDs.
-      - key: COMBAT_FEED_ENABLED
-        value: false
-      - key: COMBAT_FEED_TOKEN
-        generateValue: true
-      - key: COMBAT_FEED_SOURCE
-        value: hollow-valley-game
-
-      # Read-only player session history is opt-in after RCON verification.
-      - key: PLAYER_PRESENCE_ENABLED
-        value: false
-      - key: PLAYER_PRESENCE_INTERVAL_MS
-        value: 300000
-      - key: PLAYER_PRESENCE_RETENTION_HOURS
-        value: 744
-
-      # Valley Coin playtime rewards remain locked until the rate is deliberately
-      # chosen and read-only presence tracking has been verified.
-      - key: WALLET_PLAYTIME_REWARDS_ENABLED
-        value: false
-      - key: WALLET_PLAYTIME_COINS_PER_5_MINUTES
-        value: 0
-      - key: WALLET_PLAYTIME_MAX_SAMPLE_GAP_SECONDS
-        value: 600
-      - key: ECONOMY_TIMEZONE
-        value: Australia/Brisbane
-      - key: WALLET_QUEST_DAILY_1H_BOOST_PERCENT
-        value: 5
-      - key: WALLET_QUEST_DAILY_3H_BOOST_PERCENT
-        value: 10
-      - key: WALLET_QUEST_DAILY_6H_BOOST_PERCENT
-        value: 15
-      - key: WALLET_QUEST_WEEKLY_12H_BOOST_PERCENT
-        value: 10
-      - key: WALLET_QUEST_WEEKLY_24H_BOOST_PERCENT
-        value: 20
-      - key: WALLET_QUEST_WEEKLY_36H_BOOST_PERCENT
-        value: 25
-      - key: WALLET_QUEST_WEEKLY_72H_BOOST_PERCENT
-        value: 50
-      - key: WALLET_QUEST_MAX_TOTAL_BOOST_PERCENT
-        value: 100
-      - key: EVENT_REWARDS_ENABLED
-        value: false
-      - key: EVENT_ATTENDANCE_BASE_VC
-        value: 10000
-      - key: MARKETPLACE_WRITE_ENABLED
-        value: false
-      - key: MARKETPLACE_RECONCILE_INTERVAL_MS
-        value: 300000
-      - key: OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED
-        value: false
-      - key: OFFICIAL_MARKETPLACE_FULFILLMENT_INTERVAL_MS
-        value: 300000
-      - key: PARKED_DINO_EDIT_ENABLED
-        value: false
-      - key: DINO_SCRAP_ENABLED
-        value: true
-      - key: DINO_SCRAP_PERCENT
-        value: 20
-      - key: SKIN_SYSTEM_ENABLED
-        value: false
-      - key: SKIN_PRESET_CREATE_COST
-        value: 500
-      - key: SKIN_LIVE_WEAR_ENABLED
-        value: false
-      - key: SKIN_WEAR_TIMEOUT_MS
-        value: 12000
-
-      # Read-only uptime/player-count history is also opt-in.
-      - key: SERVER_HEALTH_HISTORY_ENABLED
-        value: false
-      - key: SERVER_HEALTH_HISTORY_INTERVAL_MS
-        value: 300000
-      - key: SERVER_HEALTH_HISTORY_RETENTION_HOURS
-        value: 720
-
-      # Server monitoring remains disabled until Discord alerts are verified.
-      - key: SERVER_MONITOR_ENABLED
-        value: false
-      - key: SERVER_MONITOR_INTERVAL_MS
-        value: 300000
-      - key: SERVER_MONITOR_FAILURE_THRESHOLD
-        value: 3
-
-      - key: COMMAND_BRIDGE_TRANSPORT
-        value: http_pull
-      # BinaryLane pulls commands outbound over HTTPS; no inbound VPS port is opened.
-      # Use the same dedicated token on the BinaryLane agent and this service.
       - key: BINARYLANE_COMMAND_TOKEN
         sync: false
-      - key: COMMAND_BRIDGE_ENABLED
-        value: false
-      # Set manually only after the old website publisher is disabled. Expected
-      # value: automation-platform-is-sole-publisher
-      - key: COMMAND_BRIDGE_SINGLE_PUBLISHER_ACK
+      - key: HERBYBOT_AUTOMATION_TOKEN
         sync: false
-      - key: COMMAND_BRIDGE_SAVED_PATH
-        value: Mods/CommandBridge/Saved
+
+      # BinaryLane is the game-side edge. It pushes authoritative presence and
+      # polls commands outbound over HTTPS; Render does not need an inbound VPS
+      # port or a second website-side publisher.
+      - key: COMMAND_BRIDGE_TRANSPORT
+        value: http_pull
+      - key: COMMAND_BRIDGE_ENABLED
+        value: true
+      - key: COMMAND_BRIDGE_SINGLE_PUBLISHER_ACK
+        value: automation-platform-is-sole-publisher
       - key: COMMAND_BRIDGE_TIMEOUT_MS
         value: 20000
 
-      - key: BODYDROP_BRIDGE_MODE
-        value: commandbridge
+      # Stable shared application settings. Feature flags and reconcile/monitor
+      # intervals are intentionally omitted so this blueprint cannot silently
+      # reintroduce migration-era disabled states or five-minute fallbacks.
+      - key: MAX_PLAYERS
+        value: 100
+      - key: ECONOMY_TIMEZONE
+        value: Australia/Brisbane
       - key: BODYDROP_COOLDOWN_SECONDS
         value: 600
       - key: BODYDROP_UNKNOWN_AFTER_SECONDS
         value: 60
-      - key: BODYDROP_RECONCILE_INTERVAL_MS
-        value: 300000
       - key: GLOBAL_BODYDROP_STAGGER_MS
         value: 2500
-
       - key: DINOSTORAGE_RESULT_MODE
         value: bridge_ack
       - key: DINOSTORAGE_UNKNOWN_AFTER_SECONDS
         value: 60
-      - key: DINOSTORAGE_RECONCILE_INTERVAL_MS
-        value: 300000
-      # Admin restore JSON generation remains available to authenticated operators.
-      # Direct remote slot upload is retired on the BinaryLane architecture.
-      - key: ADMIN_RESTORE_WRITE_ENABLED
-        value: false
-
-      # HerbyBot bridge. This is a server-to-server credential used by the
-      # existing live HerbyBot to claim and acknowledge durable outbox events.
-      - key: HERBYBOT_AUTOMATION_TOKEN
-        generateValue: true
-      - key: HERBYBOT_AUTOMATION_POLL_INTERVAL_MS
-        value: 300000
       - key: HERBYBOT_AUTOMATION_BATCH_SIZE
         value: 10
       - key: HERBYBOT_AUTOMATION_LEASE_SECONDS
         value: 60
       - key: HERBYBOT_OUTBOX_MAX_ATTEMPTS
         value: 5
-
-      # Discord bot token and channel IDs intentionally stay on the existing
-      # HerbyBot service. The automation service never logs into Discord.
