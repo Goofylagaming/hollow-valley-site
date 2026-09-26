@@ -1,10 +1,12 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 
-const filePath = require.resolve('../src/services/parkedDinoFileService');
+const storagePath = require.resolve('../src/services/dinoStorageService');
 const servicePath = require.resolve('../src/services/parkedDinoMutationService');
+
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
 
 function loadService({ enabled = false } = {}) {
   const previous = process.env.PARKED_DINO_EDIT_ENABLED;
@@ -21,13 +23,13 @@ function loadService({ enabled = false } = {}) {
       ElderSlot1A: 'Elder Example',
     },
   };
-  let writes = 0;
+  const editCalls = [];
 
-  delete require.cache[filePath];
+  delete require.cache[storagePath];
   delete require.cache[servicePath];
-  require.cache[filePath] = {
-    id: filePath,
-    filename: filePath,
+  require.cache[storagePath] = {
+    id: storagePath,
+    filename: storagePath,
     loaded: true,
     exports: {
       validateSteamId(value) {
@@ -40,13 +42,10 @@ function loadService({ enabled = false } = {}) {
         if (!/^[A-Za-z0-9_-]{1,80}$/.test(slot)) throw new Error('Invalid DinoStorage slot');
         return slot;
       },
-      async readStoredDino() { return JSON.parse(JSON.stringify(state)); },
-      async updateStoredDino(_steamId, _slot, mutator) {
-        const draft = JSON.parse(JSON.stringify(state));
-        const next = await mutator(draft, state);
-        state = next === undefined ? draft : next;
-        writes += 1;
-        return JSON.parse(JSON.stringify(state));
+      async getStoredDino() { return clone(state); },
+      async editStoredDino(command) {
+        editCalls.push(clone(command));
+        return { ok: true };
       },
     },
   };
@@ -55,9 +54,10 @@ function loadService({ enabled = false } = {}) {
   return {
     service,
     getState: () => state,
-    getWrites: () => writes,
+    getWrites: () => editCalls.length,
+    getEditCalls: () => clone(editCalls),
     cleanup() {
-      delete require.cache[filePath];
+      delete require.cache[storagePath];
       delete require.cache[servicePath];
       if (previous === undefined) delete process.env.PARKED_DINO_EDIT_ENABLED;
       else process.env.PARKED_DINO_EDIT_ENABLED = previous;
@@ -111,10 +111,20 @@ test('mutation editor changes only active slots and preserves inherited/elder da
     Slot3: 'Osteosclerosis',
     Slot4: '',
   });
+  assert.deepEqual(fixture.getEditCalls()[0], {
+    steamId: '76561198000000201',
+    slot: 'slot_a',
+    mode: 'mutations',
+    values: {
+      Slot1: 'Hemomania',
+      Slot2: 'Sustained Hydration',
+      Slot3: 'Osteosclerosis',
+      Slot4: '',
+    },
+  });
   const raw = fixture.getState();
   assert.equal(raw.mutations.ParentSlot1, 'Inherited Example');
   assert.equal(raw.mutations.ElderSlot1A, 'Elder Example');
-  assert.ok(raw.websiteEdits.mutationsEditedAt);
 });
 
 test('duplicate or unknown mutations are rejected before file write', async (t) => {
@@ -187,6 +197,8 @@ test('female-only mutation is rejected on a male parked dino', async (t) => {
 
 
 test('mutation editor JSON keys match DinoStorage serializer contract', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
   const lua = fs.readFileSync(
     path.join(__dirname, '..', '..', 'server-mods', 'DinoStorage', 'Scripts', 'main.lua'),
     'utf8'

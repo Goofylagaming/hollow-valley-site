@@ -23,6 +23,10 @@ function sampleSkin() {
   };
 }
 
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
 function loadService({ enabled = true, edits = true, cost = 500 } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hv-skins-'));
   const previous = {
@@ -37,10 +41,10 @@ function loadService({ enabled = true, edits = true, cost = 500 } = {}) {
   process.env.SKIN_PRESET_CREATE_COST = String(cost);
 
   const storePath = require.resolve('../src/services/economyStore');
-  const filePath = require.resolve('../src/services/parkedDinoFileService');
+  const storagePath = require.resolve('../src/services/dinoStorageService');
   const servicePath = require.resolve('../src/services/skinPresetService');
   delete require.cache[storePath];
-  delete require.cache[filePath];
+  delete require.cache[storagePath];
   delete require.cache[servicePath];
 
   let dino = {
@@ -50,18 +54,18 @@ function loadService({ enabled = true, edits = true, cost = 500 } = {}) {
     growth: 0.75,
     health: 900,
   };
+  const editCalls = [];
 
-  require.cache[filePath] = {
-    id: filePath,
-    filename: filePath,
+  require.cache[storagePath] = {
+    id: storagePath,
+    filename: storagePath,
     loaded: true,
     exports: {
       validateSlot(value) { return String(value); },
-      async readStoredDino() { return JSON.parse(JSON.stringify(dino)); },
-      async updateStoredDino(_steamId, _slot, mutator) {
-        const draft = JSON.parse(JSON.stringify(dino));
-        dino = await mutator(draft, dino);
-        return JSON.parse(JSON.stringify(dino));
+      async getStoredDino() { return clone(dino); },
+      async editStoredDino(command) {
+        editCalls.push(clone(command));
+        return { ok: true };
       },
     },
   };
@@ -73,9 +77,10 @@ function loadService({ enabled = true, edits = true, cost = 500 } = {}) {
     store,
     service,
     getDino: () => dino,
+    getEditCalls: () => clone(editCalls),
     cleanup() {
       delete require.cache[storePath];
-      delete require.cache[filePath];
+      delete require.cache[storagePath];
       delete require.cache[servicePath];
       if (previous.db === undefined) delete process.env.AUTOMATION_DB_PATH; else process.env.AUTOMATION_DB_PATH = previous.db;
       if (previous.system === undefined) delete process.env.SKIN_SYSTEM_ENABLED; else process.env.SKIN_SYSTEM_ENABLED = previous.system;
@@ -150,7 +155,12 @@ test('skin preset apply changes only skin data on same-species parked dino', asy
 
   assert.equal(result.skin.body.r, 0.1);
   assert.equal(fixture.getDino().health, beforeHealth);
-  assert.equal(fixture.getDino().websiteEdits.skinPresetId, created.preset.id);
+  const edits = fixture.getEditCalls();
+  assert.equal(edits.length, 1);
+  assert.equal(edits[0].steamId, steamId);
+  assert.equal(edits[0].slot, 'slot_skin');
+  assert.equal(edits[0].mode, 'skin');
+  assert.ok(edits[0].values && Object.keys(edits[0].values).length > 0);
 });
 
 test('skin preset cannot be applied to a different species', async (t) => {

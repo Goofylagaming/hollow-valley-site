@@ -93,8 +93,9 @@ test('website wallet and marketplace APIs are protected and preserve atomic purc
   const catalogResponse = await fetch(`${base}/marketplace/catalog`, { headers });
   assert.equal(catalogResponse.status, 200);
   const catalog = await catalogResponse.json();
-  assert.equal(catalog.catalog.length, 1);
-  assert.equal(catalog.catalog[0].id, 'dino:carno:75');
+  const catalogItem = catalog.catalog.find((item) => item.id === 'dino:carno:75');
+  assert.ok(catalogItem, 'custom catalog fixture should be present alongside seeded catalog entries');
+  assert.equal(catalogItem.price, 400);
 
   const body = JSON.stringify({
     steamId,

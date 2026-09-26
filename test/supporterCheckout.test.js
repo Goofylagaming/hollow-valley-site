@@ -108,23 +108,45 @@ test('HTTP routes enforce auth, ignore browser price/user fields, and preserve c
   const request = (path, authenticated = true, body = {}) => originalFetch(base + path, {
     method: 'POST', headers: { 'Content-Type': 'application/json', ...(authenticated ? { 'x-test-auth': 'yes' } : {}) }, body: JSON.stringify(body),
   });
-  let calls = 0;
-  global.fetch = async (url, options) => {
-    calls++;
+  let checkoutCalls = 0;
+  let healthCalls = 0;
+  global.fetch = async (url, options = {}) => {
+    if (String(url).startsWith('https://api.stripe.com/v1/prices/')) {
+      healthCalls++;
+      const priceId = decodeURIComponent(String(url).split('/').pop());
+      const unitAmount = priceId === env.STRIPE_PRICE_MEMBER ? 700 : priceId === env.STRIPE_PRICE_ELITE ? 1500 : 2500;
+      return {
+        ok: true,
+        json: async () => ({
+          id: priceId,
+          livemode: false,
+          active: true,
+          currency: 'aud',
+          unit_amount: unitAmount,
+          recurring: { interval: 'month' },
+        }),
+      };
+    }
+    checkoutCalls++;
     assert.equal(options.body.get('line_items[0][price]'), env.STRIPE_PRICE_MEMBER);
     assert.equal(options.body.get('client_reference_id'), '42');
     assert.equal(options.body.get('metadata[tier]'), 'supporter');
     return ok();
   };
   assert.equal((await request('/supporter/checkout', false)).status, 401);
-  assert.equal(calls, 0);
+  assert.equal(checkoutCalls, 0);
   const tiers = await (await originalFetch(base + '/tiers')).json();
-  assert.deepEqual(tiers, { tiers: TIERS, checkoutConfigured: true });
+  assert.deepEqual(tiers.tiers, TIERS);
+  assert.equal(tiers.checkoutConfigured, true);
+  assert.equal(tiers.stripeHealth.configured, true);
+  assert.equal(tiers.stripeHealth.live, false);
+  assert.equal(healthCalls, 3);
+  assert.equal(Object.values(tiers.stripeHealth.tiers).every((tier) => tier.ok === true), true);
   assert.equal(JSON.stringify(tiers).includes('price_'), false);
   const success = await request('/supporter/checkout', true, { price: 'price_attacker', user_id: 99, tier: 'legend', success_url: 'https://evil.example' });
   assert.equal(success.status, 200);
   assert.deepEqual(await success.json(), { url: session.url });
-  assert.equal(calls, 1);
+  assert.equal(checkoutCalls, 1);
   assert.equal(db.prepare('SELECT count(*) AS n FROM supporter_subscriptions').get().n, 0);
   assert.equal((await request('/constructor/checkout')).status, 404);
   global.fetch = async () => { throw new Error('secret'); };

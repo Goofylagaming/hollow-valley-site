@@ -18,6 +18,7 @@ const env = {
 function subscription(overrides = {}) {
   return {
     id: "sub_test_42",
+    customer: "cus_test_42",
     livemode: false,
     status: "active",
     cancel_at_period_end: false,
@@ -32,26 +33,54 @@ function subscription(overrides = {}) {
   };
 }
 
-test("changing tier updates the existing subscription item instead of creating another subscription", async () => {
+test("changing tier creates a prorated Stripe Billing Portal flow for the existing subscription", async () => {
   const calls = [];
+  const portalUrl = "https://billing.stripe.com/p/session/test_fixture";
   const fetchImpl = async (url, options) => {
     calls.push({ url, options });
-    if (options.method === "GET") {
+
+    if (url === "https://api.stripe.com/v1/subscriptions/sub_test_42") {
+      assert.equal(options.method, "GET");
       return { ok: true, json: async () => subscription() };
     }
-    const body = Object.fromEntries(options.body);
-    assert.equal(body["items[0][id]"], "si_test_42");
-    assert.equal(body["items[0][price]"], env.STRIPE_PRICE_ELITE);
-    assert.equal(body["metadata[tier]"], "guardian");
-    assert.equal(body.cancel_at_period_end, "false");
-    assert.equal(body.proration_behavior, "create_prorations");
-    return {
-      ok: true,
-      json: async () => subscription({
-        metadata: { user_id: "42", tier: "elite" },
-        items: { data: [{ id: "si_test_42", price: { id: env.STRIPE_PRICE_ELITE } }] },
-      }),
-    };
+
+    if (url === `https://api.stripe.com/v1/prices/${env.STRIPE_PRICE_ELITE}`) {
+      assert.equal(options.method, "GET");
+      return {
+        ok: true,
+        json: async () => ({
+          id: env.STRIPE_PRICE_ELITE,
+          livemode: false,
+          active: true,
+          recurring: { interval: "month" },
+          product: "prod_hollow_valley_membership",
+        }),
+      };
+    }
+
+    if (url === "https://api.stripe.com/v1/billing_portal/configurations") {
+      assert.equal(options.method, "POST");
+      const body = Object.fromEntries(options.body);
+      assert.equal(body["features[subscription_update][enabled]"], "true");
+      assert.equal(body["features[subscription_update][proration_behavior]"], "always_invoice");
+      assert.equal(body["features[subscription_update][products][0][product]"], "prod_hollow_valley_membership");
+      assert.equal(body["features[subscription_update][products][0][prices][0]"], env.STRIPE_PRICE_ELITE);
+      return { ok: true, json: async () => ({ id: "bpc_test_fixture", livemode: false }) };
+    }
+
+    if (url === "https://api.stripe.com/v1/billing_portal/sessions") {
+      assert.equal(options.method, "POST");
+      const body = Object.fromEntries(options.body);
+      assert.equal(body.customer, "cus_test_42");
+      assert.equal(body.configuration, "bpc_test_fixture");
+      assert.equal(body["flow_data[type]"], "subscription_update_confirm");
+      assert.equal(body["flow_data[subscription_update_confirm][subscription]"], "sub_test_42");
+      assert.equal(body["flow_data[subscription_update_confirm][items][0][id]"], "si_test_42");
+      assert.equal(body["flow_data[subscription_update_confirm][items][0][price]"], env.STRIPE_PRICE_ELITE);
+      return { ok: true, json: async () => ({ id: "bps_test_fixture", livemode: false, url: portalUrl }) };
+    }
+
+    assert.fail(`Unexpected Stripe request: ${url}`);
   };
 
   const result = await changeSubscription({
@@ -62,12 +91,15 @@ test("changing tier updates the existing subscription item instead of creating a
     fetchImpl,
   });
 
-  assert.equal(result.ok, true);
-  assert.equal(result.changed, true);
-  assert.equal(result.tier, "guardian");
-  assert.equal(calls.length, 2);
-  assert.equal(calls[0].url, "https://api.stripe.com/v1/subscriptions/sub_test_42");
-  assert.equal(calls[1].url, "https://api.stripe.com/v1/subscriptions/sub_test_42");
+  assert.deepEqual(result, {
+    ok: true,
+    changed: false,
+    tier: "guardian",
+    portal: true,
+    url: portalUrl,
+    prorationBehavior: "always_invoice",
+  });
+  assert.equal(calls.length, 4);
 });
 
 test("selecting the current tier makes no Stripe update", async () => {
