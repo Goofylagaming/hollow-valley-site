@@ -1,10 +1,14 @@
 const crypto = require('node:crypto');
 const { Readable } = require('node:stream');
 const fileBridge = require('../adapters/fileBridge');
+const commandBridge = require('./commandBridgeService');
+const dinoStorage = require('./dinoStorageService');
 
 const MAX_DINO_BYTES = 512 * 1024;
 const SLOT_RE = /^[A-Za-z0-9_-]{1,80}$/;
 const LISTING_RE = /^[0-9a-f-]{36}$/i;
+const SYSTEM_STEAM_ID = '00000000000000000';
+const COMMAND_TIMEOUT_MS = 7000;
 
 function validateSteamId(value) {
   const steamId = String(value || '').trim();
@@ -22,6 +26,10 @@ function validateListingId(value) {
   const id = String(value || '').trim();
   if (!LISTING_RE.test(id)) throw new Error('Invalid marketplace listing ID');
   return id;
+}
+
+function usingCommandBridgeStorage() {
+  return commandBridge.getTransport() === 'http_pull';
 }
 
 function storedDirectory(steamId) {
@@ -160,6 +168,45 @@ async function replaceJson(client, remotePath, state) {
   }
 }
 
+function bridgeError(message, fallbackCode = 'TRANSFER_UNCERTAIN') {
+  const text = String(message || 'Marketplace game-server operation failed');
+  const error = new Error(text);
+  if (/target.*occupied|already contains|slot occupied/i.test(text)) {
+    error.code = 'DINO_TARGET_EXISTS';
+  } else if (/seller slot missing|slot missing|source missing|no parked dino|not found/i.test(text)) {
+    error.code = 'DINO_FILE_NOT_FOUND';
+  } else if (/escrow.*already exists/i.test(text)) {
+    error.code = 'ESCROW_EXISTS';
+  } else if (/escrow.*missing|outcome unknown|timed out/i.test(text)) {
+    error.code = 'TRANSFER_UNCERTAIN';
+  } else {
+    error.code = fallbackCode;
+  }
+  return error;
+}
+
+async function runMarketplaceBridgeCommand({ steamId, operation, listingId, slot = null, timeoutMs = COMMAND_TIMEOUT_MS }) {
+  const steam = validateSteamId(steamId);
+  const listing = validateListingId(listingId);
+  const tokens = ['marketplace', String(operation), listing];
+  if (slot !== null && slot !== undefined) tokens.push(validateSlot(slot));
+
+  const command = commandBridge.buildCommand('bd', steam, tokens);
+  await commandBridge.queueCommand(command);
+
+  const deadline = Date.now() + Math.max(1000, Number(timeoutMs) || COMMAND_TIMEOUT_MS);
+  do {
+    const outcome = await commandBridge.readOutcome(command);
+    if (outcome?.state === 'failed') throw bridgeError(outcome.message);
+    if (outcome?.state === 'confirmed') return outcome.message;
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) break;
+    await new Promise((resolve) => setTimeout(resolve, Math.min(250, remaining)));
+  } while (true);
+
+  throw bridgeError(`Marketplace ${operation} timed out waiting for the game server`);
+}
+
 async function updateStoredDino(steamId, slot, mutator) {
   if (typeof mutator !== 'function') throw new Error('Parked dinosaur mutator is required');
   const remotePath = storedPath(steamId, slot);
@@ -190,24 +237,70 @@ async function createStoredDino(steamId, slot, state) {
 }
 
 async function readStoredDino(steamId, slot) {
-  return fileBridge.withClient((client) => readJson(client, storedPath(steamId, slot)));
+  const steam = validateSteamId(steamId);
+  const selectedSlot = validateSlot(slot);
+  if (usingCommandBridgeStorage()) {
+    return dinoStorage.getStoredDino(steam, selectedSlot);
+  }
+  return fileBridge.withClient((client) => readJson(client, storedPath(steam, selectedSlot)));
 }
 
 async function readEscrowDino(listingId) {
+  if (usingCommandBridgeStorage()) {
+    const error = new Error('Direct escrow JSON reads are unavailable over CommandBridge');
+    error.code = 'ESCROW_READ_UNAVAILABLE';
+    throw error;
+  }
   return fileBridge.withClient((client) => readJson(client, escrowPath(listingId)));
 }
 
 async function storedExists(steamId, slot) {
-  return fileBridge.withClient((client) => exists(client, storedPath(steamId, slot)));
+  const steam = validateSteamId(steamId);
+  const selectedSlot = validateSlot(slot);
+  if (usingCommandBridgeStorage()) {
+    try {
+      await dinoStorage.getStoredDino(steam, selectedSlot);
+      return true;
+    } catch (error) {
+      if (error?.code === 'DINO_FILE_NOT_FOUND' || /not found|slot not found/i.test(String(error?.message || ''))) return false;
+      throw error;
+    }
+  }
+  return fileBridge.withClient((client) => exists(client, storedPath(steam, selectedSlot)));
 }
 
 async function escrowExists(listingId) {
-  return fileBridge.withClient((client) => exists(client, escrowPath(listingId)));
+  const listing = validateListingId(listingId);
+  if (usingCommandBridgeStorage()) {
+    const message = await runMarketplaceBridgeCommand({
+      steamId: SYSTEM_STEAM_ID,
+      operation: 'escrow-exists',
+      listingId: listing,
+    });
+    if (message === 'true') return true;
+    if (message === 'false') return false;
+    throw bridgeError(`Invalid marketplace escrow probe response: ${message}`);
+  }
+  return fileBridge.withClient((client) => exists(client, escrowPath(listing)));
 }
 
 async function moveStoredToEscrow({ listingId, steamId, slot }) {
-  const source = storedPath(steamId, slot);
-  const target = escrowPath(listingId);
+  const listing = validateListingId(listingId);
+  const steam = validateSteamId(steamId);
+  const selectedSlot = validateSlot(slot);
+
+  if (usingCommandBridgeStorage()) {
+    await runMarketplaceBridgeCommand({
+      steamId: steam,
+      operation: 'escrow',
+      listingId: listing,
+      slot: selectedSlot,
+    });
+    return { source: `commandbridge:${steam}:${selectedSlot}`, target: `commandbridge:escrow:${listing}` };
+  }
+
+  const source = storedPath(steam, selectedSlot);
+  const target = escrowPath(listing);
   return fileBridge.withClient(async (client) => {
     await client.ensureDir(escrowDirectory());
     await client.cd('/').catch(() => {});
@@ -231,8 +324,22 @@ function transferMarker(state, listingId) {
 }
 
 async function transferEscrowToStored({ listingId, buyerSteamId, buyerSlot }) {
-  const escrow = escrowPath(listingId);
-  const target = storedPath(buyerSteamId, buyerSlot);
+  const listing = validateListingId(listingId);
+  const buyer = validateSteamId(buyerSteamId);
+  const selectedSlot = validateSlot(buyerSlot);
+
+  if (usingCommandBridgeStorage()) {
+    await runMarketplaceBridgeCommand({
+      steamId: buyer,
+      operation: 'transfer',
+      listingId: listing,
+      slot: selectedSlot,
+    });
+    return { transferred: true, resumed: false, target: `commandbridge:${buyer}:${selectedSlot}` };
+  }
+
+  const escrow = escrowPath(listing);
+  const target = storedPath(buyer, selectedSlot);
 
   return fileBridge.withClient(async (client) => {
     const escrowPresent = await exists(client, escrow);
@@ -240,7 +347,7 @@ async function transferEscrowToStored({ listingId, buyerSteamId, buyerSlot }) {
 
     if (targetPresent) {
       const targetState = await readJson(client, target);
-      if (!transferMarker(targetState, listingId)) {
+      if (!transferMarker(targetState, listing)) {
         const error = new Error('Buyer target slot already contains another dinosaur');
         error.code = 'DINO_TARGET_EXISTS';
         throw error;
@@ -256,9 +363,9 @@ async function transferEscrowToStored({ listingId, buyerSteamId, buyerSlot }) {
     }
 
     const state = await readJson(client, escrow);
-    state.slot = validateSlot(buyerSlot);
+    state.slot = selectedSlot;
     delete state.marketplaceReturn;
-    state.marketplaceTransfer = { listingId: validateListingId(listingId) };
+    state.marketplaceTransfer = { listingId: listing };
     await writeJsonExclusive(client, target, state);
 
     try {
@@ -274,8 +381,22 @@ async function transferEscrowToStored({ listingId, buyerSteamId, buyerSlot }) {
 }
 
 async function restoreEscrowToSeller({ listingId, sellerSteamId, sellerSlot }) {
-  const escrow = escrowPath(listingId);
-  const target = storedPath(sellerSteamId, sellerSlot);
+  const listing = validateListingId(listingId);
+  const seller = validateSteamId(sellerSteamId);
+  const selectedSlot = validateSlot(sellerSlot);
+
+  if (usingCommandBridgeStorage()) {
+    await runMarketplaceBridgeCommand({
+      steamId: seller,
+      operation: 'restore',
+      listingId: listing,
+      slot: selectedSlot,
+    });
+    return { restored: true, resumed: false, target: `commandbridge:${seller}:${selectedSlot}` };
+  }
+
+  const escrow = escrowPath(listing);
+  const target = storedPath(seller, selectedSlot);
 
   return fileBridge.withClient(async (client) => {
     const escrowPresent = await exists(client, escrow);
@@ -283,7 +404,7 @@ async function restoreEscrowToSeller({ listingId, sellerSteamId, sellerSlot }) {
 
     if (targetPresent) {
       const targetState = await readJson(client, target);
-      if (targetState?.marketplaceReturn?.listingId !== listingId) {
+      if (targetState?.marketplaceReturn?.listingId !== listing) {
         const error = new Error('Original seller storage slot is occupied');
         error.code = 'DINO_TARGET_EXISTS';
         throw error;
@@ -299,9 +420,9 @@ async function restoreEscrowToSeller({ listingId, sellerSteamId, sellerSlot }) {
     }
 
     const state = await readJson(client, escrow);
-    state.slot = validateSlot(sellerSlot);
+    state.slot = selectedSlot;
     delete state.marketplaceTransfer;
-    state.marketplaceReturn = { listingId: validateListingId(listingId) };
+    state.marketplaceReturn = { listingId: listing };
     await writeJsonExclusive(client, target, state);
     try {
       await client.remove(escrow);
@@ -332,4 +453,9 @@ module.exports = {
   moveStoredToEscrow,
   transferEscrowToStored,
   restoreEscrowToSeller,
+  _private: {
+    usingCommandBridgeStorage,
+    runMarketplaceBridgeCommand,
+    bridgeError,
+  },
 };
