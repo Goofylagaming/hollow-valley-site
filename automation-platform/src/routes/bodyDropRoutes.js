@@ -1,13 +1,18 @@
 const express = require('express');
 const { requireAdminToken } = require('../middleware/adminAuth');
 const bodyDrop = require('../services/bodyDropService');
+const speciesBodyDrop = require('../services/speciesBodyDropService');
 const audit = require('../services/auditService');
 const store = require('../services/automationStore');
 
 const router = express.Router();
 
 router.get('/options', (_req, res) => {
-  res.json({ options: bodyDrop.getDropTypes(), cooldownSeconds: Number(process.env.BODYDROP_COOLDOWN_SECONDS || 600) });
+  res.json({
+    mode: 'species-diet',
+    dietCatalog: speciesBodyDrop.getDietCatalog(),
+    cooldownSeconds: Number(process.env.BODYDROP_COOLDOWN_SECONDS || 600),
+  });
 });
 
 router.get('/requests', requireAdminToken, (req, res) => {
@@ -21,7 +26,7 @@ router.get('/requests', requireAdminToken, (req, res) => {
 
 router.get('/cooldown/:steamId', requireAdminToken, async (req, res) => {
   try {
-    res.json(await bodyDrop.getBodyDropState(req.params.steamId));
+    res.json(await speciesBodyDrop.getBodyDropState(req.params.steamId));
   } catch (error) {
     const unavailable = /server|rcon|connection|timeout/i.test(error.message || '');
     res.status(unavailable ? 503 : 400).json({ error: error.message || 'Unable to read BodyDrop state.' });
@@ -32,7 +37,7 @@ router.post('/request', requireAdminToken, async (req, res) => {
   const dropType = String(req.body?.dropType || '').trim();
   try {
     const request = await audit.run('bodydrop', 'request', { dropType },
-      () => bodyDrop.requestBodyDrop({
+      () => speciesBodyDrop.requestBodyDrop({
         steamId: req.body?.steamId,
         dropType,
       }),
@@ -42,8 +47,12 @@ router.post('/request', requireAdminToken, async (req, res) => {
     if (error.code === 'BODYDROP_COOLDOWN') {
       return res.status(429).json({ error: error.message, cooldown: error.cooldown });
     }
-    if (error.code === 'BODYDROP_INELIGIBLE') {
-      return res.status(403).json({ error: error.message, eligibility: error.eligibility });
+    if (error.code === 'BODYDROP_INELIGIBLE' || error.code === 'BODYDROP_DIET_MISMATCH') {
+      return res.status(403).json({
+        error: error.message,
+        eligibility: error.eligibility,
+        allowedDropTypes: error.allowedDropTypes || [],
+      });
     }
     const unavailable = /server|rcon|connection|timeout/i.test(error.message || '');
     res.status(unavailable ? 503 : 400).json({ error: error.message || 'BodyDrop request failed.' });
