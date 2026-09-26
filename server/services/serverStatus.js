@@ -1,16 +1,11 @@
 // Maintains the live website's server-status cache.
 //
-// In production the website reads the automation platform's shared RCON
-// snapshot instead of opening its own RCON connection. This keeps player-list
-// and playData reads centralized so map/status/dashboard requests do not add
-// extra game-server load. Direct RCON is retained only for installations that
-// do not have the automation service configured.
-const { fetchServerStatus } = require("../rcon");
-const { recordLivePlaytime } = require("../db");
+// The website reads the automation platform's authoritative server snapshot.
+// Direct game-server RCON access is intentionally not supported here: the
+// BinaryLane agent and automation service own game connectivity and presence.
 const automation = require("./automationWebsiteClient");
 
 const DEFAULT_MAX_PLAYERS = Number(process.env.MAX_PLAYERS) || 100;
-const RCON_HOST = process.env.RCON_HOST || process.env.RCON_IP;
 
 function automationConfigured() {
   return Boolean(
@@ -19,23 +14,14 @@ function automationConfigured() {
   );
 }
 
-function directRconConfigured() {
-  return Boolean(RCON_HOST && process.env.RCON_PORT && process.env.RCON_PASSWORD);
-}
-
 function pollIntervalMs() {
-  // Poll the automation cache frequently enough for the live map. Direct RCON
-  // keeps the conservative five-minute floor so website traffic never hammers
-  // the game server.
-  const usingAutomation = automationConfigured();
-  const fallback = usingAutomation ? 15_000 : 300_000;
-  const minimum = usingAutomation ? 10_000 : 300_000;
+  const fallback = 15_000;
   const value = Number(process.env.SERVER_STATUS_POLL_INTERVAL_MS || fallback);
-  return Math.max(minimum, Math.min(600_000, Number.isFinite(value) ? value : fallback));
+  return Math.max(10_000, Math.min(600_000, Number.isFinite(value) ? value : fallback));
 }
 
 const state = {
-  configured: automationConfigured() || directRconConfigured(),
+  configured: automationConfigured(),
   online: false,
   playerCount: 0,
   maxPlayers: DEFAULT_MAX_PLAYERS,
@@ -43,32 +29,14 @@ const state = {
   characters: [],
   lastChecked: null,
   lastError: null,
-  source: automationConfigured() ? "automation-cache" : "direct-rcon",
+  source: "automation-cache",
 };
 
 async function readSnapshot() {
-  if (automationConfigured()) {
-    return automation.getServerSnapshot();
+  if (!automationConfigured()) {
+    throw new Error("Automation server status is not configured");
   }
-
-  if (!directRconConfigured()) {
-    throw new Error("Server status is not configured");
-  }
-
-  const result = await fetchServerStatus({
-    host: RCON_HOST,
-    port: Number(process.env.RCON_PORT),
-    password: process.env.RCON_PASSWORD,
-  });
-  return {
-    configured: true,
-    online: true,
-    players: result.players || [],
-    characters: result.characters || [],
-    maxPlayers: result.maxPlayers,
-    checkedAt: new Date().toISOString(),
-    error: null,
-  };
+  return automation.getServerSnapshot();
 }
 
 async function poll() {
@@ -85,9 +53,7 @@ async function poll() {
     state.characters = state.online ? characters : [];
     state.lastChecked = snapshot.checkedAt || new Date().toISOString();
     state.lastError = snapshot.error || null;
-    state.source = automationConfigured() ? "automation-cache" : "direct-rcon";
-
-    if (state.online) recordLivePlaytime(players);
+    state.source = "automation-cache";
   } catch (err) {
     state.online = false;
     state.playerCount = 0;
@@ -95,13 +61,13 @@ async function poll() {
     state.characters = [];
     state.lastError = err.message;
     state.lastChecked = new Date().toISOString();
-    console.warn(`[server-status] ${state.source} poll failed: ${err.message}`);
+    console.warn(`[server-status] automation-cache poll failed: ${err.message}`);
   }
 }
 
 function start() {
   if (!state.configured) {
-    console.log("[server-status] automation service and direct RCON are both unconfigured - live status disabled");
+    console.log("[server-status] automation service unconfigured - live status disabled");
     return;
   }
   poll();
@@ -119,5 +85,4 @@ module.exports = {
   poll,
   pollIntervalMs,
   automationConfigured,
-  directRconConfigured,
 };
