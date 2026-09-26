@@ -7,9 +7,24 @@ const NUTRIENTS = {
   lipid: { id: 'lipid', label: 'Lipid', symbol: 'γ' },
 };
 
-// Clam is a current diet item, but the dedicated-server build still does not
-// expose a verified pawn class that BodyDrop can safely turn into a corpse.
-const UNSPAWNABLE_PREY = new Set(['Clam']);
+// These are real current-diet foods, but the live BodyDrop v003.4 species table
+// does not yet expose a verified corpse actor for them. Keep them visible in the
+// diet UI, but fail closed instead of sending a BodyDrop command that cannot work.
+const UNSPAWNABLE_PREY = new Set([
+  'Boar',
+  'Bullfrog',
+  'Chicken',
+  'Crab',
+  'Deer',
+  'Elite Fish',
+  'Goat',
+  'Psittacosaurus',
+  'Rabbit',
+  'Schooling Fish',
+  'Sea Turtle',
+  'Pterodactylus',
+  'Clam',
+]);
 
 const DIETS = {
   tyrannosaurus: {
@@ -143,7 +158,7 @@ function optionsForSpecies(requesterSpecies, requesterGrowth) {
       name: species,
       available: !UNSPAWNABLE_PREY.has(species),
       unavailableReason: UNSPAWNABLE_PREY.has(species)
-        ? `${species} is in the live diet but does not have a verified BodyDrop pawn class yet.`
+        ? `${species} is part of the current diet, but is not BodyDrop-spawnable yet.`
         : null,
       description: `${meta?.label || nutrient} diet body`,
       growth,
