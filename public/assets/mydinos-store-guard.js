@@ -21,22 +21,13 @@
     }
   }
 
-  function saveLock(lock) {
-    try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(lock));
-    } catch {
-      // The backend still enforces the duplicate-store lock if session storage is unavailable.
-    }
-  }
-
   function writeLock() {
     const now = Date.now();
     const lock = {
       startedAt: now,
       expiresAt: now + LOCK_MS,
-      storageRefreshed: false,
     };
-    saveLock(lock);
+    try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(lock)); } catch {}
     return lock;
   }
 
@@ -61,45 +52,29 @@
 
     try {
       while (Date.now() < deadline) {
-        const lock = readLock();
-        if (!lock) return;
+        if (!readLock()) return;
         hideStoreButton();
 
-        const [activeResult, dinosResult] = await Promise.allSettled([
-          window.HDS.api("/api/mydinos/active-character"),
-          window.HDS.api("/api/mydinos"),
-        ]);
-
-        const active = activeResult.status === "fulfilled" ? activeResult.value : null;
-        const dinos = dinosResult.status === "fulfilled" && Array.isArray(dinosResult.value)
-          ? dinosResult.value
-          : [];
-
-        // Once the game no longer reports this live pawn, the transition is complete.
-        // Clear the UI lock and refresh immediately so the page shows the final state.
-        if (active && active.active === false) {
-          clearLock();
-          window.location.reload();
-          return;
-        }
-
-        // DinoStorage writes the stored slot before the delayed in-game transition.
-        // As soon as that new slot is visible, refresh the page once so the stored card
-        // appears immediately. Keep the lock across that refresh so Store cannot return.
-        const startedAtSec = Math.floor(Number(lock.startedAt || Date.now()) / 1000);
-        const freshStoredDino = dinos.some((dino) => Number(dino?.capturedAt || 0) >= startedAtSec - 2);
-        if (freshStoredDino && !lock.storageRefreshed) {
-          lock.storageRefreshed = true;
-          saveLock(lock);
-          window.location.reload();
-          return;
+        try {
+          // This endpoint reads the cached live server snapshot and is normally
+          // very fast. Do not poll /api/mydinos here: listing DinoStorage can wait
+          // several seconds for a game-side dino_list response.
+          const active = await window.HDS.api("/api/mydinos/active-character");
+          if (active && active.active === false) {
+            clearLock();
+            window.location.reload();
+            return;
+          }
+        } catch {
+          // Keep the one-shot UI lock in place and try again on the next tick.
         }
 
         await delay(FAST_POLL_MS);
       }
 
-      // Do one final visual refresh if the game/automation path is unusually slow.
-      // The 30-second lock remains in place, so Store still cannot reappear yet.
+      // One final page refresh after the short polling window. The Store lock is
+      // intentionally retained until it expires if the live transition was never
+      // confirmed, preventing a duplicate Store request from reappearing.
       if (readLock()) window.location.reload();
     } finally {
       pollRunning = false;
@@ -107,7 +82,7 @@
   }
 
   // Take ownership of Store Dino before the older page handler can run. This gives
-  // us a true one-shot button: confirm -> disappear -> submit once -> fast poll.
+  // us a true one-shot action: confirm -> disappear immediately -> submit once.
   document.addEventListener("click", async (event) => {
     const button = event.target.closest?.("#park-active-btn");
     if (!button) return;
@@ -144,8 +119,8 @@
     }
   }, true);
 
-  // If another page render recreates the live-dino card while a Store is pending,
-  // remove the Store option immediately before the player can click it again.
+  // If a render recreates the live-dino card while a Store is pending, remove the
+  // Store option immediately before the player can click it a second time.
   const activeCard = document.getElementById("active-character-card");
   if (activeCard) {
     new MutationObserver(() => hideStoreButton()).observe(activeCard, {
