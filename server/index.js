@@ -6,6 +6,7 @@ const session = require("express-session");
 const { db } = require("./db");
 const { SqliteSessionStore } = require("./sessionStore");
 const { requireAdmin } = require("./middleware/requireAuth");
+const { skinShareCodeRedaction } = require("./middleware/skinShareCodeRedaction");
 const authRouter = require("./auth");
 const authSteamRouter = require("./authSteam");
 const speciesRouter = require("./routes/species");
@@ -195,6 +196,7 @@ function createApp() {
   app.use("/api/dashboard", dashboardRouter);
   app.use("/api/mydinos", mydinosRouter);
   app.use("/api/marketplace", marketplaceRouter);
+  app.use("/api/skins", skinShareCodeRedaction);
   app.use("/api/skins", skinsRouter);
   app.use("/api/supporter", supporterRouter);
   app.use("/api/daily-bonus", dailyBonusRouter);
