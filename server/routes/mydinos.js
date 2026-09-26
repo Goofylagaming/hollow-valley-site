@@ -5,6 +5,37 @@ const { validateSlot } = require("../services/dinoStorageFiles");
 const automation = require("../services/automationWebsiteClient");
 
 const router = express.Router();
+const STORE_LOCK_MS = Math.max(5000, Number(process.env.DINOSTORAGE_STORE_LOCK_MS || 30000));
+const activeStoreLocks = new Map();
+
+function getActiveStoreLock(steamId) {
+  const lock = activeStoreLocks.get(String(steamId));
+  if (!lock) return null;
+  if (Date.now() >= lock.expiresAt) {
+    activeStoreLocks.delete(String(steamId));
+    return null;
+  }
+  return lock;
+}
+
+function acquireStoreLock(steamId) {
+  const steam = String(steamId);
+  const existing = getActiveStoreLock(steam);
+  if (existing) return { acquired: false, lock: existing };
+
+  const now = Date.now();
+  const lock = {
+    startedAt: now,
+    expiresAt: now + STORE_LOCK_MS,
+  };
+  activeStoreLocks.set(steam, lock);
+  return { acquired: true, lock };
+}
+
+function releaseStoreLock(steamId, lock) {
+  const steam = String(steamId);
+  if (activeStoreLocks.get(steam) === lock) activeStoreLocks.delete(steam);
+}
 
 function mapAutomationError(error, fallback) {
   if (Number.isInteger(error?.status)) {
@@ -83,6 +114,23 @@ router.get("/requests/:id", requireAuth, async (req, res) => {
 async function runDinoAction(req, res, action, slot) {
   const steamId = requireSteam(req, res);
   if (!steamId) return;
+
+  let storeLock = null;
+  if (action === "store") {
+    const lockResult = acquireStoreLock(steamId);
+    if (!lockResult.acquired) {
+      const retryAfterMs = Math.max(0, lockResult.lock.expiresAt - Date.now());
+      const retryAfterSeconds = Math.max(1, Math.ceil(retryAfterMs / 1000));
+      res.set("Retry-After", String(retryAfterSeconds));
+      return res.status(409).json({
+        error: "This dinosaur is already being stored. Please wait for the first Store Dino request to finish.",
+        code: "DINOSTORAGE_STORE_LOCKED",
+        retryAfterSeconds,
+      });
+    }
+    storeLock = lockResult.lock;
+  }
+
   try {
     const result = await automation.requestDinoAction(action, { steamId, slot });
     const request = result.request || null;
@@ -105,6 +153,7 @@ async function runDinoAction(req, res, action, slot) {
       },
     });
   } catch (error) {
+    if (action === "store" && storeLock) releaseStoreLock(steamId, storeLock);
     const mapped = mapAutomationError(error, `DinoStorage ${action} failed.`);
     return res.status(mapped.status).json(mapped.body);
   }
