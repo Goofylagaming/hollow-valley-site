@@ -47,9 +47,9 @@ function startCountdown() {
 }
 
 function nutrientGroupLabel(nutrient) {
-  if (nutrient === "protein") return { symbol: "S", label: "PROTEIN" };
-  if (nutrient === "carbohydrate") return { symbol: "∴", label: "CARBOHYDRATE" };
-  if (nutrient === "lipid") return { symbol: "//", label: "LIPID" };
+  if (nutrient === "protein") return { symbol: "β", label: "PROTEIN" };
+  if (nutrient === "carbohydrate") return { symbol: "α", label: "CARBOHYDRATE" };
+  if (nutrient === "lipid") return { symbol: "γ", label: "LIPID" };
   return { symbol: "•", label: String(nutrient || "DIET").toUpperCase() };
 }
 
@@ -92,11 +92,17 @@ function renderBodyDropStatus(data) {
     .filter((nutrient) => grouped.has(nutrient))
     .map((nutrient) => {
       const meta = nutrientGroupLabel(nutrient);
-      const buttons = grouped.get(nutrient).map((option) => `
-        <button class="bodydrop-option" data-drop-type="${escapeHtml(option.id)}" data-prey="${escapeHtml(option.species)}" ${disabled ? "disabled" : ""}>
+      const buttons = grouped.get(nutrient).map((option) => {
+        const optionDisabled = disabled || option.available === false;
+        const detail = option.available === false
+          ? escapeHtml(option.unavailableReason || "Current diet item · BodyDrop support pending")
+          : `${escapeHtml(option.nutrientLabel || meta.label)} diet body · ${Number.isFinite(option.growthPercent) ? `${Math.round(option.growthPercent)}% growth` : "scaled"}`;
+        return `
+        <button class="bodydrop-option" data-drop-type="${escapeHtml(option.id)}" data-prey="${escapeHtml(option.species)}" ${optionDisabled ? "disabled" : ""}>
           <strong>${escapeHtml(option.species)}</strong>
-          <span>${escapeHtml(option.nutrientLabel || meta.label)} diet body · ${Number.isFinite(option.growthPercent) ? `${Math.round(option.growthPercent)}% growth` : "scaled"}</span>
-        </button>`).join("");
+          <span>${detail}</span>
+        </button>`;
+      }).join("");
 
       return `
         <section>
@@ -116,7 +122,7 @@ function renderBodyDropStatus(data) {
     </div>
     <div class="bodydrop-status ${disabled ? "blocked" : "ready"}"><b id="bodydrop-status-text">${escapeHtml(status)}</b></div>
     <div class="bodydrop-diet-list">${groups || noOptions}</div>
-    <p class="section-intro">Choose the nutrient you need, then select one of the prey species in your Hollow Valley diet. The server validates your live dinosaur again before spawning the corpse.</p>`;
+    <p class="section-intro">Choose the nutrient you need, then select one of the prey species in your current Hollow Valley diet. Greyed-out prey are valid diet foods that do not yet have a verified BodyDrop corpse actor.</p>`;
 
   startCountdown();
 
