@@ -2,7 +2,7 @@
 const express = require("express");
 const { getSupporterStatus, cancelSupporterAutoRenew } = require("../db");
 const { requireAuth } = require("../middleware/requireAuth");
-const { TIERS, checkoutConfigured, createCheckoutSession, CheckoutError } = require("../services/supporterCheckout");
+const { TIERS, checkoutConfigured, stripePriceHealth, createCheckoutSession, CheckoutError } = require("../services/supporterCheckout");
 const { normalizeTier, supporterMultiplier } = require("../services/supporterTiers");
 const { isEntitled } = require("../services/supporterWebhook");
 const {
@@ -43,8 +43,9 @@ function sendManageError(res, error) {
   });
 }
 
-router.get("/tiers", (req, res) => {
-  res.json({ tiers: TIERS, checkoutConfigured: checkoutConfigured() });
+router.get("/tiers", async (req, res) => {
+  const stripeHealth = await stripePriceHealth().catch(() => null);
+  res.json({ tiers: TIERS, checkoutConfigured: checkoutConfigured(), stripeHealth });
 });
 
 router.get("/", requireAuth, (req, res) => {
