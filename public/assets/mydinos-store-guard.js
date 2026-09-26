@@ -3,6 +3,7 @@
   const LOCK_MS = 30000;
   const FAST_POLL_MS = 500;
   const FAST_POLL_WINDOW_MS = 10000;
+  const SAFE_REDIRECT = "/";
   let pollRunning = false;
 
   function readLock() {
@@ -45,6 +46,12 @@
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
+  function redirectAwayFromStore() {
+    // Replace the history entry so Back does not immediately return the player
+    // to My Dinos while the store operation is still completing in-game.
+    window.location.replace(SAFE_REDIRECT);
+  }
+
   async function fastPollStoreState() {
     if (pollRunning || !readLock()) return;
     pollRunning = true;
@@ -72,9 +79,8 @@
         await delay(FAST_POLL_MS);
       }
 
-      // One final page refresh after the short polling window. The Store lock is
-      // intentionally retained until it expires if the live transition was never
-      // confirmed, preventing a duplicate Store request from reappearing.
+      // Keep the lock if the live transition was never confirmed. A later visit
+      // to My Dinos still cannot expose a second Store action during this window.
       if (readLock()) window.location.reload();
     } finally {
       pollRunning = false;
@@ -82,7 +88,8 @@
   }
 
   // Take ownership of Store Dino before the older page handler can run. This gives
-  // us a true one-shot action: confirm -> disappear immediately -> submit once.
+  // us a true one-shot action: confirm -> disappear immediately -> submit once ->
+  // leave My Dinos as soon as the website accepts the request.
   document.addEventListener("click", async (event) => {
     const button = event.target.closest?.("#park-active-btn");
     if (!button) return;
@@ -92,7 +99,7 @@
 
     if (readLock()) {
       hideStoreButton();
-      fastPollStoreState();
+      redirectAwayFromStore();
       return;
     }
 
@@ -105,12 +112,12 @@
 
     try {
       await window.HDS.api("/api/mydinos/park-active", { method: "POST" });
-      fastPollStoreState();
+      redirectAwayFromStore();
     } catch (error) {
-      // A duplicate-lock response means the first store is already underway; keep
-      // the button hidden and continue polling. Any other failure restores the UI.
+      // A duplicate-lock response means the first store is already underway.
+      // Leave My Dinos rather than exposing another chance to interact with Store.
       if (Number(error?.status) === 409 || error?.code === "DINOSTORAGE_STORE_LOCKED") {
-        fastPollStoreState();
+        redirectAwayFromStore();
         return;
       }
       clearLock();
@@ -129,6 +136,9 @@
     });
   }
 
+  // If the player manually returns to My Dinos while the 30-second lock is still
+  // active, keep Store hidden and use only the lightweight live-dino check until
+  // the transition is confirmed or the lock expires.
   if (readLock()) {
     hideStoreButton();
     fastPollStoreState();
