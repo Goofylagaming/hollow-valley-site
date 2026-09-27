@@ -5,6 +5,8 @@ const store = require('./automationStore');
 const MAX_STORED_DINO_BYTES = 512 * 1024;
 const SLOT_RE = /^[A-Za-z0-9_-]{1,80}$/;
 const publishingRequests = new Set();
+const listInflight = new Map();
+const listCache = new Map();
 
 function validateSteamId(steamId) {
   const value = String(steamId || '').trim();
@@ -16,6 +18,45 @@ function validateSlot(slot) {
   const value = String(slot || 'default').trim();
   if (!SLOT_RE.test(value)) throw new Error('Invalid DinoStorage slot');
   return value;
+}
+
+function listCacheMs(env = process.env) {
+  const value = Number(env.DINOSTORAGE_LIST_CACHE_MS ?? 45000);
+  return Number.isFinite(value) ? Math.max(0, Math.min(300000, value)) : 45000;
+}
+
+function listTimeoutMs(env = process.env) {
+  const value = Number(env.DINOSTORAGE_LIST_TIMEOUT_MS ?? 12000);
+  return Number.isFinite(value) ? Math.max(3000, Math.min(30000, value)) : 12000;
+}
+
+function getCachedStoredDinos(steamId, { allowExpired = false } = {}) {
+  const steam = validateSteamId(steamId);
+  const cached = listCache.get(steam);
+  if (!cached) return null;
+  const ageMs = Math.max(0, Date.now() - cached.cachedAt);
+  if (!allowExpired && ageMs > listCacheMs()) {
+    listCache.delete(steam);
+    return null;
+  }
+  return {
+    dinos: cached.dinos,
+    cachedAt: new Date(cached.cachedAt).toISOString(),
+    ageMs,
+  };
+}
+
+function invalidateStoredDinoCache(steamId) {
+  listCache.delete(validateSteamId(steamId));
+}
+
+function cacheStoredDinos(steamId, dinos) {
+  const steam = validateSteamId(steamId);
+  if (listCacheMs() <= 0) return;
+  listCache.set(steam, {
+    dinos: Array.isArray(dinos) ? dinos : [],
+    cachedAt: Date.now(),
+  });
 }
 
 function speciesFromClassPath(classPath) {
@@ -63,19 +104,36 @@ function storedDirectory(steamId) {
 }
 
 async function listStoredDinos(steamId) {
-  if (commandBridge.getTransport() === 'http_pull') {
-    return listStoredDinosViaCommandBridge(steamId);
+  const steam = validateSteamId(steamId);
+  const cached = getCachedStoredDinos(steam);
+  if (cached) return cached.dinos;
+
+  const existing = listInflight.get(steam);
+  if (existing) return existing;
+
+  const pending = (async () => {
+    const dinos = commandBridge.getTransport() === 'http_pull'
+      ? await listStoredDinosViaCommandBridge(steam)
+      : await listStoredDinosViaFiles(steam);
+    cacheStoredDinos(steam, dinos);
+    return dinos;
+  })();
+
+  listInflight.set(steam, pending);
+  try {
+    return await pending;
+  } finally {
+    if (listInflight.get(steam) === pending) listInflight.delete(steam);
   }
-  return listStoredDinosViaFiles(steamId);
 }
 
 async function listStoredDinosViaCommandBridge(steamId) {
   const command = commandBridge.buildCommand('dino_list', validateSteamId(steamId), []);
   await commandBridge.queueCommand(command);
 
-  // Leave time for the website's default eight-second API timeout to receive
-  // an explicit error. A routing acknowledgement is not a DinoStorage list.
-  const deadline = Date.now() + 7000;
+  // The list read is coalesced per Steam ID, so one slow CommandBridge response
+  // no longer creates a thundering herd of duplicate dino_list commands.
+  const deadline = Date.now() + listTimeoutMs();
   do {
     const outcome = await commandBridge.readOutcome(command);
     if (outcome?.state === 'failed') {
@@ -186,6 +244,7 @@ async function runImmediateCommand({ verb, steamId, tokens = [], timeoutMs = 700
 }
 
 async function editStoredDino({ steamId, slot, mode, values = {} }) {
+  const steam = validateSteamId(steamId);
   const selectedSlot = validateSlot(slot);
   if (!['mutations', 'skin'].includes(mode)) throw new Error('Unsupported parked dino edit mode');
 
@@ -208,12 +267,17 @@ async function editStoredDino({ steamId, slot, mode, values = {} }) {
     }
   }
 
-  return runImmediateCommand({ verb: 'dino_edit', steamId, tokens });
+  const result = await runImmediateCommand({ verb: 'dino_edit', steamId: steam, tokens });
+  invalidateStoredDinoCache(steam);
+  return result;
 }
 
 async function deleteStoredDino({ steamId, slot }) {
+  const steam = validateSteamId(steamId);
   const selectedSlot = validateSlot(slot);
-  return runImmediateCommand({ verb: 'dino_delete', steamId, tokens: [selectedSlot] });
+  const result = await runImmediateCommand({ verb: 'dino_delete', steamId: steam, tokens: [selectedSlot] });
+  invalidateStoredDinoCache(steam);
+  return result;
 }
 
 async function grantLivePrime({ steamId }) {
@@ -310,6 +374,7 @@ async function requestDinoStorageAction({ action, steamId, slot = 'default' }) {
     message: `DinoStorage ${action} accepted for background publication. Do not retry this request.`,
   });
 
+  invalidateStoredDinoCache(steam);
   scheduleDinoStoragePublication(command.id);
   return request;
 }
@@ -427,6 +492,10 @@ module.exports = {
   validateSlot,
   normalizeStoredDino,
   listStoredDinos,
+  getCachedStoredDinos,
+  invalidateStoredDinoCache,
+  listCacheMs,
+  listTimeoutMs,
   getStoredDino,
   editStoredDino,
   deleteStoredDino,
