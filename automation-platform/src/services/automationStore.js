@@ -1,20 +1,19 @@
-const fs = require('node:fs');
 const path = require('node:path');
+const fs = require('node:fs');
 const { DatabaseSync } = require('node:sqlite');
 
 const dbPath = process.env.AUTOMATION_DB_PATH || path.join(__dirname, '..', '..', 'data', 'automation.sqlite');
-fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-
+if (dbPath !== ':memory:') fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 const db = new DatabaseSync(dbPath);
-db.exec('PRAGMA busy_timeout = 5000;');
 db.exec('PRAGMA journal_mode = WAL;');
+db.exec('PRAGMA busy_timeout = 5000;');
 db.exec(`
   CREATE TABLE IF NOT EXISTS automation_requests (
     id TEXT PRIMARY KEY,
     kind TEXT NOT NULL,
     steam_id TEXT,
     status TEXT NOT NULL,
-    command_id TEXT UNIQUE,
+    command_id TEXT,
     details_json TEXT NOT NULL DEFAULT '{}',
     message TEXT,
     error TEXT,
@@ -29,7 +28,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS automation_jobs (
     id TEXT PRIMARY KEY,
     type TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'scheduled',
+    status TEXT NOT NULL,
     run_at TEXT NOT NULL,
     recurrence TEXT NOT NULL DEFAULT 'none',
     payload_json TEXT NOT NULL DEFAULT '{}',
@@ -54,15 +53,12 @@ db.exec(`
   );
   CREATE INDEX IF NOT EXISTS idx_automation_audit_created
     ON automation_audit(created_at DESC);
-  CREATE INDEX IF NOT EXISTS idx_automation_audit_category_action
-    ON automation_audit(category, action, created_at DESC);
 
   CREATE TABLE IF NOT EXISTS automation_state (
     key TEXT PRIMARY KEY,
     value_json TEXT NOT NULL DEFAULT '{}',
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
-
 
   CREATE TABLE IF NOT EXISTS herbybot_outbox (
     id TEXT PRIMARY KEY,
@@ -146,7 +142,7 @@ function listRequests({ kind = null, statuses = null, limit = 100 } = {}) {
     params.push(...statuses);
   }
   const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
-  return db.prepare(`SELECT * FROM automation_requests ${where} ORDER BY created_at DESC LIMIT ?`)
+  return db.prepare(`SELECT * FROM automation_requests ${where} ORDER BY created_at DESC, rowid DESC LIMIT ?`)
     .all(...params, safeLimit)
     .map(parseRow);
 }
@@ -155,7 +151,7 @@ function getLatestForSteam(steamId, kind) {
   return parseRow(db.prepare(`
     SELECT * FROM automation_requests
     WHERE steam_id = ? AND kind = ?
-    ORDER BY created_at DESC LIMIT 1
+    ORDER BY created_at DESC, rowid DESC LIMIT 1
   `).get(steamId, kind));
 }
 
