@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Browse Hollow Valley official dinosaur listings.">
+  <title>HV Official Listings | Hollow Valley</title>
+  <link rel="stylesheet" href="assets/styles.css?v=21">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main>
+      <section class="page-header">
+        <p class="overline green">MARKETPLACE · HV OFFICIAL</p>
+        <h1>HV Official Listings.</h1>
+        <p class="section-intro">Dinos sold directly by Hollow Valley. Official dinos are sold at 50% growth or 75% growth; every 75% official dino includes Prime and costs at least 50,000 Valley Coin.</p>
+        <div class="actions" style="margin-top:18px"><a class="small-button" href="/marketplace">← Marketplace</a><a class="small-button" href="/marketplace-players">Player Listings →</a></div>
+      </section>
+      <section class="roster-section">
+        <div class="market-state-banner" id="market-state-banner"><span class="status-dot"></span><b>Checking marketplace status…</b><small id="market-state-detail"></small></div>
+        <div class="filter-row" role="group" aria-label="Filter by species">
+          <button class="filter active" data-filter="all">All species</button>
+          <button class="filter" data-filter="herbivore">Herbivores</button>
+          <button class="filter" data-filter="carnivore">Carnivores</button>
+          <button class="filter" data-filter="omnivore">Omnivores</button>
+          <button class="filter" data-filter="flying">Flying</button>
+          <select id="sort-select" style="margin-left:auto;padding:9px;border:1px solid var(--line);background:transparent;color:#9c8a72">
+            <option value="price-asc">Price: low to high</option>
+            <option value="price-desc">Price: high to low</option>
+            <option value="size-desc">Size: biggest first</option>
+          </select>
+        </div>
+        <div class="list-heading"><span>HV OFFICIAL LISTINGS</span></div>
+        <div class="dino-grid" id="catalog-grid"><p class="section-intro">Loading official listings…</p></div>
+
+        <section id="my-orders-section" hidden>
+          <div class="list-heading" style="margin-top:40px"><span>YOUR STORE ORDERS</span><small>Official DinoStorage delivery</small></div>
+          <div class="storage-grid" id="my-orders-grid"><p class="section-intro">Loading your store orders…</p></div>
+        </section>
+
+        <div id="listings-grid" hidden></div>
+        <section id="my-listings-section" hidden><div id="my-listings-grid"></div></section>
+      </section>
+    </main>
+    <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
+  </div>
+  <script src="assets/common.js?v=16"></script>
+  <script src="assets/marketplace.js?v=14"></script>
+</body>
+</html>
