@@ -1,6 +1,7 @@
 const express = require("express");
 const { requireAdmin } = require("../middleware/requireAuth");
 const automation = require("../services/automationWebsiteClient");
+const { db } = require("../db");
 
 const router = express.Router();
 
@@ -113,6 +114,32 @@ router.get("/players", async (_req, res) => {
     const mapped = mapAutomationError(error, "Could not load connected players.");
     return res.status(mapped.status).json(mapped.body);
   }
+});
+
+router.get("/player-records/:steamId", async (req, res) => {
+  let steamId;
+  try {
+    steamId = validateSteamId(req.params.steamId);
+  } catch (error) {
+    return res.status(400).json({ error: error.message });
+  }
+
+  res.set("Cache-Control", "no-store");
+  const [presence, dinos, wallet] = await Promise.allSettled([
+    automation.getAdminPresence({ steamId, limit: 1 }),
+    automation.listStoredDinos(steamId),
+    automation.getWallet(steamId),
+  ]);
+  const linked = db.prepare("SELECT username FROM users WHERE steam_id = ?").get(steamId);
+  const lastName = presence.status === "fulfilled" ? presence.value?.sessions?.[0]?.player_name : null;
+  const name = lastName || linked?.username || "Name unavailable";
+  return res.json({
+    player: { steamId, name },
+    dinos: dinos.status === "fulfilled" ? dinos.value?.dinos || [] : null,
+    dinosError: dinos.status === "rejected" ? "Stored dinos could not be loaded." : null,
+    wallet: wallet.status === "fulfilled" ? wallet.value : null,
+    walletError: wallet.status === "rejected" ? "Wallet history could not be loaded." : null,
+  });
 });
 
 router.post("/slay", async (req, res) => {
