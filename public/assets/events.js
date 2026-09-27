@@ -304,12 +304,15 @@ function adminEventOptions() {
 
 function renderAdminEventSelect() {
   const select = document.getElementById("event-admin-event-select");
-  if (!select) return;
+  const bonusSelect = document.getElementById("event-bonus-event-select");
+  if (!select || !bonusSelect) return;
   const options = adminEventOptions();
-  select.innerHTML = '<option value="">Choose an event…</option>' + options.map((event) =>
+  const markup = '<option value="">Choose an event…</option>' + options.map((event) =>
     `<option value="${escapeHtml(event.id)}">${escapeHtml(event.title)} · ${escapeHtml(formatEventTime(event.startTime))}</option>`
   ).join("");
-  if (selectedAdminEvent) select.value = String(selectedAdminEvent.id);
+  select.innerHTML = markup;
+  bonusSelect.innerHTML = markup;
+  select.value = bonusSelect.value = selectedAdminEvent ? String(selectedAdminEvent.id) : "";
 }
 
 function renderSelectedAdminEvent() {
@@ -317,6 +320,7 @@ function renderSelectedAdminEvent() {
   const time = document.getElementById("event-admin-selected-time");
   const add = document.getElementById("event-attendance-add-submit");
   const bonus = document.getElementById("event-bonus-submit");
+  const bonusHelp = document.getElementById("event-bonus-help");
   const confirmAll = document.getElementById("event-confirm-all");
 
   if (!selectedAdminEvent) {
@@ -324,6 +328,8 @@ function renderSelectedAdminEvent() {
     time.textContent = "Use “Manage attendance” on an event card.";
     add.disabled = true;
     bonus.disabled = true;
+    bonus.textContent = "Select event to pay bonus";
+    bonusHelp.textContent = "Choose the event this bonus belongs to.";
     confirmAll.disabled = true;
     return;
   }
@@ -333,6 +339,10 @@ function renderSelectedAdminEvent() {
   const payoutsReady = rewardAdmin?.enabled && (!rewardAdmin.supporterMultipliersEnabled || rewardAdmin.supporterLookupConfigured);
   add.disabled = false;
   bonus.disabled = !payoutsReady;
+  bonus.textContent = "Pay bonus →";
+  bonusHelp.textContent = payoutsReady
+    ? `Bonus will be recorded for ${selectedAdminEvent.title}.`
+    : "Event payouts are paused. See the reward settings above.";
   confirmAll.disabled = !payoutsReady || !adminAttendance.some((entry) => entry.status === "attending");
 }
 
@@ -484,18 +494,27 @@ async function removeOneAttendance(steamId, button) {
   }
 }
 
-document.getElementById("event-admin-event-select")?.addEventListener("change", async (event) => {
-  const id = String(event.currentTarget.value || "");
+async function selectAdminEvent(id) {
   if (!id) {
     selectedAdminEvent = null;
     adminAttendance = [];
+    renderAdminEventSelect();
     renderSelectedAdminEvent();
     renderAdminAttendance();
     return;
   }
   selectedAdminEvent = adminEventOptions().find((entry) => String(entry.id) === id) || null;
+  renderAdminEventSelect();
   renderSelectedAdminEvent();
   await loadAdminAttendance();
+}
+
+document.getElementById("event-admin-event-select")?.addEventListener("change", async (event) => {
+  await selectAdminEvent(String(event.currentTarget.value || ""));
+});
+
+document.getElementById("event-bonus-event-select")?.addEventListener("change", async (event) => {
+  await selectAdminEvent(String(event.currentTarget.value || ""));
 });
 
 document.getElementById("event-attendance-add-form")?.addEventListener("submit", async (event) => {
