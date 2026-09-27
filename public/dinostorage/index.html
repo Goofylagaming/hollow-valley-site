@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Your Hollow Valley parked dinosaur storage.">
+  <title>Dino Storage | Hollow Valley</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=22">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main>
+      <section class="page-header">
+        <p class="overline green">STORAGE</p>
+        <h1>Dino Storage.</h1>
+        <p class="section-intro">Park, manage and redeem dinosaurs saved through Hollow Valley. Storage is loaded only when you open this tab.</p>
+      </section>
+      <section class="roster-section">
+        <div id="mydinos-guard"><p class="section-intro">Sign in with Steam to view your Dino Storage.</p></div>
+        <div id="mydinos-content" hidden>
+          <div id="active-character-card" style="margin-bottom: 24px;"></div>
+
+          <div class="filter-row" role="group" aria-label="Filter stored dinosaurs">
+            <button class="filter active" data-filter="all">All species</button>
+            <button class="filter" data-filter="prime">Prime</button>
+            <span class="roster-count" id="mydinos-count">0 in storage</span>
+          </div>
+          <div class="storage-grid" id="storage-grid"><p class="section-intro">Loading storage…</p></div>
+        </div>
+      </section>
+    </main>
+    <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
+  </div>
+  <script src="/assets/common.js?v=16"></script>
+  <script src="/assets/mydinos-automation.js?v=1"></script>
+  <script src="/assets/mydinos.js?v=14"></script>
+  <script src="/assets/mydinos-lifecycle.js?v=1"></script>
+  <script src="/assets/mydinos-store-guard.js?v=6"></script>
+</body>
+</html>
