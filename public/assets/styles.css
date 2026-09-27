@@ -604,6 +604,7 @@
 .event-inline-form{display:flex;align-items:end;gap:10px;margin-bottom:14px}.event-inline-form label,.event-bonus-form label{display:grid;gap:7px;flex:1}.event-inline-form label>span,.event-bonus-form label>span{color:#ad9b7e;font:700 9px Manrope;letter-spacing:.12em}
 .event-inline-form input,.event-bonus-form input{width:100%;min-height:43px;padding:11px 12px;border:1px solid var(--line);background:#0b0b09;color:var(--text);font:600 10px Manrope}
 .event-bonus-form{display:grid;gap:12px}.event-check{display:flex!important;grid-template-columns:auto 1fr!important;align-items:center;justify-content:flex-start;gap:8px!important}.event-check input{width:auto;min-height:auto}
+.event-bonus-form select{width:100%;min-height:43px;padding:9px 10px;border:1px solid var(--line);background:#0b0b09;color:var(--text);font:600 10px Manrope}.event-bonus-form .primary-button:disabled{opacity:.55;cursor:not-allowed}.event-bonus-help{color:#a7987b;font-size:10px}
 .event-row-actions{display:flex;gap:6px;align-items:center}.event-paid-chip{display:inline-flex;padding:5px 8px;border:1px solid #687a36;background:#17200f;color:#b6d27b;font:700 9px Oswald;letter-spacing:.1em}
 .event-steam-id{display:block;margin-top:4px;color:#665b4d;font-size:8px}
 @media(max-width:1000px){.event-admin-grid{grid-template-columns:1fr}.event-admin-selected{align-items:flex-start;flex-direction:column}.event-inline-form{align-items:stretch;flex-direction:column}.event-row-actions{align-items:flex-start;flex-direction:column}}
