@@ -72,6 +72,18 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 ## 3b. Optional: admin access + supporter payments
 
+### Owner email access on mobile
+
+Set `OWNER_STEAM_ID` on the website service to the owner's 17-digit Steam ID.
+Once deployed, sign in with that Steam account and open `/owner-login` within
+15 minutes. Choose an email and a password of at least 16 characters there.
+The site stores only a salted password hash on its persistent SQLite disk.
+On a phone or iPad, visit `/owner-login` and sign in with those credentials;
+the admin hub opens using the same Steam-linked owner account. To reset the
+email or password, sign in with the owner Steam account again and repeat setup.
+Other website admins cannot set up owner email access. Keep the website's
+persistent disk and `SESSION_SECRET` configured.
+
 - `ADMIN_DISCORD_IDS` — comma-separated Discord user IDs. Anyone logging in
   with one of these IDs is auto-promoted to site admin (can create free
   "premium" skins for everyone). Leave blank if you don't need admins yet.
