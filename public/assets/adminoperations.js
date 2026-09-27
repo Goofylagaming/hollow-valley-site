@@ -14,7 +14,7 @@ function renderChat() {
     (!lagOnly || /\b(lag|lagging|rubberband|rubber band|desync|ping|stutter|freeze|freezing|delay)\b/i.test(entry.message))
   ).reverse();
   document.getElementById("ops-chat-messages").innerHTML = rows.length
-    ? rows.map((entry) => `<tr><td>${escapeHtml(formatDate(entry.at))}</td><td>${escapeHtml(entry.channel)}</td><td>${escapeHtml(entry.name)}</td><td style="white-space:normal;overflow-wrap:anywhere">${escapeHtml(entry.message)}</td></tr>`).join("")
+    ? rows.map((entry) => `<tr><td>${escapeHtml(formatDate(entry.at))}</td><td>${escapeHtml(entry.channel)}</td><td>${escapeHtml(entry.name)}${entry.steamId ? `<small style="display:block">${escapeHtml(entry.steamId)}</small>` : ""}</td><td style="white-space:normal;overflow-wrap:anywhere">${escapeHtml(entry.message)}</td></tr>`).join("")
     : emptyRow(4, chatMessages.length ? "No messages match the filter." : "No game chat received yet. Check the game server chat forwarder.");
 }
 
@@ -32,6 +32,13 @@ async function loadChat() {
 
 document.getElementById("ops-chat-search")?.addEventListener("input", renderChat);
 document.getElementById("ops-chat-lag")?.addEventListener("change", renderChat);
+document.getElementById("ops-chat-collapse")?.addEventListener("click", (event) => {
+  const body = document.getElementById("ops-chat-body");
+  body.hidden = !body.hidden;
+  event.currentTarget.setAttribute("aria-expanded", String(!body.hidden));
+  event.currentTarget.textContent = body.hidden ? "Expand chat" : "Minimize chat";
+  try { localStorage.setItem("ops-chat-minimized", String(body.hidden)); } catch (_) { /* Storage may be unavailable. */ }
+});
 document.getElementById("ops-chat-channels")?.addEventListener("click", (event) => {
   const button = event.target.closest("button[data-channel]");
   if (!button) return;
@@ -363,6 +370,14 @@ async function init() {
 
   guard.hidden = true;
   content.hidden = false;
+  try {
+    if (localStorage.getItem("ops-chat-minimized") === "true") {
+      document.getElementById("ops-chat-body").hidden = true;
+      const button = document.getElementById("ops-chat-collapse");
+      button.setAttribute("aria-expanded", "false");
+      button.textContent = "Expand chat";
+    }
+  } catch (_) { /* Storage may be unavailable. */ }
   await Promise.all([loadOperations(), loadGlobalBodyDrop()]);
   await loadChat();
   setInterval(loadChat, 5000);
