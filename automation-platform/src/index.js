@@ -10,6 +10,7 @@ const { requireAdminToken } = require('./middleware/adminAuth');
 const audit = require('./services/auditService');
 const backupService = require('./services/backupService');
 const adminRoutes = require('./routes/adminRoutes');
+const adminBodyDropResetRoutes = require('./routes/adminBodyDropResetRoutes');
 const websiteRoutes = require('./routes/websiteRoutes');
 const websiteAdminWalletRoutes = require('./routes/websiteAdminWalletRoutes');
 const websiteDailyLoginRoutes = require('./routes/websiteDailyLoginRoutes');
@@ -160,6 +161,11 @@ app.post('/api/admin/backups', requireAdminToken, async (_req, res) => {
     res.status(503).json({ error: error.message || 'Automation backup failed.' });
   }
 });
+
+app.use('/api/admin/bodydrop-reset', (_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+}, adminBodyDropResetRoutes);
 
 app.use('/api/admin', (_req, res, next) => {
   res.set('Cache-Control', 'no-store');
