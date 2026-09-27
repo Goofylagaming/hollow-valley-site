@@ -1,15 +1,15 @@
-// Run on the game host with CHAT_LOG_PATH, CHAT_FEED_URL and PRESENCE_FEED_TOKEN.
+// Run on the Hollow Valley game host with CHAT_FEED_URL and PRESENCE_FEED_TOKEN.
 // CHAT_LINE_PATTERN can override the confirmed LogTheIsleChatData format.
 const fs = require('node:fs/promises');
 const crypto = require('node:crypto');
 const { createChatLineRegex, parseChatLine } = require('./game-chat-line');
 
-const path = process.env.CHAT_LOG_PATH;
-const url = process.env.CHAT_FEED_URL;
+const path = process.env.CHAT_LOG_PATH || 'C:\\HollowValley\\TheIsleServer\\TheIsle\\Saved\\Logs\\TheIsle.log';
+const url = process.env.CHAT_FEED_URL || String(process.env.PRESENCE_FEED_URL || '').replace(/\/api\/presence-feed\/snapshot\/?$/, '/api/chat-feed/messages');
 const token = process.env.PRESENCE_FEED_TOKEN;
 const pattern = process.env.CHAT_LINE_PATTERN;
 if (!path || !url || !token || !/^https:\/\//.test(url)) {
-  throw new Error('Set CHAT_LOG_PATH, HTTPS CHAT_FEED_URL and PRESENCE_FEED_TOKEN.');
+  throw new Error('Set HTTPS CHAT_FEED_URL (or PRESENCE_FEED_URL) and PRESENCE_FEED_TOKEN.');
 }
 const regex = createChatLineRegex(pattern || undefined);
 
