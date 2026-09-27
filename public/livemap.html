@@ -6,6 +6,7 @@
   <meta name="description" content="Gateway map with live Hollow Valley positions when available and verified activity history during downtime.">
   <title>Live map | Hollow Valley</title>
   <link rel="stylesheet" href="assets/styles.css?v=20">
+  <link rel="stylesheet" href="assets/livemap-trail.css?v=1">
 </head>
 <body>
   <div class="app-shell">
@@ -42,6 +43,7 @@
                   <svg class="map-layer map-shapes" id="tracker-shapes" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
                   <div class="map-layer" id="tracker-pois"></div>
                   <div class="map-layer" id="tracker-labels"></div>
+                  <svg class="map-layer" id="tracker-trails" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
                   <div class="map-layer" id="tracker-markers"></div>
                 </div>
               </div>
@@ -52,6 +54,7 @@
           <aside class="map-layers-panel">
             <p class="overline green">MAP LAYERS</p>
             <label class="layer-toggle"><input type="checkbox" id="layer-players" checked><span class="layer-swatch player"></span>Player tracking</label>
+            <label class="layer-toggle"><input type="checkbox" id="layer-trails" checked><span class="layer-swatch trail"></span>My dino trail</label>
             <label class="layer-toggle"><input type="checkbox" id="layer-areas" checked><span class="layer-swatch area"></span>Region names</label>
             <label class="layer-toggle"><input type="checkbox" id="layer-landmarks"><span class="layer-swatch landmark"></span>Landmarks</label>
             <label class="layer-toggle"><input type="checkbox" id="layer-saltLicks" checked><span class="layer-swatch salt"></span>Salt licks</label>
@@ -72,5 +75,6 @@
   </div>
   <script src="assets/common.js?v=16"></script>
   <script src="assets/livemap.js?v=14"></script>
+  <script src="assets/livemap-trail.js?v=1"></script>
 </body>
 </html>
