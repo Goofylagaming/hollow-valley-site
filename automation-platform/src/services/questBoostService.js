@@ -1,3 +1,4 @@
+const { randomUUID } = require('node:crypto');
 const store = require('./economyStore');
 
 const QUESTS = Object.freeze([
@@ -73,6 +74,89 @@ const QUESTS = Object.freeze([
   },
 ]);
 
+const CHALLENGES = Object.freeze([
+  {
+    id: 'growth-25',
+    cadence: 'daily',
+    category: 'GROWTH',
+    icon: 'G',
+    title: 'Fresh Legs',
+    description: 'Grow a dinosaur from spawn to at least 25% growth.',
+    tracker: 'Character growth',
+    target: 'Reach 25%',
+    targetGrowth: 0.25,
+    rewardCoins: 1500,
+    requiresSpawnStart: true,
+  },
+  {
+    id: 'growth-50',
+    cadence: 'daily',
+    category: 'GROWTH',
+    icon: 'G',
+    title: 'Awkward Teen Phase',
+    description: 'Reach at least 50% growth on an active dinosaur.',
+    tracker: 'Character growth',
+    target: 'Reach 50%',
+    targetGrowth: 0.50,
+    rewardCoins: 2500,
+  },
+  {
+    id: 'growth-75',
+    cadence: 'weekly',
+    category: 'GROWTH',
+    icon: 'G',
+    title: 'Built Different',
+    description: 'Take a dinosaur to at least 75% growth.',
+    tracker: 'Character growth',
+    target: 'Reach 75%',
+    targetGrowth: 0.75,
+    rewardCoins: 4000,
+  },
+  {
+    id: 'growth-adult',
+    cadence: 'weekly',
+    category: 'GROWTH',
+    icon: 'A',
+    title: 'Full Send Adult',
+    description: 'Reach full adult growth on any eligible dinosaur.',
+    tracker: 'Character growth',
+    target: 'Reach 100%',
+    targetGrowth: 1.0,
+    rewardCoins: 7500,
+  },
+]);
+
+store.db.exec(`
+  CREATE TABLE IF NOT EXISTS economy_challenge_growth_progress (
+    steam_id TEXT NOT NULL,
+    challenge_id TEXT NOT NULL,
+    period_key TEXT NOT NULL,
+    species TEXT,
+    last_growth REAL,
+    min_growth REAL,
+    max_growth REAL,
+    started_below INTEGER NOT NULL DEFAULT 0,
+    spawn_seen INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (steam_id, challenge_id, period_key),
+    FOREIGN KEY (steam_id) REFERENCES economy_wallets(steam_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_economy_challenge_growth_progress_steam
+    ON economy_challenge_growth_progress(steam_id, updated_at DESC);
+
+  CREATE TABLE IF NOT EXISTS economy_challenge_achievements (
+    steam_id TEXT NOT NULL,
+    challenge_id TEXT NOT NULL,
+    period_key TEXT NOT NULL,
+    reward_coins INTEGER NOT NULL DEFAULT 0 CHECK(reward_coins >= 0),
+    achieved_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (steam_id, challenge_id, period_key),
+    FOREIGN KEY (steam_id) REFERENCES economy_wallets(steam_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_economy_challenge_achievements_steam
+    ON economy_challenge_achievements(steam_id, achieved_at DESC);
+`);
+
 function timezone() {
   return String(process.env.ECONOMY_TIMEZONE || 'Australia/Brisbane').trim() || 'Australia/Brisbane';
 }
@@ -138,6 +222,21 @@ function questDefinitions() {
   }));
 }
 
+function challengeDefinitions() {
+  return CHALLENGES.map((challenge) => ({
+    id: challenge.id,
+    title: challenge.title,
+    description: challenge.description,
+    cadence: challenge.cadence,
+    category: challenge.category,
+    icon: challenge.icon,
+    tracker: challenge.tracker,
+    target: challenge.target,
+    targetGrowth: challenge.targetGrowth,
+    rewardCoins: challenge.rewardCoins,
+  }));
+}
+
 function ensureState(steamId, keys) {
   store.ensureWallet(steamId);
   const current = store.getQuestState(steamId);
@@ -184,10 +283,204 @@ function completeEligibleQuests(steamId, state, keys) {
   return achieved;
 }
 
+function normalizeGrowth(value) {
+  if (value === null || value === undefined || value === '') return null;
+  let growth = Number(value);
+  if (!Number.isFinite(growth)) return null;
+  if (growth > 1.5) growth /= 100;
+  return Math.max(0, Math.min(1, growth));
+}
+
+function challengePeriodKey(challenge, keys) {
+  return challenge.cadence === 'daily' ? keys.daily : keys.weekly;
+}
+
+function challengeAchievement(steamId, challengeId, periodKey) {
+  return store.db.prepare(`
+    SELECT *
+    FROM economy_challenge_achievements
+    WHERE steam_id = ? AND challenge_id = ? AND period_key = ?
+  `).get(steamId, challengeId, periodKey);
+}
+
+function challengeGrowthProgress(steamId, challengeId, periodKey) {
+  return store.db.prepare(`
+    SELECT *
+    FROM economy_challenge_growth_progress
+    WHERE steam_id = ? AND challenge_id = ? AND period_key = ?
+  `).get(steamId, challengeId, periodKey);
+}
+
+function newLifeDetected(row, species, growth) {
+  if (!row) return true;
+  const previousSpecies = String(row.species || '').trim().toLowerCase();
+  const currentSpecies = String(species || '').trim().toLowerCase();
+  if (previousSpecies && currentSpecies && previousSpecies !== currentSpecies) return true;
+
+  const lastGrowth = Number(row.last_growth);
+  return Number.isFinite(lastGrowth) && lastGrowth >= 0.35 && growth <= 0.12;
+}
+
+function writeGrowthProgress({ steamId, challenge, periodKey, species, growth, row }) {
+  const reset = newLifeDetected(row, species, growth);
+  const minGrowth = reset
+    ? growth
+    : Math.min(Number.isFinite(Number(row?.min_growth)) ? Number(row.min_growth) : growth, growth);
+  const maxGrowth = reset
+    ? growth
+    : Math.max(Number.isFinite(Number(row?.max_growth)) ? Number(row.max_growth) : growth, growth);
+  const startedBelow = reset
+    ? growth < challenge.targetGrowth
+    : Boolean(Number(row?.started_below)) || growth < challenge.targetGrowth;
+  const spawnSeen = reset
+    ? growth <= 0.12
+    : Boolean(Number(row?.spawn_seen)) || growth <= 0.12;
+
+  store.db.prepare(`
+    INSERT INTO economy_challenge_growth_progress
+      (steam_id, challenge_id, period_key, species, last_growth, min_growth, max_growth, started_below, spawn_seen, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    ON CONFLICT(steam_id, challenge_id, period_key) DO UPDATE SET
+      species = excluded.species,
+      last_growth = excluded.last_growth,
+      min_growth = excluded.min_growth,
+      max_growth = excluded.max_growth,
+      started_below = excluded.started_below,
+      spawn_seen = excluded.spawn_seen,
+      updated_at = datetime('now')
+  `).run(
+    steamId,
+    challenge.id,
+    periodKey,
+    species || null,
+    growth,
+    minGrowth,
+    maxGrowth,
+    startedBelow ? 1 : 0,
+    spawnSeen ? 1 : 0
+  );
+
+  return { minGrowth, maxGrowth, startedBelow, spawnSeen };
+}
+
+function creditChallengeReward(steamId, challenge, periodKey) {
+  const idempotencyKey = `quest-challenge:${steamId}:${challenge.id}:${periodKey}`;
+  const existing = store.db.prepare(`
+    SELECT id
+    FROM economy_wallet_ledger
+    WHERE idempotency_key = ?
+  `).get(idempotencyKey);
+  if (existing) return { duplicate: true, amount: challenge.rewardCoins };
+
+  store.ensureWallet(steamId);
+  const wallet = store.db.prepare('SELECT balance FROM economy_wallets WHERE steam_id = ?').get(steamId);
+  const nextBalance = Number(wallet?.balance || 0) + Number(challenge.rewardCoins || 0);
+  store.db.prepare(`
+    UPDATE economy_wallets
+    SET balance = ?, updated_at = datetime('now')
+    WHERE steam_id = ?
+  `).run(nextBalance, steamId);
+
+  store.db.prepare(`
+    INSERT INTO economy_wallet_ledger
+      (id, steam_id, amount, kind, reason, idempotency_key, reference_type, reference_id, metadata_json)
+    VALUES (?, ?, ?, 'quest_challenge_reward', ?, ?, 'quest_challenge', ?, ?)
+  `).run(
+    randomUUID(),
+    steamId,
+    challenge.rewardCoins,
+    `Quest challenge reward: ${challenge.title}`,
+    idempotencyKey,
+    `${challenge.id}:${periodKey}`,
+    JSON.stringify({
+      challengeId: challenge.id,
+      title: challenge.title,
+      cadence: challenge.cadence,
+      periodKey,
+      rewardCoins: challenge.rewardCoins,
+      tracker: challenge.tracker,
+    })
+  );
+
+  return { duplicate: false, amount: challenge.rewardCoins, balance: nextBalance };
+}
+
+function updateGrowthChallenges(steamId, player, keys) {
+  const growth = normalizeGrowth(player?.growth);
+  if (growth === null) return [];
+
+  const species = String(player?.species || '').trim() || null;
+  const completed = [];
+
+  for (const challenge of CHALLENGES) {
+    const periodKey = challengePeriodKey(challenge, keys);
+    const existingAchievement = challengeAchievement(steamId, challenge.id, periodKey);
+    if (existingAchievement) continue;
+
+    const row = challengeGrowthProgress(steamId, challenge.id, periodKey);
+    const progress = writeGrowthProgress({ steamId, challenge, periodKey, species, growth, row });
+
+    const startQualified = challenge.requiresSpawnStart ? progress.spawnSeen : progress.startedBelow;
+    if (!startQualified || progress.maxGrowth < challenge.targetGrowth) continue;
+
+    const payout = creditChallengeReward(steamId, challenge, periodKey);
+    store.db.prepare(`
+      INSERT OR IGNORE INTO economy_challenge_achievements
+        (steam_id, challenge_id, period_key, reward_coins)
+      VALUES (?, ?, ?, ?)
+    `).run(steamId, challenge.id, periodKey, challenge.rewardCoins);
+
+    completed.push({
+      challengeId: challenge.id,
+      title: challenge.title,
+      rewardCoins: challenge.rewardCoins,
+      periodKey,
+      duplicatePayout: Boolean(payout.duplicate),
+    });
+  }
+
+  return completed;
+}
+
+function getChallengeStatus(steamId, keys) {
+  return CHALLENGES.map((challenge) => {
+    const periodKey = challengePeriodKey(challenge, keys);
+    const achievement = challengeAchievement(steamId, challenge.id, periodKey);
+    const progress = challengeGrowthProgress(steamId, challenge.id, periodKey);
+    const progressGrowth = achievement
+      ? challenge.targetGrowth
+      : Math.min(challenge.targetGrowth, Math.max(0, Number(progress?.max_growth || 0)));
+    const progressPercent = Math.max(
+      0,
+      Math.min(100, Math.round((progressGrowth / challenge.targetGrowth) * 100))
+    );
+
+    return {
+      id: challenge.id,
+      title: challenge.title,
+      description: challenge.description,
+      cadence: challenge.cadence,
+      category: challenge.category,
+      icon: challenge.icon,
+      tracker: challenge.tracker,
+      target: challenge.target,
+      targetGrowth: challenge.targetGrowth,
+      progressGrowth,
+      progressPercent,
+      completed: Boolean(achievement),
+      completedAt: achievement?.achieved_at || null,
+      periodKey,
+      rewardCoins: achievement ? Number(achievement.reward_coins) : challenge.rewardCoins,
+      rewardPaid: Boolean(achievement),
+    };
+  });
+}
+
 function updateQuestProgress(steamId, {
   elapsedSeconds = 0,
   continuous = false,
   nowMs = Date.now(),
+  player = null,
 } = {}) {
   const id = store.validateSteamId(steamId);
   const keys = periodKeys(nowMs);
@@ -215,10 +508,12 @@ function updateQuestProgress(steamId, {
 
   const state = store.getQuestState(id);
   const newlyAchieved = completeEligibleQuests(id, state, keys);
+  const newlyCompletedChallenges = updateGrowthChallenges(id, player, keys);
   return {
     state,
     keys,
     newlyAchieved,
+    newlyCompletedChallenges,
     quests: getQuestStatus(id, { nowMs }),
   };
 }
@@ -270,16 +565,19 @@ function getQuestStatus(steamId, { nowMs = Date.now() } = {}) {
     activeBoostPercent,
     maxTotalBoostPercent: maxTotalBoostPercent(),
     quests,
+    challenges: getChallengeStatus(id, keys),
   };
 }
 
 module.exports = {
   QUESTS,
+  CHALLENGES,
   timezone,
   boostForQuest,
   maxTotalBoostPercent,
   periodKeys,
   questDefinitions,
+  challengeDefinitions,
   updateQuestProgress,
   getQuestStatus,
 };
