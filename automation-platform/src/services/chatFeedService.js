@@ -13,17 +13,18 @@ function ingest(entries) {
   const incoming = entries.map((entry) => {
     const id = String(entry?.id || '').trim();
     const name = String(entry?.name || '').trim();
+    const steamId = entry?.steamId == null || entry.steamId === '' ? null : String(entry.steamId).trim();
     const message = String(entry?.message || '').trim();
     const rawChannel = String(entry?.channel || 'unknown').trim().toLowerCase();
     const channel = /^(global|server|world)$/.test(rawChannel) ? 'global'
       : /^(local|spatial|proximity|nearby)$/.test(rawChannel) ? 'local' : 'unknown';
     const timestamp = Date.parse(entry?.at);
     const at = Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : null;
-    if (!/^[\w:.-]{1,128}$/.test(id) || !name || name.length > 80 || !message || message.length > 500 || rawChannel.length > 32 || !at) {
+    if (!/^[\w:.-]{1,128}$/.test(id) || !name || name.length > 80 || (steamId !== null && !/^\d{17}$/.test(steamId)) || !message || message.length > 500 || rawChannel.length > 32 || !at) {
       throw new Error('Invalid chat message.');
     }
     if (Math.abs(Date.now() - Date.parse(at)) > 24 * 60 * 60 * 1000) throw new Error('Chat timestamp is outside the 24-hour window.');
-    return { id, name, message, channel, at };
+    return { id, name, steamId, message, channel, at };
   });
   const state = read();
   const seen = new Set(state.messages.map((entry) => entry.id));
@@ -33,7 +34,7 @@ function ingest(entries) {
     state.messages.push(entry);
     seen.add(entry.id);
     accepted++;
-    const mode = String(process.env.GAME_CHAT_DISCORD_MODE || 'lag').toLowerCase();
+    const mode = String(process.env.GAME_CHAT_DISCORD_MODE || 'all').toLowerCase();
     const lagReport = /\b(lag|lagging|rubberband|rubber band|desync|ping|stutter|freeze|freezing|delay)\b/i.test(entry.message);
     if (herbyBot.configured() && (mode === 'all' || (mode === 'lag' && lagReport))) {
       // Discord treats @mentions as plain text in the bridge; truncate for safe delivery.
