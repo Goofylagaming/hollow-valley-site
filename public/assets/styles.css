@@ -1039,6 +1039,7 @@
 .quest-board-shell{position:relative;overflow:hidden}
 .quest-board-shell:before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 88% 4%,#d8a9280b,transparent 31%)}
 .quest-signin-card{display:flex;align-items:center;gap:16px;max-width:620px;padding:22px;border:1px solid #403a2a;background:#10120e}
+.quest-signin-card[hidden]{display:none}
 .quest-signin-card strong{display:block;color:#eee7d4;font:600 15px Oswald}
 .quest-signin-card span{display:block;margin-top:5px;color:#8f8069;font-size:11px;line-height:1.6}
 .quest-stats-grid{position:relative;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:34px}
