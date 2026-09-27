@@ -14,6 +14,8 @@ function setup(t, transport = 'http_pull') {
     COMMAND_BRIDGE_ENABLED: 'true',
     COMMAND_BRIDGE_SINGLE_PUBLISHER_ACK: bridge.PUBLISHER_ACK,
     BINARYLANE_COMMAND_TOKEN: 'test-only',
+    DINOSTORAGE_LIST_CACHE_MS: '0',
+    DINOSTORAGE_LIST_TIMEOUT_MS: '7000',
   };
   for (const [key, value] of Object.entries(settings)) {
     const previous = process.env[key];
@@ -23,6 +25,7 @@ function setup(t, transport = 'http_pull') {
       else process.env[key] = previous;
     });
   }
+  service.invalidateStoredDinoCache(steam);
   t.mock.method(files, 'withClient', async () => assert.fail('HTTP list must not access FTP'));
   t.mock.method(files, 'getUe4ssRemotePath', () => assert.fail('HTTP list must not resolve FTP paths'));
 }
@@ -94,6 +97,43 @@ for (const outcome of [null, { state: 'acknowledged', message: 'routed' }]) {
     assert.equal(queue.mock.callCount(), 1);
   });
 }
+
+test('concurrent HTTP list callers share one dino_list command', async (t) => {
+  setup(t);
+  const queue = t.mock.method(bridge, 'queueCommand', async () => {});
+  let release;
+  const wait = new Promise((resolve) => { release = resolve; });
+  let reads = 0;
+  t.mock.method(bridge, 'readOutcome', async () => {
+    reads += 1;
+    await wait;
+    return { state: 'confirmed', message: '[{"slot":"shared","capturedAt":1}]' };
+  });
+
+  const first = service.listStoredDinos(steam);
+  const second = service.listStoredDinos(steam);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(queue.mock.callCount(), 1);
+  release();
+  const [a, b] = await Promise.all([first, second]);
+  assert.equal(reads, 1);
+  assert.deepEqual(a, b);
+  assert.equal(a[0].slot, 'shared');
+});
+
+test('successful HTTP list is reused from the short cache', async (t) => {
+  setup(t);
+  process.env.DINOSTORAGE_LIST_CACHE_MS = '45000';
+  const queue = t.mock.method(bridge, 'queueCommand', async () => {});
+  t.mock.method(bridge, 'readOutcome', async () => ({ state: 'confirmed', message: '[{"slot":"cached","capturedAt":1}]' }));
+
+  const first = await service.listStoredDinos(steam);
+  const second = await service.listStoredDinos(steam);
+  assert.equal(queue.mock.callCount(), 1);
+  assert.deepEqual(second, first);
+  const cached = service.getCachedStoredDinos(steam);
+  assert.equal(cached.dinos[0].slot, 'cached');
+});
 
 test('HTTP list validates identity and preserves publisher/configuration gates', async (t) => {
   setup(t);
