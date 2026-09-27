@@ -1,19 +1,17 @@
 // Run on the game host with CHAT_LOG_PATH, CHAT_FEED_URL and PRESENCE_FEED_TOKEN.
-// CHAT_LINE_PATTERN must have named groups: name and message; channel is optional.
+// CHAT_LINE_PATTERN can override the confirmed LogTheIsleChatData format.
 const fs = require('node:fs/promises');
 const crypto = require('node:crypto');
+const { createChatLineRegex, parseChatLine } = require('./game-chat-line');
 
 const path = process.env.CHAT_LOG_PATH;
 const url = process.env.CHAT_FEED_URL;
 const token = process.env.PRESENCE_FEED_TOKEN;
 const pattern = process.env.CHAT_LINE_PATTERN;
-if (!path || !url || !token || !pattern || !/^https:\/\//.test(url)) {
-  throw new Error('Set CHAT_LOG_PATH, HTTPS CHAT_FEED_URL, PRESENCE_FEED_TOKEN and CHAT_LINE_PATTERN.');
+if (!path || !url || !token || !/^https:\/\//.test(url)) {
+  throw new Error('Set CHAT_LOG_PATH, HTTPS CHAT_FEED_URL and PRESENCE_FEED_TOKEN.');
 }
-const regex = new RegExp(pattern);
-if (!regex.source.includes('?<name>') || !regex.source.includes('?<message>')) {
-  throw new Error('CHAT_LINE_PATTERN needs named name and message groups.');
-}
+const regex = createChatLineRegex(pattern || undefined);
 
 let offset = 0;
 let remainder = '';
@@ -40,14 +38,11 @@ async function poll() {
       remainder = lines.pop().slice(-4096);
       let cursor = start;
       for (const line of lines) {
-        const match = regex.exec(line);
-        regex.lastIndex = 0;
-        if (match?.groups?.name && match.groups.message) {
+        const chat = parseChatLine(line, regex);
+        if (chat) {
           pending.push({
             id: crypto.createHash('sha256').update(`${fileId}:${cursor}:${line}`).digest('hex'),
-            name: match.groups.name.trim().slice(0, 80),
-            message: match.groups.message.trim().slice(0, 500),
-            channel: (match.groups.channel || 'unknown').slice(0, 32),
+            ...chat,
             at: new Date().toISOString(),
           });
         }
