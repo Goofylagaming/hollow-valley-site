@@ -10,6 +10,102 @@ let mapLoadInFlight = false;
 let mapData = null;
 let activityHistory = null;
 let lastMapState = null;
+let primeMapState = null;
+let primeMapLoading = false;
+
+const primeChecks = [
+  { key: "growth", label: "Reached 100% growth", help: "Automatically observed from the latest tracked growth sample." },
+  { key: "diet", label: "Reached a perfect diet", help: "Confirm all three nutrients in your in-game status." },
+  { key: "sanctuary", label: "Visited a sanctuary", help: "Automatically observed when a position sample lands inside a mapped sanctuary." },
+  { key: "migration", label: "Completed migration objectives", help: "Map footprints show visits, but only the game confirms objective completion." },
+  { key: "patrol", label: "Completed patrol objectives", help: "Map footprints show visits, but only the game confirms objective completion." },
+  { key: "nesting", label: "Completed nesting objectives", help: "If applicable, confirm the in-game objective." },
+  { key: "healthy", label: "Checked health and fertility", help: "Check the in-game status for muscle spasms and infertility." },
+];
+
+function primeCheckStorageKey(lifeId) {
+  return `hollow-valley-prime-checks:${lifeId}`;
+}
+
+function readPrimeChecks(lifeId) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(primeCheckStorageKey(lifeId)) || "{}");
+    return saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {};
+  } catch { return {}; }
+}
+
+function renderPrimeChecklist(state) {
+  const container = document.getElementById("prime-map-checklist");
+  if (!container) return;
+  if (!state?.enabled) {
+    container.innerHTML = `<div class="panel prime-tracker-panel"><p class="overline green">PRIME CHECKLIST</p><p class="section-intro">Prime tracking is not enabled on the automation feed yet.</p></div>`;
+    return;
+  }
+  const life = state.activeLife;
+  if (!life) {
+    container.innerHTML = `<div class="panel prime-tracker-panel"><p class="overline green">PRIME CHECKLIST</p><p class="section-intro">Spawn in-game to start a checklist for this dinosaur life.</p></div>`;
+    return;
+  }
+
+  const saved = readPrimeChecks(life.id);
+  const visits = state.progress || {};
+  const auto = {
+    growth: Number(life.growth) >= 0.999,
+    sanctuary: Number(visits.sanctuariesVisited) > 0,
+  };
+  const visitHints = {
+    migration: `${Number(visits.migrationZonesVisited) || 0} mapped migration footprint(s) observed`,
+    patrol: `${Number(visits.patrolZonesVisited) || 0} mapped patrol footprint(s) observed`,
+  };
+  const sampledAt = new Date(life.lastSeenAt);
+  const sampleLabel = Number.isFinite(sampledAt.getTime()) ? sampledAt.toLocaleString() : "unknown";
+  container.innerHTML = `<section class="panel prime-tracker-panel prime-checklist" aria-label="Prime preparation checklist">
+    <div class="prime-tracker-heading">
+      <div><p class="overline green">PRIME CHECKLIST · LIVE MAP</p><h3>${escapeHtml(life.species || "Dinosaur")}</h3>
+        <small>Tracked life · last position sample ${escapeHtml(sampleLabel)}</small></div>
+      <span class="prime-tracker-status ${life.isPrime ? "is-prime" : ""}">${life.isPrime ? "● PRIME FLAG OBSERVED" : "○ PRIME NOT OBSERVED"}</span>
+    </div>
+    <p>Map checks fill from observed samples. Other checks need your in-game confirmation. A mapped zone visit does not prove an in-game objective completed or grant Prime.</p>
+    <ul class="prime-map-list">${primeChecks.map(({ key, label, help }) => {
+      const observed = auto[key] === true;
+      const checked = observed || saved[key] === true;
+      const badge = observed ? "AUTO OBSERVED" : checked ? "YOU CONFIRMED" : "NEEDS CHECK";
+      return `<li class="prime-map-item ${observed ? "is-observed" : ""}">
+        <label class="prime-check-item">
+          <input type="checkbox" data-prime-check="${key}" ${checked ? "checked" : ""} ${observed ? "disabled" : ""}>
+          <span><strong>${escapeHtml(label)}</strong><small>${escapeHtml(help)}</small>${visitHints[key] ? `<small>${escapeHtml(visitHints[key])}</small>` : ""}</span>
+        </label><span class="prime-map-badge">${badge}</span>
+      </li>`;
+    }).join("")}</ul>
+    <p class="prime-map-footnote">Manual checks are saved in this browser for this dinosaur life. Short zone visits between samples can be missed; confirm Prime progress in game.</p>
+  </section>`;
+}
+
+async function loadPrimeChecklist() {
+  if (primeMapLoading || !document.getElementById("prime-map-checklist")) return;
+  primeMapLoading = true;
+  try {
+    primeMapState = await api("/api/mydinos/prime-tracker");
+    renderPrimeChecklist(primeMapState);
+  } catch (error) {
+    primeMapState = null;
+    document.getElementById("prime-map-checklist").innerHTML = `<div class="panel prime-tracker-panel"><p class="overline green">PRIME CHECKLIST</p><p class="section-intro">${error.status === 401 ? "Sign in with Steam to see your Prime checklist." : escapeHtml(error.message || "Prime tracker unavailable.")}</p></div>`;
+  } finally {
+    primeMapLoading = false;
+  }
+}
+
+document.getElementById("prime-map-checklist")?.addEventListener("change", (event) => {
+  const checkbox = event.target.closest("[data-prime-check]");
+  const lifeId = primeMapState?.activeLife?.id;
+  if (!checkbox || checkbox.disabled || !lifeId || !primeChecks.some(({ key }) => key === checkbox.dataset.primeCheck)) return;
+  try {
+    const saved = readPrimeChecks(lifeId);
+    saved[checkbox.dataset.primeCheck] = checkbox.checked;
+    localStorage.setItem(primeCheckStorageKey(lifeId), JSON.stringify(saved));
+  } catch { /* Keep the current selection when browser storage is unavailable. */ }
+  renderPrimeChecklist(primeMapState);
+});
 
 // Point layers render as dots with a hover label; label layers render as plain
 // text on the map; path layers render as SVG polylines.
@@ -364,6 +460,7 @@ function scheduleMapRefresh({ immediate = false } = {}) {
 
 document.addEventListener("visibilitychange", () => {
   scheduleMapRefresh({ immediate: !document.hidden });
+  if (!document.hidden) loadPrimeChecklist();
 });
 
 for (const key of ALL_LAYERS) {
@@ -556,5 +653,10 @@ initMapZoom();
 loadLayers();
 loadActivityHistory();
 loadMap();
+loadPrimeChecklist();
 scheduleMapRefresh();
 setInterval(loadActivityHistory, 5 * 60_000);
+const primeChecklistRefresh = setInterval(() => {
+  if (!document.hidden) loadPrimeChecklist();
+}, 15_000);
+window.addEventListener("pagehide", () => clearInterval(primeChecklistRefresh), { once: true });
