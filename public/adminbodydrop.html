@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Hollow Valley admin BodyDrop cooldown reset.">
+  <title>BodyDrop Reset | Hollow Valley</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=24">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main>
+      <section class="page-header">
+        <p class="overline green">ADMIN · BODYDROP</p>
+        <h1>Reset BodyDrop lock.</h1>
+        <p class="section-intro">Admin-only exception for stuck pending requests or an active BodyDrop cooldown.</p>
+      </section>
+
+      <section class="roster-section">
+        <div id="admin-bodydrop-guard"><p class="section-intro">Checking admin access…</p></div>
+        <div id="admin-bodydrop-content" hidden>
+          <div class="summary-tile admin-prime-tool">
+            <small>BODYDROP COOLDOWN EXCEPTION</small>
+            <h2>Reset by Steam ID</h2>
+            <p>This cancels the latest BodyDrop request in the automation ledger so it no longer blocks the player. The original game command may already have executed, so use this only when an admin has verified the situation.</p>
+            <form class="form-row" id="admin-bodydrop-reset-form">
+              <input id="admin-bodydrop-steam" inputmode="numeric" autocomplete="off" maxlength="17" placeholder="17-digit Steam ID" aria-label="Steam ID" required pattern="[0-9]{17}">
+              <button class="small-button danger-button" id="admin-bodydrop-reset" type="submit">Reset BodyDrop</button>
+            </form>
+            <p id="admin-bodydrop-status" class="admin-prime-status" aria-live="polite">Enter the player's Steam ID.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+    <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/admin">Back to Admin ↑</a></footer>
+  </div>
+  <script src="/assets/common.js?v=16"></script>
+  <script src="/assets/adminbodydrop.js?v=1"></script>
+</body>
+</html>
