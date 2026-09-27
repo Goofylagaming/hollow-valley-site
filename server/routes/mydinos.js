@@ -163,11 +163,100 @@ async function captureLiveCharacter(steamId) {
   }
 }
 
+function speciesKey(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^bp_/, "")
+    .replace(/_c$/, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function capturedAtMs(dino) {
+  const raw = Number(dino?.capturedAt);
+  if (!Number.isFinite(raw) || raw <= 0) return null;
+  return raw > 100000000000 ? raw : raw * 1000;
+}
+
+function decorateStoredDinos(dinos) {
+  return (Array.isArray(dinos) ? dinos : []).map((dino) => ({
+    ...dino,
+    lifecycleState: "parked",
+    stateSource: "dinostorage",
+  }));
+}
+
+function classifyLifecycleHistory(tracker, storedDinos) {
+  if (!tracker || !Array.isArray(tracker.history)) return tracker;
+  const history = tracker.history;
+  const stored = Array.isArray(storedDinos) ? storedDinos : [];
+  const parkedMatchWindowMs = 5 * 60 * 1000;
+
+  const classified = history.map((life, index) => {
+    if (!life?.endedAt) {
+      return {
+        ...life,
+        lifecycleState: "active",
+        stateSource: "live-tracker",
+      };
+    }
+
+    const lifeSpecies = speciesKey(life.species);
+    const lastSeenMs = Date.parse(life.lastSeenAt || life.endedAt || "");
+    const parkedDino = stored.find((dino) => {
+      if (!lifeSpecies || speciesKey(dino.species) !== lifeSpecies) return false;
+      const capturedMs = capturedAtMs(dino);
+      return Number.isFinite(lastSeenMs) && Number.isFinite(capturedMs) &&
+        Math.abs(capturedMs - lastSeenMs) <= parkedMatchWindowMs;
+    });
+
+    if (parkedDino) {
+      return {
+        ...life,
+        lifecycleState: "parked",
+        stateSource: "dinostorage",
+        parkedSlot: parkedDino.slot || null,
+      };
+    }
+
+    const newerLife = index > 0 ? history[index - 1] : null;
+    const sameSpeciesReset = life.endReason === "species-or-growth-reset" &&
+      newerLife && speciesKey(newerLife.species) === lifeSpecies;
+    const finalGrowth = normalizedGrowth(life.growth);
+
+    if (sameSpeciesReset && finalGrowth !== null && finalGrowth >= 0.985) {
+      return {
+        ...life,
+        lifecycleState: "entombed",
+        stateSource: "growth-reset-inference",
+        stateConfidence: "inferred",
+      };
+    }
+
+    return {
+      ...life,
+      lifecycleState: "dead",
+      stateSource: "lifecycle-tracker",
+    };
+  });
+
+  return {
+    ...tracker,
+    history: classified,
+    lifecycleStates: {
+      active: classified.filter((life) => life.lifecycleState === "active").length,
+      parked: classified.filter((life) => life.lifecycleState === "parked").length,
+      entombed: classified.filter((life) => life.lifecycleState === "entombed").length,
+      dead: classified.filter((life) => life.lifecycleState === "dead").length,
+    },
+  };
+}
+
 router.get("/", requireAuth, async (req, res) => {
   if (!req.user.steam_id) return res.json([]);
   try {
     const result = await automation.listStoredDinos(String(req.user.steam_id));
-    return res.json(result.dinos || []);
+    return res.json(decorateStoredDinos(result.dinos || []));
   } catch (error) {
     const mapped = mapAutomationError(error, "Could not read DinoStorage.");
     return res.status(mapped.status).json(mapped.body);
@@ -224,7 +313,15 @@ router.get("/prime-tracker", requireAuth, async (req, res) => {
   const steamId = requireSteam(req, res);
   if (!steamId) return;
   try {
-    return res.json(await automation.getPrimeTracker(steamId));
+    const tracker = await automation.getPrimeTracker(steamId);
+    let storedDinos = [];
+    try {
+      const stored = await automation.listStoredDinos(steamId);
+      storedDinos = decorateStoredDinos(stored.dinos || []);
+    } catch {
+      // Lifecycle tracking should remain available even if DinoStorage listing is temporarily unavailable.
+    }
+    return res.json(classifyLifecycleHistory(tracker, storedDinos));
   } catch (error) {
     const mapped = mapAutomationError(error, "Prime tracker unavailable.");
     return res.status(mapped.status).json(mapped.body);
