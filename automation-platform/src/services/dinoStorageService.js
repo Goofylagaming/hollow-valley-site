@@ -62,20 +62,20 @@ function storedDirectory(steamId) {
   return `${fileBridge.getUe4ssRemotePath()}/Mods/DinoStorage/Saved/stored/${validateSteamId(steamId)}`;
 }
 
-async function listStoredDinos(steamId) {
+async function listStoredDinos(steamId, { timeoutMs = 7000 } = {}) {
   if (commandBridge.getTransport() === 'http_pull') {
-    return listStoredDinosViaCommandBridge(steamId);
+    return listStoredDinosViaCommandBridge(steamId, timeoutMs);
   }
   return listStoredDinosViaFiles(steamId);
 }
 
-async function listStoredDinosViaCommandBridge(steamId) {
+async function listStoredDinosViaCommandBridge(steamId, timeoutMs) {
   const command = commandBridge.buildCommand('dino_list', validateSteamId(steamId), []);
   await commandBridge.queueCommand(command);
 
-  // Leave time for the website's default eight-second API timeout to receive
-  // an explicit error. A routing acknowledgement is not a DinoStorage list.
-  const deadline = Date.now() + 7000;
+  // A routing acknowledgement is not a DinoStorage list. Scrap can use a
+  // longer window because it also has a matching website request timeout.
+  const deadline = Date.now() + Math.max(1000, Math.min(12000, Number(timeoutMs) || 7000));
   do {
     const outcome = await commandBridge.readOutcome(command);
     if (outcome?.state === 'failed') {
@@ -143,10 +143,10 @@ async function listStoredDinosViaFiles(steamId) {
   });
 }
 
-async function getStoredDino(steamId, slot) {
+async function getStoredDino(steamId, slot, { listTimeoutMs = 7000 } = {}) {
   const steam = validateSteamId(steamId);
   const selectedSlot = validateSlot(slot);
-  const dinos = await listStoredDinos(steam);
+  const dinos = await listStoredDinos(steam, { timeoutMs: listTimeoutMs });
   const found = dinos.find((dino) => dino.slot === selectedSlot);
   if (!found) {
     const error = new Error(`Stored DinoStorage slot not found: ${selectedSlot}`);
