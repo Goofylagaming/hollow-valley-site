@@ -66,11 +66,13 @@ async function callAdmin(path, { method = 'GET', body } = {}) {
   }
 }
 
-async function call(path, { method = 'GET', body } = {}) {
+async function call(path, { method = 'GET', body, timeoutMs: requestTimeoutMs } = {}) {
   if (typeof globalThis.fetch !== 'function') throw new Error('A fetch implementation is required');
   const { baseUrl, token, timeoutMs } = requireConfig();
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const effectiveTimeoutMs = requestTimeoutMs == null ? timeoutMs :
+    Math.max(1000, Math.min(30000, Number(requestTimeoutMs) || timeoutMs));
+  const timer = setTimeout(() => controller.abort(), effectiveTimeoutMs);
   timer.unref?.();
   try {
     const response = await fetch(`${baseUrl}/api/website${path}`, {
@@ -141,6 +143,7 @@ function scrapStoredDino({ steamId, slot }) {
   return call('/dinostorage/scrap', {
     method: 'POST',
     body: { steamId: validateSteamId(steamId), slot: selectedSlot },
+    timeoutMs: 25000,
   });
 }
 
