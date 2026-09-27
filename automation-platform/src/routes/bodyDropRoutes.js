@@ -59,6 +59,66 @@ router.post('/request', requireAdminToken, async (req, res) => {
   }
 });
 
+router.post('/reset', requireAdminToken, async (req, res) => {
+  const steamId = String(req.body?.steamId || '').trim();
+  if (!/^\d{17}$/.test(steamId)) {
+    return res.status(400).json({ error: 'A valid 17-digit Steam ID is required.' });
+  }
+
+  try {
+    // Give any terminal BodyDrop result one final chance to reconcile first.
+    // The admin reset remains an explicit override if that result was lost.
+    try { await bodyDrop.reconcileBodyDrops(); } catch {}
+
+    const latest = store.getLatestForSteam(steamId, 'bodydrop');
+    if (!latest) {
+      return res.json({
+        ok: true,
+        reset: {
+          steamId,
+          changed: false,
+          requestId: null,
+          previousStatus: null,
+          status: null,
+          message: 'No BodyDrop cooldown or pending request exists for this player.',
+        },
+      });
+    }
+
+    const previousStatus = latest.status;
+    const request = await audit.run(
+      'bodydrop',
+      'admin_reset',
+      { steamId, requestId: latest.id, previousStatus },
+      () => store.updateRequest(latest.id, {
+        status: 'cancelled',
+        message: 'BodyDrop cooldown/pending lock reset by administrator.',
+        error: null,
+      }),
+      (value) => ({
+        steamId,
+        requestId: value?.id || latest.id,
+        previousStatus,
+        status: value?.status || null,
+      })
+    );
+
+    return res.json({
+      ok: true,
+      reset: {
+        steamId,
+        changed: previousStatus !== 'cancelled',
+        requestId: request?.id || latest.id,
+        previousStatus,
+        status: request?.status || 'cancelled',
+        message: 'BodyDrop cooldown/pending lock reset. A body that already spawned is not removed.',
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message || 'Unable to reset BodyDrop state.' });
+  }
+});
+
 router.post('/reconcile', requireAdminToken, async (_req, res) => {
   try {
     const result = await audit.run('bodydrop', 'manual_reconcile', {},
