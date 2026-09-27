@@ -1,9 +1,9 @@
--- BodyDrop v003.5
+-- BodyDrop v003.6
 -- Corpse spawner plus local game-server file operations routed from CommandBridge.
 -- IPC: bodydrop commands routed from CommandBridge.
 
 local MOD_NAME    = "BodyDrop"
-local MOD_VERSION = "v003.5"
+local MOD_VERSION = "v003.6"
 
 local function resolveModRoot()
     local source = debug.getinfo(1, "S").source or ""
@@ -226,8 +226,10 @@ local function traceGround(worldContext, x, y, anchorZ, actorToIgnore)
     if systemLibrary == nil then return nil, libErr end
 
     local baseZ = tonumber(anchorZ) or 0
-    local traceStart = { X = x, Y = y, Z = baseZ + 100000 }
-    local traceEnd = { X = x, Y = y, Z = baseZ - 100000 }
+    -- Search near the player's feet. A map-wide trace can hit a roof, canopy,
+    -- or the terrain far below a cliff and still report a successful spawn.
+    local traceStart = { X = x, Y = y, Z = baseZ + 200 }
+    local traceEnd = { X = x, Y = y, Z = baseZ - 600 }
     local hitResult = {}
     local actorsToIgnore = {}
     if actorToIgnore ~= nil then actorsToIgnore[1] = actorToIgnore end
@@ -257,11 +259,18 @@ local function traceGround(worldContext, x, y, anchorZ, actorToIgnore)
     local hitLocation = hitResult.Location or hitResult.ImpactPoint
     local z = hitLocation and tonumber(hitLocation.Z) or nil
     if z == nil then return nil, "ground trace returned no hit Z" end
+    if z > baseZ + 150 or z < baseZ - 450 then
+        return nil, string.format("surface too far from player height: playerZ=%.1f hitZ=%.1f", baseZ, z)
+    end
+    local normal = hitResult.ImpactNormal or hitResult.Normal
+    if normal ~= nil and tonumber(normal.Z) ~= nil and tonumber(normal.Z) < 0.65 then
+        return nil, "surface too steep for a corpse"
+    end
 
     return z, nil
 end
 
-local function spawnCorpse(speciesName, location, growthFraction, forward, playerPawn)
+local function spawnCorpse(speciesName, location, growthFraction, forward, playerPawn, finish)
     local classPath = SPECIES_PATHS[speciesName]
     if classPath == nil then return false, "unknown species: " .. tostring(speciesName) end
 
@@ -288,7 +297,7 @@ local function spawnCorpse(speciesName, location, growthFraction, forward, playe
             lastPlacementError = groundErr
             log(string.format("BODYDROP DIAG | ground trace | attempt=%d | FAILED | %s", i, tostring(groundErr)))
         else
-            local loc = { X = x, Y = y, Z = groundZ + 300 }
+            local loc = { X = x, Y = y, Z = groundZ + 180 }
             log(string.format(
                 "Spawn attempt=%d species=%s X=%.3f Y=%.3f groundZ=%.3f spawnZ=%.3f",
                 i, tostring(speciesName), tonumber(loc.X) or 0, tonumber(loc.Y) or 0,
@@ -317,29 +326,69 @@ local function spawnCorpse(speciesName, location, growthFraction, forward, playe
                 else
                     log(string.format("BODYDROP DIAG | SpawnActor | OK | address=%s", tostring(addr)))
 
-                    local failedSteps = {}
-                    local function corpseStep(label, fn)
+                    local growth = growthFraction or 1.0
+                    local initFailed = {}
+                    local function initStep(label, fn)
                         local ok = tryPawnCall(label, fn)
-                        if not ok then failedSteps[#failedSteps + 1] = label end
+                        if not ok then initFailed[#initFailed + 1] = label end
                     end
 
-                    corpseStep("SetReplicates", function() pawn:SetReplicates(true) end)
-                    corpseStep("SetGrowth", function() pawn:SetGrowth(growthFraction or 1.0) end)
-                    corpseStep("SetHealth(0)", function() pawn:SetHealth(0) end)
-                    corpseStep("bIsDead=true", function() pawn.bIsDead = true end)
-                    corpseStep("OnRep_IsNowDead", function() pawn:OnRep_IsNowDead() end)
-                    corpseStep("ToggleServerRagdoll", function() pawn:ToggleServerRagdoll(true) end)
-                    corpseStep("ActivateDeadbody", function() pawn:ActivateDeadbody(false, 3600) end)
-                    corpseStep("ForceNetUpdate", function() pawn:ForceNetUpdate() end)
-
-                    if #failedSteps > 0 then
-                        return false, "actor spawned but corpse transition failed at: " .. table.concat(failedSteps, ", ")
+                    -- Let the actor and its growth replicate before converting it to
+                    -- a corpse. Same-tick death can leave an invisible interaction.
+                    initStep("SetReplicates", function() pawn:SetReplicates(true) end)
+                    initStep("SetGrowth", function() pawn:SetGrowth(growth) end)
+                    initStep("ForceNetUpdate(pre-corpse)", function() pawn:ForceNetUpdate() end)
+                    if #initFailed > 0 then
+                        return false, "actor spawned but initialization failed at: " .. table.concat(initFailed, ", ")
                     end
 
-                    return true, string.format(
-                        "corpse confirmed at X=%.3f Y=%.3f Z=%.3f (ground %.3f)",
-                        tonumber(loc.X) or 0, tonumber(loc.Y) or 0, tonumber(loc.Z) or 0, tonumber(groundZ) or 0
-                    )
+                    local function transitionToCorpse()
+                        local valid = true
+                        pcall(function()
+                            if pawn.IsValid ~= nil then valid = pawn:IsValid() end
+                        end)
+                        if valid == false then return false, "spawned pawn became invalid before corpse transition" end
+
+                        local failedSteps = {}
+                        local function corpseStep(label, fn)
+                            local ok = tryPawnCall(label, fn)
+                            if not ok then failedSteps[#failedSteps + 1] = label end
+                        end
+                        corpseStep("SetGrowth(pre-death)", function() pawn:SetGrowth(growth) end)
+                        corpseStep("SetHealth(0)", function() pawn:SetHealth(0) end)
+                        corpseStep("bIsDead=true", function() pawn.bIsDead = true end)
+                        corpseStep("OnRep_IsNowDead", function() pawn:OnRep_IsNowDead() end)
+                        corpseStep("ToggleServerRagdoll", function() pawn:ToggleServerRagdoll(true) end)
+                        corpseStep("ActivateDeadbody", function() pawn:ActivateDeadbody(false, 3600) end)
+                        corpseStep("ForceNetUpdate(post-corpse)", function() pawn:ForceNetUpdate() end)
+                        if #failedSteps > 0 then
+                            return false, "corpse transition failed at: " .. table.concat(failedSteps, ", ")
+                        end
+                        return true, string.format(
+                            "corpse confirmed at X=%.3f Y=%.3f Z=%.3f (ground %.3f)",
+                            tonumber(loc.X) or 0, tonumber(loc.Y) or 0, tonumber(loc.Z) or 0, tonumber(groundZ) or 0
+                        )
+                    end
+
+                    if LoopInGameThreadWithDelay == nil or CancelDelayedAction == nil or finish == nil then
+                        return transitionToCorpse()
+                    end
+
+                    local handle
+                    local ran = false
+                    local scheduled, scheduleErr = pcall(function()
+                        handle = LoopInGameThreadWithDelay(750, function()
+                            if ran then return end
+                            ran = true
+                            if handle ~= nil then pcall(function() CancelDelayedAction(handle) end) end
+                            local callOk, ok, msg = pcall(transitionToCorpse)
+                            if not callOk then ok, msg = false, "corpse transition error: " .. tostring(ok) end
+                            log("BODYDROP DIAG | delayed corpse transition | " .. (ok and "OK" or "FAILED") .. " | " .. tostring(msg))
+                            finish(ok, msg)
+                        end)
+                    end)
+                    if not scheduled then return false, "could not schedule corpse transition: " .. tostring(scheduleErr) end
+                    return nil, "corpse transition pending"
                 end
             end
         end
@@ -520,7 +569,7 @@ local function buildResult(id, steam, tokens, ok, msg)
     )
 end
 
-local function handleCommand(steam, tokens)
+local function handleCommand(steam, tokens, finish)
     local verb = tokens[1] or ""
 
     if verb == "spawn" then
@@ -551,7 +600,7 @@ local function handleCommand(steam, tokens)
             return false, "provide coordinates or a target steam64"
         end
 
-        return spawnCorpse(species, location, growth, forward, playerPawn)
+        return spawnCorpse(species, location, growth, forward, playerPawn, finish)
 
     elseif verb == "marketplace" then
         return handleMarketplace(steam, tokens)
@@ -572,6 +621,7 @@ local function handleCommand(steam, tokens)
 end
 
 local delivered = {}
+local pending = {}
 
 local function processRecord(line)
     local id = jsonReadString(line, "id")
@@ -584,6 +634,7 @@ local function processRecord(line)
     local steam = jsonReadString(line, "steam") or ""
 
     if delivered[id] == steam then return true end
+    if pending[id] then return false end
 
     local cached = readAll(statePath .. ".result")
     if cached then
@@ -621,19 +672,32 @@ local function processRecord(line)
     if not appendLine(statePath .. ".started", line) then return false end
     log("Processing id=" .. id .. " verb=" .. tostring(tokens[1]))
 
-    local callOk, r1, r2 = pcall(handleCommand, steam, tokens)
+    local function finish(ok, msg)
+        pending[id] = nil
+        local result = buildResult(id, steam, tokens, ok == true, tostring(msg or ""))
+        if not appendLine(statePath .. ".result", result) then
+            log("Could not save BodyDrop result id=" .. id)
+            return false
+        end
+        if not appendLine(RESULTS_FILE, result) then
+            log("Could not publish BodyDrop result id=" .. id)
+            return false
+        end
+        delivered[id] = steam
+        log("Result recorded id=" .. id .. " ok=" .. tostring(ok == true))
+        return true
+    end
+
+    local callOk, r1, r2 = pcall(handleCommand, steam, tokens, finish)
     if not callOk then
         log("Outcome unknown after handler error id=" .. id)
         return false
     end
-
-    local result = buildResult(id, steam, tokens, r1 == true, tostring(r2 or ""))
-    if not appendLine(statePath .. ".result", result) then return false end
-    if not appendLine(RESULTS_FILE, result) then return false end
-
-    delivered[id] = steam
-    log("Result recorded id=" .. id .. " ok=" .. tostring(r1 == true))
-    return true
+    if r1 == nil and r2 == "corpse transition pending" then
+        pending[id] = true
+        return false -- Retain the processing file until the delayed result is saved.
+    end
+    return finish(r1, r2)
 end
 
 local function pollInbox()
