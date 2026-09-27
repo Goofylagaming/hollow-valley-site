@@ -59,6 +59,26 @@ test('HTTP list queues one read command and waits past routing ACK for matching 
   assert.deepEqual(dinos[1], { ...states[0], species: 'Triceratops', gender: 'Female', mutationList: ['Truculency'] });
 });
 
+test('scrap-specific list window accepts a late matching result without a second command', async (t) => {
+  setup(t);
+  const queue = t.mock.method(bridge, 'queueCommand', async () => {});
+  let now = 0;
+  let reads = 0;
+  t.mock.method(Date, 'now', () => now);
+  t.mock.method(bridge, 'readOutcome', async () => {
+    reads += 1;
+    if (reads === 1) {
+      now = 7100;
+      return { state: 'acknowledged', message: 'routed' };
+    }
+    return { state: 'confirmed', message: '[{"slot":"stored1"}]' };
+  });
+  const dino = await service.getStoredDino(steam, 'stored1', { listTimeoutMs: 12000 });
+  assert.equal(dino.slot, 'stored1');
+  assert.equal(queue.mock.callCount(), 1);
+  assert.equal(reads, 2);
+});
+
 for (const [message, expected] of [
   ['[]', []],
   ['not json', /invalid JSON/],
