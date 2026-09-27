@@ -34,6 +34,7 @@ const adminRestoreRouter = require("./routes/adminRestore");
 const adminOperationsRouter = require("./routes/adminOperations");
 const adminCommsRouter = require("./routes/adminComms");
 const adminSupportersRouter = require("./routes/adminSupporters");
+const adminBodyDropResetRouter = require("./routes/adminBodyDropReset");
 const serverStatusService = require("./services/serverStatus");
 const automationWebsiteClient = require("./services/automationWebsiteClient");
 const skinSharePolicyClient = require("./services/skinSharePolicyClient");
@@ -213,6 +214,7 @@ function createApp() {
   app.use("/api/admin-operations", adminOperationsRouter);
   app.use("/api/admin-comms", adminCommsRouter);
   app.use("/api/admin-supporters", adminSupportersRouter);
+  app.use("/api/admin-bodydrop-reset", adminBodyDropResetRouter);
   app.use("/api/mapdata", mapdataRouter);
 
   app.use("/api/dinostorage", legacyDirectGameApiRetired);
