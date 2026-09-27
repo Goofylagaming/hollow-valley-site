@@ -4,6 +4,7 @@ let refreshTimer = null;
 let countdownTimer = null;
 let busy = false;
 let currentBodyDropData = null;
+let currentMe = null;
 
 function formatCooldown(seconds) {
   if (seconds === null || seconds === undefined) return "pending";
@@ -53,6 +54,53 @@ function nutrientGroupLabel(nutrient) {
   return { symbol: "•", label: String(nutrient || "DIET").toUpperCase() };
 }
 
+async function resetBodyDropForSteam(steamId, { button = null, statusNode = null } = {}) {
+  const id = String(steamId || "").trim();
+  if (!/^\d{17}$/.test(id)) {
+    if (statusNode) statusNode.textContent = "Enter a valid 17-digit Steam ID.";
+    return false;
+  }
+
+  const confirmation = window.prompt(
+    `Reset BodyDrop cooldown/pending lock for ${id}?\n\nThis does not remove a body that already spawned.\n\nType RESET BODYDROP exactly to continue:`,
+    ""
+  );
+  if (confirmation === null) return false;
+  if (confirmation !== "RESET BODYDROP") {
+    if (statusNode) statusNode.textContent = "Reset cancelled. Confirmation did not match.";
+    return false;
+  }
+
+  const previousText = button?.textContent || "";
+  if (button) {
+    button.disabled = true;
+    button.textContent = "RESETTING…";
+  }
+  if (statusNode) statusNode.textContent = "Resetting BodyDrop cooldown…";
+
+  try {
+    const response = await api("/api/admin-bodydrop-reset", {
+      method: "POST",
+      body: JSON.stringify({ steamId: id, confirm: confirmation }),
+    });
+    const result = response?.reset || response;
+    const message = result?.message || "BodyDrop cooldown reset.";
+    if (statusNode) statusNode.textContent = message;
+    await loadBodyDropStatus();
+    return true;
+  } catch (error) {
+    const message = error.message || "Could not reset BodyDrop cooldown.";
+    if (statusNode) statusNode.textContent = message;
+    else window.alert(message);
+    return false;
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = previousText;
+    }
+  }
+}
+
 function renderBodyDropStatus(data) {
   const container = document.getElementById("bodydrop-content");
   if (!container) return;
@@ -79,6 +127,15 @@ function renderBodyDropStatus(data) {
   const requesterSpecies = requester?.species || data.eligibility?.species || "No live dinosaur";
   const requesterGrowth = Number.isFinite(requester?.growthPercent) ? Math.round(requester.growthPercent) : null;
   const corpseGrowth = Number.isFinite(data.corpseGrowthPercent) ? Math.round(data.corpseGrowthPercent) : null;
+  const adminSteamId = String(currentMe?.user?.steam_id || "");
+  const showInlineAdminReset = Boolean(
+    currentMe?.user?.is_admin &&
+    data.cooldown?.active &&
+    /^\d{17}$/.test(adminSteamId)
+  );
+  const inlineAdminReset = showInlineAdminReset
+    ? `<button id="bodydrop-inline-admin-reset" class="small-button danger-button" type="button" data-steam-id="${escapeHtml(adminSteamId)}">${data.cooldown?.reason === "pending" ? "ADMIN RESET PENDING" : "ADMIN RESET COOLDOWN"}</button>`
+    : "";
 
   const grouped = new Map();
   for (const option of data.options || []) {
@@ -120,11 +177,19 @@ function renderBodyDropStatus(data) {
       <b>${escapeHtml(requesterSpecies)}</b>
       <span>Growth ${requesterGrowth === null ? "—" : `${requesterGrowth}%`} · BodyDrop size ${corpseGrowth === null ? "—" : `${corpseGrowth}%`}</span>
     </div>
-    <div class="bodydrop-status ${disabled ? "blocked" : "ready"}"><b id="bodydrop-status-text">${escapeHtml(status)}</b></div>
+    <div class="bodydrop-status ${disabled ? "blocked" : "ready"}">
+      <b id="bodydrop-status-text">${escapeHtml(status)}</b>
+      ${inlineAdminReset}
+    </div>
     <div class="bodydrop-diet-list">${groups || noOptions}</div>
     <p class="section-intro">Choose the nutrient you need, then select one of the prey species in your current Hollow Valley diet. Greyed-out prey are valid diet foods that do not yet have a verified BodyDrop corpse actor.</p>`;
 
   startCountdown();
+
+  const inlineReset = container.querySelector("#bodydrop-inline-admin-reset");
+  if (inlineReset) {
+    inlineReset.addEventListener("click", () => resetBodyDropForSteam(inlineReset.dataset.steamId, { button: inlineReset }));
+  }
 
   container.querySelectorAll(".bodydrop-option").forEach((button) => {
     button.addEventListener("click", async () => {
@@ -190,44 +255,13 @@ function setupAdminReset(me) {
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const steamId = String(input.value || "").trim();
-    if (!/^\d{17}$/.test(steamId)) {
-      status.textContent = "Enter a valid 17-digit Steam ID.";
-      return;
-    }
-
-    const confirmation = window.prompt(
-      `Reset BodyDrop cooldown/pending lock for ${steamId}?\n\nType RESET BODYDROP exactly to continue:`,
-      ""
-    );
-    if (confirmation === null) return;
-    if (confirmation !== "RESET BODYDROP") {
-      status.textContent = "Reset cancelled. Confirmation did not match.";
-      return;
-    }
-
-    button.disabled = true;
-    status.textContent = "Resetting BodyDrop cooldown…";
-    try {
-      const response = await api("/api/admin-bodydrop-reset", {
-        method: "POST",
-        body: JSON.stringify({ steamId, confirm: confirmation }),
-      });
-      const result = response?.reset || response;
-      status.textContent = result?.message || "BodyDrop cooldown reset.";
-      if (steamId === String(me.user.steam_id || "")) {
-        await loadBodyDropStatus();
-      }
-    } catch (error) {
-      status.textContent = error.message || "Could not reset BodyDrop cooldown.";
-    } finally {
-      button.disabled = false;
-    }
+    await resetBodyDropForSteam(input.value, { button, statusNode: status });
   });
 }
 
 async function init() {
   const me = await window.HDS.loadMe();
+  currentMe = me;
   const guard = document.getElementById("bodydrop-guard");
   const content = document.getElementById("bodydrop-page-content");
 
