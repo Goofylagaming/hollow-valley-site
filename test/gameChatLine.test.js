@@ -7,8 +7,8 @@ test('parses the verified Hollow Valley Global chat line', () => {
   assert.deepEqual(parseChatLine(line), { channel: 'Global', name: 'Joeyy', message: 'zurie hello' });
 });
 
-test('captures other explicit channel labels and ignores ordinary game logs', () => {
-  const line = '[2026.09.27-00.55.28:001][876]LogTheIsleChatData: [2026.09.27-10.55.28] [Local] Player With Spaces [76561198449777255]: anyone lagging?';
-  assert.deepEqual(parseChatLine(line), { channel: 'Local', name: 'Player With Spaces', message: 'anyone lagging?' });
+test('parses verified Spatial chat and ignores ordinary game logs', () => {
+  const line = '[2026.09.27-01.01.38:062][873]LogTheIsleChatData: [2026.09.27-11.01.38] [Spatial] [GROUP-1412674960] Goofy [76561198038977506]: test';
+  assert.deepEqual(parseChatLine(line), { channel: 'Spatial', name: 'Goofy', message: 'test' });
   assert.equal(parseChatLine('[2026.09.27-00.55.28:001][876]LogTheIsleCommandData: RCON Command Used []'), null);
 });

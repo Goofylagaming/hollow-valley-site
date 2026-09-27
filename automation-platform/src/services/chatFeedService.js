@@ -16,7 +16,7 @@ function ingest(entries) {
     const message = String(entry?.message || '').trim();
     const rawChannel = String(entry?.channel || 'unknown').trim().toLowerCase();
     const channel = /^(global|server|world)$/.test(rawChannel) ? 'global'
-      : /^(local|proximity|nearby)$/.test(rawChannel) ? 'local' : 'unknown';
+      : /^(local|spatial|proximity|nearby)$/.test(rawChannel) ? 'local' : 'unknown';
     const timestamp = Date.parse(entry?.at);
     const at = Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : null;
     if (!/^[\w:.-]{1,128}$/.test(id) || !name || name.length > 80 || !message || message.length > 500 || rawChannel.length > 32 || !at) {

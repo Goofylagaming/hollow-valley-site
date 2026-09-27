@@ -12,7 +12,7 @@ test('chat ingestion deduplicates, preserves messages and mirrors lag reports on
   try {
     const messages = [
       { id: `chat-${suffix}-1`, name: 'Player One', message: 'anyone lagging?', channel: 'Global', at: new Date().toISOString() },
-      { id: `chat-${suffix}-2`, name: 'Player Two', message: 'hello', channel: 'Proximity', at: new Date().toISOString() },
+      { id: `chat-${suffix}-2`, name: 'Player Two', message: 'hello', channel: 'Spatial', at: new Date().toISOString() },
     ];
     assert.equal(chat.ingest(messages).accepted, 2);
     assert.equal(chat.ingest(messages).accepted, 0);

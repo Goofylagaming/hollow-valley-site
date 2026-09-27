@@ -9,7 +9,7 @@ Run `scripts/game-chat-forwarder.js` on the Windows game host under Node 22+ aft
 - `PRESENCE_FEED_TOKEN`: the same secret configured for the existing BinaryLane presence feed on automation.
 - `CHAT_LINE_PATTERN`: optional override for a changed log format. It must capture `(?<name>...)`, `(?<message>...)`, and `(?<channel>...)`.
 
-The default parser is based on the verified server line `LogTheIsleChatData: [2026.09.27-10.55.27] [Global] [GROUP-1027772112] Joeyy [76561198449777255]: zurie hello`, preceded by Unreal's timestamp/frame prefix. It captures Global, the player name, and the message, ignoring the group ID and Steam ID. The channel capture also accepts other labels; confirm a real Local message to verify its exact label. `proximity`/`nearby` map to Local, `world`/`server` map to Global; unfamiliar labels appear under Unlabelled. If the log format changes, set the override rather than silently misclassifying messages.
+The default parser is based on verified server lines for `[Global]` (`Joeyy: zurie hello`) and `[Spatial]` (`Goofy: test`), each with Unreal's timestamp/frame prefix, `[GROUP-...]`, player name, Steam ID, and message. Spatial maps to the reader's **Local** view; Global maps to **Global**. The group ID and Steam ID are not displayed. `proximity`/`nearby` also map to Local, `world`/`server` map to Global; unfamiliar labels appear under Unlabelled. If the log format changes, set the override rather than silently misclassifying messages.
 
 Start with `node scripts/game-chat-forwarder.js`. Keep its process supervised on the game host. The page reports “Feed not connected” until the first batch arrives. The filter matches words such as lag, ping, rubberband, desync, stutter and freeze; it does not measure latency directly.
 
