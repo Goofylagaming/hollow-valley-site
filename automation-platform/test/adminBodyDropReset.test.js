@@ -35,8 +35,10 @@ test('BodyDrop cooldown reset requires automation admin token', async (t) => {
 
 test('admin reset cancels only the latest BodyDrop lock and records previous status', async (t) => {
   const steamId = '76561198000000992';
-  const oldId = 'bodydrop-reset-old-0001';
-  const latestId = 'bodydrop-reset-latest-0001';
+  // Requests created in the same SQLite second are ordered by ID DESC, so use
+  // deterministic ascending IDs to make 0002 the latest tie-breaker.
+  const oldId = 'bodydrop-reset-0001';
+  const latestId = 'bodydrop-reset-0002';
 
   store.createRequest({
     id: oldId,
