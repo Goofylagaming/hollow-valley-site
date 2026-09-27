@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Hollow Valley administration hub.">
   <title>Admin Hub | Hollow Valley</title>
-  <link rel="stylesheet" href="/assets/styles.css?v=23">
+  <link rel="stylesheet" href="/assets/styles.css?v=24">
 </head>
 <body>
   <div class="app-shell">
@@ -60,6 +60,18 @@
             <div id="admin-player-list" class="admin-player-list"></div>
           </div>
 
+          <div class="summary-tile admin-player-controls">
+            <small>PLAYER RECORDS</small>
+            <h2>Look up a player</h2>
+            <p>View a player's stored dinos and Valley Coin history by Steam ID. This lookup cannot change their records.</p>
+            <form class="form-row" id="admin-records-form">
+              <input id="admin-records-steam" inputmode="numeric" autocomplete="off" maxlength="17" placeholder="17-digit Steam ID" aria-label="Player Steam ID" required pattern="[0-9]{17}">
+              <button class="small-button" type="submit">Look up</button>
+            </form>
+            <p id="admin-records-status" class="admin-prime-status" aria-live="polite"></p>
+            <div id="admin-records-result" hidden></div>
+          </div>
+
           <div class="admin-hub-grid">
             <a class="admin-hub-card" href="/adminoperations#game-chat">
               <span class="admin-hub-icon">◉</span>
@@ -108,6 +120,6 @@
     <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="/assets/common.js?v=16"></script>
-  <script src="/assets/admin.js?v=5"></script>
+  <script src="/assets/admin.js?v=6"></script>
 </body>
 </html>
