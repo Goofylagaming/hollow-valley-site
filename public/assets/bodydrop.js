@@ -170,6 +170,62 @@ async function loadBodyDropStatus() {
   }
 }
 
+function setupAdminReset(me) {
+  const panel = document.getElementById("admin-bodydrop-reset-panel");
+  const form = document.getElementById("admin-bodydrop-reset-form");
+  const input = document.getElementById("admin-bodydrop-steam");
+  const button = document.getElementById("admin-bodydrop-reset-button");
+  const status = document.getElementById("admin-bodydrop-reset-status");
+
+  if (!panel || !form || !input || !button || !status) return;
+  if (!me?.user?.is_admin) {
+    panel.hidden = true;
+    return;
+  }
+
+  panel.hidden = false;
+  if (/^\d{17}$/.test(String(me.user.steam_id || ""))) {
+    input.value = String(me.user.steam_id);
+  }
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const steamId = String(input.value || "").trim();
+    if (!/^\d{17}$/.test(steamId)) {
+      status.textContent = "Enter a valid 17-digit Steam ID.";
+      return;
+    }
+
+    const confirmation = window.prompt(
+      `Reset BodyDrop cooldown/pending lock for ${steamId}?\n\nType RESET BODYDROP exactly to continue:`,
+      ""
+    );
+    if (confirmation === null) return;
+    if (confirmation !== "RESET BODYDROP") {
+      status.textContent = "Reset cancelled. Confirmation did not match.";
+      return;
+    }
+
+    button.disabled = true;
+    status.textContent = "Resetting BodyDrop cooldown…";
+    try {
+      const response = await api("/api/admin-bodydrop-reset", {
+        method: "POST",
+        body: JSON.stringify({ steamId, confirm: confirmation }),
+      });
+      const result = response?.reset || response;
+      status.textContent = result?.message || "BodyDrop cooldown reset.";
+      if (steamId === String(me.user.steam_id || "")) {
+        await loadBodyDropStatus();
+      }
+    } catch (error) {
+      status.textContent = error.message || "Could not reset BodyDrop cooldown.";
+    } finally {
+      button.disabled = false;
+    }
+  });
+}
+
 async function init() {
   const me = await window.HDS.loadMe();
   const guard = document.getElementById("bodydrop-guard");
@@ -183,6 +239,7 @@ async function init() {
 
   guard.hidden = true;
   content.hidden = false;
+  setupAdminReset(me);
   await loadBodyDropStatus();
 }
 

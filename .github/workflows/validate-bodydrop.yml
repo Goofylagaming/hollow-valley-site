@@ -6,6 +6,8 @@ on:
       - "server-mods/BodyDrop/**"
       - "server-mods/CommandBridge/**"
       - "server/routes/bodydrop.js"
+      - "server/routes/adminBodyDropReset.js"
+      - "server/services/adminBodyDropResetClient.js"
       - "server/index.js"
       - "automation-platform/src/config/bodyDropDiets.js"
       - "automation-platform/src/routes/bodyDropRoutes.js"
@@ -16,6 +18,8 @@ on:
       - "public/bodydrop.html"
       - "public/assets/bodydrop.js"
       - "public/assets/mydinos.js"
+      - "test/adminBodyDropResetRoute.test.js"
+      - "test/adminBodyDropResetFrontend.test.js"
       - "test/legacyDirectGameApiGuard.test.js"
       - ".github/workflows/validate-bodydrop.yml"
   workflow_dispatch:
@@ -41,6 +45,9 @@ jobs:
 
       - name: Verify website legacy paths remain retired
         run: node --test test/legacyDirectGameApiGuard.test.js
+
+      - name: Verify admin BodyDrop reset UI and route
+        run: node --test test/adminBodyDropResetRoute.test.js test/adminBodyDropResetFrontend.test.js
 
       - name: Run species diet tests
         run: node --test automation-platform/test/speciesBodyDropDiets.test.js

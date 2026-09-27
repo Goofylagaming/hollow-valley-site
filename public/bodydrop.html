@@ -30,12 +30,25 @@
               <p class="section-intro">Loading BodyDrop status…</p>
             </div>
           </section>
+
+          <section id="admin-bodydrop-reset-panel" class="bodydrop-panel" hidden aria-labelledby="admin-bodydrop-reset-heading">
+            <div>
+              <p class="overline green">ADMIN ONLY</p>
+              <h2 id="admin-bodydrop-reset-heading">Reset BodyDrop cooldown.</h2>
+              <p class="section-intro">Clear a player's current BodyDrop cooldown or stuck pending lock. This does not remove a body that has already spawned.</p>
+            </div>
+            <form id="admin-bodydrop-reset-form" class="form-row">
+              <input id="admin-bodydrop-steam" inputmode="numeric" autocomplete="off" maxlength="17" pattern="[0-9]{17}" placeholder="17-digit Steam ID" aria-label="Steam ID" required>
+              <button id="admin-bodydrop-reset-button" class="small-button danger-button" type="submit">Reset cooldown</button>
+            </form>
+            <p id="admin-bodydrop-reset-status" class="admin-prime-status" aria-live="polite">Admins only.</p>
+          </section>
         </div>
       </section>
     </main>
     <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="/assets/common.js?v=16"></script>
-  <script src="/assets/bodydrop.js?v=3"></script>
+  <script src="/assets/bodydrop.js?v=4"></script>
 </body>
 </html>
