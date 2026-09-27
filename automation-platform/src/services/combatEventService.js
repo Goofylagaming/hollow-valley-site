@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
+const questChallenges = require('./questBoostService');
 
 const dbPath = process.env.AUTOMATION_DB_PATH || path.join(__dirname, '..', '..', 'data', 'automation.sqlite');
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
@@ -47,11 +48,7 @@ function sourceName(env = process.env) {
 }
 
 function state(env = process.env) {
-  return {
-    enabled: enabled(env),
-    configured: configured(env),
-    source: sourceName(env),
-  };
+  return { enabled: enabled(env), configured: configured(env), source: sourceName(env) };
 }
 
 function feedError(code, message) {
@@ -130,6 +127,21 @@ function upsertPlayer(steamId, displayName) {
   `).run(steamId, displayName);
 }
 
+function trackQuestChallenges(row) {
+  if (!row) return { skipped: true, duplicate: false, completed: [] };
+  try {
+    return questChallenges.recordCombatEvent({
+      id: row.id,
+      occurredAt: row.occurred_at,
+      killerSteamId: row.killer_steam_id,
+      victimSteamId: row.victim_steam_id,
+    });
+  } catch (error) {
+    console.warn('[quest-combat]', error.message);
+    return { skipped: true, duplicate: false, completed: [], error: error.message };
+  }
+}
+
 function ingestEvent(input, { env = process.env } = {}) {
   if (!enabled(env)) throw feedError('COMBAT_FEED_DISABLED', 'Authoritative combat ingestion is disabled.');
 
@@ -139,7 +151,7 @@ function ingestEvent(input, { env = process.env } = {}) {
     if (!sameEvent(existing, event)) {
       throw feedError('COMBAT_EVENT_CONFLICT', 'Combat event ID already exists with different event data.');
     }
-    return { duplicate: true, event: existing };
+    return { duplicate: true, event: existing, questChallenges: trackQuestChallenges(existing) };
   }
 
   db.exec('BEGIN IMMEDIATE');
@@ -148,7 +160,7 @@ function ingestEvent(input, { env = process.env } = {}) {
     if (raced) {
       if (!sameEvent(raced, event)) throw feedError('COMBAT_EVENT_CONFLICT', 'Combat event ID already exists with different event data.');
       db.exec('COMMIT');
-      return { duplicate: true, event: raced };
+      return { duplicate: true, event: raced, questChallenges: trackQuestChallenges(raced) };
     }
 
     db.prepare(`
@@ -171,7 +183,8 @@ function ingestEvent(input, { env = process.env } = {}) {
     }
 
     db.exec('COMMIT');
-    return { duplicate: false, event: getEvent(event.id) };
+    const saved = getEvent(event.id);
+    return { duplicate: false, event: saved, questChallenges: trackQuestChallenges(saved) };
   } catch (error) {
     try { db.exec('ROLLBACK'); } catch {}
     throw error;
