@@ -14,10 +14,13 @@ function parseChatLine(line, regex = createChatLineRegex()) {
   const match = regex.exec(line);
   regex.lastIndex = 0;
   if (!match?.groups?.name || !match.groups.message || !match.groups.channel) return null;
+  const name = match.groups.name.trim().slice(0, 80);
+  const message = match.groups.message.trim().slice(0, 500);
+  if (!name || !message) return null;
   return {
-    name: match.groups.name.trim().slice(0, 80),
+    name,
     steamId: match.groups.steamId || null,
-    message: match.groups.message.trim().slice(0, 500),
+    message,
     channel: match.groups.channel.trim().slice(0, 32),
   };
 }

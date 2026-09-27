@@ -1,5 +1,4 @@
 const store = require('./automationStore');
-const herbyBot = require('./herbyBotOutboxService');
 
 const KEY = 'admin:chat-feed:v1';
 const MAX_MESSAGES = 500;
@@ -34,16 +33,6 @@ function ingest(entries) {
     state.messages.push(entry);
     seen.add(entry.id);
     accepted++;
-    const mode = String(process.env.GAME_CHAT_DISCORD_MODE || 'all').toLowerCase();
-    const lagReport = /\b(lag|lagging|rubberband|rubber band|desync|ping|stutter|freeze|freezing|delay)\b/i.test(entry.message);
-    if (herbyBot.configured() && (mode === 'all' || (mode === 'lag' && lagReport))) {
-      // Discord treats @mentions as plain text in the bridge; truncate for safe delivery.
-      herbyBot.queueMessage({
-        destination: 'game-chat',
-        nonce: `gamechat:${entry.id}`,
-        message: `[${entry.channel}] ${entry.name}: ${entry.message}`.slice(0, 1000),
-      });
-    }
   }
   state.messages = state.messages.slice(-MAX_MESSAGES);
   state.lastReceivedAt = new Date().toISOString();
