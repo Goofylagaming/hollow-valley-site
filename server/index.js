@@ -32,6 +32,7 @@ const mapdataRouter = require("./routes/mapdata");
 const supporterInternalRouter = require("./routes/supporterInternal");
 const adminRestoreRouter = require("./routes/adminRestore");
 const adminOperationsRouter = require("./routes/adminOperations");
+const adminBodyDropResetRouter = require("./routes/adminBodyDropReset");
 const adminCommsRouter = require("./routes/adminComms");
 const adminSupportersRouter = require("./routes/adminSupporters");
 const serverStatusService = require("./services/serverStatus");
@@ -211,6 +212,7 @@ function createApp() {
   app.use("/api/friends", friendsRouter);
   app.use("/api/admin-restore", adminRestoreRouter);
   app.use("/api/admin-operations", adminOperationsRouter);
+  app.use("/api/admin-bodydrop-reset", adminBodyDropResetRouter);
   app.use("/api/admin-comms", adminCommsRouter);
   app.use("/api/admin-supporters", adminSupportersRouter);
   app.use("/api/mapdata", mapdataRouter);
@@ -233,6 +235,7 @@ function createApp() {
   const ADMIN_PAGE_ROUTES = {
     admin: "admin.html",
     adminoperations: "adminoperations.html",
+    adminbodydrop: "adminbodydrop.html",
     admincomms: "admincomms.html",
     adminrestore: "adminrestore.html",
     adminsupporters: "adminsupporters.html",
