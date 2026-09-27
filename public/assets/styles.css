@@ -1018,6 +1018,7 @@
 .prime-zone-meta span{display:block;margin-top:3px;color:#756f62;font:700 6px Oswald;letter-spacing:.08em}
 .prime-tracker-empty{padding:14px 0;color:#746f63;font-size:9px}
 .prime-checklist{margin:18px 0;padding:14px;border:1px solid #3d3828;background:#11120e}.prime-checklist .list-heading{margin:0 0 8px}.prime-checklist>p{margin:0 0 12px;color:#a99e88;font-size:10px;line-height:1.5}.prime-check-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.prime-check-item{display:flex;align-items:flex-start;gap:9px;padding:10px;border:1px solid #33352d;background:#0d100c;cursor:pointer}.prime-check-item input{margin:2px 0 0;accent-color:var(--gold)}.prime-check-item strong{display:block;color:#dcd7c8;font:600 10px Oswald}.prime-check-item small{display:block;margin-top:3px;color:#817b6c;font-size:9px;line-height:1.4}
+.prime-map-checklist .prime-checklist{margin:0 0 22px;padding:20px}.prime-map-checklist .prime-checklist>p{margin:13px 0;color:#aaa18d;font-size:11px}.prime-map-list{display:grid;gap:7px;margin:0;padding:0;list-style:none}.prime-map-item{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid #33352d;background:#0d100c}.prime-map-item .prime-check-item{flex:1;min-width:0;border:0;background:none}.prime-map-item.is-observed{border-color:#66794b}.prime-map-item.is-observed .prime-check-item{cursor:default}.prime-map-badge{flex:none;margin-right:12px;color:#a99569;font:700 9px Oswald;letter-spacing:.08em}.prime-map-item.is-observed .prime-map-badge{color:#adc985}.prime-map-checklist .prime-map-footnote{margin-bottom:0;font-size:10px}
 @media(max-width:850px){
   .prime-tracker-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
@@ -1026,6 +1027,7 @@
   .prime-tracker-stats{grid-template-columns:1fr 1fr}
   .prime-zone-meta{text-align:left}
   .prime-check-grid{grid-template-columns:1fr}
+  .prime-map-item{align-items:flex-start;flex-direction:column;gap:0}.prime-map-badge{margin:0 0 10px 34px}
 }
 
 /* Quest board refresh — test branch */
