@@ -1,4 +1,4 @@
--- CommandBridge v006.5
+-- CommandBridge v006.6
 -- Hollow Valley / HDS
 -- Focus: local file bridge for DinoStorage and BodyDrop, with optional HTTP fallback.
 --
@@ -6,7 +6,7 @@
 -- can run curl. It never logs the configured authorization header.
 
 local MOD_NAME = "CommandBridge"
-local MOD_VERSION = "v006.5"
+local MOD_VERSION = "v006.6"
 
 local function log(msg)
     print(string.format("[%s] %s\n", MOD_NAME, tostring(msg)))
@@ -185,7 +185,11 @@ local httpLastErrorAt = 0
 local httpFetchBusy = false
 local httpFetchedBody = nil
 local lastHttpPollAt = 0
+-- Results are keyed by their complete serialized line rather than request ID.
+-- One request can legitimately produce a routing acknowledgement and then a
+-- terminal sub-mod result with the same ID; both must reach automation.
 local forwardedResults = {}
+local forwardingResults = {}
 
 -- Some hosted Windows/Wine environments expose different curl launch helpers.
 -- Try a few safe candidates and remember the one
@@ -334,6 +338,9 @@ end
 local function postResultLine(line)
     if config.resultUrl == nil or config.resultUrl == "" then return end
 
+    local key = tostring(line or "")
+    if key == "" or forwardedResults[key] or forwardingResults[key] then return end
+
     if ExecuteAsync == nil then
         if os.time() - httpLastErrorAt >= 30 then
             httpLastErrorAt = os.time()
@@ -349,7 +356,8 @@ local function postResultLine(line)
         return
     end
 
-    local payload = tostring(line or "")
+    local payload = key
+    forwardingResults[key] = true
 
     ExecuteAsync(function()
         local suffix = tostring(os.time()) .. "-" .. tostring(math.random(100000, 999999))
@@ -358,6 +366,7 @@ local function postResultLine(line)
         local errorPath = SAVED_DIR .. "/http-result-response-" .. suffix .. ".err"
 
         if not writeAll(bodyPath, payload) then
+            forwardingResults[key] = nil
             log("HTTP result POST failed: could not write payload temp file")
             return
         end
@@ -381,11 +390,18 @@ local function postResultLine(line)
         os.remove(bodyPath)
         os.remove(responsePath)
         os.remove(errorPath)
+        forwardingResults[key] = nil
 
-        if err ~= nil and os.time() - httpLastErrorAt >= 15 then
-            httpLastErrorAt = os.time()
-            log("HTTP result POST failed: " .. tostring(err))
+        if err ~= nil then
+            -- Do not mark the line delivered. The next poll will retry it.
+            if os.time() - httpLastErrorAt >= 15 then
+                httpLastErrorAt = os.time()
+                log("HTTP result POST failed; will retry: " .. tostring(err))
+            end
+            return
         end
+
+        forwardedResults[key] = true
     end)
 end
 
@@ -401,7 +417,6 @@ local function emitResult(id, verb, steam, ok, msg)
     )
 
     appendLine(RESULTS_FILE, line)
-    if id and id ~= "" then forwardedResults[id] = true end
     postResultLine(line)
 end
 
@@ -649,8 +664,7 @@ local function forwardSubmodResults()
 
     for line in string.gmatch(body .. "\n", "([^\r\n]+)\r?\n") do
         local id = jsonReadString(line, "id")
-        if id ~= nil and not forwardedResults[id] then
-            forwardedResults[id] = true
+        if id ~= nil and not forwardedResults[line] and not forwardingResults[line] then
             postResultLine(line)
         end
     end

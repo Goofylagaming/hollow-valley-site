@@ -29,7 +29,7 @@ async function resetBodyDropCooldown(steamId) {
   timer.unref?.();
 
   try {
-    const response = await fetch(`${baseUrl}/api/admin/bodydrop-reset`, {
+    const response = await fetch(`${baseUrl}/api/bodydrop/reset`, {
       method: 'POST',
       headers: {
         Accept: 'application/json',
