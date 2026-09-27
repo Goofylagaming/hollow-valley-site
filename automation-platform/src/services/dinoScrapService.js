@@ -101,7 +101,9 @@ async function scrapStoredDino({ steamId, slot }) {
   const selectedSlot = dinoStorage.validateSlot(slot);
   assertNotListed(steam, selectedSlot);
 
-  const dino = await dinoStorage.getStoredDino(steam, selectedSlot);
+  // A live HTTP-pull round trip can take longer than the usual seven-second
+  // list window. Resolve the stored slot before issuing any delete or credit.
+  const dino = await dinoStorage.getStoredDino(steam, selectedSlot, { listTimeoutMs: 12000 });
   const quote = quoteFromDino(dino);
   if (!quote.enabled || quote.payout <= 0) {
     const error = new Error(quote.reason || 'This dinosaur does not currently have a scrap value.');
