@@ -20,6 +20,16 @@ test('HerbyBot outbox deduplicates messages by nonce', () => {
   assert.equal(store.getOutboxSummary().total, 1);
 });
 
+test('old queued game chat is consumed before any bot can claim it', () => {
+  const old = store.createOutboxEvent({
+    id: randomUUID(), destination: 'game-chat', message: 'old chat', nonce: 'gamechat:old-entry',
+  });
+  const claimed = outbox.claimMessages({ limit: 10, leaseSeconds: 60 });
+  assert.equal(claimed.some((event) => event.id === old.id), false);
+  assert.equal(store.getOutboxEvent(old.id).status, 'delivered');
+  assert.throws(() => outbox.queueMessage({ destination: 'game-chat', message: 'new chat' }), /Invalid HerbyBot destination/);
+});
+
 test('claimed HerbyBot messages are leased and not immediately double-claimed', () => {
   outbox.queueAlert('Server test alert', { nonce: 'alert:test:lease' });
 
