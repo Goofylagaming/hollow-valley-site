@@ -1017,6 +1017,7 @@
 .prime-zone-meta b{display:block;color:#c4b071;font:600 9px Oswald}
 .prime-zone-meta span{display:block;margin-top:3px;color:#756f62;font:700 6px Oswald;letter-spacing:.08em}
 .prime-tracker-empty{padding:14px 0;color:#746f63;font-size:9px}
+.prime-checklist{margin:18px 0;padding:14px;border:1px solid #3d3828;background:#11120e}.prime-checklist .list-heading{margin:0 0 8px}.prime-checklist>p{margin:0 0 12px;color:#a99e88;font-size:10px;line-height:1.5}.prime-check-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.prime-check-item{display:flex;align-items:flex-start;gap:9px;padding:10px;border:1px solid #33352d;background:#0d100c;cursor:pointer}.prime-check-item input{margin:2px 0 0;accent-color:var(--gold)}.prime-check-item strong{display:block;color:#dcd7c8;font:600 10px Oswald}.prime-check-item small{display:block;margin-top:3px;color:#817b6c;font-size:9px;line-height:1.4}
 @media(max-width:850px){
   .prime-tracker-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
@@ -1024,6 +1025,7 @@
   .prime-tracker-heading,.prime-zone-row{align-items:flex-start;flex-direction:column}
   .prime-tracker-stats{grid-template-columns:1fr 1fr}
   .prime-zone-meta{text-align:left}
+  .prime-check-grid{grid-template-columns:1fr}
 }
 
 /* Quest board refresh — test branch */
