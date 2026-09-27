@@ -6,7 +6,7 @@
   <meta name="description" content="Hollow Valley automation operations console.">
   <title>Operations | Hollow Valley</title>
   <link rel="stylesheet" href="/assets/styles.css?v=17">
-  <style>#ops-chat-channels{display:flex;flex-wrap:wrap;gap:5px}#ops-chat-channels button[aria-pressed="true"]{border-color:var(--green);color:var(--green)}</style>
+  <style>#ops-chat-channels{display:flex;flex-wrap:wrap;gap:5px}#ops-chat-channels button[aria-pressed="true"]{border-color:var(--green);color:var(--green)}#ops-chat-heading-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}</style>
 </head>
 <body>
   <div class="app-shell">
@@ -39,7 +39,8 @@
           </div>
 
           <section class="ops-panel" id="game-chat">
-            <div class="list-heading"><span>IN-GAME CHAT</span><small id="ops-chat-status">Waiting for feed</small></div>
+            <div class="list-heading"><span>IN-GAME CHAT</span><div id="ops-chat-heading-actions"><small id="ops-chat-status">Waiting for feed</small><button class="small-button" id="ops-chat-collapse" type="button" aria-controls="ops-chat-body" aria-expanded="true">Minimize chat</button></div></div>
+            <div id="ops-chat-body">
             <p class="section-intro">Player messages for spotting lag reports. Refreshes every 5 seconds while this page is open.</p>
             <div class="page-toolbar ops-toolbar">
               <div role="group" aria-label="Chat channel" id="ops-chat-channels">
@@ -52,6 +53,7 @@
               <label><input id="ops-chat-lag" type="checkbox"> Lag reports only</label>
             </div>
             <div class="ops-table-wrap" style="max-height:390px;overflow:auto"><table class="ops-table"><thead><tr><th>Time</th><th>Channel</th><th>Player</th><th>Message</th></tr></thead><tbody id="ops-chat-messages"><tr><td colspan="4">Waiting for feed…</td></tr></tbody></table></div>
+            </div>
           </section>
 
           <section class="ops-panel">
@@ -103,6 +105,6 @@
     <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="/assets/common.js?v=16"></script>
-  <script src="/assets/adminoperations.js?v=8"></script>
+  <script src="/assets/adminoperations.js?v=9"></script>
 </body>
 </html>
