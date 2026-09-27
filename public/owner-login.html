@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Hollow Valley owner sign-in.">
+  <title>Owner sign-in | Hollow Valley</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=24">
+  <style>
+    .owner-login-shell{max-width:480px;margin:0 auto 48px;padding:0 20px}
+    .owner-login-card{padding:28px;border:1px solid #725137;border-radius:18px;background:#201b19}
+    .owner-login-card form{display:grid;gap:16px}
+    .owner-login-card label{display:grid;gap:7px;font-size:13px;color:#e7ddcb}
+    .owner-login-card input{box-sizing:border-box;width:100%;min-height:46px;border:1px solid #786251;border-radius:9px;background:#151311;color:#fff;padding:10px 12px;font:inherit}
+    .owner-login-card input:focus{outline:2px solid #e8c657;outline-offset:2px}
+    .owner-login-card button{min-height:46px;cursor:pointer}
+    .owner-login-card p{line-height:1.5}
+    #owner-message{min-height:24px;color:#e8c657}
+    .owner-login-note{font-size:13px;color:#bdb3a7}
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main>
+      <section class="page-header">
+        <p class="overline green">HOLLOW VALLEY · OWNER</p>
+        <h1>Owner sign-in.</h1>
+        <p class="section-intro">Access the admin hub from your phone, tablet or computer.</p>
+      </section>
+      <section class="owner-login-shell">
+        <div class="owner-login-card" id="owner-login-card" hidden>
+          <form id="owner-login-form">
+            <label>Email <input type="email" name="email" autocomplete="username" inputmode="email" required maxlength="254"></label>
+            <label>Password <input type="password" name="password" autocomplete="current-password" required></label>
+            <button class="primary-button" type="submit">Sign in to admin</button>
+          </form>
+          <p class="owner-login-note">This sign-in is for the server owner only.</p>
+        </div>
+        <div class="owner-login-card" id="owner-setup-card" hidden>
+          <h2>Set up owner email login</h2>
+          <p class="owner-login-note">Your owner Steam sign-in is verified. Choose the email and password you will use on your phone or iPad. Signing in with Steam again lets you reset them later.</p>
+          <form id="owner-setup-form">
+            <label>Email <input type="email" name="email" autocomplete="email" inputmode="email" required maxlength="254"></label>
+            <label>Password (at least 16 characters) <input type="password" name="password" autocomplete="new-password" required minlength="16" maxlength="256"></label>
+            <label>Confirm password <input type="password" name="confirm" autocomplete="new-password" required minlength="16" maxlength="256"></label>
+            <button class="primary-button" type="submit">Save owner sign-in</button>
+          </form>
+        </div>
+        <div class="owner-login-card" id="owner-unavailable" hidden>
+          <h2>Owner setup needed</h2>
+          <p class="owner-login-note">Sign in with the owner Steam account, then return here. The website must also have OWNER_STEAM_ID set to that account's 17-digit Steam ID.</p>
+          <a class="primary-button" href="/auth/steam?returnTo=/owner-login">Sign in with Steam</a>
+        </div>
+        <p id="owner-message" role="status" aria-live="polite"></p>
+      </section>
+    </main>
+    <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
+  </div>
+  <script src="/assets/common.js?v=16"></script>
+  <script src="/assets/owner-login.js?v=1"></script>
+</body>
+</html>

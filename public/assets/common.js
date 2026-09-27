@@ -67,7 +67,7 @@ window.HDS = (function () {
     } else {
       const steamLabel = me.steamLoginConfigured ? "Sign in with Steam" : "Steam login not configured";
       const href = me.steamLoginConfigured ? "/auth/steam" : "#";
-      authArea.innerHTML = `<a class="steam-signin" id="auth-steam" href="${href}"><span class="steam-icon">◈</span> ${steamLabel}</a>`;
+      authArea.innerHTML = `<a class="steam-signin" id="auth-steam" href="${href}"><span class="steam-icon">◈</span> ${steamLabel}</a><a class="logout-link" href="/owner-login">Owner login</a>`;
     }
   }
 
