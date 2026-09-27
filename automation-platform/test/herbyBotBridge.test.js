@@ -85,3 +85,19 @@ test('HerbyBot bridge polls, sends and acknowledges without creating another cli
     else process.env.DISCORD_ALERT_CHANNEL_ID = previous;
   }
 });
+
+test('HerbyBot bridge consumes old game chat events without sending to Discord', async () => {
+  const calls = [];
+  const client = {
+    isReady: () => true,
+    channels: { fetch: async () => { throw new Error('Discord must not be called'); } },
+  };
+  const api = {
+    async claimMessages() { return { events: [{ id: 'old-chat', destination: 'game-chat', message: 'old message' }] }; },
+    async acknowledgeMessage(id) { calls.push(`ack:${id}`); },
+    async failMessage(id) { calls.push(`fail:${id}`); },
+  };
+  const result = await createHerbyBotAutomationBridge({ client, api }).pollOnce();
+  assert.equal(result.failed, 0);
+  assert.deepEqual(calls, ['ack:old-chat']);
+});
