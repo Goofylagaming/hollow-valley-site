@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Buy dinos from the official catalog or from other survivors.">
+  <meta name="description" content="Choose between Hollow Valley official listings and player marketplace listings.">
   <title>Marketplace | Hollow Valley</title>
   <link rel="stylesheet" href="assets/styles.css?v=21">
 </head>
@@ -14,42 +14,29 @@
       <section class="page-header">
         <p class="overline green">TRADE POST</p>
         <h1>Marketplace.</h1>
-        <p class="section-intro">Official dinos are sold at 50% growth or 75% growth. Every 75% official dino includes Prime and costs at least 50,000 Valley Coin. Survivor trading remains separate.</p>
+        <p class="section-intro">Choose which marketplace you want to browse.</p>
       </section>
+
       <section class="roster-section">
-        <div class="market-state-banner" id="market-state-banner"><span class="status-dot"></span><b>Checking marketplace status…</b><small id="market-state-detail"></small></div>
-        <div class="filter-row" role="group" aria-label="Filter by species">
-          <button class="filter active" data-filter="all">All species</button>
-          <button class="filter" data-filter="herbivore">Herbivores</button>
-          <button class="filter" data-filter="carnivore">Carnivores</button>
-          <button class="filter" data-filter="omnivore">Omnivores</button>
-          <button class="filter" data-filter="flying">Flying</button>
-          <select id="sort-select" style="margin-left:auto;padding:9px;border:1px solid var(--line);background:transparent;color:#9c8a72">
-            <option value="price-asc">Price: low to high</option>
-            <option value="price-desc">Price: high to low</option>
-            <option value="size-desc">Size: biggest first</option>
-          </select>
+        <div class="storage-grid">
+          <article class="storage-card">
+            <small>HOLLOW VALLEY STORE</small>
+            <h3>HV Official Listings</h3>
+            <p class="section-intro">Dinos sold directly by Hollow Valley, including the official 50% and 75% Prime growth options.</p>
+            <div class="actions"><a class="small-button" href="/marketplace-official">Browse Official Listings</a></div>
+          </article>
+
+          <article class="storage-card">
+            <small>PLAYER MARKET</small>
+            <h3>Player Listings</h3>
+            <p class="section-intro">Browse dinos listed by other players, purchase through Valley Coin, and receive them through My Dinos storage.</p>
+            <div class="actions"><a class="small-button" href="/marketplace-players">Browse Player Listings</a></div>
+          </article>
         </div>
-        <div class="list-heading"><span>OFFICIAL CATALOG</span></div>
-        <div class="dino-grid" id="catalog-grid"><p class="section-intro">Loading catalog…</p></div>
-
-        <div class="list-heading" style="margin-top:40px"><span>SURVIVOR LISTINGS</span></div>
-        <div class="storage-grid" id="listings-grid"><p class="section-intro">Loading listings…</p></div>
-
-        <section id="my-orders-section" hidden>
-          <div class="list-heading" style="margin-top:40px"><span>YOUR STORE ORDERS</span><small>Official DinoStorage delivery</small></div>
-          <div class="storage-grid" id="my-orders-grid"><p class="section-intro">Loading your store orders…</p></div>
-        </section>
-
-        <section id="my-listings-section" hidden>
-          <div class="list-heading" style="margin-top:40px"><span>YOUR LISTINGS</span><small>Escrowed parked dinos</small></div>
-          <div class="storage-grid" id="my-listings-grid"><p class="section-intro">Loading your listings…</p></div>
-        </section>
       </section>
     </main>
     <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="assets/common.js?v=16"></script>
-  <script src="assets/marketplace.js?v=14"></script>
 </body>
 </html>
