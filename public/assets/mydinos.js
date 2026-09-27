@@ -7,6 +7,39 @@ let currentFilter = "all";
 let marketplaceState = { p2pWritesEnabled: false };
 let myMarketplaceListings = [];
 let primeTrackerState = null;
+let primeTrackerLoading = false;
+const primeChecks = [
+  ["diet", "Reached a perfect diet", "Confirm all three diet nutrients in the in-game status panel."],
+  ["sanctuary", "Visited a sanctuary", "Confirm the in-game sanctuary objective or notification."],
+  ["migration", "Completed migration objectives", "Confirm in-game progress; mapped footprints alone do not prove completion."],
+  ["patrol", "Completed patrol objectives", "Confirm in-game progress; mapped footprints alone do not prove completion."],
+  ["nesting", "Completed nesting objectives", "If applicable to this dinosaur, confirm the in-game objective."],
+  ["healthy", "Checked health and fertility", "Check the in-game status for muscle spasms and infertility."],
+];
+
+function primeCheckStorageKey(lifeId) {
+  return `hollow-valley-prime-checks:${lifeId}`;
+}
+
+function readPrimeChecks(lifeId) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(primeCheckStorageKey(lifeId)) || "{}");
+    return saved && typeof saved === "object" ? saved : {};
+  } catch { return {}; }
+}
+
+function renderPrimeChecklist(life) {
+  const saved = readPrimeChecks(life.id);
+  return `<section class="prime-checklist" aria-label="Prime preparation checklist">
+    <div class="list-heading"><span>YOUR PRIME CHECKLIST</span><small>Self-checked for this dino life</small></div>
+    <p>Tick these after confirming them in-game. This list is saved in this browser and cannot grant Prime.</p>
+    <div class="prime-check-grid">${primeChecks.map(([key, label, help]) => `
+      <label class="prime-check-item">
+        <input type="checkbox" data-prime-check="${key}" ${saved[key] ? "checked" : ""}>
+        <span><strong>${label}</strong><small>${help}</small></span>
+      </label>`).join("")}</div>
+  </section>`;
+}
 
 function pct(value, max, fallback = 0) {
   const n = Number(value);
@@ -172,6 +205,9 @@ function renderPrimeTracker(state) {
     ...(current.patrolZones || []).map((name) => `Patrol: ${name}`),
     ...(current.sanctuaries || []).map((name) => `Sanctuary: ${name}`)
   ];
+  const sampledAt = Date.parse(life.lastSeenAt);
+  const sampleAgeSeconds = Number.isFinite(sampledAt) ? Math.max(0, Math.floor((Date.now() - sampledAt) / 1000)) : null;
+  const sampleText = sampleAgeSeconds === null ? "Sample time unavailable" : `Last position sample ${escapeHtml(formatPrimeDuration(sampleAgeSeconds))} ago`;
 
   container.innerHTML = `
     <div class="panel prime-tracker-panel">
@@ -180,8 +216,16 @@ function renderPrimeTracker(state) {
           <p class="overline green">PRIME TRACKER</p>
           <h3>${escapeHtml(life.species || "Unknown")} · ${growth}% growth</h3>
           <small>Tracking this dino life since ${escapeHtml(primeDate(life.startedAt))}</small>
+          <small>${sampleText}</small>
         </div>
         <span class="prime-tracker-status ${life.isPrime ? "is-prime" : ""}">${life.isPrime ? "● PRIME" : "○ NOT PRIME"}</span>
+      </div>
+
+      ${renderPrimeChecklist(life)}
+
+      <div class="prime-tracker-note">
+        <strong>HOW IT COUNTS</strong>
+        <span>Map visits are estimates from position samples. A short visit between samples can be missed. The game decides Prime eligibility; this tracker reads its Prime flag but does not award Prime. Stay inside a zone until a new sample appears, and use in-game objective notifications to confirm progress.</span>
       </div>
 
       <div class="prime-tracker-stats">
@@ -215,15 +259,31 @@ function renderPrimeTracker(state) {
 
 async function loadPrimeTracker() {
   const container = document.getElementById("prime-tracker-card");
-  if (!container) return;
+  if (!container || primeTrackerLoading) return;
+  primeTrackerLoading = true;
   try {
     primeTrackerState = await api("/api/mydinos/prime-tracker");
     renderPrimeTracker(primeTrackerState);
   } catch (error) {
     primeTrackerState = null;
     container.innerHTML = `<div class="panel prime-tracker-panel"><p class="overline green">PRIME TRACKER</p><p class="section-intro">Prime tracker unavailable: ${escapeHtml(error.message || "Unknown error")}</p></div>`;
+  } finally {
+    primeTrackerLoading = false;
   }
 }
+
+document.getElementById("prime-tracker-card")?.addEventListener("change", (event) => {
+  const checkbox = event.target.closest("[data-prime-check]");
+  const lifeId = primeTrackerState?.activeLife?.id;
+  if (!checkbox || !lifeId) return;
+  const key = checkbox.dataset.primeCheck;
+  if (!primeChecks.some(([known]) => known === key)) return;
+  try {
+    const saved = readPrimeChecks(lifeId);
+    saved[key] = checkbox.checked;
+    localStorage.setItem(primeCheckStorageKey(lifeId), JSON.stringify(saved));
+  } catch { /* Browser storage may be disabled; the current selection remains visible. */ }
+});
 
 async function loadActiveCharacter() {
   const container = document.getElementById("active-character-card");
@@ -668,6 +728,10 @@ async function init() {
   await loadSpeciesMap();
   wireFilters();
   await refresh();
+  const primeRefresh = setInterval(() => {
+    if (!document.hidden) loadPrimeTracker();
+  }, 15000);
+  window.addEventListener("pagehide", () => clearInterval(primeRefresh), { once: true });
 }
 
 init();
