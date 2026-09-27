@@ -38,9 +38,13 @@ function rewardOnlinePlayers(players, { nowMs = Date.now() } = {}) {
   const coins = coinsPerInterval();
   const payoutsEnabled = rewardEnabled && coins > 0;
 
-  const ids = [...new Set((players || [])
-    .map((player) => String(player?.steamId || '').trim())
-    .filter((steamId) => /^\d{17}$/.test(steamId)))];
+  const playersBySteam = new Map();
+  for (const player of players || []) {
+    const steamId = String(player?.steamId || '').trim();
+    if (!/^\d{17}$/.test(steamId)) continue;
+    playersBySteam.set(steamId, player);
+  }
+  const ids = [...playersBySteam.keys()];
 
   let rewardedPlayers = 0;
   let coinsAwarded = 0;
@@ -60,6 +64,7 @@ function rewardOnlinePlayers(players, { nowMs = Date.now() } = {}) {
         elapsedSeconds: Math.floor(countElapsed / 1000),
         continuous,
         nowMs,
+        player: playersBySteam.get(steamId) || null,
       });
       const activeBoostPercent = Number(questProgress.quests.activeBoostPercent || 0);
       const accruedMs = payoutsEnabled
