@@ -12,3 +12,8 @@ test('parses verified Spatial chat and ignores ordinary game logs', () => {
   assert.deepEqual(parseChatLine(line), { channel: 'Spatial', name: 'Goofy', steamId: '76561198038977506', message: 'test' });
   assert.equal(parseChatLine('[2026.09.27-00.55.28:001][876]LogTheIsleCommandData: RCON Command Used []'), null);
 });
+
+test('ignores chat entries containing only whitespace', () => {
+  const line = '[2026.09.27-01.01.38:062][873]LogTheIsleChatData: [2026.09.27-11.01.38] [Spatial] [GROUP-1412674960] Goofy [76561198038977506]:   ';
+  assert.equal(parseChatLine(line), null);
+});
