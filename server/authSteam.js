@@ -94,6 +94,9 @@ router.get("/callback", async (req, res) => {
     const match = CLAIMED_ID_PATTERN.exec(claimedId);
     if (!match) throw new Error(`Unexpected claimed_id format: ${claimedId}`);
     const steamId = match[1];
+    if (req.session.ownerEmailAuth && req.user?.steam_id !== steamId) {
+      throw new Error("Owner email session cannot be linked to a different Steam account");
+    }
 
     const profile = await fetchSteamProfile(steamId);
     const hasRealProfile = Boolean(profile.ok && profile.personaName);
@@ -109,6 +112,8 @@ router.get("/callback", async (req, res) => {
     });
 
     req.session.userId = user.id;
+    req.session.steamVerifiedId = steamId;
+    req.session.steamVerifiedAt = Date.now();
     const returnPath = req.session.steamReturnPath || DEFAULT_RETURN_PATH;
     delete req.session.steamLoginStartedAt;
     delete req.session.steamReturnPath;
