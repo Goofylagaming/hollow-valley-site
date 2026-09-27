@@ -2,6 +2,7 @@ const express = require('express');
 const { requireBinaryLaneCommandToken } = require('../middleware/binaryLaneCommandAuth');
 const bridge = require('../services/commandBridgeHttpService');
 const dinoStorage = require('../services/dinoStorageService');
+const { reconcileFinalBodyDropResult } = require('../services/bodyDropResultReconciler');
 
 const router = express.Router();
 router.use(requireBinaryLaneCommandToken);
@@ -37,6 +38,17 @@ router.post('/result', async (req, res) => {
         // request-state reconciliation failed; the periodic reconciler remains
         // available as a fallback.
         console.warn('[binarylane-command-bridge] DinoStorage reconcile failed', error.message);
+      }
+    }
+
+    if (outcome.final && req.body?.source === 'BodyDrop') {
+      try {
+        reconcileFinalBodyDropResult(req.body);
+      } catch (error) {
+        // The final game-side result is already stored in the HTTP bridge. Keep
+        // the agent response successful so the result is not replayed forever;
+        // the periodic BodyDrop reconciler remains available as a fallback.
+        console.warn('[binarylane-command-bridge] BodyDrop reconcile failed', error.message);
       }
     }
 
