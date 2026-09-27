@@ -8,6 +8,7 @@ const router = express.Router();
 const STORE_LOCK_MS = Math.max(5000, Number(process.env.DINOSTORAGE_STORE_LOCK_MS || 30000));
 const activeStoreLocks = new Map();
 const recentStoreTransitions = new Map();
+const recentStorageSnapshots = new Map();
 
 function getActiveStoreLock(steamId) {
   const lock = activeStoreLocks.get(String(steamId));
@@ -186,6 +187,19 @@ function decorateStoredDinos(dinos) {
   }));
 }
 
+function rememberStorageSnapshot(steamId, dinos) {
+  const decorated = decorateStoredDinos(dinos);
+  recentStorageSnapshots.set(String(steamId), {
+    dinos: decorated,
+    capturedAt: Date.now(),
+  });
+  return decorated;
+}
+
+function rememberedStorageSnapshot(steamId) {
+  return recentStorageSnapshots.get(String(steamId)) || null;
+}
+
 function classifyLifecycleHistory(tracker, storedDinos) {
   if (!tracker || !Array.isArray(tracker.history)) return tracker;
   const history = tracker.history;
@@ -254,9 +268,10 @@ function classifyLifecycleHistory(tracker, storedDinos) {
 
 router.get("/", requireAuth, async (req, res) => {
   if (!req.user.steam_id) return res.json([]);
+  const steamId = String(req.user.steam_id);
   try {
-    const result = await automation.listStoredDinos(String(req.user.steam_id));
-    return res.json(decorateStoredDinos(result.dinos || []));
+    const result = await automation.listStoredDinos(steamId);
+    return res.json(rememberStorageSnapshot(steamId, result.dinos || []));
   } catch (error) {
     const mapped = mapAutomationError(error, "Could not read DinoStorage.");
     return res.status(mapped.status).json(mapped.body);
@@ -314,14 +329,16 @@ router.get("/prime-tracker", requireAuth, async (req, res) => {
   if (!steamId) return;
   try {
     const tracker = await automation.getPrimeTracker(steamId);
-    let storedDinos = [];
-    try {
-      const stored = await automation.listStoredDinos(steamId);
-      storedDinos = decorateStoredDinos(stored.dinos || []);
-    } catch {
-      // Lifecycle tracking should remain available even if DinoStorage listing is temporarily unavailable.
-    }
-    return res.json(classifyLifecycleHistory(tracker, storedDinos));
+    const snapshot = rememberedStorageSnapshot(steamId);
+    const classified = classifyLifecycleHistory(tracker, snapshot?.dinos || []);
+    return res.json({
+      ...classified,
+      storageEvidence: {
+        source: snapshot ? "last-known-website-snapshot" : "none",
+        available: Boolean(snapshot),
+        capturedAt: snapshot ? new Date(snapshot.capturedAt).toISOString() : null,
+      },
+    });
   } catch (error) {
     const mapped = mapAutomationError(error, "Prime tracker unavailable.");
     return res.status(mapped.status).json(mapped.body);
