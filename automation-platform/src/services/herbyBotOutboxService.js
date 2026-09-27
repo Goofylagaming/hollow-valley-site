@@ -51,7 +51,13 @@ function queueAlert(message, { nonce } = {}) {
 }
 
 function claimMessages({ limit = 10, leaseSeconds = 60 } = {}) {
-  return store.claimOutboxEvents({ limit, leaseSeconds });
+  const events = store.claimOutboxEvents({ limit, leaseSeconds });
+  // Old chat entries must never be handed to a bot that still has the former
+  // game-chat destination configured. Consume them before returning a batch.
+  for (const event of events) {
+    if (event.destination === 'game-chat') store.acknowledgeOutboxEvent(event.id);
+  }
+  return events.filter((event) => event.destination !== 'game-chat');
 }
 
 function acknowledgeMessage(id) {
