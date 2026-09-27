@@ -9,6 +9,7 @@ const { requireAdmin } = require("./middleware/requireAuth");
 const { skinShareCodeRedaction } = require("./middleware/skinShareCodeRedaction");
 const authRouter = require("./auth");
 const authSteamRouter = require("./authSteam");
+const authOwnerRouter = require("./authOwner");
 const speciesRouter = require("./routes/species");
 const walletRouter = require("./routes/wallet");
 const questsRouter = require("./routes/quests");
@@ -120,6 +121,14 @@ function createApp() {
   app.use((req, res, next) => {
     if (req.session.userId) {
       req.user = db.prepare("SELECT id, discord_id, steam_id, username, avatar, is_admin FROM users WHERE id = ?").get(req.session.userId) || null;
+      if (req.session.ownerEmailAuth) {
+        const steamId = String(process.env.OWNER_STEAM_ID || "").trim();
+        const login = db.prepare("SELECT session_version FROM owner_logins WHERE steam_id = ?").get(steamId);
+        if (!req.user || req.user.steam_id !== steamId || login?.session_version !== req.session.ownerLoginVersion) {
+          req.user = null;
+          return req.session.destroy(() => next());
+        }
+      }
       if (req.user && ADMIN_STEAM_IDS.has(String(req.user.steam_id || ""))) {
         if (!req.user.is_admin) {
           db.prepare("UPDATE users SET is_admin = 1 WHERE id = ?").run(req.user.id);
@@ -179,6 +188,7 @@ function createApp() {
 
   app.use("/auth", authRouter);
   app.use("/auth/steam", authSteamRouter);
+  app.use("/auth/owner", authOwnerRouter);
   app.use("/api/internal/commandbridge", legacyDirectGameApiRetired);
   app.use("/api/internal/supporter-memberships", supporterInternalRouter);
   app.use("/api/species", speciesRouter);
@@ -214,6 +224,11 @@ function createApp() {
       res.sendFile(path.join(__dirname, "..", "public", `${page}.html`));
     });
   }
+
+  app.get("/owner-login", (_req, res) => {
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
+    res.sendFile(path.join(__dirname, "..", "public", "owner-login.html"));
+  });
 
   const ADMIN_PAGE_ROUTES = {
     admin: "admin.html",
