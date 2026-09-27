@@ -7,6 +7,9 @@ function destinationChannelId(destination) {
   if (destination === 'alert') {
     return String(process.env.DISCORD_ALERT_CHANNEL_ID || '').trim();
   }
+  if (destination === 'game-chat') {
+    return String(process.env.DISCORD_GAME_CHAT_CHANNEL_ID || '1553542987928174642').trim();
+  }
   return '';
 }
 

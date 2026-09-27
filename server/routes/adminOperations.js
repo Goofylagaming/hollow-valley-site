@@ -16,6 +16,16 @@ function mapAutomationError(error, fallback) {
 
 router.use(requireAdmin);
 
+router.get('/chat', async (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    res.json(await automation.getAdminChat());
+  } catch (error) {
+    const mapped = mapAutomationError(error, 'Could not load game chat.');
+    res.status(mapped.status).json(mapped.body);
+  }
+});
+
 function validateSteamId(value) {
   const steamId = String(value || "").trim();
   if (!/^\d{17}$/.test(steamId)) {

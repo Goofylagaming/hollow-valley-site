@@ -1,7 +1,7 @@
 const { randomUUID } = require('node:crypto');
 const store = require('./automationStore');
 
-const DESTINATIONS = new Set(['announcement', 'alert']);
+const DESTINATIONS = new Set(['announcement', 'alert', 'game-chat']);
 
 function configured() {
   return Boolean(String(process.env.HERBYBOT_AUTOMATION_TOKEN || '').trim());
@@ -21,7 +21,7 @@ function cleanMessage(value) {
 
 function validateDestination(value) {
   const destination = String(value || '').trim().toLowerCase();
-  if (!DESTINATIONS.has(destination)) throw new Error('HerbyBot destination must be announcement or alert');
+  if (!DESTINATIONS.has(destination)) throw new Error('Invalid HerbyBot destination');
   return destination;
 }
 

@@ -19,6 +19,7 @@ const bodyDropRoutes = require('./routes/bodyDropRoutes');
 const dinoStorageRoutes = require('./routes/dinoStorageRoutes');
 const combatRoutes = require('./routes/combatRoutes');
 const presenceFeedRoutes = require('./routes/presenceFeedRoutes');
+const chatFeedRoutes = require('./routes/chatFeedRoutes');
 const binaryLaneCommandBridgeRoutes = require('./routes/binaryLaneCommandBridgeRoutes');
 const commandBridge = require('./services/commandBridgeService');
 const { startBodyDropReconciler } = require('./services/bodyDropService');
@@ -197,6 +198,10 @@ app.use('/api/presence-feed', (_req, res, next) => {
   res.set('Cache-Control', 'no-store');
   next();
 }, presenceFeedRoutes);
+app.use('/api/chat-feed', (_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+}, chatFeedRoutes);
 
 app.use('/api/command-bridge', (_req, res, next) => {
   res.set('Cache-Control', 'no-store');

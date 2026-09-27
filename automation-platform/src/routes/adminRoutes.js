@@ -18,6 +18,11 @@ const eventAttendance = require('../services/eventAttendanceService');
 const router = express.Router();
 router.use(requireAdminToken);
 
+router.get('/chat', (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json(require('../services/chatFeedService').list());
+});
+
 router.get('/status', async (req, res) => {
   try {
     res.json({

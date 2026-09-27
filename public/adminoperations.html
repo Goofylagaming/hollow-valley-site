@@ -6,6 +6,7 @@
   <meta name="description" content="Hollow Valley automation operations console.">
   <title>Operations | Hollow Valley</title>
   <link rel="stylesheet" href="/assets/styles.css?v=17">
+  <style>#ops-chat-channels{display:flex;flex-wrap:wrap;gap:5px}#ops-chat-channels button[aria-pressed="true"]{border-color:var(--green);color:var(--green)}</style>
 </head>
 <body>
   <div class="app-shell">
@@ -36,6 +37,22 @@
             <div class="summary-tile"><small>ACTIVE PRESENCE</small><b id="ops-presence">—</b><span id="ops-presence-detail">—</span></div>
             <div class="summary-tile"><small>24H AVAILABILITY</small><b id="ops-availability">—</b><span id="ops-health-detail">—</span></div>
           </div>
+
+          <section class="ops-panel" id="game-chat">
+            <div class="list-heading"><span>IN-GAME CHAT</span><small id="ops-chat-status">Waiting for feed</small></div>
+            <p class="section-intro">Player messages for spotting lag reports. Refreshes every 5 seconds while this page is open.</p>
+            <div class="page-toolbar ops-toolbar">
+              <div role="group" aria-label="Chat channel" id="ops-chat-channels">
+                <button class="small-button" type="button" data-channel="all" aria-pressed="true">All</button>
+                <button class="small-button" type="button" data-channel="global" aria-pressed="false">Global</button>
+                <button class="small-button" type="button" data-channel="local" aria-pressed="false">Local</button>
+                <button class="small-button" type="button" data-channel="unknown" aria-pressed="false">Unlabelled</button>
+              </div>
+              <input id="ops-chat-search" type="search" placeholder="Filter messages or players" aria-label="Filter game chat" style="min-width:230px;padding:10px;background:#0f172a;color:#fff;border:1px solid #334155">
+              <label><input id="ops-chat-lag" type="checkbox"> Lag reports only</label>
+            </div>
+            <div class="ops-table-wrap" style="max-height:390px;overflow:auto"><table class="ops-table"><thead><tr><th>Time</th><th>Channel</th><th>Player</th><th>Message</th></tr></thead><tbody id="ops-chat-messages"><tr><td colspan="4">Waiting for feed…</td></tr></tbody></table></div>
+          </section>
 
           <section class="ops-panel">
             <div class="list-heading"><span>GLOBAL EMERGENCY BODY DROP</span><small>admin-only · default off</small></div>
@@ -86,6 +103,6 @@
     <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="/assets/common.js?v=16"></script>
-  <script src="/assets/adminoperations.js?v=6"></script>
+  <script src="/assets/adminoperations.js?v=8"></script>
 </body>
 </html>
