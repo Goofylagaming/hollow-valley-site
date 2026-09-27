@@ -1,6 +1,6 @@
 // Confirmed against Hollow Valley's LogTheIsleChatData Global message format.
 // The channel capture is deliberately generic until a Local sample is verified.
-const DEFAULT_CHAT_LINE_PATTERN = String.raw`^\[[^\]]+\]\[[^\]]+\]LogTheIsleChatData: \[[^\]]+\] \[(?<channel>[^\]]+)\](?: \[GROUP-[^\]]+\])? (?<name>.+?) \[\d{17}\]: (?<message>.+)$`;
+const DEFAULT_CHAT_LINE_PATTERN = String.raw`^\[[^\]]+\]\[[^\]]+\]LogTheIsleChatData: \[[^\]]+\] \[(?<channel>[^\]]+)\](?: \[GROUP-[^\]]+\])? (?<name>.+?) \[(?<steamId>\d{17})\]: (?<message>.+)$`;
 
 function createChatLineRegex(pattern = DEFAULT_CHAT_LINE_PATTERN) {
   const regex = new RegExp(pattern);
@@ -16,6 +16,7 @@ function parseChatLine(line, regex = createChatLineRegex()) {
   if (!match?.groups?.name || !match.groups.message || !match.groups.channel) return null;
   return {
     name: match.groups.name.trim().slice(0, 80),
+    steamId: match.groups.steamId || null,
     message: match.groups.message.trim().slice(0, 500),
     channel: match.groups.channel.trim().slice(0, 32),
   };
