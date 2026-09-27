@@ -102,7 +102,17 @@ function renderAdminPlayers(data) {
     button.dataset.steamId = player.steamId;
     button.addEventListener("click", () => slayAdminPlayer(player, button));
 
-    row.append(identity, button);
+    const view = document.createElement("button");
+    view.className = "small-button";
+    view.type = "button";
+    view.textContent = "View records";
+    view.addEventListener("click", () => {
+      document.getElementById("admin-records-steam").value = player.steamId;
+      document.getElementById("admin-records-form").requestSubmit();
+      document.getElementById("admin-records-form").scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+
+    row.append(identity, view, button);
     list.append(row);
   }
 }
@@ -150,6 +160,89 @@ async function slayAdminPlayer(player, button) {
 }
 
 document.getElementById("admin-player-refresh")?.addEventListener("click", loadAdminPlayers);
+
+function recordRow(title, detail, trailing) {
+  const row = document.createElement("div");
+  row.className = "admin-player-row";
+  const identity = document.createElement("div");
+  identity.className = "admin-player-identity";
+  const heading = document.createElement("strong");
+  heading.textContent = title;
+  const sub = document.createElement("span");
+  sub.textContent = detail;
+  identity.append(heading, sub);
+  row.append(identity);
+  if (trailing != null) {
+    const value = document.createElement("b");
+    value.textContent = trailing;
+    row.append(value);
+  }
+  return row;
+}
+
+function renderPlayerRecords(data) {
+  const result = document.getElementById("admin-records-result");
+  result.replaceChildren();
+  result.hidden = false;
+  result.append(recordRow(data.player?.name || "Name unavailable", data.player?.steamId || ""));
+  const balance = document.createElement("p");
+  balance.textContent = data.wallet ? `Wallet balance: ${Number(data.wallet.balance || 0).toLocaleString()} Valley Coin` : (data.walletError || "");
+  result.append(balance);
+
+  for (const [title, entries, error] of [
+    ["Stored dinos", data.dinos, data.dinosError],
+    ["Wallet history · most recent 50", data.wallet?.transactions, data.walletError],
+  ]) {
+    const heading = document.createElement("h3");
+    heading.textContent = title;
+    result.append(heading);
+    if (error || !Array.isArray(entries)) {
+      result.append(recordRow(error || "Records unavailable", "Try again later."));
+    } else if (!entries.length) {
+      result.append(recordRow("No records", "Nothing to show for this Steam ID."));
+    } else {
+      const list = document.createElement("div");
+      list.className = "admin-records-list";
+      for (const item of entries) {
+        if (title === "Stored dinos") {
+          const growth = Number(item.growth);
+          const growthText = Number.isFinite(growth) ? `${Math.round(growth <= 1 ? growth * 100 : growth)}% growth` : "Growth unknown";
+          list.append(recordRow(item.species || "Unknown species", [item.slot, item.gender, growthText, item.isPrime ? "Prime" : null].filter(Boolean).join(" · ")));
+        } else {
+          const amount = Number(item.amount) || 0;
+          list.append(recordRow(item.reason || item.kind || "Valley Coin activity", formatDate(item.created_at), `${amount > 0 ? "+" : ""}${amount.toLocaleString()}`));
+        }
+      }
+      result.append(list);
+    }
+  }
+}
+
+document.getElementById("admin-records-form")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const steamId = String(document.getElementById("admin-records-steam")?.value || "").trim();
+  const status = document.getElementById("admin-records-status");
+  const result = document.getElementById("admin-records-result");
+  if (!/^\d{17}$/.test(steamId)) {
+    status.textContent = "Enter a valid 17-digit Steam ID.";
+    result.hidden = true;
+    return;
+  }
+  const button = form.querySelector('button[type="submit"]');
+  button.disabled = true;
+  result.hidden = true;
+  status.textContent = "Loading player records…";
+  try {
+    const data = await api(`/api/admin-operations/player-records/${encodeURIComponent(steamId)}`);
+    renderPlayerRecords(data);
+    status.textContent = `Showing records for ${data.player?.name || steamId}.`;
+  } catch (error) {
+    status.textContent = error.message || "Could not load player records.";
+  } finally {
+    button.disabled = false;
+  }
+});
 
 let currentPrimeTarget = null;
 
