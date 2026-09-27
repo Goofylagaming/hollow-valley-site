@@ -7,9 +7,6 @@ function destinationChannelId(destination) {
   if (destination === 'alert') {
     return String(process.env.DISCORD_ALERT_CHANNEL_ID || '').trim();
   }
-  if (destination === 'game-chat') {
-    return String(process.env.DISCORD_GAME_CHAT_CHANNEL_ID || '1553542987928174642').trim();
-  }
   return '';
 }
 
@@ -52,6 +49,11 @@ function createHerbyBotAutomationBridge({
       const events = Array.isArray(payload?.events) ? payload.events : [];
       for (const event of events) {
         try {
+          if (event.destination === 'game-chat') {
+            // Consume chat messages queued by an older automation build without posting them.
+            await api.acknowledgeMessage(event.id);
+            continue;
+          }
           await deliverEvent(client, event);
           await api.acknowledgeMessage(event.id);
           delivered += 1;
