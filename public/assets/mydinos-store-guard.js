@@ -158,8 +158,9 @@
     return action?.closest?.(".storage-dino-card") || null;
   }
 
-  function clearMatchHighlight() {
+  function clearMatchHighlight(keep = []) {
     document.querySelectorAll("[data-hv-parked-match='true']").forEach((node) => {
+      if (keep.includes(node)) return;
       node.style.outline = "";
       node.style.boxShadow = "";
       node.style.background = "";
@@ -167,7 +168,7 @@
       node.querySelectorAll(".hv-parked-match-label").forEach((label) => label.remove());
     });
     const banner = document.querySelector("#active-character-card .active-char-banner");
-    if (banner) {
+    if (banner && !keep.includes(banner)) {
       banner.style.outline = "";
       banner.style.boxShadow = "";
       banner.style.background = "";
@@ -177,16 +178,17 @@
   }
 
   function highlightParkedMatch(card) {
-    clearMatchHighlight();
-
     const banner = document.querySelector("#active-character-card .active-char-banner");
+    clearMatchHighlight([banner, card]);
     if (banner) {
       banner.dataset.hvParkedMatch = "true";
       banner.style.outline = "2px solid #d39b24";
       banner.style.boxShadow = "0 0 0 3px rgba(211, 155, 36, 0.12)";
       banner.style.background = "rgba(211, 155, 36, 0.06)";
       const liveTag = banner.querySelector(".active-tag");
-      if (liveTag) liveTag.textContent = "ALREADY STORED / PARKED";
+      if (liveTag && liveTag.textContent !== "ALREADY STORED / PARKED") {
+        liveTag.textContent = "ALREADY STORED / PARKED";
+      }
       if (!banner.querySelector(".hv-parked-status")) {
         const status = document.createElement("div");
         status.className = "hv-parked-status tag-pill";
