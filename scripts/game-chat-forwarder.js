@@ -17,6 +17,8 @@ let offset = 0;
 let remainder = '';
 let pending = [];
 let fileId = '';
+let batchLimit = 50;
+let retryAfter = 0;
 
 async function poll() {
   const stat = await fs.stat(path);
@@ -50,16 +52,32 @@ async function poll() {
       }
     } finally { await handle.close(); }
   }
-  if (!pending.length) return;
-  const batch = pending.slice(0, 50);
+  if (!pending.length || Date.now() < retryAfter) return;
+  const batch = pending.slice(0, batchLimit);
   const response = await fetch(url, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ messages: batch }),
     signal: AbortSignal.timeout(8000),
   });
-  if (!response.ok) throw new Error(`Chat feed returned HTTP ${response.status}`);
+  if (!response.ok) {
+    const detail = (await response.text()).slice(0, 300);
+    if (response.status === 400 && batch.length > 1) {
+      batchLimit = Math.max(1, Math.floor(batch.length / 2));
+      return;
+    }
+    if (response.status === 400 && /Invalid chat message|timestamp is outside the 24-hour window/i.test(detail)) {
+      console.error(`[game-chat-forwarder] Skipping invalid log entry ${batch[0].id}: ${detail}`);
+      pending.shift();
+      batchLimit = 50;
+      return;
+    }
+    retryAfter = Date.now() + 30000;
+    throw new Error(`Chat feed returned HTTP ${response.status}: ${detail}`);
+  }
   pending = pending.slice(batch.length);
+  batchLimit = 50;
+  retryAfter = 0;
 }
 
 async function loop() {
@@ -67,4 +85,6 @@ async function loop() {
   if (pending.length > 500) pending = pending.slice(-500);
   setTimeout(loop, 2000);
 }
-loop();
+if (require.main === module) loop();
+
+module.exports = { poll };
