@@ -80,6 +80,15 @@ db.exec(`
     expires INTEGER NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS owner_logins (
+    steam_id TEXT PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    password_salt TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    session_version TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
   -- Official catalog of dinos the server offers for Valley Coin (admin-curated, not per-user fake data).
   CREATE TABLE IF NOT EXISTS marketplace_catalog (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
