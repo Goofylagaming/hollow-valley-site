@@ -69,50 +69,6 @@ const EXPERIMENTAL_QUESTS = Object.freeze([
     reward: "+5% boost"
   },
   {
-    id: "growth-25",
-    icon: "G",
-    category: "GROWTH",
-    cadence: "DAILY",
-    title: "Fresh Legs",
-    description: "Grow a dinosaur from spawn to at least 25% growth.",
-    target: "Reach 25%",
-    tracker: "Character growth",
-    reward: "1,500 VC"
-  },
-  {
-    id: "growth-50",
-    icon: "G",
-    category: "GROWTH",
-    cadence: "DAILY",
-    title: "Awkward Teen Phase",
-    description: "Reach at least 50% growth on an active dinosaur.",
-    target: "Reach 50%",
-    tracker: "Character growth",
-    reward: "2,500 VC"
-  },
-  {
-    id: "growth-75",
-    icon: "G",
-    category: "GROWTH",
-    cadence: "WEEKLY",
-    title: "Built Different",
-    description: "Take a dinosaur to at least 75% growth.",
-    target: "Reach 75%",
-    tracker: "Character growth",
-    reward: "4,000 VC"
-  },
-  {
-    id: "growth-adult",
-    icon: "A",
-    category: "GROWTH",
-    cadence: "WEEKLY",
-    title: "Full Send Adult",
-    description: "Reach full adult growth on any eligible dinosaur.",
-    target: "Reach 100%",
-    tracker: "Character growth",
-    reward: "7,500 VC"
-  },
-  {
     id: "explore-three-regions",
     icon: "M",
     category: "EXPLORATION",
@@ -255,6 +211,10 @@ function formatDuration(seconds) {
   return `${total}s`;
 }
 
+function formatCoins(value) {
+  return Math.max(0, Number(value) || 0).toLocaleString("en-AU");
+}
+
 function questMeta(quest) {
   return QUEST_META[quest.id] || {
     category: quest.cadence === "weekly" ? "WEEKLY" : "DAILY",
@@ -319,6 +279,67 @@ function questSection(title, subtitle, quests) {
     </div>
     <div class="quest-card-grid">
       ${quests.length ? quests.map(questCard).join("") : '<p class="section-intro">No quests available.</p>'}
+    </div>
+  </section>`;
+}
+
+function challengeCard(challenge) {
+  const targetGrowth = Math.max(0.01, Number(challenge.targetGrowth) || 1);
+  const progressGrowth = Math.max(0, Math.min(targetGrowth, Number(challenge.progressGrowth) || 0));
+  const progressPercent = challenge.completed
+    ? 100
+    : Math.max(0, Math.min(100, Number(challenge.progressPercent) || Math.round((progressGrowth / targetGrowth) * 100)));
+  const progressLabel = `${Math.round(progressGrowth * 100)}%`;
+  const targetLabel = `${Math.round(targetGrowth * 100)}%`;
+  const cadence = challenge.cadence === "weekly" ? "WEEKLY" : "DAILY";
+
+  return `<article class="quest-card ${challenge.completed ? "completed" : ""}" data-challenge-id="${escapeHtml(challenge.id)}">
+    <div class="quest-card-top">
+      <div class="quest-card-icon">${escapeHtml(challenge.icon || "Q")}</div>
+      <div class="quest-card-heading">
+        <div class="quest-card-tags">
+          <span>${escapeHtml(challenge.category || "CHALLENGE")}</span>
+          <em>${cadence}</em>
+        </div>
+        <h3>${escapeHtml(challenge.title)}</h3>
+      </div>
+      <div class="quest-card-status ${challenge.completed ? "complete" : ""}">${challenge.completed ? "✓" : `${progressPercent}%`}</div>
+    </div>
+
+    <p class="quest-card-description">${escapeHtml(challenge.description)}</p>
+
+    <div class="quest-card-progress-row">
+      <strong>${progressLabel} <span>/ ${targetLabel}</span></strong>
+      <small>${challenge.completed ? "Objective completed" : escapeHtml(challenge.target || "Auto tracked")}</small>
+    </div>
+
+    <div class="quest-progress-track quest-card-track"><i style="width:${progressPercent}%"></i></div>
+
+    <div class="quest-card-footer">
+      <div class="quest-reward-block">
+        <span class="quest-coin-icon">V</span>
+        <div>
+          <small>VC REWARD</small>
+          <strong>+${formatCoins(challenge.rewardCoins)} VC</strong>
+        </div>
+      </div>
+      <span class="quest-auto-label">${challenge.completed ? "VC PAID" : "AUTO TRACKED"}</span>
+    </div>
+  </article>`;
+}
+
+function challengeSection(title, subtitle, challenges) {
+  if (!challenges.length) return "";
+  return `<section class="quest-group">
+    <div class="quest-group-heading">
+      <div>
+        <span>${escapeHtml(title)}</span>
+        <small>${escapeHtml(subtitle)}</small>
+      </div>
+      <b>${challenges.filter((challenge) => challenge.completed).length}/${challenges.length} COMPLETE</b>
+    </div>
+    <div class="quest-card-grid">
+      ${challenges.map(challengeCard).join("")}
     </div>
   </section>`;
 }
@@ -393,13 +414,13 @@ function experimentalSection() {
     <div class="quest-group-heading">
       <div>
         <span>APPROVED CHALLENGE POOL</span>
-        <small>Daily rotation from the approved Hollow Valley quest pool · tracker rollout staged</small>
+        <small>Daily preview from the remaining approved Hollow Valley challenge pool</small>
       </div>
       <b>ROTATES DAILY</b>
     </div>
     <div class="quest-experimental-banner">
       <strong>APPROVED QUEST POOL</strong>
-      <span>These challenge concepts are approved for Hollow Valley. They remain outside your active boost until each required tracker is connected and validated.</span>
+      <span>Growth challenges are now live. The remaining approved challenges will move into the active rotation as each tracker is connected and validated.</span>
     </div>
     <div class="quest-card-grid">
       ${rotation.map(experimentalCard).join("")}
@@ -425,24 +446,31 @@ async function loadQuests() {
   try {
     const result = await api("/api/quests");
     const quests = Array.isArray(result.quests) ? result.quests : [];
-    const completed = quests.filter((quest) => quest.completed).length;
+    const challenges = Array.isArray(result.challenges) ? result.challenges : [];
+    const completed = quests.filter((quest) => quest.completed).length
+      + challenges.filter((challenge) => challenge.completed).length;
+    const total = quests.length + challenges.length;
 
     document.getElementById("quest-active-boost").textContent = `+${Number(result.activeBoostPercent || 0)}%`;
-    document.getElementById("quest-completed-count").textContent = `${completed} / ${quests.length}`;
+    document.getElementById("quest-completed-count").textContent = `${completed} / ${total}`;
 
     const intro = document.querySelector(".quest-section-intro");
     if (intro) {
       intro.textContent = result.trackingEnabled
-        ? "Progress updates automatically from verified Hollow Valley server activity."
+        ? "Progress updates automatically from verified Hollow Valley server activity. VC challenge rewards are paid directly to your wallet."
         : "Quest tracking is currently staged until verified presence sampling is enabled.";
     }
 
     const daily = quests.filter((quest) => quest.cadence === "daily");
     const weekly = quests.filter((quest) => quest.cadence === "weekly");
+    const dailyChallenges = challenges.filter((challenge) => challenge.cadence === "daily");
+    const weeklyChallenges = challenges.filter((challenge) => challenge.cadence === "weekly");
 
     listEl.innerHTML = [
       questSection("DAILY QUESTS", "Resets every Brisbane day", daily),
+      challengeSection("LIVE DAILY CHALLENGES", "Approved challenges · VC paid automatically", dailyChallenges),
       questSection("WEEKLY QUESTS", "Resets Monday at 00:00 Brisbane time", weekly),
+      challengeSection("LIVE WEEKLY CHALLENGES", "Approved challenges · VC paid automatically", weeklyChallenges),
       experimentalSection()
     ].join("");
   } catch (error) {
