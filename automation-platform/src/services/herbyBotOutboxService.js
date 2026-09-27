@@ -1,7 +1,7 @@
 const { randomUUID } = require('node:crypto');
 const store = require('./automationStore');
 
-const DESTINATIONS = new Set(['announcement', 'alert', 'game-chat']);
+const DESTINATIONS = new Set(['announcement', 'alert']);
 
 function configured() {
   return Boolean(String(process.env.HERBYBOT_AUTOMATION_TOKEN || '').trim());
