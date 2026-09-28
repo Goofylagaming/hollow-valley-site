@@ -1,7 +1,7 @@
 const MIN_PRIME_75_PRICE = 50000;
 
 const OFFICIAL_TIERS = Object.freeze([
-  { key: '50', growth: 50, label: '50%', isPrime: false, priceMultiplier: 0.75 },
+  { key: '49', growth: 49, label: '49%', isPrime: false, priceMultiplier: 0.75 },
   { key: '75', growth: 75, label: '75%', isPrime: true, priceMultiplier: 1.15, minimumPrice: MIN_PRIME_75_PRICE },
 ]);
 
@@ -33,7 +33,7 @@ function assertOfficialDinoSalePolicy(item) {
   if (Boolean(item.payload?.isPrime) !== tier.isPrime) {
     const error = new Error(tier.isPrime
       ? 'Official 75% dinosaurs must include Prime'
-      : 'Official 50% dinosaurs cannot include Prime');
+      : 'Official 49% dinosaurs cannot include Prime');
     error.code = 'CATALOG_ITEM_UNAVAILABLE';
     throw error;
   }
