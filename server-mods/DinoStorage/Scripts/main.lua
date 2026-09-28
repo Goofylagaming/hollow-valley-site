@@ -735,6 +735,12 @@ local function writeMarketplaceGrant(steam, slot, classPath, growth, isPrime, or
         string.format('  "capturedAt": %d,', os.time()),
         string.format('  "classPath": "%s",', jsonEscape(classPath)),
         string.format('  "growth": %.6f,', growth),
+        -- Marketplace dinosaurs are fresh purchases rather than parked snapshots.
+        -- Seed them fully fed/hydrated and let fullNutrients fill Carb/Protein/Lipid on redeem.
+        '  "hunger": 9999.0,',
+        '  "thirst": 9999.0,',
+        '  "food": 9999.0,',
+        '  "fullNutrients": true,',
     }
 
     if prime then
@@ -1544,7 +1550,7 @@ local function pollCmdFlag()
                         if fileExists(newPath) then
                             ok = false; msg = "a slot named '" .. newSlot .. "' already exists"
                         else
-                            local renameOk = os.rename(oldPath, newPath)
+                            local renameOk = os.rename(oldPath, newSlot)
                             if renameOk then
                                 ok = true; msg = string.format("renamed '%s' to '%s'", oldSlot, newSlot)
                             else
