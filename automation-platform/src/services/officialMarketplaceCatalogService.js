@@ -6,7 +6,7 @@ const {
   assertOfficialDinoSalePolicy,
 } = require('./officialMarketplacePolicy');
 
-const OFFICIAL_CATALOG_POLICY_VERSION = 2;
+const OFFICIAL_CATALOG_POLICY_VERSION = 3;
 
 const OFFICIAL_DINO_CATALOG = Object.freeze([
   ['tyrannosaurus', 'Tyrannosaurus', 3680],
@@ -39,12 +39,13 @@ const CLASS_PATHS = Object.freeze(Object.fromEntries(
 ));
 
 function desiredTierPrice({ speciesId, tier, basePrice }) {
-  const legacyId = tier.key === '50'
+  const legacyId = tier.key === '49'
     ? `dino:${speciesId}:mid`
     : `dino:${speciesId}:high`;
   const existingNew = store.getCatalogItem(`dino:${speciesId}:${tier.key}`);
+  const previous50 = tier.key === '49' ? store.getCatalogItem(`dino:${speciesId}:50`) : null;
   const legacy = store.getCatalogItem(legacyId);
-  const existingPrice = Number(existingNew?.price ?? legacy?.price);
+  const existingPrice = Number(existingNew?.price ?? previous50?.price ?? legacy?.price);
   const defaultPrice = Math.max(1, Math.round(basePrice * tier.priceMultiplier));
   const price = Number.isSafeInteger(existingPrice) && existingPrice > 0 ? existingPrice : defaultPrice;
   return tier.minimumPrice ? Math.max(tier.minimumPrice, price) : price;
@@ -62,10 +63,9 @@ function seedOfficialCatalog() {
       const price = desiredTierPrice({ speciesId, tier, basePrice });
       const migratedToCurrentPolicy = Number(existing?.payload?.officialCatalogPolicyVersion || 0)
         >= OFFICIAL_CATALOG_POLICY_VERSION;
-      // Policy v2 is the first reliable 50% / 75%-Prime migration. Rows touched
-      // by the earlier faulty migration can already look structurally correct
-      // while still carrying an inherited disabled state. Force them active once,
-      // stamp v2 below, then preserve intentional admin disables on later seeds.
+      // Policy v3 migrates the normal tier from 50% to 49% while preserving
+      // existing admin pricing. Force migrated rows active once, stamp v3 below,
+      // then preserve intentional admin disables on later seeds.
       const active = migratedToCurrentPolicy ? existing.active !== false : true;
 
       items.push(store.upsertCatalogItem({
@@ -74,7 +74,7 @@ function seedOfficialCatalog() {
         name: `${speciesName} ${tier.label}${tier.isPrime ? ' Prime' : ''}`,
         description: tier.isPrime
           ? `Official Hollow Valley ${speciesName} at 75% growth with Prime.`
-          : `Official Hollow Valley ${speciesName} at 50% growth.`,
+          : `Official Hollow Valley ${speciesName} at 49% growth.`,
         price,
         payload: {
           speciesId,
