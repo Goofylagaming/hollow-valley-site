@@ -1,22 +1,31 @@
 (() => {
   const escapeHtml = window.HDS?.escapeHtml || ((value) => String(value ?? ""));
 
-  function stateLabel(life) {
-    const state = String(life?.lifecycleState || "dead").toLowerCase();
+  function normalizedState(life, storageAvailable) {
+    const state = String(life?.lifecycleState || "unknown").toLowerCase();
+    if (["active", "parked", "entombed"].includes(state)) return state;
+    if (state === "dead" && storageAvailable) return "dead";
+    return "unknown";
+  }
+
+  function stateLabel(life, storageAvailable) {
+    const state = normalizedState(life, storageAvailable);
     if (state === "active") return "ACTIVE";
     if (state === "parked") return "PARKED";
     if (state === "entombed") return "ENTOMBED";
-    return "DEAD";
+    if (state === "dead") return "DEAD";
+    return "UNKNOWN";
   }
 
-  function stateNote(life) {
-    const state = String(life?.lifecycleState || "dead").toLowerCase();
+  function stateNote(life, storageAvailable) {
+    const state = normalizedState(life, storageAvailable);
     if (state === "active") return "Current tracked in-game life";
     if (state === "parked") return life?.parkedSlot
       ? `Matched DinoStorage slot ${life.parkedSlot}`
       : "Matched a Hollow Valley DinoStorage capture";
     if (state === "entombed") return "100% same-species growth reset with no matching parked DinoStorage capture";
-    return "Life ended without a matching parked DinoStorage capture";
+    if (state === "dead") return "Life ended with DinoStorage checked and no matching parked capture";
+    return "Storage evidence unavailable — this life has not been classified as dead";
   }
 
   function lifeDate(value) {
@@ -45,10 +54,11 @@
 
     const panel = document.querySelector("#prime-tracker-card .prime-tracker-panel");
     const history = Array.isArray(state?.history) ? state.history : [];
+    const storageAvailable = state?.storageEvidence?.available === true;
     if (!panel || !history.length) return;
 
     const rows = history.slice(0, 8).map((life) => {
-      const label = stateLabel(life);
+      const label = stateLabel(life, storageAvailable);
       const growth = Math.round((Number(life?.growth) || 0) * 100);
       const ended = life?.endedAt ? `Ended ${lifeDate(life.endedAt)}` : `Seen ${lifeDate(life.lastSeenAt)}`;
       const inferred = life?.stateConfidence === "inferred" ? " · inferred" : "";
@@ -61,20 +71,24 @@
           </div>
           <div class="prime-zone-meta">
             <b>${escapeHtml(label)}</b>
-            <span>${escapeHtml(stateNote(life))}${escapeHtml(inferred)}</span>
+            <span>${escapeHtml(stateNote(life, storageAvailable))}${escapeHtml(inferred)}</span>
           </div>
         </div>`;
     }).join("");
 
+    const evidenceText = storageAvailable
+      ? "DinoStorage evidence is available for this view."
+      : "DinoStorage evidence is unavailable. Ended lives stay UNKNOWN until storage can be verified.";
+
     panel.insertAdjacentHTML("beforeend", `
       <div class="list-heading prime-history-heading">
         <span>DINO LIFE HISTORY</span>
-        <small>Active / Parked / Entombed / Dead</small>
+        <small>Active / Parked / Entombed / Dead / Unknown</small>
       </div>
       <div class="prime-zone-history">${rows}</div>
       <div class="prime-tracker-note">
-        <strong>ENTOMB DETECTION</strong>
-        <span>Parked is confirmed from DinoStorage. Entombed is inferred only when a 98.5%+ life resets into the same species and no matching DinoStorage capture exists. Everything else that ended is shown as Dead.</span>
+        <strong>DINO HISTORY CLASSIFICATION</strong>
+        <span>${escapeHtml(evidenceText)} Parked is confirmed from DinoStorage. Entombed is inferred only when a 98.5%+ life resets into the same species.</span>
       </div>`);
   };
 })();
