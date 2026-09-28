@@ -33,7 +33,7 @@ function loadFixture() {
   };
 }
 
-test('official marketplace seeds exactly 50% and 75% Prime tiers', (t) => {
+test('official marketplace seeds exactly 49% and 75% Prime tiers', (t) => {
   const fixture = loadFixture();
   t.after(fixture.cleanup);
 
@@ -44,33 +44,34 @@ test('official marketplace seeds exactly 50% and 75% Prime tiers', (t) => {
   assert.equal(active.length, fixture.catalog.OFFICIAL_DINO_CATALOG.length * 2);
   assert.deepEqual(
     [...new Set(active.map((item) => item.payload.growthTier))].sort(),
-    ['50', '75']
+    ['49', '75']
   );
   assert.deepEqual(
     [...new Set(active.map((item) => Number(item.payload.growthPercent)))].sort((a, b) => a - b),
-    [50, 75]
+    [49, 75]
   );
   assert.equal(active.some((item) => Number(item.payload.growthPercent) === 100), false);
-  assert.equal(active.filter((item) => item.payload.growthTier === '50').every((item) => item.payload.isPrime === false), true);
+  assert.equal(active.filter((item) => item.payload.growthTier === '49').every((item) => item.payload.isPrime === false), true);
   assert.equal(active.filter((item) => item.payload.growthTier === '75').every((item) => item.payload.isPrime === true), true);
   assert.equal(active.filter((item) => item.payload.growthTier === '75').every((item) => item.price >= 50000), true);
 });
 
-test('legacy marketplace tiers including 100% Prime are retired on seed', (t) => {
+test('legacy marketplace tiers including prior 50% and 100% Prime are retired on seed', (t) => {
   const fixture = loadFixture();
   t.after(fixture.cleanup);
 
-  for (const [id, growthTier, growth, isPrime] of [
-    ['dino:carnotaurus:starter', 'starter', 35, false],
-    ['dino:carnotaurus:mid', 'mid', 60, false],
-    ['dino:carnotaurus:high', 'high', 85, false],
-    ['dino:carnotaurus:prime', 'prime', 100, true],
+  for (const [id, growthTier, growth, isPrime, price] of [
+    ['dino:carnotaurus:starter', 'starter', 35, false, 1400],
+    ['dino:carnotaurus:mid', 'mid', 60, false, 1400],
+    ['dino:carnotaurus:50', '50', 50, false, 12345],
+    ['dino:carnotaurus:high', 'high', 85, false, 1400],
+    ['dino:carnotaurus:prime', 'prime', 100, true, 1400],
   ]) {
     fixture.store.upsertCatalogItem({
       id,
       itemType: 'dino',
       name: `Carnotaurus ${growth}%`,
-      price: 1400,
+      price,
       payload: {
         speciesId: 'carnotaurus',
         species: 'Carnotaurus',
@@ -92,29 +93,29 @@ test('legacy marketplace tiers including 100% Prime are retired on seed', (t) =>
   for (const id of [
     'dino:carnotaurus:starter',
     'dino:carnotaurus:mid',
+    'dino:carnotaurus:50',
     'dino:carnotaurus:high',
     'dino:carnotaurus:prime',
   ]) {
     assert.equal(fixture.store.getCatalogItem(id).active, false);
   }
 
-  const fifty = fixture.store.getCatalogItem('dino:carnotaurus:50');
+  const fortyNine = fixture.store.getCatalogItem('dino:carnotaurus:49');
   const seventyFive = fixture.store.getCatalogItem('dino:carnotaurus:75');
-  assert.equal(fifty.active, true);
-  assert.equal(fifty.payload.growthPercent, 50);
-  assert.equal(fifty.payload.isPrime, false);
+  assert.equal(fortyNine.active, true);
+  assert.equal(fortyNine.payload.growthPercent, 49);
+  assert.equal(fortyNine.payload.isPrime, false);
+  assert.equal(fortyNine.price, 12345);
   assert.equal(seventyFive.active, true);
   assert.equal(seventyFive.payload.growthPercent, 75);
   assert.equal(seventyFive.payload.isPrime, true);
   assert.equal(seventyFive.price, 50000);
 });
 
-test('faulty pre-v2 75% rows reactivate once, then admin disables are preserved', (t) => {
+test('pre-current-policy 75% rows reactivate once, then admin disables are preserved', (t) => {
   const fixture = loadFixture();
   t.after(fixture.cleanup);
 
-  // Reproduce the bad first migration: row already looks like a valid 75% Prime
-  // item, but it inherited active=false and has no policy-version stamp.
   fixture.store.upsertCatalogItem({
     id: 'dino:carnotaurus:75',
     itemType: 'dino',
@@ -161,14 +162,14 @@ test('admin can edit prices but cannot underprice the 75% Prime tier', (t) => {
   t.after(fixture.cleanup);
   fixture.catalog.seedOfficialCatalog();
 
-  const fifty = fixture.catalog.updateOfficialCatalogItem({
-    catalogId: 'dino:carnotaurus:50',
+  const fortyNine = fixture.catalog.updateOfficialCatalogItem({
+    catalogId: 'dino:carnotaurus:49',
     price: 12345,
     active: true,
   });
-  assert.equal(fifty.price, 12345);
-  assert.equal(fifty.payload.growthPercent, 50);
-  assert.equal(fifty.payload.isPrime, false);
+  assert.equal(fortyNine.price, 12345);
+  assert.equal(fortyNine.payload.growthPercent, 49);
+  assert.equal(fortyNine.payload.isPrime, false);
 
   assert.throws(
     () => fixture.catalog.updateOfficialCatalogItem({
