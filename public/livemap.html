@@ -6,7 +6,7 @@
   <meta name="description" content="Gateway map with live Hollow Valley positions when available and verified activity history during downtime.">
   <title>Live map | Hollow Valley</title>
   <link rel="stylesheet" href="assets/styles.css?v=20">
-  <link rel="stylesheet" href="assets/livemap-trail.css?v=1">
+  <link rel="stylesheet" href="assets/livemap-trail.css?v=2">
 </head>
 <body>
   <div class="app-shell">
@@ -27,6 +27,7 @@
         </div>
         <div class="map-history-note" id="map-history-note">Loading verified activity history…</div>
         <div id="tracker-character" class="char-panel"><div class="empty-roster"><strong>Loading&hellip;</strong><span>Checking the server for your character.</span></div></div>
+        <div id="prime-map-summary" class="prime-map-summary"><div class="panel prime-map-summary-panel"><p class="overline green">PRIME TRACKER</p><p class="section-intro">Loading tracked Prime progress…</p></div></div>
         <div id="prime-map-checklist" class="prime-map-checklist"><div class="panel prime-tracker-panel"><p class="overline green">PRIME CHECKLIST</p><p class="section-intro">Loading this dinosaur's Prime evidence…</p></div></div>
         <div class="tracker-grid">
           <div class="map-canvas-wrap">
@@ -75,6 +76,7 @@
   </div>
   <script src="assets/common.js?v=16"></script>
   <script src="assets/livemap.js?v=14"></script>
+  <script src="assets/livemap-prime-summary.js?v=1"></script>
   <script src="assets/livemap-trail.js?v=1"></script>
 </body>
 </html>
