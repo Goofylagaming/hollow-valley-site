@@ -68,6 +68,12 @@ function buildStoredState(order) {
     capturedAt: Math.floor(Date.now() / 1000),
     classPath: dino.classPath,
     growth: dino.growth,
+    // Official Marketplace dinos are newly purchased stock, not parked snapshots.
+    // Start them fully fed/hydrated and fill the three normal diet nutrients on redeem.
+    hunger: 9999,
+    thirst: 9999,
+    food: 9999,
+    fullNutrients: true,
     ...(dino.isPrime ? { isPrime: true, primeData: { eligible: true, cond1: true, cond2: true } } : {}),
     marketplacePurchase: {
       orderId: order.id,
