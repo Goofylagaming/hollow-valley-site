@@ -53,39 +53,40 @@ function integrationConfig() {
   };
 }
 
-async function getServerSnapshot({ force = false } = {}) {
+function decorateRconSnapshot(snapshot, fallbackReason = null) {
+  return {
+    ...snapshot,
+    source: fallbackReason ? 'rcon-fallback' : 'rcon',
+    fallbackReason: fallbackReason || null,
+  };
+}
+
+async function getRconSnapshot({ force = false, fallbackReason = null } = {}) {
   const integrations = integrationConfig();
-
-  // When the BinaryLane presence feed is configured, it is the authoritative
-  // read source for website/player-map snapshots. This keeps public RCON closed.
-  if (integrations.externalPresence) {
-    const latest = externalServerSnapshot.readLatest();
-    if (latest) return latest;
-
-    const stale = externalServerSnapshot.readLatest({ allowStale: true });
-    return {
+  if (!integrations.rcon) {
+    return decorateRconSnapshot({
       online: false,
-      configured: true,
+      configured: false,
       players: [],
       characters: [],
-      maxPlayers: Number(process.env.MAX_PLAYERS || 0) || null,
-      checkedAt: stale?.checkedAt || null,
-      cached: true,
-      source: 'external-presence',
-      error: stale ? 'External presence snapshot is stale' : 'External presence snapshot is not available yet',
-    };
-  }
-
-  if (!integrations.rcon) {
-    return { online: false, configured: false, players: [], characters: [], maxPlayers: null, error: null };
+      maxPlayers: null,
+      error: null,
+    }, fallbackReason);
   }
 
   const now = Date.now();
   if (!force && cachedServer && now - cachedAt < cacheMs()) {
-    return { ...cachedServer, configured: true, cached: true, error: cachedError };
+    return decorateRconSnapshot({
+      ...cachedServer,
+      configured: true,
+      cached: true,
+      error: cachedError,
+    }, fallbackReason);
   }
 
-  if (inFlight) return inFlight;
+  if (inFlight) {
+    return decorateRconSnapshot(await inFlight, fallbackReason);
+  }
 
   inFlight = (async () => {
     try {
@@ -122,7 +123,52 @@ async function getServerSnapshot({ force = false } = {}) {
     }
   })();
 
-  return inFlight;
+  return decorateRconSnapshot(await inFlight, fallbackReason);
+}
+
+async function getServerSnapshot({ force = false } = {}) {
+  const integrations = integrationConfig();
+
+  // BinaryLane presence remains the preferred source because it carries the
+  // richest live character/map data. If that feed goes stale, however, a
+  // working RCON connection is enough proof that the game server is still up.
+  if (integrations.externalPresence) {
+    const latest = externalServerSnapshot.readLatest();
+    if (latest) return latest;
+
+    const stale = externalServerSnapshot.readLatest({ allowStale: true });
+    const presenceError = stale
+      ? 'External presence snapshot is stale'
+      : 'External presence snapshot is not available yet';
+
+    if (integrations.rcon) {
+      const fallback = await getRconSnapshot({ force, fallbackReason: presenceError });
+      if (fallback.online) {
+        return {
+          ...fallback,
+          error: null,
+        };
+      }
+      return {
+        ...fallback,
+        error: fallback.error || presenceError,
+      };
+    }
+
+    return {
+      online: false,
+      configured: true,
+      players: [],
+      characters: [],
+      maxPlayers: Number(process.env.MAX_PLAYERS || 0) || null,
+      checkedAt: stale?.checkedAt || null,
+      cached: true,
+      source: 'external-presence',
+      error: presenceError,
+    };
+  }
+
+  return getRconSnapshot({ force });
 }
 
 function moduleState() {
@@ -229,6 +275,7 @@ module.exports = {
   getPublicStatus,
   getAdminStatus,
   getServerSnapshot,
+  getRconSnapshot,
   integrationConfig,
   commandBridgePublisherReady,
   requestSummary,
