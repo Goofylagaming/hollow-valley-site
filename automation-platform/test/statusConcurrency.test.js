@@ -3,22 +3,27 @@ const assert = require('node:assert/strict');
 
 process.env.AUTOMATION_DB_PATH = ':memory:';
 
-function fixture() {
+function fixture({ externalPresence = false } = {}) {
   const rconPath = require.resolve('../src/adapters/evrimaRcon');
+  const externalPath = require.resolve('../src/services/externalServerSnapshotService');
   const statusPath = require.resolve('../src/services/statusService');
   const originalRcon = require(rconPath);
+  const originalExternal = require(externalPath);
   const previous = {
     RCON_HOST: process.env.RCON_HOST,
     RCON_PORT: process.env.RCON_PORT,
     RCON_PASSWORD: process.env.RCON_PASSWORD,
     RCON_STATUS_CACHE_MS: process.env.RCON_STATUS_CACHE_MS,
     RCON_DISABLED: process.env.RCON_DISABLED,
+    PRESENCE_FEED_TOKEN: process.env.PRESENCE_FEED_TOKEN,
   };
   process.env.RCON_HOST = '127.0.0.1';
   process.env.RCON_PORT = '7777';
   process.env.RCON_PASSWORD = 'test-secret';
   process.env.RCON_STATUS_CACHE_MS = '55000';
   process.env.RCON_DISABLED = 'false';
+  if (externalPresence) process.env.PRESENCE_FEED_TOKEN = 'presence-test-secret';
+  else delete process.env.PRESENCE_FEED_TOKEN;
 
   let calls = 0;
   require.cache[rconPath].exports = {
@@ -40,6 +45,23 @@ function fixture() {
     },
   };
 
+  require.cache[externalPath].exports = externalPresence
+    ? {
+        ...originalExternal,
+        readLatest({ allowStale = false } = {}) {
+          if (!allowStale) return null;
+          return {
+            online: true,
+            players: [{ steamId: '76561198000000099', name: 'Old' }],
+            characters: [],
+            checkedAt: '2026-09-28T00:00:00.000Z',
+            source: 'external-presence',
+            stale: true,
+          };
+        },
+      }
+    : originalExternal;
+
   delete require.cache[statusPath];
   const service = require(statusPath);
 
@@ -48,6 +70,7 @@ function fixture() {
     calls: () => calls,
     restore() {
       require.cache[rconPath].exports = originalRcon;
+      require.cache[externalPath].exports = originalExternal;
       delete require.cache[statusPath];
       for (const [key, value] of Object.entries(previous)) {
         if (value === undefined) delete process.env[key];
@@ -107,4 +130,18 @@ test('default minute-scale cache avoids extra routine player-list reads', async 
   await f.service.getServerSnapshot();
 
   assert.equal(f.calls(), 1);
+});
+
+test('stale external presence falls back to RCON instead of reporting the server offline', async (t) => {
+  const f = fixture({ externalPresence: true });
+  t.after(f.restore);
+
+  const result = await f.service.getServerSnapshot({ force: true });
+
+  assert.equal(f.calls(), 1);
+  assert.equal(result.online, true);
+  assert.equal(result.source, 'rcon-fallback');
+  assert.match(result.fallbackReason, /presence snapshot is stale/i);
+  assert.equal(result.error, null);
+  assert.equal(result.players.length, 1);
 });
