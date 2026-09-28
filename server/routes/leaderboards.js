@@ -5,15 +5,22 @@ const router = express.Router();
 
 router.get("/", async (_req, res) => {
   const response = {
-    mostKills: [],
-    bestKd: [],
+    dailyKills: [],
+    dailyKd: [],
+    weeklyKills: [],
+    weeklyKd: [],
     mostPlaytime: [],
     mostLevels: [],
     combatFeedEnabled: false,
     combatFeedConfigured: false,
     combatEventCount: 0,
     combatLatestEventAt: null,
-    combatWindowHours: 24 * 31,
+    dailyCombatWindowStart: null,
+    dailyCombatWindowEnd: null,
+    weeklyCombatWindowStart: null,
+    weeklyCombatWindowEnd: null,
+    dailyKdMinKills: 3,
+    weeklyKdMinKills: 10,
     playtimeWindowHours: 24 * 31,
     playtimeTrackingEnabled: false,
     playtimeWindowStart: null,
@@ -21,14 +28,25 @@ router.get("/", async (_req, res) => {
   };
 
   try {
-    const combat = await automation.getCombatLeaderboard({ hours: 24 * 31 });
-    response.mostKills = Array.isArray(combat.mostKills) ? combat.mostKills : [];
-    response.bestKd = Array.isArray(combat.bestKd) ? combat.bestKd : [];
-    response.combatFeedEnabled = combat.enabled === true;
-    response.combatFeedConfigured = combat.configured === true;
-    response.combatEventCount = Number(combat.eventCount || 0);
-    response.combatLatestEventAt = combat.latestEventAt || null;
-    response.combatWindowHours = Number(combat.windowHours || 24 * 31);
+    const [daily, weekly] = await Promise.all([
+      automation.getCombatLeaderboard({ hours: 24 }),
+      automation.getCombatLeaderboard({ hours: 24 * 7 }),
+    ]);
+
+    response.dailyKills = Array.isArray(daily.mostKills) ? daily.mostKills : [];
+    response.dailyKd = Array.isArray(daily.bestKd) ? daily.bestKd : [];
+    response.weeklyKills = Array.isArray(weekly.mostKills) ? weekly.mostKills : [];
+    response.weeklyKd = Array.isArray(weekly.bestKd) ? weekly.bestKd : [];
+    response.combatFeedEnabled = daily.enabled === true || weekly.enabled === true;
+    response.combatFeedConfigured = daily.configured === true || weekly.configured === true;
+    response.combatEventCount = Number(daily.eventCount || 0) + Number(weekly.eventCount || 0);
+    response.combatLatestEventAt = [daily.latestEventAt, weekly.latestEventAt].filter(Boolean).sort().at(-1) || null;
+    response.dailyCombatWindowStart = daily.windowStart || null;
+    response.dailyCombatWindowEnd = daily.windowEnd || null;
+    response.weeklyCombatWindowStart = weekly.windowStart || null;
+    response.weeklyCombatWindowEnd = weekly.windowEnd || null;
+    response.dailyKdMinKills = Number(daily.minimumKdKills || 3);
+    response.weeklyKdMinKills = Number(weekly.minimumKdKills || 10);
   } catch (error) {
     console.warn("[leaderboards] verified combat automation unavailable:", error.message);
   }
