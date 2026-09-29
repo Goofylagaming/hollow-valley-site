@@ -156,7 +156,12 @@ function renderFilterContent(result, filter) {
   return sections || `<div class="empty-roster"><strong>No ${escapeHtml(label.toLowerCase())} challenges yet</strong><span>Nothing is currently released or staged in this category.</span></div>`;
 }
 
+let selectedQuestFilter = "daily";
+let questRefreshRunning = false;
+let hasQuestData = false;
+
 function renderQuestBoard(listEl, result, activeFilter) {
+  selectedQuestFilter = activeFilter;
   listEl.innerHTML = `${filterBar(activeFilter)}${renderFilterContent(result, activeFilter)}`;
   listEl.querySelectorAll("[data-quest-filter]").forEach((button) => {
     button.addEventListener("click", () => renderQuestBoard(listEl, result, button.dataset.questFilter || "daily"));
@@ -164,6 +169,16 @@ function renderQuestBoard(listEl, result, activeFilter) {
 }
 
 async function loadQuests() {
+  if (questRefreshRunning || document.hidden) return;
+  questRefreshRunning = true;
+  try {
+    await refreshQuests();
+  } finally {
+    questRefreshRunning = false;
+  }
+}
+
+async function refreshQuests() {
   const me = await window.HDS.loadMe();
   const guard = document.getElementById("quests-guard");
   const content = document.getElementById("quests-content");
@@ -173,7 +188,7 @@ async function loadQuests() {
 
   const listEl = document.getElementById("quest-list");
   try {
-    const result = await api("/api/quests");
+    const result = await api("/api/quests", { cache: "no-store" });
     const quests = Array.isArray(result.quests) ? result.quests : [];
     const challenges = Array.isArray(result.challenges) ? result.challenges : [];
     const completed = quests.filter((quest) => quest.completed).length + challenges.filter((challenge) => challenge.completed).length;
@@ -183,10 +198,20 @@ async function loadQuests() {
     if (intro) intro.textContent = result.trackingEnabled
       ? "Pick a category below. Progress updates automatically from verified server activity and VC challenge rewards pay directly to your wallet."
       : "Quest tracking is currently staged until verified presence sampling is enabled.";
-    renderQuestBoard(listEl, result, "daily");
+    renderQuestBoard(listEl, result, selectedQuestFilter);
+    hasQuestData = true;
   } catch (error) {
+    if (hasQuestData) {
+      const intro = document.querySelector(".quest-section-intro");
+      if (intro) intro.textContent = "Quest refresh failed. Showing the last received progress; retrying automatically.";
+      return;
+    }
     listEl.innerHTML = `<div class="empty-roster"><strong>Could not load quests</strong><span>${escapeHtml(error.message || "Quest data unavailable.")}</span></div>`;
   }
 }
 
 loadQuests();
+setInterval(loadQuests, 30000);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) loadQuests();
+});

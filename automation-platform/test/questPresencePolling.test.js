@@ -1,0 +1,32 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+process.env.AUTOMATION_DB_PATH = ':memory:';
+process.env.PLAYER_PRESENCE_ENABLED = 'true';
+process.env.PLAYER_PRESENCE_INTERVAL_MS = '300000';
+process.env.WALLET_PLAYTIME_REWARDS_ENABLED = 'false';
+process.env.SUPPORTER_COIN_BONUSES_ENABLED = 'false';
+process.env.JOIN_MESSAGE_ENABLED = 'false';
+delete process.env.QUEST_MAX_SAMPLE_GAP_SECONDS;
+let snapshot;
+const statusPath = require.resolve('../src/services/statusService');
+require(statusPath);
+require.cache[statusPath].exports = { getServerSnapshot: async () => snapshot };
+const presence = require('../src/services/playerPresenceService');
+const store = require('../src/services/economyStore');
+
+test('presence uses observation time and does not re-credit external or cached snapshots', async () => {
+  const steamId = '76561198000000805';
+  const start = Date.parse('2026-09-29T00:00:00Z');
+  snapshot = { configured: true, online: true, source: 'rcon', players: [{ steamId }], characters: [], checkedAt: new Date(start).toISOString() };
+  await presence.samplePresence();
+  snapshot.checkedAt = new Date(start + 300000).toISOString();
+  await presence.samplePresence();
+  assert.equal(store.getQuestState(steamId).daily_total_seconds, 300);
+  await presence.samplePresence();
+  assert.equal(store.getQuestState(steamId).daily_streak_seconds, 300);
+  snapshot.source = 'external-presence';
+  snapshot.checkedAt = new Date(start + 360000).toISOString();
+  const result = await presence.samplePresence();
+  assert.equal(result.rewards.reason, 'already-tracked-by-external-feed');
+  assert.equal(store.getPlaytimeProgress(steamId).last_seen_ms, start + 300000);
+});

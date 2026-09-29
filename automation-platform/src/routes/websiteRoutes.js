@@ -110,6 +110,7 @@ router.get('/wallet/:steamId', (req, res) => {
 });
 
 router.get('/quests/:steamId', (req, res) => {
+  res.set('Cache-Control', 'private, no-store');
   try {
     const steamId = validateSteamId(req.params.steamId);
     res.json({

@@ -15,6 +15,7 @@ function mapAutomationError(error, fallback) {
 }
 
 router.get("/", requireAuth, async (req, res) => {
+  res.set("Cache-Control", "private, no-store");
   if (!req.user?.steam_id) {
     return res.status(400).json({ error: "Your Steam account is not linked. Please sign in with Steam first." });
   }
