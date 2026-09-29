@@ -56,13 +56,13 @@ test('species challenges pay VC after 90 verified minutes and do not duplicate',
   let herb = status.challenges.find((item) => item.id === 'herbivore-time');
   assert.equal(herb.completed, false);
   assert.equal(herb.progressSeconds, 45 * 60);
-  fixture.quests.updateQuestProgress(steamId, { elapsedSeconds: 45 * 60, continuous: true, nowMs: now + 45 * 60_000, player: { steamId, species: 'Triceratops', growth: 0.5 } });
+  fixture.quests.updateQuestProgress(steamId, { elapsedSeconds: 45 * 60, continuous: true, nowMs: now + 45 * 60_000, player: { steamId, species: 'Triceratops', growth: 0.49 } });
   status = fixture.quests.getQuestStatus(steamId, { nowMs: now + 45 * 60_000 });
   herb = status.challenges.find((item) => item.id === 'herbivore-time');
   assert.equal(herb.completed, true);
   assert.equal(herb.rewardCoins, 2500);
   assert.equal(fixture.store.getWallet(steamId).balance, 2500);
-  fixture.quests.updateQuestProgress(steamId, { elapsedSeconds: 60, continuous: true, nowMs: now + 46 * 60_000, player: { steamId, species: 'Triceratops', growth: 0.51 } });
+  fixture.quests.updateQuestProgress(steamId, { elapsedSeconds: 60, continuous: true, nowMs: now + 46 * 60_000, player: { steamId, species: 'Triceratops', growth: 0.49 } });
   assert.equal(fixture.store.getWallet(steamId).balance, 2500);
 });
 

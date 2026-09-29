@@ -46,11 +46,11 @@ test('catalog purchase debits wallet and creates one pending order atomically', 
   const steamId = '76561198000000006';
 
   store.upsertCatalogItem({
-    id: 'dino:carno:50',
+    id: 'dino:carno:49',
     itemType: 'dino',
-    name: 'Carnotaurus 50%',
+    name: 'Carnotaurus 49%',
     price: 400,
-    payload: { species: 'Carnotaurus', growth: 0.5, growthPercent: 50, sizePercent: 50, growthTier: '50', isPrime: false },
+    payload: { species: 'Carnotaurus', growth: 0.49, growthPercent: 49, sizePercent: 49, growthTier: '49', isPrime: false },
   });
   store.applyWalletTransaction({
     steamId,
@@ -62,7 +62,7 @@ test('catalog purchase debits wallet and creates one pending order atomically', 
 
   const first = marketplace.purchaseCatalogItem({
     steamId,
-    catalogId: 'dino:carno:50',
+    catalogId: 'dino:carno:49',
     idempotencyKey: 'purchase:interaction:001',
   });
   assert.equal(first.wallet.balance, 600);
@@ -71,7 +71,7 @@ test('catalog purchase debits wallet and creates one pending order atomically', 
 
   const duplicate = marketplace.purchaseCatalogItem({
     steamId,
-    catalogId: 'dino:carno:50',
+    catalogId: 'dino:carno:49',
     idempotencyKey: 'purchase:interaction:001',
   });
   assert.equal(duplicate.duplicate, true);
@@ -88,16 +88,16 @@ test('insufficient funds create neither debit nor marketplace order', (t) => {
   const steamId = '76561198000000007';
 
   store.upsertCatalogItem({
-    id: 'dino:rex:50',
+    id: 'dino:rex:49',
     itemType: 'dino',
-    name: 'Tyrannosaurus 50%',
+    name: 'Tyrannosaurus 49%',
     price: 1000,
-    payload: { species: 'Tyrannosaurus', growth: 0.5, growthPercent: 50, sizePercent: 50, growthTier: '50', isPrime: false },
+    payload: { species: 'Tyrannosaurus', growth: 0.49, growthPercent: 49, sizePercent: 49, growthTier: '49', isPrime: false },
   });
 
   assert.throws(() => marketplace.purchaseCatalogItem({
     steamId,
-    catalogId: 'dino:rex:50',
+    catalogId: 'dino:rex:49',
     idempotencyKey: 'purchase:interaction:002',
   }), (error) => error.code === 'INSUFFICIENT_FUNDS');
 
@@ -112,11 +112,11 @@ test('failed pending order can be refunded idempotently', (t) => {
   const steamId = '76561198000000008';
 
   store.upsertCatalogItem({
-    id: 'dino:dryo:50',
+    id: 'dino:dryo:49',
     itemType: 'dino',
-    name: 'Dryosaurus 50%',
+    name: 'Dryosaurus 49%',
     price: 200,
-    payload: { species: 'Dryosaurus', growth: 0.5, growthPercent: 50, sizePercent: 50, growthTier: '50', isPrime: false },
+    payload: { species: 'Dryosaurus', growth: 0.49, growthPercent: 49, sizePercent: 49, growthTier: '49', isPrime: false },
   });
   store.applyWalletTransaction({
     steamId,
@@ -128,7 +128,7 @@ test('failed pending order can be refunded idempotently', (t) => {
 
   const purchase = marketplace.purchaseCatalogItem({
     steamId,
-    catalogId: 'dino:dryo:50',
+    catalogId: 'dino:dryo:49',
     idempotencyKey: 'purchase:interaction:003',
   });
   marketplace.markOrderFailed(purchase.order.id, 'Fulfillment failed');
@@ -150,11 +150,11 @@ test('official purchase is fail-closed before any debit when fulfillment gate is
   const steamId = '76561198000000011';
 
   store.upsertCatalogItem({
-    id: 'dino:carno:50',
+    id: 'dino:carno:49',
     itemType: 'dino',
-    name: 'Carnotaurus 50%',
+    name: 'Carnotaurus 49%',
     price: 400,
-    payload: { species: 'Carnotaurus', growth: 0.5, growthPercent: 50, sizePercent: 50, growthTier: '50', isPrime: false },
+    payload: { species: 'Carnotaurus', growth: 0.49, growthPercent: 49, sizePercent: 49, growthTier: '49', isPrime: false },
   });
   store.applyWalletTransaction({
     steamId,
@@ -167,7 +167,7 @@ test('official purchase is fail-closed before any debit when fulfillment gate is
   process.env.OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED = 'false';
   assert.throws(() => marketplace.purchaseCatalogItem({
     steamId,
-    catalogId: 'dino:carno:50',
+    catalogId: 'dino:carno:49',
     idempotencyKey: 'purchase:disabled:001',
   }), (error) => error.code === 'OFFICIAL_MARKETPLACE_FULFILLMENT_DISABLED');
 
