@@ -516,7 +516,12 @@ async function samplePresence({ force = false } = {}) {
 
     let rewards;
     try {
-      rewards = playtimeRewards.rewardOnlinePlayers(players, { nowMs: Date.parse(nowIso) });
+      rewards = snapshot.source === 'external-presence'
+        ? { skipped: true, reason: 'already-tracked-by-external-feed' }
+        : playtimeRewards.rewardOnlinePlayers(players, {
+          nowMs: Date.parse(snapshot.checkedAt || nowIso),
+          expectedIntervalMs: intervalMs(),
+        });
     } catch (error) {
       console.warn('[playtime-rewards]', error.message);
       rewards = { skipped: true, reason: 'reward-error', error: error.message };

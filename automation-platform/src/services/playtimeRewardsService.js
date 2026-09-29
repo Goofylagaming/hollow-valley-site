@@ -33,7 +33,15 @@ function state() {
   };
 }
 
-function rewardOnlinePlayers(players, { nowMs = Date.now() } = {}) {
+function questMaxSampleGapSeconds(expectedIntervalMs = 0) {
+  // Keep the wallet's payout policy separate from quest tracking. Direct RCON
+  // samples arrive every 5–10 minutes; allow one interval plus scheduling jitter.
+  const fallback = Math.max(maxSampleGapSeconds(), Number(expectedIntervalMs) / 1000 + 30);
+  const configured = Number(process.env.QUEST_MAX_SAMPLE_GAP_SECONDS || fallback);
+  return Math.max(30, Math.min(630, Number.isFinite(configured) ? configured : fallback));
+}
+
+function rewardOnlinePlayers(players, { nowMs = Date.now(), expectedIntervalMs = 0 } = {}) {
   const rewardEnabled = enabled();
   const coins = coinsPerInterval();
   const payoutsEnabled = rewardEnabled && coins > 0;
@@ -51,18 +59,26 @@ function rewardOnlinePlayers(players, { nowMs = Date.now() } = {}) {
   let intervalsAwarded = 0;
   const intervalMs = intervalSeconds() * 1000;
   const maxGapMs = maxSampleGapSeconds() * 1000;
+  const questMaxGapMs = questMaxSampleGapSeconds(expectedIntervalMs) * 1000;
 
   for (const steamId of ids) {
     db.exec('BEGIN IMMEDIATE');
     try {
       store.ensureWallet(steamId);
       const prior = db.prepare('SELECT * FROM economy_playtime_progress WHERE steam_id = ?').get(steamId);
+      // A cached/replayed snapshot is not a new observation and must not reset
+      // a streak or move the checkpoint backwards.
+      if (prior && Number(nowMs) <= Number(prior.last_seen_ms)) {
+        db.exec('COMMIT');
+        continue;
+      }
       const elapsedMs = prior ? Math.max(0, Number(nowMs) - Number(prior.last_seen_ms)) : 0;
       const continuous = Boolean(prior && elapsedMs > 0 && elapsedMs <= maxGapMs);
       const countElapsed = continuous ? elapsedMs : 0;
+      const questContinuous = Boolean(prior && elapsedMs > 0 && elapsedMs <= questMaxGapMs);
       const questProgress = quests.updateQuestProgress(steamId, {
-        elapsedSeconds: Math.floor(countElapsed / 1000),
-        continuous,
+        elapsedSeconds: questContinuous ? Math.floor(elapsedMs / 1000) : 0,
+        continuous: questContinuous,
         nowMs,
         player: playersBySteam.get(steamId) || null,
       });
@@ -162,6 +178,7 @@ module.exports = {
   coinsPerInterval,
   intervalSeconds,
   maxSampleGapSeconds,
+  questMaxSampleGapSeconds,
   state,
   rewardOnlinePlayers,
 };

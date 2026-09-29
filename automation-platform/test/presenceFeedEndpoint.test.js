@@ -118,9 +118,27 @@ test('BinaryLane presence feed is private, validated, deduplicated and reconcile
   assert.equal(conflict.status, 409);
   assert.equal((await conflict.json()).code, 'PRESENCE_SAMPLE_CONFLICT');
 
+  const next = await post(base, {
+    ...first,
+    sampleId: 'binarylane-test-progress',
+    sampledAt: new Date(startMs + 60000).toISOString(),
+  });
+  assert.equal(next.status, 201);
+  const nextBody = await next.json();
+  assert.equal(nextBody.rewards.trackedPlayers, 1);
+  assert.equal(nextBody.rewards.reason, 'disabled');
+  const questResponse = await fetch(`${base}/api/website/quests/${steamId}`, {
+    headers: { Authorization: `Bearer ${process.env.HOLLOW_VALLEY_API_TOKEN}` },
+  });
+  assert.equal(questResponse.status, 200);
+  assert.match(questResponse.headers.get('cache-control'), /no-store/);
+  const questBody = await questResponse.json();
+  assert.equal(questBody.trackingEnabled, true);
+  assert.equal(questBody.quests.find((quest) => quest.id === 'daily-total-3h').progressSeconds, 60);
+
   const leave = await post(base, {
     sampleId: 'binarylane-test-0002',
-    sampledAt: new Date(startMs + 60000).toISOString(),
+    sampledAt: new Date(startMs + 120000).toISOString(),
     players: [],
   });
   assert.equal(leave.status, 201);
