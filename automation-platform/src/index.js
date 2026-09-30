@@ -30,6 +30,7 @@ const { seedOfficialCatalog } = require('./services/officialMarketplaceCatalogSe
 const { startOfficialMarketplaceFulfillment } = require('./services/officialMarketplaceFulfillmentService');
 const { startDiscordAutomation } = require('./services/discordAutomationService');
 const { startScheduler } = require('./services/schedulerService');
+const { startSafeLogRestartWarnings } = require('./services/safeLogRestartWarningService');
 const { startServerMonitor } = require('./services/serverMonitorService');
 const playerPresence = require('./services/playerPresenceService');
 const serverHealthHistory = require('./services/serverHealthHistoryService');
@@ -230,6 +231,7 @@ if (require.main === module) {
   startOfficialMarketplaceFulfillment();
   startDiscordAutomation();
   startScheduler();
+  startSafeLogRestartWarnings();
   startServerMonitor();
   playerPresence.startPlayerPresence();
   serverHealthHistory.startServerHealthHistory();
