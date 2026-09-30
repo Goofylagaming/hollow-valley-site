@@ -1,12 +1,13 @@
--- CommandBridge v006.6
+-- CommandBridge v006.7
 -- Hollow Valley / HDS
--- Focus: local file bridge for DinoStorage and BodyDrop, with optional HTTP fallback.
+-- Focus: local file bridge for DinoStorage, BodyDrop and recovery/admin submods,
+-- with optional HTTP fallback.
 --
 -- This build probes several Wine/host launch paths and caches the first one that
 -- can run curl. It never logs the configured authorization header.
 
 local MOD_NAME = "CommandBridge"
-local MOD_VERSION = "v006.6"
+local MOD_VERSION = "v006.7"
 
 local function log(msg)
     print(string.format("[%s] %s\n", MOD_NAME, tostring(msg)))
@@ -166,7 +167,6 @@ local function shellSafe(value)
     return value
 end
 
--- Convert Wine's Z:/host/path form to the host Unix path.
 local function toUnixPath(path)
     path = tostring(path or ""):gsub("\\", "/")
     local rest = path:match("^[Zz]:/(.*)$")
@@ -185,15 +185,8 @@ local httpLastErrorAt = 0
 local httpFetchBusy = false
 local httpFetchedBody = nil
 local lastHttpPollAt = 0
--- Results are keyed by their complete serialized line rather than request ID.
--- One request can legitimately produce a routing acknowledgement and then a
--- terminal sub-mod result with the same ID; both must reach automation.
 local forwardedResults = {}
 local forwardingResults = {}
-
--- Some hosted Windows/Wine environments expose different curl launch helpers.
--- Try a few safe candidates and remember the one
--- that actually creates curl's output file.
 local curlLauncher = nil
 local curlLauncherName = nil
 
@@ -241,16 +234,13 @@ end
 local function runCurl(args, outputPath, errorPath)
     os.remove(outputPath)
     os.remove(errorPath)
-
     local unixErrorPath = toUnixPath(errorPath)
 
     local function attempt(entry)
         os.remove(outputPath)
         os.remove(errorPath)
-
         local cmd = entry.build(args .. ' 2>"' .. unixErrorPath .. '"')
         local ok, why, code = os.execute(cmd)
-
         if fileExists(outputPath) then
             local body = readAll(outputPath) or ""
             local errText = readAll(errorPath) or ""
@@ -258,7 +248,6 @@ local function runCurl(args, outputPath, errorPath)
             os.remove(errorPath)
             return true, body, errText, ok, why, code
         end
-
         local errText = readAll(errorPath) or ""
         os.remove(errorPath)
         return false, nil, errText, ok, why, code
@@ -266,70 +255,46 @@ local function runCurl(args, outputPath, errorPath)
 
     if curlLauncher ~= nil then
         local madeOutput, body, errText, ok, why, code = attempt(curlLauncher)
-        if madeOutput then
-            return body, nil
-        end
-
+        if madeOutput then return body, nil end
         log(string.format(
             "Cached HTTP launcher failed: %s execute=%s/%s/%s err=%s",
-            tostring(curlLauncherName),
-            tostring(ok), tostring(why), tostring(code),
-            cleanDiagnostic(errText)
+            tostring(curlLauncherName), tostring(ok), tostring(why), tostring(code), cleanDiagnostic(errText)
         ))
         curlLauncher = nil
         curlLauncherName = nil
     end
 
     local failures = {}
-
     for _, entry in ipairs(CURL_LAUNCHERS) do
         local madeOutput, body, errText, ok, why, code = attempt(entry)
-
         if madeOutput then
             curlLauncher = entry
             curlLauncherName = entry.name
             log("HTTP launcher selected: " .. entry.name)
             return body, nil
         end
-
-        table.insert(
-            failures,
-            string.format(
-                "%s=%s/%s/%s%s",
-                entry.name,
-                tostring(ok),
-                tostring(why),
-                tostring(code),
-                errText ~= "" and (" err:" .. cleanDiagnostic(errText)) or ""
-            )
-        )
+        table.insert(failures, string.format(
+            "%s=%s/%s/%s%s",
+            entry.name, tostring(ok), tostring(why), tostring(code),
+            errText ~= "" and (" err:" .. cleanDiagnostic(errText)) or ""
+        ))
     end
-
     return nil, "no curl launcher worked; " .. table.concat(failures, " | ")
 end
 
 local function curlGet(url, authHeader)
     url = shellSafe(url)
     authHeader = shellSafe(authHeader)
-
-    if url == nil or url == "" then
-        return nil, "inputUrl is empty or unsafe"
-    end
-    if authHeader == nil then
-        return nil, "inputAuthHeader is unsafe"
-    end
+    if url == nil or url == "" then return nil, "inputUrl is empty or unsafe" end
+    if authHeader == nil then return nil, "inputAuthHeader is unsafe" end
 
     local suffix = tostring(os.time()) .. "-" .. tostring(math.random(100000, 999999))
     local outPath = SAVED_DIR .. "/http-input-" .. suffix .. ".tmp"
     local errPath = SAVED_DIR .. "/http-input-" .. suffix .. ".err"
     local unixOutPath = toUnixPath(outPath)
-
     local args = '--silent --show-error --fail --connect-timeout 3 --max-time 8'
-    if authHeader ~= "" then
-        args = args .. ' -H "' .. authHeader .. '"'
-    end
+    if authHeader ~= "" then args = args .. ' -H "' .. authHeader .. '"' end
     args = args .. ' --output "' .. unixOutPath .. '" "' .. url .. '"'
-
     local body, err = runCurl(args, outPath, errPath)
     if err ~= nil then return nil, err end
     return body or "", nil
@@ -337,7 +302,6 @@ end
 
 local function postResultLine(line)
     if config.resultUrl == nil or config.resultUrl == "" then return end
-
     local key = tostring(line or "")
     if key == "" or forwardedResults[key] or forwardingResults[key] then return end
 
@@ -351,20 +315,15 @@ local function postResultLine(line)
 
     local url = shellSafe(config.resultUrl)
     local authHeader = shellSafe(config.inputAuthHeader)
-
-    if url == nil or authHeader == nil then
-        return
-    end
+    if url == nil or authHeader == nil then return end
 
     local payload = key
     forwardingResults[key] = true
-
     ExecuteAsync(function()
         local suffix = tostring(os.time()) .. "-" .. tostring(math.random(100000, 999999))
         local bodyPath = SAVED_DIR .. "/http-result-" .. suffix .. ".json"
         local responsePath = SAVED_DIR .. "/http-result-response-" .. suffix .. ".tmp"
         local errorPath = SAVED_DIR .. "/http-result-response-" .. suffix .. ".err"
-
         if not writeAll(bodyPath, payload) then
             forwardingResults[key] = nil
             log("HTTP result POST failed: could not write payload temp file")
@@ -373,34 +332,24 @@ local function postResultLine(line)
 
         local unixBodyPath = toUnixPath(bodyPath)
         local unixResponsePath = toUnixPath(responsePath)
-
         local args = '--silent --show-error --fail --connect-timeout 3 --max-time 8 -X POST'
         args = args .. ' -H "Content-Type: application/json"'
-
-        if authHeader ~= "" then
-            args = args .. ' -H "' .. authHeader .. '"'
-        end
-
+        if authHeader ~= "" then args = args .. ' -H "' .. authHeader .. '"' end
         args = args .. ' --data-binary "@' .. unixBodyPath .. '"'
         args = args .. ' --output "' .. unixResponsePath .. '"'
         args = args .. ' "' .. url .. '"'
-
         local _, err = runCurl(args, responsePath, errorPath)
-
         os.remove(bodyPath)
         os.remove(responsePath)
         os.remove(errorPath)
         forwardingResults[key] = nil
-
         if err ~= nil then
-            -- Do not mark the line delivered. The next poll will retry it.
             if os.time() - httpLastErrorAt >= 15 then
                 httpLastErrorAt = os.time()
                 log("HTTP result POST failed; will retry: " .. tostring(err))
             end
             return
         end
-
         forwardedResults[key] = true
     end)
 end
@@ -408,131 +357,49 @@ end
 local function emitResult(id, verb, steam, ok, msg)
     local line = string.format(
         '{"id":"%s","ts":%d,"verb":"%s","steam":"%s","ok":%s,"msg":"%s"}',
-        jsonEscape(id),
-        os.time(),
-        jsonEscape(verb),
-        jsonEscape(steam),
-        tostring(ok == true),
-        jsonEscape(msg)
+        jsonEscape(id), os.time(), jsonEscape(verb), jsonEscape(steam), tostring(ok == true), jsonEscape(msg)
     )
-
     appendLine(RESULTS_FILE, line)
     postResultLine(line)
 end
 
 local function writeToCmdFlag(cmdId, verb, steam, extraArgs)
-    local flagPath =
-        (MODS_ROOT and (MODS_ROOT .. "/DinoStorage/Saved/cmd.flag"))
-        or "Mods/DinoStorage/Saved/cmd.flag"
-
+    local flagPath = (MODS_ROOT and (MODS_ROOT .. "/DinoStorage/Saved/cmd.flag")) or "Mods/DinoStorage/Saved/cmd.flag"
     local line = string.format("[%s] %s %s", tostring(cmdId or ""), verb, tostring(steam or ""))
-    if extraArgs and extraArgs ~= "" then
-        line = line .. " " .. extraArgs
-    end
-
+    if extraArgs and extraArgs ~= "" then line = line .. " " .. extraArgs end
     local ok = appendLine(flagPath, line)
     if not ok then
         log("DinoStorage cmd.flag write failed: " .. flagPath)
         return false, "DinoStorage cmd.flag write failed"
     end
-
     log(string.format("Queued DinoStorage command id=%s verb=%s steam=%s", tostring(cmdId), tostring(verb), tostring(steam)))
     return true, "queued"
 end
 
-local function writeToBodyDropInbox(cmdId, steam, args)
-    local inboxPath =
-        (MODS_ROOT and (MODS_ROOT .. "/BodyDrop/Saved/inbox.ndjson"))
-        or "Mods/BodyDrop/Saved/inbox.ndjson"
-
+local function writeJsonInbox(modName, cmdId, steam, args)
+    local inboxPath = (MODS_ROOT and (MODS_ROOT .. "/" .. modName .. "/Saved/inbox.ndjson"))
+        or ("Mods/" .. modName .. "/Saved/inbox.ndjson")
     local tokensJson = "["
     for i, token in ipairs(args or {}) do
         if i > 1 then tokensJson = tokensJson .. "," end
         tokensJson = tokensJson .. '"' .. jsonEscape(token) .. '"'
     end
     tokensJson = tokensJson .. "]"
-
     local line = string.format(
         '{"id":"%s","ts":%d,"steam":"%s","args":%s}',
-        jsonEscape(cmdId),
-        os.time(),
-        jsonEscape(steam),
-        tokensJson
+        jsonEscape(cmdId), os.time(), jsonEscape(steam), tokensJson
     )
-
     local ok = appendLine(inboxPath, line)
     if not ok then
-        log("BodyDrop inbox write failed: " .. inboxPath)
-        return false, "BodyDrop inbox write failed"
+        log(modName .. " inbox write failed: " .. inboxPath)
+        return false, modName .. " inbox write failed"
     end
-
-    log(string.format("Queued BodyDrop command id=%s steam=%s", tostring(cmdId), tostring(steam)))
-    return true, "queued"
-end
-
-local function writeToSkinStudioInbox(cmdId, steam, args)
-    local inboxPath =
-        (MODS_ROOT and (MODS_ROOT .. "/SkinStudio/Saved/inbox.ndjson"))
-        or "Mods/SkinStudio/Saved/inbox.ndjson"
-
-    local tokensJson = "["
-    for i, token in ipairs(args or {}) do
-        if i > 1 then tokensJson = tokensJson .. "," end
-        tokensJson = tokensJson .. '"' .. jsonEscape(token) .. '"'
-    end
-    tokensJson = tokensJson .. "]"
-
-    local line = string.format(
-        '{"id":"%s","ts":%d,"steam":"%s","args":%s}',
-        jsonEscape(cmdId),
-        os.time(),
-        jsonEscape(steam),
-        tokensJson
-    )
-
-    local ok = appendLine(inboxPath, line)
-    if not ok then
-        log("SkinStudio inbox write failed: " .. inboxPath)
-        return false, "SkinStudio inbox write failed"
-    end
-
-    log(string.format("Queued SkinStudio command id=%s steam=%s", tostring(cmdId), tostring(steam)))
-    return true, "queued"
-end
-
-local function writeToAdminActionsInbox(cmdId, steam, args)
-    local inboxPath =
-        (MODS_ROOT and (MODS_ROOT .. "/AdminActions/Saved/inbox.ndjson"))
-        or "Mods/AdminActions/Saved/inbox.ndjson"
-
-    local tokensJson = "["
-    for i, token in ipairs(args or {}) do
-        if i > 1 then tokensJson = tokensJson .. "," end
-        tokensJson = tokensJson .. '"' .. jsonEscape(token) .. '"'
-    end
-    tokensJson = tokensJson .. "]"
-
-    local line = string.format(
-        '{"id":"%s","ts":%d,"steam":"%s","args":%s}',
-        jsonEscape(cmdId),
-        os.time(),
-        jsonEscape(steam),
-        tokensJson
-    )
-
-    local ok = appendLine(inboxPath, line)
-    if not ok then
-        log("AdminActions inbox write failed: " .. inboxPath)
-        return false, "AdminActions inbox write failed"
-    end
-
-    log(string.format("Queued AdminActions command id=%s steam=%s", tostring(cmdId), tostring(steam)))
+    log(string.format("Queued %s command id=%s steam=%s", modName, tostring(cmdId), tostring(steam)))
     return true, "queued"
 end
 
 local function dispatchCommand(id, verb, steam, args)
     args = args or {}
-
     if verb == "ping" then
         emitResult(id, verb, steam, true, "pong")
         return
@@ -548,38 +415,43 @@ local function dispatchCommand(id, verb, steam, args)
         dino_edit = "edit",
         prime_grant = "prime",
     }
-
     local dinoVerb = dinoVerbMap[verb]
     if dinoVerb ~= nil then
         local extra = table.concat(args, " ")
         local ok, msg = writeToCmdFlag(id, dinoVerb, steam, extra)
-        if not ok then
-            emitResult(id, verb, steam, false, msg)
-        end
+        if not ok then emitResult(id, verb, steam, false, msg) end
+        return
+    end
+
+    local safeLogActions = {
+        safelog_get = "get",
+        safelog_restore = "restore",
+        safelog_clear = "clear",
+    }
+    local safeLogAction = safeLogActions[verb]
+    if safeLogAction ~= nil then
+        local routedArgs = { safeLogAction }
+        for _, arg in ipairs(args) do routedArgs[#routedArgs + 1] = arg end
+        local ok, msg = writeJsonInbox("SafeLogRecovery", id, steam, routedArgs)
+        if not ok then emitResult(id, verb, steam, false, msg) end
         return
     end
 
     if verb == "bd" then
-        local ok, msg = writeToBodyDropInbox(id, steam, args)
-        if not ok then
-            emitResult(id, verb, steam, false, msg)
-        end
+        local ok, msg = writeJsonInbox("BodyDrop", id, steam, args)
+        if not ok then emitResult(id, verb, steam, false, msg) end
         return
     end
 
     if verb == "admin_slay" then
-        local ok, msg = writeToAdminActionsInbox(id, steam, {"slay"})
-        if not ok then
-            emitResult(id, verb, steam, false, msg)
-        end
+        local ok, msg = writeJsonInbox("AdminActions", id, steam, {"slay"})
+        if not ok then emitResult(id, verb, steam, false, msg) end
         return
     end
 
     if verb == "skin_apply" then
-        local ok, msg = writeToSkinStudioInbox(id, steam, args)
-        if not ok then
-            emitResult(id, verb, steam, false, msg)
-        end
+        local ok, msg = writeJsonInbox("SkinStudio", id, steam, args)
+        if not ok then emitResult(id, verb, steam, false, msg) end
         return
     end
 
@@ -588,13 +460,11 @@ end
 
 local function processInputBody(body)
     local count = 0
-
     for line in string.gmatch(tostring(body or "") .. "\n", "([^\r\n]+)\r?\n") do
         local id = jsonReadString(line, "id")
         local verb = jsonReadString(line, "verb")
         local steam = jsonReadString(line, "steam") or ""
         local args = jsonReadStringArray(line, "args")
-
         if id ~= nil and verb ~= nil then
             count = count + 1
             log(string.format("Command received id=%s verb=%s", tostring(id), tostring(verb)))
@@ -603,25 +473,19 @@ local function processInputBody(body)
             log("Ignoring malformed command line")
         end
     end
-
     return count
 end
 
 local function pollHttpInput()
     if config.inputUrl == nil or config.inputUrl == "" then return end
-
     if httpFetchedBody ~= nil then
         local body = httpFetchedBody
         httpFetchedBody = nil
-
         if body ~= "" then
             local count = processInputBody(body)
-            if count > 0 then
-                log("Processed " .. tostring(count) .. " HTTP command(s)")
-            end
+            if count > 0 then log("Processed " .. tostring(count) .. " HTTP command(s)") end
         end
     end
-
     if httpFetchBusy then return end
 
     local now = os.time()
@@ -639,10 +503,8 @@ local function pollHttpInput()
     end
 
     httpFetchBusy = true
-
     ExecuteAsync(function()
         local body, err = curlGet(config.inputUrl, config.inputAuthHeader)
-
         if err ~= nil then
             if os.time() - httpLastErrorAt >= 15 then
                 httpLastErrorAt = os.time()
@@ -651,17 +513,14 @@ local function pollHttpInput()
         else
             httpFetchedBody = body
         end
-
         httpFetchBusy = false
     end)
 end
 
 local function forwardSubmodResults()
     if config.resultUrl == nil or config.resultUrl == "" then return end
-
     local body = readAll(RESULTS_FILE)
     if body == nil or body == "" then return end
-
     for line in string.gmatch(body .. "\n", "([^\r\n]+)\r?\n") do
         local id = jsonReadString(line, "id")
         if id ~= nil and not forwardedResults[line] and not forwardingResults[line] then
@@ -672,36 +531,23 @@ end
 
 local function pollFileInput()
     if not fileExists(COMMANDS_FILE) then return end
-
     local stash = COMMANDS_FILE .. ".processing"
     os.remove(stash)
-
     local renamed = os.rename(COMMANDS_FILE, stash)
     if not renamed then return end
-
     local body = readAll(stash)
-    if body ~= nil and body ~= "" then
-        processInputBody(body)
-    end
-
+    if body ~= nil and body ~= "" then processInputBody(body) end
     os.remove(stash)
 end
 
 local function pollInput()
     if config.enabled ~= true then return end
-
-    if config.inputMode == "http" then
-        pollHttpInput()
-    else
-        pollFileInput()
-    end
+    if config.inputMode == "http" then pollHttpInput() else pollFileInput() end
 end
 
 local function safeCall(label, fn)
     local ok, err = pcall(fn)
-    if not ok then
-        log(string.format("safeCall(%s) failed: %s", tostring(label), tostring(err)))
-    end
+    if not ok then log(string.format("safeCall(%s) failed: %s", tostring(label), tostring(err))) end
     return ok, err
 end
 
@@ -709,41 +555,26 @@ log(string.format("Loading; version=%s savedDir=%s", MOD_VERSION, SAVED_DIR))
 
 if LoopInGameThreadWithDelay ~= nil then
     local bootHandle
-
     bootHandle = LoopInGameThreadWithDelay(5000, function()
         log(string.format("Boot; version=%s", MOD_VERSION))
-
         ensureDir(SAVED_DIR)
-
         local tf = io.open(SAVED_DIR .. "/.keep", "wb")
-        if tf then
-            tf:write("")
-            tf:close()
-        else
-            log("WARNING: cannot write to " .. SAVED_DIR)
-        end
-
+        if tf then tf:write(""); tf:close() else log("WARNING: cannot write to " .. SAVED_DIR) end
         safeCall("loadConfig", loadConfig)
-
         if config.inputMode == "http" then
             log("Transport active: HTTP pull with multi-launcher probe")
         else
             log("Transport active: file queue")
         end
-
         if bootHandle ~= nil and CancelDelayedAction ~= nil then
-            pcall(function()
-                CancelDelayedAction(bootHandle)
-            end)
+            pcall(function() CancelDelayedAction(bootHandle) end)
         end
     end)
 
     log("Registering command poll loop")
-
     LoopInGameThreadWithDelay(POLL_INTERVAL_MS, function()
         safeCall("pollInput", pollInput)
         safeCall("forwardSubmodResults", forwardSubmodResults)
-
         local reload = consumeFlag(RELOAD_FLAG)
         if reload ~= nil then
             if RestartCurrentMod ~= nil then
@@ -755,7 +586,6 @@ if LoopInGameThreadWithDelay ~= nil then
             end
         end
     end)
-
     log("Command poll loop registered")
 else
     log("ERROR: LoopInGameThreadWithDelay is unavailable")
