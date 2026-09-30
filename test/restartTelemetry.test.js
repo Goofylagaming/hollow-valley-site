@@ -24,6 +24,7 @@ test('restart telemetry calculates the next Brisbane 12:01 boundary', () => {
 });
 
 test('restart telemetry records an in-progress run and promotes success to history', () => {
+  fs.rmSync(process.env.RESTART_TELEMETRY_PATH, { force: true });
   const restartId = 'restart-test-001';
   telemetry.ingest({ restartId, event: 'warning_sent', at: '2026-09-30T01:51:00.000Z' });
   telemetry.ingest({ restartId, event: 'save_requested', at: '2026-09-30T02:00:50.000Z' });
