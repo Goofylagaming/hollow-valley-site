@@ -48,6 +48,18 @@
           </div>
 
           <div class="summary-tile admin-player-controls">
+            <small>SAFE LOG RECOVERY</small>
+            <h2>Recover a missing safe-logged dinosaur</h2>
+            <p>Hollow Valley keeps a non-destructive recovery copy when Safe Log starts. Nothing is restored automatically. Check the copy first, then restore only after confirming the player actually lost the dinosaur.</p>
+            <form class="form-row" id="admin-safelog-form">
+              <input id="admin-safelog-steam" inputmode="numeric" autocomplete="off" maxlength="17" placeholder="17-digit Steam ID" aria-label="Safe Log recovery Steam ID" required pattern="[0-9]{17}">
+              <button class="small-button" type="submit">Check recovery</button>
+            </form>
+            <p id="admin-safelog-status" class="admin-prime-status" aria-live="polite">Enter a Steam ID to check the latest Safe Log recovery copy.</p>
+            <div id="admin-safelog-result" hidden></div>
+          </div>
+
+          <div class="summary-tile admin-player-controls">
             <div class="admin-player-controls-heading">
               <div>
                 <small>LIVE PLAYER CONTROLS</small>
@@ -121,5 +133,6 @@
   </div>
   <script src="/assets/common.js?v=16"></script>
   <script src="/assets/admin.js?v=6"></script>
+  <script src="/assets/admin-safelog.js?v=1"></script>
 </body>
 </html>
