@@ -4,6 +4,7 @@ const commandBridge = require('./commandBridgeService');
 const { PUBLISHER_ACK } = commandBridge;
 const store = require('./automationStore');
 const externalServerSnapshot = require('./externalServerSnapshotService');
+const restartTelemetry = require('./restartTelemetryService');
 
 function cacheMs() {
   const value = Number(process.env.RCON_STATUS_CACHE_MS || 300000);
@@ -14,7 +15,6 @@ let cachedAt = 0;
 let cachedServer = null;
 let cachedError = null;
 let inFlight = null;
-
 
 function classifyRconError(message) {
   const text = String(message || '');
@@ -259,6 +259,7 @@ async function getAdminStatus(options = {}) {
     modules: moduleState(),
     requests: requestSummary(),
     bridge,
+    restartTelemetry: restartTelemetry.getState(),
     server: {
       online: server.online,
       configured: server.configured,
