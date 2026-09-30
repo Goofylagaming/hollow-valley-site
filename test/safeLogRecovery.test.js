@@ -52,3 +52,16 @@ test('Safe Log restore is admin-only, explicitly confirmed and visible in Admin 
   assert.match(js, /RESTORE SAFELOG/);
   assert.match(js, /CLEAR SAFELOG/);
 });
+
+test('Safe Log restart warnings use the existing gated RCON announcement path', () => {
+  const warnings = read('automation-platform/src/services/safeLogRestartWarningService.js');
+  const rcon = read('automation-platform/src/services/rconControlService.js');
+  const index = read('automation-platform/src/index.js');
+
+  assert.match(warnings, /DEFAULT_WARNING_TIMES = \['11:51', '23:51'\]/);
+  assert.match(warnings, /DO NOT SAFE LOG UNTIL AFTER THE RESTART/);
+  assert.match(warnings, /rconControl\.writeEnabled\('announce'\)/);
+  assert.match(warnings, /rconControl\.execute\('announce'/);
+  assert.match(rcon, /announce:\s*0x10/);
+  assert.match(index, /startSafeLogRestartWarnings\(\)/);
+});
