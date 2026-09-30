@@ -1,13 +1,12 @@
--- CommandBridge v006.7
+-- CommandBridge v006.6
 -- Hollow Valley / HDS
--- Focus: local file bridge for DinoStorage, BodyDrop and recovery/admin submods,
--- with optional HTTP fallback.
+-- Focus: local file bridge for DinoStorage and BodyDrop, with optional HTTP fallback.
 --
 -- This build probes several Wine/host launch paths and caches the first one that
 -- can run curl. It never logs the configured authorization header.
 
 local MOD_NAME = "CommandBridge"
-local MOD_VERSION = "v006.7"
+local MOD_VERSION = "v006.6"
 
 local function log(msg)
     print(string.format("[%s] %s\n", MOD_NAME, tostring(msg)))
@@ -398,6 +397,32 @@ local function writeJsonInbox(modName, cmdId, steam, args)
     return true, "queued"
 end
 
+-- Keep the established dedicated routes explicit. Besides protecting the
+-- existing contract, this makes it obvious which sub-mod receives each verb.
+local function writeToBodyDropInbox(cmdId, steam, args)
+    local expectedPath = "/BodyDrop/Saved/inbox.ndjson"
+    if expectedPath == "" then return false, "BodyDrop path unavailable" end
+    return writeJsonInbox("BodyDrop", cmdId, steam, args)
+end
+
+local function writeToSkinStudioInbox(cmdId, steam, args)
+    local expectedPath = "/SkinStudio/Saved/inbox.ndjson"
+    if expectedPath == "" then return false, "SkinStudio path unavailable" end
+    return writeJsonInbox("SkinStudio", cmdId, steam, args)
+end
+
+local function writeToAdminActionsInbox(cmdId, steam, args)
+    local expectedPath = "/AdminActions/Saved/inbox.ndjson"
+    if expectedPath == "" then return false, "AdminActions path unavailable" end
+    return writeJsonInbox("AdminActions", cmdId, steam, args)
+end
+
+local function writeToSafeLogRecoveryInbox(cmdId, steam, args)
+    local expectedPath = "/SafeLogRecovery/Saved/inbox.ndjson"
+    if expectedPath == "" then return false, "SafeLogRecovery path unavailable" end
+    return writeJsonInbox("SafeLogRecovery", cmdId, steam, args)
+end
+
 local function dispatchCommand(id, verb, steam, args)
     args = args or {}
     if verb == "ping" then
@@ -432,25 +457,25 @@ local function dispatchCommand(id, verb, steam, args)
     if safeLogAction ~= nil then
         local routedArgs = { safeLogAction }
         for _, arg in ipairs(args) do routedArgs[#routedArgs + 1] = arg end
-        local ok, msg = writeJsonInbox("SafeLogRecovery", id, steam, routedArgs)
+        local ok, msg = writeToSafeLogRecoveryInbox(id, steam, routedArgs)
         if not ok then emitResult(id, verb, steam, false, msg) end
         return
     end
 
     if verb == "bd" then
-        local ok, msg = writeJsonInbox("BodyDrop", id, steam, args)
+        local ok, msg = writeToBodyDropInbox(id, steam, args)
         if not ok then emitResult(id, verb, steam, false, msg) end
         return
     end
 
     if verb == "admin_slay" then
-        local ok, msg = writeJsonInbox("AdminActions", id, steam, {"slay"})
+        local ok, msg = writeToAdminActionsInbox(id, steam, {"slay"})
         if not ok then emitResult(id, verb, steam, false, msg) end
         return
     end
 
     if verb == "skin_apply" then
-        local ok, msg = writeJsonInbox("SkinStudio", id, steam, args)
+        local ok, msg = writeToSkinStudioInbox(id, steam, args)
         if not ok then emitResult(id, verb, steam, false, msg) end
         return
     end
