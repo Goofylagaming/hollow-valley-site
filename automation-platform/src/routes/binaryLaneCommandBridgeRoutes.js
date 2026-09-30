@@ -2,6 +2,7 @@ const express = require('express');
 const { requireBinaryLaneCommandToken } = require('../middleware/binaryLaneCommandAuth');
 const bridge = require('../services/commandBridgeHttpService');
 const dinoStorage = require('../services/dinoStorageService');
+const restartTelemetry = require('../services/restartTelemetryService');
 
 const router = express.Router();
 router.use(requireBinaryLaneCommandToken);
@@ -14,6 +15,18 @@ router.get('/poll', (_req, res) => {
   } catch (error) {
     console.error('[binarylane-command-bridge] poll failed', error.message);
     return res.status(500).json({ error: 'Command poll failed.' });
+  }
+});
+
+router.post('/restart-event', (req, res) => {
+  try {
+    const outcome = restartTelemetry.ingest(req.body || {});
+    return res.status(outcome.duplicate ? 200 : 201).json({ ok: true, ...outcome });
+  } catch (error) {
+    return res.status(400).json({
+      error: error.message || 'Restart telemetry ingestion failed.',
+      code: error.code || 'RESTART_TELEMETRY_INVALID',
+    });
   }
 });
 
