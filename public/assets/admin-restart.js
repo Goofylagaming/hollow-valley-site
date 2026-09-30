@@ -92,5 +92,5 @@
   document.getElementById('admin-hub-refresh')?.addEventListener('click', () => {
     setTimeout(loadRestartTelemetry, 50);
   });
-  setInterval(loadRestartTelemetry, 60000).unref?.();
+  setInterval(loadRestartTelemetry, 60000);
 })();
