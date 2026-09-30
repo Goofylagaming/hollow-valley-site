@@ -26,10 +26,10 @@ test("Admin Slay uses a dedicated audited AdminActions path", () => {
   assert.match(websiteRoutes, /req\.body\?\.confirm[^\n]+SLAY/);
 });
 
-test("CommandBridge v006.5 routes admin_slay only to AdminActions", () => {
+test("CommandBridge v006.6 routes admin_slay only to AdminActions", () => {
   const lua = read("server-mods/CommandBridge/Scripts/main.lua");
-  assert.match(lua, /CommandBridge v006\.5/);
-  assert.match(lua, /MOD_VERSION = "v006\.5"/);
+  assert.match(lua, /CommandBridge v006\.6/);
+  assert.match(lua, /MOD_VERSION = "v006\.6"/);
   assert.match(lua, /AdminActions\/Saved\/inbox\.ndjson/);
   assert.match(lua, /verb == "admin_slay"/);
   assert.match(lua, /writeToAdminActionsInbox\(id, steam, \{"slay"\}\)/);
