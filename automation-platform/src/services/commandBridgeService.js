@@ -13,6 +13,9 @@ const SOURCES = {
   prime_grant: 'DinoStorage',
   admin_slay: 'AdminActions',
   skin_apply: 'SkinStudio',
+  safelog_get: 'SafeLogRecovery',
+  safelog_restore: 'SafeLogRecovery',
+  safelog_clear: 'SafeLogRecovery',
 };
 const PUBLISHER_ACK = 'automation-platform-is-sole-publisher';
 

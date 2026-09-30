@@ -10,6 +10,7 @@ const { requireAdminToken } = require('./middleware/adminAuth');
 const audit = require('./services/auditService');
 const backupService = require('./services/backupService');
 const adminRoutes = require('./routes/adminRoutes');
+const safeLogRecoveryRoutes = require('./routes/safeLogRecoveryRoutes');
 const websiteRoutes = require('./routes/websiteRoutes');
 const websiteAdminWalletRoutes = require('./routes/websiteAdminWalletRoutes');
 const websiteDailyLoginRoutes = require('./routes/websiteDailyLoginRoutes');
@@ -29,6 +30,7 @@ const { seedOfficialCatalog } = require('./services/officialMarketplaceCatalogSe
 const { startOfficialMarketplaceFulfillment } = require('./services/officialMarketplaceFulfillmentService');
 const { startDiscordAutomation } = require('./services/discordAutomationService');
 const { startScheduler } = require('./services/schedulerService');
+const { startSafeLogRestartWarnings } = require('./services/safeLogRestartWarningService');
 const { startServerMonitor } = require('./services/serverMonitorService');
 const playerPresence = require('./services/playerPresenceService');
 const serverHealthHistory = require('./services/serverHealthHistoryService');
@@ -161,6 +163,11 @@ app.post('/api/admin/backups', requireAdminToken, async (_req, res) => {
   }
 });
 
+app.use('/api/admin/safelog-recovery', (_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+}, safeLogRecoveryRoutes);
+
 app.use('/api/admin', (_req, res, next) => {
   res.set('Cache-Control', 'no-store');
   next();
@@ -224,6 +231,7 @@ if (require.main === module) {
   startOfficialMarketplaceFulfillment();
   startDiscordAutomation();
   startScheduler();
+  startSafeLogRestartWarnings();
   startServerMonitor();
   playerPresence.startPlayerPresence();
   serverHealthHistory.startServerHealthHistory();
