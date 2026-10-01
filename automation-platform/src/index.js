@@ -10,6 +10,7 @@ const { requireAdminToken } = require('./middleware/adminAuth');
 const audit = require('./services/auditService');
 const backupService = require('./services/backupService');
 const adminRoutes = require('./routes/adminRoutes');
+const playerDirectoryRoutes = require('./routes/playerDirectoryRoutes');
 const safeLogRecoveryRoutes = require('./routes/safeLogRecoveryRoutes');
 const websiteRoutes = require('./routes/websiteRoutes');
 const websiteAdminWalletRoutes = require('./routes/websiteAdminWalletRoutes');
@@ -167,6 +168,11 @@ app.use('/api/admin/safelog-recovery', (_req, res, next) => {
   res.set('Cache-Control', 'no-store');
   next();
 }, safeLogRecoveryRoutes);
+
+app.use('/api/admin/player-directory', (_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+}, playerDirectoryRoutes);
 
 app.use('/api/admin', (_req, res, next) => {
   res.set('Cache-Control', 'no-store');
