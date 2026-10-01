@@ -6,6 +6,7 @@
   <meta name="description" content="Hollow Valley administration hub.">
   <title>Admin Hub | Hollow Valley</title>
   <link rel="stylesheet" href="/assets/styles.css?v=24">
+  <link rel="stylesheet" href="/assets/admin-player-directory.css?v=1">
 </head>
 <body>
   <div class="app-shell">
@@ -72,6 +73,42 @@
             <div id="admin-player-list" class="admin-player-list"></div>
           </div>
 
+          <div class="summary-tile admin-player-controls" id="player-directory">
+            <div class="admin-player-controls-heading">
+              <div>
+                <small>PLAYER DIRECTORY</small>
+                <h2>Everyone who has joined Hollow Valley</h2>
+                <p>One entry per Unique Player ID, using the most recently seen player name and all recorded presence sessions.</p>
+              </div>
+              <button class="small-button" id="admin-directory-refresh" type="button">Refresh directory</button>
+            </div>
+            <div class="admin-directory-toolbar">
+              <input id="admin-directory-search" type="search" autocomplete="off" placeholder="Search player name or Unique Player ID" aria-label="Search player directory">
+              <select id="admin-directory-sort" aria-label="Sort player directory">
+                <option value="lastSeen">Last seen</option>
+                <option value="name">Player name</option>
+                <option value="firstSeen">First seen</option>
+                <option value="playtime">Total playtime</option>
+              </select>
+            </div>
+            <p id="admin-directory-status" class="admin-prime-status" aria-live="polite">Loading player directory…</p>
+            <div class="admin-directory-wrap">
+              <table class="admin-directory-table">
+                <thead>
+                  <tr>
+                    <th>Player Name</th>
+                    <th>Unique Player ID</th>
+                    <th>First Seen</th>
+                    <th>Last Seen</th>
+                    <th>Total Playtime</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="admin-directory-body"></tbody>
+              </table>
+            </div>
+          </div>
+
           <div class="summary-tile admin-player-controls">
             <small>PLAYER RECORDS</small>
             <h2>Look up a player</h2>
@@ -133,6 +170,7 @@
   </div>
   <script src="/assets/common.js?v=16"></script>
   <script src="/assets/admin.js?v=6"></script>
+  <script src="/assets/admin-player-directory.js?v=1"></script>
   <script src="/assets/admin-safelog.js?v=1"></script>
   <script src="/assets/admin-restart.js?v=1"></script>
 </body>
