@@ -87,6 +87,54 @@ window.HDS = (function () {
     }
   }
 
+  function normalizePath(pathname) {
+    const normalized = String(pathname || "/").replace(/\/+$/, "");
+    return normalized || "/";
+  }
+
+  function applyActiveNavState() {
+    const currentPath = normalizePath(window.location.pathname);
+    const links = Array.from(document.querySelectorAll(".main-nav a"));
+    let activeLink = null;
+
+    const sectionAliases = [
+      ["/marketplace", "/marketplace"],
+      ["/leaderboard", "/leaderboard"],
+      ["/mydinos", "/mydinos"],
+      ["/dinostorage", "/dinostorage"],
+      ["/adminoperations", "/adminoperations"],
+      ["/admincomms", "/admincomms"],
+      ["/adminrestore", "/adminrestore"],
+      ["/admin", "/admin"],
+    ];
+
+    links.forEach((link) => {
+      const href = link.getAttribute("href");
+      if (!href || href.startsWith("#")) return;
+      let linkPath;
+      try {
+        linkPath = normalizePath(new URL(href, window.location.origin).pathname);
+      } catch {
+        return;
+      }
+
+      const exactMatch = linkPath === currentPath;
+      const aliasMatch = sectionAliases.some(([currentPrefix, navPrefix]) =>
+        currentPath.startsWith(currentPrefix) && linkPath.startsWith(navPrefix)
+      );
+
+      if (exactMatch || aliasMatch) {
+        link.classList.add("is-active");
+        link.setAttribute("aria-current", "page");
+        if (!activeLink || exactMatch) activeLink = link;
+      }
+    });
+
+    const activeGroup = activeLink?.closest(".nav-group");
+    const groupButton = activeGroup?.querySelector(":scope > button");
+    if (groupButton) groupButton.classList.add("is-active");
+  }
+
   function wireNavInteractions() {
     const menuButton = document.querySelector(".menu-toggle");
     const navLinks = document.querySelector(".main-nav");
@@ -129,6 +177,7 @@ window.HDS = (function () {
       return;
     }
     wireNavInteractions();
+    applyActiveNavState();
     const me = await loadMe();
     const isAdmin = Boolean(me?.user?.is_admin);
     const adminNavGroup = document.getElementById("admin-nav-group");
