@@ -17,6 +17,33 @@ router.get('/status', (_req, res) => {
 
 router.post('/events', (req, res) => {
   try {
+    const batch = Array.isArray(req.body?.events) ? req.body.events : null;
+
+    if (batch) {
+      if (!batch.length) {
+        return res.status(400).json({
+          error: 'Combat event batch is empty.',
+          code: 'COMBAT_EVENT_INVALID',
+        });
+      }
+      if (batch.length > 100) {
+        return res.status(400).json({
+          error: 'Combat event batch exceeds 100 events.',
+          code: 'COMBAT_EVENT_INVALID',
+        });
+      }
+
+      const results = batch.map((event) => combat.ingestEvent(event));
+      const inserted = results.filter((result) => !result.duplicate).length;
+      const duplicates = results.length - inserted;
+      return res.status(inserted > 0 ? 201 : 200).json({
+        ok: true,
+        received: results.length,
+        inserted,
+        duplicates,
+      });
+    }
+
     const result = combat.ingestEvent(req.body);
     return res.status(result.duplicate ? 200 : 201).json({
       ok: true,
