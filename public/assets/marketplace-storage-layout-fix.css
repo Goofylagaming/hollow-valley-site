@@ -1,0 +1,106 @@
+/* Hollow Valley marketplace + stored-dino compact card fixes */
+.market-species-card,
+.storage-card {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.market-species-card .dino-info,
+.market-species-card .dino-info > div,
+.storage-card > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.market-species-card .dino-info h3,
+.storage-card h3 {
+  max-width: 100%;
+  margin-right: 0;
+  font-size: clamp(15px, 1.7vw, 21px);
+  line-height: 1.08;
+  letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.market-species-card .dino-info small,
+.storage-card small,
+.storage-card .section-intro,
+.market-listing-meta span {
+  overflow-wrap: anywhere;
+}
+
+.market-tier-title,
+.market-tier-meta,
+.market-tier-actions {
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.market-tier-title b {
+  min-width: 0;
+  flex: 1 1 100px;
+  font-size: 12px;
+  line-height: 1.15;
+  letter-spacing: 0.055em;
+  overflow-wrap: anywhere;
+}
+
+.market-tier-meta {
+  gap: 4px 8px;
+  font-size: 10.5px;
+  line-height: 1.25;
+}
+
+.market-tier-meta span {
+  min-width: 0;
+  flex: 1 1 95px;
+}
+
+.market-tier-actions .small-button {
+  min-width: 0;
+  flex: 1 1 82px;
+  padding: 7px 8px;
+  font-size: 10.5px;
+  line-height: 1.15;
+  white-space: normal;
+}
+
+.market-tier .prime-badge {
+  max-width: 100%;
+  flex: 0 0 auto;
+  padding: 4px 7px;
+  font-size: 9px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.stat-group.stat-untracked .stat-val {
+  opacity: 0.72;
+}
+
+.progress-bg.stat-untracked-bg {
+  opacity: 0.28;
+}
+
+@media (max-width: 520px) {
+  .market-species-card .dino-info {
+    padding: 14px 12px 11px;
+  }
+
+  .market-tier-list {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .market-tier {
+    padding: 9px;
+  }
+
+  .market-tier-title b,
+  .market-tier-meta,
+  .market-tier-actions .small-button {
+    font-size: 10px;
+  }
+}
