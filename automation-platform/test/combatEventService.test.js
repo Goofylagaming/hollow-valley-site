@@ -115,6 +115,12 @@ test('verified leaderboard derives kills, deaths and K:D without inventing envir
   assert.equal(grazer.deaths, 1);
   assert.equal(grazer.kd, 1);
 
+  assert.equal(board.mostDeaths[0].username, 'Hunter');
+  assert.equal(board.mostDeaths[0].deaths, 2);
+  const runner = board.mostDeaths.find((row) => row.username === 'Runner');
+  assert.equal(runner.kills, 0);
+  assert.equal(runner.deaths, 1);
+
   const totalKills = board.mostKills.reduce((sum, row) => sum + row.kills, 0);
   assert.equal(totalKills, 3);
 });
