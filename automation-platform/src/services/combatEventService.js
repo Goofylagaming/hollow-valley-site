@@ -34,7 +34,18 @@ db.exec(`
     display_name TEXT,
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS combat_stat_resets (
+    steam_id TEXT PRIMARY KEY,
+    reset_at TEXT NOT NULL,
+    reason TEXT,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
 `);
+
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+const BRISBANE_OFFSET_MS = 10 * HOUR_MS;
 
 function enabled(env = process.env) {
   return String(env.COMBAT_FEED_ENABLED || '').toLowerCase() === 'true';
@@ -225,26 +236,114 @@ function ingestEvent(input, { env = process.env } = {}) {
   }
 }
 
-function leaderboard({ hours = 24 * 31, limit = 100, nowMs = Date.now() } = {}) {
+function getPlayerReset(steamId) {
+  const id = validateSteamId(steamId);
+  return db.prepare(`
+    SELECT r.steam_id, r.reset_at, r.reason, r.updated_at, p.display_name
+    FROM combat_stat_resets r
+    LEFT JOIN combat_players p ON p.steam_id = r.steam_id
+    WHERE r.steam_id = ?
+  `).get(id) || null;
+}
+
+function resetPlayerStats(steamId, { reason = 'Admin reset', resetAt = new Date().toISOString() } = {}) {
+  const id = validateSteamId(steamId);
+  const parsed = new Date(resetAt);
+  if (!Number.isFinite(parsed.getTime())) throw feedError('COMBAT_RESET_INVALID', 'Combat reset timestamp is invalid.');
+  if (parsed.getTime() > Date.now() + 5 * 60 * 1000) throw feedError('COMBAT_RESET_INVALID', 'Combat reset timestamp is too far in the future.');
+  const timestamp = parsed.toISOString();
+  const cleanReason = String(reason || 'Admin reset').trim().slice(0, 240) || 'Admin reset';
+  const previous = getPlayerReset(id);
+
+  db.prepare(`
+    INSERT INTO combat_stat_resets (steam_id, reset_at, reason, updated_at)
+    VALUES (?, ?, ?, datetime('now'))
+    ON CONFLICT(steam_id) DO UPDATE SET
+      reset_at = excluded.reset_at,
+      reason = excluded.reason,
+      updated_at = datetime('now')
+  `).run(id, timestamp, cleanReason);
+
+  const current = getPlayerReset(id);
+  return {
+    steamId: id,
+    displayName: current?.display_name || null,
+    resetAt: current?.reset_at || timestamp,
+    reason: current?.reason || cleanReason,
+    previousResetAt: previous?.reset_at || null,
+  };
+}
+
+function brisbaneCalendarWindow(period, nowMs = Date.now()) {
+  const safeNow = Number(nowMs);
+  if (!Number.isFinite(safeNow)) throw new Error('Invalid leaderboard clock');
+  if (!['daily', 'weekly'].includes(period)) return null;
+
+  const local = new Date(safeNow + BRISBANE_OFFSET_MS);
+  const year = local.getUTCFullYear();
+  const month = local.getUTCMonth();
+  const day = local.getUTCDate();
+  let localStartMs = Date.UTC(year, month, day);
+
+  if (period === 'weekly') {
+    const daysSinceMonday = (local.getUTCDay() + 6) % 7;
+    localStartMs -= daysSinceMonday * DAY_MS;
+  }
+
+  return {
+    period,
+    start: new Date(localStartMs - BRISBANE_OFFSET_MS).toISOString(),
+    end: new Date(safeNow).toISOString(),
+  };
+}
+
+function resolveLeaderboardWindow({ hours = 24 * 31, period = null, nowMs = Date.now() } = {}) {
+  const calendar = brisbaneCalendarWindow(period, nowMs);
+  if (calendar) {
+    return {
+      period: calendar.period,
+      start: calendar.start,
+      end: calendar.end,
+      hours: Math.max(0, (Date.parse(calendar.end) - Date.parse(calendar.start)) / HOUR_MS),
+    };
+  }
+
   const safeHours = Math.max(1, Math.min(24 * 31, Number(hours) || 24 * 31));
+  return {
+    period: null,
+    start: new Date(nowMs - safeHours * HOUR_MS).toISOString(),
+    end: new Date(nowMs).toISOString(),
+    hours: safeHours,
+  };
+}
+
+function leaderboard({ hours = 24 * 31, period = null, limit = 100, nowMs = Date.now() } = {}) {
   const safeLimit = Math.max(1, Math.min(250, Number(limit) || 100));
-  const since = new Date(nowMs - safeHours * 60 * 60 * 1000).toISOString();
+  const window = resolveLeaderboardWindow({ hours, period, nowMs });
+  const since = window.start;
+  const until = window.end;
 
   const rows = db.prepare(`
     WITH
       kills AS (
-        SELECT killer_steam_id AS steam_id, COUNT(*) AS kills
-        FROM combat_events
-        WHERE occurred_at >= ?
-          AND killer_steam_id IS NOT NULL
-          AND killer_steam_id <> victim_steam_id
-        GROUP BY killer_steam_id
+        SELECT e.killer_steam_id AS steam_id, COUNT(*) AS kills
+        FROM combat_events e
+        LEFT JOIN combat_stat_resets r ON r.steam_id = e.killer_steam_id
+        WHERE e.occurred_at >= ?
+          AND e.occurred_at <= ?
+          AND e.killer_steam_id IS NOT NULL
+          AND e.killer_steam_id <> e.victim_steam_id
+          AND (r.reset_at IS NULL OR e.occurred_at > r.reset_at)
+        GROUP BY e.killer_steam_id
       ),
       deaths AS (
-        SELECT victim_steam_id AS steam_id, COUNT(*) AS deaths
-        FROM combat_events
-        WHERE occurred_at >= ?
-        GROUP BY victim_steam_id
+        SELECT e.victim_steam_id AS steam_id, COUNT(*) AS deaths
+        FROM combat_events e
+        LEFT JOIN combat_stat_resets r ON r.steam_id = e.victim_steam_id
+        WHERE e.occurred_at >= ?
+          AND e.occurred_at <= ?
+          AND (r.reset_at IS NULL OR e.occurred_at > r.reset_at)
+        GROUP BY e.victim_steam_id
       ),
       ids AS (
         SELECT steam_id FROM kills
@@ -260,7 +359,7 @@ function leaderboard({ hours = 24 * 31, limit = 100, nowMs = Date.now() } = {}) 
     LEFT JOIN kills ON kills.steam_id = ids.steam_id
     LEFT JOIN deaths ON deaths.steam_id = ids.steam_id
     LEFT JOIN combat_players ON combat_players.steam_id = ids.steam_id
-  `).all(since, since).map((row) => {
+  `).all(since, until, since, until).map((row) => {
     const kills = Number(row.kills) || 0;
     const deaths = Number(row.deaths) || 0;
     return {
@@ -290,14 +389,15 @@ function leaderboard({ hours = 24 * 31, limit = 100, nowMs = Date.now() } = {}) 
   const summary = db.prepare(`
     SELECT COUNT(*) AS event_count, MAX(occurred_at) AS latest_event_at
     FROM combat_events
-    WHERE occurred_at >= ?
-  `).get(since);
+    WHERE occurred_at >= ? AND occurred_at <= ?
+  `).get(since, until);
 
   return {
     ...state(),
-    windowHours: safeHours,
+    period: window.period,
+    windowHours: window.hours,
     windowStart: since,
-    windowEnd: new Date(nowMs).toISOString(),
+    windowEnd: until,
     eventCount: Number(summary?.event_count) || 0,
     latestEventAt: summary?.latest_event_at || null,
     mostKills,
@@ -313,6 +413,9 @@ module.exports = {
   state,
   normalizeEvent,
   ingestEvent,
+  getPlayerReset,
+  resetPlayerStats,
+  brisbaneCalendarWindow,
   leaderboard,
-  _test: { db, getEvent, getSemanticEvent },
+  _test: { db, getEvent, getSemanticEvent, resolveLeaderboardWindow },
 };
