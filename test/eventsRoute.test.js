@@ -6,6 +6,7 @@ process.env.DB_PATH = ":memory:";
 
 const db = require("../server/db");
 const automation = require("../server/services/automationWebsiteClient");
+const eventAdmin = require("../server/services/eventAdminClient");
 const router = require("../server/routes/events");
 
 function appFor(user) {
@@ -114,6 +115,29 @@ test("admin event reward route proxies validated browser payload server-to-serve
   });
 });
 
+test("event deletion is admin-only and forwards the acting Steam ID", async (t) => {
+  const eventId = "1540359454627725398";
+  const nonAdmin = await listen(appFor({ id: 5, is_admin: 0, steam_id: "76561198000000504" }));
+  t.after(() => new Promise((resolve) => nonAdmin.close(resolve)));
+  let response = await fetch(`${base(nonAdmin)}/api/events/admin/${eventId}`, { method: "DELETE" });
+  assert.equal(response.status, 403);
+
+  const original = eventAdmin.deleteWebsiteEvent;
+  let received = null;
+  eventAdmin.deleteWebsiteEvent = async (payload) => {
+    received = payload;
+    return { ok: true, eventId, title: "Migration Night", deleted: true };
+  };
+  t.after(() => { eventAdmin.deleteWebsiteEvent = original; });
+
+  const adminSteamId = "76561198000000505";
+  const admin = await listen(appFor({ id: 6, is_admin: 1, steam_id: adminSteamId }));
+  t.after(() => new Promise((resolve) => admin.close(resolve)));
+  response = await fetch(`${base(admin)}/api/events/admin/${eventId}`, { method: "DELETE" });
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(received, { eventId, deletedBySteamId: adminSteamId });
+});
 
 test("website event calendar reads HerbyBot-synced automation events without a Discord bot token", async (t) => {
   const original = automation.getDiscordScheduledEvents;
