@@ -5,7 +5,8 @@
   const basePct = pct;
 
   pct = function pctWithUnknownState(value, max, fallback = 0) {
-    const missing = value === undefined || value === null || value === '';
+    const numeric = Number(value);
+    const missing = value === undefined || value === null || value === '' || !Number.isFinite(numeric);
     if (missing) return fallback === 0 ? null : fallback;
     return basePct(value, max, fallback);
   };
