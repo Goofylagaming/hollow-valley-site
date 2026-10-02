@@ -103,6 +103,10 @@ jobs:
 
           static_path = Path('test/marketplaceDinoGrantMods.test.js')
           static = static_path.read_text(encoding='utf-8')
+          old_cb = 'v006' + chr(92) + '.2'
+          if static.count(old_cb) != 1:
+              raise SystemExit(f'CommandBridge test version anchor count was {static.count(old_cb)}, expected 1')
+          static = static.replace(old_cb, 'v006' + chr(92) + '.6', 1)
           static = static.replace('assert.match(source, /MOD_VERSION = "v005"/);', 'assert.match(source, /MOD_VERSION = "v008"/);', 1)
           anchor = '  assert.match(source, /target slot contains another dinosaur/);\n'
           addition = '''  assert.match(source, /"hunger": 9999\\.0/);
