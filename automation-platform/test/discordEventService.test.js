@@ -66,6 +66,41 @@ test('Discord scheduled event snapshots persist and sort by start time', () => {
   assert.equal(stale.events.length, 2);
 });
 
+test('website-deleted Discord events stay hidden across HerbyBot resyncs', () => {
+  const guildId = '1540359454627725387';
+  const hiddenId = '1540359454627725398';
+  const keptId = '1540359454627725399';
+  const snapshot = [
+    { id: hiddenId, title: 'Hide Me', startTime: '2026-09-22T09:00:00Z' },
+    { id: keptId, title: 'Keep Me', startTime: '2026-09-22T10:00:00Z' },
+  ];
+
+  service.syncEvents({ guildId, events: snapshot, syncedAt: '2026-09-21T09:00:00Z' });
+  const deleted = service.hideEventFromWebsite(hiddenId);
+  assert.equal(deleted.deleted, true);
+  assert.equal(deleted.duplicate, false);
+
+  let current = service.getEvents({ nowMs: Date.parse('2026-09-21T09:01:00Z') });
+  assert.deepEqual(current.events.map((event) => event.id), [keptId]);
+
+  const resynced = service.syncEvents({
+    guildId,
+    events: snapshot,
+    syncedAt: '2026-09-21T09:02:00Z',
+  });
+  assert.deepEqual(resynced.events.map((event) => event.id), [keptId]);
+
+  current = service.getEvents({ nowMs: Date.parse('2026-09-21T09:03:00Z') });
+  assert.deepEqual(current.events.map((event) => event.id), [keptId]);
+
+  service.syncEvents({
+    guildId,
+    events: [{ id: keptId, title: 'Keep Me', startTime: '2026-09-22T10:00:00Z' }],
+    syncedAt: '2026-09-21T09:04:00Z',
+  });
+  assert.throws(() => service.hideEventFromWebsite(hiddenId), (error) => error.code === 'DISCORD_EVENT_NOT_FOUND');
+});
+
 test('Discord event sync rejects duplicate IDs and malformed payloads', () => {
   const guildId = '1540359454627725387';
   assert.throws(() => service.syncEvents({

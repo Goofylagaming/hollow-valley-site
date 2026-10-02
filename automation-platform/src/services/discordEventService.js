@@ -29,6 +29,19 @@ function isoOrNull(value, { required = false } = {}) {
   return date.toISOString();
 }
 
+function normalizeHiddenIds(value) {
+  const source = Array.isArray(value?.hiddenEventIds) ? value.hiddenEventIds : [];
+  const hidden = [];
+  const seen = new Set();
+  for (const raw of source) {
+    const id = String(raw || '').trim();
+    if (!/^\d{10,24}$/.test(id) || seen.has(id)) continue;
+    seen.add(id);
+    hidden.push(id);
+  }
+  return hidden;
+}
+
 function normalizeEvent(raw, guildId) {
   const id = validateSnowflake(raw?.id, 'Scheduled event ID');
   const title = cleanText(raw?.title || raw?.name, 120);
@@ -66,20 +79,56 @@ function syncEvents({ guildId, events, syncedAt = new Date().toISOString() }) {
     seen.add(event.id);
   }
 
+  const previous = store.getState(STATE_KEY, null)?.value || {};
+  const hiddenEventIds = normalizeHiddenIds(previous).filter((id) => seen.has(id));
+  const hidden = new Set(hiddenEventIds);
+  const visibleEvents = normalized.filter((event) => !hidden.has(event.id));
+
   const synced = isoOrNull(syncedAt, { required: true });
   const state = store.setState(STATE_KEY, {
     guildId: safeGuildId,
     events: normalized,
+    hiddenEventIds,
     syncedAt: synced,
   });
 
   return {
     configured: true,
     guildId: safeGuildId,
-    events: normalized,
+    events: visibleEvents,
     syncedAt: synced,
     stale: false,
     updatedAt: state?.updatedAt || null,
+  };
+}
+
+function hideEventFromWebsite(eventId) {
+  const id = validateSnowflake(eventId, 'Scheduled event ID');
+  const state = store.getState(STATE_KEY, null);
+  const value = state?.value || null;
+  const events = Array.isArray(value?.events) ? value.events : [];
+  const event = events.find((entry) => String(entry.id) === id);
+
+  if (!event) {
+    const error = new Error('Scheduled event was not found in the current Discord event snapshot');
+    error.code = 'DISCORD_EVENT_NOT_FOUND';
+    throw error;
+  }
+
+  const hidden = new Set(normalizeHiddenIds(value));
+  const duplicate = hidden.has(id);
+  hidden.add(id);
+
+  store.setState(STATE_KEY, {
+    ...value,
+    hiddenEventIds: [...hidden],
+  });
+
+  return {
+    eventId: id,
+    title: event.title,
+    deleted: true,
+    duplicate,
   };
 }
 
@@ -101,11 +150,14 @@ function getEvents({ env = process.env, nowMs = Date.now() } = {}) {
   const syncedMs = syncedAt ? new Date(syncedAt).getTime() : NaN;
   const ageMs = Number.isFinite(syncedMs) ? Math.max(0, nowMs - syncedMs) : null;
   const stale = ageMs === null ? true : ageMs > staleAfterMs(env);
+  const hidden = new Set(normalizeHiddenIds(value));
+  const visibleEvents = (Array.isArray(value.events) ? value.events : [])
+    .filter((event) => !hidden.has(String(event.id)));
 
   return {
     configured: true,
     guildId: value.guildId || null,
-    events: Array.isArray(value.events) ? value.events : [],
+    events: visibleEvents,
     syncedAt,
     stale,
     ageSeconds: ageMs === null ? null : Math.floor(ageMs / 1000),
@@ -116,6 +168,7 @@ module.exports = {
   staleAfterMs,
   normalizeEvent,
   syncEvents,
+  hideEventFromWebsite,
   getEvents,
   _test: { STATE_KEY },
 };
