@@ -123,6 +123,12 @@ jobs:
           sudo apt-get install -y -qq lua5.4
           luac -p server-mods/DinoStorage/Scripts/main.lua
 
+      - name: Install automation dependencies
+        shell: bash
+        run: |
+          cd automation-platform
+          npm install --omit=dev --no-audit --no-fund
+
       - name: Run focused marketplace tests
         shell: bash
         run: |
