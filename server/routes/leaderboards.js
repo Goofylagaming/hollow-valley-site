@@ -7,8 +7,10 @@ router.get("/", async (_req, res) => {
   const response = {
     dailyKills: [],
     dailyKd: [],
+    dailyDeaths: [],
     weeklyKills: [],
     weeklyKd: [],
+    weeklyDeaths: [],
     mostPlaytime: [],
     mostLevels: [],
     combatFeedEnabled: false,
@@ -35,8 +37,10 @@ router.get("/", async (_req, res) => {
 
     response.dailyKills = Array.isArray(daily.mostKills) ? daily.mostKills : [];
     response.dailyKd = Array.isArray(daily.bestKd) ? daily.bestKd : [];
+    response.dailyDeaths = Array.isArray(daily.mostDeaths) ? daily.mostDeaths : [];
     response.weeklyKills = Array.isArray(weekly.mostKills) ? weekly.mostKills : [];
     response.weeklyKd = Array.isArray(weekly.bestKd) ? weekly.bestKd : [];
+    response.weeklyDeaths = Array.isArray(weekly.mostDeaths) ? weekly.mostDeaths : [];
     response.combatFeedEnabled = daily.enabled === true || weekly.enabled === true;
     response.combatFeedConfigured = daily.configured === true || weekly.configured === true;
     response.combatEventCount = Number(daily.eventCount || 0) + Number(weekly.eventCount || 0);
