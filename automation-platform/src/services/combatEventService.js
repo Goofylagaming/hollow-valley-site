@@ -26,6 +26,8 @@ db.exec(`
     ON combat_events(killer_steam_id, occurred_at DESC);
   CREATE INDEX IF NOT EXISTS idx_combat_events_victim
     ON combat_events(victim_steam_id, occurred_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_combat_events_semantic
+    ON combat_events(occurred_at, victim_steam_id, killer_steam_id, source);
 
   CREATE TABLE IF NOT EXISTS combat_players (
     steam_id TEXT PRIMARY KEY,
@@ -106,6 +108,27 @@ function getEvent(id) {
   return db.prepare('SELECT * FROM combat_events WHERE id = ?').get(String(id)) || null;
 }
 
+function getSemanticEvent(event) {
+  return db.prepare(`
+    SELECT *
+    FROM combat_events
+    WHERE occurred_at = ?
+      AND victim_steam_id = ?
+      AND source = ?
+      AND (
+        (killer_steam_id IS NULL AND ? IS NULL)
+        OR killer_steam_id = ?
+      )
+    LIMIT 1
+  `).get(
+    event.occurredAt,
+    event.victimSteamId,
+    event.source,
+    event.killerSteamId,
+    event.killerSteamId
+  ) || null;
+}
+
 function sameEvent(row, event) {
   return Boolean(row) &&
     row.occurred_at === event.occurredAt &&
@@ -154,6 +177,11 @@ function ingestEvent(input, { env = process.env } = {}) {
     return { duplicate: true, event: existing, questChallenges: trackQuestChallenges(existing) };
   }
 
+  const semanticExisting = getSemanticEvent(event);
+  if (semanticExisting) {
+    return { duplicate: true, event: semanticExisting, questChallenges: trackQuestChallenges(semanticExisting) };
+  }
+
   db.exec('BEGIN IMMEDIATE');
   try {
     const raced = getEvent(event.id);
@@ -161,6 +189,12 @@ function ingestEvent(input, { env = process.env } = {}) {
       if (!sameEvent(raced, event)) throw feedError('COMBAT_EVENT_CONFLICT', 'Combat event ID already exists with different event data.');
       db.exec('COMMIT');
       return { duplicate: true, event: raced, questChallenges: trackQuestChallenges(raced) };
+    }
+
+    const semanticRaced = getSemanticEvent(event);
+    if (semanticRaced) {
+      db.exec('COMMIT');
+      return { duplicate: true, event: semanticRaced, questChallenges: trackQuestChallenges(semanticRaced) };
     }
 
     db.prepare(`
@@ -280,5 +314,5 @@ module.exports = {
   normalizeEvent,
   ingestEvent,
   leaderboard,
-  _test: { db, getEvent },
+  _test: { db, getEvent, getSemanticEvent },
 };
