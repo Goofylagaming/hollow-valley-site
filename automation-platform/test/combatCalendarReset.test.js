@@ -35,7 +35,7 @@ function loadService(t) {
 function event(overrides = {}) {
   return {
     eventId: 'calendar-event-0001',
-    occurredAt: '2026-10-03T00:00:00.000Z',
+    occurredAt: '2026-10-02T00:00:00.000Z',
     killerSteamId: '76561198000001001',
     killerName: 'Hunter',
     victimSteamId: '76561198000001002',
@@ -62,26 +62,26 @@ test('player reset starts only that player from zero without deleting shared com
 
   service.ingestEvent(event({
     eventId: 'calendar-event-1001',
-    occurredAt: '2026-10-03T00:00:00.000Z',
+    occurredAt: '2026-10-02T00:00:00.000Z',
   }));
 
   const reset = service.resetPlayerStats('76561198000001001', {
-    resetAt: '2026-10-03T00:05:00.000Z',
+    resetAt: '2026-10-02T00:05:00.000Z',
     reason: 'Test reset',
   });
   assert.equal(reset.steamId, '76561198000001001');
-  assert.equal(reset.resetAt, '2026-10-03T00:05:00.000Z');
+  assert.equal(reset.resetAt, '2026-10-02T00:05:00.000Z');
 
   service.ingestEvent(event({
     eventId: 'calendar-event-1002',
-    occurredAt: '2026-10-03T00:10:00.000Z',
+    occurredAt: '2026-10-02T00:10:00.000Z',
     victimSteamId: '76561198000001003',
     victimName: 'Runner',
   }));
 
   const board = service.leaderboard({
     period: 'daily',
-    nowMs: Date.parse('2026-10-03T01:00:00.000Z'),
+    nowMs: Date.parse('2026-10-02T01:00:00.000Z'),
   });
 
   const hunter = board.mostKills.find((row) => row.steamId === '76561198000001001');

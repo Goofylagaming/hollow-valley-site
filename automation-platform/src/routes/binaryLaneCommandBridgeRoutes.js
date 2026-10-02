@@ -2,6 +2,7 @@ const express = require('express');
 const { requireBinaryLaneCommandToken } = require('../middleware/binaryLaneCommandAuth');
 const bridge = require('../services/commandBridgeHttpService');
 const dinoStorage = require('../services/dinoStorageService');
+const deathSuppression = require('../services/combatDeathSuppressionService');
 const restartTelemetry = require('../services/restartTelemetryService');
 
 const router = express.Router();
@@ -10,6 +11,27 @@ router.use(requireBinaryLaneCommandToken);
 router.get('/poll', (_req, res) => {
   try {
     const payloads = bridge.claimPending(10);
+
+    // Parking intentionally transitions the live pawn into a corpse a few
+    // seconds after DinoStorage captures it. Arm a one-use natural-death
+    // suppression before the command reaches UE4SS so the resulting system
+    // death cannot damage the player's combat K:D/death leaderboard stats.
+    for (const payload of payloads) {
+      try {
+        const command = JSON.parse(payload);
+        if (command?.verb === 'dino_store') {
+          deathSuppression.arm({
+            requestId: command.id,
+            steamId: command.steam,
+            reason: 'dinostorage_store',
+            ttlSeconds: 30,
+          });
+        }
+      } catch (error) {
+        console.warn('[binarylane-command-bridge] death suppression arm failed', error.message);
+      }
+    }
+
     res.type('application/x-ndjson');
     return res.send(payloads.length ? `${payloads.join('\n')}\n` : '');
   } catch (error) {
@@ -42,6 +64,17 @@ router.post('/result', async (req, res) => {
     if (!outcome.accepted) return res.status(400).json(outcome);
 
     if (outcome.final && req.body?.source === 'DinoStorage') {
+      const request = bridge.getRequest(req.body.id);
+      if (request?.verb === 'dino_store' && req.body?.ok === false) {
+        // If DinoStorage rejected the store before the deferred corpse
+        // transition, remove the window so a real natural death still counts.
+        try {
+          deathSuppression.cancel(req.body.id);
+        } catch (error) {
+          console.warn('[binarylane-command-bridge] death suppression cancel failed', error.message);
+        }
+      }
+
       try {
         await dinoStorage.reconcileDinoStorageRequest(req.body.id);
       } catch (error) {
