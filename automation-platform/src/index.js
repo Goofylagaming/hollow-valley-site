@@ -10,9 +10,12 @@ const { requireAdminToken } = require('./middleware/adminAuth');
 const audit = require('./services/auditService');
 const backupService = require('./services/backupService');
 const adminRoutes = require('./routes/adminRoutes');
+const combatAdminRoutes = require('./routes/combatAdminRoutes');
+const playerDirectoryAdminRoutes = require('./routes/playerDirectoryAdminRoutes');
 const eventAdminRoutes = require('./routes/eventAdminRoutes');
 const safeLogRecoveryRoutes = require('./routes/safeLogRecoveryRoutes');
 const websiteRoutes = require('./routes/websiteRoutes');
+const websiteCombatRoutes = require('./routes/websiteCombatRoutes');
 const websiteAdminWalletRoutes = require('./routes/websiteAdminWalletRoutes');
 const websiteDailyLoginRoutes = require('./routes/websiteDailyLoginRoutes');
 const skinSharePolicyRoutes = require('./routes/skinSharePolicyRoutes');
@@ -174,6 +177,16 @@ app.use('/api/admin/events', (_req, res, next) => {
   next();
 }, eventAdminRoutes);
 
+app.use('/api/admin/combat', (_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+}, combatAdminRoutes);
+
+app.use('/api/admin/player-directory', (_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+}, playerDirectoryAdminRoutes);
+
 app.use('/api/admin', (_req, res, next) => {
   res.set('Cache-Control', 'no-store');
   next();
@@ -193,6 +206,11 @@ app.use('/api/website/skin-share-policy', (_req, res, next) => {
   res.set('Cache-Control', 'no-store');
   next();
 }, skinSharePolicyRoutes);
+
+app.use('/api/website', (_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+}, websiteCombatRoutes);
 
 app.use('/api/website', (_req, res, next) => {
   res.set('Cache-Control', 'no-store');

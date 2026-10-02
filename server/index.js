@@ -32,6 +32,7 @@ const mapdataRouter = require("./routes/mapdata");
 const supporterInternalRouter = require("./routes/supporterInternal");
 const adminRestoreRouter = require("./routes/adminRestore");
 const adminOperationsRouter = require("./routes/adminOperations");
+const adminCombatRouter = require("./routes/adminCombat");
 const adminPlayerDirectoryRouter = require("./routes/adminPlayerDirectory");
 const adminSafeLogRecoveryRouter = require("./routes/adminSafeLogRecovery");
 const adminCommsRouter = require("./routes/adminComms");
@@ -168,25 +169,12 @@ function createApp() {
 
   app.get("/api/map/me-test", (req, res) => {
     if (!req.user) {
-      return res.status(401).json({
-        ok: false,
-        error: "Login required"
-      });
+      return res.status(401).json({ ok: false, error: "Login required" });
     }
-
     if (!req.user.steam_id) {
-      return res.status(403).json({
-        ok: false,
-        error: "Steam account is not linked"
-      });
+      return res.status(403).json({ ok: false, error: "Steam account is not linked" });
     }
-
-    return res.json({
-      ok: true,
-      authenticated: true,
-      steamId: req.user.steam_id,
-      username: req.user.username
-    });
+    return res.json({ ok: true, authenticated: true, steamId: req.user.steam_id, username: req.user.username });
   });
 
   app.use("/auth", authRouter);
@@ -214,6 +202,7 @@ function createApp() {
   app.use("/api/friends", friendsRouter);
   app.use("/api/admin-restore", adminRestoreRouter);
   app.use("/api/admin-operations", adminOperationsRouter);
+  app.use("/api/admin-combat", adminCombatRouter);
   app.use("/api/admin-player-directory", adminPlayerDirectoryRouter);
   app.use("/api/admin-safelog-recovery", adminSafeLogRecoveryRouter);
   app.use("/api/admin-comms", adminCommsRouter);
