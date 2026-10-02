@@ -72,6 +72,39 @@ test('combat events are idempotent and conflicting duplicate IDs fail closed', (
   assert.equal(service._test.db.prepare('SELECT COUNT(*) AS n FROM combat_events').get().n, 1);
 });
 
+test('same combat occurrence is deduplicated even when replayed with a different event ID', (t) => {
+  const service = loadService(t);
+
+  const first = service.ingestEvent(event({ eventId: 'manual-event-0001' }));
+  assert.equal(first.duplicate, false);
+
+  const replay = service.ingestEvent(event({ eventId: 'islelog-replay-0001' }));
+  assert.equal(replay.duplicate, true);
+  assert.equal(replay.event.id, 'manual-event-0001');
+  assert.equal(service._test.db.prepare('SELECT COUNT(*) AS n FROM combat_events').get().n, 1);
+
+  const natural = service.ingestEvent(event({
+    eventId: 'natural-event-0001',
+    occurredAt: '2026-09-21T08:01:00.000Z',
+    killerSteamId: null,
+    killerName: null,
+    victimSteamId: '76561198000001004',
+    victimName: 'NaturalVictim',
+  }));
+  assert.equal(natural.duplicate, false);
+
+  const naturalReplay = service.ingestEvent(event({
+    eventId: 'natural-replay-0001',
+    occurredAt: '2026-09-21T08:01:00.000Z',
+    killerSteamId: null,
+    killerName: null,
+    victimSteamId: '76561198000001004',
+    victimName: 'NaturalVictim',
+  }));
+  assert.equal(naturalReplay.duplicate, true);
+  assert.equal(service._test.db.prepare('SELECT COUNT(*) AS n FROM combat_events').get().n, 2);
+});
+
 test('verified leaderboard derives kills, deaths and K:D without inventing environmental kills', (t) => {
   const service = loadService(t);
 

@@ -93,6 +93,55 @@ test('combat feed endpoint is separately authenticated, idempotent and disabled 
   assert.equal(response.status, 200);
   assert.equal((await response.json()).duplicate, true);
 
+  const batch = {
+    events: [
+      {
+        ...payload,
+        eventId: 'route-death-1001',
+        occurredAt: '2026-09-21T08:01:00.000Z',
+        killerSteamId: null,
+        killerName: null,
+        victimSteamId: '76561198000001103',
+        victimName: 'NaturalDeath',
+      },
+      {
+        ...payload,
+        eventId: 'route-death-1002',
+        occurredAt: '2026-09-21T08:02:00.000Z',
+        killerSteamId: '76561198000001104',
+        killerName: 'Rex',
+        victimSteamId: '76561198000001105',
+        victimName: 'Trike',
+      },
+    ],
+  };
+
+  response = await fetch(base + '/api/combat/events', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(batch),
+  });
+  assert.equal(response.status, 201);
+  assert.deepEqual(await response.json(), {
+    ok: true,
+    received: 2,
+    inserted: 2,
+    duplicates: 0,
+  });
+
+  response = await fetch(base + '/api/combat/events', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(batch),
+  });
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    ok: true,
+    received: 2,
+    inserted: 0,
+    duplicates: 2,
+  });
+
   response = await fetch(base + '/api/combat/events', {
     method: 'POST',
     headers,
