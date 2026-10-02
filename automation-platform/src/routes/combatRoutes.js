@@ -1,9 +1,32 @@
 const express = require('express');
 const { requireCombatFeedToken } = require('../middleware/combatFeedAuth');
 const combat = require('../services/combatEventService');
+const deathSuppression = require('../services/combatDeathSuppressionService');
 
 const router = express.Router();
 router.use(requireCombatFeedToken);
+
+function ingestWithSuppression(input) {
+  // Preserve the existing disabled-feed behaviour instead of consuming a
+  // suppression while authoritative combat ingestion is unavailable.
+  if (!combat.enabled()) return combat.ingestEvent(input);
+
+  const normalized = combat.normalizeEvent(input);
+  const suppression = deathSuppression.consumeNaturalDeath(normalized);
+  if (suppression) {
+    console.log(
+      `[combat] Suppressed ${normalized.id} victim=${normalized.victimSteamId} reason=${suppression.reason}`
+    );
+    return {
+      duplicate: false,
+      suppressed: true,
+      event: null,
+      suppression,
+    };
+  }
+
+  return combat.ingestEvent(input);
+}
 
 router.get('/status', (_req, res) => {
   const board = combat.leaderboard({ hours: 24 * 31, limit: 1 });
@@ -33,21 +56,24 @@ router.post('/events', (req, res) => {
         });
       }
 
-      const results = batch.map((event) => combat.ingestEvent(event));
-      const inserted = results.filter((result) => !result.duplicate).length;
-      const duplicates = results.length - inserted;
+      const results = batch.map((event) => ingestWithSuppression(event));
+      const inserted = results.filter((result) => !result.duplicate && !result.suppressed).length;
+      const duplicates = results.filter((result) => result.duplicate).length;
+      const suppressed = results.filter((result) => result.suppressed).length;
       return res.status(inserted > 0 ? 201 : 200).json({
         ok: true,
         received: results.length,
         inserted,
         duplicates,
+        suppressed,
       });
     }
 
-    const result = combat.ingestEvent(req.body);
-    return res.status(result.duplicate ? 200 : 201).json({
+    const result = ingestWithSuppression(req.body);
+    return res.status(result.duplicate || result.suppressed ? 200 : 201).json({
       ok: true,
-      duplicate: result.duplicate,
+      duplicate: Boolean(result.duplicate),
+      suppressed: Boolean(result.suppressed),
       eventId: result.event?.id || null,
     });
   } catch (error) {
