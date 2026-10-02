@@ -60,22 +60,24 @@ router.post('/events', (req, res) => {
       const inserted = results.filter((result) => !result.duplicate && !result.suppressed).length;
       const duplicates = results.filter((result) => result.duplicate).length;
       const suppressed = results.filter((result) => result.suppressed).length;
-      return res.status(inserted > 0 ? 201 : 200).json({
+      const body = {
         ok: true,
         received: results.length,
         inserted,
         duplicates,
-        suppressed,
-      });
+      };
+      if (suppressed > 0) body.suppressed = suppressed;
+      return res.status(inserted > 0 ? 201 : 200).json(body);
     }
 
     const result = ingestWithSuppression(req.body);
-    return res.status(result.duplicate || result.suppressed ? 200 : 201).json({
+    const body = {
       ok: true,
       duplicate: Boolean(result.duplicate),
-      suppressed: Boolean(result.suppressed),
       eventId: result.event?.id || null,
-    });
+    };
+    if (result.suppressed) body.suppressed = true;
+    return res.status(result.duplicate || result.suppressed ? 200 : 201).json(body);
   } catch (error) {
     const status =
       error.code === 'COMBAT_EVENT_CONFLICT' ? 409 :
