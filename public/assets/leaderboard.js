@@ -3,8 +3,10 @@ const { api, escapeHtml } = window.HDS;
 let data = {
   dailyKills: [],
   dailyKd: [],
+  dailyDeaths: [],
   weeklyKills: [],
   weeklyKd: [],
+  weeklyDeaths: [],
   mostPlaytime: [],
   mostLevels: [],
 };
@@ -20,7 +22,11 @@ function combatTable(title, rows, metric, note = "") {
   const body = !rows.length
     ? `<tr><td colspan="5">${combatEmptyMessage()}</td></tr>`
     : rows.map((row, i) => {
-        const value = metric === "kills" ? row.kills : Number(row.kd || 0).toFixed(2);
+        const value = metric === "kills"
+          ? row.kills
+          : metric === "deaths"
+            ? row.deaths
+            : Number(row.kd || 0).toFixed(2);
         return `<tr>
           <td>${i + 1}</td>
           <td>${escapeHtml(row.username || "Unknown")}</td>
@@ -30,13 +36,15 @@ function combatTable(title, rows, metric, note = "") {
         </tr>`;
       }).join("");
 
+  const metricLabel = metric === "kills" ? "Total Kills" : metric === "deaths" ? "Total Deaths" : "K:D";
+
   return `<section class="leaderboard-period">
     <div class="leaderboard-period-heading">
       <h2>${title}</h2>
       ${note ? `<p>${escapeHtml(note)}</p>` : ""}
     </div>
     <table class="leaderboard-table">
-      <thead><tr><th>#</th><th>Player</th><th>Kills</th><th>Deaths</th><th>${metric === "kills" ? "Total Kills" : "K:D"}</th></tr></thead>
+      <thead><tr><th>#</th><th>Player</th><th>Kills</th><th>Deaths</th><th>${metricLabel}</th></tr></thead>
       <tbody>${body}</tbody>
     </table>
   </section>`;
@@ -48,6 +56,13 @@ function renderCombat() {
     container.innerHTML =
       combatTable("Daily Kills", data.dailyKills || [], "kills", "Resets at midnight Brisbane time · 500 VC prize") +
       combatTable("Weekly Total Kills", data.weeklyKills || [], "kills", "Monday–Sunday Brisbane time · 2,500 VC prize");
+    return;
+  }
+
+  if (activeTab === "mostDeaths") {
+    container.innerHTML =
+      combatTable("Daily Deaths", data.dailyDeaths || [], "deaths", "Informational only · no VC prize") +
+      combatTable("Weekly Deaths", data.weeklyDeaths || [], "deaths", "Informational only · no VC prize");
     return;
   }
 
@@ -92,7 +107,7 @@ function renderSimple() {
 }
 
 function render() {
-  if (activeTab === "mostKills" || activeTab === "bestKd") renderCombat();
+  if (activeTab === "mostKills" || activeTab === "bestKd" || activeTab === "mostDeaths") renderCombat();
   else renderSimple();
 }
 
@@ -106,7 +121,7 @@ document.querySelectorAll(".filter").forEach((tab) => {
 
 function applyTabFromQuery() {
   const tab = new URLSearchParams(window.location.search).get("tab");
-  const tabMap = { levels: "mostLevels", kills: "mostKills", kd: "bestKd", playtime: "mostPlaytime" };
+  const tabMap = { levels: "mostLevels", kills: "mostKills", kd: "bestKd", deaths: "mostDeaths", playtime: "mostPlaytime" };
   if (tab && tabMap[tab]) {
     activeTab = tabMap[tab];
     document.querySelectorAll(".filter").forEach((t) => t.classList.toggle("active", t.dataset.tab === activeTab));
