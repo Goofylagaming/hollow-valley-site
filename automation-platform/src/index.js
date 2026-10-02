@@ -9,6 +9,7 @@ const { getMigrationReadiness } = require('./services/migrationReadinessService'
 const { requireAdminToken } = require('./middleware/adminAuth');
 const audit = require('./services/auditService');
 const backupService = require('./services/backupService');
+const combatBootstrapReset = require('./services/combatBootstrapResetService');
 const adminRoutes = require('./routes/adminRoutes');
 const combatAdminRoutes = require('./routes/combatAdminRoutes');
 const playerDirectoryAdminRoutes = require('./routes/playerDirectoryAdminRoutes');
@@ -245,6 +246,14 @@ app.get('*', (_req, res) => {
 
 if (require.main === module) {
   seedOfficialCatalog();
+  try {
+    const combatReset = combatBootstrapReset.runConfiguredCombatResets();
+    if (combatReset.configured) {
+      console.log(`[combat-bootstrap-reset] batch=${combatReset.batch} reset=${combatReset.reset} skipped=${combatReset.skipped}`);
+    }
+  } catch (error) {
+    console.error('[combat-bootstrap-reset]', error.message);
+  }
   const recoveredDinoStorage = recoverInterruptedDinoStorage();
   if (recoveredDinoStorage) {
     console.warn(`[dinostorage-recover] marked ${recoveredDinoStorage} interrupted request(s) unknown; none were replayed`);
