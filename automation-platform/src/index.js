@@ -10,6 +10,7 @@ const { requireAdminToken } = require('./middleware/adminAuth');
 const audit = require('./services/auditService');
 const backupService = require('./services/backupService');
 const adminRoutes = require('./routes/adminRoutes');
+const combatAdminRoutes = require('./routes/combatAdminRoutes');
 const eventAdminRoutes = require('./routes/eventAdminRoutes');
 const safeLogRecoveryRoutes = require('./routes/safeLogRecoveryRoutes');
 const websiteRoutes = require('./routes/websiteRoutes');
@@ -173,6 +174,11 @@ app.use('/api/admin/events', (_req, res, next) => {
   res.set('Cache-Control', 'no-store');
   next();
 }, eventAdminRoutes);
+
+app.use('/api/admin/combat', (_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+}, combatAdminRoutes);
 
 app.use('/api/admin', (_req, res, next) => {
   res.set('Cache-Control', 'no-store');
