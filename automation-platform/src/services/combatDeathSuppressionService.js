@@ -46,12 +46,23 @@ function validRequestId(value) {
   return requestId.slice(0, 200);
 }
 
-function arm({ requestId, steamId, reason = 'dinostorage_store', ttlSeconds = 30, nowMs = Date.now() }) {
+function arm({
+  requestId,
+  steamId,
+  reason = 'dinostorage_store',
+  delaySeconds = 2,
+  ttlSeconds = 30,
+  nowMs = Date.now(),
+}) {
   const id = validRequestId(requestId);
   const steam = validSteamId(steamId);
+  const delay = Math.max(0, Math.min(15, Number(delaySeconds) || 0));
   const ttl = Math.max(5, Math.min(120, Number(ttlSeconds) || 30));
-  const start = new Date(Number(nowMs)).toISOString();
-  const expires = new Date(Number(nowMs) + ttl * 1000).toISOString();
+  const base = Number(nowMs);
+  if (!Number.isFinite(base)) throw new Error('Invalid suppression clock');
+  const startMs = base + delay * 1000;
+  const start = new Date(startMs).toISOString();
+  const expires = new Date(startMs + ttl * 1000).toISOString();
   const cleanReason = String(reason || 'dinostorage_store').trim().slice(0, 120) || 'dinostorage_store';
 
   db.prepare(`
