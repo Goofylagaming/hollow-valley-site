@@ -248,6 +248,11 @@ function leaderboard({ hours = 24 * 31, limit = 100, nowMs = Date.now() } = {}) 
     .sort((a, b) => b.kd - a.kd || b.kills - a.kills || a.deaths - b.deaths || a.username.localeCompare(b.username))
     .slice(0, safeLimit);
 
+  const mostDeaths = rows
+    .filter((row) => row.deaths > 0)
+    .sort((a, b) => b.deaths - a.deaths || b.kills - a.kills || a.username.localeCompare(b.username))
+    .slice(0, safeLimit);
+
   const summary = db.prepare(`
     SELECT COUNT(*) AS event_count, MAX(occurred_at) AS latest_event_at
     FROM combat_events
@@ -263,6 +268,7 @@ function leaderboard({ hours = 24 * 31, limit = 100, nowMs = Date.now() } = {}) 
     latestEventAt: summary?.latest_event_at || null,
     mostKills,
     bestKd,
+    mostDeaths,
   };
 }
 
