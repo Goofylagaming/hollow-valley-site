@@ -142,7 +142,20 @@ test('official fulfillment creates a minimal real DinoStorage state and marks or
 
   assert.equal(state.isPrime, true);
   assert.deepEqual(state.primeData, { eligible: true, cond1: true, cond2: true });
-  for (const forbidden of ['isFemale', 'health', 'stamina', 'skin', 'mutations', 'nutrients']) {
+  assert.equal(state.hunger, 9999);
+  assert.equal(state.food, 9999);
+  assert.deepEqual(state.nutrients, {
+    carbValue: 9999,
+    proteinValue: 9999,
+    lipidValue: 9999,
+    bonesValue: 0,
+    cannibalValue: 0,
+    magyValue: 0,
+    rottenFleshValue: 0,
+    mushroomsValue: 0,
+    bMalnutrition: false,
+  });
+  for (const forbidden of ['isFemale', 'health', 'stamina', 'skin', 'mutations']) {
     assert.equal(Object.hasOwn(state, forbidden), false, `${forbidden} should not be fabricated`);
   }
 });

@@ -735,6 +735,11 @@ local function writeMarketplaceGrant(steam, slot, classPath, growth, isPrime, or
         string.format('  "capturedAt": %d,', os.time()),
         string.format('  "classPath": "%s",', jsonEscape(classPath)),
         string.format('  "growth": %.6f,', growth),
+        -- Marketplace grants are synthetic, so there is no captured live-dino
+        -- food/diet snapshot. Seed full normal diet values for first redemption.
+        '  "hunger": 9999.0,',
+        '  "food": 9999.0,',
+        '  "nutrients": {"carbValue":9999.0,"proteinValue":9999.0,"lipidValue":9999.0,"bonesValue":0,"cannibalValue":0,"magyValue":0,"rottenFleshValue":0,"mushroomsValue":0,"bMalnutrition":false},',
     }
 
     if prime then
