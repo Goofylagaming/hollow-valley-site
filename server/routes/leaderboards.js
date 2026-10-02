@@ -1,5 +1,6 @@
 const express = require("express");
 const automation = require("../services/automationWebsiteClient");
+const combat = require("../services/combatControlClient");
 
 const router = express.Router();
 
@@ -31,8 +32,8 @@ router.get("/", async (_req, res) => {
 
   try {
     const [daily, weekly] = await Promise.all([
-      automation.getCombatLeaderboard({ hours: 24 }),
-      automation.getCombatLeaderboard({ hours: 24 * 7 }),
+      combat.getLeaderboard("daily"),
+      combat.getLeaderboard("weekly"),
     ]);
 
     response.dailyKills = Array.isArray(daily.mostKills) ? daily.mostKills : [];
@@ -43,7 +44,7 @@ router.get("/", async (_req, res) => {
     response.weeklyDeaths = Array.isArray(weekly.mostDeaths) ? weekly.mostDeaths : [];
     response.combatFeedEnabled = daily.enabled === true || weekly.enabled === true;
     response.combatFeedConfigured = daily.configured === true || weekly.configured === true;
-    response.combatEventCount = Number(daily.eventCount || 0) + Number(weekly.eventCount || 0);
+    response.combatEventCount = Number(weekly.eventCount || 0);
     response.combatLatestEventAt = [daily.latestEventAt, weekly.latestEventAt].filter(Boolean).sort().at(-1) || null;
     response.dailyCombatWindowStart = daily.windowStart || null;
     response.dailyCombatWindowEnd = daily.windowEnd || null;
