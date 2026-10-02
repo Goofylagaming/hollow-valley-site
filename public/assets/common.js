@@ -1,5 +1,49 @@
 // Shared helpers used by every page: API wrapper, auth state, and the injected nav partial.
 window.HDS = (function () {
+  const PUBLIC_TAGLINE = "WELCOME TO THE AUSTRALIAN ISLE SERVER - HOLLOW VALLEY";
+  const DISCORD_INVITE = "https://discord.gg/hollowvalleyisle";
+
+  function normalizePublicBranding() {
+    document.querySelectorAll('a[href*="discord.gg/herbydeathsquadgames"]').forEach((link) => {
+      link.setAttribute("href", DISCORD_INVITE);
+    });
+
+    const replacements = [
+      [/ISLE SERVER · HOME OF THE HERBY DEATH SQUAD/gi, PUBLIC_TAGLINE],
+      [/ISLE SERVER · HOME OF HDS/gi, PUBLIC_TAGLINE],
+      [/Herby Death Squad Games/gi, "Hollow Valley"],
+      [/Herby Death Squad/gi, "Hollow Valley"],
+      [/everything happening in the HDS valley/gi, "everything happening in Hollow Valley"],
+    ];
+
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const textNodes = [];
+    while (walker.nextNode()) textNodes.push(walker.currentNode);
+    for (const node of textNodes) {
+      if (node.parentElement?.closest("script, style")) continue;
+      let next = node.nodeValue;
+      for (const [pattern, replacement] of replacements) next = next.replace(pattern, replacement);
+      if (next !== node.nodeValue) node.nodeValue = next;
+      if (node.nodeValue.trim() === "HDS") node.nodeValue = node.nodeValue.replace("HDS", "HV");
+    }
+
+    if (/Herby Death Squad/i.test(document.title)) {
+      document.title = document.title
+        .replace(/Herby Death Squad Games/gi, "Hollow Valley")
+        .replace(/Herby Death Squad/gi, "Hollow Valley");
+    }
+
+    const description = document.querySelector('meta[name="description"]');
+    if (description) {
+      let content = description.getAttribute("content") || "";
+      content = content
+        .replace(/home of the Herby Death Squad community/gi, "the Australian Isle Server community")
+        .replace(/Herby Death Squad Games/gi, "Hollow Valley")
+        .replace(/Herby Death Squad/gi, "Hollow Valley");
+      description.setAttribute("content", content);
+    }
+  }
+
   async function api(path, options = {}) {
     const response = await fetch(path, {
       credentials: "same-origin",
@@ -128,6 +172,7 @@ window.HDS = (function () {
       console.error("Failed to load nav partial", err);
       return;
     }
+    normalizePublicBranding();
     wireNavInteractions();
     const me = await loadMe();
     const isAdmin = Boolean(me?.user?.is_admin);
@@ -170,11 +215,13 @@ window.HDS = (function () {
     }
   }
 
-  return { api, escapeHtml, loadMe, loadServerStatus, initNav, claimDailyLoginBonus };
+  return { api, escapeHtml, loadMe, loadServerStatus, initNav, claimDailyLoginBonus, normalizePublicBranding };
 })();
 
 document.addEventListener("DOMContentLoaded", () => {
+  window.HDS.normalizePublicBranding();
   window.HDS.initNav().then(() => {
+    window.HDS.normalizePublicBranding();
     document.dispatchEvent(new CustomEvent("hds:nav-ready"));
   });
   window.HDS.loadServerStatus();
