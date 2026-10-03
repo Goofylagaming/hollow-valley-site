@@ -10,6 +10,7 @@ const statusDot = document.getElementById("skin-model-status-dot");
 const lightInput = document.getElementById("skin-model-light");
 const resetButton = document.getElementById("skin-model-reset");
 const zoneStrip = document.getElementById("skin-model-zone-strip");
+const modelTools = document.querySelector(".skin-model-tools");
 const maskData = window.HV_REX_MASK_RLE;
 
 if (!canvas || !stage) throw new Error("Skin Studio 3D stage is missing");
@@ -32,13 +33,12 @@ const FALLBACKS = Object.freeze({
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "high-performance" });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.08;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x06110d, 0.035);
+const gameFog = new THREE.FogExp2(0x06110d, 0.035);
+scene.fog = null;
 
 const camera = new THREE.PerspectiveCamera(32, 1, 0.01, 100);
 camera.position.set(9.5, 2.5, 0.8);
@@ -53,27 +53,25 @@ controls.minPolarAngle = Math.PI * 0.13;
 controls.maxPolarAngle = Math.PI * 0.82;
 controls.autoRotate = false;
 
-const hemi = new THREE.HemisphereLight(0xc6e9d4, 0x07100c, 1.05);
+const hemi = new THREE.HemisphereLight(0xffffff, 0x555555, 1.0);
 scene.add(hemi);
 
-const key = new THREE.DirectionalLight(0xffedd2, 3.5);
+const key = new THREE.DirectionalLight(0xffffff, 2.2);
 key.position.set(6, 8, 5);
 key.castShadow = true;
 key.shadow.mapSize.set(1024, 1024);
 scene.add(key);
 
-const rim = new THREE.DirectionalLight(0x5cffad, 1.6);
+const rim = new THREE.DirectionalLight(0xffffff, 0.0);
 rim.position.set(-7, 5, -6);
 scene.add(rim);
 
-const fill = new THREE.DirectionalLight(0x8eb2c4, 0.65);
+const fill = new THREE.DirectionalLight(0xffffff, 0.0);
 fill.position.set(4, 2, -8);
 scene.add(fill);
 
-const ground = new THREE.Mesh(
-  new THREE.CircleGeometry(10, 72),
-  new THREE.MeshStandardMaterial({ color: 0x07110d, roughness: 0.95, metalness: 0.01, transparent: true, opacity: 0.72 })
-);
+const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x171717, roughness: 0.95, metalness: 0.01, transparent: true, opacity: 0.72 });
+const ground = new THREE.Mesh(new THREE.CircleGeometry(10, 72), groundMaterial);
 ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
@@ -81,8 +79,34 @@ scene.add(ground);
 let model = null;
 let homeCamera = null;
 let shaderControllers = [];
+let materialBindings = [];
 let maskAtlases = [];
 let currentPalette = { ...FALLBACKS };
+let previewMode = "accurate";
+let accurateButton = null;
+let gameButton = null;
+
+function installModeControls() {
+  if (!modelTools || document.getElementById("skin-model-accurate")) return;
+  accurateButton = document.createElement("button");
+  accurateButton.className = "small-button";
+  accurateButton.id = "skin-model-accurate";
+  accurateButton.type = "button";
+  accurateButton.textContent = "Accurate colour";
+  accurateButton.title = "Show the selected HEX colours without cinematic grading or texture-luminance colour shifts.";
+
+  gameButton = document.createElement("button");
+  gameButton.className = "small-button";
+  gameButton.id = "skin-model-game";
+  gameButton.type = "button";
+  gameButton.textContent = "Game preview";
+  gameButton.title = "Show the skin with the original Hollow Valley atmospheric lighting and texture shading.";
+
+  modelTools.prepend(gameButton);
+  modelTools.prepend(accurateButton);
+  accurateButton.addEventListener("click", () => applyPreviewMode("accurate"));
+  gameButton.addEventListener("click", () => applyPreviewMode("game"));
+}
 
 function setStatus(ok, message) {
   if (loaderEl) loaderEl.hidden = ok;
@@ -143,49 +167,41 @@ function buildMaskAtlases() {
   return [makeTexture(atlas0), makeTexture(atlas1), makeTexture(atlas2)];
 }
 
-function injectMaskShader(shader, uniforms) {
+function injectMaskShader(shader, uniforms, accurate) {
   Object.assign(shader.uniforms, uniforms);
   shader.fragmentShader = shader.fragmentShader.replace(
     "#include <common>",
-    `#include <common>
-uniform sampler2D hvMask0;
-uniform sampler2D hvMask1;
-uniform sampler2D hvMask2;
-uniform vec3 hvBody;
-uniform vec3 hvMarkings;
-uniform vec3 hvFlank;
-uniform vec3 hvUnderbelly;
-uniform vec3 hvDetail;
-uniform vec3 hvEyes;
-uniform vec3 hvTeeth;
-uniform vec3 hvMouth;
-uniform vec3 hvClaws;
-uniform vec3 hvMaleDisplay;`
+    `#include <common>\nuniform sampler2D hvMask0;\nuniform sampler2D hvMask1;\nuniform sampler2D hvMask2;\nuniform vec3 hvBody;\nuniform vec3 hvMarkings;\nuniform vec3 hvFlank;\nuniform vec3 hvUnderbelly;\nuniform vec3 hvDetail;\nuniform vec3 hvEyes;\nuniform vec3 hvTeeth;\nuniform vec3 hvMouth;\nuniform vec3 hvClaws;\nuniform vec3 hvMaleDisplay;`
   );
+
+  const shadeBlock = accurate
+    ? "float hvShade = 1.0;"
+    : "float hvLuma = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));\nfloat hvShade = clamp(0.34 + hvLuma * 1.06, 0.28, 1.22);";
+  const strength = accurate
+    ? { body: "1.0", markings: "1.0", flank: "1.0", underbelly: "1.0", detail: "1.0", male: "1.0" }
+    : { body: "0.90", markings: "0.96", flank: "0.92", underbelly: "0.94", detail: "0.96", male: "0.98" };
 
   shader.fragmentShader = shader.fragmentShader.replace(
     "#include <map_fragment>",
-    `#include <map_fragment>
-vec4 hvM0 = texture2D(hvMask0, vMapUv);
-vec4 hvM1 = texture2D(hvMask1, vMapUv);
-vec4 hvM2 = texture2D(hvMask2, vMapUv);
-float hvLuma = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
-float hvShade = clamp(0.34 + hvLuma * 1.06, 0.28, 1.22);
-diffuseColor.rgb = mix(diffuseColor.rgb, hvBody * hvShade, clamp(hvM0.r * 0.90, 0.0, 1.0));
-diffuseColor.rgb = mix(diffuseColor.rgb, hvMarkings * hvShade, clamp(hvM0.g * 0.96, 0.0, 1.0));
-diffuseColor.rgb = mix(diffuseColor.rgb, hvFlank * hvShade, clamp(hvM0.b * 0.92, 0.0, 1.0));
-diffuseColor.rgb = mix(diffuseColor.rgb, hvUnderbelly * hvShade, clamp(hvM0.a * 0.94, 0.0, 1.0));
-diffuseColor.rgb = mix(diffuseColor.rgb, hvDetail * hvShade, clamp(hvM1.r * 0.96, 0.0, 1.0));
-diffuseColor.rgb = mix(diffuseColor.rgb, hvEyes * max(hvShade, 0.72), clamp(hvM1.g, 0.0, 1.0));
-diffuseColor.rgb = mix(diffuseColor.rgb, hvTeeth * max(hvShade, 0.72), clamp(hvM1.b, 0.0, 1.0));
-diffuseColor.rgb = mix(diffuseColor.rgb, hvMouth * max(hvShade, 0.62), clamp(hvM1.a, 0.0, 1.0));
-diffuseColor.rgb = mix(diffuseColor.rgb, hvClaws * max(hvShade, 0.68), clamp(hvM2.r, 0.0, 1.0));
-diffuseColor.rgb = mix(diffuseColor.rgb, hvMaleDisplay * hvShade, clamp(hvM2.g * 0.98, 0.0, 1.0));`
+    `#include <map_fragment>\nvec4 hvM0 = texture2D(hvMask0, vMapUv);\nvec4 hvM1 = texture2D(hvMask1, vMapUv);\nvec4 hvM2 = texture2D(hvMask2, vMapUv);\n${shadeBlock}\ndiffuseColor.rgb = mix(diffuseColor.rgb, hvBody * hvShade, clamp(hvM0.r * ${strength.body}, 0.0, 1.0));\ndiffuseColor.rgb = mix(diffuseColor.rgb, hvMarkings * hvShade, clamp(hvM0.g * ${strength.markings}, 0.0, 1.0));\ndiffuseColor.rgb = mix(diffuseColor.rgb, hvFlank * hvShade, clamp(hvM0.b * ${strength.flank}, 0.0, 1.0));\ndiffuseColor.rgb = mix(diffuseColor.rgb, hvUnderbelly * hvShade, clamp(hvM0.a * ${strength.underbelly}, 0.0, 1.0));\ndiffuseColor.rgb = mix(diffuseColor.rgb, hvDetail * hvShade, clamp(hvM1.r * ${strength.detail}, 0.0, 1.0));\ndiffuseColor.rgb = mix(diffuseColor.rgb, hvEyes * ${accurate ? "1.0" : "max(hvShade, 0.72)"}, clamp(hvM1.g, 0.0, 1.0));\ndiffuseColor.rgb = mix(diffuseColor.rgb, hvTeeth * ${accurate ? "1.0" : "max(hvShade, 0.72)"}, clamp(hvM1.b, 0.0, 1.0));\ndiffuseColor.rgb = mix(diffuseColor.rgb, hvMouth * ${accurate ? "1.0" : "max(hvShade, 0.62)"}, clamp(hvM1.a, 0.0, 1.0));\ndiffuseColor.rgb = mix(diffuseColor.rgb, hvClaws * ${accurate ? "1.0" : "max(hvShade, 0.68)"}, clamp(hvM2.r, 0.0, 1.0));\ndiffuseColor.rgb = mix(diffuseColor.rgb, hvMaleDisplay * hvShade, clamp(hvM2.g * ${strength.male}, 0.0, 1.0));`
   );
 }
 
-function maskedMaterial(source) {
-  const material = source.clone();
+function basicMaterialFrom(source) {
+  return new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    map: source.map || null,
+    alphaMap: source.alphaMap || null,
+    transparent: Boolean(source.transparent),
+    opacity: Number.isFinite(source.opacity) ? source.opacity : 1,
+    alphaTest: source.alphaTest || 0,
+    side: source.side,
+    vertexColors: Boolean(source.vertexColors),
+  });
+}
+
+function maskedMaterial(source, accurate) {
+  const material = accurate ? basicMaterialFrom(source) : source.clone();
   const uniforms = {
     hvMask0: { value: maskAtlases[0] }, hvMask1: { value: maskAtlases[1] }, hvMask2: { value: maskAtlases[2] },
     hvBody: { value: new THREE.Color(currentPalette.body) },
@@ -199,10 +215,10 @@ function maskedMaterial(source) {
     hvClaws: { value: new THREE.Color(currentPalette.claws) },
     hvMaleDisplay: { value: new THREE.Color(currentPalette.maleDisplay) },
   };
-  material.onBeforeCompile = (shader) => injectMaskShader(shader, uniforms);
-  material.customProgramCacheKey = () => "hollow-valley-rex-live-zones-v2";
+  material.onBeforeCompile = (shader) => injectMaskShader(shader, uniforms, accurate);
+  material.customProgramCacheKey = () => `hollow-valley-rex-live-zones-v3-${accurate ? "accurate" : "game"}`;
   material.needsUpdate = true;
-  shaderControllers.push({
+  const controller = {
     setPalette(palette) {
       uniforms.hvBody.value.set(palette.body);
       uniforms.hvMarkings.value.set(palette.markings);
@@ -215,20 +231,67 @@ function maskedMaterial(source) {
       uniforms.hvClaws.value.set(palette.claws);
       uniforms.hvMaleDisplay.value.set(palette.maleDisplay);
     },
-  });
-  return material;
+  };
+  return { material, controller };
 }
 
 function applyMaterials(root) {
   shaderControllers = [];
+  materialBindings = [];
   root.traverse((child) => {
     if (!child.isMesh || !child.geometry?.attributes?.uv || !child.material) return;
     child.castShadow = true;
     child.receiveShadow = true;
-    child.material = Array.isArray(child.material)
-      ? child.material.map((mat) => maskedMaterial(mat))
-      : maskedMaterial(child.material);
+    const sourceMaterials = Array.isArray(child.material) ? child.material : [child.material];
+    const pairs = sourceMaterials.map((source) => {
+      const accurate = maskedMaterial(source, true);
+      const game = maskedMaterial(source, false);
+      shaderControllers.push(accurate.controller, game.controller);
+      return { accurate: accurate.material, game: game.material };
+    });
+    materialBindings.push({ child, pairs, array: Array.isArray(child.material) });
   });
+  applyPreviewMode(previewMode);
+}
+
+function applyPreviewMode(mode) {
+  previewMode = mode === "game" ? "game" : "accurate";
+  const accurate = previewMode === "accurate";
+
+  renderer.toneMapping = accurate ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = accurate ? 1.0 : 1.08;
+  scene.fog = accurate ? null : gameFog;
+
+  if (accurate) {
+    hemi.color.set(0xffffff); hemi.groundColor.set(0x666666); hemi.intensity = 1.0;
+    key.color.set(0xffffff); key.intensity = 2.2;
+    rim.color.set(0xffffff); rim.intensity = 0.0;
+    fill.color.set(0xffffff); fill.intensity = 0.0;
+    groundMaterial.color.set(0x171717);
+  } else {
+    const factor = Number(lightInput?.value || 105) / 105;
+    hemi.color.set(0xc6e9d4); hemi.groundColor.set(0x07100c); hemi.intensity = 1.05 * Math.max(0.55, factor);
+    key.color.set(0xffedd2); key.intensity = 3.5 * factor;
+    rim.color.set(0x5cffad); rim.intensity = 1.6 * Math.max(0.6, factor);
+    fill.color.set(0x8eb2c4); fill.intensity = 0.65;
+    groundMaterial.color.set(0x07110d);
+  }
+
+  for (const binding of materialBindings) {
+    const materials = binding.pairs.map((pair) => pair[previewMode]);
+    binding.child.material = binding.array ? materials : materials[0];
+  }
+
+  if (accurateButton) {
+    accurateButton.setAttribute("aria-pressed", accurate ? "true" : "false");
+    accurateButton.classList.toggle("green", accurate);
+  }
+  if (gameButton) {
+    gameButton.setAttribute("aria-pressed", accurate ? "false" : "true");
+    gameButton.classList.toggle("green", !accurate);
+  }
+  if (lightInput) lightInput.disabled = accurate;
+  if (statusEl && model) statusEl.textContent = `Tyrannosaurus rex · ${accurate ? "accurate HEX colour" : "game preview"}`;
 }
 
 function frameModel(root) {
@@ -325,8 +388,9 @@ async function loadModel() {
     scene.add(model);
     frameModel(model);
     updatePalette(paletteFromEditor());
+    applyPreviewMode(previewMode);
     if (loaderEl) loaderEl.textContent = "Loading Tyrannosaurus… 100%";
-    setStatus(true, "Tyrannosaurus rex · self-hosted 10-zone live skin");
+    setStatus(true, `Tyrannosaurus rex · ${previewMode === "accurate" ? "accurate HEX colour" : "game preview"}`);
   } catch (error) {
     console.error("Failed to load self-hosted Skin Studio rex", error);
     setStatus(false, "Tyrannosaurus rex · model load failed");
@@ -336,6 +400,9 @@ async function loadModel() {
     }
   }
 }
+
+installModeControls();
+applyPreviewMode("accurate");
 
 document.addEventListener("hds:skin-preview-change", (event) => updatePalette(event.detail?.skin || paletteFromEditor()));
 document.addEventListener("input", (event) => {
@@ -350,6 +417,7 @@ resetButton?.addEventListener("click", () => {
 });
 
 lightInput?.addEventListener("input", () => {
+  if (previewMode !== "game") return;
   const factor = Number(lightInput.value || 105) / 105;
   key.intensity = 3.5 * factor;
   hemi.intensity = 1.05 * Math.max(0.55, factor);

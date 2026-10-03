@@ -1,0 +1,169 @@
+{
+  "format": "hollow-valley-skin-pack",
+  "version": 1,
+  "id": "hv-originals-vol-1",
+  "name": "Hollow Valley Originals · Vol. 1",
+  "species": "Universal",
+  "skins": [
+    {
+      "name": "Ashen Crown",
+      "description": "Volcanic charcoal, weathered bone and ember accents.",
+      "rarity": "Legendary",
+      "suggestedPrice": 2500,
+      "colors": {"body":"#2B2D2A","markings":"#101311","flank":"#55584F","underbelly":"#C8BFAE","detail1":"#8C3B2E","eyes":"#F4C542","teeth":"#E5DFC7","mouth":"#6E2F37","claws":"#1D1E1C","maleDisplay":"#B05A2A"},
+      "patternIndex": 0, "themeIndex": 0, "skinVariation": 0
+    },
+    {
+      "name": "Mire Stalker",
+      "description": "Murky swamp camouflage with poisonous chartreuse eyes.",
+      "rarity": "Rare",
+      "suggestedPrice": 1250,
+      "colors": {"body":"#394433","markings":"#18251D","flank":"#657054","underbelly":"#A7A789","detail1":"#756236","eyes":"#B9FF35","teeth":"#D8D3B8","mouth":"#633B3C","claws":"#282A23","maleDisplay":"#9B782C"},
+      "patternIndex": 0, "themeIndex": 0, "skinVariation": 0
+    },
+    {
+      "name": "Blood Moon",
+      "description": "Near-black hide cut by deep crimson predator markings.",
+      "rarity": "Legendary",
+      "suggestedPrice": 2500,
+      "colors": {"body":"#242326","markings":"#501E25","flank":"#3B3033","underbelly":"#887778","detail1":"#A73335","eyes":"#FFB51B","teeth":"#E7DDC5","mouth":"#711F2B","claws":"#19181A","maleDisplay":"#D6412E"},
+      "patternIndex": 0, "themeIndex": 0, "skinVariation": 0
+    },
+    {
+      "name": "Ghost Fern",
+      "description": "Pale forest tones built for fog, fern and jungle cover.",
+      "rarity": "Rare",
+      "suggestedPrice": 1250,
+      "colors": {"body":"#79877A","markings":"#344C3E","flank":"#A3AA91","underbelly":"#D3CEB2","detail1":"#64775F","eyes":"#D9FF72","teeth":"#E9E4CF","mouth":"#80555A","claws":"#4A4B42","maleDisplay":"#93A853"},
+      "patternIndex": 0, "themeIndex": 0, "skinVariation": 0
+    },
+    {
+      "name": "Sunken Gold",
+      "description": "Deep teal shadows with antique-gold highlights.",
+      "rarity": "Exotic",
+      "suggestedPrice": 1750,
+      "colors": {"body":"#203A3A","markings":"#102425","flank":"#3B5A55","underbelly":"#9C9A78","detail1":"#A67A32","eyes":"#FFD34E","teeth":"#DDD6B8","mouth":"#713F3D","claws":"#202724","maleDisplay":"#D19A36"},
+      "patternIndex": 0, "themeIndex": 0, "skinVariation": 0
+    },
+    {
+      "name": "Violet Rift",
+      "description": "Muted violet shadows with a bright rift-coloured display.",
+      "rarity": "Exotic",
+      "suggestedPrice": 1750,
+      "colors": {"body":"#332D3D","markings":"#171522","flank":"#554966","underbelly":"#AAA0AD","detail1":"#74558E","eyes":"#B8FF42","teeth":"#E4DDCE","mouth":"#743A55","claws":"#25212C","maleDisplay":"#9A5AC4"},
+      "patternIndex": 0, "themeIndex": 0, "skinVariation": 0
+    },
+    {
+      "name": "Bone Orchard",
+      "description": "Old bone, woodland shadow and dried-blood detail.",
+      "rarity": "Rare",
+      "suggestedPrice": 1250,
+      "colors": {"body":"#9C9782","markings":"#35392F","flank":"#686957","underbelly":"#D3C8A6","detail1":"#7E3430","eyes":"#E6B83E","teeth":"#EEE5C8","mouth":"#713D41","claws":"#37362E","maleDisplay":"#9C4935"},
+      "patternIndex": 0, "themeIndex": 0, "skinVariation": 0
+    },
+    {
+      "name": "Ember Moss",
+      "description": "Hollow Valley forest green crossed with ember-orange display colour.",
+      "rarity": "Exotic",
+      "suggestedPrice": 1750,
+      "colors": {"body":"#303D32","markings":"#17251D","flank":"#536044","underbelly":"#AAA58A","detail1":"#B15B2D","eyes":"#E9E83E","teeth":"#E1DAC2","mouth":"#743738","claws":"#242821","maleDisplay":"#D27632"},
+      "patternIndex": 0, "themeIndex": 0, "skinVariation": 0
+    },
+    {
+      "name": "Frostbite",
+      "description": "Cold slate hide with ice-blue detail and frozen pale undersides.",
+      "rarity": "Exotic",
+      "suggestedPrice": 1750,
+      "colors": {"body":"#53616A","markings":"#25313A","flank":"#70828B","underbelly":"#C4D0D0","detail1":"#6FA6B8","eyes":"#C8F5FF","teeth":"#E8E4D8","mouth":"#684B58","claws":"#30383D","maleDisplay":"#82C8DD"},
+      "patternIndex": 0, "themeIndex": 0, "skinVariation": 0
+    },
+    {
+      "name": "Copperhead",
+      "description": "Earth-dark scales with oxidised copper and warm amber accents.",
+      "rarity": "Rare",
+      "suggestedPrice": 1250,
+      "colors": {"body":"#4A3B2F","markings":"#231D19","flank":"#6E5944","underbelly":"#BBAA8C","detail1":"#A85F36","eyes":"#F3C34A","teeth":"#E2D6BC","mouth":"#6F3435","claws":"#2C2621","maleDisplay":"#C97732"},
+      "patternIndex": 0, "themeIndex": 0, "skinVariation": 0
+    },
+    {
+      "name": "Moonlit Marsh",
+      "description": "Blue-grey wetland camouflage with moon-pale highlights.",
+      "rarity": "Rare",
+      "suggestedPrice": 1250,
+      "colors": {"body":"#44515A","markings":"#1F2930","flank":"#66757A","underbelly":"#AEB8B1","detail1":"#617F7A","eyes":"#D6F0A8","teeth":"#E4E0CF","mouth":"#684551","claws":"#283037","maleDisplay":"#7FA19B"},
+      "patternIndex": 0, "themeIndex": 0, "skinVariation": 0
+    },
+    {
+      "name": "Obsidian Bloom",
+      "description": "Black-violet stone colours opening into magenta display tones.",
+      "rarity": "Legendary",
+      "suggestedPrice": 2500,
+      "colors": {"body":"#26242C","markings":"#15131A","flank":"#403B49","underbelly":"#968E99","detail1":"#8B3F67","eyes":"#F0C2FF","teeth":"#E2DCCD","mouth":"#6E304C","claws":"#201E24","maleDisplay":"#B95486"},
+      "patternIndex": 0, "themeIndex": 0, "skinVariation": 0
+    },
+    {
+      "name": "Canyon Wraith",
+      "description": "Dusty sandstone, shadowed red rock and sun-scorched highlights.",
+      "rarity": "Natural",
+      "suggestedPrice": 750,
+      "colors": {"body":"#78614E","markings":"#3E3028","flank":"#9A7B60","underbelly":"#CDB99B","detail1":"#A45A3E","eyes":"#F1D15C","teeth":"#E5DCC4","mouth":"#784247","claws":"#3C322B","maleDisplay":"#BD7144"},
+      "patternIndex": 0, "themeIndex": 0, "skinVariation": 0
+    },
+    {
+      "name": "Pale Revenant",
+      "description": "Ghost-pale hide with cold shadow markings and bruised crimson detail.",
+      "rarity": "Legendary",
+      "suggestedPrice": 2500,
+      "colors": {"body":"#B7B8AD","markings":"#575A58","flank":"#969B91","underbelly":"#DAD5C2","detail1":"#8A5558","eyes":"#E7F4B2","teeth":"#F0E8D5","mouth":"#7B4A54","claws":"#4B4D49","maleDisplay":"#A86B6C"},
+      "patternIndex": 0, "themeIndex": 0, "skinVariation": 0
+    },
+    {
+      "name": "Rainforest King",
+      "description": "Rich canopy greens with bark-dark markings and tropical gold.",
+      "rarity": "Exotic",
+      "suggestedPrice": 1750,
+      "colors": {"body":"#35513B","markings":"#18291F","flank":"#55705A","underbelly":"#A7AF8B","detail1":"#7A843E","eyes":"#D7F044","teeth":"#E3DDC5","mouth":"#6D3D42","claws":"#263029","maleDisplay":"#B29A35"},
+      "patternIndex": 0, "themeIndex": 0, "skinVariation": 0
+    },
+    {
+      "name": "Stormglass",
+      "description": "Thundercloud blue-grey with pale glassy highlights and electric eyes.",
+      "rarity": "Exotic",
+      "suggestedPrice": 1750,
+      "colors": {"body":"#394754","markings":"#1C2630","flank":"#596A76","underbelly":"#AAB5B9","detail1":"#557F96","eyes":"#A9F3FF","teeth":"#E2E0D4","mouth":"#65424F","claws":"#252D34","maleDisplay":"#5F9CB5"},
+      "patternIndex": 0, "themeIndex": 0, "skinVariation": 0
+    },
+    {
+      "name": "Rusted Thorn",
+      "description": "Olive scrubland camouflage sharpened with rusty red-brown detail.",
+      "rarity": "Natural",
+      "suggestedPrice": 750,
+      "colors": {"body":"#596046","markings":"#2E3225","flank":"#767A59","underbelly":"#B3AF8D","detail1":"#96513A","eyes":"#E4D35B","teeth":"#E1D8BE","mouth":"#704044","claws":"#34352B","maleDisplay":"#AA653C"},
+      "patternIndex": 0, "themeIndex": 0, "skinVariation": 0
+    },
+    {
+      "name": "Golden Hour",
+      "description": "Warm dusk earth tones lit by honey-gold display colour.",
+      "rarity": "Rare",
+      "suggestedPrice": 1250,
+      "colors": {"body":"#6F5A3C","markings":"#382D20","flank":"#8F744E","underbelly":"#C7B487","detail1":"#B47B38","eyes":"#FFE06A","teeth":"#E7DDC4","mouth":"#784044","claws":"#393027","maleDisplay":"#D9A43D"},
+      "patternIndex": 0, "themeIndex": 0, "skinVariation": 0
+    },
+    {
+      "name": "Deepwater",
+      "description": "Dark ocean blue-green with submerged stone flank tones.",
+      "rarity": "Exotic",
+      "suggestedPrice": 1750,
+      "colors": {"body":"#243E45","markings":"#12262C","flank":"#3F6065","underbelly":"#8FA6A1","detail1":"#397A7C","eyes":"#B8E85D","teeth":"#DFDDCE","mouth":"#603D49","claws":"#202D31","maleDisplay":"#4B9690"},
+      "patternIndex": 0, "themeIndex": 0, "skinVariation": 0
+    },
+    {
+      "name": "Hollow Monarch",
+      "description": "Signature Hollow Valley green-black with royal amber and ivory accents.",
+      "rarity": "Legendary",
+      "suggestedPrice": 3000,
+      "colors": {"body":"#26382E","markings":"#121C17","flank":"#445947","underbelly":"#C0B999","detail1":"#8D6A32","eyes":"#E7FF54","teeth":"#E8E1CB","mouth":"#6A343A","claws":"#222923","maleDisplay":"#C48A2F"},
+      "patternIndex": 0, "themeIndex": 0, "skinVariation": 0
+    }
+  ]
+}
