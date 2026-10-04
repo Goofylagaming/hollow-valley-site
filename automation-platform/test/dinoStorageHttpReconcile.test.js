@@ -11,6 +11,7 @@ const { app } = require('../src/index');
 const bridge = require('../src/services/commandBridgeService');
 const http = require('../src/services/commandBridgeHttpService');
 const store = require('../src/services/automationStore');
+const fileBridge = require('../src/adapters/fileBridge');
 
 const steam = '76561198000000000';
 
@@ -66,4 +67,50 @@ test('terminal DinoStorage HTTP result immediately reconciles the matching autom
   assert.match(request.message, /62% growth/);
   assert.match(request.message, /deferred in-game kill is not independently confirmed/);
   assert.equal(http.getRequest(command.id).status, 'completed');
+});
+
+test('HTTP-pull reconciliation recovers a missed DinoStorage result from results.ndjson without replaying', async (t) => {
+  const slot = 'dino-local-result-fallback';
+  const command = bridge.buildCommand('dino_retrieve', steam, [slot]);
+
+  store.createRequest({
+    id: command.id,
+    kind: 'dinostorage',
+    steamId: steam,
+    status: 'queued',
+    commandId: command.id,
+    details: { action: 'redeem', slot, command },
+    message: 'awaiting routing/result',
+  });
+
+  await bridge.queueCommand(command);
+  assert.equal(http.getRequest(command.id).status, 'pending');
+
+  const originalReadResultsText = fileBridge.readResultsText;
+  t.after(() => {
+    fileBridge.readResultsText = originalReadResultsText;
+  });
+  fileBridge.readResultsText = async () => `${JSON.stringify({
+    id: command.id,
+    ts: Math.floor(Date.now() / 1000),
+    source: 'DinoStorage',
+    steam,
+    args: [steam, slot],
+    ok: true,
+    msg: `Retrieving **Omniraptor** from slot '${slot}'. Spawn the same species now!`,
+  })}\n`;
+
+  const outcome = await bridge.readOutcome(command);
+  assert.equal(outcome.state, 'confirmed');
+  assert.equal(outcome.source, 'DinoStorage');
+  assert.match(outcome.message, /Omniraptor/);
+
+  // The recovered file result is persisted into the HTTP bridge as terminal,
+  // so its anti-crash queue lock is released without replaying the command.
+  assert.equal(http.getRequest(command.id).status, 'completed');
+
+  const dinoStorage = require('../src/services/dinoStorageService');
+  const request = await dinoStorage.reconcileDinoStorageRequest(command.id);
+  assert.equal(request.status, 'accepted');
+  assert.match(request.message, /deferred in-game restore is not independently confirmed/);
 });
