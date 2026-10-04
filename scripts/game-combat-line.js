@@ -1,7 +1,18 @@
+function parseUnrealUtcTimestamp(line) {
+  const match = /^\[(\d{4})\.(\d{2})\.(\d{2})-(\d{2})\.(\d{2})\.(\d{2})(?::(\d{3}))?\]/.exec(String(line || '').trim());
+  if (!match) return null;
+  const [, year, month, day, hour, minute, second, millis = '000'] = match;
+  const value = `${year}-${month}-${day}T${hour}:${minute}:${second}.${millis}Z`;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? new Date(parsed).toISOString() : null;
+}
+
 function parseIsleLocalTimestamp(value) {
   const match = /^(\d{4})\.(\d{2})\.(\d{2})-(\d{2})\.(\d{2})\.(\d{2})$/.exec(String(value || '').trim());
   if (!match) return null;
   const [, year, month, day, hour, minute, second] = match;
+  // Historical fallback only. Normal combat parsing uses the outer Unreal UTC
+  // timestamp so daylight-saving changes on the Windows host cannot skew events.
   const millis = Date.parse(`${year}-${month}-${day}T${hour}:${minute}:${second}+10:00`);
   return Number.isFinite(millis) ? new Date(millis).toISOString() : null;
 }
@@ -23,7 +34,7 @@ function parseCombatLine(line) {
   if (!actor) return null;
 
   const [, rawTime, actorName, actorSteamId, outcome] = actor;
-  const occurredAt = parseIsleLocalTimestamp(rawTime);
+  const occurredAt = parseUnrealUtcTimestamp(text) || parseIsleLocalTimestamp(rawTime);
   if (!occurredAt) return null;
 
   const kill = /^Killed the following player:\s*(.*?),\s*\[(\d{17})\],\s*Dino:/i.exec(outcome);
@@ -50,4 +61,4 @@ function parseCombatLine(line) {
   return null;
 }
 
-module.exports = { parseIsleLocalTimestamp, parseCombatLine };
+module.exports = { parseUnrealUtcTimestamp, parseIsleLocalTimestamp, parseCombatLine };
