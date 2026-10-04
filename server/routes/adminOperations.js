@@ -1,6 +1,7 @@
 const express = require("express");
 const { requireAdmin } = require("../middleware/requireAuth");
 const automation = require("../services/automationWebsiteClient");
+const dinoRequestAdmin = require("../services/dinoStorageRequestAdminClient");
 const { db } = require("../db");
 
 const router = express.Router();
@@ -101,7 +102,6 @@ router.get("/", async (req, res) => {
   }
 });
 
-
 router.get("/players", async (_req, res) => {
   try {
     const snapshot = await automation.getServerSnapshot();
@@ -140,6 +140,72 @@ router.get("/player-records/:steamId", async (req, res) => {
     wallet: wallet.status === "fulfilled" ? wallet.value : null,
     walletError: wallet.status === "rejected" ? "Wallet history could not be loaded." : null,
   });
+});
+
+router.get("/dinostorage-requests/:steamId", async (req, res) => {
+  let steamId;
+  try {
+    steamId = validateSteamId(req.params.steamId);
+  } catch (error) {
+    return res.status(error.status || 400).json({ error: error.message });
+  }
+  try {
+    return res.json(await dinoRequestAdmin.listRequests(steamId));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not load DinoStorage request history.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.post("/dinostorage-requests/:requestId/reconcile", async (req, res) => {
+  try {
+    return res.json(await dinoRequestAdmin.reconcileRequest(req.params.requestId));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not reconcile the DinoStorage request.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.post("/dinostorage-requests/:requestId/cancel", async (req, res) => {
+  let steamId;
+  try {
+    steamId = validateSteamId(req.body?.steamId);
+  } catch (error) {
+    return res.status(error.status || 400).json({ error: error.message });
+  }
+  try {
+    return res.json(await dinoRequestAdmin.cancelRequest({
+      requestId: req.params.requestId,
+      steamId,
+    }));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not cancel the DinoStorage request.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.post("/dinostorage-requests/flush/:steamId", async (req, res) => {
+  let steamId;
+  try {
+    steamId = validateSteamId(req.params.steamId);
+  } catch (error) {
+    return res.status(error.status || 400).json({ error: error.message });
+  }
+  try {
+    return res.json(await dinoRequestAdmin.flushPending(steamId));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not flush pending DinoStorage requests.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.post("/dinostorage-requests/sweep-stale", async (_req, res) => {
+  try {
+    return res.json(await dinoRequestAdmin.sweepStale());
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not sweep stale DinoStorage requests.");
+    return res.status(mapped.status).json(mapped.body);
+  }
 });
 
 router.post("/slay", async (req, res) => {
