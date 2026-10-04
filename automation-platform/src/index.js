@@ -15,6 +15,7 @@ const combatAdminRoutes = require('./routes/combatAdminRoutes');
 const playerDirectoryAdminRoutes = require('./routes/playerDirectoryAdminRoutes');
 const eventAdminRoutes = require('./routes/eventAdminRoutes');
 const safeLogRecoveryRoutes = require('./routes/safeLogRecoveryRoutes');
+const dinoStorageRequestAdminRoutes = require('./routes/dinoStorageRequestAdminRoutes');
 const websiteRoutes = require('./routes/websiteRoutes');
 const websiteCombatRoutes = require('./routes/websiteCombatRoutes');
 const websiteAdminWalletRoutes = require('./routes/websiteAdminWalletRoutes');
@@ -30,6 +31,7 @@ const binaryLaneCommandBridgeRoutes = require('./routes/binaryLaneCommandBridgeR
 const commandBridge = require('./services/commandBridgeService');
 const { startBodyDropReconciler } = require('./services/bodyDropService');
 const { startDinoStorageReconciler, recoverInterruptedDinoStorage } = require('./services/dinoStorageService');
+const { startDinoStorageStaleSweeper } = require('./services/dinoStorageRequestRecoveryService');
 const { startDinoMarketplaceReconciler } = require('./services/dinoMarketplaceService');
 const { seedOfficialCatalog } = require('./services/officialMarketplaceCatalogService');
 const { startOfficialMarketplaceFulfillment } = require('./services/officialMarketplaceFulfillmentService');
@@ -188,6 +190,11 @@ app.use('/api/admin/player-directory', (_req, res, next) => {
   next();
 }, playerDirectoryAdminRoutes);
 
+app.use('/api/admin/dinostorage-requests', (_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+}, dinoStorageRequestAdminRoutes);
+
 app.use('/api/admin', (_req, res, next) => {
   res.set('Cache-Control', 'no-store');
   next();
@@ -260,6 +267,7 @@ if (require.main === module) {
   }
   startBodyDropReconciler();
   startDinoStorageReconciler();
+  startDinoStorageStaleSweeper();
   startDinoMarketplaceReconciler();
   startOfficialMarketplaceFulfillment();
   startDiscordAutomation();
