@@ -1,4 +1,4 @@
-// Shared helpers used by every page: API wrapper, auth state, and the injected nav partial.
+// Shared helpers used by every page: API wrapper, auth state, injected navigation and test UI shell.
 window.HDS = (function () {
   async function api(path, options = {}) {
     const response = await fetch(path, {
@@ -21,6 +21,15 @@ window.HDS = (function () {
     const div = document.createElement("div");
     div.textContent = value ?? "";
     return div.innerHTML;
+  }
+
+  function ensureSnapshotStyles() {
+    if (document.querySelector('link[data-hv-snapshot-ui]')) return;
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = "/assets/snapshot-ui.css?v=1";
+    link.dataset.hvSnapshotUi = "true";
+    document.head.appendChild(link);
   }
 
   let cachedMe = null;
@@ -55,7 +64,13 @@ window.HDS = (function () {
 
     const me = await mePromise;
     applyAuthUi(me);
+    updateWelcomeName(me);
     return me;
+  }
+
+  function playerInitial(name) {
+    const value = String(name || "HV").trim();
+    return escapeHtml((value[0] || "H").toUpperCase());
   }
 
   function applyAuthUi(me) {
@@ -63,12 +78,24 @@ window.HDS = (function () {
     if (!authArea) return;
 
     if (me.loggedIn && me.user) {
-      authArea.innerHTML = `<a class="steam-signin logged-in" href="/dashboard"><span class="steam-icon">●</span> Logged in as: ${escapeHtml(me.user.username)}</a><a class="logout-link" id="auth-action" href="#">Logout</a>`;
+      const username = escapeHtml(me.user.username || "Player");
+      authArea.innerHTML = `
+        <a class="player-chip" href="/profile" title="Open My Profile">
+          <span class="snapshot-avatar">${playerInitial(me.user.username)}</span>
+          <strong>${username}</strong><span aria-hidden="true">⌄</span>
+        </a>
+        <a class="logout-link" id="auth-action" href="#" title="Log out" aria-label="Log out">↪</a>`;
     } else {
-      const steamLabel = me.steamLoginConfigured ? "Sign in with Steam" : "Steam login not configured";
+      const steamLabel = me.steamLoginConfigured ? "Sign in" : "Steam unavailable";
       const href = me.steamLoginConfigured ? "/auth/steam" : "#";
-      authArea.innerHTML = `<a class="steam-signin" id="auth-steam" href="${href}"><span class="steam-icon">◈</span> ${steamLabel}</a><a class="logout-link" href="/owner-login">Owner login</a>`;
+      authArea.innerHTML = `<a class="steam-signin" id="auth-steam" href="${href}"><span class="snapshot-avatar">HV</span>${steamLabel}</a>`;
     }
+  }
+
+  function updateWelcomeName(me) {
+    const target = document.getElementById("snapshot-welcome-name");
+    if (!target) return;
+    target.textContent = me?.loggedIn && me?.user?.username ? me.user.username : "Survivor";
   }
 
   async function claimDailyLoginBonus(me) {
@@ -100,17 +127,20 @@ window.HDS = (function () {
     const sectionAliases = [
       ["/marketplace", "/marketplace"],
       ["/leaderboard", "/leaderboard"],
-      ["/mydinos", "/mydinos"],
-      ["/dinostorage", "/dinostorage"],
-      ["/adminoperations", "/adminoperations"],
-      ["/admincomms", "/admincomms"],
-      ["/adminrestore", "/adminrestore"],
-      ["/admin", "/admin"],
+      ["/mydinos", "/profile"],
+      ["/dinostorage", "/profile"],
+      ["/wallet", "/profile"],
+      ["/friends", "/profile"],
+      ["/groups", "/profile"],
+      ["/bodydrop", "/profile"],
+      ["/adminoperations", "/admin"],
+      ["/admincomms", "/admin"],
+      ["/adminrestore", "/admin"],
     ];
 
     links.forEach((link) => {
       const href = link.getAttribute("href");
-      if (!href || href.startsWith("#")) return;
+      if (!href || href.startsWith("#") || /^https?:/i.test(href)) return;
       let linkPath;
       try {
         linkPath = normalizePath(new URL(href, window.location.origin).pathname);
@@ -129,10 +159,65 @@ window.HDS = (function () {
         if (!activeLink || exactMatch) activeLink = link;
       }
     });
+  }
 
-    const activeGroup = activeLink?.closest(".nav-group");
-    const groupButton = activeGroup?.querySelector(":scope > button");
-    if (groupButton) groupButton.classList.add("is-active");
+  const RAIL_ITEMS = [
+    ["/profile", "♟", "My Profile"],
+    ["/wallet", "V", "Wallet"],
+    ["/skins?tab=mine", "◆", "My Skins"],
+    ["/skins", "⚒", "Skin Studio"],
+    ["/friends", "♟", "Friends"],
+    ["/groups", "♣", "Groups"],
+    ["/mydinos", "♟", "My Characters"],
+    ["/dinostorage/", "▣", "Dino Storage"],
+    ["/bodydrop", "◉", "Body Drop"],
+  ];
+
+  function railEnabled(path) {
+    return path === "/" || [
+      "/profile", "/wallet", "/skins", "/friends", "/groups", "/mydinos",
+      "/dinostorage", "/bodydrop", "/marketplace"
+    ].some((prefix) => path.startsWith(prefix));
+  }
+
+  function railItemMatches(href, path) {
+    const cleanHref = normalizePath(String(href).split("?")[0]);
+    if (cleanHref === "/skins" && path === "/skins") return true;
+    if (cleanHref === "/mydinos" && path.startsWith("/mydinos")) return true;
+    if (cleanHref === "/dinostorage" && path.startsWith("/dinostorage")) return true;
+    return cleanHref !== "/skins" && cleanHref === path;
+  }
+
+  function injectMyStuffRail() {
+    const path = normalizePath(window.location.pathname);
+    if (!railEnabled(path) || document.querySelector(".my-stuff-rail")) return;
+    const shell = document.querySelector(".app-shell");
+    const navSlot = document.getElementById("nav-slot");
+    if (!shell || !navSlot) return;
+
+    const aside = document.createElement("aside");
+    aside.className = "my-stuff-rail";
+    aside.setAttribute("aria-label", "My Stuff");
+    const items = RAIL_ITEMS.map(([href, icon, label]) => {
+      const active = railItemMatches(href, path) ? " is-active" : "";
+      return `<a class="${active.trim()}" href="${href}"><span class="rail-icon">${icon}</span><span>${label}</span></a>`;
+    }).join("");
+    aside.innerHTML = `<h3>My Stuff</h3><nav class="my-stuff-nav">${items}<div class="rail-divider"></div><a href="/quests"><span class="rail-icon">▤</span><span>My Reports</span></a><a href="/profile#account-links"><span class="rail-icon">⚙</span><span>Settings</span></a></nav>`;
+    navSlot.insertAdjacentElement("afterend", aside);
+    document.body.classList.add("has-my-stuff-rail");
+  }
+
+  function wireGlobalSearch() {
+    const form = document.getElementById("global-player-search");
+    const input = document.getElementById("global-player-search-input");
+    if (!form || !input) return;
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const query = String(input.value || "").trim();
+      if (!query) return;
+      try { sessionStorage.setItem("hv:player-search", query); } catch {}
+      window.location.href = `/friends?search=${encodeURIComponent(query)}`;
+    });
   }
 
   function wireNavInteractions() {
@@ -140,8 +225,8 @@ window.HDS = (function () {
     const navLinks = document.querySelector(".main-nav");
 
     menuButton?.addEventListener("click", () => {
-      const isOpen = navLinks.classList.toggle("open");
-      menuButton.setAttribute("aria-expanded", String(isOpen));
+      const isOpen = navLinks?.classList.toggle("open");
+      menuButton.setAttribute("aria-expanded", String(Boolean(isOpen)));
     });
 
     navLinks?.querySelectorAll("a").forEach((link) => {
@@ -151,26 +236,15 @@ window.HDS = (function () {
       });
     });
 
-    navLinks?.querySelectorAll(".nav-group > button").forEach((button) => {
-      button.addEventListener("click", () => {
-        const group = button.parentElement;
-        const isOpen = group.classList.toggle("open");
-        button.setAttribute("aria-expanded", String(isOpen));
-        navLinks.querySelectorAll(".nav-group").forEach((other) => {
-          if (other !== group) {
-            other.classList.remove("open");
-            other.querySelector("button")?.setAttribute("aria-expanded", "false");
-          }
-        });
-      });
-    });
+    wireGlobalSearch();
   }
 
   async function initNav() {
+    ensureSnapshotStyles();
     const slot = document.getElementById("nav-slot");
     if (!slot) return;
     try {
-      const response = await fetch("/partials/nav.html");
+      const response = await fetch("/partials/nav.html?v=3", { cache: "no-store" });
       slot.innerHTML = await response.text();
     } catch (err) {
       console.error("Failed to load nav partial", err);
@@ -178,10 +252,11 @@ window.HDS = (function () {
     }
     wireNavInteractions();
     applyActiveNavState();
+    injectMyStuffRail();
     const me = await loadMe();
     const isAdmin = Boolean(me?.user?.is_admin);
-    const adminNavGroup = document.getElementById("admin-nav-group");
-    if (adminNavGroup) adminNavGroup.hidden = !isAdmin;
+    const adminNavLink = document.getElementById("admin-nav-link");
+    if (adminNavLink) adminNavLink.hidden = !isAdmin;
     await claimDailyLoginBonus(me);
 
     document.getElementById("auth-area")?.addEventListener("click", (event) => {
@@ -195,9 +270,7 @@ window.HDS = (function () {
       }
 
       const href = link.getAttribute("href");
-      if (!href || href === "#") {
-        event.preventDefault();
-      }
+      if (!href || href === "#") event.preventDefault();
     });
   }
 
@@ -214,12 +287,20 @@ window.HDS = (function () {
       } else if (status.configured && !status.online) {
         el.innerHTML = `<span class="status-dot offline"></span> Server name: <b>Hollow Valley</b> <span class="status-note">— currently offline</span>`;
       }
-    } catch (err) {
-      // Leave static fallback
+    } catch {
+      // Leave static fallback.
     }
   }
 
-  return { api, escapeHtml, loadMe, loadServerStatus, initNav, claimDailyLoginBonus };
+  return {
+    api,
+    escapeHtml,
+    loadMe,
+    loadServerStatus,
+    initNav,
+    claimDailyLoginBonus,
+    injectMyStuffRail,
+  };
 })();
 
 document.addEventListener("DOMContentLoaded", () => {
