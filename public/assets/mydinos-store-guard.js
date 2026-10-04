@@ -3,7 +3,6 @@
   const LOCK_MS = 30000;
   const FAST_POLL_MS = 500;
   const FAST_POLL_WINDOW_MS = 10000;
-  const SAFE_REDIRECT = "/";
   let pollRunning = false;
 
   function readLock() {
@@ -263,10 +262,6 @@
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  function redirectAwayFromStore() {
-    window.location.replace(SAFE_REDIRECT);
-  }
-
   async function fastPollStoreState() {
     if (pollRunning || !readLock()) return;
     pollRunning = true;
@@ -295,6 +290,23 @@
     }
   }
 
+  function handleStoreResponse(response) {
+    const status = normalize(response?.requestStatus);
+
+    if (["failed", "unknown", "status_error"].includes(status)) {
+      clearLock();
+      alert(response?.message || "The parking request did not complete. No second parking command was sent.");
+      window.location.reload();
+      return;
+    }
+
+    if (status === "pending") {
+      alert(response?.message || "The parking request is still processing. Do not retry yet.");
+    }
+
+    fastPollStoreState();
+  }
+
   document.addEventListener("click", async (event) => {
     const button = event.target.closest?.("#park-active-btn");
     if (!button) return;
@@ -306,7 +318,7 @@
 
     if (readLock()) {
       hideStoreButton();
-      redirectAwayFromStore();
+      fastPollStoreState();
       return;
     }
 
@@ -318,14 +330,15 @@
     button.remove();
 
     try {
-      await window.HDS.api("/api/mydinos/park-active", { method: "POST" });
-      redirectAwayFromStore();
+      const response = await window.HDS.api("/api/mydinos/park-active", { method: "POST" });
+      handleStoreResponse(response);
     } catch (error) {
-      if (Number(error?.status) === 409 || error?.code === "DINOSTORAGE_STORE_LOCKED") {
-        redirectAwayFromStore();
+      clearLock();
+      if (Number(error?.status) === 409) {
+        alert(error?.message || "A previous parking request is still awaiting reconciliation. No new parking command was sent.");
+        window.location.reload();
         return;
       }
-      clearLock();
       alert(error?.message || "Failed to store active dinosaur");
       window.location.reload();
     }
