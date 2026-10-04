@@ -63,6 +63,26 @@
           <div class="summary-tile admin-player-controls">
             <div class="admin-player-controls-heading">
               <div>
+                <small>DINO STORAGE RECOVERY</small>
+                <h2>Request locks & reconciliation</h2>
+                <p>Inspect stuck Park/Redeem requests without touching stored dinosaur files. Reconcile first when possible; cancel or flush only releases automation locks and never replays the command.</p>
+              </div>
+              <button class="small-button" id="admin-dino-requests-sweep" type="button">Sweep stale locks</button>
+            </div>
+            <form class="form-row" id="admin-dino-requests-form">
+              <input id="admin-dino-requests-steam" inputmode="numeric" autocomplete="off" maxlength="17" placeholder="17-digit Steam ID" aria-label="DinoStorage request Steam ID" required pattern="[0-9]{17}">
+              <button class="small-button" type="submit">Load requests</button>
+              <button class="small-button" id="admin-dino-requests-flush" type="button" disabled>Flush pending locks</button>
+            </form>
+            <p id="admin-dino-requests-status" class="admin-prime-status" aria-live="polite">Enter a Steam ID to inspect DinoStorage request state.</p>
+            <div id="admin-dino-requests-result" hidden>
+              <div id="admin-dino-requests-list" class="admin-records-list"></div>
+            </div>
+          </div>
+
+          <div class="summary-tile admin-player-controls">
+            <div class="admin-player-controls-heading">
+              <div>
                 <small>LIVE PLAYER CONTROLS</small>
                 <h2>Connected players</h2>
                 <p>Live dinosaurs currently reported by Hollow Valley. Slay kills only the selected player's current dinosaur.</p>
@@ -164,13 +184,14 @@
         </div>
       </section>
     </main>
-    <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
+    <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="/assets/common.js?v=16"></script>
   <script src="/assets/admin.js?v=6"></script>
   <script src="/assets/admin-player-directory.js?v=2"></script>
   <script src="/assets/admin-combat-reset.js?v=1"></script>
   <script src="/assets/admin-safelog.js?v=1"></script>
+  <script src="/assets/admin-dinostorage-requests.js?v=1"></script>
   <script src="/assets/admin-restart.js?v=1"></script>
 </body>
 </html>
