@@ -93,6 +93,18 @@ function parseCompleteLines(text) {
   });
 }
 
+function matchingFinalResult(text, command) {
+  for (const result of parseCompleteLines(text)) {
+    if (!result || result.id !== command.id || result.steam !== command.steam) continue;
+    if (result.source !== SOURCES[command.verb]) continue;
+    if (typeof result.ok !== 'boolean' || typeof result.msg !== 'string') {
+      throw new Error('CommandBridge result has an invalid ok/msg schema');
+    }
+    return result;
+  }
+  return null;
+}
+
 function findOutcome(text, command) {
   let acknowledged = false;
   for (const result of parseCompleteLines(text)) {
@@ -129,11 +141,43 @@ function findOutcome(text, command) {
     : null;
 }
 
+async function readHttpPullFileFallback(command) {
+  if (process.env.COMMAND_BRIDGE_HTTP_RESULT_FTP_FALLBACK === 'false') return null;
+  try {
+    // DinoStorage and the other UE4SS sub-mods append terminal results to the
+    // CommandBridge results log before/while CommandBridge posts them back to
+    // the HTTP bridge. If that POST is lost, the file remains authoritative
+    // evidence of the game-side result. Reading it here recovers the result
+    // without ever replaying the command.
+    const text = await fileBridge.readResultsText();
+    const result = matchingFinalResult(text, command);
+    if (!result) return null;
+
+    // Persist the recovered terminal result into the HTTP bridge too. This
+    // releases its anti-crash in-flight lock and makes later reconciliations
+    // use the normal HTTP state rather than repeatedly reading FTP.
+    httpBridge.acceptResult(result);
+    return findOutcome(`${JSON.stringify(result)}\n`, command);
+  } catch {
+    // HTTP-pull does not require FTP to be configured. A missing/unavailable
+    // file bridge must not turn a normal pending result into an error.
+    return null;
+  }
+}
+
 async function readOutcome(command) {
   if (getTransport() === 'http_pull') {
     const row = httpBridge.getRequest(command.id);
-    if (!row || row.steam !== command.steam || row.verb !== command.verb || !row.result_json) return null;
-    return findOutcome(`${row.result_json}\n`, command);
+    if (!row || row.steam !== command.steam || row.verb !== command.verb) return null;
+
+    let httpOutcome = null;
+    if (row.result_json) {
+      httpOutcome = findOutcome(`${row.result_json}\n`, command);
+      if (httpOutcome && ['confirmed', 'failed'].includes(httpOutcome.state)) return httpOutcome;
+    }
+
+    const recovered = await readHttpPullFileFallback(command);
+    return recovered || httpOutcome;
   }
 
   const text = await fileBridge.readResultsText();
@@ -185,5 +229,6 @@ module.exports = {
   queueCommand,
   readOutcome,
   findOutcome,
+  matchingFinalResult,
   getBridgeHealth,
 };
