@@ -376,12 +376,18 @@ async function requestDinoStorageAction({ action, steamId, slot = 'default' }) {
   // background and any uncertain outcome is reconciled instead of replayed.
   commandBridge.assertPublisherReady();
 
-  let pending = latestPending(steam);
-  if (pending) pending = await reconcilePendingStoreEvidence(pending, steam);
-  if (pending && ['preparing', 'publishing', 'queued', 'acknowledged', 'unknown'].includes(pending.status)) {
-    const error = new Error(`DinoStorage request ${pending.id} is still awaiting reconciliation`);
+  const existingPending = latestPending(steam);
+  if (existingPending) {
+    const reconciled = await reconcilePendingStoreEvidence(existingPending, steam) || existingPending;
+    const stillPending = ['preparing', 'publishing', 'queued', 'acknowledged', 'unknown'].includes(reconciled.status);
+    const message = stillPending
+      ? `DinoStorage request ${reconciled.id} is still awaiting reconciliation`
+      : reconciled.status === 'accepted'
+        ? `DinoStorage request ${reconciled.id} is now reconciled as accepted. No new ${action} command was sent; refresh My Dinos before trying again.`
+        : `DinoStorage request ${reconciled.id} is now reconciled as ${reconciled.status}. No new ${action} command was sent; retry manually if you still want to continue.`;
+    const error = new Error(message);
     error.code = 'DINOSTORAGE_PENDING';
-    error.request = pending;
+    error.request = reconciled;
     throw error;
   }
 
