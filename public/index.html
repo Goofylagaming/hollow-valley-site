@@ -3,62 +3,199 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Hollow Valley — Isle Server, home of the Herby Death Squad community.">
+  <meta name="description" content="Hollow Valley — Isle Server community portal.">
   <title>Hollow Valley | Isle Server</title>
-  <link rel="stylesheet" href="assets/styles.css?v=16">
+  <link rel="stylesheet" href="/assets/styles.css?v=21">
+  <link rel="stylesheet" href="/assets/ui-v2.css?v=2">
+  <link rel="stylesheet" href="/assets/home-v2.css?v=1">
 </head>
 <body>
   <div class="app-shell">
     <div id="nav-slot"></div>
 
-    <main id="top">
-      <section class="portal-hero">
-        <div class="hero-grid"></div>
-        <div class="hero-copy">
-          <p class="overline"><span class="rule"></span> COMMAND CENTER</p>
-          <h1 id="hero-heading">Welcome,<br><span>survivor.</span></h1>
-          <p class="hero-description">Manage your survivors and keep up with everything happening in the HDS valley.</p>
-          <div class="hero-actions"><a class="primary-button" href="/mydinos">View my dinos <b>→</b></a><a class="secondary-link" href="https://discord.gg/herbydeathsquadgames" target="_blank" rel="noreferrer">Open Discord <b>↗</b></a></div>
+    <main class="home-main" id="top">
+      <section class="hv-home-hero">
+        <div class="hv-hero-content">
+          <span class="hv-kicker">Hollow Valley Australia</span>
+          <h1>HOLLOW<br>VALLEY</h1>
+          <div class="hv-isle-server">Isle Server</div>
+          <p class="hv-hero-copy">Your Hollow Valley hub for dinosaurs, Valley Coin, storage, skins, quests, live server tools and community events.</p>
+          <div class="hv-hero-actions">
+            <a class="hv-hero-button primary" href="/profile">My Stuff</a>
+            <a class="hv-hero-button" href="/livemap">Live Map</a>
+            <a class="hv-hero-button" href="https://discord.gg/herbydeathsquadgames" target="_blank" rel="noreferrer">Join Discord</a>
+          </div>
         </div>
-        <div class="hero-dinosaur" aria-hidden="true"><div class="dino-eye"></div><div class="dino-ridge"></div></div>
       </section>
 
-      
-
-      
-
-      <section class="roster-section" id="species" hidden>
-        <div class="section-top"><div><p class="overline green">SPECIES DATABASE</p><h2>Playable<br><em>dinosaurs.</em></h2></div><p class="section-intro">Every dinosaur currently playable in Isle Evrima.</p></div>
-        <div class="filter-row" role="group" aria-label="Filter species"><button class="filter active" data-filter="all">All species</button><button class="filter" data-filter="herbivore">Herbivores</button><button class="filter" data-filter="carnivore">Carnivores</button><button class="filter" data-filter="omnivore">Omnivores</button><button class="filter" data-filter="flying">Flying</button><span class="roster-count" id="roster-count">.. / LIVE EVRIMA ROSTER</span></div>
-        <div class="dino-grid" id="dino-grid"><p class="section-intro">Loading species database…</p></div>
+      <section class="hv-server-strip" aria-label="Hollow Valley server status">
+        <div class="hv-server-cell">
+          <div><strong>HOLLOW VALLEY AU</strong><small>Isle Evrima</small></div>
+        </div>
+        <div class="hv-server-cell">
+          <span class="hv-status-dot" id="home-server-dot"></span>
+          <div><strong id="home-server-state">CHECKING</strong><small>Server status</small></div>
+        </div>
+        <div class="hv-server-cell">
+          <div><strong id="home-player-count">— / —</strong><small>Players online</small></div>
+        </div>
+        <div class="hv-server-cell">
+          <div><strong>EVRIMA</strong><small>Game branch</small></div>
+        </div>
+        <div class="hv-server-cell">
+          <div><strong>AU</strong><small>Region</small></div>
+        </div>
       </section>
 
-      
-      
+      <section class="hv-home-section">
+        <div class="hv-section-heading">
+          <div>
+            <span class="hv-section-kicker">Player hub</span>
+            <h2>Your Hollow Valley</h2>
+          </div>
+          <a href="/profile">View full profile →</a>
+        </div>
 
-      
+        <div class="hv-player-grid">
+          <a class="hv-player-card" href="/mydinos">
+            <span class="hv-card-icon">◈</span>
+            <small>My Dinos</small>
+            <strong>Survivors & history</strong>
+            <span id="home-dino-count">Open your dinosaur collection</span>
+          </a>
 
-      <section class="community-section" id="community"><div class="community-orb">HDS</div><div class="community-copy"><p class="overline green">THE GATHERING</p><h2>The gates open<br><em>soon.</em></h2><p>Meet your future packmates, follow development and help shape the Herby Death Squad server before the first call echoes through the valley.</p><a class="primary-button dark" href="https://discord.gg/herbydeathsquadgames" target="_blank" rel="noreferrer">Join the Discord <b>→</b></a></div></section>
+          <a class="hv-player-card" href="/wallet">
+            <span class="hv-card-icon"><span class="hv-vcoin">V</span></span>
+            <small>Valley Coin</small>
+            <strong><span class="hv-vcoin">V</span> <span id="home-wallet-balance">—</span></strong>
+            <span id="home-wallet-rate">Verified playtime rewards</span>
+          </a>
+
+          <a class="hv-player-card" href="/dinostorage/">
+            <span class="hv-card-icon">▣</span>
+            <small>Dino Storage</small>
+            <strong>Park & manage dinos</strong>
+            <span>Access your stored dinosaurs</span>
+          </a>
+
+          <a class="hv-player-card" href="/skins">
+            <span class="hv-card-icon">◆</span>
+            <small>Skin Studio</small>
+            <strong>Create your look</strong>
+            <span>Design, save and manage skins</span>
+          </a>
+        </div>
+      </section>
+
+      <section class="hv-home-section">
+        <div class="hv-section-heading">
+          <div>
+            <span class="hv-section-kicker">Live server</span>
+            <h2>Live in Hollow Valley</h2>
+          </div>
+          <a href="/livemap">Open full map →</a>
+        </div>
+
+        <div class="hv-live-grid">
+          <a class="hv-live-panel hv-map-preview" href="/livemap" aria-label="Open Hollow Valley live map">
+            <div class="hv-map-top">
+              <div class="hv-map-title"><strong>Hollow Valley Live Map</strong><small>Players, trails and Prime tracking</small></div>
+            </div>
+            <span class="hv-map-marker" aria-hidden="true"></span>
+            <div class="hv-map-bottom">
+              <div class="hv-map-title"><strong id="home-map-players">Checking server…</strong><small>Current server population</small></div>
+              <div class="hv-map-title"><strong>OPEN MAP →</strong><small>Full interactive view</small></div>
+            </div>
+          </a>
+
+          <article class="hv-live-panel">
+            <small>YOUR SURVIVOR</small>
+            <h3 id="home-player-label">Steam sign-in</h3>
+            <div class="hv-dino-visual"></div>
+            <div class="hv-progress"><i style="width:58%"></i></div>
+            <div class="hv-info-list">
+              <div class="hv-info-row"><span>Profile</span><b id="home-player-sub">Sign in to load player data</b></div>
+              <div class="hv-info-row"><span>My Dinos</span><b>Storage & history</b></div>
+              <div class="hv-info-row"><span>Skin Studio</span><b>Custom skins</b></div>
+            </div>
+            <a class="hv-panel-link" href="/mydinos">View My Dinos →</a>
+          </article>
+
+          <article class="hv-live-panel">
+            <small>SERVER INFORMATION</small>
+            <h3>Hollow Valley AU</h3>
+            <div class="hv-dino-visual"></div>
+            <div class="hv-info-list">
+              <div class="hv-info-row"><span>Game</span><b>The Isle: Evrima</b></div>
+              <div class="hv-info-row"><span>Region</span><b>Australia</b></div>
+              <div class="hv-info-row"><span>Live Map</span><b>Enabled</b></div>
+              <div class="hv-info-row"><span>Supporter</span><b id="home-supporter-state">Account linked</b></div>
+            </div>
+            <a class="hv-panel-link" href="/profile">Open Player Hub →</a>
+          </article>
+        </div>
+      </section>
+
+      <section class="hv-home-section">
+        <div class="hv-section-heading">
+          <div>
+            <span class="hv-section-kicker">Trade post</span>
+            <h2>Marketplace</h2>
+          </div>
+          <a href="/marketplace">View marketplace →</a>
+        </div>
+
+        <div class="hv-market-tabs">
+          <a class="active" href="/marketplace-official.html">Official</a>
+          <a href="/marketplace-players.html">Player Market</a>
+          <a href="/marketplace-official.html#my-orders-section">My Orders</a>
+          <a href="/marketplace#my-listings-section">My Listings</a>
+        </div>
+
+        <div class="hv-market-grid">
+          <a class="hv-market-card" href="/marketplace-official.html"><span class="hv-prime">PRIME</span><strong>Triceratops</strong><span>Official listings</span><b><span class="hv-vcoin">V</span> Browse dinos</b></a>
+          <a class="hv-market-card" href="/marketplace-official.html"><strong>Carnotaurus</strong><span>Official listings</span><b><span class="hv-vcoin">V</span> Browse dinos</b></a>
+          <a class="hv-market-card" href="/marketplace-official.html"><span class="hv-prime">PRIME</span><strong>Stegosaurus</strong><span>Official listings</span><b><span class="hv-vcoin">V</span> Browse dinos</b></a>
+          <a class="hv-market-card" href="/marketplace-official.html"><strong>Deinosuchus</strong><span>Official listings</span><b><span class="hv-vcoin">V</span> Browse dinos</b></a>
+          <a class="hv-market-card" href="/marketplace-players.html"><strong>Pachycephalosaurus</strong><span>Player market</span><b><span class="hv-vcoin">V</span> View listings</b></a>
+          <a class="hv-market-card" href="/marketplace-players.html"><strong>Troodon</strong><span>Player market</span><b><span class="hv-vcoin">V</span> View listings</b></a>
+        </div>
+      </section>
+
+      <section class="hv-home-section hv-bottom-grid">
+        <div>
+          <div class="hv-section-heading">
+            <div><span class="hv-section-kicker">Community</span><h2>What's happening</h2></div>
+          </div>
+          <div class="hv-happen-grid">
+            <a class="hv-small-card" href="/events"><span class="hv-small-icon">◫</span><span class="hv-small-copy"><small>EVENTS</small><strong>Hollow Valley Events</strong><span>Upcoming server events and rewards.</span></span></a>
+            <a class="hv-small-card" href="/quests"><span class="hv-small-icon">▤</span><span class="hv-small-copy"><small>QUESTS</small><strong>Daily & Weekly</strong><span>Complete objectives and boost rewards.</span></span></a>
+            <a class="hv-small-card" href="/leaderboard"><span class="hv-small-icon">★</span><span class="hv-small-copy"><small>LEADERBOARDS</small><strong>Top Survivors</strong><span>Levels, kills, K/D and playtime.</span></span></a>
+          </div>
+        </div>
+
+        <div>
+          <div class="hv-section-heading">
+            <div><span class="hv-section-kicker">Membership</span><h2>Supporter</h2></div>
+            <a href="/supporter">View supporter →</a>
+          </div>
+          <div class="hv-support-grid">
+            <a class="hv-support-card" href="/supporter"><small>VALLEY MEMBER</small><strong>Member</strong><span>+20% Valley Coin</span></a>
+            <a class="hv-support-card elite" href="/supporter"><small>VALLEY ELITE</small><strong>Elite</strong><span>+50% Valley Coin</span></a>
+            <a class="hv-support-card legend" href="/supporter"><small>VALLEY LEGEND</small><strong>Legend</strong><span>+100% Valley Coin</span></a>
+          </div>
+        </div>
+      </section>
+
+      <footer class="hv-home-footer">
+        <strong>HOLLOW VALLEY · ISLE SERVER</strong>
+        <nav><a href="https://discord.gg/herbydeathsquadgames" target="_blank" rel="noreferrer">Discord</a><a href="/events">Events</a><a href="/supporter">Supporter</a><a href="#top">Back to top ↑</a></nav>
+        <span>© 2026 Hollow Valley</span>
+      </footer>
     </main>
-    <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="#top">Back to top ↑</a></footer>
   </div>
-  <dialog class="dino-dialog" aria-labelledby="dialog-title">
-    <button class="dialog-close" aria-label="Close species details">×</button>
-    <p class="overline green">SPECIES PROFILE</p>
-    <h2 id="dialog-title">Species name</h2>
-    <p class="dialog-role"></p>
-    <p class="dialog-description"></p>
-    <p class="dialog-status" hidden>⏳ Not yet playable in Evrima — stats will be added once this species is officially added to the branch.</p>
-    <div class="dialog-stats">
-      <div class="stat-item"><span>Pack Limit</span><strong class="stat-pack"></strong></div>
-      <div class="stat-item"><span>Peak Prime Weight</span><strong class="stat-weight"></strong></div>
-      <div class="stat-item"><span>Bite Force (Peak)</span><strong class="stat-bite"></strong></div>
-      <div class="stat-item"><span>Growth Time</span><strong class="stat-growth"></strong></div>
-    </div>
-    <p class="dialog-note">In-game Evrima gameplay stat values (not real-world physics units) &mdash; approximate and subject to patch changes.</p>
-    <div class="dialog-social"><span>Best played as</span><strong></strong></div>
-  </dialog>
-  <script src="assets/common.js?v=16"></script>
-  <script src="assets/site.js?v=8"></script>
+
+  <script src="/assets/common.js?v=17"></script>
+  <script src="/assets/home-v2.js?v=1"></script>
 </body>
 </html>
