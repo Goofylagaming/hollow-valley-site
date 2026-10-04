@@ -7,195 +7,70 @@
   <title>Hollow Valley | Isle Server</title>
   <link rel="stylesheet" href="/assets/styles.css?v=21">
   <link rel="stylesheet" href="/assets/ui-v2.css?v=2">
-  <link rel="stylesheet" href="/assets/home-v2.css?v=1">
+  <link rel="stylesheet" href="/assets/snapshot-ui.css?v=1">
 </head>
 <body>
   <div class="app-shell">
     <div id="nav-slot"></div>
 
-    <main class="home-main" id="top">
-      <section class="hv-home-hero">
-        <div class="hv-hero-content">
-          <span class="hv-kicker">Hollow Valley Australia</span>
-          <h1>HOLLOW<br>VALLEY</h1>
-          <div class="hv-isle-server">Isle Server</div>
-          <p class="hv-hero-copy">Your Hollow Valley hub for dinosaurs, Valley Coin, storage, skins, quests, live server tools and community events.</p>
-          <div class="hv-hero-actions">
-            <a class="hv-hero-button primary" href="/profile">My Stuff</a>
-            <a class="hv-hero-button" href="/livemap">Live Map</a>
-            <a class="hv-hero-button" href="https://discord.gg/herbydeathsquadgames" target="_blank" rel="noreferrer">Join Discord</a>
-          </div>
-        </div>
-      </section>
-
-      <section class="hv-server-strip" aria-label="Hollow Valley server status">
-        <div class="hv-server-cell">
-          <div><strong>HOLLOW VALLEY AU</strong><small>Isle Evrima</small></div>
-        </div>
-        <div class="hv-server-cell">
-          <span class="hv-status-dot" id="home-server-dot"></span>
-          <div><strong id="home-server-state">CHECKING</strong><small>Server status</small></div>
-        </div>
-        <div class="hv-server-cell">
-          <div><strong id="home-player-count">— / —</strong><small>Players online</small></div>
-        </div>
-        <div class="hv-server-cell">
-          <div><strong>EVRIMA</strong><small>Game branch</small></div>
-        </div>
-        <div class="hv-server-cell">
-          <div><strong>AU</strong><small>Region</small></div>
-        </div>
-      </section>
-
-      <section class="hv-home-section">
-        <div class="hv-section-heading">
-          <div>
-            <span class="hv-section-kicker">Player hub</span>
-            <h2>Your Hollow Valley</h2>
-          </div>
-          <a href="/profile">View full profile →</a>
-        </div>
-
-        <div class="hv-player-grid">
-          <a class="hv-player-card" href="/mydinos">
-            <span class="hv-card-icon">◈</span>
-            <small>My Dinos</small>
-            <strong>Survivors & history</strong>
-            <span id="home-dino-count">Open your dinosaur collection</span>
-          </a>
-
-          <a class="hv-player-card" href="/wallet">
-            <span class="hv-card-icon"><span class="hv-vcoin">V</span></span>
-            <small>Valley Coin</small>
-            <strong><span class="hv-vcoin">V</span> <span id="home-wallet-balance">—</span></strong>
-            <span id="home-wallet-rate">Verified playtime rewards</span>
-          </a>
-
-          <a class="hv-player-card" href="/dinostorage/">
-            <span class="hv-card-icon">▣</span>
-            <small>Dino Storage</small>
-            <strong>Park & manage dinos</strong>
-            <span>Access your stored dinosaurs</span>
-          </a>
-
-          <a class="hv-player-card" href="/skins">
-            <span class="hv-card-icon">◆</span>
-            <small>Skin Studio</small>
-            <strong>Create your look</strong>
-            <span>Design, save and manage skins</span>
-          </a>
-        </div>
-      </section>
-
-      <section class="hv-home-section">
-        <div class="hv-section-heading">
-          <div>
-            <span class="hv-section-kicker">Live server</span>
-            <h2>Live in Hollow Valley</h2>
-          </div>
-          <a href="/livemap">Open full map →</a>
-        </div>
-
-        <div class="hv-live-grid">
-          <a class="hv-live-panel hv-map-preview" href="/livemap" aria-label="Open Hollow Valley live map">
-            <div class="hv-map-top">
-              <div class="hv-map-title"><strong>Hollow Valley Live Map</strong><small>Players, trails and Prime tracking</small></div>
-            </div>
-            <span class="hv-map-marker" aria-hidden="true"></span>
-            <div class="hv-map-bottom">
-              <div class="hv-map-title"><strong id="home-map-players">Checking server…</strong><small>Current server population</small></div>
-              <div class="hv-map-title"><strong>OPEN MAP →</strong><small>Full interactive view</small></div>
-            </div>
-          </a>
-
-          <article class="hv-live-panel">
-            <small>YOUR SURVIVOR</small>
-            <h3 id="home-player-label">Steam sign-in</h3>
-            <div class="hv-dino-visual"></div>
-            <div class="hv-progress"><i style="width:58%"></i></div>
-            <div class="hv-info-list">
-              <div class="hv-info-row"><span>Profile</span><b id="home-player-sub">Sign in to load player data</b></div>
-              <div class="hv-info-row"><span>My Dinos</span><b>Storage & history</b></div>
-              <div class="hv-info-row"><span>Skin Studio</span><b>Custom skins</b></div>
-            </div>
-            <a class="hv-panel-link" href="/mydinos">View My Dinos →</a>
-          </article>
-
-          <article class="hv-live-panel">
-            <small>SERVER INFORMATION</small>
-            <h3>Hollow Valley AU</h3>
-            <div class="hv-dino-visual"></div>
-            <div class="hv-info-list">
-              <div class="hv-info-row"><span>Game</span><b>The Isle: Evrima</b></div>
-              <div class="hv-info-row"><span>Region</span><b>Australia</b></div>
-              <div class="hv-info-row"><span>Live Map</span><b>Enabled</b></div>
-              <div class="hv-info-row"><span>Supporter</span><b id="home-supporter-state">Account linked</b></div>
-            </div>
-            <a class="hv-panel-link" href="/profile">Open Player Hub →</a>
-          </article>
-        </div>
-      </section>
-
-      <section class="hv-home-section">
-        <div class="hv-section-heading">
-          <div>
-            <span class="hv-section-kicker">Trade post</span>
-            <h2>Marketplace</h2>
-          </div>
-          <a href="/marketplace">View marketplace →</a>
-        </div>
-
-        <div class="hv-market-tabs">
-          <a class="active" href="/marketplace-official.html">Official</a>
-          <a href="/marketplace-players.html">Player Market</a>
-          <a href="/marketplace-official.html#my-orders-section">My Orders</a>
-          <a href="/marketplace#my-listings-section">My Listings</a>
-        </div>
-
-        <div class="hv-market-grid">
-          <a class="hv-market-card" href="/marketplace-official.html"><span class="hv-prime">PRIME</span><strong>Triceratops</strong><span>Official listings</span><b><span class="hv-vcoin">V</span> Browse dinos</b></a>
-          <a class="hv-market-card" href="/marketplace-official.html"><strong>Carnotaurus</strong><span>Official listings</span><b><span class="hv-vcoin">V</span> Browse dinos</b></a>
-          <a class="hv-market-card" href="/marketplace-official.html"><span class="hv-prime">PRIME</span><strong>Stegosaurus</strong><span>Official listings</span><b><span class="hv-vcoin">V</span> Browse dinos</b></a>
-          <a class="hv-market-card" href="/marketplace-official.html"><strong>Deinosuchus</strong><span>Official listings</span><b><span class="hv-vcoin">V</span> Browse dinos</b></a>
-          <a class="hv-market-card" href="/marketplace-players.html"><strong>Pachycephalosaurus</strong><span>Player market</span><b><span class="hv-vcoin">V</span> View listings</b></a>
-          <a class="hv-market-card" href="/marketplace-players.html"><strong>Troodon</strong><span>Player market</span><b><span class="hv-vcoin">V</span> View listings</b></a>
-        </div>
-      </section>
-
-      <section class="hv-home-section hv-bottom-grid">
+    <main class="home-main snapshot-home">
+      <section class="snapshot-welcome">
         <div>
-          <div class="hv-section-heading">
-            <div><span class="hv-section-kicker">Community</span><h2>What's happening</h2></div>
-          </div>
-          <div class="hv-happen-grid">
-            <a class="hv-small-card" href="/events"><span class="hv-small-icon">◫</span><span class="hv-small-copy"><small>EVENTS</small><strong>Hollow Valley Events</strong><span>Upcoming server events and rewards.</span></span></a>
-            <a class="hv-small-card" href="/quests"><span class="hv-small-icon">▤</span><span class="hv-small-copy"><small>QUESTS</small><strong>Daily & Weekly</strong><span>Complete objectives and boost rewards.</span></span></a>
-            <a class="hv-small-card" href="/leaderboard"><span class="hv-small-icon">★</span><span class="hv-small-copy"><small>LEADERBOARDS</small><strong>Top Survivors</strong><span>Levels, kills, K/D and playtime.</span></span></a>
-          </div>
-        </div>
-
-        <div>
-          <div class="hv-section-heading">
-            <div><span class="hv-section-kicker">Membership</span><h2>Supporter</h2></div>
-            <a href="/supporter">View supporter →</a>
-          </div>
-          <div class="hv-support-grid">
-            <a class="hv-support-card" href="/supporter"><small>VALLEY MEMBER</small><strong>Member</strong><span>+20% Valley Coin</span></a>
-            <a class="hv-support-card elite" href="/supporter"><small>VALLEY ELITE</small><strong>Elite</strong><span>+50% Valley Coin</span></a>
-            <a class="hv-support-card legend" href="/supporter"><small>VALLEY LEGEND</small><strong>Legend</strong><span>+100% Valley Coin</span></a>
-          </div>
+          <h1>Welcome back, <span id="snapshot-welcome-name">Survivor</span></h1>
+          <p>Track your progress, manage your dinos and explore Hollow Valley.</p>
         </div>
       </section>
 
-      <footer class="hv-home-footer">
-        <strong>HOLLOW VALLEY · ISLE SERVER</strong>
-        <nav><a href="https://discord.gg/herbydeathsquadgames" target="_blank" rel="noreferrer">Discord</a><a href="/events">Events</a><a href="/supporter">Supporter</a><a href="#top">Back to top ↑</a></nav>
-        <span>© 2026 Hollow Valley</span>
-      </footer>
+      <section class="snapshot-home-hero" aria-label="Hollow Valley">
+        <div class="snapshot-hero-logo">
+          <strong>HOLLOW</strong>
+          <strong>VALLEY</strong>
+          <span>ISLE SERVER</span>
+        </div>
+
+        <div class="snapshot-server-bar">
+          <a class="snapshot-server-card" href="/profile">
+            <i>♟</i>
+            <div><small>Players Online</small><b id="home-player-count">— / —</b></div>
+          </a>
+          <a class="snapshot-server-card" href="/livemap">
+            <i>⌖</i>
+            <div><small>Server Map</small><b>Gateway</b></div>
+          </a>
+          <div class="snapshot-server-card">
+            <i>◉</i>
+            <div><small>Server Status</small><b class="online" id="home-server-state">CHECKING</b></div>
+          </div>
+          <a class="snapshot-play-now" href="/livemap">Play Now</a>
+        </div>
+      </section>
+
+      <section class="snapshot-quick-grid" aria-label="Quick links">
+        <a class="snapshot-quick-card" href="/wallet">
+          <span class="snapshot-quick-art"></span>
+          <span class="snapshot-quick-copy"><b>Wallet</b><span>Check your balance and history.</span><span><strong id="home-wallet-balance">—</strong> Valley Coin</span></span>
+          <span class="snapshot-quick-arrow">→</span>
+        </a>
+        <a class="snapshot-quick-card" href="/quests">
+          <span class="snapshot-quick-art"></span>
+          <span class="snapshot-quick-copy"><b>Quests</b><span>Complete quests and earn coins.</span></span>
+          <span class="snapshot-quick-arrow">→</span>
+        </a>
+        <a class="snapshot-quick-card" href="/skins">
+          <span class="snapshot-quick-art"></span>
+          <span class="snapshot-quick-copy"><b>Skin Studio</b><span>Create and manage your skins.</span></span>
+          <span class="snapshot-quick-arrow">→</span>
+        </a>
+        <a class="snapshot-quick-card" href="/marketplace-official.html">
+          <span class="snapshot-quick-art"></span>
+          <span class="snapshot-quick-copy"><b>Marketplace</b><span>Browse and purchase items.</span><span id="home-dino-count">Open dinosaur listings</span></span>
+          <span class="snapshot-quick-arrow">→</span>
+        </a>
+      </section>
     </main>
   </div>
 
-  <script src="/assets/common.js?v=17"></script>
-  <script src="/assets/home-v2.js?v=1"></script>
+  <script src="/assets/common.js?v=18"></script>
+  <script src="/assets/home-v2.js?v=2"></script>
 </body>
 </html>
