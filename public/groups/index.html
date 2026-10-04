@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Hollow Valley groups preview.">
+  <title>Groups | Hollow Valley</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=21">
+  <link rel="stylesheet" href="/assets/ui-v2.css?v=2">
+  <link rel="stylesheet" href="/assets/snapshot-ui.css?v=1">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main>
+      <section class="page-header">
+        <p class="overline green">MY STUFF · GROUPS</p>
+        <h1>Groups</h1>
+        <p class="section-intro">Track your current group and view previous groups formed in-game.</p>
+      </section>
+
+      <section class="groups-page">
+        <div class="groups-toolbar">
+          <span></span>
+          <button class="small-button" type="button">? &nbsp; How Groups Work</button>
+        </div>
+
+        <section class="groups-card">
+          <div class="groups-card-title"><span>♣</span><strong>Current Group</strong><span class="dot"></span><span style="color:#39dda0;font-size:8px">Currently in a Group</span></div>
+          <div class="current-group-grid">
+            <div class="group-art"></div>
+            <div class="group-detail">
+              <div style="display:flex;align-items:start;justify-content:space-between;gap:10px">
+                <div><h3>Tyrannosaurus Pack</h3><div class="group-meta">Formed Sep 24, 2026 · 5:32 PM &nbsp; | &nbsp; Members: 4 &nbsp; | &nbsp; Duration: 42 minutes</div></div>
+                <span class="small-button green" style="min-height:24px!important;display:inline-flex;align-items:center">In-Game</span>
+              </div>
+
+              <div class="group-member-list">
+                <div class="group-member"><span class="group-avatar"></span><b><span class="online-dot">●</span> You</b><span>Tyrannosaurus</span><span>Highlands</span><button class="small-button">View Player</button></div>
+                <div class="group-member"><span class="group-avatar"></span><b><span class="online-dot">●</span> PlayerTwo</b><span>Tyrannosaurus</span><span>Highlands</span><button class="small-button">View Player</button></div>
+                <div class="group-member"><span class="group-avatar"></span><b><span class="online-dot">●</span> PlayerThree</b><span>Tyrannosaurus</span><span>Highlands</span><button class="small-button">View Player</button></div>
+                <div class="group-member"><span class="group-avatar"></span><b><span class="online-dot">●</span> PlayerFour</b><span>Tyrannosaurus</span><span>Unknown</span><button class="small-button">View Player</button></div>
+              </div>
+
+              <div class="actions" style="margin-top:7px">
+                <button class="small-button" type="button">Leave Group (In-Game)</button>
+                <a class="small-button" href="/livemap">♣ &nbsp; View on Map (In-Game)</a>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="groups-card">
+          <div class="groups-card-title"><span>◉</span><div><strong>Previous Groups</strong><div style="color:#758b82;font-weight:400;font-size:8px;margin-top:2px">Your recent group history, including groups you were in before logging off, dying, or disbanding.</div></div></div>
+
+          <div class="previous-group-row">
+            <div class="previous-group-art"></div>
+            <div><strong style="display:block;font-size:10px;margin-bottom:3px">Tyrannosaurus Pack &nbsp; ♣ 4 members</strong><span style="color:#81958d">Started: Sep 24, 2026 · 5:32 PM<br>Ended: Sep 24, 2026 · 6:14 PM &nbsp; <b style="color:#ff696d">Ended: You Died</b> &nbsp; Duration: 42 minutes</span></div>
+            <div class="previous-group-actions"><button class="small-button green">View Details</button><button class="small-button">Add Members as Friends</button><button class="small-button">Re-form Group</button></div>
+          </div>
+
+          <div class="previous-group-row">
+            <div class="previous-group-art"></div>
+            <div><strong style="display:block;font-size:10px;margin-bottom:3px">Spinosaurus Group &nbsp; ♣ 3 members</strong><span style="color:#81958d">Started: Sep 23, 2026 · 8:11 PM<br>Ended: Sep 23, 2026 · 9:02 PM &nbsp; <b style="color:#b7c8c1">Disbanded</b> &nbsp; Duration: 51 minutes</span></div>
+            <div class="previous-group-actions"><button class="small-button green">View Details</button><button class="small-button">Add Members as Friends</button><button class="small-button">Re-form Group</button></div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+  <script src="/assets/common.js?v=18"></script>
+</body>
+</html>
