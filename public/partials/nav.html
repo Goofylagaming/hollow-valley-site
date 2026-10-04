@@ -1,50 +1,30 @@
 <link rel="stylesheet" href="/assets/ui-v2.css?v=2">
-<header class="topbar" data-ui="v2">
-  <a class="brand" href="/"><span class="brand-mark">HV</span><span><b>HOLLOW VALLEY</b><small>ISLE SERVER</small><em class="ui-v2-badge">TEST UI V2</em></span></a>
-  <nav class="main-nav">
-    <a href="/">HOME</a>
+<link rel="stylesheet" href="/assets/snapshot-ui.css?v=1">
+<header class="topbar snapshot-topbar" data-ui="snapshot">
+  <a class="brand" href="/" aria-label="Hollow Valley home">
+    <span class="snapshot-wordmark"><b>HOLLOW</b><b>VALLEY</b></span>
+  </a>
 
-    <div class="nav-group">
-      <button type="button" aria-expanded="false">MY STUFF <span>⌃</span></button>
-      <div class="mega-menu">
-        <a href="/profile"><b>★</b><span>My Profile<small>Identity, ranks &amp; achievements</small></span></a>
-        <a href="/mydinos"><b>▣</b><span>My Dinos<small>Active, parked, entombed &amp; dead</small></span></a>
-        <a href="/dinostorage/"><b>◫</b><span>Dino Storage<small>Park and manage dinosaurs</small></span></a>
-        <a href="/wallet"><b>V</b><span>Wallet<small>Valley Coin &amp; earning rate</small></span></a>
-        <a href="/friends"><b>♢</b><span>Friends<small>Requests &amp; online friends</small></span></a>
-        <a href="/skins" id="skin-studio-nav"><b>◆</b><span>Skin Studio<small>Design, save &amp; wear skins</small></span></a>
-        <a href="/bodydrop"><b>◌</b><span>Body Drop<small>Request food support</small></span></a>
-      </div>
-    </div>
-
-    <a href="/marketplace">MARKETPLACE</a>
-    <a href="/livemap">LIVE MAP</a>
-
-    <div class="nav-group">
-      <button type="button" aria-expanded="false">COMMUNITY <span>⌃</span></button>
-      <div class="mega-menu">
-        <a href="/quests"><b>▤</b><span>Quests<small>Daily and weekly objectives</small></span></a>
-        <a href="/leaderboard"><b>★</b><span>Leaderboards<small>Levels, kills, K/D &amp; playtime</small></span></a>
-        <a href="/events"><b>◫</b><span>Events<small>Server events &amp; rewards</small></span></a>
-      </div>
-    </div>
-
-    <a href="/supporter">SUPPORTER</a>
-
-    <div class="nav-group" id="admin-nav-group" hidden>
-      <button type="button" aria-expanded="false">ADMIN <span>⌃</span></button>
-      <div class="mega-menu">
-        <a href="/admin"><b>◆</b><span>Admin Hub<small>Overview &amp; quick actions</small></span></a>
-        <a href="/adminoperations"><b>◉</b><span>Operations<small>Health, backups &amp; audit</small></span></a>
-        <a href="/admincomms"><b>◈</b><span>Comms<small>Announcements &amp; schedules</small></span></a>
-        <a href="/adminrestore"><b>↻</b><span>Admin Restore<small>Guarded DinoStorage restore</small></span></a>
-        <a href="/events#event-admin-panel"><b>◌</b><span>Event Rewards<small>Steam-linked Valley Coin payouts</small></span></a>
-        <a href="/skins"><b>◇</b><span>Skin Studio<small>Design, publish &amp; manage skins</small></span></a>
-      </div>
-    </div>
+  <nav class="main-nav" aria-label="Primary navigation">
+    <a href="/">Home</a>
+    <a href="/profile">Players</a>
+    <a href="/livemap">Map</a>
+    <a href="/skins">Skin Shop</a>
+    <a href="/leaderboard">Leaderboards</a>
+    <a href="/events">Events</a>
+    <a href="/supporter">Support</a>
+    <a id="admin-nav-link" href="/admin" hidden>Admin</a>
   </nav>
-  <div id="auth-area">
-    <a class="steam-signin" id="auth-steam" href="/auth/steam"><span class="steam-icon">◈</span> Sign in with Steam</a>
+
+  <form class="snapshot-search" id="global-player-search" role="search">
+    <input id="global-player-search-input" type="search" autocomplete="off" placeholder="Search players..." aria-label="Search Hollow Valley players">
+    <button type="submit" aria-label="Search">⌕</button>
+  </form>
+
+  <div class="snapshot-topbar-tools">
+    <a class="snapshot-notify" href="/events" aria-label="Notifications">♟</a>
+    <div id="auth-area">
+      <a class="steam-signin" id="auth-steam" href="/auth/steam"><span class="snapshot-avatar">HV</span> Sign in</a>
+    </div>
   </div>
-  <button class="menu-toggle" aria-label="Toggle navigation" aria-expanded="false"><span></span><span></span></button>
 </header>
