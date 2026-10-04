@@ -295,6 +295,27 @@ function latestPending(steamId) {
   return latest && ['preparing', 'publishing', 'queued', 'acknowledged', 'unknown'].includes(latest.status) ? latest : null;
 }
 
+async function reconcilePendingStoreEvidence(pending, steamId) {
+  if (!pending || pending.details?.action !== 'store') return pending;
+  if (!['queued', 'acknowledged', 'unknown'].includes(pending.status)) return pending;
+
+  let current = await reconcileDinoStorageRequest(pending.id);
+  if (!current || !['queued', 'acknowledged', 'unknown'].includes(current.status)) return current;
+
+  const expectedSlot = String(current.details?.slot || '').trim();
+  if (!SLOT_RE.test(expectedSlot)) return current;
+
+  const cached = getCachedStoredDinos(steamId, { allowExpired: true });
+  const exactStoredCopy = cached?.dinos?.find((dino) => dino?.slot === expectedSlot) || null;
+  if (!exactStoredCopy) return current;
+
+  return store.updateRequest(current.id, {
+    status: 'accepted',
+    message: `Stored DinoStorage slot ${expectedSlot} is verified present. The stored copy is confirmed; the deferred in-game kill is not independently confirmed.`,
+    error: null,
+  });
+}
+
 async function publishDinoStorageRequest(requestId) {
   const id = String(requestId || '').trim();
   if (!id || publishingRequests.has(id)) return store.getRequest(id);
@@ -355,8 +376,9 @@ async function requestDinoStorageAction({ action, steamId, slot = 'default' }) {
   // background and any uncertain outcome is reconciled instead of replayed.
   commandBridge.assertPublisherReady();
 
-  const pending = latestPending(steam);
-  if (pending) {
+  let pending = latestPending(steam);
+  if (pending) pending = await reconcilePendingStoreEvidence(pending, steam);
+  if (pending && ['preparing', 'publishing', 'queued', 'acknowledged', 'unknown'].includes(pending.status)) {
     const error = new Error(`DinoStorage request ${pending.id} is still awaiting reconciliation`);
     error.code = 'DINOSTORAGE_PENDING';
     error.request = pending;
