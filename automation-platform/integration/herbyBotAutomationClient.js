@@ -52,6 +52,10 @@ function getStatus(options = {}) {
   return call('/status', options);
 }
 
+function getTerritoryWarsState(options = {}) {
+  return call('/territory-wars/state', options);
+}
+
 function getStaffOverview(options = {}) {
   return call('/staff-overview', options);
 }
@@ -113,6 +117,7 @@ function failMessage(id, error, options = {}) {
 
 module.exports = {
   getStatus,
+  getTerritoryWarsState,
   getStaffOverview,
   getActivity,
   getProgression,
