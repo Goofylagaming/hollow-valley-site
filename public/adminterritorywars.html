@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="/assets/styles.css?v=38">
   <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=2">
-  <link rel="stylesheet" href="/assets/territory-wars.css?v=1">
+  <link rel="stylesheet" href="/assets/territory-wars.css?v=2">
 </head>
 <body>
   <div class="app-shell">
@@ -17,7 +17,7 @@
       <section class="page-header">
         <p class="overline green">HOLLOW VALLEY · ADMIN · TERRITORY WARS</p>
         <h1>Territory Wars Admin</h1>
-        <p class="section-intro">Create wars, control live event state, adjust territory ownership, and see which players are actually inside the active territory.</p>
+        <p class="section-intro">Create wars, control live event state, review registered Groups and lineups, and see which players are actually inside the active territory.</p>
       </section>
 
       <section class="roster-section tw-shell">
@@ -97,11 +97,21 @@
           </section>
         </div>
 
-        <p class="tw-note">All controls are protected by the existing Hollow Valley admin middleware. Territory presence reuses the live-map server tracker; normal players receive only a count, while this admin page can show player identity and species.</p>
+        <section class="tw-card">
+          <div class="tw-card-head">
+            <div><div class="tw-kicker">Event Entry</div><h3>Registered Groups &amp; Lineups</h3></div>
+            <span class="tw-status" id="tw-admin-registration-count">0 Groups</span>
+          </div>
+          <div class="tw-card-body">
+            <div class="tw-list" id="tw-admin-registrations"><div class="tw-empty">No Groups are registered for the current event.</div></div>
+          </div>
+        </section>
+
+        <p class="tw-note">All controls are protected by the existing Hollow Valley admin middleware. Territory presence reuses the live-map server tracker; normal players receive only a count, while this admin page can show player identity, species, and permanent Group membership.</p>
       </section>
     </main>
   </div>
   <script src="/assets/common.js?v=20"></script>
-  <script src="/assets/admin-territory-wars.js?v=2"></script>
+  <script src="/assets/admin-territory-wars.js?v=3"></script>
 </body>
 </html>
