@@ -1,11 +1,17 @@
 const { createHerbyBotAutomationBridge } = require('./herbyBotBridge');
 const { attachHerbyBotCommands } = require('./herbyBotCommands');
+const { attachHerbyBotTerritoryCommand } = require('./herbyBotTerritoryCommand');
 
 function createHerbyBotIntegration({ client, api, autoRegisterCommands = true } = {}) {
   if (!client) throw new Error('Existing HerbyBot Discord client is required');
 
   const bridge = createHerbyBotAutomationBridge({ client, api });
   const commands = attachHerbyBotCommands({
+    client,
+    api,
+    autoRegister: autoRegisterCommands,
+  });
+  const territoryCommand = attachHerbyBotTerritoryCommand({
     client,
     api,
     autoRegister: autoRegisterCommands,
@@ -19,6 +25,7 @@ function createHerbyBotIntegration({ client, api, autoRegisterCommands = true } 
 
     bridge.start();
     let registration = { skipped: true };
+    let territoryRegistration = { skipped: true };
     try {
       registration = await commands.register();
     } catch (error) {
@@ -27,11 +34,18 @@ function createHerbyBotIntegration({ client, api, autoRegisterCommands = true } 
       console.warn('[herbybot-commands]', error.message);
       registration = { skipped: false, error: error.message };
     }
+    try {
+      territoryRegistration = await territoryCommand.register();
+    } catch (error) {
+      console.warn('[herbybot-territory-command]', error.message);
+      territoryRegistration = { skipped: false, error: error.message };
+    }
 
     return {
       started: true,
       bridge: true,
       commands: registration,
+      territoryCommand: territoryRegistration,
     };
   }
 
@@ -45,6 +59,7 @@ function createHerbyBotIntegration({ client, api, autoRegisterCommands = true } 
     stop,
     pollOnce: bridge.pollOnce,
     commandHandler: commands.handler,
+    territoryCommandHandler: territoryCommand.handler,
   };
 }
 
