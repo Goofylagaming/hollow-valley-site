@@ -110,8 +110,9 @@ function classifyLocation(location, geometry) {
   if (!location || !geometry) return null;
   const x = Number(location.x);
   const y = Number(location.y);
+  const z = Number(location.z);
   if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-  const mapped = fromRconLocation({ X: x, Y: y, Z: Number(location.z) || 0 });
+  const mapped = fromRconLocation({ x, y, z: Number.isFinite(z) ? z : 0 });
   return classifyWorldPosition(mapped.x, mapped.y, geometry);
 }
 
@@ -364,7 +365,7 @@ function schedule() {
     } catch (error) {
       // Territory Wars combat is supplemental. A temporary automation outage must
       // never take the website down or override the owner's manual controls.
-      if (lastError !== error.message) console.warn('[territory-combat]', error.message);
+      console.warn('[territory-combat]', error.message);
     } finally {
       schedule();
     }
@@ -409,6 +410,7 @@ module.exports = {
     attackAt,
     repeatKillWithinCooldown,
     geometryForEvent,
+    classifyLocation,
     db,
     REPEAT_KILL_COOLDOWN_MS,
   },
