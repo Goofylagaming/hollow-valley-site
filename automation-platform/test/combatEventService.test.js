@@ -91,6 +91,7 @@ test('combat events are idempotent and conflicting duplicate IDs fail closed', (
 
 test('combat events store killer and victim locations only from a time-qualified presence snapshot', (t) => {
   const service = loadService(t);
+  assert.equal(service.state().locationMaxSkewSeconds, 90);
   installPresenceSnapshot(service, {
     sampledAt: '2026-09-21T08:00:20.000Z',
     characters: [
@@ -112,10 +113,10 @@ test('combat events store killer and victim locations only from a time-qualified
   assert.equal(listed[0].presenceSampledAt, '2026-09-21T08:00:20.000Z');
 });
 
-test('combat events do not borrow positions from a presence snapshot outside the 45-second safety window', (t) => {
+test('combat events do not borrow positions from a presence snapshot outside the 90-second safety window', (t) => {
   const service = loadService(t);
   installPresenceSnapshot(service, {
-    sampledAt: '2026-09-21T08:01:00.000Z',
+    sampledAt: '2026-09-21T08:02:00.000Z',
     characters: [
       { steamId: '76561198000001001', location: { x: -302000, y: 250000, z: 123 } },
       { steamId: '76561198000001002', location: { x: -301500, y: 250500, z: 120 } },
