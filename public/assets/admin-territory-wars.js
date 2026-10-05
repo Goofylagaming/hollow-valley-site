@@ -17,6 +17,11 @@ function parseDate(value) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+function formatDate(value) {
+  const date = parseDate(value);
+  return date ? date.toLocaleString() : "Not set";
+}
+
 function formatDateInput(value) {
   const date = parseDate(value);
   if (!date) return "";
@@ -64,8 +69,7 @@ function renderLog(log) {
     detail.textContent = String(item.kind || "update").replace(/-/g, " ");
     main.append(strong, detail);
     const when = document.createElement("span");
-    const logDate = parseDate(item.created_at);
-    when.textContent = logDate ? logDate.toLocaleString() : "";
+    when.textContent = formatDate(item.created_at);
     row.append(main, when);
     target.append(row);
   }
@@ -108,9 +112,44 @@ function renderPresence(presence) {
     const strong = document.createElement("strong");
     strong.textContent = player.name || "Unknown player";
     const detail = document.createElement("span");
-    detail.textContent = [player.species || "Unknown species", player.isPrime ? "Prime" : null, player.steamId || null].filter(Boolean).join(" · ");
+    const group = player.groupName ? `${player.groupName}${player.groupTag ? ` [${player.groupTag}]` : ""}` : "No permanent Group";
+    detail.textContent = [player.species || "Unknown species", player.isPrime ? "Prime" : null, group, player.steamId || null].filter(Boolean).join(" · ");
     main.append(strong, detail);
     row.append(main);
+    target.append(row);
+  }
+}
+
+function renderRegistrations(registrations) {
+  const target = document.getElementById("tw-admin-registrations");
+  const count = document.getElementById("tw-admin-registration-count");
+  if (!target || !count) return;
+
+  const entries = Array.isArray(registrations) ? registrations : [];
+  count.textContent = `${entries.length} Group${entries.length === 1 ? "" : "s"}`;
+  count.className = `tw-status ${entries.length ? "live" : ""}`;
+  target.replaceChildren();
+
+  if (!entries.length) {
+    target.innerHTML = '<div class="tw-empty">No Groups are registered for the current event.</div>';
+    return;
+  }
+
+  for (const registration of entries) {
+    const row = document.createElement("div");
+    row.className = "tw-list-row";
+    const main = document.createElement("div");
+    const strong = document.createElement("strong");
+    strong.textContent = `${registration.group_name || "Group"}${registration.group_tag ? ` [${registration.group_tag}]` : ""}`;
+    const detail = document.createElement("span");
+    detail.textContent = `${String(registration.status || "registered").toUpperCase()} · Registered ${formatDate(registration.registered_at)}`;
+    main.append(strong, detail);
+
+    const lineup = document.createElement("b");
+    const lineupCount = Number(registration.lineup_count || 0);
+    lineup.className = `tw-lineup-badge ${lineupCount ? "active" : ""}`;
+    lineup.textContent = `${lineupCount} / 6 FIGHTERS`;
+    row.append(main, lineup);
     target.append(row);
   }
 }
@@ -157,6 +196,7 @@ async function refreshState() {
     const data = await api("/api/territory-wars/admin/state");
     renderEvent(data.event, data.log);
     renderPresence(data.presence);
+    renderRegistrations(data.registrations);
   } catch (error) {
     setMessage(error.message || "Could not load Territory Wars admin state.", true);
   }
@@ -166,8 +206,9 @@ async function refreshPresence() {
   try {
     const data = await api("/api/territory-wars/admin/state");
     renderPresence(data.presence);
+    renderRegistrations(data.registrations);
   } catch {
-    // Keep the most recent live-presence state without disrupting admin edits.
+    // Keep the most recent live state without disrupting admin edits.
   }
 }
 
@@ -193,6 +234,7 @@ async function saveEvent(event) {
       body: JSON.stringify(payload),
     });
     renderEvent(data.event, data.log);
+    renderRegistrations(data.registrations);
     await refreshPresence();
     setMessage("Territory War saved.");
   } catch (error) {
