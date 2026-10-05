@@ -7,6 +7,9 @@ function destinationChannelId(destination) {
   if (destination === 'alert') {
     return String(process.env.DISCORD_ALERT_CHANNEL_ID || '').trim();
   }
+  if (destination === 'territory-war') {
+    return String(process.env.DISCORD_TERRITORY_WAR_CHANNEL_ID || '').trim();
+  }
   return '';
 }
 
