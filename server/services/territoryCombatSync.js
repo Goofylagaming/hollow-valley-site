@@ -2,6 +2,7 @@ const { db } = require('../db');
 const { fromRconLocation } = require('../evrimaMap');
 const { territoryGeometry, classifyWorldPosition } = require('./territoryGeometry');
 const territoryCombatClient = require('./territoryCombatClient');
+const territoryMomentum = require('./territoryMomentum');
 
 const SYNC_INTERVAL_MS = 15 * 1000;
 const REPEAT_KILL_COOLDOWN_MS = 10 * 60 * 1000;
@@ -35,6 +36,7 @@ function ensureSchema() {
     CREATE INDEX IF NOT EXISTS idx_territory_combat_repeat
       ON territory_combat_events(event_id, killer_steam_id, victim_steam_id, counted, occurred_at DESC);
   `);
+  territoryMomentum.ensureSchema();
 }
 
 function cleanText(value, max = 240) {
@@ -309,11 +311,20 @@ function processCombatEvent(event, territoryEvent = latestLiveEvent()) {
     return { counted: false, reason: 'repeat-kill-cooldown' };
   }
 
+  const killerSide = attackSide(attack, killerMember);
+  const victimSide = attackSide(attack, victimMember);
   db.exec('BEGIN IMMEDIATE');
   try {
     writeAudit({ ...enrichedAudit, counted: true, reason: 'counted' });
     incrementGroupStat(killerMember.group_id, 'kills');
     incrementGroupStat(victimMember.group_id, 'deaths');
+    territoryMomentum.recordKill({
+      combatEventId,
+      eventId: territoryEvent.id,
+      attackId: attack.id,
+      side: killerSide,
+      occurredAt: occurredAt.toISOString(),
+    });
     addEventLog(
       territoryEvent.id,
       `${displayPlayer(event?.killerName, killerSteamId)} · ${displayGroup(killerMember)} defeated ${displayPlayer(event?.victimName, victimSteamId)} · ${displayGroup(victimMember)} inside ${territoryEvent.territory_name || 'the territory'} Battlefield.`
@@ -331,8 +342,8 @@ function processCombatEvent(event, territoryEvent = latestLiveEvent()) {
     attackId: attack.id,
     killerGroupId: killerMember.group_id ? Number(killerMember.group_id) : null,
     victimGroupId: victimMember.group_id ? Number(victimMember.group_id) : null,
-    killerSide: attackSide(attack, killerMember),
-    victimSide: attackSide(attack, victimMember),
+    killerSide,
+    victimSide,
   };
 }
 
