@@ -25,6 +25,18 @@ function parseDate(value) {
   return Number.isFinite(date.getTime()) ? date : null;
 }
 
+function emptyMomentum(extra = {}) {
+  return {
+    attackerKills: 0,
+    defenderKills: 0,
+    netKills: 0,
+    ratePerMinute: 0,
+    windowSeconds: KILL_MOMENTUM_WINDOW_MS / 1000,
+    rateCap: KILL_MOMENTUM_RATE_CAP,
+    ...extra,
+  };
+}
+
 function recordKill({ combatEventId, eventId, attackId, side, occurredAt }) {
   ensureSchema();
   const id = String(combatEventId || '').trim();
@@ -48,14 +60,7 @@ function recentMomentum(eventId, attackId, nowMs = Date.now()) {
   const event = Number(eventId);
   const attack = Number(attackId);
   if (!Number.isInteger(event) || event <= 0 || !Number.isInteger(attack) || attack <= 0) {
-    return {
-      attackerKills: 0,
-      defenderKills: 0,
-      netKills: 0,
-      ratePerMinute: 0,
-      windowSeconds: KILL_MOMENTUM_WINDOW_MS / 1000,
-      rateCap: KILL_MOMENTUM_RATE_CAP,
-    };
+    return emptyMomentum();
   }
 
   const since = new Date(Number(nowMs) - KILL_MOMENTUM_WINDOW_MS).toISOString();
@@ -82,6 +87,33 @@ function recentMomentum(eventId, attackId, nowMs = Date.now()) {
     ratePerMinute: netKills * KILL_MOMENTUM_RATE_PER_KILL,
     windowSeconds: KILL_MOMENTUM_WINDOW_MS / 1000,
     rateCap: KILL_MOMENTUM_RATE_CAP,
+    eventId: event,
+    attackId: attack,
+  };
+}
+
+function liveMomentum(nowMs = Date.now()) {
+  ensureSchema();
+  const attacks = db.prepare(`
+    SELECT a.id AS attack_id, a.event_id
+    FROM territory_attacks a
+    JOIN territory_events e ON e.id = a.event_id
+    WHERE a.status = 'active' AND e.status = 'live'
+    ORDER BY a.id DESC
+    LIMIT 2
+  `).all();
+
+  // V1 supports one live Territory War at a time. If that assumption is ever
+  // broken, fail closed instead of applying kills from one war to another.
+  if (attacks.length !== 1) {
+    return emptyMomentum({ ambiguous: attacks.length > 1, activeAttackCount: attacks.length });
+  }
+
+  const attack = attacks[0];
+  return {
+    ...recentMomentum(attack.event_id, attack.attack_id, nowMs),
+    ambiguous: false,
+    activeAttackCount: 1,
   };
 }
 
@@ -92,4 +124,5 @@ module.exports = {
   ensureSchema,
   recordKill,
   recentMomentum,
+  liveMomentum,
 };
