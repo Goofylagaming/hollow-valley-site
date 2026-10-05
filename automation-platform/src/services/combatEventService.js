@@ -6,7 +6,7 @@ const questChallenges = require('./questBoostService');
 const dbPath = process.env.AUTOMATION_DB_PATH || path.join(__dirname, '..', '..', 'data', 'automation.sqlite');
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
-const COMBAT_LOCATION_MAX_SKEW_MS = 45 * 1000;
+const COMBAT_LOCATION_MAX_SKEW_MS = 90 * 1000;
 
 const db = new DatabaseSync(dbPath);
 db.exec('PRAGMA busy_timeout = 5000;');
