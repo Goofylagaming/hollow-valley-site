@@ -20,6 +20,15 @@ test('HerbyBot outbox deduplicates messages by nonce', () => {
   assert.equal(store.getOutboxSummary().total, 1);
 });
 
+test('Territory Wars uses a dedicated idempotent HerbyBot destination', () => {
+  const first = outbox.queueTerritoryWar('South Plains contested', { nonce: 'territory:1:log:22' });
+  const second = outbox.queueTerritoryWar('South Plains contested', { nonce: 'territory:1:log:22' });
+
+  assert.equal(first.id, second.id);
+  assert.equal(first.destination, 'territory-war');
+  assert.equal(first.message, 'South Plains contested');
+});
+
 test('old queued game chat is consumed before any bot can claim it', () => {
   const old = store.createOutboxEvent({
     id: randomUUID(), destination: 'game-chat', message: 'old chat', nonce: 'gamechat:old-entry',
