@@ -43,6 +43,42 @@ test('HerbyBot bridge delivers through the existing ready Discord client with no
   }
 });
 
+test('HerbyBot bridge routes Territory Wars to its dedicated channel', async () => {
+  const sent = [];
+  const client = {
+    isReady: () => true,
+    channels: {
+      fetch: async (id) => ({
+        isTextBased: () => true,
+        send: async (payload) => {
+          sent.push({ id, payload });
+          return { id: 'discord-territory-1' };
+        },
+      }),
+    },
+  };
+
+  const previous = process.env.DISCORD_TERRITORY_WAR_CHANNEL_ID;
+  process.env.DISCORD_TERRITORY_WAR_CHANNEL_ID = '111122223333444455';
+  try {
+    const result = await deliverEvent(client, {
+      id: 'event-territory-1',
+      destination: 'territory-war',
+      message: 'South Plains contested',
+      nonce: 'territory:1:log:22',
+    });
+
+    assert.equal(result.channelId, '111122223333444455');
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].id, '111122223333444455');
+    assert.equal(sent[0].payload.content, 'South Plains contested');
+    assert.equal(sent[0].payload.nonce, 'territory:1:log:22');
+  } finally {
+    if (previous === undefined) delete process.env.DISCORD_TERRITORY_WAR_CHANNEL_ID;
+    else process.env.DISCORD_TERRITORY_WAR_CHANNEL_ID = previous;
+  }
+});
+
 test('HerbyBot bridge polls, sends and acknowledges without creating another client', async () => {
   const calls = [];
   const client = {
