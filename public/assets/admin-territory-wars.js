@@ -7,12 +7,28 @@ function text(id, value) {
   if (el) el.textContent = value ?? "—";
 }
 
+function parseDate(value) {
+  if (!value) return null;
+  const raw = String(value);
+  const normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(raw)
+    ? `${raw.replace(" ", "T")}Z`
+    : raw;
+  const date = new Date(normalized);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 function formatDateInput(value) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
+  const date = parseDate(value);
+  if (!date) return "";
   const pad = (n) => String(n).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function inputDateIso(id) {
+  const raw = document.getElementById(id)?.value;
+  if (!raw) return null;
+  const date = new Date(raw);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
 function setMessage(message, error = false) {
@@ -48,7 +64,8 @@ function renderLog(log) {
     detail.textContent = String(item.kind || "update").replace(/-/g, " ");
     main.append(strong, detail);
     const when = document.createElement("span");
-    when.textContent = item.created_at ? new Date(item.created_at).toLocaleString() : "";
+    const logDate = parseDate(item.created_at);
+    when.textContent = logDate ? logDate.toLocaleString() : "";
     row.append(main, when);
     target.append(row);
   }
@@ -109,8 +126,8 @@ async function saveEvent(event) {
     territoryKey: document.getElementById("tw-admin-key").value,
     ownerName: document.getElementById("tw-admin-owner").value,
     challengerName: document.getElementById("tw-admin-challenger").value,
-    startsAt: document.getElementById("tw-admin-starts").value || null,
-    endsAt: document.getElementById("tw-admin-ends").value || null,
+    startsAt: inputDateIso("tw-admin-starts"),
+    endsAt: inputDateIso("tw-admin-ends"),
   };
 
   const button = document.getElementById("tw-admin-save");
