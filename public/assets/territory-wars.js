@@ -84,16 +84,17 @@ function renderEvent(event) {
 
 function renderPresence(presence) {
   if (!presence?.tracking) {
-    text("tw-presence", "Region not tracked");
+    text("tw-presence", "Territory geometry unavailable");
     return;
   }
   if (!presence.serverOnline) {
     text("tw-presence", "Server offline");
     return;
   }
-  const eligible = Number(presence.eligibleCount || 0);
-  const total = Number(presence.playerCount || 0);
-  text("tw-presence", eligible ? `${eligible} eligible · ${total} total` : `${total} in ${presence.region || "territory"}`);
+  const battlefield = Number(presence.playerCount || 0);
+  const claim = Number(presence.claimCount || 0);
+  const eligibleClaim = Number(presence.eligibleClaimCount || 0);
+  text("tw-presence", `${eligibleClaim} eligible claim · ${claim} claim · ${battlefield} battlefield`);
 }
 
 function renderLog(log) {
@@ -337,17 +338,18 @@ function renderAttack(data) {
 
   if (attack) {
     const attackerName = `${attack.attacker_name || "Challenger"}${attack.attacker_tag ? ` [${attack.attacker_tag}]` : ""}`;
+    const defenderName = `${attack.defender_name || event.owner_name || "Owner"}${attack.defender_tag ? ` [${attack.defender_tag}]` : ""}`;
     text("tw-attack-title", `${attackerName} attacking ${event.territory_name || "territory"}`);
     if (attack.status === "warning") {
-      text("tw-attack-detail", `Five-minute warning active · attack begins ${formatDate(attack.starts_at)}.`);
+      text("tw-attack-detail", `Five-minute warning active against ${defenderName} · attack begins ${formatDate(attack.starts_at)}.`);
     } else if (attack.contest_started_at) {
       const armedAt = parseDate(attack.contest_started_at);
       const eligibleAt = armedAt ? new Date(armedAt.getTime() + (2 * 60 * 1000)) : null;
       text("tw-attack-detail", eligibleAt && eligibleAt.getTime() > Date.now()
-        ? `Attack active · two-minute presence hold completes ${eligibleAt.toLocaleString()}.`
-        : "Attack active · contest is armed and territory control can move.");
+        ? `Attack active · two-minute Claim Zone hold completes ${eligibleAt.toLocaleString()}.`
+        : "Attack active · contest is armed and eligible Claim Zone presence can move territory control.");
     } else {
-      text("tw-attack-detail", "Attack active · at least two eligible lineup fighters must hold the territory continuously for two minutes.");
+      text("tw-attack-detail", "Attack active · at least two eligible lineup fighters must hold the Claim Zone continuously for two minutes.");
     }
     return;
   }
@@ -363,13 +365,13 @@ function renderAttack(data) {
   } else if (protection && protection.getTime() > Date.now()) {
     text("tw-attack-detail", `Territory is protected after capture until ${protection.toLocaleString()}.`);
   } else if (ownsTerritory) {
-    text("tw-attack-detail", "Your Group currently owns this territory. Hold the zone and defend it from challengers.");
+    text("tw-attack-detail", "Your Group currently owns this territory. Hold the Claim Zone and defend the Battlefield from challengers.");
   } else if (activeFighters < 2) {
     text("tw-attack-detail", `Your lineup needs at least two active fighters before an attack can be declared. Active now: ${activeFighters}.`);
   } else if (!canDeclare) {
     text("tw-attack-detail", "A Group Leader or Officer can declare the attack.");
   } else {
-    text("tw-attack-detail", "Declare the attack to start the five-minute server warning before contesting begins.");
+    text("tw-attack-detail", "Declare the attack to start the five-minute server warning before the Claim Zone can be contested.");
     if (button) button.hidden = false;
   }
 }
@@ -442,8 +444,8 @@ function renderEventEntry(data) {
   text(
     "tw-lineup-help",
     event.status === "live"
-      ? `Only selected lineup members contribute. New substitutions during a live war become eligible after ${delay} minutes.`
-      : "Only selected lineup members contribute presence, kills, deaths, or territory control."
+      ? `Only selected lineup members contribute. New substitutions become eligible after ${delay} minutes. Claim Zone presence moves control; verified opposing kills count anywhere inside the Battlefield.`
+      : "Only selected lineup members contribute to the war. Claim Zone presence moves control; verified opposing kills count anywhere inside the Battlefield."
   );
   renderLineup(data);
   renderAttack(data);
