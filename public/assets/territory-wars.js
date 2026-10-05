@@ -55,6 +55,18 @@ function renderEvent(event) {
   if (challengerBar) challengerBar.style.width = `${challenger}%`;
 }
 
+function renderPresence(presence) {
+  if (!presence?.tracking) {
+    text("tw-presence", "Region not tracked");
+    return;
+  }
+  if (!presence.serverOnline) {
+    text("tw-presence", "Server offline");
+    return;
+  }
+  text("tw-presence", `${Number(presence.playerCount || 0)} in ${presence.region || "territory"}`);
+}
+
 function renderLog(log) {
   const target = document.getElementById("tw-event-log");
   if (!target) return;
@@ -139,6 +151,7 @@ async function loadPublicState() {
   try {
     const data = await api("/api/territory-wars/state");
     renderEvent(data.event);
+    renderPresence(data.presence);
     renderLog(data.log);
     renderLeaderboard(data.leaderboard);
   } catch (error) {
@@ -167,15 +180,17 @@ async function loadPlayerState() {
   if (playerState) playerState.hidden = false;
   try {
     const data = await api("/api/territory-wars/me");
-    text("tw-player-summary", `${data.player?.username || "Player"}${data.group ? ` · ${data.group.name}` : " · No Territory group linked yet"}`);
+    const steamLinked = Boolean(data.player?.steamId);
+    text("tw-player-summary", `${data.player?.username || "Player"} · ${steamLinked ? "Steam linked" : "Steam not linked"}${data.group ? ` · ${data.group.name}` : " · No Territory group linked yet"}`);
     if (registrationStatus) {
-      registrationStatus.textContent = data.registered ? "Registered" : "Not registered";
+      registrationStatus.textContent = data.registered ? "Registered" : steamLinked ? "Not registered" : "Steam required";
       registrationStatus.className = `tw-status ${data.registered ? "live" : ""}`;
     }
     if (register) {
-      register.textContent = data.registered ? "Registration confirmed" : "Register for Territory Wars";
-      register.disabled = Boolean(data.registered);
+      register.textContent = data.registered ? "Registration confirmed" : steamLinked ? "Register for Territory Wars" : "Link Steam to register";
+      register.disabled = Boolean(data.registered) || !steamLinked;
     }
+    text("tw-registration-message", steamLinked ? "" : "Territory Wars registration needs the Steam account used on Hollow Valley.");
     renderMyGroup(data);
   } catch (error) {
     text("tw-registration-message", error.message || "Could not load your Territory Wars registration.");
