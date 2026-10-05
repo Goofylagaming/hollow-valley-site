@@ -85,6 +85,36 @@ async function syncSkinSharePolicy() {
   }
 }
 
+let territoryWarsRuntimeTimer = null;
+let territoryWarsRuntimeWarning = false;
+
+function startTerritoryWarsRuntime() {
+  if (territoryWarsRuntimeTimer) return territoryWarsRuntimeTimer;
+  const runtimeUrl = `http://127.0.0.1:${PORT}/api/territory-wars/state`;
+
+  const tick = async () => {
+    try {
+      const response = await fetch(runtimeUrl, {
+        headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      territoryWarsRuntimeWarning = false;
+    } catch (error) {
+      if (!territoryWarsRuntimeWarning) {
+        console.warn("[territory-wars] runtime tick warning:", error.message);
+        territoryWarsRuntimeWarning = true;
+      }
+    }
+  };
+
+  territoryWarsRuntimeTimer = setInterval(tick, 15 * 1000);
+  territoryWarsRuntimeTimer.unref?.();
+  const initialTick = setTimeout(tick, 1500);
+  initialTick.unref?.();
+  return territoryWarsRuntimeTimer;
+}
+
 function legacyDirectGameApiRetired(_req, res) {
   return res.status(410).json({
     error: "Legacy direct game API has been retired. Use the automation-backed Hollow Valley endpoints instead.",
@@ -277,6 +307,7 @@ function startServer() {
     console.log(`Herby Death Squad portal running on port ${PORT}`);
     console.log("[legacy-api] direct game execution paths retired");
     serverStatusService.start();
+    startTerritoryWarsRuntime();
     syncSkinSharePolicy();
     const skinSharePolicyTimer = setInterval(syncSkinSharePolicy, 5 * 60 * 1000);
     skinSharePolicyTimer.unref?.();
