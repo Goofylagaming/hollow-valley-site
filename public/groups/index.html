@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/assets/styles.css?v=38">
   <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=2">
+  <link rel="stylesheet" href="/assets/territory-wars.css?v=1">
 </head>
 <body>
   <div class="app-shell">
@@ -16,14 +17,28 @@
       <section class="page-header">
         <p class="overline green">MY STUFF · GROUPS</p>
         <h1>Groups</h1>
-        <p class="section-intro">Track your current group and view previous groups formed in-game.</p>
+        <p class="section-intro">Track your current group, previous groups, and Territory Wars participation.</p>
       </section>
 
       <section class="groups-page">
+        <nav class="tw-tabs" aria-label="Groups pages">
+          <a class="is-active" href="/groups/" aria-current="page">Groups</a>
+          <a href="/groups/territory-wars/">Territory Wars</a>
+        </nav>
+
         <div class="groups-toolbar">
           <span></span>
           <button class="small-button" type="button">? &nbsp; How Groups Work</button>
         </div>
+
+        <section class="tw-groups-promo">
+          <div>
+            <div class="tw-kicker">New Group Competition</div>
+            <h3>Territory Wars</h3>
+            <p>Register your group, fight for named regions of Hollow Valley, follow live territory control, and climb the group standings.</p>
+          </div>
+          <a class="tw-button primary" href="/groups/territory-wars/" style="display:inline-flex;align-items:center">Open Territory Wars →</a>
+        </section>
 
         <section class="groups-card">
           <div class="groups-card-title"><span>♣</span><strong>Current Group</strong><span class="dot"></span><span style="color:#39dda0;font-size:8px">Currently in a Group</span></div>
@@ -68,6 +83,6 @@
       </section>
     </main>
   </div>
-  <script src="/assets/common.js?v=19"></script>
+  <script src="/assets/common.js?v=20"></script>
 </body>
 </html>
