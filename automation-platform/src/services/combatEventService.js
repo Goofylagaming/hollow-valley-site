@@ -6,6 +6,8 @@ const questChallenges = require('./questBoostService');
 const dbPath = process.env.AUTOMATION_DB_PATH || path.join(__dirname, '..', '..', 'data', 'automation.sqlite');
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
+const COMBAT_LOCATION_MAX_SKEW_MS = 45 * 1000;
+
 const db = new DatabaseSync(dbPath);
 db.exec('PRAGMA busy_timeout = 5000;');
 db.exec('PRAGMA journal_mode = WAL;');
@@ -18,6 +20,9 @@ db.exec(`
     victim_steam_id TEXT NOT NULL,
     victim_name TEXT,
     source TEXT NOT NULL,
+    killer_location_json TEXT,
+    victim_location_json TEXT,
+    presence_sampled_at TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
   CREATE INDEX IF NOT EXISTS idx_combat_events_occurred
@@ -34,6 +39,16 @@ db.exec(`
   );
 `);
 
+function ensureCombatColumn(name, sql) {
+  const columns = db.prepare('PRAGMA table_info(combat_events)').all();
+  if (columns.some((column) => column.name === name)) return;
+  db.exec(`ALTER TABLE combat_events ADD COLUMN ${sql}`);
+}
+
+ensureCombatColumn('killer_location_json', 'killer_location_json TEXT');
+ensureCombatColumn('victim_location_json', 'victim_location_json TEXT');
+ensureCombatColumn('presence_sampled_at', 'presence_sampled_at TEXT');
+
 function enabled(env = process.env) {
   return String(env.COMBAT_FEED_ENABLED || '').toLowerCase() === 'true';
 }
@@ -48,7 +63,12 @@ function sourceName(env = process.env) {
 }
 
 function state(env = process.env) {
-  return { enabled: enabled(env), configured: configured(env), source: sourceName(env) };
+  return {
+    enabled: enabled(env),
+    configured: configured(env),
+    source: sourceName(env),
+    locationMaxSkewSeconds: COMBAT_LOCATION_MAX_SKEW_MS / 1000,
+  };
 }
 
 function feedError(code, message) {
@@ -142,6 +162,74 @@ function trackQuestChallenges(row) {
   }
 }
 
+function parseSnapshotLocation(value) {
+  if (!value || typeof value !== 'object') return null;
+  const x = Number(value.x ?? value.X);
+  const y = Number(value.y ?? value.Y);
+  const z = Number(value.z ?? value.Z);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  return { x, y, z: Number.isFinite(z) ? z : null };
+}
+
+function latestPresenceSnapshot() {
+  const table = db.prepare(`
+    SELECT name FROM sqlite_master
+    WHERE type = 'table' AND name = 'external_server_snapshot'
+  `).get();
+  if (!table) return null;
+
+  const row = db.prepare(`
+    SELECT sampled_at, snapshot_json
+    FROM external_server_snapshot
+    WHERE id = 1
+  `).get();
+  if (!row) return null;
+
+  let snapshot;
+  try { snapshot = JSON.parse(row.snapshot_json); } catch { return null; }
+  return { sampledAt: row.sampled_at, snapshot };
+}
+
+function locationContextForEvent(event) {
+  const current = latestPresenceSnapshot();
+  if (!current) return { sampledAt: null, killerLocation: null, victimLocation: null };
+
+  const sampledAtMs = Date.parse(current.sampledAt);
+  const occurredAtMs = Date.parse(event.occurredAt);
+  if (!Number.isFinite(sampledAtMs) || !Number.isFinite(occurredAtMs)) {
+    return { sampledAt: null, killerLocation: null, victimLocation: null };
+  }
+
+  const skewMs = Math.abs(sampledAtMs - occurredAtMs);
+  if (skewMs > COMBAT_LOCATION_MAX_SKEW_MS) {
+    return { sampledAt: null, killerLocation: null, victimLocation: null };
+  }
+
+  const characters = new Map(
+    (Array.isArray(current.snapshot?.characters) ? current.snapshot.characters : [])
+      .map((character) => [String(character?.steamId || ''), character])
+  );
+  const killerLocation = event.killerSteamId
+    ? parseSnapshotLocation(characters.get(event.killerSteamId)?.location)
+    : null;
+  const victimLocation = parseSnapshotLocation(characters.get(event.victimSteamId)?.location);
+
+  return {
+    sampledAt: new Date(sampledAtMs).toISOString(),
+    killerLocation,
+    victimLocation,
+  };
+}
+
+function serializeLocation(value) {
+  return value ? JSON.stringify(value) : null;
+}
+
+function parseStoredLocation(value) {
+  if (!value) return null;
+  try { return parseSnapshotLocation(JSON.parse(value)); } catch { return null; }
+}
+
 function ingestEvent(input, { env = process.env } = {}) {
   if (!enabled(env)) throw feedError('COMBAT_FEED_DISABLED', 'Authoritative combat ingestion is disabled.');
 
@@ -154,6 +242,8 @@ function ingestEvent(input, { env = process.env } = {}) {
     return { duplicate: true, event: existing, questChallenges: trackQuestChallenges(existing) };
   }
 
+  const locationContext = locationContextForEvent(event);
+
   db.exec('BEGIN IMMEDIATE');
   try {
     const raced = getEvent(event.id);
@@ -165,8 +255,9 @@ function ingestEvent(input, { env = process.env } = {}) {
 
     db.prepare(`
       INSERT INTO combat_events
-        (id, occurred_at, killer_steam_id, killer_name, victim_steam_id, victim_name, source)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+        (id, occurred_at, killer_steam_id, killer_name, victim_steam_id, victim_name, source,
+         killer_location_json, victim_location_json, presence_sampled_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       event.id,
       event.occurredAt,
@@ -174,7 +265,10 @@ function ingestEvent(input, { env = process.env } = {}) {
       event.killerName,
       event.victimSteamId,
       event.victimName,
-      event.source
+      event.source,
+      serializeLocation(locationContext.killerLocation),
+      serializeLocation(locationContext.victimLocation),
+      locationContext.sampledAt
     );
 
     upsertPlayer(event.victimSteamId, event.victimName);
@@ -189,6 +283,33 @@ function ingestEvent(input, { env = process.env } = {}) {
     try { db.exec('ROLLBACK'); } catch {}
     throw error;
   }
+}
+
+function listEvents({ since = null, limit = 100, nowMs = Date.now() } = {}) {
+  const safeLimit = Math.max(1, Math.min(500, Number(limit) || 100));
+  const fallbackSince = new Date(Number(nowMs) - 24 * 60 * 60 * 1000).toISOString();
+  const sinceDate = since ? new Date(since) : new Date(fallbackSince);
+  const sinceIso = Number.isFinite(sinceDate.getTime()) ? sinceDate.toISOString() : fallbackSince;
+
+  return db.prepare(`
+    SELECT id, occurred_at, killer_steam_id, killer_name, victim_steam_id, victim_name, source,
+           killer_location_json, victim_location_json, presence_sampled_at
+    FROM combat_events
+    WHERE occurred_at >= ?
+    ORDER BY occurred_at ASC, id ASC
+    LIMIT ?
+  `).all(sinceIso, safeLimit).map((row) => ({
+    id: row.id,
+    occurredAt: row.occurred_at,
+    killerSteamId: row.killer_steam_id || null,
+    killerName: row.killer_name || null,
+    victimSteamId: row.victim_steam_id,
+    victimName: row.victim_name || null,
+    source: row.source,
+    killerLocation: parseStoredLocation(row.killer_location_json),
+    victimLocation: parseStoredLocation(row.victim_location_json),
+    presenceSampledAt: row.presence_sampled_at || null,
+  }));
 }
 
 function leaderboard({ hours = 24 * 31, limit = 100, nowMs = Date.now() } = {}) {
@@ -273,6 +394,13 @@ module.exports = {
   state,
   normalizeEvent,
   ingestEvent,
+  listEvents,
   leaderboard,
-  _test: { db, getEvent },
+  _test: {
+    db,
+    getEvent,
+    latestPresenceSnapshot,
+    locationContextForEvent,
+    COMBAT_LOCATION_MAX_SKEW_MS,
+  },
 };
