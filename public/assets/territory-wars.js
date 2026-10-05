@@ -7,7 +7,11 @@ function text(id, value) {
 
 function formatDate(value) {
   if (!value) return "Not set";
-  const date = new Date(value);
+  const raw = String(value);
+  const normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(raw)
+    ? `${raw.replace(" ", "T")}Z`
+    : raw;
+  const date = new Date(normalized);
   return Number.isNaN(date.getTime()) ? "Not set" : date.toLocaleString();
 }
 
