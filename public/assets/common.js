@@ -185,6 +185,7 @@ window.HDS = (function () {
     if (cleanHref === "/skins" && path === "/skins") return true;
     if (cleanHref === "/mydinos" && path.startsWith("/mydinos")) return true;
     if (cleanHref === "/dinostorage" && path.startsWith("/dinostorage")) return true;
+    if (cleanHref === "/groups" && path.startsWith("/groups")) return true;
     return cleanHref !== "/skins" && cleanHref === path;
   }
 
@@ -244,7 +245,7 @@ window.HDS = (function () {
     const slot = document.getElementById("nav-slot");
     if (!slot) return;
     try {
-      const response = await fetch("/partials/nav.html?v=3", { cache: "no-store" });
+      const response = await fetch("/partials/nav.html?v=4", { cache: "no-store" });
       slot.innerHTML = await response.text();
     } catch (err) {
       console.error("Failed to load nav partial", err);
@@ -256,7 +257,9 @@ window.HDS = (function () {
     const me = await loadMe();
     const isAdmin = Boolean(me?.user?.is_admin);
     const adminNavLink = document.getElementById("admin-nav-link");
+    const territoryAdminNavLink = document.getElementById("territory-admin-nav-link");
     if (adminNavLink) adminNavLink.hidden = !isAdmin;
+    if (territoryAdminNavLink) territoryAdminNavLink.hidden = !isAdmin;
     await claimDailyLoginBonus(me);
 
     document.getElementById("auth-area")?.addEventListener("click", (event) => {
