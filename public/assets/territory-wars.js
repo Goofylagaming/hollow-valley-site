@@ -221,3 +221,4 @@ async function registerForWar() {
 document.getElementById("tw-register")?.addEventListener("click", registerForWar);
 
 Promise.all([loadPublicState(), loadPlayerState()]);
+setInterval(loadPublicState, 15000);
