@@ -59,6 +59,7 @@
             <div class="tw-card-body">
               <div class="tw-meta-grid">
                 <div class="tw-meta"><small>Status</small><b><span class="tw-status" id="tw-status">Scheduled</span></b></div>
+                <div class="tw-meta"><small>Control Score</small><b id="tw-control-score">-100</b></div>
                 <div class="tw-meta"><small>Live Presence</small><b id="tw-presence">Server offline</b></div>
                 <div class="tw-meta"><small>Registered Groups</small><b id="tw-registration-count">0</b></div>
                 <div class="tw-meta"><small>Starts</small><b id="tw-starts">Not set</b></div>
@@ -148,6 +149,19 @@
                 </div>
                 <div class="tw-inline-message" id="tw-lineup-message" aria-live="polite"></div>
               </div>
+
+              <div id="tw-attack-state" hidden>
+                <div class="tw-section-break"></div>
+                <div class="tw-event-entry-heading">
+                  <div>
+                    <div class="tw-kicker">Territory Attack</div>
+                    <strong id="tw-attack-title">No active attack</strong>
+                    <span id="tw-attack-detail">A Leader or Officer can declare an attack while the event is live.</span>
+                  </div>
+                  <button class="tw-button warn" id="tw-declare-attack" type="button" hidden>Declare Attack</button>
+                </div>
+                <div class="tw-inline-message" id="tw-attack-message" aria-live="polite"></div>
+              </div>
             </div>
           </div>
         </section>
@@ -164,11 +178,11 @@
           </section>
         </div>
 
-        <p class="tw-note">Permanent Groups are the Territory Wars identity. Event lineups are capped at six fighters; only those selected fighters contribute to the war. If a Leader or Officer changes the lineup while a war is live, newly added fighters activate after the configured substitution delay.</p>
+        <p class="tw-note">Permanent Groups are the Territory Wars identity. Event lineups are capped at six fighters; only those selected fighters contribute to the war. Attacks have a five-minute warning, then require at least two eligible attackers inside continuously for two minutes before territory control starts moving.</p>
       </section>
     </main>
   </div>
   <script src="/assets/common.js?v=20"></script>
-  <script src="/assets/territory-wars.js?v=3"></script>
+  <script src="/assets/territory-wars.js?v=4"></script>
 </body>
 </html>
