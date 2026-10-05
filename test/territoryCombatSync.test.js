@@ -22,15 +22,19 @@ function insertUser(name) {
 function seedWar() {
   const attacker = insertUser('Ridge Hunter');
   const defender = insertUser('Valley Guard');
+  const suffix = String(sequence).padStart(3, '0').slice(-3);
+  const attackerTag = `R${suffix}`;
+  const defenderTag = `H${suffix}`;
 
   const attackerGroupId = Number(db.prepare(`
     INSERT INTO territory_groups (name, tag, leader_user_id)
-    VALUES ('Ridge Runners', 'RIDGE', ?)
-  `).run(attacker.id).lastInsertRowid);
+    VALUES (?, ?, ?)
+  `).run(`Ridge Runners ${suffix}`, attackerTag, attacker.id).lastInsertRowid);
+  const defenderGroupName = `Valley Guard ${suffix}`;
   const defenderGroupId = Number(db.prepare(`
     INSERT INTO territory_groups (name, tag, leader_user_id)
-    VALUES ('Valley Guard', 'HV', ?)
-  `).run(defender.id).lastInsertRowid);
+    VALUES (?, ?, ?)
+  `).run(defenderGroupName, defenderTag, defender.id).lastInsertRowid);
 
   db.prepare(`INSERT INTO territory_group_members (group_id, user_id, role) VALUES (?, ?, 'leader')`).run(attackerGroupId, attacker.id);
   db.prepare(`INSERT INTO territory_group_members (group_id, user_id, role) VALUES (?, ?, 'leader')`).run(defenderGroupId, defender.id);
@@ -40,8 +44,8 @@ function seedWar() {
   const eventId = Number(db.prepare(`
     INSERT INTO territory_events
       (name, territory_key, territory_name, status, starts_at, ends_at, owner_name, control_score)
-    VALUES ('South Plains War', 'south-plains', 'South Plains', 'live', ?, ?, 'Valley Guard', -100)
-  `).run('2026-10-05T07:00:00.000Z', '2026-10-05T12:00:00.000Z').lastInsertRowid);
+    VALUES (?, 'south-plains', 'South Plains', 'live', ?, ?, ?, -100)
+  `).run(`South Plains War ${suffix}`, '2026-10-05T07:00:00.000Z', '2026-10-05T12:00:00.000Z', defenderGroupName).lastInsertRowid);
 
   const lineup = db.prepare(`
     INSERT INTO territory_event_lineups
@@ -111,7 +115,9 @@ test('verified opposing lineup kill inside the Battlefield increments war kills/
   assert.equal(defenderStats.deaths, 1);
 
   const audit = db.prepare('SELECT counted, inside_battlefield, reason FROM territory_combat_events WHERE combat_event_id = ?').get(event.id);
-  assert.deepEqual(audit, { counted: 1, inside_battlefield: 1, reason: 'counted' });
+  assert.equal(audit.counted, 1);
+  assert.equal(audit.inside_battlefield, 1);
+  assert.equal(audit.reason, 'counted');
 
   const log = db.prepare(`SELECT kind, message FROM territory_event_log WHERE event_id = ? ORDER BY id DESC LIMIT 1`).get(war.eventId);
   assert.equal(log.kind, 'kill');
@@ -165,7 +171,8 @@ test('same killer and victim cannot farm another Territory kill inside ten minut
 
   assert.equal(db.prepare('SELECT kills FROM territory_group_stats WHERE group_id = ?').get(war.attackerGroupId).kills, 2);
   const cooldownAudit = db.prepare('SELECT counted, reason FROM territory_combat_events WHERE combat_event_id = ?').get(repeated.id);
-  assert.deepEqual(cooldownAudit, { counted: 0, reason: 'repeat-kill-cooldown' });
+  assert.equal(cooldownAudit.counted, 0);
+  assert.equal(cooldownAudit.reason, 'repeat-kill-cooldown');
 });
 
 test('natural deaths and non-lineup fighters never award Territory kills', () => {
