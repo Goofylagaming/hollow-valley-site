@@ -39,6 +39,7 @@ const adminCommsRouter = require("./routes/adminComms");
 const adminSupportersRouter = require("./routes/adminSupporters");
 const adminBodyDropResetRouter = require("./routes/adminBodyDropReset");
 const serverStatusService = require("./services/serverStatus");
+const territoryCombatSync = require("./services/territoryCombatSync");
 const automationWebsiteClient = require("./services/automationWebsiteClient");
 const skinSharePolicyClient = require("./services/skinSharePolicyClient");
 const { syncSteamProfiles } = require("./services/steamProfile");
@@ -308,6 +309,7 @@ function startServer() {
     console.log("[legacy-api] direct game execution paths retired");
     serverStatusService.start();
     startTerritoryWarsRuntime();
+    territoryCombatSync.start();
     syncSkinSharePolicy();
     const skinSharePolicyTimer = setInterval(syncSkinSharePolicy, 5 * 60 * 1000);
     skinSharePolicyTimer.unref?.();
