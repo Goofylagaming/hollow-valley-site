@@ -82,6 +82,13 @@
                 <div class="tw-control-labels"><span id="tw-admin-owner-percent">100%</span><span id="tw-admin-challenger-percent">0%</span></div>
                 <div class="tw-control-bar"><span class="tw-control-owner" id="tw-admin-owner-bar"></span><span class="tw-control-challenger" id="tw-admin-challenger-bar"></span></div>
               </div>
+              <div style="height:12px"></div>
+              <div class="tw-meta-grid">
+                <div class="tw-meta"><small>Control Score</small><b id="tw-admin-control-score">-100</b></div>
+                <div class="tw-meta"><small>Attack State</small><b id="tw-admin-attack-status">None</b></div>
+                <div class="tw-meta"><small>Protection</small><b id="tw-admin-protection">None</b></div>
+              </div>
+              <div class="tw-inline-message" id="tw-admin-attack-detail"></div>
               <div style="height:16px"></div>
               <div class="tw-card-head" style="padding:0 0 9px;border:0">
                 <div><div class="tw-kicker">Live Map Presence</div><h3 id="tw-admin-presence-heading">Players in territory</h3></div>
@@ -107,11 +114,11 @@
           </div>
         </section>
 
-        <p class="tw-note">All controls are protected by the existing Hollow Valley admin middleware. Territory presence reuses the live-map server tracker; normal players receive only a count, while this admin page can show player identity, species, and permanent Group membership.</p>
+        <p class="tw-note">All controls are protected by the existing Hollow Valley admin middleware. The automatic control engine uses registered event lineups, live South Plains presence, the two-minute contest arm, thirty-second boundary grace, and ten-minute post-capture protection.</p>
       </section>
     </main>
   </div>
   <script src="/assets/common.js?v=20"></script>
-  <script src="/assets/admin-territory-wars.js?v=3"></script>
+  <script src="/assets/admin-territory-wars.js?v=4"></script>
 </body>
 </html>
