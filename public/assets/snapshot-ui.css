@@ -29,7 +29,7 @@ body {
   color: var(--snap-text);
   background:
     linear-gradient(rgba(0, 14, 11, .92), rgba(0, 10, 8, .96)),
-    url('/assets/images/hero-banner.png') center top / cover fixed no-repeat;
+    url('/assets/images/hollow-valley-banner.png') center top / cover fixed no-repeat;
   font-size: 13px;
 }
 body::before { display:none !important; }
@@ -51,7 +51,7 @@ body::before { display:none !important; }
   border-radius: 0;
   background:
     linear-gradient(90deg, rgba(1,16,13,.95), rgba(4,23,18,.84) 48%, rgba(1,15,12,.94)),
-    url('/assets/images/hero-banner.png') center 39% / cover no-repeat;
+    url('/assets/images/hollow-valley-banner.png') center 39% / cover no-repeat;
   box-shadow: 0 8px 24px rgba(0,0,0,.34);
   backdrop-filter: blur(10px);
 }
@@ -173,7 +173,7 @@ body::before { display:none !important; }
   color:#d9f9ed;
   background:
     linear-gradient(135deg, rgba(37,219,144,.22), rgba(3,27,21,.86)),
-    url('/assets/images/hero-banner.png') 66% 45% / 220px auto no-repeat;
+    url('/assets/images/hollow-valley-banner.png') 66% 45% / 220px auto no-repeat;
   font-size:8px;
   overflow:hidden;
 }
@@ -269,7 +269,7 @@ body.has-my-stuff-rail footer:not(.hv-home-footer) {
   border-radius:0 !important;
   background:
     linear-gradient(90deg, rgba(3,24,19,.98), rgba(3,30,23,.77) 58%, rgba(3,19,16,.92)),
-    url('/assets/images/hero-banner.png') center 47% / cover no-repeat !important;
+    url('/assets/images/hollow-valley-banner.png') center 47% / cover no-repeat !important;
   box-shadow:none !important;
   overflow:hidden;
 }
@@ -414,7 +414,7 @@ footer:not(.hv-home-footer) span:nth-child(2) { display:none !important; }
   border-bottom:1px solid rgba(42,139,104,.22);
   background:
     linear-gradient(90deg, rgba(3,27,22,.98), rgba(3,25,20,.76)),
-    url('/assets/images/hero-banner.png') 75% 41% / cover no-repeat;
+    url('/assets/images/hollow-valley-banner.png') 75% 41% / cover no-repeat;
 }
 .snapshot-welcome::before {
   content:'♟';
@@ -428,44 +428,22 @@ footer:not(.hv-home-footer) span:nth-child(2) { display:none !important; }
 .snapshot-welcome p { margin:3px 0 0; color:#9daea8; font-size:9px; }
 .snapshot-home-hero {
   position:relative;
-  min-height:205px;
   margin:8px 0;
   overflow:hidden;
   border:1px solid var(--snap-line);
   border-radius:9px;
-  background:
-    linear-gradient(180deg, rgba(0,0,0,.06) 0%, rgba(0,13,10,.18) 54%, rgba(0,13,10,.88) 100%),
-    url('/assets/images/hero-banner.png') center 47% / cover no-repeat;
+  background:#02100d;
 }
-.snapshot-hero-logo {
-  position:absolute;
-  left:50%;
-  top:44%;
-  transform:translate(-50%,-50%);
-  color:#eee8d3;
-  text-align:center;
-  text-shadow:0 3px 15px rgba(0,0,0,.86);
-}
-.snapshot-hero-logo strong {
+/* Preserve the uploaded PNG; crop its white top/bottom margins in the viewport. */
+.snapshot-home-hero::before {
+  content:'';
   display:block;
-  font-family:Georgia, 'Times New Roman', serif;
-  font-size:34px;
-  line-height:.76;
-  letter-spacing:-.055em;
-}
-.snapshot-hero-logo span {
-  display:block;
-  margin-top:9px;
-  color:#dfece5;
-  font-size:9px;
-  font-weight:800;
-  letter-spacing:.16em;
+  aspect-ratio:2048 / 470;
+  background:url('/assets/images/hollow-valley-banner.png') center / 100% auto no-repeat;
 }
 .snapshot-server-bar {
-  position:absolute;
-  left:8px;
-  right:8px;
-  bottom:8px;
+  position:relative;
+  margin:8px;
   display:grid;
   grid-template-columns:repeat(3, minmax(0,1fr)) 140px;
   gap:6px;
@@ -531,7 +509,7 @@ footer:not(.hv-home-footer) span:nth-child(2) { display:none !important; }
   content:'';
   position:absolute;
   inset:0;
-  background:url('/assets/images/hero-banner.png') 70% 47% / 280px auto no-repeat;
+  background:url('/assets/images/hollow-valley-banner.png') 70% 47% / 280px auto no-repeat;
   opacity:.07;
   pointer-events:none;
 }
@@ -541,7 +519,7 @@ footer:not(.hv-home-footer) span:nth-child(2) { display:none !important; }
   width:46px;
   height:46px;
   border-radius:6px;
-  background:url('/assets/images/hero-banner.png') center / cover no-repeat;
+  background:url('/assets/images/hollow-valley-banner.png') center / auto 150% no-repeat;
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);
 }
 .snapshot-quick-card:nth-child(2) .snapshot-quick-art { background-position:18% 52%; }
@@ -689,7 +667,7 @@ body.has-my-stuff-rail .wallet-section { padding:8px !important; }
   top:0;
   bottom:0;
   width:105px;
-  background:url('/assets/images/hero-banner.png') center / cover no-repeat;
+  background:url('/assets/images/hollow-valley-banner.png') center / cover no-repeat;
   opacity:.62;
 }
 .prime-zone-row:nth-child(2n)::before { background-position:24% 48%; }
@@ -738,7 +716,7 @@ body.has-my-stuff-rail .wallet-section { padding:8px !important; }
   position:absolute;
   left:0; right:0; top:0;
   height:82px;
-  background:url('/assets/images/hero-banner.png') center 46% / cover no-repeat;
+  background:url('/assets/images/hollow-valley-banner.png') center 46% / cover no-repeat;
   opacity:.78;
 }
 .dino-card.market-species-card:nth-child(2n)::before { background-position:20% 50%; }
@@ -789,7 +767,7 @@ body.has-my-stuff-rail .wallet-section { padding:8px !important; }
   min-height:175px;
   background:
     linear-gradient(180deg, transparent 55%, rgba(0,12,9,.82)),
-    url('/assets/images/hero-banner.png') center / cover no-repeat;
+    url('/assets/images/hollow-valley-banner.png') center / cover no-repeat;
 }
 .group-detail { padding:8px; }
 .group-detail h3 { margin:0 0 3px; font-size:12px; }
@@ -808,7 +786,7 @@ body.has-my-stuff-rail .wallet-section { padding:8px !important; }
 }
 .group-avatar {
   width:22px; height:22px; border-radius:50%;
-  background:url('/assets/images/hero-banner.png') center / cover no-repeat;
+  background:url('/assets/images/hollow-valley-banner.png') center / cover no-repeat;
   border:1px solid rgba(49,202,137,.28);
 }
 .group-member .online-dot { color:var(--snap-green); }
@@ -821,7 +799,7 @@ body.has-my-stuff-rail .wallet-section { padding:8px !important; }
   border-bottom:1px solid rgba(65,116,97,.14);
   font-size:8px;
 }
-.previous-group-art { height:58px; border-radius:5px; background:url('/assets/images/hero-banner.png') center / cover no-repeat; }
+.previous-group-art { height:58px; border-radius:5px; background:url('/assets/images/hollow-valley-banner.png') center / cover no-repeat; }
 .previous-group-row:nth-child(2n) .previous-group-art { background-position:25% 50%; }
 .previous-group-actions { display:grid; gap:4px; }
 

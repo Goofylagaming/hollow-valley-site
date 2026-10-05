@@ -27,7 +27,7 @@ window.HDS = (function () {
     if (document.querySelector('link[data-hv-snapshot-ui]')) return;
     const link = document.createElement("link");
     link.rel = "stylesheet";
-    link.href = "/assets/snapshot-ui.css?v=1";
+    link.href = "/assets/snapshot-ui.css?v=2";
     link.dataset.hvSnapshotUi = "true";
     document.head.appendChild(link);
   }
