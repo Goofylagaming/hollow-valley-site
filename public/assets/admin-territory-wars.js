@@ -97,7 +97,8 @@ function renderPresence(presence) {
   }
 
   const players = Array.isArray(presence.players) ? presence.players : [];
-  count.textContent = `${players.length} live`;
+  const eligible = players.filter((player) => player.lineupActive).length;
+  count.textContent = eligible ? `${eligible} eligible · ${players.length} live` : `${players.length} live`;
   count.className = `tw-status ${players.length ? "live" : ""}`;
   target.replaceChildren();
   if (!players.length) {
@@ -113,7 +114,13 @@ function renderPresence(presence) {
     strong.textContent = player.name || "Unknown player";
     const detail = document.createElement("span");
     const group = player.groupName ? `${player.groupName}${player.groupTag ? ` [${player.groupTag}]` : ""}` : "No permanent Group";
-    detail.textContent = [player.species || "Unknown species", player.isPrime ? "Prime" : null, group, player.steamId || null].filter(Boolean).join(" · ");
+    detail.textContent = [
+      player.species || "Unknown species",
+      player.isPrime ? "Prime" : null,
+      group,
+      player.lineupActive ? "Eligible lineup" : "Not active lineup",
+      player.steamId || null,
+    ].filter(Boolean).join(" · ");
     main.append(strong, detail);
     row.append(main);
     target.append(row);
@@ -152,6 +159,53 @@ function renderRegistrations(registrations) {
     row.append(main, lineup);
     target.append(row);
   }
+}
+
+function renderAttackState(event, attack) {
+  const score = Math.max(-100, Math.min(100, Number(event?.control_score ?? -100)));
+  text("tw-admin-control-score", `${score > 0 ? "+" : ""}${Math.round(score * 10) / 10}`);
+
+  const protectionUntil = parseDate(event?.protection_until);
+  text(
+    "tw-admin-protection",
+    protectionUntil && protectionUntil.getTime() > Date.now()
+      ? `Until ${protectionUntil.toLocaleTimeString()}`
+      : "None"
+  );
+
+  if (!attack) {
+    text("tw-admin-attack-status", "None");
+    text(
+      "tw-admin-attack-detail",
+      event?.status === "live"
+        ? "No Group is currently challenging this territory."
+        : "Attack declarations require a live event."
+    );
+    return;
+  }
+
+  const attacker = `${attack.attacker_name || "Challenger"}${attack.attacker_tag ? ` [${attack.attacker_tag}]` : ""}`;
+  const status = String(attack.status || "warning");
+  text("tw-admin-attack-status", status === "warning" ? "Warning" : "Active");
+
+  if (status === "warning") {
+    text("tw-admin-attack-detail", `${attacker} declared an attack. Contest opens ${formatDate(attack.starts_at)}.`);
+    return;
+  }
+
+  const contestStarted = parseDate(attack.contest_started_at);
+  if (!contestStarted) {
+    text("tw-admin-attack-detail", `${attacker} is active, but two eligible attackers have not yet held the territory continuously.`);
+    return;
+  }
+
+  const armsAt = new Date(contestStarted.getTime() + (2 * 60 * 1000));
+  text(
+    "tw-admin-attack-detail",
+    armsAt.getTime() > Date.now()
+      ? `${attacker} has started the two-minute contest hold. Control movement unlocks ${armsAt.toLocaleString()}.`
+      : `${attacker} has armed the contest. Live lineup presence can now move territory control.`
+  );
 }
 
 function populateForm(event) {
@@ -195,6 +249,7 @@ async function refreshState() {
   try {
     const data = await api("/api/territory-wars/admin/state");
     renderEvent(data.event, data.log);
+    renderAttackState(data.event, data.attack);
     renderPresence(data.presence);
     renderRegistrations(data.registrations);
   } catch (error) {
@@ -205,6 +260,8 @@ async function refreshState() {
 async function refreshPresence() {
   try {
     const data = await api("/api/territory-wars/admin/state");
+    currentEvent = data.event || currentEvent;
+    renderAttackState(data.event, data.attack);
     renderPresence(data.presence);
     renderRegistrations(data.registrations);
   } catch {
@@ -234,6 +291,7 @@ async function saveEvent(event) {
       body: JSON.stringify(payload),
     });
     renderEvent(data.event, data.log);
+    renderAttackState(data.event, null);
     renderRegistrations(data.registrations);
     await refreshPresence();
     setMessage("Territory War saved.");
@@ -253,6 +311,7 @@ async function setEventStatus(status) {
       body: JSON.stringify({ id: currentEvent.id, status }),
     });
     renderEvent(data.event, data.log);
+    await refreshPresence();
     setMessage(`Event is now ${status}.`);
   } catch (error) {
     setMessage(error.message || "Could not update event status.", true);
@@ -284,6 +343,7 @@ async function postAction(path, confirmText, payload = {}) {
       body: JSON.stringify({ id: currentEvent.id, ...payload }),
     });
     renderEvent(data.event, data.log || []);
+    await refreshPresence();
     setMessage("Territory War updated.");
   } catch (error) {
     setMessage(error.message || "Territory War action failed.", true);
@@ -300,7 +360,7 @@ document.getElementById("tw-admin-control")?.addEventListener("input", (event) =
 });
 
 document.getElementById("tw-admin-apply-control")?.addEventListener("click", applyControl);
-document.getElementById("tw-admin-reset")?.addEventListener("click", () => postAction("reset", "Reset this territory to 100% current-owner control?"));
+document.getElementById("tw-admin-reset")?.addEventListener("click", () => postAction("reset", "Reset this territory to current-owner control and clear the active attack?"));
 document.getElementById("tw-admin-remove-challenger")?.addEventListener("click", () => postAction("remove-challenger", "Remove the current challenger and reset control?"));
 document.getElementById("tw-admin-owner-win")?.addEventListener("click", () => postAction("force-capture", "Force the current owner to retain this territory?", { winner: "owner" }));
 document.getElementById("tw-admin-challenger-win")?.addEventListener("click", () => postAction("force-capture", "Force the challenger to capture this territory?", { winner: "challenger" }));
