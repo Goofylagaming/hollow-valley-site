@@ -8,6 +8,7 @@ const audit = require('../services/auditService');
 const playerPresence = require('../services/playerPresenceService');
 const discordEvents = require('../services/discordEventService');
 const progression = require('../services/progressionService');
+const territoryWarDiscord = require('../services/territoryWarDiscordService');
 
 const router = express.Router();
 router.use(requireHerbyBotToken);
@@ -28,6 +29,15 @@ router.get('/status', async (_req, res) => {
     });
   } catch (error) {
     res.status(503).json({ error: error.message || 'HerbyBot bridge status unavailable.' });
+  }
+});
+
+router.get('/territory-wars/state', async (_req, res) => {
+  try {
+    const state = await territoryWarDiscord.fetchTerritoryState();
+    res.json({ ok: true, ...state });
+  } catch (error) {
+    res.status(503).json({ error: error.message || 'Territory Wars state unavailable.' });
   }
 });
 
