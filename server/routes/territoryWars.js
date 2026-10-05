@@ -204,6 +204,10 @@ router.get("/me", requireAuth, (req, res) => {
 });
 
 router.post("/register", requireAuth, (req, res) => {
+  if (!/^\d{17}$/.test(String(req.user.steam_id || ""))) {
+    return res.status(403).json({ error: "Link or sign in with Steam before registering for Territory Wars" });
+  }
+
   db.prepare(`
     INSERT INTO territory_registrations (user_id, registered_at, updated_at)
     VALUES (?, datetime('now'), datetime('now'))
