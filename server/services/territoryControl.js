@@ -10,16 +10,21 @@ function effectivePresence(value, cap = CONTROL_CONTRIBUTOR_CAP) {
   return Math.min(count(value), Math.max(1, count(cap) || CONTROL_CONTRIBUTOR_CAP));
 }
 
-function controlRatePerMinute({ attackers = 0, defenders = 0, contributorCap = CONTROL_CONTRIBUTOR_CAP } = {}) {
+function controlRatePerMinute({ attackers = 0, defenders = 0, contributorCap = CONTROL_CONTRIBUTOR_CAP, momentumRate = 0 } = {}) {
   const effectiveAttackers = effectivePresence(attackers, contributorCap);
   const effectiveDefenders = effectivePresence(defenders, contributorCap);
 
-  let rate = effectiveAttackers - effectiveDefenders;
-  if (effectiveAttackers > effectiveDefenders) rate += ADVANTAGE_BONUS_PER_MINUTE;
-  else if (effectiveDefenders > effectiveAttackers) rate -= ADVANTAGE_BONUS_PER_MINUTE;
+  let presenceRate = effectiveAttackers - effectiveDefenders;
+  if (effectiveAttackers > effectiveDefenders) presenceRate += ADVANTAGE_BONUS_PER_MINUTE;
+  else if (effectiveDefenders > effectiveAttackers) presenceRate -= ADVANTAGE_BONUS_PER_MINUTE;
+
+  const momentum = Number.isFinite(Number(momentumRate)) ? Number(momentumRate) : 0;
+  const rate = presenceRate + momentum;
 
   return {
     rate,
+    presenceRate,
+    momentumRate: momentum,
     attackers: count(attackers),
     defenders: count(defenders),
     effectiveAttackers,
@@ -29,10 +34,17 @@ function controlRatePerMinute({ attackers = 0, defenders = 0, contributorCap = C
   };
 }
 
-function advanceControlScore({ score = -100, attackers = 0, defenders = 0, elapsedSeconds = 0, contributorCap = CONTROL_CONTRIBUTOR_CAP } = {}) {
+function advanceControlScore({
+  score = -100,
+  attackers = 0,
+  defenders = 0,
+  elapsedSeconds = 0,
+  contributorCap = CONTROL_CONTRIBUTOR_CAP,
+  momentumRate = 0,
+} = {}) {
   const current = Math.max(-100, Math.min(100, Number(score) || 0));
   const seconds = Math.max(0, Math.min(60, Number(elapsedSeconds) || 0));
-  const state = controlRatePerMinute({ attackers, defenders, contributorCap });
+  const state = controlRatePerMinute({ attackers, defenders, contributorCap, momentumRate });
   const next = Math.max(-100, Math.min(100, current + (state.rate * seconds / 60)));
   return {
     ...state,
