@@ -7,9 +7,24 @@ const { REGIONS, fromRconLocation, nearestRegion } = require("../evrimaMap");
 const router = express.Router();
 const LINEUP_CAP = 6;
 const LIVE_SUB_DELAY_MS = 10 * 60 * 1000;
+const ATTACK_WARNING_MS = 5 * 60 * 1000;
+const CONTEST_ARM_MS = 2 * 60 * 1000;
+const BOUNDARY_GRACE_MS = 30 * 1000;
+const CAPTURE_PROTECTION_MS = 10 * 60 * 1000;
+const MIN_ATTACKERS_TO_CONTEST = 2;
 
-// Territory Wars deliberately lives in the portal database so the website,
-// live map and Discord/Herbybot can share one source of truth.
+function runTransaction(work) {
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const value = work();
+    db.exec("COMMIT");
+    return value;
+  } catch (error) {
+    try { db.exec("ROLLBACK"); } catch {}
+    throw error;
+  }
+}
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS territory_registrations (
     user_id INTEGER PRIMARY KEY REFERENCES users(id),
@@ -76,6 +91,9 @@ db.exec(`
     challenger_name TEXT,
     owner_control INTEGER NOT NULL DEFAULT 100,
     challenger_control INTEGER NOT NULL DEFAULT 0,
+    control_score REAL NOT NULL DEFAULT -100,
+    protection_until TEXT,
+    frozen_owner_name TEXT,
     created_by INTEGER REFERENCES users(id),
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -103,6 +121,31 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_territory_event_lineups_event
     ON territory_event_lineups(event_id, group_id, active_from);
 
+  CREATE TABLE IF NOT EXISTS territory_attacks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id INTEGER NOT NULL REFERENCES territory_events(id) ON DELETE CASCADE,
+    attacker_group_id INTEGER NOT NULL REFERENCES territory_groups(id),
+    defender_group_id INTEGER REFERENCES territory_groups(id),
+    status TEXT NOT NULL DEFAULT 'warning',
+    declared_by_user_id INTEGER NOT NULL REFERENCES users(id),
+    declared_at TEXT NOT NULL,
+    starts_at TEXT NOT NULL,
+    contest_started_at TEXT,
+    last_tick_at TEXT,
+    resolved_at TEXT,
+    outcome TEXT
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_territory_attacks_event_status
+    ON territory_attacks(event_id, status, id DESC);
+
+  CREATE TABLE IF NOT EXISTS territory_presence_grace (
+    event_id INTEGER NOT NULL REFERENCES territory_events(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    last_inside_at TEXT NOT NULL,
+    PRIMARY KEY (event_id, user_id)
+  );
+
   CREATE TABLE IF NOT EXISTS territory_event_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     event_id INTEGER NOT NULL REFERENCES territory_events(id) ON DELETE CASCADE,
@@ -113,8 +156,36 @@ db.exec(`
   );
 `);
 
+function ensureEventColumn(name, sql, initialize) {
+  const columns = db.prepare("PRAGMA table_info(territory_events)").all();
+  if (columns.some((column) => column.name === name)) return;
+  db.exec(`ALTER TABLE territory_events ADD COLUMN ${sql}`);
+  if (initialize) db.exec(initialize);
+}
+
+ensureEventColumn(
+  "control_score",
+  "control_score REAL NOT NULL DEFAULT -100",
+  "UPDATE territory_events SET control_score = MAX(-100, MIN(100, (COALESCE(challenger_control, 0) * 2) - 100))"
+);
+ensureEventColumn("protection_until", "protection_until TEXT");
+ensureEventColumn("frozen_owner_name", "frozen_owner_name TEXT");
+
 const EVENT_STATUSES = new Set(["scheduled", "live", "paused", "ended"]);
-const GROUP_ROLES = new Set(["leader", "officer", "member"]);
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function parseDate(value) {
+  if (!value) return null;
+  const raw = String(value);
+  const normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(raw)
+    ? `${raw.replace(" ", "T")}Z`
+    : raw;
+  const date = new Date(normalized);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
 
 function cleanText(value, fallback = "", max = 80) {
   const text = String(value ?? "").trim().replace(/\s+/g, " ");
@@ -122,18 +193,40 @@ function cleanText(value, fallback = "", max = 80) {
 }
 
 function cleanDate(value) {
-  if (!value) return null;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  const date = parseDate(value);
+  return date ? date.toISOString() : null;
 }
 
-function clampPercent(value, fallback = 0) {
+function clamp(value, min, max) {
   const number = Number(value);
-  if (!Number.isFinite(number)) return fallback;
-  return Math.max(0, Math.min(100, Math.round(number)));
+  return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : min;
 }
 
-function latestEvent() {
+function scoreToPercents(scoreValue) {
+  const score = clamp(scoreValue, -100, 100);
+  return {
+    owner: Math.round((100 - score) / 2),
+    challenger: Math.round((score + 100) / 2),
+  };
+}
+
+function percentToScore(ownerPercent) {
+  return clamp(100 - (clamp(ownerPercent, 0, 100) * 2), -100, 100);
+}
+
+function decorateEvent(event) {
+  if (!event) return null;
+  const score = clamp(event.control_score, -100, 100);
+  const percentages = scoreToPercents(score);
+  return {
+    ...event,
+    control_score: Math.round(score * 10) / 10,
+    owner_control: percentages.owner,
+    challenger_control: percentages.challenger,
+  };
+}
+
+function latestEventRaw() {
   return db.prepare(`
     SELECT * FROM territory_events
     ORDER BY CASE status WHEN 'live' THEN 0 WHEN 'paused' THEN 1 WHEN 'scheduled' THEN 2 ELSE 3 END,
@@ -165,68 +258,20 @@ function addLog(eventId, kind, message, actorUserId = null) {
   `).run(Number(eventId), cleanText(kind, "update", 32), cleanText(message, "Territory updated", 240), actorUserId || null);
 }
 
-function normalizeRegion(value) {
-  return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+function groupById(groupId) {
+  if (!groupId) return null;
+  return db.prepare("SELECT id, name, tag, leader_user_id FROM territory_groups WHERE id = ?").get(Number(groupId)) || null;
 }
 
-function territoryRegionName(event) {
-  const wanted = normalizeRegion(event?.territory_name || event?.territory_key);
-  if (!wanted) return null;
-  return REGIONS.map(([name]) => name).find((name) => normalizeRegion(name) === wanted) || null;
-}
-
-function territoryPresence(event, includePlayers = false) {
-  const state = serverStatus.getState();
-  const region = territoryRegionName(event);
-  if (!state?.configured || !state?.online || !region) {
-    return {
-      serverOnline: Boolean(state?.online),
-      tracking: Boolean(region),
-      region,
-      playerCount: 0,
-      ...(includePlayers ? { players: [] } : {}),
-      lastChecked: state?.lastChecked || null,
-    };
-  }
-
-  const players = [];
-  for (const character of Array.isArray(state.characters) ? state.characters : []) {
-    const { x, y } = fromRconLocation(character?.location);
-    if (nearestRegion(x, y) !== region) continue;
-    const steamId = String(character?.steamId || "");
-    const membership = /^\d{17}$/.test(steamId)
-      ? db.prepare(`
-          SELECT g.id AS group_id, g.name AS group_name, g.tag AS group_tag, gm.role
-          FROM territory_group_members gm
-          JOIN territory_groups g ON g.id = gm.group_id
-          JOIN users u ON u.id = gm.user_id
-          WHERE u.steam_id = ?
-          ORDER BY gm.joined_at DESC
-          LIMIT 1
-        `).get(steamId)
-      : null;
-    players.push({
-      steamId,
-      name: character?.name || "Unknown player",
-      species: character?.species || "Unknown species",
-      isPrime: Boolean(character?.isPrime),
-      ...(membership ? {
-        groupId: membership.group_id,
-        groupName: membership.group_name,
-        groupTag: membership.group_tag,
-        groupRole: membership.role,
-      } : {}),
-    });
-  }
-
-  return {
-    serverOnline: true,
-    tracking: true,
-    region,
-    playerCount: players.length,
-    ...(includePlayers ? { players } : {}),
-    lastChecked: state.lastChecked || null,
-  };
+function groupMatchingOwner(ownerName) {
+  const name = String(ownerName || "").trim();
+  if (!name) return null;
+  return db.prepare(`
+    SELECT id, name, tag, leader_user_id
+    FROM territory_groups
+    WHERE lower(name) = lower(?) OR lower(tag) = lower(?)
+    ORDER BY id DESC LIMIT 1
+  `).get(name, name.replace(/^\[|\]$/g, "")) || null;
 }
 
 function groupForUser(userId) {
@@ -295,6 +340,13 @@ function eventLineup(eventId, groupId) {
   `).all(Number(eventId), Number(groupId));
 }
 
+function activeLineup(eventId, groupId, at = Date.now()) {
+  return eventLineup(eventId, groupId).filter((member) => {
+    const activeAt = parseDate(member.active_from);
+    return activeAt && activeAt.getTime() <= at && /^\d{17}$/.test(String(member.steam_id || ""));
+  });
+}
+
 function registrationsForEvent(eventId) {
   if (!eventId) return [];
   return db.prepare(`
@@ -326,15 +378,314 @@ function leaderboard() {
   `).all();
 }
 
+function normalizeRegion(value) {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function territoryRegionName(event) {
+  const wanted = normalizeRegion(event?.territory_name || event?.territory_key);
+  if (!wanted) return null;
+  return REGIONS.map(([name]) => name).find((name) => normalizeRegion(name) === wanted) || null;
+}
+
+function lineupMembershipBySteam(eventId, steamId) {
+  if (!eventId || !/^\d{17}$/.test(String(steamId || ""))) return null;
+  return db.prepare(`
+    SELECT l.user_id, l.group_id, l.active_from,
+           g.name AS group_name, g.tag AS group_tag, gm.role
+    FROM territory_event_lineups l
+    JOIN users u ON u.id = l.user_id
+    JOIN territory_groups g ON g.id = l.group_id
+    JOIN territory_group_members gm ON gm.group_id = l.group_id AND gm.user_id = l.user_id
+    WHERE l.event_id = ? AND u.steam_id = ?
+    LIMIT 1
+  `).get(Number(eventId), String(steamId)) || null;
+}
+
+function territoryPresence(event, includePlayers = false) {
+  const state = serverStatus.getState();
+  const region = territoryRegionName(event);
+  if (!state?.configured || !state?.online || !region) {
+    return {
+      serverOnline: Boolean(state?.online),
+      tracking: Boolean(region),
+      region,
+      playerCount: 0,
+      eligibleCount: 0,
+      ...(includePlayers ? { players: [] } : {}),
+      lastChecked: state?.lastChecked || null,
+    };
+  }
+
+  const players = [];
+  for (const character of Array.isArray(state.characters) ? state.characters : []) {
+    const { x, y } = fromRconLocation(character?.location);
+    if (nearestRegion(x, y) !== region) continue;
+    const steamId = String(character?.steamId || "");
+    const lineup = lineupMembershipBySteam(event?.id, steamId);
+    const activeAt = parseDate(lineup?.active_from);
+    const lineupActive = Boolean(activeAt && activeAt.getTime() <= Date.now());
+    const membership = /^\d{17}$/.test(steamId)
+      ? db.prepare(`
+          SELECT g.id AS group_id, g.name AS group_name, g.tag AS group_tag, gm.role
+          FROM territory_group_members gm
+          JOIN territory_groups g ON g.id = gm.group_id
+          JOIN users u ON u.id = gm.user_id
+          WHERE u.steam_id = ?
+          ORDER BY gm.joined_at DESC
+          LIMIT 1
+        `).get(steamId)
+      : null;
+    players.push({
+      steamId,
+      name: character?.name || "Unknown player",
+      species: character?.species || "Unknown species",
+      isPrime: Boolean(character?.isPrime),
+      lineupActive,
+      ...(membership ? {
+        groupId: membership.group_id,
+        groupName: membership.group_name,
+        groupTag: membership.group_tag,
+        groupRole: membership.role,
+      } : {}),
+    });
+  }
+
+  return {
+    serverOnline: true,
+    tracking: true,
+    region,
+    playerCount: players.length,
+    eligibleCount: players.filter((player) => player.lineupActive).length,
+    ...(includePlayers ? { players } : {}),
+    lastChecked: state.lastChecked || null,
+  };
+}
+
+function activeAttack(eventId) {
+  if (!eventId) return null;
+  return db.prepare(`
+    SELECT * FROM territory_attacks
+    WHERE event_id = ? AND status IN ('warning', 'active')
+    ORDER BY id DESC LIMIT 1
+  `).get(Number(eventId)) || null;
+}
+
+function decorateAttack(attack) {
+  if (!attack) return null;
+  const attacker = groupById(attack.attacker_group_id);
+  const defender = groupById(attack.defender_group_id);
+  return {
+    ...attack,
+    attacker_name: attacker?.name || "Unknown attacker",
+    attacker_tag: attacker?.tag || null,
+    defender_name: defender?.name || null,
+    defender_tag: defender?.tag || null,
+  };
+}
+
+function updateGrace(eventId, member, insideSteamIds, nowMs) {
+  const inside = insideSteamIds.has(String(member.steam_id));
+  if (inside) {
+    db.prepare(`
+      INSERT INTO territory_presence_grace (event_id, user_id, last_inside_at)
+      VALUES (?, ?, ?)
+      ON CONFLICT(event_id, user_id) DO UPDATE SET last_inside_at = excluded.last_inside_at
+    `).run(Number(eventId), Number(member.user_id), new Date(nowMs).toISOString());
+    return true;
+  }
+  const row = db.prepare(`
+    SELECT last_inside_at FROM territory_presence_grace
+    WHERE event_id = ? AND user_id = ?
+  `).get(Number(eventId), Number(member.user_id));
+  const lastInside = parseDate(row?.last_inside_at);
+  return Boolean(lastInside && nowMs - lastInside.getTime() <= BOUNDARY_GRACE_MS);
+}
+
+function contestPresence(event, attack, nowMs) {
+  const state = serverStatus.getState();
+  const region = territoryRegionName(event);
+  if (!state?.configured || !state?.online || !region) {
+    return { usable: false, attackers: 0, defenders: 0 };
+  }
+
+  const insideSteamIds = new Set();
+  for (const character of Array.isArray(state.characters) ? state.characters : []) {
+    const { x, y } = fromRconLocation(character?.location);
+    if (nearestRegion(x, y) === region) insideSteamIds.add(String(character?.steamId || ""));
+  }
+
+  const attackers = activeLineup(event.id, attack.attacker_group_id, nowMs)
+    .filter((member) => updateGrace(event.id, member, insideSteamIds, nowMs)).length;
+  const defenders = attack.defender_group_id
+    ? activeLineup(event.id, attack.defender_group_id, nowMs)
+      .filter((member) => updateGrace(event.id, member, insideSteamIds, nowMs)).length
+    : 0;
+
+  return { usable: true, attackers, defenders };
+}
+
+function captureTerritory(event, attack, atMs, actorUserId = null) {
+  const attacker = groupById(attack?.attacker_group_id);
+  if (!attacker) return event;
+  const protectionUntil = new Date(atMs + CAPTURE_PROTECTION_MS).toISOString();
+  runTransaction(() => {
+    db.prepare(`
+      UPDATE territory_events
+      SET owner_name = ?, challenger_name = NULL, control_score = -100,
+          owner_control = 100, challenger_control = 0,
+          protection_until = ?, updated_at = datetime('now')
+      WHERE id = ?
+    `).run(attacker.name, protectionUntil, event.id);
+    if (attack?.id) {
+      db.prepare(`
+        UPDATE territory_attacks
+        SET status = 'resolved', resolved_at = ?, outcome = 'capture'
+        WHERE id = ?
+      `).run(new Date(atMs).toISOString(), attack.id);
+    }
+    db.prepare(`
+      INSERT INTO territory_group_stats (group_id, wins, captures)
+      VALUES (?, 1, 1)
+      ON CONFLICT(group_id) DO UPDATE SET wins = wins + 1, captures = captures + 1
+    `).run(attacker.id);
+    if (attack?.defender_group_id) {
+      db.prepare(`
+        INSERT INTO territory_group_stats (group_id, losses)
+        VALUES (?, 1)
+        ON CONFLICT(group_id) DO UPDATE SET losses = losses + 1
+      `).run(attack.defender_group_id);
+    }
+  });
+  addLog(event.id, "capture", `${attacker.name} captured ${event.territory_name}. Territory protected for 10 minutes.`, actorUserId);
+  return eventById(event.id);
+}
+
+function processEventRuntime(eventInput) {
+  let event = eventInput ? eventById(eventInput.id) : latestEventRaw();
+  if (!event) return null;
+  const nowMs = Date.now();
+  const starts = parseDate(event.starts_at);
+  const ends = parseDate(event.ends_at);
+
+  if (event.status !== "ended" && ends && nowMs >= ends.getTime()) {
+    db.prepare(`
+      UPDATE territory_events
+      SET status = 'ended', frozen_owner_name = owner_name, challenger_name = NULL, updated_at = datetime('now')
+      WHERE id = ?
+    `).run(event.id);
+    db.prepare(`
+      UPDATE territory_attacks
+      SET status = 'cancelled', resolved_at = ?, outcome = 'event-ended'
+      WHERE event_id = ? AND status IN ('warning', 'active')
+    `).run(nowIso(), event.id);
+    addLog(event.id, "status", `Event ended. ${event.owner_name} is frozen as territory owner.`);
+    return eventById(event.id);
+  }
+
+  if (event.status === "scheduled" && starts && nowMs >= starts.getTime() && (!ends || nowMs < ends.getTime())) {
+    db.prepare("UPDATE territory_events SET status = 'live', updated_at = datetime('now') WHERE id = ?").run(event.id);
+    addLog(event.id, "status", "Event started automatically at the scheduled time.");
+    event = eventById(event.id);
+  }
+
+  if (event.status !== "live") return event;
+
+  let attack = activeAttack(event.id);
+  if (!attack) return event;
+
+  const attackStarts = parseDate(attack.starts_at);
+  if (attack.status === "warning" && attackStarts && nowMs >= attackStarts.getTime()) {
+    db.prepare(`
+      UPDATE territory_attacks
+      SET status = 'active', last_tick_at = ?
+      WHERE id = ?
+    `).run(nowIso(), attack.id);
+    addLog(event.id, "attack", `${groupById(attack.attacker_group_id)?.name || "Challenger"} attack is now active.`);
+    attack = activeAttack(event.id);
+  }
+
+  if (!attack || attack.status !== "active") return event;
+
+  const protectionUntil = parseDate(event.protection_until);
+  if (protectionUntil && nowMs < protectionUntil.getTime()) return event;
+
+  const presence = contestPresence(event, attack, nowMs);
+  if (!presence.usable) return event;
+
+  const contestStarted = parseDate(attack.contest_started_at);
+  if (presence.attackers < MIN_ATTACKERS_TO_CONTEST) {
+    if (contestStarted) {
+      db.prepare("UPDATE territory_attacks SET contest_started_at = NULL, last_tick_at = ? WHERE id = ?").run(nowIso(), attack.id);
+    }
+    return event;
+  }
+
+  if (!contestStarted) {
+    db.prepare("UPDATE territory_attacks SET contest_started_at = ?, last_tick_at = ? WHERE id = ?").run(nowIso(), nowIso(), attack.id);
+    addLog(event.id, "contest", `${presence.attackers} eligible attackers entered the territory. Two-minute contest timer started.`);
+    return event;
+  }
+
+  if (nowMs - contestStarted.getTime() < CONTEST_ARM_MS) return event;
+
+  const lastTick = parseDate(attack.last_tick_at) || new Date(nowMs);
+  const elapsedSeconds = Math.max(0, Math.min(60, (nowMs - lastTick.getTime()) / 1000));
+  if (elapsedSeconds < 5) return event;
+
+  let ratePerMinute = presence.attackers - presence.defenders;
+  if (presence.attackers > presence.defenders) ratePerMinute += 3;
+  else if (presence.defenders > presence.attackers) ratePerMinute -= 3;
+
+  const nextScore = clamp(Number(event.control_score || -100) + (ratePerMinute * elapsedSeconds / 60), -100, 100);
+  runTransaction(() => {
+    db.prepare(`
+      UPDATE territory_events
+      SET control_score = ?, owner_control = ?, challenger_control = ?, updated_at = datetime('now')
+      WHERE id = ?
+    `).run(nextScore, scoreToPercents(nextScore).owner, scoreToPercents(nextScore).challenger, event.id);
+    db.prepare("UPDATE territory_attacks SET last_tick_at = ? WHERE id = ?").run(nowIso(), attack.id);
+    if (presence.attackers > 0) {
+      db.prepare(`
+        INSERT INTO territory_group_stats (group_id, zone_seconds)
+        VALUES (?, ?)
+        ON CONFLICT(group_id) DO UPDATE SET zone_seconds = zone_seconds + excluded.zone_seconds
+      `).run(attack.attacker_group_id, Math.round(presence.attackers * elapsedSeconds));
+    }
+    if (attack.defender_group_id && presence.defenders > 0) {
+      db.prepare(`
+        INSERT INTO territory_group_stats (group_id, zone_seconds)
+        VALUES (?, ?)
+        ON CONFLICT(group_id) DO UPDATE SET zone_seconds = zone_seconds + excluded.zone_seconds
+      `).run(attack.defender_group_id, Math.round(presence.defenders * elapsedSeconds));
+    }
+  });
+
+  event = eventById(event.id);
+  if (nextScore >= 100) return captureTerritory(event, attack, nowMs);
+  return event;
+}
+
 function publicState({ includePlayers = false, includeRegistrations = false } = {}) {
-  const event = latestEvent();
+  const eventRaw = processEventRuntime(latestEventRaw());
+  const event = decorateEvent(eventRaw);
+  const attack = decorateAttack(activeAttack(eventRaw?.id));
   return {
     event,
-    presence: territoryPresence(event, includePlayers),
-    log: event ? eventLog(event.id, 12) : [],
+    attack,
+    presence: territoryPresence(eventRaw, includePlayers),
+    log: eventRaw ? eventLog(eventRaw.id, 12) : [],
     leaderboard: leaderboard(),
-    registrationCount: event ? registrationsForEvent(event.id).length : 0,
-    ...(includeRegistrations ? { registrations: event ? registrationsForEvent(event.id) : [] } : {}),
+    registrationCount: eventRaw ? registrationsForEvent(eventRaw.id).length : 0,
+    rules: {
+      lineupCap: LINEUP_CAP,
+      attackWarningMinutes: ATTACK_WARNING_MS / 60000,
+      minimumAttackers: MIN_ATTACKERS_TO_CONTEST,
+      contestArmMinutes: CONTEST_ARM_MS / 60000,
+      boundaryGraceSeconds: BOUNDARY_GRACE_MS / 1000,
+      captureProtectionMinutes: CAPTURE_PROTECTION_MS / 60000,
+    },
+    ...(includeRegistrations ? { registrations: eventRaw ? registrationsForEvent(eventRaw.id) : [] } : {}),
   };
 }
 
@@ -350,13 +701,10 @@ router.get("/state", (_req, res) => {
 });
 
 router.get("/me", requireAuth, (req, res) => {
-  const registration = db.prepare("SELECT registered_at, updated_at FROM territory_registrations WHERE user_id = ?").get(req.user.id) || null;
   const group = groupForUser(req.user.id);
-  const event = latestEvent();
+  const eventRaw = processEventRuntime(latestEventRaw());
   res.json({
     ok: true,
-    registered: Boolean(registration),
-    registration,
     player: {
       id: req.user.id,
       username: req.user.username,
@@ -366,27 +714,26 @@ router.get("/me", requireAuth, (req, res) => {
     group,
     roster: group ? groupRoster(group.id) : [],
     invites: pendingInvitesForSteam(req.user.steam_id),
-    event,
-    eventRegistration: group && event ? eventRegistration(event.id, group.id) : null,
-    lineup: group && event ? eventLineup(event.id, group.id) : [],
+    event: decorateEvent(eventRaw),
+    attack: decorateAttack(activeAttack(eventRaw?.id)),
+    eventRegistration: group && eventRaw ? eventRegistration(eventRaw.id, group.id) : null,
+    lineup: group && eventRaw ? eventLineup(eventRaw.id, group.id) : [],
     lineupCap: LINEUP_CAP,
     liveSubstitutionDelayMinutes: LIVE_SUB_DELAY_MS / 60000,
   });
 });
 
+// Retained for backward compatibility with the earliest Territory Wars preview.
 router.post("/register", requireAuth, (req, res) => {
   if (!/^\d{17}$/.test(String(req.user.steam_id || ""))) {
     return res.status(403).json({ error: "Link or sign in with Steam before registering for Territory Wars" });
   }
-
   db.prepare(`
     INSERT INTO territory_registrations (user_id, registered_at, updated_at)
     VALUES (?, datetime('now'), datetime('now'))
     ON CONFLICT(user_id) DO UPDATE SET updated_at = datetime('now')
   `).run(req.user.id);
-
-  const registration = db.prepare("SELECT registered_at, updated_at FROM territory_registrations WHERE user_id = ?").get(req.user.id);
-  res.json({ ok: true, registered: true, registration });
+  res.json({ ok: true, registered: true });
 });
 
 router.post("/group", requireAuth, (req, res) => {
@@ -401,21 +748,16 @@ router.post("/group", requireAuth, (req, res) => {
   if (tag.length < 2) return res.status(400).json({ error: "Group tag must be 2 to 6 letters or numbers" });
 
   try {
-    const result = db.prepare(`
-      INSERT INTO territory_groups (name, tag, leader_user_id)
-      VALUES (?, ?, ?)
-    `).run(name, tag, req.user.id);
-    const groupId = Number(result.lastInsertRowid);
-    db.prepare(`
-      INSERT INTO territory_group_members (group_id, user_id, role)
-      VALUES (?, ?, 'leader')
-    `).run(groupId, req.user.id);
-    db.prepare("INSERT OR IGNORE INTO territory_group_stats (group_id) VALUES (?)").run(groupId);
+    const groupId = runTransaction(() => {
+      const result = db.prepare("INSERT INTO territory_groups (name, tag, leader_user_id) VALUES (?, ?, ?)").run(name, tag, req.user.id);
+      const id = Number(result.lastInsertRowid);
+      db.prepare("INSERT INTO territory_group_members (group_id, user_id, role) VALUES (?, ?, 'leader')").run(id, req.user.id);
+      db.prepare("INSERT OR IGNORE INTO territory_group_stats (group_id) VALUES (?)").run(id);
+      return id;
+    });
     res.json({ ok: true, group: groupForUser(req.user.id), roster: groupRoster(groupId) });
   } catch (error) {
-    if (String(error?.message || "").includes("UNIQUE")) {
-      return res.status(409).json({ error: "That Group tag is already in use" });
-    }
+    if (String(error?.message || "").includes("UNIQUE")) return res.status(409).json({ error: "That Group tag is already in use" });
     throw error;
   }
 });
@@ -446,27 +788,23 @@ router.post("/group/invite", requireAuth, (req, res) => {
 router.post("/group/invite/accept", requireAuth, (req, res) => {
   if (groupForUser(req.user.id)) return res.status(409).json({ error: "You are already in a permanent Group" });
   const inviteId = Number(req.body?.inviteId);
-  const invite = db.prepare(`
-    SELECT * FROM territory_group_invites
-    WHERE id = ? AND status = 'pending'
-  `).get(inviteId);
+  const invite = db.prepare("SELECT * FROM territory_group_invites WHERE id = ? AND status = 'pending'").get(inviteId);
   if (!invite) return res.status(404).json({ error: "Group invite not found" });
   if (String(invite.invited_steam_id) !== String(req.user.steam_id || "")) {
     return res.status(403).json({ error: "That Group invite belongs to another Steam account" });
   }
 
-  db.prepare(`
-    INSERT INTO territory_group_members (group_id, user_id, role)
-    VALUES (?, ?, 'member')
-  `).run(invite.group_id, req.user.id);
-  db.prepare("UPDATE territory_group_invites SET status = 'accepted', responded_at = datetime('now') WHERE id = ?").run(invite.id);
+  runTransaction(() => {
+    db.prepare("INSERT INTO territory_group_members (group_id, user_id, role) VALUES (?, ?, 'member')").run(invite.group_id, req.user.id);
+    db.prepare("UPDATE territory_group_invites SET status = 'accepted', responded_at = datetime('now') WHERE id = ?").run(invite.id);
+  });
   res.json({ ok: true, group: groupForUser(req.user.id), roster: groupRoster(invite.group_id) });
 });
 
 router.post("/event-register", requireAuth, (req, res) => {
   const access = requireGroupRole(req, ["leader"]);
   if (access.error) return res.status(403).json({ error: access.error });
-  const event = eventById(req.body?.eventId) || latestEvent();
+  const event = eventById(req.body?.eventId) || processEventRuntime(latestEventRaw());
   if (!event) return res.status(404).json({ error: "No Territory War event is available" });
   if (event.status === "ended") return res.status(409).json({ error: "That Territory War has already ended" });
 
@@ -476,21 +814,15 @@ router.post("/event-register", requireAuth, (req, res) => {
     ON CONFLICT(event_id, group_id) DO UPDATE SET status = 'registered'
   `).run(event.id, access.group.id, req.user.id);
   addLog(event.id, "registration", `${access.group.name} registered for the event`, req.user.id);
-  res.json({
-    ok: true,
-    eventRegistration: eventRegistration(event.id, access.group.id),
-    lineup: eventLineup(event.id, access.group.id),
-  });
+  res.json({ ok: true, eventRegistration: eventRegistration(event.id, access.group.id), lineup: eventLineup(event.id, access.group.id) });
 });
 
 router.post("/lineup", requireAuth, (req, res) => {
   const access = requireGroupRole(req, ["leader", "officer"]);
   if (access.error) return res.status(403).json({ error: access.error });
-  const event = eventById(req.body?.eventId) || latestEvent();
+  const event = eventById(req.body?.eventId) || processEventRuntime(latestEventRaw());
   if (!event) return res.status(404).json({ error: "No Territory War event is available" });
-  if (!eventRegistration(event.id, access.group.id)) {
-    return res.status(409).json({ error: "Your Group must register for this event before selecting a lineup" });
-  }
+  if (!eventRegistration(event.id, access.group.id)) return res.status(409).json({ error: "Your Group must register for this event before selecting a lineup" });
   if (event.status === "ended") return res.status(409).json({ error: "That Territory War has already ended" });
 
   const requested = Array.isArray(req.body?.memberUserIds)
@@ -500,9 +832,7 @@ router.post("/lineup", requireAuth, (req, res) => {
 
   const roster = groupRoster(access.group.id);
   const allowed = new Set(roster.map((member) => Number(member.id)));
-  if (requested.some((userId) => !allowed.has(userId))) {
-    return res.status(400).json({ error: "Every lineup fighter must be a current Group member" });
-  }
+  if (requested.some((userId) => !allowed.has(userId))) return res.status(400).json({ error: "Every lineup fighter must be a current Group member" });
   const missingSteam = roster.filter((member) => requested.includes(Number(member.id)) && !/^\d{17}$/.test(String(member.steam_id || "")));
   if (missingSteam.length) return res.status(400).json({ error: "Every lineup fighter needs a linked Steam account" });
 
@@ -510,15 +840,13 @@ router.post("/lineup", requireAuth, (req, res) => {
   const existingByUser = new Map(existing.map((member) => [Number(member.user_id), member]));
   const activeFromForNew = event.status === "live"
     ? new Date(Date.now() + LIVE_SUB_DELAY_MS).toISOString()
-    : new Date().toISOString();
+    : nowIso();
 
-  const transaction = db.transaction(() => {
+  runTransaction(() => {
     if (requested.length) {
       const placeholders = requested.map(() => "?").join(",");
-      db.prepare(`
-        DELETE FROM territory_event_lineups
-        WHERE event_id = ? AND group_id = ? AND user_id NOT IN (${placeholders})
-      `).run(event.id, access.group.id, ...requested);
+      db.prepare(`DELETE FROM territory_event_lineups WHERE event_id = ? AND group_id = ? AND user_id NOT IN (${placeholders})`)
+        .run(event.id, access.group.id, ...requested);
     } else {
       db.prepare("DELETE FROM territory_event_lineups WHERE event_id = ? AND group_id = ?").run(event.id, access.group.id);
     }
@@ -527,28 +855,54 @@ router.post("/lineup", requireAuth, (req, res) => {
       INSERT INTO territory_event_lineups
         (event_id, group_id, user_id, selected_by_user_id, active_from, selected_at)
       VALUES (?, ?, ?, ?, ?, datetime('now'))
-      ON CONFLICT(event_id, group_id, user_id) DO UPDATE SET
-        selected_by_user_id = excluded.selected_by_user_id
+      ON CONFLICT(event_id, group_id, user_id) DO UPDATE SET selected_by_user_id = excluded.selected_by_user_id
     `);
     for (const userId of requested) {
-      const previous = existingByUser.get(userId);
-      insert.run(
-        event.id,
-        access.group.id,
-        userId,
-        req.user.id,
-        previous?.active_from || activeFromForNew
-      );
+      insert.run(event.id, access.group.id, userId, req.user.id, existingByUser.get(userId)?.active_from || activeFromForNew);
     }
   });
-  transaction();
+
   addLog(event.id, "lineup", `${access.group.name} set a ${requested.length}-fighter lineup`, req.user.id);
-  res.json({
-    ok: true,
-    lineup: eventLineup(event.id, access.group.id),
-    lineupCap: LINEUP_CAP,
-    liveSubstitutionDelayMinutes: LIVE_SUB_DELAY_MS / 60000,
+  res.json({ ok: true, lineup: eventLineup(event.id, access.group.id), lineupCap: LINEUP_CAP, liveSubstitutionDelayMinutes: LIVE_SUB_DELAY_MS / 60000 });
+});
+
+router.post("/attack-declare", requireAuth, (req, res) => {
+  const access = requireGroupRole(req, ["leader", "officer"]);
+  if (access.error) return res.status(403).json({ error: access.error });
+  const event = processEventRuntime(eventById(req.body?.eventId) || latestEventRaw());
+  if (!event) return res.status(404).json({ error: "No Territory War event is available" });
+  if (event.status !== "live") return res.status(409).json({ error: "Attacks can only be declared while the Territory War is live" });
+  if (!eventRegistration(event.id, access.group.id)) return res.status(409).json({ error: "Your Group must be registered for this event" });
+  if (activeLineup(event.id, access.group.id).length < MIN_ATTACKERS_TO_CONTEST) {
+    return res.status(409).json({ error: `Your Group needs at least ${MIN_ATTACKERS_TO_CONTEST} active lineup fighters before declaring an attack` });
+  }
+  if (String(event.owner_name || "").toLowerCase() === String(access.group.name || "").toLowerCase()) {
+    return res.status(409).json({ error: "Your Group already owns this territory" });
+  }
+  const protectionUntil = parseDate(event.protection_until);
+  if (protectionUntil && Date.now() < protectionUntil.getTime()) {
+    return res.status(409).json({ error: `Territory is protected until ${protectionUntil.toISOString()}` });
+  }
+  if (activeAttack(event.id)) return res.status(409).json({ error: "Another attack is already active for this territory" });
+
+  const defender = groupMatchingOwner(event.owner_name);
+  const declaredAt = nowIso();
+  const startsAt = new Date(Date.now() + ATTACK_WARNING_MS).toISOString();
+  const result = runTransaction(() => {
+    const insert = db.prepare(`
+      INSERT INTO territory_attacks
+        (event_id, attacker_group_id, defender_group_id, status, declared_by_user_id, declared_at, starts_at)
+      VALUES (?, ?, ?, 'warning', ?, ?, ?)
+    `).run(event.id, access.group.id, defender?.id || null, req.user.id, declaredAt, startsAt);
+    db.prepare(`
+      UPDATE territory_events
+      SET challenger_name = ?, control_score = -100, owner_control = 100, challenger_control = 0, updated_at = datetime('now')
+      WHERE id = ?
+    `).run(access.group.name, event.id);
+    return Number(insert.lastInsertRowid);
   });
+  addLog(event.id, "attack", `${access.group.name} declared an attack. Five-minute warning started.`, req.user.id);
+  res.json({ ok: true, event: decorateEvent(eventById(event.id)), attack: decorateAttack(db.prepare("SELECT * FROM territory_attacks WHERE id = ?").get(result)) });
 });
 
 router.get("/admin/state", requireAdmin, (_req, res) => {
@@ -579,96 +933,125 @@ router.post("/admin/event", requireAdmin, (req, res) => {
   } else {
     const result = db.prepare(`
       INSERT INTO territory_events
-        (name, territory_key, territory_name, status, starts_at, ends_at, owner_name, challenger_name, created_by)
-      VALUES (?, ?, ?, 'scheduled', ?, ?, ?, ?, ?)
+        (name, territory_key, territory_name, status, starts_at, ends_at, owner_name, challenger_name, control_score, created_by)
+      VALUES (?, ?, ?, 'scheduled', ?, ?, ?, ?, -100, ?)
     `).run(name, territoryKey, territoryName, startsAt, endsAt, ownerName, challengerName, req.user.id);
     event = eventById(result.lastInsertRowid);
     addLog(event.id, "created", `${event.name} created`, req.user.id);
   }
 
-  res.json({ ok: true, event, log: eventLog(event.id), registrations: registrationsForEvent(event.id) });
+  res.json({ ok: true, event: decorateEvent(event), log: eventLog(event.id), registrations: registrationsForEvent(event.id) });
 });
 
 router.post("/admin/status", requireAdmin, (req, res) => {
-  const event = eventById(req.body?.id) || latestEvent();
+  let event = eventById(req.body?.id) || latestEventRaw();
   if (!event) return res.status(404).json({ error: "No Territory War event exists yet" });
-
   const status = cleanText(req.body?.status, "", 16).toLowerCase();
   if (!EVENT_STATUSES.has(status)) return res.status(400).json({ error: "Invalid event status" });
 
-  db.prepare("UPDATE territory_events SET status = ?, updated_at = datetime('now') WHERE id = ?").run(status, event.id);
+  if (status === "ended") {
+    db.prepare(`
+      UPDATE territory_events
+      SET status = 'ended', frozen_owner_name = owner_name, challenger_name = NULL, updated_at = datetime('now')
+      WHERE id = ?
+    `).run(event.id);
+    db.prepare(`
+      UPDATE territory_attacks SET status = 'cancelled', resolved_at = ?, outcome = 'event-ended'
+      WHERE event_id = ? AND status IN ('warning', 'active')
+    `).run(nowIso(), event.id);
+  } else {
+    db.prepare("UPDATE territory_events SET status = ?, updated_at = datetime('now') WHERE id = ?").run(status, event.id);
+  }
   addLog(event.id, "status", `Event ${status}`, req.user.id);
-  res.json({ ok: true, event: eventById(event.id), log: eventLog(event.id) });
+  event = eventById(event.id);
+  res.json({ ok: true, event: decorateEvent(event), log: eventLog(event.id) });
 });
 
 router.post("/admin/control", requireAdmin, (req, res) => {
-  const event = eventById(req.body?.id) || latestEvent();
+  const event = eventById(req.body?.id) || latestEventRaw();
   if (!event) return res.status(404).json({ error: "No Territory War event exists yet" });
-
-  const ownerControl = clampPercent(req.body?.ownerControl, event.owner_control);
-  const challengerControl = 100 - ownerControl;
+  const ownerControl = clamp(req.body?.ownerControl, 0, 100);
+  const score = percentToScore(ownerControl);
+  const percentages = scoreToPercents(score);
   db.prepare(`
     UPDATE territory_events
-    SET owner_control = ?, challenger_control = ?, updated_at = datetime('now')
+    SET control_score = ?, owner_control = ?, challenger_control = ?, updated_at = datetime('now')
     WHERE id = ?
-  `).run(ownerControl, challengerControl, event.id);
-  addLog(event.id, "control", `Control adjusted: ${ownerControl}% owner / ${challengerControl}% challenger`, req.user.id);
-  res.json({ ok: true, event: eventById(event.id) });
+  `).run(score, percentages.owner, percentages.challenger, event.id);
+  addLog(event.id, "control", `Control adjusted: ${percentages.owner}% owner / ${percentages.challenger}% challenger`, req.user.id);
+  res.json({ ok: true, event: decorateEvent(eventById(event.id)) });
 });
 
 router.post("/admin/reset", requireAdmin, (req, res) => {
-  const event = eventById(req.body?.id) || latestEvent();
+  const event = eventById(req.body?.id) || latestEventRaw();
   if (!event) return res.status(404).json({ error: "No Territory War event exists yet" });
-
-  db.prepare(`
-    UPDATE territory_events
-    SET status = 'scheduled', owner_control = 100, challenger_control = 0, updated_at = datetime('now')
-    WHERE id = ?
-  `).run(event.id);
-  addLog(event.id, "reset", "Territory control reset to the current owner", req.user.id);
-  res.json({ ok: true, event: eventById(event.id), log: eventLog(event.id) });
+  runTransaction(() => {
+    db.prepare(`
+      UPDATE territory_events
+      SET status = 'scheduled', challenger_name = NULL, control_score = -100,
+          owner_control = 100, challenger_control = 0, protection_until = NULL,
+          frozen_owner_name = NULL, updated_at = datetime('now')
+      WHERE id = ?
+    `).run(event.id);
+    db.prepare(`
+      UPDATE territory_attacks SET status = 'cancelled', resolved_at = ?, outcome = 'admin-reset'
+      WHERE event_id = ? AND status IN ('warning', 'active')
+    `).run(nowIso(), event.id);
+  });
+  addLog(event.id, "reset", "Territory and active attack reset by admin", req.user.id);
+  res.json({ ok: true, event: decorateEvent(eventById(event.id)), log: eventLog(event.id) });
 });
 
 router.post("/admin/remove-challenger", requireAdmin, (req, res) => {
-  const event = eventById(req.body?.id) || latestEvent();
+  const event = eventById(req.body?.id) || latestEventRaw();
   if (!event) return res.status(404).json({ error: "No Territory War event exists yet" });
-
-  db.prepare(`
-    UPDATE territory_events
-    SET challenger_name = NULL, owner_control = 100, challenger_control = 0, updated_at = datetime('now')
-    WHERE id = ?
-  `).run(event.id);
+  runTransaction(() => {
+    db.prepare(`
+      UPDATE territory_events
+      SET challenger_name = NULL, control_score = -100, owner_control = 100, challenger_control = 0, updated_at = datetime('now')
+      WHERE id = ?
+    `).run(event.id);
+    db.prepare(`
+      UPDATE territory_attacks SET status = 'cancelled', resolved_at = ?, outcome = 'challenger-removed'
+      WHERE event_id = ? AND status IN ('warning', 'active')
+    `).run(nowIso(), event.id);
+  });
   addLog(event.id, "team", "Challenger removed", req.user.id);
-  res.json({ ok: true, event: eventById(event.id), log: eventLog(event.id) });
+  res.json({ ok: true, event: decorateEvent(eventById(event.id)), log: eventLog(event.id) });
 });
 
 router.post("/admin/force-capture", requireAdmin, (req, res) => {
-  const event = eventById(req.body?.id) || latestEvent();
+  const event = eventById(req.body?.id) || latestEventRaw();
   if (!event) return res.status(404).json({ error: "No Territory War event exists yet" });
-
   const winner = cleanText(req.body?.winner, "", 16).toLowerCase();
   if (!["owner", "challenger"].includes(winner)) return res.status(400).json({ error: "Winner must be owner or challenger" });
 
+  const attack = activeAttack(event.id);
   if (winner === "challenger") {
-    if (!event.challenger_name) return res.status(400).json({ error: "There is no challenger to award the territory to" });
-    const newOwner = event.challenger_name;
-    db.prepare(`
-      UPDATE territory_events
-      SET owner_name = ?, challenger_name = NULL, owner_control = 100, challenger_control = 0,
-          updated_at = datetime('now')
-      WHERE id = ?
-    `).run(newOwner, event.id);
-    addLog(event.id, "capture", `${newOwner} captured ${event.territory_name}`, req.user.id);
+    let attacker = attack ? groupById(attack.attacker_group_id) : groupMatchingOwner(event.challenger_name);
+    if (!attacker && event.challenger_name) {
+      attacker = db.prepare("SELECT id, name, tag FROM territory_groups WHERE lower(name) = lower(?) LIMIT 1").get(event.challenger_name);
+    }
+    if (!attacker) return res.status(400).json({ error: "There is no registered challenger Group to capture this territory" });
+    const syntheticAttack = attack || { attacker_group_id: attacker.id, defender_group_id: groupMatchingOwner(event.owner_name)?.id || null };
+    captureTerritory(event, syntheticAttack, Date.now(), req.user.id);
   } else {
-    db.prepare(`
-      UPDATE territory_events
-      SET owner_control = 100, challenger_control = 0, updated_at = datetime('now')
-      WHERE id = ?
-    `).run(event.id);
+    runTransaction(() => {
+      db.prepare(`
+        UPDATE territory_events
+        SET challenger_name = NULL, control_score = -100, owner_control = 100, challenger_control = 0, updated_at = datetime('now')
+        WHERE id = ?
+      `).run(event.id);
+      if (attack) {
+        db.prepare(`
+          UPDATE territory_attacks SET status = 'resolved', resolved_at = ?, outcome = 'defence'
+          WHERE id = ?
+        `).run(nowIso(), attack.id);
+      }
+    });
     addLog(event.id, "defence", `${event.owner_name} retained ${event.territory_name}`, req.user.id);
   }
-
-  res.json({ ok: true, event: eventById(event.id), log: eventLog(event.id) });
+  res.json({ ok: true, event: decorateEvent(eventById(event.id)), log: eventLog(event.id) });
 });
 
 module.exports = router;
