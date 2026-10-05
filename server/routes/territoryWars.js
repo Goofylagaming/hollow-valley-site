@@ -2,7 +2,17 @@ const express = require("express");
 const { db } = require("../db");
 const { requireAuth, requireAdmin } = require("../middleware/requireAuth");
 const serverStatus = require("../services/serverStatus");
-const { REGIONS, fromRconLocation, nearestRegion } = require("../evrimaMap");
+const { fromRconLocation } = require("../evrimaMap");
+const {
+  DEFAULT_BATTLEFIELD_RADIUS,
+  DEFAULT_CLAIM_RADIUS,
+  territoryGeometry,
+  classifyWorldPosition,
+} = require("../services/territoryGeometry");
+const {
+  CONTROL_CONTRIBUTOR_CAP,
+  advanceControlScore,
+} = require("../services/territoryControl");
 
 const router = express.Router();
 const LINEUP_CAP = 6;
@@ -214,6 +224,14 @@ function percentToScore(ownerPercent) {
   return clamp(100 - (clamp(ownerPercent, 0, 100) * 2), -100, 100);
 }
 
+function eventGeometry(event) {
+  if (!event) return null;
+  return territoryGeometry({
+    territoryName: event.territory_name,
+    territoryKey: event.territory_key,
+  });
+}
+
 function decorateEvent(event) {
   if (!event) return null;
   const score = clamp(event.control_score, -100, 100);
@@ -223,6 +241,7 @@ function decorateEvent(event) {
     control_score: Math.round(score * 10) / 10,
     owner_control: percentages.owner,
     challenger_control: percentages.challenger,
+    geometry: eventGeometry(event),
   };
 }
 
@@ -378,16 +397,6 @@ function leaderboard() {
   `).all();
 }
 
-function normalizeRegion(value) {
-  return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
-}
-
-function territoryRegionName(event) {
-  const wanted = normalizeRegion(event?.territory_name || event?.territory_key);
-  if (!wanted) return null;
-  return REGIONS.map(([name]) => name).find((name) => normalizeRegion(name) === wanted) || null;
-}
-
 function lineupMembershipBySteam(eventId, steamId) {
   if (!eventId || !/^\d{17}$/.test(String(steamId || ""))) return null;
   return db.prepare(`
@@ -404,14 +413,17 @@ function lineupMembershipBySteam(eventId, steamId) {
 
 function territoryPresence(event, includePlayers = false) {
   const state = serverStatus.getState();
-  const region = territoryRegionName(event);
-  if (!state?.configured || !state?.online || !region) {
+  const geometry = eventGeometry(event);
+  if (!state?.configured || !state?.online || !geometry) {
     return {
       serverOnline: Boolean(state?.online),
-      tracking: Boolean(region),
-      region,
+      tracking: Boolean(geometry),
+      region: geometry?.territoryName || null,
+      geometry,
       playerCount: 0,
+      claimCount: 0,
       eligibleCount: 0,
+      eligibleClaimCount: 0,
       ...(includePlayers ? { players: [] } : {}),
       lastChecked: state?.lastChecked || null,
     };
@@ -420,7 +432,8 @@ function territoryPresence(event, includePlayers = false) {
   const players = [];
   for (const character of Array.isArray(state.characters) ? state.characters : []) {
     const { x, y } = fromRconLocation(character?.location);
-    if (nearestRegion(x, y) !== region) continue;
+    const zone = classifyWorldPosition(x, y, geometry);
+    if (!zone.inBattlefield) continue;
     const steamId = String(character?.steamId || "");
     const lineup = lineupMembershipBySteam(event?.id, steamId);
     const activeAt = parseDate(lineup?.active_from);
@@ -442,6 +455,8 @@ function territoryPresence(event, includePlayers = false) {
       species: character?.species || "Unknown species",
       isPrime: Boolean(character?.isPrime),
       lineupActive,
+      inClaim: zone.inClaim,
+      distanceMetres: zone.distanceMetres,
       ...(membership ? {
         groupId: membership.group_id,
         groupName: membership.group_name,
@@ -454,9 +469,12 @@ function territoryPresence(event, includePlayers = false) {
   return {
     serverOnline: true,
     tracking: true,
-    region,
+    region: geometry.territoryName,
+    geometry,
     playerCount: players.length,
+    claimCount: players.filter((player) => player.inClaim).length,
     eligibleCount: players.filter((player) => player.lineupActive).length,
+    eligibleClaimCount: players.filter((player) => player.lineupActive && player.inClaim).length,
     ...(includePlayers ? { players } : {}),
     lastChecked: state.lastChecked || null,
   };
@@ -504,22 +522,23 @@ function updateGrace(eventId, member, insideSteamIds, nowMs) {
 
 function contestPresence(event, attack, nowMs) {
   const state = serverStatus.getState();
-  const region = territoryRegionName(event);
-  if (!state?.configured || !state?.online || !region) {
+  const geometry = eventGeometry(event);
+  if (!state?.configured || !state?.online || !geometry) {
     return { usable: false, attackers: 0, defenders: 0 };
   }
 
-  const insideSteamIds = new Set();
+  const insideClaimSteamIds = new Set();
   for (const character of Array.isArray(state.characters) ? state.characters : []) {
     const { x, y } = fromRconLocation(character?.location);
-    if (nearestRegion(x, y) === region) insideSteamIds.add(String(character?.steamId || ""));
+    const zone = classifyWorldPosition(x, y, geometry);
+    if (zone.inClaim) insideClaimSteamIds.add(String(character?.steamId || ""));
   }
 
   const attackers = activeLineup(event.id, attack.attacker_group_id, nowMs)
-    .filter((member) => updateGrace(event.id, member, insideSteamIds, nowMs)).length;
+    .filter((member) => updateGrace(event.id, member, insideClaimSteamIds, nowMs)).length;
   const defenders = attack.defender_group_id
     ? activeLineup(event.id, attack.defender_group_id, nowMs)
-      .filter((member) => updateGrace(event.id, member, insideSteamIds, nowMs)).length
+      .filter((member) => updateGrace(event.id, member, insideClaimSteamIds, nowMs)).length
     : 0;
 
   return { usable: true, attackers, defenders };
@@ -623,7 +642,7 @@ function processEventRuntime(eventInput) {
 
   if (!contestStarted) {
     db.prepare("UPDATE territory_attacks SET contest_started_at = ?, last_tick_at = ? WHERE id = ?").run(nowIso(), nowIso(), attack.id);
-    addLog(event.id, "contest", `${presence.attackers} eligible attackers entered the territory. Two-minute contest timer started.`);
+    addLog(event.id, "contest", `${presence.attackers} eligible attackers entered the claim zone. Two-minute contest timer started.`);
     return event;
   }
 
@@ -633,11 +652,15 @@ function processEventRuntime(eventInput) {
   const elapsedSeconds = Math.max(0, Math.min(60, (nowMs - lastTick.getTime()) / 1000));
   if (elapsedSeconds < 5) return event;
 
-  let ratePerMinute = presence.attackers - presence.defenders;
-  if (presence.attackers > presence.defenders) ratePerMinute += 3;
-  else if (presence.defenders > presence.attackers) ratePerMinute -= 3;
+  const controlStep = advanceControlScore({
+    score: Number(event.control_score || -100),
+    attackers: presence.attackers,
+    defenders: presence.defenders,
+    elapsedSeconds,
+    contributorCap: CONTROL_CONTRIBUTOR_CAP,
+  });
+  const nextScore = controlStep.score;
 
-  const nextScore = clamp(Number(event.control_score || -100) + (ratePerMinute * elapsedSeconds / 60), -100, 100);
   runTransaction(() => {
     db.prepare(`
       UPDATE territory_events
@@ -670,9 +693,11 @@ function publicState({ includePlayers = false, includeRegistrations = false } = 
   const eventRaw = processEventRuntime(latestEventRaw());
   const event = decorateEvent(eventRaw);
   const attack = decorateAttack(activeAttack(eventRaw?.id));
+  const geometry = eventGeometry(eventRaw);
   return {
     event,
     attack,
+    geometry,
     presence: territoryPresence(eventRaw, includePlayers),
     log: eventRaw ? eventLog(eventRaw.id, 12) : [],
     leaderboard: leaderboard(),
@@ -684,6 +709,9 @@ function publicState({ includePlayers = false, includeRegistrations = false } = 
       contestArmMinutes: CONTEST_ARM_MS / 60000,
       boundaryGraceSeconds: BOUNDARY_GRACE_MS / 1000,
       captureProtectionMinutes: CAPTURE_PROTECTION_MS / 60000,
+      controlContributorCap: CONTROL_CONTRIBUTOR_CAP,
+      battlefieldRadiusMetres: DEFAULT_BATTLEFIELD_RADIUS * 10,
+      claimRadiusMetres: DEFAULT_CLAIM_RADIUS * 10,
     },
     ...(includeRegistrations ? { registrations: eventRaw ? registrationsForEvent(eventRaw.id) : [] } : {}),
   };
