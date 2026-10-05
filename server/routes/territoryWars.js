@@ -1,6 +1,8 @@
 const express = require("express");
 const { db } = require("../db");
 const { requireAuth, requireAdmin } = require("../middleware/requireAuth");
+const serverStatus = require("../services/serverStatus");
+const { REGIONS, fromRconLocation, nearestRegion } = require("../evrimaMap");
 
 const router = express.Router();
 
@@ -126,6 +128,52 @@ function addLog(eventId, kind, message, actorUserId = null) {
   `).run(Number(eventId), cleanText(kind, "update", 32), cleanText(message, "Territory updated", 240), actorUserId || null);
 }
 
+function normalizeRegion(value) {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function territoryRegionName(event) {
+  const wanted = normalizeRegion(event?.territory_name || event?.territory_key);
+  if (!wanted) return null;
+  return REGIONS.map(([name]) => name).find((name) => normalizeRegion(name) === wanted) || null;
+}
+
+function territoryPresence(event, includePlayers = false) {
+  const state = serverStatus.getState();
+  const region = territoryRegionName(event);
+  if (!state?.configured || !state?.online || !region) {
+    return {
+      serverOnline: Boolean(state?.online),
+      tracking: Boolean(region),
+      region,
+      playerCount: 0,
+      ...(includePlayers ? { players: [] } : {}),
+      lastChecked: state?.lastChecked || null,
+    };
+  }
+
+  const players = [];
+  for (const character of Array.isArray(state.characters) ? state.characters : []) {
+    const { x, y } = fromRconLocation(character?.location);
+    if (nearestRegion(x, y) !== region) continue;
+    players.push({
+      steamId: String(character?.steamId || ""),
+      name: character?.name || "Unknown player",
+      species: character?.species || "Unknown species",
+      isPrime: Boolean(character?.isPrime),
+    });
+  }
+
+  return {
+    serverOnline: true,
+    tracking: true,
+    region,
+    playerCount: players.length,
+    ...(includePlayers ? { players } : {}),
+    lastChecked: state.lastChecked || null,
+  };
+}
+
 function groupForUser(userId) {
   return db.prepare(`
     SELECT g.id, g.name, g.tag, gm.role,
@@ -172,10 +220,11 @@ function leaderboard() {
   `).all();
 }
 
-function publicState() {
+function publicState({ includePlayers = false } = {}) {
   const event = latestEvent();
   return {
     event,
+    presence: territoryPresence(event, includePlayers),
     log: event ? eventLog(event.id, 12) : [],
     leaderboard: leaderboard(),
   };
@@ -219,7 +268,7 @@ router.post("/register", requireAuth, (req, res) => {
 });
 
 router.get("/admin/state", requireAdmin, (_req, res) => {
-  res.json({ ok: true, ...publicState() });
+  res.json({ ok: true, ...publicState({ includePlayers: true }) });
 });
 
 router.post("/admin/event", requireAdmin, (req, res) => {
