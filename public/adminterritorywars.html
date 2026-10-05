@@ -17,7 +17,7 @@
       <section class="page-header">
         <p class="overline green">HOLLOW VALLEY · ADMIN · TERRITORY WARS</p>
         <h1>Territory Wars Admin</h1>
-        <p class="section-intro">Create wars, control live event state, adjust territory ownership, and review the player-facing war feed.</p>
+        <p class="section-intro">Create wars, control live event state, adjust territory ownership, and see which players are actually inside the active territory.</p>
       </section>
 
       <section class="roster-section tw-shell">
@@ -82,6 +82,12 @@
                 <div class="tw-control-labels"><span id="tw-admin-owner-percent">100%</span><span id="tw-admin-challenger-percent">0%</span></div>
                 <div class="tw-control-bar"><span class="tw-control-owner" id="tw-admin-owner-bar"></span><span class="tw-control-challenger" id="tw-admin-challenger-bar"></span></div>
               </div>
+              <div style="height:16px"></div>
+              <div class="tw-card-head" style="padding:0 0 9px;border:0">
+                <div><div class="tw-kicker">Live Map Presence</div><h3 id="tw-admin-presence-heading">Players in territory</h3></div>
+                <span class="tw-status" id="tw-admin-presence-count">0 live</span>
+              </div>
+              <div class="tw-list" id="tw-admin-presence"><div class="tw-empty">No live players detected in this territory.</div></div>
             </div>
           </section>
 
@@ -91,11 +97,11 @@
           </section>
         </div>
 
-        <p class="tw-note">All controls on this page are protected by the existing Hollow Valley admin middleware. Hiding the navigation link is only cosmetic; direct access by a normal player is blocked server-side.</p>
+        <p class="tw-note">All controls are protected by the existing Hollow Valley admin middleware. Territory presence reuses the live-map server tracker; normal players receive only a count, while this admin page can show player identity and species.</p>
       </section>
     </main>
   </div>
   <script src="/assets/common.js?v=20"></script>
-  <script src="/assets/admin-territory-wars.js?v=1"></script>
+  <script src="/assets/admin-territory-wars.js?v=2"></script>
 </body>
 </html>
