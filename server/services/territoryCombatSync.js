@@ -82,6 +82,24 @@ function lineupMembershipAt(eventId, steamId, occurredAt) {
   `).get(Number(eventId), String(steamId), at.toISOString()) || null;
 }
 
+function systemAdminDefenderAt(attack, steamId) {
+  if (!attack || attack.defender_group_id || !/^\d{17}$/.test(String(steamId || ''))) return null;
+  const user = db.prepare(`
+    SELECT id AS user_id, username, steam_id
+    FROM users
+    WHERE is_admin = 1 AND steam_id = ?
+    LIMIT 1
+  `).get(String(steamId));
+  if (!user) return null;
+  return {
+    ...user,
+    group_id: null,
+    group_name: 'Admin',
+    group_tag: 'ADMIN',
+    system_defender: true,
+  };
+}
+
 function attackAt(eventId, occurredAt) {
   const at = parseDate(occurredAt);
   if (!eventId || !at) return null;
@@ -96,14 +114,19 @@ function attackAt(eventId, occurredAt) {
   `).get(Number(eventId), at.toISOString(), at.toISOString()) || null;
 }
 
-function isOpposingAttackGroups(attack, killerGroupId, victimGroupId) {
-  if (!attack || !killerGroupId || !victimGroupId) return false;
-  const attacker = Number(attack.attacker_group_id);
-  const defender = Number(attack.defender_group_id);
-  const killer = Number(killerGroupId);
-  const victim = Number(victimGroupId);
-  if (!attacker || !defender) return false;
-  return (killer === attacker && victim === defender) || (killer === defender && victim === attacker);
+function attackSide(attack, member) {
+  if (!attack || !member) return null;
+  if (member.system_defender === true && !attack.defender_group_id) return 'defender';
+  const groupId = Number(member.group_id);
+  if (groupId && groupId === Number(attack.attacker_group_id)) return 'attacker';
+  if (groupId && attack.defender_group_id && groupId === Number(attack.defender_group_id)) return 'defender';
+  return null;
+}
+
+function isOpposingAttackMembers(attack, killerMember, victimMember) {
+  const killerSide = attackSide(attack, killerMember);
+  const victimSide = attackSide(attack, victimMember);
+  return Boolean(killerSide && victimSide && killerSide !== victimSide);
 }
 
 function classifyLocation(location, geometry) {
@@ -194,6 +217,15 @@ function displayPlayer(eventName, fallbackSteamId) {
   return name || String(fallbackSteamId || 'Unknown player');
 }
 
+function incrementGroupStat(groupId, column) {
+  if (!groupId || !['kills', 'deaths'].includes(column)) return;
+  db.prepare(`
+    INSERT INTO territory_group_stats (group_id, ${column})
+    VALUES (?, 1)
+    ON CONFLICT(group_id) DO UPDATE SET ${column} = ${column} + 1
+  `).run(Number(groupId));
+}
+
 function processCombatEvent(event, territoryEvent = latestLiveEvent()) {
   ensureSchema();
   if (!territoryEvent || territoryEvent.status !== 'live') return { counted: false, reason: 'no-live-event' };
@@ -252,8 +284,10 @@ function processCombatEvent(event, territoryEvent = latestLiveEvent()) {
     return { counted: false, reason: 'no-active-attack-at-kill-time' };
   }
 
-  const killerMember = lineupMembershipAt(territoryEvent.id, killerSteamId, occurredAt);
-  const victimMember = lineupMembershipAt(territoryEvent.id, victimSteamId, occurredAt);
+  const killerMember = lineupMembershipAt(territoryEvent.id, killerSteamId, occurredAt)
+    || systemAdminDefenderAt(attack, killerSteamId);
+  const victimMember = lineupMembershipAt(territoryEvent.id, victimSteamId, occurredAt)
+    || systemAdminDefenderAt(attack, victimSteamId);
   const enrichedAudit = {
     ...baseAudit,
     attackId: attack.id,
@@ -266,7 +300,7 @@ function processCombatEvent(event, territoryEvent = latestLiveEvent()) {
     writeAudit({ ...enrichedAudit, reason: 'fighter-not-active-lineup' });
     return { counted: false, reason: 'fighter-not-active-lineup' };
   }
-  if (!isOpposingAttackGroups(attack, killerMember.group_id, victimMember.group_id)) {
+  if (!isOpposingAttackMembers(attack, killerMember, victimMember)) {
     writeAudit({ ...enrichedAudit, reason: 'not-opposing-attack-groups' });
     return { counted: false, reason: 'not-opposing-attack-groups' };
   }
@@ -278,16 +312,8 @@ function processCombatEvent(event, territoryEvent = latestLiveEvent()) {
   db.exec('BEGIN IMMEDIATE');
   try {
     writeAudit({ ...enrichedAudit, counted: true, reason: 'counted' });
-    db.prepare(`
-      INSERT INTO territory_group_stats (group_id, kills)
-      VALUES (?, 1)
-      ON CONFLICT(group_id) DO UPDATE SET kills = kills + 1
-    `).run(Number(killerMember.group_id));
-    db.prepare(`
-      INSERT INTO territory_group_stats (group_id, deaths)
-      VALUES (?, 1)
-      ON CONFLICT(group_id) DO UPDATE SET deaths = deaths + 1
-    `).run(Number(victimMember.group_id));
+    incrementGroupStat(killerMember.group_id, 'kills');
+    incrementGroupStat(victimMember.group_id, 'deaths');
     addEventLog(
       territoryEvent.id,
       `${displayPlayer(event?.killerName, killerSteamId)} · ${displayGroup(killerMember)} defeated ${displayPlayer(event?.victimName, victimSteamId)} · ${displayGroup(victimMember)} inside ${territoryEvent.territory_name || 'the territory'} Battlefield.`
@@ -303,8 +329,10 @@ function processCombatEvent(event, territoryEvent = latestLiveEvent()) {
     reason: 'counted',
     eventId: territoryEvent.id,
     attackId: attack.id,
-    killerGroupId: Number(killerMember.group_id),
-    victimGroupId: Number(victimMember.group_id),
+    killerGroupId: killerMember.group_id ? Number(killerMember.group_id) : null,
+    victimGroupId: victimMember.group_id ? Number(victimMember.group_id) : null,
+    killerSide: attackSide(attack, killerMember),
+    victimSide: attackSide(attack, victimMember),
   };
 }
 
@@ -363,8 +391,6 @@ function schedule() {
     try {
       await syncOnce();
     } catch (error) {
-      // Territory Wars combat is supplemental. A temporary automation outage must
-      // never take the website down or override the owner's manual controls.
       console.warn('[territory-combat]', error.message);
     } finally {
       schedule();
@@ -407,7 +433,9 @@ module.exports = {
     ensureSchema,
     processCombatEvent,
     lineupMembershipAt,
+    systemAdminDefenderAt,
     attackAt,
+    attackSide,
     repeatKillWithinCooldown,
     geometryForEvent,
     classifyLocation,
