@@ -55,6 +55,7 @@ function renderEvent(event) {
     challenger_name: null,
     owner_control: 100,
     challenger_control: 0,
+    control_score: -100,
     status: "scheduled",
     starts_at: null,
     ends_at: null,
@@ -62,6 +63,7 @@ function renderEvent(event) {
 
   const owner = Math.max(0, Math.min(100, Number(current.owner_control) || 0));
   const challenger = Math.max(0, Math.min(100, Number(current.challenger_control) || 0));
+  const score = Math.max(-100, Math.min(100, Number(current.control_score ?? -100)));
 
   text("tw-territory-name", current.territory_name || "South Plains");
   text("tw-event-name", current.name || "Territory War");
@@ -69,6 +71,7 @@ function renderEvent(event) {
   text("tw-challenger-name", current.challenger_name || "Open");
   text("tw-owner-percent", `${owner}%`);
   text("tw-challenger-percent", `${challenger}%`);
+  text("tw-control-score", `${score > 0 ? "+" : ""}${Math.round(score * 10) / 10}`);
   text("tw-starts", formatDate(current.starts_at));
   text("tw-ends", formatDate(current.ends_at));
   setStatus(current.status);
@@ -88,7 +91,9 @@ function renderPresence(presence) {
     text("tw-presence", "Server offline");
     return;
   }
-  text("tw-presence", `${Number(presence.playerCount || 0)} in ${presence.region || "territory"}`);
+  const eligible = Number(presence.eligibleCount || 0);
+  const total = Number(presence.playerCount || 0);
+  text("tw-presence", eligible ? `${eligible} eligible · ${total} total` : `${total} in ${presence.region || "territory"}`);
 }
 
 function renderLog(log) {
@@ -307,6 +312,68 @@ function renderLineup(data) {
   updateLineupCount();
 }
 
+function activeLineupCount(data) {
+  const now = Date.now();
+  return (data?.lineup || []).filter((member) => {
+    const activeAt = parseDate(member.active_from);
+    return activeAt && activeAt.getTime() <= now;
+  }).length;
+}
+
+function renderAttack(data) {
+  const group = data?.group;
+  const event = data?.event;
+  const registration = data?.eventRegistration;
+  const attack = data?.attack;
+  const button = document.getElementById("tw-declare-attack");
+
+  if (!group || !event || !registration) {
+    setHidden("tw-attack-state", true);
+    return;
+  }
+  setHidden("tw-attack-state", false);
+  if (button) button.hidden = true;
+  setMessage("tw-attack-message", "");
+
+  if (attack) {
+    const attackerName = `${attack.attacker_name || "Challenger"}${attack.attacker_tag ? ` [${attack.attacker_tag}]` : ""}`;
+    text("tw-attack-title", `${attackerName} attacking ${event.territory_name || "territory"}`);
+    if (attack.status === "warning") {
+      text("tw-attack-detail", `Five-minute warning active · attack begins ${formatDate(attack.starts_at)}.`);
+    } else if (attack.contest_started_at) {
+      const armedAt = parseDate(attack.contest_started_at);
+      const eligibleAt = armedAt ? new Date(armedAt.getTime() + (2 * 60 * 1000)) : null;
+      text("tw-attack-detail", eligibleAt && eligibleAt.getTime() > Date.now()
+        ? `Attack active · two-minute presence hold completes ${eligibleAt.toLocaleString()}.`
+        : "Attack active · contest is armed and territory control can move.");
+    } else {
+      text("tw-attack-detail", "Attack active · at least two eligible lineup fighters must hold the territory continuously for two minutes.");
+    }
+    return;
+  }
+
+  const protection = parseDate(event.protection_until);
+  const ownsTerritory = String(event.owner_name || "").toLowerCase() === String(group.name || "").toLowerCase();
+  const canDeclare = ["leader", "officer"].includes(String(group.role));
+  const activeFighters = activeLineupCount(data);
+
+  text("tw-attack-title", "No active attack");
+  if (event.status !== "live") {
+    text("tw-attack-detail", "Attack declarations open when the event is live.");
+  } else if (protection && protection.getTime() > Date.now()) {
+    text("tw-attack-detail", `Territory is protected after capture until ${protection.toLocaleString()}.`);
+  } else if (ownsTerritory) {
+    text("tw-attack-detail", "Your Group currently owns this territory. Hold the zone and defend it from challengers.");
+  } else if (activeFighters < 2) {
+    text("tw-attack-detail", `Your lineup needs at least two active fighters before an attack can be declared. Active now: ${activeFighters}.`);
+  } else if (!canDeclare) {
+    text("tw-attack-detail", "A Group Leader or Officer can declare the attack.");
+  } else {
+    text("tw-attack-detail", "Declare the attack to start the five-minute server warning before contesting begins.");
+    if (button) button.hidden = false;
+  }
+}
+
 function renderEventEntry(data) {
   const group = data?.group;
   const event = data?.event;
@@ -359,6 +426,7 @@ function renderEventEntry(data) {
 
   if (!registration) {
     setHidden("tw-lineup-state", true);
+    setHidden("tw-attack-state", true);
     setMessage(
       "tw-event-entry-message",
       isLeader
@@ -378,6 +446,7 @@ function renderEventEntry(data) {
       : "Only selected lineup members contribute presence, kills, deaths, or territory control."
   );
   renderLineup(data);
+  renderAttack(data);
 }
 
 async function loadPublicState() {
@@ -388,6 +457,11 @@ async function loadPublicState() {
     renderLog(data.log);
     renderLeaderboard(data.leaderboard);
     text("tw-registration-count", Number(data.registrationCount || 0));
+    if (currentPlayerState) {
+      currentPlayerState.event = data.event;
+      currentPlayerState.attack = data.attack;
+      renderAttack(currentPlayerState);
+    }
   } catch (error) {
     text("tw-event-name", error.message || "Could not load Territory Wars state.");
   }
@@ -524,10 +598,35 @@ async function saveLineup() {
   }
 }
 
+async function declareAttack() {
+  const data = currentPlayerState;
+  const button = document.getElementById("tw-declare-attack");
+  if (!data?.event?.id || !data?.group) return;
+  if (!confirm(`Declare an attack on ${data.event.territory_name || "this territory"}? A five-minute warning will start immediately.`)) return;
+  if (button) button.disabled = true;
+  setMessage("tw-attack-message", "Declaring attack…");
+  try {
+    const result = await api("/api/territory-wars/attack-declare", {
+      method: "POST",
+      body: JSON.stringify({ eventId: data.event.id }),
+    });
+    currentPlayerState.event = result.event;
+    currentPlayerState.attack = result.attack;
+    renderEvent(result.event);
+    renderAttack(currentPlayerState);
+    setMessage("tw-attack-message", "Attack declared. Five-minute warning started.");
+    await loadPublicState();
+  } catch (error) {
+    setMessage("tw-attack-message", error.message || "Could not declare attack.", true);
+    if (button) button.disabled = false;
+  }
+}
+
 document.getElementById("tw-group-create-form")?.addEventListener("submit", createGroup);
 document.getElementById("tw-group-invite-form")?.addEventListener("submit", sendGroupInvite);
 document.getElementById("tw-event-register-group")?.addEventListener("click", registerGroupForEvent);
 document.getElementById("tw-save-lineup")?.addEventListener("click", saveLineup);
+document.getElementById("tw-declare-attack")?.addEventListener("click", declareAttack);
 
 Promise.all([loadPublicState(), loadPlayerState()]);
 setInterval(loadPublicState, 15000);
