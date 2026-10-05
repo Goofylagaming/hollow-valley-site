@@ -29,6 +29,7 @@ const serverStatusRouter = require("./routes/serverStatus");
 const eventsRouter = require("./routes/events");
 const friendsRouter = require("./routes/friends");
 const mapdataRouter = require("./routes/mapdata");
+const territoryWarsRouter = require("./routes/territoryWars");
 const supporterInternalRouter = require("./routes/supporterInternal");
 const adminRestoreRouter = require("./routes/adminRestore");
 const adminOperationsRouter = require("./routes/adminOperations");
@@ -212,6 +213,7 @@ function createApp() {
   app.use("/api/server-status", serverStatusRouter);
   app.use("/api/events", eventsRouter);
   app.use("/api/friends", friendsRouter);
+  app.use("/api/territory-wars", territoryWarsRouter);
   app.use("/api/admin-restore", adminRestoreRouter);
   app.use("/api/admin-operations", adminOperationsRouter);
   app.use("/api/admin-player-directory", adminPlayerDirectoryRouter);
@@ -242,6 +244,7 @@ function createApp() {
     admincomms: "admincomms.html",
     adminrestore: "adminrestore.html",
     adminsupporters: "adminsupporters.html",
+    adminterritorywars: "adminterritorywars.html",
   };
   for (const [route, file] of Object.entries(ADMIN_PAGE_ROUTES)) {
     app.get([`/${route}`, `/${route}.html`], requireAdmin, (_req, res) => {
