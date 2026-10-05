@@ -293,6 +293,27 @@ function groupMatchingOwner(ownerName) {
   `).get(name, name.replace(/^\[|\]$/g, "")) || null;
 }
 
+function isAdminSystemOwner(event) {
+  if (!event) return false;
+  const owner = String(event.owner_name || "").trim().toLowerCase();
+  return owner === "admin" && !groupMatchingOwner(event.owner_name);
+}
+
+function adminSystemDefenders(event) {
+  if (!isAdminSystemOwner(event)) return [];
+  return db.prepare(`
+    SELECT id AS user_id, username, steam_id, 'defender' AS role
+    FROM users
+    WHERE is_admin = 1 AND steam_id IS NOT NULL
+    ORDER BY username COLLATE NOCASE
+  `).all().filter((user) => /^\d{17}$/.test(String(user.steam_id || "")));
+}
+
+function adminSystemDefenderBySteam(event, steamId) {
+  if (!isAdminSystemOwner(event) || !/^\d{17}$/.test(String(steamId || ""))) return null;
+  return adminSystemDefenders(event).find((member) => String(member.steam_id) === String(steamId)) || null;
+}
+
 function groupForUser(userId) {
   return db.prepare(`
     SELECT g.id, g.name, g.tag, g.leader_user_id, gm.role,
@@ -430,6 +451,7 @@ function territoryPresence(event, includePlayers = false) {
   }
 
   const players = [];
+  const nowMs = Date.now();
   for (const character of Array.isArray(state.characters) ? state.characters : []) {
     const { x, y } = fromRconLocation(character?.location);
     const zone = classifyWorldPosition(x, y, geometry);
@@ -437,7 +459,9 @@ function territoryPresence(event, includePlayers = false) {
     const steamId = String(character?.steamId || "");
     const lineup = lineupMembershipBySteam(event?.id, steamId);
     const activeAt = parseDate(lineup?.active_from);
-    const lineupActive = Boolean(activeAt && activeAt.getTime() <= Date.now());
+    const lineupActive = Boolean(activeAt && activeAt.getTime() <= nowMs);
+    const systemDefender = !lineupActive ? adminSystemDefenderBySteam(event, steamId) : null;
+    const eligible = lineupActive || Boolean(systemDefender);
     const membership = /^\d{17}$/.test(steamId)
       ? db.prepare(`
           SELECT g.id AS group_id, g.name AS group_name, g.tag AS group_tag, gm.role
@@ -449,19 +473,23 @@ function territoryPresence(event, includePlayers = false) {
           LIMIT 1
         `).get(steamId)
       : null;
+    const displayMembership = systemDefender
+      ? { group_id: null, group_name: "Admin", group_tag: "ADMIN", role: "defender" }
+      : membership;
     players.push({
       steamId,
       name: character?.name || "Unknown player",
       species: character?.species || "Unknown species",
       isPrime: Boolean(character?.isPrime),
-      lineupActive,
+      lineupActive: eligible,
+      systemDefender: Boolean(systemDefender),
       inClaim: zone.inClaim,
       distanceMetres: zone.distanceMetres,
-      ...(membership ? {
-        groupId: membership.group_id,
-        groupName: membership.group_name,
-        groupTag: membership.group_tag,
-        groupRole: membership.role,
+      ...(displayMembership ? {
+        groupId: displayMembership.group_id,
+        groupName: displayMembership.group_name,
+        groupTag: displayMembership.group_tag,
+        groupRole: displayMembership.role,
       } : {}),
     });
   }
@@ -475,6 +503,7 @@ function territoryPresence(event, includePlayers = false) {
     claimCount: players.filter((player) => player.inClaim).length,
     eligibleCount: players.filter((player) => player.lineupActive).length,
     eligibleClaimCount: players.filter((player) => player.lineupActive && player.inClaim).length,
+    systemDefenderCount: players.filter((player) => player.systemDefender).length,
     ...(includePlayers ? { players } : {}),
     lastChecked: state.lastChecked || null,
   };
@@ -497,8 +526,8 @@ function decorateAttack(attack) {
     ...attack,
     attacker_name: attacker?.name || "Unknown attacker",
     attacker_tag: attacker?.tag || null,
-    defender_name: defender?.name || null,
-    defender_tag: defender?.tag || null,
+    defender_name: defender?.name || (attack.defender_group_id ? null : "Admin"),
+    defender_tag: defender?.tag || (attack.defender_group_id ? null : "ADMIN"),
   };
 }
 
@@ -534,12 +563,20 @@ function contestPresence(event, attack, nowMs) {
     if (zone.inClaim) insideClaimSteamIds.add(String(character?.steamId || ""));
   }
 
-  const attackers = activeLineup(event.id, attack.attacker_group_id, nowMs)
+  const attackerLineup = activeLineup(event.id, attack.attacker_group_id, nowMs);
+  const attackers = attackerLineup
     .filter((member) => updateGrace(event.id, member, insideClaimSteamIds, nowMs)).length;
-  const defenders = attack.defender_group_id
-    ? activeLineup(event.id, attack.defender_group_id, nowMs)
-      .filter((member) => updateGrace(event.id, member, insideClaimSteamIds, nowMs)).length
-    : 0;
+  const attackerSteamIds = new Set(attackerLineup.map((member) => String(member.steam_id)));
+
+  let defenderLineup = [];
+  if (attack.defender_group_id) {
+    defenderLineup = activeLineup(event.id, attack.defender_group_id, nowMs);
+  } else if (isAdminSystemOwner(event)) {
+    defenderLineup = adminSystemDefenders(event)
+      .filter((member) => !attackerSteamIds.has(String(member.steam_id)));
+  }
+  const defenders = defenderLineup
+    .filter((member) => updateGrace(event.id, member, insideClaimSteamIds, nowMs)).length;
 
   return { usable: true, attackers, defenders };
 }
@@ -712,6 +749,7 @@ function publicState({ includePlayers = false, includeRegistrations = false } = 
       controlContributorCap: CONTROL_CONTRIBUTOR_CAP,
       battlefieldRadiusMetres: DEFAULT_BATTLEFIELD_RADIUS * 10,
       claimRadiusMetres: DEFAULT_CLAIM_RADIUS * 10,
+      adminSystemDefenders: true,
     },
     ...(includeRegistrations ? { registrations: eventRaw ? registrationsForEvent(eventRaw.id) : [] } : {}),
   };
@@ -751,7 +789,6 @@ router.get("/me", requireAuth, (req, res) => {
   });
 });
 
-// Retained for backward compatibility with the earliest Territory Wars preview.
 router.post("/register", requireAuth, (req, res) => {
   if (!/^\d{17}$/.test(String(req.user.steam_id || ""))) {
     return res.status(403).json({ error: "Link or sign in with Steam before registering for Territory Wars" });
