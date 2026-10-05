@@ -199,3 +199,47 @@ test('natural deaths and non-lineup fighters never award Territory kills', () =>
 
   assert.equal(db.prepare('SELECT kills FROM territory_group_stats WHERE group_id = ?').get(war.attackerGroupId).kills, 0);
 });
+
+test('Admin owner is a real system defender faction for verified Battlefield kills', () => {
+  const war = seedWar();
+  db.prepare('UPDATE users SET is_admin = 1 WHERE id = ?').run(war.defender.id);
+  db.prepare('DELETE FROM territory_event_lineups WHERE event_id = ? AND user_id = ?').run(war.eventId, war.defender.id);
+  db.prepare('UPDATE territory_attacks SET defender_group_id = NULL WHERE id = ?').run(war.attackId);
+  db.prepare("UPDATE territory_events SET owner_name = 'Admin' WHERE id = ?").run(war.eventId);
+  const territoryEvent = db.prepare('SELECT * FROM territory_events WHERE id = ?').get(war.eventId);
+
+  const attackerKill = combatEvent(war, { occurredAt: '2026-10-05T08:00:00.000Z' });
+  let result = sync._test.processCombatEvent(attackerKill, territoryEvent);
+  assert.equal(result.counted, true);
+  assert.equal(result.killerSide, 'attacker');
+  assert.equal(result.victimSide, 'defender');
+  assert.equal(result.killerGroupId, war.attackerGroupId);
+  assert.equal(result.victimGroupId, null);
+
+  const adminKill = combatEvent(war, {
+    occurredAt: '2026-10-05T08:01:00.000Z',
+    killerSteamId: war.defender.steamId,
+    killerName: war.defender.name,
+    victimSteamId: war.attacker.steamId,
+    victimName: war.attacker.name,
+  });
+  result = sync._test.processCombatEvent(adminKill, territoryEvent);
+  assert.equal(result.counted, true);
+  assert.equal(result.killerSide, 'defender');
+  assert.equal(result.victimSide, 'attacker');
+  assert.equal(result.killerGroupId, null);
+  assert.equal(result.victimGroupId, war.attackerGroupId);
+
+  const attackerStats = db.prepare('SELECT kills, deaths FROM territory_group_stats WHERE group_id = ?').get(war.attackerGroupId);
+  assert.equal(attackerStats.kills, 1);
+  assert.equal(attackerStats.deaths, 1);
+
+  const logRows = db.prepare(`
+    SELECT message FROM territory_event_log
+    WHERE event_id = ? AND kind = 'kill'
+    ORDER BY id ASC
+  `).all(war.eventId);
+  assert.equal(logRows.length, 2);
+  assert.match(logRows[0].message, /Admin \[ADMIN\]/);
+  assert.match(logRows[1].message, /Admin \[ADMIN\]/);
+});
