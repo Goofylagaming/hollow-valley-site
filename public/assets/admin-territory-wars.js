@@ -338,13 +338,23 @@ async function postAction(path, confirmText, payload = {}) {
   if (!currentEvent?.id) return setMessage("Save an event first.", true);
   if (confirmText && !confirm(confirmText)) return;
   try {
-    const data = await api(`/api/territory-wars/admin/${path}`, {
+    let data = await api(`/api/territory-wars/admin/${path}`, {
       method: "POST",
       body: JSON.stringify({ id: currentEvent.id, ...payload }),
     });
+
+    // A reset clears the contest and score, then deliberately pauses the event.
+    // This prevents an old starts_at timestamp from immediately auto-starting it again.
+    if (path === "reset") {
+      data = await api("/api/territory-wars/admin/status", {
+        method: "POST",
+        body: JSON.stringify({ id: currentEvent.id, status: "paused" }),
+      });
+    }
+
     renderEvent(data.event, data.log || []);
     await refreshPresence();
-    setMessage("Territory War updated.");
+    setMessage(path === "reset" ? "Territory reset and paused." : "Territory War updated.");
   } catch (error) {
     setMessage(error.message || "Territory War action failed.", true);
   }
@@ -360,7 +370,7 @@ document.getElementById("tw-admin-control")?.addEventListener("input", (event) =
 });
 
 document.getElementById("tw-admin-apply-control")?.addEventListener("click", applyControl);
-document.getElementById("tw-admin-reset")?.addEventListener("click", () => postAction("reset", "Reset this territory to current-owner control and clear the active attack?"));
+document.getElementById("tw-admin-reset")?.addEventListener("click", () => postAction("reset", "Reset this territory to current-owner control and pause the event?"));
 document.getElementById("tw-admin-remove-challenger")?.addEventListener("click", () => postAction("remove-challenger", "Remove the current challenger and reset control?"));
 document.getElementById("tw-admin-owner-win")?.addEventListener("click", () => postAction("force-capture", "Force the current owner to retain this territory?", { winner: "owner" }));
 document.getElementById("tw-admin-challenger-win")?.addEventListener("click", () => postAction("force-capture", "Force the challenger to capture this territory?", { winner: "challenger" }));
