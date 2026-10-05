@@ -83,12 +83,12 @@ function renderPresence(presence) {
   if (!presence?.tracking) {
     count.textContent = "Not tracked";
     count.className = "tw-status";
-    text("tw-admin-presence-heading", "Territory is not a mapped Gateway region");
-    target.innerHTML = '<div class="tw-empty">Use a named Gateway region such as South Plains to enable live presence.</div>';
+    text("tw-admin-presence-heading", "Territory geometry unavailable");
+    target.innerHTML = '<div class="tw-empty">This event does not currently have usable Battlefield and Claim Zone geometry.</div>';
     return;
   }
 
-  text("tw-admin-presence-heading", `Players in ${presence.region || "territory"}`);
+  text("tw-admin-presence-heading", `${presence.region || "Territory"} Battlefield / Claim Zone`);
   if (!presence.serverOnline) {
     count.textContent = "Server offline";
     count.className = "tw-status";
@@ -97,16 +97,19 @@ function renderPresence(presence) {
   }
 
   const players = Array.isArray(presence.players) ? presence.players : [];
-  const eligible = players.filter((player) => player.lineupActive).length;
-  count.textContent = eligible ? `${eligible} eligible · ${players.length} live` : `${players.length} live`;
-  count.className = `tw-status ${players.length ? "live" : ""}`;
+  const battlefieldCount = Number(presence.playerCount ?? players.length) || 0;
+  const claimCount = Number(presence.claimCount ?? players.filter((player) => player.inClaim).length) || 0;
+  const eligibleClaim = Number(presence.eligibleClaimCount ?? players.filter((player) => player.lineupActive && player.inClaim).length) || 0;
+  count.textContent = `${eligibleClaim} eligible claim · ${claimCount} claim · ${battlefieldCount} battlefield`;
+  count.className = `tw-status ${battlefieldCount ? "live" : ""}`;
   target.replaceChildren();
   if (!players.length) {
-    target.innerHTML = '<div class="tw-empty">No live players detected in this territory.</div>';
+    target.innerHTML = '<div class="tw-empty">No live players detected inside the Battlefield.</div>';
     return;
   }
 
-  for (const player of players) {
+  const orderedPlayers = [...players].sort((a, b) => Number(Boolean(b.inClaim)) - Number(Boolean(a.inClaim)) || String(a.name || "").localeCompare(String(b.name || "")));
+  for (const player of orderedPlayers) {
     const row = document.createElement("div");
     row.className = "tw-list-row";
     const main = document.createElement("div");
@@ -114,11 +117,20 @@ function renderPresence(presence) {
     strong.textContent = player.name || "Unknown player";
     const detail = document.createElement("span");
     const group = player.groupName ? `${player.groupName}${player.groupTag ? ` [${player.groupTag}]` : ""}` : "No permanent Group";
+    const zone = player.inClaim
+      ? "CLAIM ZONE"
+      : `Battlefield${Number.isFinite(Number(player.distanceMetres)) ? ` · ${Math.round(Number(player.distanceMetres))}m from claim centre` : ""}`;
+    const eligibility = player.systemDefender
+      ? "Admin defender"
+      : player.lineupActive
+        ? "Eligible lineup"
+        : "Not active lineup";
     detail.textContent = [
+      zone,
       player.species || "Unknown species",
       player.isPrime ? "Prime" : null,
       group,
-      player.lineupActive ? "Eligible lineup" : "Not active lineup",
+      eligibility,
       player.steamId || null,
     ].filter(Boolean).join(" · ");
     main.append(strong, detail);
@@ -185,17 +197,18 @@ function renderAttackState(event, attack) {
   }
 
   const attacker = `${attack.attacker_name || "Challenger"}${attack.attacker_tag ? ` [${attack.attacker_tag}]` : ""}`;
+  const defender = `${attack.defender_name || event?.owner_name || "Owner"}${attack.defender_tag ? ` [${attack.defender_tag}]` : ""}`;
   const status = String(attack.status || "warning");
   text("tw-admin-attack-status", status === "warning" ? "Warning" : "Active");
 
   if (status === "warning") {
-    text("tw-admin-attack-detail", `${attacker} declared an attack. Contest opens ${formatDate(attack.starts_at)}.`);
+    text("tw-admin-attack-detail", `${attacker} declared an attack on ${defender}. Contest opens ${formatDate(attack.starts_at)}.`);
     return;
   }
 
   const contestStarted = parseDate(attack.contest_started_at);
   if (!contestStarted) {
-    text("tw-admin-attack-detail", `${attacker} is active, but two eligible attackers have not yet held the territory continuously.`);
+    text("tw-admin-attack-detail", `${attacker} is active against ${defender}, but two eligible attackers have not yet held the Claim Zone continuously.`);
     return;
   }
 
@@ -203,8 +216,8 @@ function renderAttackState(event, attack) {
   text(
     "tw-admin-attack-detail",
     armsAt.getTime() > Date.now()
-      ? `${attacker} has started the two-minute contest hold. Control movement unlocks ${armsAt.toLocaleString()}.`
-      : `${attacker} has armed the contest. Live lineup presence can now move territory control.`
+      ? `${attacker} has started the two-minute Claim Zone hold against ${defender}. Control movement unlocks ${armsAt.toLocaleString()}.`
+      : `${attacker} has armed the contest against ${defender}. Eligible Claim Zone presence can now move territory control.`
   );
 }
 
@@ -343,8 +356,6 @@ async function postAction(path, confirmText, payload = {}) {
       body: JSON.stringify({ id: currentEvent.id, ...payload }),
     });
 
-    // A reset clears the contest and score, then deliberately pauses the event.
-    // This prevents an old starts_at timestamp from immediately auto-starting it again.
     if (path === "reset") {
       data = await api("/api/territory-wars/admin/status", {
         method: "POST",
