@@ -71,6 +71,50 @@ function renderLog(log) {
   }
 }
 
+function renderPresence(presence) {
+  const target = document.getElementById("tw-admin-presence");
+  const count = document.getElementById("tw-admin-presence-count");
+  if (!target || !count) return;
+
+  if (!presence?.tracking) {
+    count.textContent = "Not tracked";
+    count.className = "tw-status";
+    text("tw-admin-presence-heading", "Territory is not a mapped Gateway region");
+    target.innerHTML = '<div class="tw-empty">Use a named Gateway region such as South Plains to enable live presence.</div>';
+    return;
+  }
+
+  text("tw-admin-presence-heading", `Players in ${presence.region || "territory"}`);
+  if (!presence.serverOnline) {
+    count.textContent = "Server offline";
+    count.className = "tw-status";
+    target.innerHTML = '<div class="tw-empty">The Isle server is offline or the live tracker is unavailable.</div>';
+    return;
+  }
+
+  const players = Array.isArray(presence.players) ? presence.players : [];
+  count.textContent = `${players.length} live`;
+  count.className = `tw-status ${players.length ? "live" : ""}`;
+  target.replaceChildren();
+  if (!players.length) {
+    target.innerHTML = '<div class="tw-empty">No live players detected in this territory.</div>';
+    return;
+  }
+
+  for (const player of players) {
+    const row = document.createElement("div");
+    row.className = "tw-list-row";
+    const main = document.createElement("div");
+    const strong = document.createElement("strong");
+    strong.textContent = player.name || "Unknown player";
+    const detail = document.createElement("span");
+    detail.textContent = [player.species || "Unknown species", player.isPrime ? "Prime" : null, player.steamId || null].filter(Boolean).join(" · ");
+    main.append(strong, detail);
+    row.append(main);
+    target.append(row);
+  }
+}
+
 function populateForm(event) {
   if (!event) return;
   document.getElementById("tw-admin-name").value = event.name || "";
@@ -112,8 +156,18 @@ async function refreshState() {
   try {
     const data = await api("/api/territory-wars/admin/state");
     renderEvent(data.event, data.log);
+    renderPresence(data.presence);
   } catch (error) {
     setMessage(error.message || "Could not load Territory Wars admin state.", true);
+  }
+}
+
+async function refreshPresence() {
+  try {
+    const data = await api("/api/territory-wars/admin/state");
+    renderPresence(data.presence);
+  } catch {
+    // Keep the most recent live-presence state without disrupting admin edits.
   }
 }
 
@@ -139,6 +193,7 @@ async function saveEvent(event) {
       body: JSON.stringify(payload),
     });
     renderEvent(data.event, data.log);
+    await refreshPresence();
     setMessage("Territory War saved.");
   } catch (error) {
     setMessage(error.message || "Could not save event.", true);
@@ -209,3 +264,4 @@ document.getElementById("tw-admin-owner-win")?.addEventListener("click", () => p
 document.getElementById("tw-admin-challenger-win")?.addEventListener("click", () => postAction("force-capture", "Force the challenger to capture this territory?", { winner: "challenger" }));
 
 refreshState();
+setInterval(refreshPresence, 10000);
