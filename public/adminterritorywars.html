@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Hollow Valley Territory Wars administration.">
+  <title>Territory Wars Admin | Hollow Valley</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=38">
+  <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
+  <link rel="stylesheet" href="/assets/snapshot-ui.css?v=2">
+  <link rel="stylesheet" href="/assets/territory-wars.css?v=1">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main>
+      <section class="page-header">
+        <p class="overline green">HOLLOW VALLEY · ADMIN · TERRITORY WARS</p>
+        <h1>Territory Wars Admin</h1>
+        <p class="section-intro">Create wars, control live event state, adjust territory ownership, and review the player-facing war feed.</p>
+      </section>
+
+      <section class="roster-section tw-shell">
+        <div class="tw-admin-layout">
+          <section class="tw-card">
+            <div class="tw-card-head"><div><div class="tw-kicker">Event Setup</div><h2>Create or edit Territory War</h2></div><span class="tw-status" id="tw-admin-status">Scheduled</span></div>
+            <div class="tw-card-body">
+              <form id="tw-admin-event-form">
+                <div class="tw-form-grid">
+                  <div class="tw-field full"><label for="tw-admin-name">Event name</label><input id="tw-admin-name" placeholder="South Plains Territory War" required></div>
+                  <div class="tw-field"><label for="tw-admin-territory">Territory name</label><input id="tw-admin-territory" value="South Plains" required></div>
+                  <div class="tw-field"><label for="tw-admin-key">Territory key</label><input id="tw-admin-key" value="south-plains" required></div>
+                  <div class="tw-field"><label for="tw-admin-owner">Current owner</label><input id="tw-admin-owner" value="Admin" required></div>
+                  <div class="tw-field"><label for="tw-admin-challenger">Challenger</label><input id="tw-admin-challenger" placeholder="Group name or leave open"></div>
+                  <div class="tw-field"><label for="tw-admin-starts">Starts</label><input id="tw-admin-starts" type="datetime-local"></div>
+                  <div class="tw-field"><label for="tw-admin-ends">Ends</label><input id="tw-admin-ends" type="datetime-local"></div>
+                </div>
+                <div class="tw-actions">
+                  <button class="tw-button primary" type="submit" id="tw-admin-save">Save Event</button>
+                  <a class="tw-button" href="/groups/territory-wars/" style="display:inline-flex;align-items:center;text-decoration:none">Open Player View</a>
+                </div>
+                <div class="tw-inline-message" id="tw-admin-message" aria-live="polite"></div>
+              </form>
+            </div>
+          </section>
+
+          <section class="tw-card">
+            <div class="tw-card-head"><div><div class="tw-kicker">Live Control</div><h3>Event controls</h3></div></div>
+            <div class="tw-card-body">
+              <div class="tw-actions" style="margin-top:0">
+                <button class="tw-button primary" type="button" data-status="live">Start / Resume</button>
+                <button class="tw-button warn" type="button" data-status="paused">Pause</button>
+                <button class="tw-button" type="button" data-status="ended">End</button>
+                <button class="tw-button danger" type="button" id="tw-admin-reset">Reset Territory</button>
+              </div>
+              <div style="height:14px"></div>
+              <div class="tw-control-editor">
+                <div class="tw-control-labels"><span>Owner control</span><strong id="tw-admin-control-value">100%</strong></div>
+                <input id="tw-admin-control" type="range" min="0" max="100" value="100">
+                <button class="tw-button" id="tw-admin-apply-control" type="button">Apply Control</button>
+              </div>
+              <div class="tw-actions">
+                <button class="tw-button" id="tw-admin-owner-win" type="button">Force Owner Defence</button>
+                <button class="tw-button warn" id="tw-admin-challenger-win" type="button">Force Challenger Capture</button>
+                <button class="tw-button danger" id="tw-admin-remove-challenger" type="button">Remove Challenger</button>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <div class="tw-grid">
+          <section class="tw-card">
+            <div class="tw-card-head"><div><div class="tw-kicker">Current State</div><h3 id="tw-admin-territory-heading">South Plains</h3></div><span class="tw-status" id="tw-admin-current-status">Scheduled</span></div>
+            <div class="tw-card-body">
+              <div class="tw-owner-row">
+                <div class="tw-faction"><span>Owner</span><strong id="tw-admin-current-owner">Admin</strong></div>
+                <div class="tw-versus">VS</div>
+                <div class="tw-faction"><span>Challenger</span><strong id="tw-admin-current-challenger">Open</strong></div>
+              </div>
+              <div style="height:12px"></div>
+              <div class="tw-control-wrap">
+                <div class="tw-control-labels"><span id="tw-admin-owner-percent">100%</span><span id="tw-admin-challenger-percent">0%</span></div>
+                <div class="tw-control-bar"><span class="tw-control-owner" id="tw-admin-owner-bar"></span><span class="tw-control-challenger" id="tw-admin-challenger-bar"></span></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="tw-card">
+            <div class="tw-card-head"><div><div class="tw-kicker">Activity</div><h3>Admin Event Log</h3></div></div>
+            <div class="tw-card-body"><div class="tw-list" id="tw-admin-log"><div class="tw-empty">No Territory War activity yet.</div></div></div>
+          </section>
+        </div>
+
+        <p class="tw-note">All controls on this page are protected by the existing Hollow Valley admin middleware. Hiding the navigation link is only cosmetic; direct access by a normal player is blocked server-side.</p>
+      </section>
+    </main>
+  </div>
+  <script src="/assets/common.js?v=20"></script>
+  <script src="/assets/admin-territory-wars.js?v=1"></script>
+</body>
+</html>
