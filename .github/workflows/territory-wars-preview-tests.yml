@@ -8,9 +8,15 @@ on:
       - 'server/routes/territoryWars.js'
       - 'server/services/territoryGeometry.js'
       - 'server/services/territoryControl.js'
+      - 'server/services/territoryCombatClient.js'
+      - 'server/services/territoryCombatSync.js'
       - 'server/index.js'
       - 'server/evrimaMap.js'
       - 'server/services/serverStatus.js'
+      - 'automation-platform/src/services/combatEventService.js'
+      - 'automation-platform/src/routes/territoryCombatWebsiteRoutes.js'
+      - 'automation-platform/src/index.js'
+      - 'automation-platform/test/combatEventService.test.js'
       - 'public/groups/territory-wars/**'
       - 'public/adminterritorywars.html'
       - 'public/assets/territory-wars.js'
@@ -19,6 +25,7 @@ on:
       - 'test/territoryWarsRoute.test.js'
       - 'test/territoryGeometry.test.js'
       - 'test/territoryControl.test.js'
+      - 'test/territoryCombatSync.test.js'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/territory-wars-preview-tests.yml'
@@ -44,5 +51,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run Territory Wars tests
-        run: node --test test/territoryWarsRoute.test.js test/territoryGeometry.test.js test/territoryControl.test.js
+      - name: Run Territory Wars portal tests
+        run: node --test test/territoryWarsRoute.test.js test/territoryGeometry.test.js test/territoryControl.test.js test/territoryCombatSync.test.js
+
+      - name: Run authoritative combat enrichment tests
+        run: node --test automation-platform/test/combatEventService.test.js
