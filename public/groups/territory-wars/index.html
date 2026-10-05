@@ -17,7 +17,7 @@
       <section class="page-header">
         <p class="overline green">MY STUFF · GROUPS · TERRITORY WARS</p>
         <h1>Territory Wars</h1>
-        <p class="section-intro">Register your group, follow live control of Hollow Valley territories, and see which packs are leading the war.</p>
+        <p class="section-intro">Register for wars, follow live control and in-game presence across Hollow Valley territories, and see which packs are leading the fight.</p>
       </section>
 
       <section class="groups-page tw-shell">
@@ -59,6 +59,7 @@
             <div class="tw-card-body">
               <div class="tw-meta-grid">
                 <div class="tw-meta"><small>Status</small><b><span class="tw-status" id="tw-status">Scheduled</span></b></div>
+                <div class="tw-meta"><small>Live Presence</small><b id="tw-presence">Server offline</b></div>
                 <div class="tw-meta"><small>Starts</small><b id="tw-starts">Not set</b></div>
                 <div class="tw-meta"><small>Ends</small><b id="tw-ends">Not set</b></div>
               </div>
@@ -109,11 +110,11 @@
           </div>
         </section>
 
-        <p class="tw-note">Live in-game territory detection, combat scoring, and Discord group sync can feed this same page next. This preview already stores event state and registrations in the Hollow Valley database.</p>
+        <p class="tw-note">Live territory presence now reuses Hollow Valley's existing server/map tracker, so normal players see only the number of dinosaurs in the active region—not anyone else's coordinates. Combat scoring and Discord group sync are the next bridge pieces.</p>
       </section>
     </main>
   </div>
   <script src="/assets/common.js?v=20"></script>
-  <script src="/assets/territory-wars.js?v=1"></script>
+  <script src="/assets/territory-wars.js?v=2"></script>
 </body>
 </html>
