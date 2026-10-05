@@ -15,9 +15,16 @@ on:
       - 'server/evrimaMap.js'
       - 'server/services/serverStatus.js'
       - 'automation-platform/src/services/combatEventService.js'
+      - 'automation-platform/src/services/herbyBotOutboxService.js'
+      - 'automation-platform/src/services/discordAutomationService.js'
+      - 'automation-platform/src/services/territoryWarDiscordService.js'
       - 'automation-platform/src/routes/territoryCombatWebsiteRoutes.js'
+      - 'automation-platform/integration/herbyBotBridge.js'
       - 'automation-platform/src/index.js'
       - 'automation-platform/test/combatEventService.test.js'
+      - 'automation-platform/test/herbyBotOutbox.test.js'
+      - 'automation-platform/test/herbyBotBridge.test.js'
+      - 'automation-platform/test/territoryWarDiscordService.test.js'
       - 'public/groups/territory-wars/**'
       - 'public/adminterritorywars.html'
       - 'public/assets/territory-wars.js'
@@ -58,3 +65,6 @@ jobs:
 
       - name: Run authoritative combat enrichment tests
         run: node --test automation-platform/test/combatEventService.test.js
+
+      - name: Run Territory Wars Discord integration tests
+        run: node --test automation-platform/test/herbyBotOutbox.test.js automation-platform/test/herbyBotBridge.test.js automation-platform/test/territoryWarDiscordService.test.js
