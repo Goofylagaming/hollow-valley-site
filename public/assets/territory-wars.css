@@ -430,6 +430,124 @@
   text-decoration: none;
 }
 
+.tw-section-break {
+  height: 1px;
+  margin: 14px 0;
+  background: rgba(112, 151, 135, .13);
+}
+
+.tw-group-title-row,
+.tw-event-entry-heading,
+.tw-lineup-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.tw-group-title-row > div,
+.tw-event-entry-heading > div {
+  min-width: 0;
+}
+
+.tw-group-title-row strong,
+.tw-event-entry-heading strong {
+  display: block;
+  color: #e7f4ef;
+  font-size: 13px;
+}
+
+.tw-group-title-row span:not(.tw-status),
+.tw-event-entry-heading span {
+  display: block;
+  margin-top: 3px;
+  color: #71877f;
+  font-size: 9px;
+}
+
+.tw-lineup-heading h3 {
+  margin: 2px 0 3px;
+}
+
+.tw-lineup-heading .tw-muted {
+  margin: 0;
+}
+
+.tw-lineup-list {
+  display: grid;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.tw-lineup-row {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 8px 10px;
+  border: 1px solid rgba(112, 151, 135, .14);
+  border-radius: 8px;
+  background: rgba(255,255,255,.014);
+  cursor: pointer;
+}
+
+.tw-lineup-row:hover {
+  border-color: rgba(112, 151, 135, .32);
+}
+
+.tw-lineup-row.is-selected {
+  border-color: rgba(57, 221, 160, .3);
+  background: rgba(57, 221, 160, .045);
+}
+
+.tw-lineup-row.is-pending {
+  border-color: rgba(255, 209, 125, .28);
+  background: rgba(255, 209, 125, .035);
+}
+
+.tw-lineup-check {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #39dda0;
+}
+
+.tw-lineup-check:disabled {
+  opacity: .45;
+}
+
+.tw-lineup-info {
+  min-width: 0;
+}
+
+.tw-lineup-info strong {
+  display: block;
+  color: #dcebe5;
+  font-size: 10px;
+}
+
+.tw-lineup-info > span {
+  display: block;
+  margin-top: 3px;
+  color: #71877f;
+  font-size: 9px;
+}
+
+.tw-lineup-badge {
+  color: #60776e;
+  font-size: 8px;
+  letter-spacing: .06em;
+}
+
+.tw-lineup-badge.active {
+  color: #56e7ae;
+}
+
+.tw-lineup-badge.pending {
+  color: #ffd17d;
+}
+
 @media (max-width: 900px) {
   .tw-grid,
   .tw-admin-layout {
@@ -452,5 +570,16 @@
 
   .tw-versus {
     display: none;
+  }
+
+  .tw-group-title-row,
+  .tw-event-entry-heading,
+  .tw-lineup-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .tw-event-entry-heading .tw-button {
+    width: 100%;
   }
 }
