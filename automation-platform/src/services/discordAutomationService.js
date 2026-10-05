@@ -1,5 +1,6 @@
 const { getServerSnapshot } = require('./statusService');
 const herbyBot = require('./herbyBotOutboxService');
+const territoryWarDiscord = require('./territoryWarDiscordService');
 
 let lastStatusChannelName = null;
 let lastSyncAt = null;
@@ -94,12 +95,16 @@ function getState() {
     lastSyncAt,
     lastError,
     outbox: bridge.outbox,
+    territoryWars: territoryWarDiscord.getState(),
   };
 }
 
 function startDiscordAutomation() {
   // The automation service intentionally does not connect to Discord.
   // Existing HerbyBot owns the single gateway connection and polls the outbox.
+  // Territory Wars only polls the website's public war state and queues durable
+  // messages into that same outbox when explicitly enabled.
+  territoryWarDiscord.start();
   return null;
 }
 
