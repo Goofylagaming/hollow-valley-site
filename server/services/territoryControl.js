@@ -10,7 +10,24 @@ function effectivePresence(value, cap = CONTROL_CONTRIBUTOR_CAP) {
   return Math.min(count(value), Math.max(1, count(cap) || CONTROL_CONTRIBUTOR_CAP));
 }
 
-function controlRatePerMinute({ attackers = 0, defenders = 0, contributorCap = CONTROL_CONTRIBUTOR_CAP, momentumRate = 0 } = {}) {
+function resolveMomentumRate(momentumRate) {
+  if (momentumRate !== undefined && momentumRate !== null) {
+    const explicit = Number(momentumRate);
+    return Number.isFinite(explicit) ? explicit : 0;
+  }
+
+  try {
+    // Lazy-load keeps the pure scoring helper usable in isolation while letting
+    // the live runtime pick up the one active war's verified kill momentum.
+    const territoryMomentum = require('./territoryMomentum');
+    return Number(territoryMomentum.liveMomentum().ratePerMinute) || 0;
+  } catch {
+    // Momentum is a bonus signal, never a reason to stop capture processing.
+    return 0;
+  }
+}
+
+function controlRatePerMinute({ attackers = 0, defenders = 0, contributorCap = CONTROL_CONTRIBUTOR_CAP, momentumRate } = {}) {
   const effectiveAttackers = effectivePresence(attackers, contributorCap);
   const effectiveDefenders = effectivePresence(defenders, contributorCap);
 
@@ -18,7 +35,7 @@ function controlRatePerMinute({ attackers = 0, defenders = 0, contributorCap = C
   if (effectiveAttackers > effectiveDefenders) presenceRate += ADVANTAGE_BONUS_PER_MINUTE;
   else if (effectiveDefenders > effectiveAttackers) presenceRate -= ADVANTAGE_BONUS_PER_MINUTE;
 
-  const momentum = Number.isFinite(Number(momentumRate)) ? Number(momentumRate) : 0;
+  const momentum = resolveMomentumRate(momentumRate);
   const rate = presenceRate + momentum;
 
   return {
@@ -40,7 +57,7 @@ function advanceControlScore({
   defenders = 0,
   elapsedSeconds = 0,
   contributorCap = CONTROL_CONTRIBUTOR_CAP,
-  momentumRate = 0,
+  momentumRate,
 } = {}) {
   const current = Math.max(-100, Math.min(100, Number(score) || 0));
   const seconds = Math.max(0, Math.min(60, Number(elapsedSeconds) || 0));
@@ -58,6 +75,7 @@ module.exports = {
   CONTROL_CONTRIBUTOR_CAP,
   ADVANTAGE_BONUS_PER_MINUTE,
   effectivePresence,
+  resolveMomentumRate,
   controlRatePerMinute,
   advanceControlScore,
 };
