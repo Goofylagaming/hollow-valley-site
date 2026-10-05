@@ -34,6 +34,11 @@ function seedAttack() {
   return { eventId, attackId };
 }
 
+function endExistingWars() {
+  db.prepare(`UPDATE territory_attacks SET status = 'resolved', resolved_at = '2026-10-05T08:11:00.000Z' WHERE status = 'active'`).run();
+  db.prepare(`UPDATE territory_events SET status = 'ended' WHERE status = 'live'`).run();
+}
+
 test('verified kills create sixty seconds of capped temporary momentum', () => {
   const seeded = seedAttack();
   const now = Date.parse('2026-10-05T08:10:00.000Z');
@@ -90,4 +95,24 @@ test('duplicate combat event IDs cannot create duplicate momentum', () => {
   const result = momentum.recentMomentum(seeded.eventId, seeded.attackId, now);
   assert.equal(result.attackerKills, 1);
   assert.equal(result.ratePerMinute, 1);
+});
+
+test('live momentum resolves the one active war and fails closed if multiple wars are active', () => {
+  endExistingWars();
+  const now = Date.parse('2026-10-05T08:10:00.000Z');
+  const first = seedAttack();
+  momentum.recordKill({ combatEventId: 'mom-live-1', ...first, side: 'attacker', occurredAt: '2026-10-05T08:09:45.000Z' });
+
+  let result = momentum.liveMomentum(now);
+  assert.equal(result.activeAttackCount, 1);
+  assert.equal(result.ambiguous, false);
+  assert.equal(result.eventId, first.eventId);
+  assert.equal(result.attackId, first.attackId);
+  assert.equal(result.ratePerMinute, 1);
+
+  seedAttack();
+  result = momentum.liveMomentum(now);
+  assert.equal(result.activeAttackCount, 2);
+  assert.equal(result.ambiguous, true);
+  assert.equal(result.ratePerMinute, 0);
 });
