@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Hollow Valley Territory Wars.">
+  <title>Territory Wars | Hollow Valley</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=38">
+  <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
+  <link rel="stylesheet" href="/assets/snapshot-ui.css?v=2">
+  <link rel="stylesheet" href="/assets/territory-wars.css?v=1">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main>
+      <section class="page-header">
+        <p class="overline green">MY STUFF · GROUPS · TERRITORY WARS</p>
+        <h1>Territory Wars</h1>
+        <p class="section-intro">Register your group, follow live control of Hollow Valley territories, and see which packs are leading the war.</p>
+      </section>
+
+      <section class="groups-page tw-shell">
+        <nav class="tw-tabs" aria-label="Groups pages">
+          <a href="/groups/">Groups</a>
+          <a class="is-active" href="/groups/territory-wars/" aria-current="page">Territory Wars</a>
+        </nav>
+
+        <div class="tw-grid">
+          <section class="tw-card">
+            <div class="tw-hero">
+              <div>
+                <div class="tw-kicker">Live Territory</div>
+                <h2 id="tw-territory-name">South Plains</h2>
+                <p class="tw-muted" id="tw-event-name">No Territory War event is scheduled yet.</p>
+              </div>
+
+              <div class="tw-owner-row">
+                <div class="tw-faction">
+                  <span>Current owner</span>
+                  <strong id="tw-owner-name">Admin</strong>
+                </div>
+                <div class="tw-versus">VS</div>
+                <div class="tw-faction">
+                  <span>Challenger</span>
+                  <strong id="tw-challenger-name">Open</strong>
+                </div>
+              </div>
+
+              <div class="tw-control-wrap">
+                <div class="tw-control-labels"><span id="tw-owner-percent">100%</span><span id="tw-challenger-percent">0%</span></div>
+                <div class="tw-control-bar" aria-label="Territory control">
+                  <span class="tw-control-owner" id="tw-owner-bar"></span>
+                  <span class="tw-control-challenger" id="tw-challenger-bar"></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="tw-card-body">
+              <div class="tw-meta-grid">
+                <div class="tw-meta"><small>Status</small><b><span class="tw-status" id="tw-status">Scheduled</span></b></div>
+                <div class="tw-meta"><small>Starts</small><b id="tw-starts">Not set</b></div>
+                <div class="tw-meta"><small>Ends</small><b id="tw-ends">Not set</b></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="tw-card">
+            <div class="tw-card-head">
+              <div><div class="tw-kicker">Your Entry</div><h3>War Registration</h3></div>
+              <span class="tw-status" id="tw-registration-status">Not registered</span>
+            </div>
+            <div class="tw-card-body">
+              <div id="tw-login-state" class="tw-empty">Sign in with Steam to register for Territory Wars.</div>
+              <div id="tw-player-state" hidden>
+                <p class="tw-muted" id="tw-player-summary">Your Steam account is connected.</p>
+                <div class="tw-actions">
+                  <button class="tw-button primary" id="tw-register" type="button">Register for Territory Wars</button>
+                  <a class="tw-button" href="/groups/" style="display:inline-flex;align-items:center;text-decoration:none">View my Group</a>
+                </div>
+                <div class="tw-inline-message" id="tw-registration-message" aria-live="polite"></div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <div class="tw-grid">
+          <section class="tw-card">
+            <div class="tw-card-head"><div><div class="tw-kicker">War Feed</div><h3>Recent Territory Activity</h3></div><span class="tw-muted">Newest first</span></div>
+            <div class="tw-card-body"><div class="tw-list" id="tw-event-log"><div class="tw-empty">No Territory War activity yet.</div></div></div>
+          </section>
+
+          <section class="tw-card">
+            <div class="tw-card-head"><div><div class="tw-kicker">Standings</div><h3>Group Leaderboard</h3></div></div>
+            <div class="tw-card-body"><div class="tw-list" id="tw-leaderboard"><div class="tw-empty">No group results recorded yet.</div></div></div>
+          </section>
+        </div>
+
+        <section class="tw-card" id="tw-my-group-card" hidden>
+          <div class="tw-card-head"><div><div class="tw-kicker">Registered Group</div><h3 id="tw-group-name">Your Group</h3></div><span class="tw-status live">Linked</span></div>
+          <div class="tw-card-body">
+            <div class="tw-stat-grid">
+              <div class="tw-stat"><small>Wins</small><b id="tw-group-wins">0</b></div>
+              <div class="tw-stat"><small>Captures</small><b id="tw-group-captures">0</b></div>
+              <div class="tw-stat"><small>Kills</small><b id="tw-group-kills">0</b></div>
+            </div>
+            <div style="height:10px"></div>
+            <div class="tw-list" id="tw-group-roster"></div>
+          </div>
+        </section>
+
+        <p class="tw-note">Live in-game territory detection, combat scoring, and Discord group sync can feed this same page next. This preview already stores event state and registrations in the Hollow Valley database.</p>
+      </section>
+    </main>
+  </div>
+  <script src="/assets/common.js?v=20"></script>
+  <script src="/assets/territory-wars.js?v=1"></script>
+</body>
+</html>
