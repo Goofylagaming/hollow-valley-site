@@ -16,6 +16,7 @@ const websiteRoutes = require('./routes/websiteRoutes');
 const websiteAdminWalletRoutes = require('./routes/websiteAdminWalletRoutes');
 const websiteDailyLoginRoutes = require('./routes/websiteDailyLoginRoutes');
 const skinSharePolicyRoutes = require('./routes/skinSharePolicyRoutes');
+const territoryCombatWebsiteRoutes = require('./routes/territoryCombatWebsiteRoutes');
 const herbyBotRoutes = require('./routes/herbyBotRoutes');
 const bodyDropRoutes = require('./routes/bodyDropRoutes');
 const dinoStorageRoutes = require('./routes/dinoStorageRoutes');
@@ -193,6 +194,11 @@ app.use('/api/website/skin-share-policy', (_req, res, next) => {
   res.set('Cache-Control', 'no-store');
   next();
 }, skinSharePolicyRoutes);
+
+app.use('/api/website/territory-combat', (_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+}, territoryCombatWebsiteRoutes);
 
 app.use('/api/website', (_req, res, next) => {
   res.set('Cache-Control', 'no-store');
