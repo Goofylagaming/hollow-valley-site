@@ -6,6 +6,7 @@ on:
       - test-ui-v2
     paths:
       - 'server/routes/territoryWars.js'
+      - 'server/services/territoryGeometry.js'
       - 'server/index.js'
       - 'server/evrimaMap.js'
       - 'server/services/serverStatus.js'
@@ -15,6 +16,7 @@ on:
       - 'public/assets/admin-territory-wars.js'
       - 'public/assets/territory-wars.css'
       - 'test/territoryWarsRoute.test.js'
+      - 'test/territoryGeometry.test.js'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/territory-wars-preview-tests.yml'
@@ -40,5 +42,5 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run Territory Wars route tests
-        run: node --test test/territoryWarsRoute.test.js
+      - name: Run Territory Wars tests
+        run: node --test test/territoryWarsRoute.test.js test/territoryGeometry.test.js
