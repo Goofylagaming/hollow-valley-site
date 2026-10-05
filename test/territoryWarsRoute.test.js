@@ -75,6 +75,53 @@ test('creating a permanent Territory Wars Group requires a linked Steam account'
   assert.match(body.error, /Steam/i);
 });
 
+test('permanent Group invites join the invited Steam account to the correct Group', async (t) => {
+  const leader = insertUser();
+  const invited = insertUser();
+  const leaderServer = await listen(appFor(leader));
+  const invitedServer = await listen(appFor(invited));
+  t.after(() => Promise.all([
+    new Promise((resolve) => leaderServer.close(resolve)),
+    new Promise((resolve) => invitedServer.close(resolve)),
+  ]));
+
+  let response = await request(leaderServer, '/api/territory-wars/group', {
+    method: 'POST',
+    body: JSON.stringify({ name: `Invite Pack ${sequence}`, tag: `IP${sequence}` }),
+  });
+  assert.equal(response.status, 200);
+  const group = (await response.json()).group;
+
+  response = await request(leaderServer, '/api/territory-wars/group/invite', {
+    method: 'POST',
+    body: JSON.stringify({ steamId: invited.steam_id }),
+  });
+  assert.equal(response.status, 200);
+  const inviteId = Number((await response.json()).inviteId);
+  assert.ok(inviteId > 0);
+
+  response = await request(invitedServer, '/api/territory-wars/me');
+  assert.equal(response.status, 200);
+  let invitedState = await response.json();
+  assert.equal(invitedState.group, null);
+  assert.equal(invitedState.invites.length, 1);
+  assert.equal(Number(invitedState.invites[0].id), inviteId);
+
+  response = await request(invitedServer, '/api/territory-wars/group/invite/accept', {
+    method: 'POST',
+    body: JSON.stringify({ inviteId }),
+  });
+  assert.equal(response.status, 200);
+  const accepted = await response.json();
+  assert.equal(Number(accepted.group.id), Number(group.id));
+  assert.equal(accepted.group.role, 'member');
+
+  response = await request(invitedServer, '/api/territory-wars/me');
+  invitedState = await response.json();
+  assert.equal(Number(invitedState.group.id), Number(group.id));
+  assert.equal(invitedState.invites.length, 0);
+});
+
 test('Territory Wars enforces six-fighter lineups and five-minute attack warning', async (t) => {
   const leader = insertUser();
   const members = Array.from({ length: 6 }, () => insertUser());
@@ -179,4 +226,92 @@ test('Territory Wars enforces six-fighter lineups and five-minute attack warning
   const warningMs = startsAt - beforeDeclare;
   assert.ok(warningMs >= (5 * 60 * 1000) - 2000, `warning was only ${warningMs}ms`);
   assert.ok(warningMs <= (5 * 60 * 1000) + 5000, `warning was ${warningMs}ms`);
+});
+
+test('live lineup substitutions wait ten minutes before the new fighter becomes active', async (t) => {
+  const leader = insertUser();
+  const original = insertUser();
+  const substitute = insertUser();
+  const admin = insertUser({ admin: true });
+
+  const leaderServer = await listen(appFor(leader));
+  const adminServer = await listen(appFor(admin));
+  t.after(() => Promise.all([
+    new Promise((resolve) => leaderServer.close(resolve)),
+    new Promise((resolve) => adminServer.close(resolve)),
+  ]));
+
+  let response = await request(leaderServer, '/api/territory-wars/group', {
+    method: 'POST',
+    body: JSON.stringify({ name: `Sub Pack ${sequence}`, tag: `SUB${sequence}` }),
+  });
+  assert.equal(response.status, 200);
+  const groupId = Number((await response.json()).group.id);
+
+  const addMember = db.prepare(`
+    INSERT INTO territory_group_members (group_id, user_id, role)
+    VALUES (?, ?, 'member')
+  `);
+  addMember.run(groupId, original.id);
+  addMember.run(groupId, substitute.id);
+
+  response = await request(adminServer, '/api/territory-wars/admin/event', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: `Substitution Test ${sequence}`,
+      territoryName: 'South Plains',
+      territoryKey: 'south-plains',
+      ownerName: 'Admin',
+    }),
+  });
+  assert.equal(response.status, 200);
+  const eventId = Number((await response.json()).event.id);
+
+  response = await request(leaderServer, '/api/territory-wars/event-register', {
+    method: 'POST',
+    body: JSON.stringify({ eventId }),
+  });
+  assert.equal(response.status, 200);
+
+  response = await request(leaderServer, '/api/territory-wars/lineup', {
+    method: 'POST',
+    body: JSON.stringify({ eventId, memberUserIds: [leader.id, original.id] }),
+  });
+  assert.equal(response.status, 200);
+  const initialLineup = (await response.json()).lineup;
+  const leaderInitial = initialLineup.find((entry) => Number(entry.user_id) === leader.id);
+  assert.ok(leaderInitial);
+
+  response = await request(adminServer, '/api/territory-wars/admin/status', {
+    method: 'POST',
+    body: JSON.stringify({ id: eventId, status: 'live' }),
+  });
+  assert.equal(response.status, 200);
+
+  const changedAt = Date.now();
+  response = await request(leaderServer, '/api/territory-wars/lineup', {
+    method: 'POST',
+    body: JSON.stringify({ eventId, memberUserIds: [leader.id, substitute.id] }),
+  });
+  assert.equal(response.status, 200);
+  const changed = await response.json();
+  assert.equal(changed.liveSubstitutionDelayMinutes, 10);
+  assert.equal(changed.lineup.length, 2);
+
+  const leaderAfter = changed.lineup.find((entry) => Number(entry.user_id) === leader.id);
+  const substituteAfter = changed.lineup.find((entry) => Number(entry.user_id) === substitute.id);
+  assert.ok(leaderAfter);
+  assert.ok(substituteAfter);
+  assert.equal(leaderAfter.active_from, leaderInitial.active_from, 'existing fighter should stay active without a new delay');
+
+  const substitutionDelay = new Date(substituteAfter.active_from).getTime() - changedAt;
+  assert.ok(substitutionDelay >= (10 * 60 * 1000) - 2000, `substitution delay was only ${substitutionDelay}ms`);
+  assert.ok(substitutionDelay <= (10 * 60 * 1000) + 5000, `substitution delay was ${substitutionDelay}ms`);
+
+  response = await request(leaderServer, '/api/territory-wars/attack-declare', {
+    method: 'POST',
+    body: JSON.stringify({ eventId }),
+  });
+  assert.equal(response.status, 409);
+  assert.match((await response.json()).error, /at least 2 active lineup fighters/i);
 });
