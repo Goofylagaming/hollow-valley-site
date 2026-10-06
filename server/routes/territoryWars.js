@@ -11,6 +11,7 @@ const {
 } = require("../services/territoryGeometry");
 const {
   CONTROL_CONTRIBUTOR_CAP,
+  normalizeControlScore,
   advanceControlScore,
 } = require("../services/territoryControl");
 
@@ -780,7 +781,7 @@ function processEventRuntime(eventInput) {
   if (elapsedSeconds < 5) return event;
 
   const controlStep = advanceControlScore({
-    score: Number(event.control_score || -100),
+    score: normalizeControlScore(event.control_score, -100),
     attackers: presence.attackers,
     defenders: presence.defenders,
     elapsedSeconds,
