@@ -615,8 +615,8 @@
 /* === LIVE Skin Studio 3D model === */
 /* === Skin Studio 3D paint stage · test branch === */
 .skin-studio-grid{
-  grid-template-columns:minmax(0,1.55fr) minmax(380px,.8fr)!important;
-  gap:12px!important;
+  grid-template-columns:minmax(0,1.18fr) minmax(500px,.95fr)!important;
+  gap:14px!important;
   align-items:start;
 }
 .skin-preview-card-3d{
@@ -848,7 +848,7 @@
 
 @media(max-width:1250px){
   .skin-studio-grid{
-    grid-template-columns:minmax(0,1.28fr) minmax(340px,.85fr)!important;
+    grid-template-columns:minmax(0,1fr) minmax(460px,.95fr)!important;
   }
   .skin-model-stage{min-height:440px!important;height:48vw}
   .skin-model-zone-strip{grid-template-columns:repeat(5,minmax(90px,1fr))}
@@ -1262,16 +1262,45 @@
 
 
 /* Skin Studio v012 · Fangs & Ferns-compatible core zone presentation */
-.skin-color-group{display:grid;gap:10px;margin-top:10px}
+.skin-color-grid{display:block;min-width:0}
+.skin-editor-card{min-width:0;overflow:hidden}
+.skin-color-group{display:grid;gap:10px;min-width:0;margin-top:10px}
 .skin-color-group+.skin-color-group{margin-top:18px;padding-top:16px;border-top:1px solid #2c281f}
-.skin-color-group-heading{display:flex;justify-content:space-between;gap:14px;align-items:flex-end}
+.skin-color-group-heading{display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px;align-items:end}
 .skin-color-group-heading strong{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#d1c5b3}
-.skin-color-group-heading span{font-size:9px;color:#746a5d;text-align:right;max-width:62%}
-.skin-color-group-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.skin-color-group .skin-color-control>span{display:grid;gap:2px;min-width:0}
-.skin-color-group .skin-color-control>span b{font-weight:600;color:#b8a995}
-.skin-color-group .skin-color-control>span small{font-size:8px;line-height:1.25;color:#665e53;white-space:normal}
-.skin-color-group-extended{opacity:.86}
+.skin-color-group-heading span{min-width:0;font-size:9px;line-height:1.4;color:#746a5d;text-align:right}
+.skin-color-group-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.skin-color-control{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 58px;
+  grid-template-areas:"copy swatch" "copy code";
+  column-gap:10px;
+  row-gap:3px;
+  min-width:0;
+  min-height:62px;
+  padding:10px 11px;
+  overflow:hidden;
+}
+.skin-color-group .skin-color-control>span{grid-area:copy;display:grid;align-content:center;gap:3px;min-width:0}
+.skin-color-group .skin-color-control>span b{overflow:hidden;font-weight:600;color:#b8a995;text-overflow:ellipsis;white-space:nowrap}
+.skin-color-group .skin-color-control>span small{font-size:8px;line-height:1.3;color:#665e53;white-space:normal;overflow-wrap:anywhere}
+.skin-color-group .skin-color-control input{
+  grid-area:swatch;
+  justify-self:end;
+  width:58px;
+  height:31px;
+  min-width:0;
+}
+.skin-color-group .skin-color-control code{
+  grid-area:code;
+  justify-self:end;
+  min-width:0;
+  color:#7f7466;
+  font-size:9px;
+  line-height:1;
+  white-space:nowrap;
+}
+.skin-color-group-extended{opacity:.9}
 .skin-color-group-extended .skin-color-control{background:#0c0b09}
 .skin-wear-state-card{display:flex;justify-content:space-between;align-items:center;gap:18px;margin:0 0 18px;padding:14px 16px;border:1px solid #2e2a21;background:#0f0d0a}
 .skin-wear-state-card>div:first-child{display:grid;gap:4px}
@@ -1284,8 +1313,8 @@
 .skin-wear-state-card[data-status="awaiting_confirmation"]{border-color:#655d39}
 @media(max-width:650px){
   .skin-color-group-grid{grid-template-columns:1fr}
-  .skin-color-group-heading{align-items:flex-start;flex-direction:column}
-  .skin-color-group-heading span{max-width:none;text-align:left}
+  .skin-color-group-heading{grid-template-columns:1fr;align-items:start;gap:5px}
+  .skin-color-group-heading span{text-align:left}
   .skin-wear-state-card{align-items:flex-start;flex-direction:column}
   .skin-wear-state-actions{justify-content:flex-start}
 }
@@ -1452,3 +1481,14 @@
   white-space:normal;
 }
 .skin-calibration-coverage b{color:#b9ad9a;font-weight:600}
+
+@media(max-width:1080px){
+  .skin-studio-grid{grid-template-columns:1fr!important}
+  .skin-preview-card-3d{position:static!important}
+  .skin-model-stage{height:58vw;min-height:390px!important;max-height:540px}
+}
+@media(max-width:760px){
+  .skin-color-group-grid{grid-template-columns:1fr}
+  .skin-color-group-heading{grid-template-columns:1fr;align-items:start;gap:5px}
+  .skin-color-group-heading span{text-align:left}
+}
