@@ -807,6 +807,92 @@ router.post("/attack", requireTerritoryInternalToken, (req, res) => {
 });
 
 
+router.post("/preview-near-capture", requireTerritoryInternalToken, (_req, res) => {
+  try {
+    if (!previewSeedEnabled()) {
+      return res.status(403).json({
+        error: "Territory Wars preview controls are disabled",
+      });
+    }
+
+    const event = latestEventRaw();
+    if (!event || event.status !== "live") {
+      return res.status(409).json({
+        error: "A live Territory Wars preview event is required",
+      });
+    }
+
+    const attack = activeAttack(event.id);
+    if (!attack || attack.status !== "active") {
+      return res.status(409).json({
+        error: "An ACTIVE Territory attack is required",
+      });
+    }
+
+    const simulatedAttackers = db.prepare(`
+      SELECT COUNT(*) AS total
+      FROM territory_preview_presence
+      WHERE event_id = ?
+        AND side = 'attacker'
+        AND in_claim = 1
+    `).get(event.id);
+
+    if (Number(simulatedAttackers?.total || 0) < MIN_ATTACKERS_TO_CONTEST) {
+      return res.status(409).json({
+        error: `At least ${MIN_ATTACKERS_TO_CONTEST} simulated attackers must remain in the Claim Zone`,
+      });
+    }
+
+    const nowMs = Date.now();
+    const contestStartedAt = new Date(nowMs - (3 * 60 * 1000)).toISOString();
+    const lastTickAt = new Date(nowMs - (60 * 1000)).toISOString();
+
+    runTransaction(() => {
+      db.prepare(`
+        UPDATE territory_events
+        SET control_score = 99,
+            owner_control = 1,
+            challenger_control = 99,
+            updated_at = datetime('now')
+        WHERE id = ?
+      `).run(event.id);
+
+      db.prepare(`
+        UPDATE territory_attacks
+        SET status = 'active',
+            contest_started_at = ?,
+            last_tick_at = ?
+        WHERE id = ?
+      `).run(
+        contestStartedAt,
+        lastTickAt,
+        attack.id
+      );
+    });
+
+    addLog(
+      event.id,
+      "preview",
+      "Preview capture test primed at 99% challenger control",
+      null
+    );
+
+    return res.json({
+      ok: true,
+      primed: true,
+      event: decorateEvent(eventById(event.id)),
+      attack: decorateAttack(activeAttack(event.id)),
+      simulatedAttackers: Number(simulatedAttackers.total || 0),
+      nextStep: "Refresh Territory state to let the normal runtime resolve the capture",
+    });
+  } catch (error) {
+    console.error("[TerritoryWars] Preview near-capture failed:", error);
+    return res.status(500).json({
+      error: error?.message || "Unable to prime the Territory capture test.",
+    });
+  }
+});
+
 router.post("/preview-presence", requireTerritoryInternalToken, (req, res) => {
   try {
     if (!previewSeedEnabled()) {
