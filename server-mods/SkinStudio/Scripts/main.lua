@@ -504,7 +504,7 @@ local function clearProfilesForSteam(steam, reason)
     return true
 end
 
-local function profileLine(steam, args, config, growth)
+local function profileLine(steam, args, config, growth, baseFingerprint, appliedFingerprint)
     local parts = {}
     for i, token in ipairs(args or {}) do
         parts[i] = '"' .. jsonEscape(token) .. '"'
@@ -513,11 +513,17 @@ local function profileLine(steam, args, config, growth)
     if tonumber(growth) ~= nil then
         growthField = string.format(',"growth":%.6f', math.max(0, math.min(1, tonumber(growth))))
     end
+    local baseField = baseFingerprint and baseFingerprint ~= ""
+        and (',"baseFingerprint":"' .. jsonEscape(baseFingerprint) .. '"') or ""
+    local appliedField = appliedFingerprint and appliedFingerprint ~= ""
+        and (',"appliedFingerprint":"' .. jsonEscape(appliedFingerprint) .. '"') or ""
     return string.format(
-        '{"steam":"%s","species":"%s"%s,"tokens":[%s]}',
+        '{"steam":"%s","species":"%s"%s%s%s,"tokens":[%s]}',
         jsonEscape(steam),
         jsonEscape(config and config.species or ""),
         growthField,
+        baseField,
+        appliedField,
         table.concat(parts, ",")
     )
 end
@@ -537,7 +543,9 @@ local function persistProfiles()
             local config = profiles[steam][species]
             local args = profileArgs[steam] and profileArgs[steam][species] or {}
             local growth = profileGrowth[steam] and profileGrowth[steam][species] or nil
-            table.insert(lines, profileLine(steam, args, config, growth))
+            local baseFingerprint = profileBaseFingerprint[steam] and profileBaseFingerprint[steam][species] or nil
+            local appliedFingerprint = profileAppliedFingerprint[steam] and profileAppliedFingerprint[steam][species] or nil
+            table.insert(lines, profileLine(steam, args, config, growth, baseFingerprint, appliedFingerprint))
         end
     end
 
@@ -546,13 +554,16 @@ local function persistProfiles()
     return writeAll(PROFILES_PATH, body)
 end
 
-local function rememberProfile(steam, args, config, growth)
+local function rememberProfile(steam, args, config, growth, baseFingerprint, appliedFingerprint)
     -- A skin follows one dinosaur life, not the player's account/species history.
     -- Applying a new skin replaces any older reconnect profile for this Steam ID.
     profiles[steam] = {}
     profileArgs[steam] = {}
     profileGrowth[steam] = {}
-    if not setProfile(steam, args, config, growth) then return false end
+    profileBaseFingerprint[steam] = {}
+    profileAppliedFingerprint[steam] = {}
+    fingerprintStability[steam] = nil
+    if not setProfile(steam, args, config, growth, baseFingerprint, appliedFingerprint) then return false end
     if not persistProfiles() then
         log("WARNING: could not persist skin profiles")
         return false
@@ -569,13 +580,19 @@ local function loadProfiles()
         local steam = jsonReadString(line, "steam")
         local args = jsonReadStringArray(line, "tokens")
         local growth = jsonReadNumber(line, "growth")
+        local baseFingerprint = jsonReadString(line, "baseFingerprint")
+        local appliedFingerprint = jsonReadString(line, "appliedFingerprint")
         if steam and steam:match("^%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d$") then
             local config = parseTokens(args)
-            if config ~= nil and growth ~= nil and setProfile(steam, args, config, growth) then
+            if config ~= nil
+                and growth ~= nil
+                and baseFingerprint ~= nil and baseFingerprint ~= ""
+                and appliedFingerprint ~= nil and appliedFingerprint ~= ""
+                and setProfile(steam, args, config, growth, baseFingerprint, appliedFingerprint) then
                 records = records + 1
-            elseif config ~= nil and growth == nil then
-                -- v007 profiles had no life marker, so they are unsafe to restore:
-                -- a nested/new dinosaur of the same species could receive them.
+            elseif config ~= nil then
+                -- Profiles without both native/applied fingerprints cannot
+                -- distinguish a reconnect from a later same-species dinosaur.
                 legacySkipped = legacySkipped + 1
             end
         end
@@ -583,7 +600,7 @@ local function loadProfiles()
 
     if legacySkipped > 0 then
         persistProfiles()
-        log("Discarded " .. tostring(legacySkipped) .. " legacy species profile(s) without a life marker")
+        log("Discarded " .. tostring(legacySkipped) .. " legacy skin profile(s) without safe life fingerprints")
     end
 
     local unique = 0
@@ -605,16 +622,30 @@ local function emitResult(id, steam, ok, msg)
     appendLine(RESULTS_FILE, line)
 end
 
-local function applyForSteam(steam, config)
+local function currentPlayerPawn(steam)
     local gm = findGameMode()
-    if gm == nil then return false, "Server not ready." end
+    if gm == nil then return nil, nil, "Server not ready." end
 
     local ctrl
     pcall(function() ctrl = gm:GetControllerBySteamId(steam) end)
-    if ctrl == nil then return false, "You must be logged into the server." end
+    if ctrl == nil then return nil, nil, "You must be logged into the server." end
 
     local pawn = livePawnFromCtrl(ctrl)
-    return applyConfigToPawn(pawn, config)
+    if pawn == nil then return ctrl, nil, "You need a live dinosaur in game." end
+    return ctrl, pawn, nil
+end
+
+local function reusableBaseFingerprint(steam, pawn, currentFingerprint)
+    for species, existingConfig in pairs(profiles[steam] or {}) do
+        if profileSpeciesKey(existingConfig.species) == "universal" or speciesMatches(pawn, existingConfig.species) then
+            local base = profileBaseFingerprint[steam] and profileBaseFingerprint[steam][species] or nil
+            local applied = profileAppliedFingerprint[steam] and profileAppliedFingerprint[steam][species] or nil
+            if fingerprintsMatch(currentFingerprint, base) or fingerprintsMatch(currentFingerprint, applied) then
+                return base
+            end
+        end
+    end
+    return currentFingerprint
 end
 
 local function processLine(line)
@@ -632,22 +663,32 @@ local function processLine(line)
         return
     end
 
-    local ok, msg = applyForSteam(steam, config)
+    local ctrl, pawn, pawnError = currentPlayerPawn(steam)
+    if pawn == nil then
+        emitResult(id, steam, false, pawnError or "You need a live dinosaur in game.")
+        return
+    end
+
+    local beforeFingerprint = customizerFingerprint(pawn)
+    if beforeFingerprint == nil then
+        emitResult(id, steam, false, "Could not fingerprint the current dinosaur skin safely.")
+        return
+    end
+    local baseFingerprint = reusableBaseFingerprint(steam, pawn, beforeFingerprint)
+
+    local ok, msg = applyConfigToPawn(pawn, config)
     if ok then
-        local gm = findGameMode()
-        local ctrl = nil
-        local pawn = nil
-        if gm ~= nil then
-            pcall(function() ctrl = gm:GetControllerBySteamId(steam) end)
-            pawn = livePawnFromCtrl(ctrl)
-        end
-        -- Persist the verified palette for this dinosaur life. Do not tell
-        -- the website persistence is confirmed unless the reconnect profile
-        -- itself was written successfully.
+        -- Persist the verified palette for this dinosaur life. Keep both the
+        -- native pre-Wear fingerprint and the verified applied fingerprint:
+        -- reconnect restoration only occurs after one of those known states is
+        -- observed, preventing a later same-species dinosaur inheriting it.
+        local appliedFingerprint = customizerFingerprint(pawn)
         local profileSaved = false
-        if pawn ~= nil then
+        if appliedFingerprint ~= nil then
             local growth = pawnGrowth(pawn)
-            profileSaved = rememberProfile(steam, args, config, growth)
+            profileSaved = rememberProfile(
+                steam, args, config, growth, baseFingerprint, appliedFingerprint
+            )
             if not profileSaved then
                 log("WARNING: live skin applied but reconnect profile could not be saved steam=" .. tostring(steam))
             end
@@ -656,6 +697,8 @@ local function processLine(line)
             lastProfileSpecies[steam] = profileSpeciesKey(config.species)
             hadPawnThisConnection[steam] = true
             pendingNewLife[steam] = false
+        else
+            log("WARNING: live skin applied but applied fingerprint could not be read steam=" .. tostring(steam))
         end
         pendingLiveRefresh[steam] = {
             config = config,
