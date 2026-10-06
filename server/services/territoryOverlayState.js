@@ -1,6 +1,6 @@
 const { db } = require("../db");
 const serverStatus = require("./serverStatus");
-const { fromRconLocation, toLatLong } = require("../evrimaMap");
+const { fromRconLocation, toLatLong, project } = require("../evrimaMap");
 const { territoryGeometry, classifyLatLong } = require("./territoryGeometry");
 const {
   direction8,
@@ -237,8 +237,11 @@ function buildOverlayState(user, { requestedMode } = {}) {
   const names = attackNames(event, attack);
 
   const battlefieldAttackers = live.fighters.filter((fighter) => fighter.side === "attacker" && fighter.inBattlefield);
-  const attackerBearing = geometry
+  const rawAttackerBearing = geometry
     ? direction8(geometry.center, centroid(battlefieldAttackers) || geometry.center)
+    : null;
+  const attackerBearing = (mode === "admin" || mode === "leader" || viewerSide === "defender")
+    ? rawAttackerBearing
     : null;
 
   const self = viewerCharacter(user, live.fighters, serverState, geometry);
@@ -288,6 +291,7 @@ function buildOverlayState(user, { requestedMode } = {}) {
       battlefieldRadiusMetres: Math.round(Number(geometry.battlefieldRadius) * Number(geometry.metresPerUnit || 10)),
       claimRadiusMetres: Math.round(Number(geometry.claimRadius) * Number(geometry.metresPerUnit || 10)),
       claimToBattlefieldRatio: Math.max(0, Math.min(1, Number(geometry.claimRadius) / Number(geometry.battlefieldRadius))),
+      mapCenter: project(Number(geometry.center.lat) * 1000, Number(geometry.center.long) * 1000),
       selfRadar: self?.radar || null,
     } : null,
     intel: {
