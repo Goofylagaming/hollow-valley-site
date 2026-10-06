@@ -1386,3 +1386,33 @@
 @media(max-width:750px){
   .skin-calibration-controls{grid-template-columns:1fr}
 }
+
+
+/* Skin Studio v012 · advanced native EVRIMA values */
+.skin-advanced-settings{
+  margin:12px 0 4px;
+  border:1px solid #29251d;
+  background:#0d0b09;
+}
+.skin-advanced-settings summary{
+  cursor:pointer;
+  padding:10px 12px;
+  color:#938674;
+  font-size:9px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  user-select:none;
+}
+.skin-advanced-settings[open] summary{
+  border-bottom:1px solid #29251d;
+  color:#c6baa8;
+}
+.skin-advanced-settings>p{
+  margin:10px 12px 0;
+  color:#6f6659;
+  font-size:9px;
+  line-height:1.45;
+}
+.skin-advanced-settings>.skin-editor-fields{
+  margin:10px 12px 12px;
+}
