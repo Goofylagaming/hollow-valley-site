@@ -3,6 +3,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 const canvas = document.getElementById("skin-model-canvas");
+const referenceFrame = document.getElementById("skin-model-reference-frame");
 const stage = document.getElementById("skin-preview-stage");
 const loaderEl = document.getElementById("skin-model-loader");
 const statusEl = document.getElementById("skin-model-status");
@@ -308,9 +309,15 @@ function setRail(def, label = "") {
     }
   } else if (def.capability === "shape") {
     if (modelCapabilityEl) modelCapabilityEl.textContent = "SPECIES SHAPE MODEL";
-    if (modelSourceEl) modelSourceEl.textContent = "Correct species mesh · colour-zone calibration pending";
+    if (modelSourceEl) modelSourceEl.textContent = "High-quality local species mesh · colour-zone calibration pending";
     if (modelHelpEl) {
-      modelHelpEl.textContent = "The correct species mesh is loaded, but its EVRIMA colour zones are not calibrated yet. Skin Studio deliberately leaves the model's source materials visible instead of inventing a colour layout that may differ in game.";
+      modelHelpEl.textContent = "A high-quality local mesh is loaded, but its EVRIMA colour zones are not calibrated yet. Skin Studio leaves the source materials visible instead of inventing a colour layout that may differ in game.";
+    }
+  } else if (def.capability === "reference") {
+    if (modelCapabilityEl) modelCapabilityEl.textContent = "REALISTIC REFERENCE MODEL";
+    if (modelSourceEl) modelSourceEl.textContent = "High-detail species reference · colour preview intentionally disabled";
+    if (modelHelpEl) {
+      modelHelpEl.textContent = "This is a realistic species reference model, not the Hollow Valley paint mesh. Use it to judge anatomy and proportions; EVRIMA colour painting stays disabled until an equally good local mesh is installed and calibrated.";
     }
   } else {
     if (modelCapabilityEl) modelCapabilityEl.textContent = "MODEL PENDING";
@@ -997,6 +1004,12 @@ function syncZoneStrip() {
 }
 
 function disposeModel() {
+  if (referenceFrame) {
+    referenceFrame.hidden = true;
+    referenceFrame.removeAttribute("src");
+  }
+  stage.classList.remove("skin-reference-mode");
+
   if (model) {
     scene.remove(model);
     model.traverse((child) => {
@@ -1015,6 +1028,47 @@ function disposeModel() {
   disposeMaskAtlases();
   currentMaskData = null;
   zoneLookup = null;
+}
+
+function setLocalModelControlsEnabled(enabled) {
+  for (const control of [accurateButton, gameButton, autoRotateButton, ultraButton, spinInput, lightInput]) {
+    if (control) control.disabled = !enabled;
+  }
+  if (resetButton) resetButton.disabled = !enabled;
+}
+
+function showReferenceModel(def, label) {
+  disposeModel();
+  currentModelDef = def;
+  currentSpeciesLabel = label || def?.displayName || "";
+  setRail(def, label);
+
+  setLocalModelControlsEnabled(false);
+  if (calibrationToggleEl) calibrationToggleEl.disabled = true;
+  if (calibrationClearZoneEl) calibrationClearZoneEl.disabled = true;
+  if (calibrationClearAllEl) calibrationClearAllEl.disabled = true;
+  if (calibrationCopyEl) calibrationCopyEl.disabled = true;
+  if (calibrationImportButtonEl) calibrationImportButtonEl.disabled = true;
+
+  syncZoneStrip();
+  syncZoneHint();
+
+  const src = def?.loader?.url;
+  if (!referenceFrame || !src) {
+    showNoModel(label, def);
+    return;
+  }
+
+  stage.classList.add("skin-reference-mode");
+  referenceFrame.src = src;
+  referenceFrame.hidden = false;
+  if (loaderEl) loaderEl.hidden = true;
+  setStatus(true, `${def.displayName} · realistic reference model · paint mesh pending`);
+  setCalibrationStatus(`${def.displayName} is reference-only. Install a matching high-detail local mesh before UV zone calibration.`);
+
+  document.dispatchEvent(new CustomEvent("hds:skin-model-ready", {
+    detail: { species: def.key, capability: def.capability },
+  }));
 }
 
 async function loadChunkedGlb(def, token) {
@@ -1061,6 +1115,7 @@ async function loadModelResource(def, token) {
 
 function showNoModel(label, def = null) {
   disposeModel();
+  setLocalModelControlsEnabled(false);
   currentModelDef = def;
   currentSpeciesLabel = label || "";
   setRail(def, label);
@@ -1095,7 +1150,7 @@ async function loadModelForSpecies(label) {
   const normalized = normalizedSpecies(label);
   const sameDefinition = currentModelDef?.key && def?.key === currentModelDef.key;
 
-  if (sameDefinition && model) {
+  if (sameDefinition && (model || (def?.capability === "reference" && referenceFrame?.src))) {
     currentSpeciesLabel = label;
     setRail(def, label);
     return;
@@ -1112,6 +1167,13 @@ async function loadModelForSpecies(label) {
     showNoModel(label, def);
     return;
   }
+
+  if (def.capability === "reference" || def.loader.type === "reference-embed") {
+    showReferenceModel(def, label);
+    return;
+  }
+
+  setLocalModelControlsEnabled(true);
 
   try {
     setStatus(false, `${def.displayName} · loading dedicated model`);
@@ -1146,6 +1208,7 @@ async function loadModelForSpecies(label) {
     }
 
     if (loaderEl) loaderEl.hidden = true;
+    setLocalModelControlsEnabled(true);
     setCalibrationStatus(def.capability === "shape"
       ? `${def.displayName} is ready for admin zone mapping.`
       : `${def.displayName} already has a calibrated zone map.`);
