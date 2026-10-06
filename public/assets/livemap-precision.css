@@ -1,0 +1,74 @@
+/* Live Map precision pass
+   Keep vector boundaries readable without letting thick outlines cover terrain. */
+#map-viewport{
+  --hv-zone-stroke:.9;
+  --hv-zone-fill:.12;
+  --hv-zone-stroke-opacity:.88;
+}
+#tracker-shapes .shape{
+  stroke-width:var(--hv-zone-stroke);
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  stroke-opacity:var(--hv-zone-stroke-opacity);
+}
+#tracker-shapes .zone{
+  stroke-width:var(--hv-zone-stroke);
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  stroke-opacity:var(--hv-zone-stroke-opacity);
+  paint-order:stroke fill;
+}
+#tracker-shapes .migrations{
+  fill:#4ade5f;
+  fill-opacity:var(--hv-zone-fill);
+}
+#tracker-shapes .patrolZones{
+  fill:#f4483c;
+  fill-opacity:calc(var(--hv-zone-fill) * .9);
+}
+#tracker-shapes .sanctuaries{
+  fill:#ff7bd8;
+  fill-opacity:calc(var(--hv-zone-fill) * .85);
+}
+#tracker-shapes .caves{
+  stroke-width:max(.65px,calc(var(--hv-zone-stroke) * .8));
+  stroke-opacity:.72;
+}
+.map-layer-precision{
+  margin-top:14px;
+  padding-top:12px;
+  border-top:1px solid rgba(255,255,255,.12);
+}
+.map-layer-precision>span{
+  display:block;
+  margin-bottom:8px;
+  color:#9ba7a0;
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:.12em;
+}
+.precision-row{
+  display:grid;
+  grid-template-columns:72px minmax(0,1fr) 34px;
+  align-items:center;
+  gap:8px;
+  margin:8px 0;
+  color:#d9e2dc;
+  font-size:10px;
+}
+.precision-row input[type="range"]{
+  width:100%;
+  accent-color:#d8a928;
+}
+.precision-value{
+  text-align:right;
+  color:#d8a928;
+  font-variant-numeric:tabular-nums;
+}
+.map-source-status{
+  display:block;
+  margin-top:8px;
+  color:#7f8b84;
+  font-size:9px;
+  line-height:1.45;
+}
