@@ -466,6 +466,16 @@ async function loadPublicState() {
         ? formatDate(data.attack.starts_at)
         : "No active attack"
     );
+
+    const protectionUntil = data.event?.protection_until
+      ? new Date(data.event.protection_until)
+      : null;
+    text(
+      "tw-protection",
+      protectionUntil && protectionUntil.getTime() > Date.now()
+        ? `Protected until ${formatDate(data.event.protection_until)}`
+        : "None"
+    );
     if (currentPlayerState) {
       currentPlayerState.event = data.event;
       currentPlayerState.attack = data.attack;
