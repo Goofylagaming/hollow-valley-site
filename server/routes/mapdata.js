@@ -135,6 +135,39 @@ function parsePaths(items) {
   return paths;
 }
 
+function parseRoads(items) {
+  const roads = [];
+  for (const { item, coords } of items || []) {
+    const rawName = item[2] || item[1] || "Road";
+    const cleanName = rawName.split(":")[0].replace(/<s>.*?<\/s>/gi, "").replace(/<br\s*\/?>/gi, " ").trim();
+    const trail = /(?:^|\s)trail(?:\s|$)/i.test(String(item[3] || ""));
+    let points = [];
+
+    const flush = () => {
+      if (points.length >= 2) roads.push({ name: cleanName, trail, points });
+      points = [];
+    };
+
+    for (const coord of coords) {
+      const parts = coord.split(",").map((s) => s.trim());
+      const lat = parseFloat(parts[0]);
+      const long = parseFloat(parts[1]);
+      if (!Number.isFinite(lat) || !Number.isFinite(long)) continue;
+
+      // Vulnona uses M to begin a new path segment. Respecting it avoids
+      // drawing artificial straight connectors between forks or split roads.
+      if (parts.slice(2).some((part) => part.toUpperCase() === "M") && points.length) {
+        flush();
+      }
+
+      const pos = projectLatLong(lat, long);
+      points.push([pos.left, pos.top]);
+    }
+    flush();
+  }
+  return roads;
+}
+
 function parseZones(items) {
   const shapes = [];
   for (const { item, coords } of items || []) {
@@ -227,6 +260,7 @@ function buildPayload(sec1, sec2, sourceVersion = "Gateway_v0.21.7") {
       water: parsePoints(sec1["Water"]),
       wallows: parsePoints(sec1["Mud"]),
       caves: parsePaths(sec1["Cave"]),
+      roads: parseRoads(sec2["_Road_"]),
       migrations: parseZones(sec1["Migration"]),
       patrolZones: parseZones(sec1["PatrolZone"]),
       sanctuaries: parseZones(sec1["Sanctuary"]),
@@ -239,8 +273,8 @@ function validateGatewayData(txt1, txt2) {
   if (!requiredSections.every((needle) => String(txt1 || "").includes(needle))) {
     throw new Error("Vulnona Gateway layer data is missing required zone sections");
   }
-  if (!String(txt2 || "").includes("dir")) {
-    throw new Error("Vulnona Gateway resource data is incomplete");
+  if (!String(txt2 || "").includes("dir\t_Road_")) {
+    throw new Error("Vulnona Gateway resource data is missing the roads/trails section");
   }
 }
 
