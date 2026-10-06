@@ -168,6 +168,47 @@ function parseRoads(items) {
   return roads;
 }
 
+const WILDLIFE_SECTIONS = Object.freeze([
+  ["Boar", "Boar", "terrestrial"],
+  ["Chicken", "Chicken", "terrestrial"],
+  ["Deer", "Deer", "terrestrial"],
+  ["Goat", "Goat", "terrestrial"],
+  ["Rabbit", "Rabbit", "terrestrial"],
+  ["Taco", "Taco", "terrestrial"],
+  ["GalliAI", "Galli AI", "terrestrial"],
+  ["DeinoAI", "Deino AI", "terrestrial"],
+  ["Fish", "Fish", "aquatic"],
+  ["Crab", "Crab", "aquatic"],
+  ["Frog", "Frog", "aquatic"],
+  ["Turtle", "Turtle", "aquatic"],
+]);
+
+function parseWildlifePoints(sections) {
+  const points = [];
+  for (const [section, species, category] of WILDLIFE_SECTIONS) {
+    for (const { coords } of sections[section] || []) {
+      for (const coord of coords) {
+        const parts = coord.split(",").map((value) => value.trim());
+        const lat = parseFloat(parts[0]);
+        const long = parseFloat(parts[1]);
+        if (!Number.isFinite(lat) || !Number.isFinite(long)) continue;
+
+        const observedMatch = coord.match(/\bup(\d{4}\/\d{2}\/\d{2})\b/i);
+        const pos = projectLatLong(lat, long);
+        points.push({
+          species,
+          sourceSection: section,
+          category,
+          left: pos.left,
+          top: pos.top,
+          observedOn: observedMatch ? observedMatch[1].replaceAll("/", "-") : null,
+        });
+      }
+    }
+  }
+  return points;
+}
+
 function parseZones(items) {
   const shapes = [];
   for (const { item, coords } of items || []) {
@@ -261,6 +302,7 @@ function buildPayload(sec1, sec2, sourceVersion = "Gateway_v0.21.7") {
       wallows: parsePoints(sec1["Mud"]),
       caves: parsePaths(sec1["Cave"]),
       roads: parseRoads(sec2["_Road_"]),
+      wildlife: parseWildlifePoints(sec2),
       migrations: parseZones(sec1["Migration"]),
       patrolZones: parseZones(sec1["PatrolZone"]),
       sanctuaries: parseZones(sec1["Sanctuary"]),
@@ -275,6 +317,9 @@ function validateGatewayData(txt1, txt2) {
   }
   if (!String(txt2 || "").includes("dir\t_Road_")) {
     throw new Error("Vulnona Gateway resource data is missing the roads/trails section");
+  }
+  if (!String(txt2 || "").includes("dir\tBoar") || !String(txt2 || "").includes("dir\tFish")) {
+    throw new Error("Vulnona Gateway resource data is missing wildlife sections");
   }
 }
 

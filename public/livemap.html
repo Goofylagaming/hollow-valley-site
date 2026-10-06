@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="assets/livemap-precision.css?v=1">
   <link rel="stylesheet" href="assets/livemap-navigation.css?v=1">
   <link rel="stylesheet" href="assets/livemap-routes.css?v=1">
+  <link rel="stylesheet" href="assets/livemap-wildlife.css?v=1">
 </head>
 <body>
   <div class="app-shell">
@@ -60,6 +61,7 @@
                   <svg class="map-layer" id="tracker-roads" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
                   <svg class="map-layer map-shapes" id="territory-war-shapes" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
                   <div class="map-layer" id="tracker-pois"></div>
+                  <div class="map-layer" id="tracker-wildlife"></div>
                   <div class="map-layer" id="tracker-labels"></div>
                   <svg class="map-layer" id="tracker-trails" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
                   <div class="map-layer" id="tracker-markers"></div>
@@ -78,6 +80,11 @@
             <small class="map-private-note">Private to this browser. It stores only your own recent map samples.</small>
             <label class="layer-toggle"><input type="checkbox" id="layer-grid"><span class="layer-swatch grid"></span>Gateway grid</label>
             <label class="layer-toggle"><input type="checkbox" id="layer-roads"><span class="layer-swatch routes"></span>Roads &amp; trails</label>
+            <label class="layer-toggle"><input type="checkbox" id="layer-wildlife"><span class="layer-swatch wildlife"></span>Wildlife / AI points</label>
+            <div class="wildlife-filter" id="wildlife-filter" hidden>
+              <label for="wildlife-species"><span>SPECIES</span><select id="wildlife-species" aria-label="Wildlife species"></select></label>
+              <small id="wildlife-note">Community-observed points; these are not exact spawn-zone boundaries.</small>
+            </div>
             <label class="layer-toggle"><input type="checkbox" id="layer-areas" checked><span class="layer-swatch area"></span>Region names</label>
             <label class="layer-toggle"><input type="checkbox" id="layer-landmarks"><span class="layer-swatch landmark"></span>Landmarks</label>
             <label class="layer-toggle"><input type="checkbox" id="layer-saltLicks" checked><span class="layer-swatch salt"></span>Salt licks</label>

@@ -1,0 +1,76 @@
+/* Optional wildlife / AI observation overlay. Source data is point-based, not polygon spawn zones. */
+#tracker-wildlife{pointer-events:none}
+.gateway-live-plane .wildlife-point{
+  position:absolute;
+  transform:translate(-50%,-50%);
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  z-index:5;
+  border:1px solid rgba(255,255,255,.82);
+  box-shadow:0 0 0 2px rgba(0,0,0,.28);
+  pointer-events:auto;
+}
+.gateway-live-plane .wildlife-point.terrestrial{
+  background:#e7a95a;
+  box-shadow:0 0 0 2px rgba(0,0,0,.28),0 0 7px rgba(231,169,90,.4);
+}
+.gateway-live-plane .wildlife-point.aquatic{
+  background:#6fc8d9;
+  box-shadow:0 0 0 2px rgba(0,0,0,.28),0 0 7px rgba(111,200,217,.4);
+}
+.gateway-live-plane .wildlife-point .wildlife-label{
+  position:absolute;
+  left:50%;
+  top:11px;
+  transform:translateX(-50%);
+  display:none;
+  min-width:max-content;
+  padding:4px 6px;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:5px;
+  background:rgba(5,8,5,.95);
+  color:#f0f4f1;
+  font-size:9px;
+  font-weight:750;
+  line-height:1.35;
+  white-space:nowrap;
+  box-shadow:0 5px 15px rgba(0,0,0,.4);
+}
+.gateway-live-plane .wildlife-point:hover .wildlife-label{display:block}
+.layer-swatch.wildlife{background:#e7a95a;box-shadow:0 0 5px rgba(231,169,90,.55)}
+.wildlife-filter{
+  margin:4px 0 10px 24px;
+  padding:8px;
+  border:1px solid rgba(255,255,255,.09);
+  border-radius:7px;
+  background:rgba(255,255,255,.025);
+}
+.wildlife-filter[hidden]{display:none}
+.wildlife-filter label{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  color:#aeb9b2;
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:.07em;
+}
+.wildlife-filter select{
+  width:min(150px,62%);
+  height:28px;
+  padding:0 7px;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:6px;
+  background:#111712;
+  color:#e8efe9;
+  font-size:10px;
+}
+.wildlife-filter small{
+  display:block;
+  margin-top:6px;
+  color:#718078;
+  font-size:8.5px;
+  line-height:1.4;
+}

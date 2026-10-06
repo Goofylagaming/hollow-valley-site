@@ -114,7 +114,9 @@ const LABEL_LAYERS = ["areas", "landmarks"];
 // Zones are filled areas (ellipses or polygons); caves stay open outlines.
 const ZONE_LAYERS = ["migrations", "patrolZones", "sanctuaries"];
 const PATH_LAYERS = ["caves"];
-const ALL_LAYERS = [...POINT_LAYERS, ...LABEL_LAYERS, ...PATH_LAYERS, ...ZONE_LAYERS, "roads", "players"];
+const ALL_LAYERS = [...POINT_LAYERS, ...LABEL_LAYERS, ...PATH_LAYERS, ...ZONE_LAYERS, "roads", "wildlife", "players"];
+const WILDLIFE_ENABLED_KEY = "hollow-valley-map-wildlife-enabled";
+const WILDLIFE_SPECIES_KEY = "hollow-valley-map-wildlife-species";
 
 function pct(n) {
   return `${(n * 100).toFixed(2)}%`;
@@ -201,6 +203,60 @@ function renderRoads() {
     const kind = road.trail ? "trail-path" : "road-path";
     return `<polyline class="gateway-route ${kind}" points="${points}"><title>${escapeHtml(road.name)}</title></polyline>`;
   }).join("");
+}
+
+function wildlifeStorageGet(key, fallback = "") {
+  try {
+    const value = localStorage.getItem(key);
+    return value === null ? fallback : value;
+  } catch {
+    return fallback;
+  }
+}
+
+function wildlifeStorageSet(key, value) {
+  try { localStorage.setItem(key, value); } catch {}
+}
+
+function populateWildlifeSpecies() {
+  const select = document.getElementById("wildlife-species");
+  const panel = document.getElementById("wildlife-filter");
+  const toggle = document.getElementById("layer-wildlife");
+  if (!select || !panel || !toggle || !mapData) return;
+
+  const species = [...new Set((mapData.layers.wildlife || []).map((point) => point.species).filter(Boolean))]
+    .sort((left, right) => left.localeCompare(right));
+
+  const stored = wildlifeStorageGet(WILDLIFE_SPECIES_KEY, "Boar");
+  const selected = species.includes(stored) ? stored : (species.includes("Boar") ? "Boar" : species[0] || "");
+  select.innerHTML = species.map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("");
+  select.value = selected;
+  panel.hidden = !toggle.checked;
+}
+
+function renderWildlife() {
+  const layer = document.getElementById("tracker-wildlife");
+  const select = document.getElementById("wildlife-species");
+  const note = document.getElementById("wildlife-note");
+  if (!layer) return;
+
+  if (!mapData || !isLayerOn("wildlife") || !select?.value) {
+    layer.innerHTML = "";
+    if (note && mapData) note.textContent = "Community-observed points; these are not exact spawn-zone boundaries.";
+    return;
+  }
+
+  const selected = select.value;
+  const points = (mapData.layers.wildlife || []).filter((point) => point.species === selected);
+  layer.innerHTML = points.map((point) => {
+    const observed = point.observedOn ? ` · observed ${escapeHtml(point.observedOn)}` : "";
+    const category = point.category === "aquatic" ? "aquatic" : "terrestrial";
+    return `<span class="wildlife-point ${category}" style="left:${pct(point.left)};top:${pct(point.top)}"><span class="wildlife-label">${escapeHtml(point.species)}${observed}</span></span>`;
+  }).join("");
+
+  if (note) {
+    note.textContent = `${points.length} community-observed ${selected} point${points.length === 1 ? "" : "s"} shown · not exact spawn-zone boundaries.`;
+  }
 }
 
 function renderPois() {
@@ -408,10 +464,12 @@ async function loadLayers() {
     window.dispatchEvent(new CustomEvent("hv:mapdata", { detail: data }));
     renderShapes();
     renderRoads();
+    populateWildlifeSpecies();
+    renderWildlife();
     renderPois();
     if (note) {
       const counts = data.layers;
-      note.textContent = `${counts.saltLicks.length} salt licks, ${counts.roads?.length || 0} road/trail segments, ${counts.migrations.length} migration zones, ${counts.patrolZones.length} patrol zones, ${counts.sanctuaries.length} sanctuaries (${data.mapVersion}).`;
+      note.textContent = `${counts.saltLicks.length} salt licks, ${counts.roads?.length || 0} road/trail segments, ${counts.wildlife?.length || 0} wildlife points, ${counts.migrations.length} migration zones, ${counts.patrolZones.length} patrol zones, ${counts.sanctuaries.length} sanctuaries (${data.mapVersion}).`;
     }
   } catch (err) {
     if (note) note.textContent = "Map layer data is unavailable right now. Live player tracking still works.";
@@ -490,10 +548,29 @@ for (const key of ALL_LAYERS) {
       loadMap();
     } else if (key === "roads") {
       renderRoads();
+    } else if (key === "wildlife") {
+      const panel = document.getElementById("wildlife-filter");
+      if (panel) panel.hidden = !input.checked;
+      wildlifeStorageSet(WILDLIFE_ENABLED_KEY, input.checked ? "1" : "0");
+      renderWildlife();
     } else {
       renderShapes();
       renderPois();
     }
+  });
+}
+
+const wildlifeToggle = document.getElementById("layer-wildlife");
+const wildlifeSelect = document.getElementById("wildlife-species");
+if (wildlifeToggle) {
+  wildlifeToggle.checked = wildlifeStorageGet(WILDLIFE_ENABLED_KEY, "0") === "1";
+  const panel = document.getElementById("wildlife-filter");
+  if (panel) panel.hidden = !wildlifeToggle.checked;
+}
+if (wildlifeSelect) {
+  wildlifeSelect.addEventListener("change", () => {
+    wildlifeStorageSet(WILDLIFE_SPECIES_KEY, wildlifeSelect.value);
+    renderWildlife();
   });
 }
 
