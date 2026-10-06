@@ -807,6 +807,172 @@ router.post("/attack", requireTerritoryInternalToken, (req, res) => {
 });
 
 
+router.post("/preview-event-end", requireTerritoryInternalToken, (_req, res) => {
+  try {
+    if (!previewSeedEnabled()) {
+      return res.status(403).json({
+        error: "Territory Wars preview controls are disabled",
+      });
+    }
+
+    const event = latestEventRaw();
+    if (!event || event.status !== "live") {
+      return res.status(409).json({
+        error: "A live Territory Wars preview event is required",
+      });
+    }
+
+    let attack = activeAttack(event.id);
+    if (!attack) {
+      return res.status(409).json({
+        error: "An active Territory attack is required",
+      });
+    }
+
+    if (attack.status === "warning") {
+      const activatedAt = new Date(Date.now() - 1000).toISOString();
+      db.prepare(`
+        UPDATE territory_attacks
+        SET status = 'active',
+            starts_at = ?,
+            last_tick_at = ?
+        WHERE id = ?
+      `).run(activatedAt, activatedAt, attack.id);
+      attack = activeAttack(event.id);
+    }
+
+    if (!attack || attack.status !== "active") {
+      return res.status(409).json({
+        error: "The Territory attack could not be activated",
+      });
+    }
+
+    const attackerLineup = activeLineup(
+      event.id,
+      attack.attacker_group_id
+    );
+
+    if (attackerLineup.length < MIN_ATTACKERS_TO_CONTEST) {
+      return res.status(409).json({
+        error: `Event-end test needs at least ${MIN_ATTACKERS_TO_CONTEST} active attackers`,
+      });
+    }
+
+    const now = nowIso();
+    const endedAt = new Date(Date.now() - 1000).toISOString();
+    const contestStartedAt = new Date(
+      Date.now() - (3 * 60 * 1000)
+    ).toISOString();
+    const lastTickAt = new Date(
+      Date.now() - (60 * 1000)
+    ).toISOString();
+
+    runTransaction(() => {
+      db.prepare(`
+        UPDATE territory_events
+        SET control_score = 99,
+            owner_control = 1,
+            challenger_control = 99,
+            ends_at = ?,
+            updated_at = datetime('now')
+        WHERE id = ?
+      `).run(endedAt, event.id);
+
+      db.prepare(
+        "DELETE FROM territory_preview_presence WHERE event_id = ?"
+      ).run(event.id);
+
+      const insert = db.prepare(`
+        INSERT INTO territory_preview_presence
+          (event_id, user_id, side, in_battlefield, in_claim, updated_at)
+        VALUES (?, ?, 'attacker', 1, 1, ?)
+      `);
+
+      for (const member of attackerLineup.slice(0, MIN_ATTACKERS_TO_CONTEST)) {
+        insert.run(event.id, member.user_id, now);
+      }
+
+      db.prepare(`
+        UPDATE territory_attacks
+        SET status = 'active',
+            contest_started_at = ?,
+            last_tick_at = ?
+        WHERE id = ?
+      `).run(
+        contestStartedAt,
+        lastTickAt,
+        attack.id
+      );
+    });
+
+    addLog(
+      event.id,
+      "preview",
+      "Preview event-end test primed at 99% challenger control with an active attack",
+      null
+    );
+
+    return res.json({
+      ok: true,
+      eventId: Number(event.id),
+      ownerBefore: event.owner_name,
+      challengerBefore: event.challenger_name,
+      controlBefore: 99,
+      endedAt,
+      attackId: Number(attack.id),
+      nextStep: "Read public Territory state so the normal runtime ends the event before scoring",
+    });
+  } catch (error) {
+    console.error("[TerritoryWars] Preview event-end test failed:", error);
+    return res.status(500).json({
+      error: error?.message || "Unable to prime the Territory event-end test.",
+    });
+  }
+});
+
+router.post("/preview-event-end-result", requireTerritoryInternalToken, (req, res) => {
+  try {
+    if (!previewSeedEnabled()) {
+      return res.status(403).json({
+        error: "Territory Wars preview controls are disabled",
+      });
+    }
+
+    const eventId = Number(req.body?.eventId || 0);
+    if (!Number.isFinite(eventId) || eventId <= 0) {
+      return res.status(400).json({
+        error: "A valid preview event ID is required",
+      });
+    }
+
+    const event = eventById(eventId);
+    if (!event) {
+      return res.status(404).json({
+        error: "Preview Territory event was not found",
+      });
+    }
+
+    const latestAttack = db.prepare(`
+      SELECT *
+      FROM territory_attacks
+      WHERE event_id = ?
+      ORDER BY id DESC
+      LIMIT 1
+    `).get(eventId) || null;
+
+    return res.json({
+      ok: true,
+      event: decorateEvent(event),
+      attack: decorateAttack(latestAttack),
+    });
+  } catch (error) {
+    console.error("[TerritoryWars] Preview event-end result failed:", error);
+    return res.status(500).json({
+      error: error?.message || "Unable to inspect the Territory event-end result.",
+    });
+  }
+});
+
 router.post("/preview-boundary-grace", requireTerritoryInternalToken, (req, res) => {
   try {
     if (!previewSeedEnabled()) {
