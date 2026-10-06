@@ -602,13 +602,13 @@ function initMapZoom() {
   }, { passive: false });
 
   viewport.addEventListener("dblclick", (e) => {
-    if (e.target.closest(".map-controls")) return;
+    if (e.target.closest(".map-controls, .map-navigator")) return;
     e.preventDefault();
     zoomAt(e.clientX, e.clientY, STEP);
   });
 
   viewport.addEventListener("pointerdown", (e) => {
-    if (e.target.closest(".map-controls")) return;
+    if (e.target.closest(".map-controls, .map-navigator")) return;
     dragging = true;
     viewport.classList.add("is-dragging");
     try { viewport.setPointerCapture(e.pointerId); } catch (_) {}
