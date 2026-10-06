@@ -135,6 +135,9 @@ test("Skin Studio 3D preview uses species-specific models and refuses fake unive
   assert.match(renderer, /skin-model-clean-view/);
   assert.match(renderer, /skin-model-ultra/);
   assert.match(renderer, /skin-model-spin/);
+  assert.match(renderer, /lookupZoneFromUv/);
+  assert.match(renderer, /selectPaintZoneAt/);
+  assert.match(html, /CLICK ZONE TO PAINT/);
 });
 
 test("Skin Studio keeps FNF-compatible core zone order and simple pattern controls", () => {
