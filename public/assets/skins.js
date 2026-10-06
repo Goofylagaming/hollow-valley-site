@@ -616,7 +616,8 @@ function renderWearState() {
   const title = document.getElementById("skin-wear-state-title");
   const detail = document.getElementById("skin-wear-state-detail");
   const retry = document.getElementById("skin-wear-retry");
-  if (!card || !title || !detail || !retry) return;
+  const reset = document.getElementById("skin-wear-reset");
+  if (!card || !title || !detail || !retry || !reset) return;
 
   card.hidden = !me.loggedIn || !me.user?.steam_id;
   if (card.hidden) return;
@@ -624,6 +625,7 @@ function renderWearState() {
   const job = wearState?.latestJob || null;
   const assignment = wearState?.assignment || null;
   retry.hidden = true;
+  reset.hidden = true;
   card.dataset.status = job?.status || "none";
 
   if (!job) {
@@ -648,6 +650,7 @@ function renderWearState() {
     title.textContent = `Failed · ${subject}`;
     detail.textContent = job.error || "The game rejected the Wear Live request.";
     retry.hidden = false;
+    reset.hidden = !job.id;
     return;
   }
 
@@ -844,6 +847,19 @@ document.getElementById("skin-wear-retry")?.addEventListener("click", async () =
       result.confirmed ? "Skin retry verified by the game." : (result.message || "Skin retry queued."),
       result.confirmed ? "success" : "info"
     );
+  } catch (error) {
+    showAlert(error.message, "error");
+  } finally {
+    button.disabled = false;
+    await loadWearState();
+  }
+});
+document.getElementById("skin-wear-reset")?.addEventListener("click", async () => {
+  const button = document.getElementById("skin-wear-reset");
+  button.disabled = true;
+  try {
+    await api("/api/skins/wear-reset", { method: "POST", body: "{}" });
+    showAlert("Failed Wear Live request reset. Your last verified skin assignment was left untouched.", "success");
   } catch (error) {
     showAlert(error.message, "error");
   } finally {
