@@ -44,12 +44,13 @@ Supported zones:
 3. Open **ADMIN · ZONE CALIBRATION** and choose **Start mapping**.
 4. Select a zone and paint directly over the 3D dinosaur. Adjust brush size or UV flip when needed.
 5. Draft progress auto-saves in the browser for that species.
-6. Use **Copy mask** when the mapping is ready.
-7. Save the exported JSON as:
+6. To move work to another browser or another admin, use **Copy mask**, paste the JSON into **Import / resume a mask** on the other browser, start mapping, then choose **Load mask**. Imports are rejected if they contain unknown zones, malformed RLE pairs, out-of-bounds runs, or overlapping UV pixels.
+7. Use **Copy mask** when the mapping is ready.
+8. Save the exported JSON as:
    `public/assets/skin-models/<species>/mask-rle.json`
-8. Change the species registry entry to `calibratedModel(...)` and set:
+9. Change the species registry entry to `calibratedModel(...)` and set:
    `maskUrl: "/assets/skin-models/<species>/mask-rle.json"`
-9. Run the Skin Studio validation workflow.
-10. Compare the preview against the same skin in EVRIMA before calling the species calibrated.
+10. Run the Skin Studio validation workflow.
+11. Compare the preview against the same skin in EVRIMA before calling the species calibrated.
 
 Do not promote a species to `zones` just because the mask looks plausible. The purpose of the calibrated state is to tell players that the preview has been compared against actual EVRIMA colour placement.
