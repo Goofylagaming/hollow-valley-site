@@ -130,6 +130,26 @@ const ZONE_CHANNELS = Object.freeze({
   claws:[2,0], maleDisplay:[2,1],
 });
 
+// Skin Studio / FNF HEX values serialize EVRIMA FLinearColor components as
+// 8-bit channel values. They are NOT CSS/sRGB display colours. THREE.Color
+// assumes hexadecimal strings are sRGB and would gamma-decode them, making the
+// preview darker than the raw floats Wear Live writes to pawn.CustomizerData.
+// Parse the bytes ourselves and mark them as already-linear working-space RGB.
+function engineChannelsFromHex(value) {
+  const raw = String(value || "").replace("#", "").trim();
+  const safe = /^[0-9a-f]{6}$/i.test(raw) ? raw : "000000";
+  return [
+    parseInt(safe.slice(0,2),16)/255,
+    parseInt(safe.slice(2,4),16)/255,
+    parseInt(safe.slice(4,6),16)/255,
+  ];
+}
+
+function engineColorFromHex(value, target = new THREE.Color()) {
+  const [r,g,b] = engineChannelsFromHex(value);
+  return target.setRGB(r, g, b, THREE.LinearSRGBColorSpace);
+}
+
 function normalizedSpecies(value) {
   return String(value || "")
     .toLowerCase()
@@ -154,8 +174,8 @@ function installModeControls() {
   accurateButton.className = "small-button";
   accurateButton.id = "skin-model-accurate";
   accurateButton.type = "button";
-  accurateButton.textContent = "Accurate colour";
-  accurateButton.title = "Show selected HEX colours on species with a calibrated Hollow Valley zone map.";
+  accurateButton.textContent = "EVRIMA colour";
+  accurateButton.title = "Show the exact linear colour components Wear Live writes to EVRIMA on a calibrated species zone map.";
 
   gameButton = document.createElement("button");
   gameButton.className = "small-button";
@@ -265,7 +285,7 @@ function setRail(def, label = "") {
     if (modelCapabilityEl) modelCapabilityEl.textContent = "CALIBRATED 3D MODEL";
     if (modelSourceEl) modelSourceEl.textContent = "Species mesh + Hollow Valley colour-zone map";
     if (modelHelpEl) {
-      modelHelpEl.textContent = "This species has a calibrated Hollow Valley zone map. Accurate colour paints the selected HEX values directly; Game preview adds atmospheric lighting and texture shading.";
+      modelHelpEl.textContent = "This species has a calibrated Hollow Valley zone map. EVRIMA colour interprets Studio/FNF HEX as the same linear components Wear Live writes in game; Game preview adds atmospheric lighting and texture shading.";
     }
   } else if (def.capability === "shape") {
     if (modelCapabilityEl) modelCapabilityEl.textContent = "SPECIES SHAPE MODEL";
@@ -443,16 +463,16 @@ function maskedMaterial(source, accurate) {
     hvMask0: { value: maskAtlases[0] },
     hvMask1: { value: maskAtlases[1] },
     hvMask2: { value: maskAtlases[2] },
-    hvBody: { value: new THREE.Color(currentPalette.body) },
-    hvMarkings: { value: new THREE.Color(currentPalette.markings) },
-    hvFlank: { value: new THREE.Color(currentPalette.flank) },
-    hvUnderbelly: { value: new THREE.Color(currentPalette.underbelly) },
-    hvDetail: { value: new THREE.Color(currentPalette.detail1) },
-    hvEyes: { value: new THREE.Color(currentPalette.eyes) },
-    hvTeeth: { value: new THREE.Color(currentPalette.teeth) },
-    hvMouth: { value: new THREE.Color(currentPalette.mouth) },
-    hvClaws: { value: new THREE.Color(currentPalette.claws) },
-    hvMaleDisplay: { value: new THREE.Color(currentPalette.maleDisplay) },
+    hvBody: { value: engineColorFromHex(currentPalette.body) },
+    hvMarkings: { value: engineColorFromHex(currentPalette.markings) },
+    hvFlank: { value: engineColorFromHex(currentPalette.flank) },
+    hvUnderbelly: { value: engineColorFromHex(currentPalette.underbelly) },
+    hvDetail: { value: engineColorFromHex(currentPalette.detail1) },
+    hvEyes: { value: engineColorFromHex(currentPalette.eyes) },
+    hvTeeth: { value: engineColorFromHex(currentPalette.teeth) },
+    hvMouth: { value: engineColorFromHex(currentPalette.mouth) },
+    hvClaws: { value: engineColorFromHex(currentPalette.claws) },
+    hvMaleDisplay: { value: engineColorFromHex(currentPalette.maleDisplay) },
     hvMaleVisible: { value: currentSex === "female" ? 0 : 1 },
   };
 
@@ -462,16 +482,16 @@ function maskedMaterial(source, accurate) {
 
   const controller = {
     setPalette(palette) {
-      uniforms.hvBody.value.set(palette.body);
-      uniforms.hvMarkings.value.set(palette.markings);
-      uniforms.hvFlank.value.set(palette.flank);
-      uniforms.hvUnderbelly.value.set(palette.underbelly);
-      uniforms.hvDetail.value.set(palette.detail1);
-      uniforms.hvEyes.value.set(palette.eyes);
-      uniforms.hvTeeth.value.set(palette.teeth);
-      uniforms.hvMouth.value.set(palette.mouth);
-      uniforms.hvClaws.value.set(palette.claws);
-      uniforms.hvMaleDisplay.value.set(palette.maleDisplay);
+      engineColorFromHex(palette.body, uniforms.hvBody.value);
+      engineColorFromHex(palette.markings, uniforms.hvMarkings.value);
+      engineColorFromHex(palette.flank, uniforms.hvFlank.value);
+      engineColorFromHex(palette.underbelly, uniforms.hvUnderbelly.value);
+      engineColorFromHex(palette.detail1, uniforms.hvDetail.value);
+      engineColorFromHex(palette.eyes, uniforms.hvEyes.value);
+      engineColorFromHex(palette.teeth, uniforms.hvTeeth.value);
+      engineColorFromHex(palette.mouth, uniforms.hvMouth.value);
+      engineColorFromHex(palette.claws, uniforms.hvClaws.value);
+      engineColorFromHex(palette.maleDisplay, uniforms.hvMaleDisplay.value);
     },
     setSex(sex) {
       uniforms.hvMaleVisible.value = sex === "female" ? 0 : 1;
@@ -758,7 +778,7 @@ function applyPreviewMode(mode) {
 
   if (statusEl && model && currentModelDef) {
     if (currentModelDef.capability === "zones") {
-      statusEl.textContent = `${currentModelDef.displayName} · ${accurate ? "calibrated HEX preview" : "calibrated game preview"}`;
+      statusEl.textContent = `${currentModelDef.displayName} · ${accurate ? "EVRIMA linear colour" : "calibrated game preview"}`;
     } else {
       statusEl.textContent = `${currentModelDef.displayName} · species shape loaded · zones pending`;
     }
@@ -982,7 +1002,7 @@ async function loadModelForSpecies(label) {
 
     if (def.capability === "zones") {
       applyPreviewMode(previewMode);
-      setStatus(true, `${def.displayName} · ${previewMode === "accurate" ? "calibrated HEX preview" : "calibrated game preview"}`);
+      setStatus(true, `${def.displayName} · ${previewMode === "accurate" ? "EVRIMA linear colour" : "calibrated game preview"}`);
     } else {
       applyPreviewMode("game");
       setStatus(true, `${def.displayName} · species shape loaded · zones pending`);
