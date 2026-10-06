@@ -148,6 +148,11 @@ test("Skin Studio 3D preview uses species-specific models and refuses fake unive
   assert.match(renderer, /skin-model-clean-view/);
   assert.match(renderer, /skin-model-ultra/);
   assert.match(renderer, /skin-model-spin/);
+  assert.match(renderer, /function engineChannelsFromHex\(value\)/);
+  assert.match(renderer, /THREE\.LinearSRGBColorSpace/);
+  assert.match(renderer, /engineColorFromHex\(currentPalette\.body\)/);
+  assert.match(renderer, /EVRIMA linear colour/);
+  assert.equal(renderer.includes("new THREE.Color(currentPalette.body)"), false);
   assert.match(renderer, /lookupZoneFromUv/);
   assert.match(renderer, /selectPaintZoneAt/);
   assert.match(renderer, /function startCalibration\(\)/);
@@ -190,6 +195,7 @@ test("Skin Studio keeps FNF-compatible core zone order and simple pattern contro
   assert.match(browser, /function selectedSpeciesProfile\(\)/);
   assert.match(browser, /Number\.isInteger\(profile\?\.patternMax\)/);
   assert.match(browser, /Wear Live will preserve its current in-game pattern/);
+  assert.match(html, /skin-studio-3d\.js\?v=11/);
   assert.match(html, /id="skin-pattern-presets"/);
   assert.match(html, /id="skin-pattern-safety"/);
   assert.match(html, /id="skin-sex-preview"/);
