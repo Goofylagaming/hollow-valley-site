@@ -660,10 +660,13 @@ function renderWearState() {
   const when = formatWearTimestamp(job.completedAt || job.updatedAt || job.createdAt);
 
   if (job.status === "verified") {
-    title.textContent = `Verified · ${subject}`;
-    detail.textContent = assignment
-      ? `Reconnect restore is armed for this dinosaur life${assignment.verifiedAt ? ` · verified ${formatWearTimestamp(assignment.verifiedAt)}` : ""}.`
-      : `Game-side application verified${when ? ` · ${when}` : ""}.`;
+    if (assignment) {
+      title.textContent = `Verified · ${subject}`;
+      detail.textContent = `Reconnect restore is armed for this dinosaur life${assignment.verifiedAt ? ` · verified ${formatWearTimestamp(assignment.verifiedAt)}` : ""}.`;
+    } else {
+      title.textContent = `Previous Wear Live verified · ${subject}`;
+      detail.textContent = `No reconnect restore is armed now. The previous dinosaur life ended or its saved skin identity no longer matched${when ? ` · last verified ${when}` : ""}.`;
+    }
     return;
   }
 
