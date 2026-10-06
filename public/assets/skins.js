@@ -21,6 +21,11 @@ const COLOR_FIELDS = [
   ...NATIVE_EXTRA_COLOR_FIELDS,
 ];
 
+const SKIN_STUDIO_EXTRA_SPECIES = Object.freeze([
+  { id: "austroraptor", name: "Austroraptor", releasedInEvrima: true },
+  { id: "kentrosaurus", name: "Kentrosaurus", releasedInEvrima: true },
+]);
+
 let me = { loggedIn: false, user: null };
 let speciesList = [];
 let storeState = null;
@@ -736,7 +741,17 @@ function wireTabs() {
 }
 
 async function initSpecies() {
-  speciesList = await api("/api/species");
+  const source = await api("/api/species");
+  const merged = [...(Array.isArray(source) ? source : []), ...SKIN_STUDIO_EXTRA_SPECIES];
+  const seen = new Set();
+  speciesList = merged.filter((species) => {
+    if (!species || species.releasedInEvrima === false) return false;
+    const id = String(species.id || "").trim().toLowerCase();
+    if (!id || seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  }).sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id)));
+
   const options = speciesList.map((species) => `<option value="${escapeHtml(species.id)}">${escapeHtml(species.name)}</option>`).join("");
   document.getElementById("skin-species").innerHTML = '<option value="Universal">Universal / Any Species</option>' + options;
   document.getElementById("skin-store-species").innerHTML = '<option value="">All species</option>' + options;
