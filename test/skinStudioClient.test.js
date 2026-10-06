@@ -78,6 +78,7 @@ test("Skin Studio v012 restores life-scoped skins without using transient pawn s
   const path = require("node:path");
   const lua = fs.readFileSync(path.join(__dirname, "..", "server-mods", "SkinStudio", "Scripts", "main.lua"), "utf8");
   const browser = fs.readFileSync(path.join(__dirname, "..", "public", "assets", "skins.js"), "utf8");
+  const serverIndex = fs.readFileSync(path.join(__dirname, "..", "server", "index.js"), "utf8");
 
   assert.match(lua, /SkinStudio v012/);
   assert.match(lua, /life-scoped reconnect persistence/);
@@ -123,6 +124,9 @@ test("Skin Studio v012 restores life-scoped skins without using transient pawn s
   assert.match(browser, /function syncColorCodeLabels\(\)/);
   assert.match(browser, /syncColorCodeLabels\(\);/);
   assert.match(browser, /syncPatternPresetButtons\(\);/);
+  assert.match(browser, /skinStudioCalibrationPreview/);
+  assert.match(browser, /const canCalibrate = Boolean\(me\.user\?\.is_admin\) \|\| calibrationPreview/);
+  assert.match(serverIndex, /SKIN_STUDIO_CALIBRATION_PREVIEW === "1"/);
 });
 
 test("Skin Studio 3D preview uses species-specific models and refuses fake universal previews", () => {
