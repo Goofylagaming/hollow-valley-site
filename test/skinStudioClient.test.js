@@ -111,13 +111,50 @@ test("Skin Studio 3D preview uses species-specific models and refuses fake unive
   assert.match(registry, /tyrannosaurus:[\s\S]*capability: "zones"/);
   assert.match(registry, /triceratops:[\s\S]*capability: "shape"/);
   assert.match(registry, /deinosuchus:[\s\S]*capability: "pending"/);
-  assert.match(registry, /allosaurus: pendingModel/);
+  assert.match(registry, /allosaurus: shapeModel/);
+  assert.match(registry, /carnotaurus: shapeModel/);
+  assert.match(registry, /ceratosaurus: shapeModel/);
+  assert.match(registry, /dilophosaurus: shapeModel/);
+  assert.match(registry, /gallimimus: shapeModel/);
+  assert.match(registry, /kentrosaurus: shapeModel/);
+  assert.match(registry, /pachycephalosaurus: shapeModel/);
+  assert.match(registry, /pteranodon: shapeModel/);
+  assert.match(registry, /stegosaurus: shapeModel/);
   assert.match(registry, /beipiaosaurus: pendingModel/);
   assert.match(renderer, /resolveModelDefinition/);
   assert.match(renderer, /loadModelForSpecies/);
   assert.match(renderer, /Universal skin/);
   assert.match(renderer, /colour-zone calibration pending/);
   assert.match(renderer, /currentModelDef\.capability === "zones"/);
+  assert.match(renderer, /skin-model-auto-rotate/);
+  assert.match(renderer, /skin-model-clean-view/);
+  assert.match(renderer, /skin-model-ultra/);
+  assert.match(renderer, /skin-model-spin/);
+});
+
+test("Skin Studio keeps FNF-compatible core zone order and simple pattern controls", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const browser = fs.readFileSync(path.join(__dirname, "..", "public", "assets", "skins.js"), "utf8");
+  const html = fs.readFileSync(path.join(__dirname, "..", "public", "skins.html"), "utf8");
+
+  const ordered = [
+    '["maleDisplay", "Male display"',
+    '["markings", "Markings"',
+    '["body", "Body"',
+    '["flank", "Flank"',
+    '["underbelly", "Underbelly"',
+    '["detail1", "Detail"',
+    '["eyes", "Eyes"',
+  ].map((needle) => browser.indexOf(needle));
+
+  assert.equal(ordered.every((index) => index >= 0), true);
+  assert.deepEqual([...ordered].sort((a, b) => a - b), ordered);
+  assert.match(browser, /Fangs & Ferns-compatible order/);
+  assert.match(browser, /Extended EVRIMA channels/);
+  assert.match(browser, /previewSex/);
+  assert.match(html, /id="skin-pattern-presets"/);
+  assert.match(html, /id="skin-sex-preview"/);
 });
 
 test("Skin Shop published cards hide raw colour swatches but editing views keep them", () => {
