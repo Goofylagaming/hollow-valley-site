@@ -803,13 +803,23 @@ router.post("/set-preview-live", requireTerritoryInternalToken, (_req, res) => {
       });
     }
 
-    const event = db.prepare(
-      "SELECT * FROM territory_events WHERE name = ? ORDER BY id DESC LIMIT 1"
-    ).get("South Plains Preview Test");
+    const event = db.prepare(`
+      SELECT *
+      FROM territory_events
+      WHERE territory_key = 'south-plains'
+        AND status != 'ended'
+      ORDER BY CASE status
+        WHEN 'live' THEN 0
+        WHEN 'paused' THEN 1
+        WHEN 'scheduled' THEN 2
+        ELSE 3
+      END, id DESC
+      LIMIT 1
+    `).get();
 
     if (!event) {
       return res.status(404).json({
-        error: "South Plains Preview Test does not exist yet",
+        error: "No active South Plains preview event exists yet",
       });
     }
 
@@ -834,7 +844,7 @@ router.post("/set-preview-live", requireTerritoryInternalToken, (_req, res) => {
     addLog(
       event.id,
       "status",
-      "South Plains preview event set LIVE for attack testing",
+      `${event.name || "South Plains"} preview event set LIVE for attack testing`,
       null
     );
 
