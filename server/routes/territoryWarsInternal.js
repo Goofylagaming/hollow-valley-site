@@ -1,6 +1,8 @@
 const express = require("express");
 const { timingSafeEqual } = require("node:crypto");
 const { db } = require("../db");
+const territoryCombatSync = require("../services/territoryCombatSync");
+const territoryMomentum = require("../services/territoryMomentum");
 
 const router = express.Router();
 
@@ -806,6 +808,264 @@ router.post("/attack", requireTerritoryInternalToken, (req, res) => {
   }
 });
 
+
+router.post("/preview-kill-momentum", requireTerritoryInternalToken, (_req, res) => {
+  try {
+    if (!previewSeedEnabled()) {
+      return res.status(403).json({
+        error: "Territory Wars preview controls are disabled",
+      });
+    }
+
+    let event = latestEventRaw();
+    if (!event || event.status === "ended") {
+      const startsAt = new Date(Date.now() - (5 * 60 * 1000)).toISOString();
+      const endsAt = new Date(Date.now() + (5 * 60 * 60 * 1000)).toISOString();
+      const created = db.prepare(`
+        INSERT INTO territory_events
+          (
+            name,
+            territory_key,
+            territory_name,
+            status,
+            owner_name,
+            challenger_name,
+            control_score,
+            owner_control,
+            challenger_control,
+            starts_at,
+            ends_at
+          )
+        VALUES (?, 'south-plains', 'South Plains', 'live', 'Admin', NULL, 0, 50, 50, ?, ?)
+      `).run(
+        "South Plains Kill Momentum Test",
+        startsAt,
+        endsAt
+      );
+      event = eventById(Number(created.lastInsertRowid));
+    }
+
+    const leaderDiscordId = "999000000000000002";
+    const memberDiscordId = "999000000000000003";
+    const leader = ensurePreviewUser(leaderDiscordId);
+    const member = ensurePreviewUser(memberDiscordId);
+
+    if (!leader || !member) {
+      return res.status(500).json({
+        error: "Unable to create preview attacker lineup",
+      });
+    }
+
+    let group = groupForUser(leader.id);
+    if (!group) {
+      const created = db.prepare(`
+        INSERT INTO territory_groups (name, tag, leader_user_id)
+        VALUES ('Preview Group 2', 'P00002', ?)
+      `).run(leader.id);
+      const groupId = Number(created.lastInsertRowid);
+      db.prepare(`
+        INSERT INTO territory_group_members (group_id, user_id, role)
+        VALUES (?, ?, 'leader')
+      `).run(groupId, leader.id);
+      db.prepare(
+        "INSERT OR IGNORE INTO territory_group_stats (group_id) VALUES (?)"
+      ).run(groupId);
+      group = groupForUser(leader.id);
+    }
+
+    ensurePreviewGroupMember(memberDiscordId, group.id);
+
+    const adminOne = ensurePreviewUser("999000000000000006");
+    const adminTwo = ensurePreviewUser("999000000000000007");
+    if (!adminOne || !adminTwo) {
+      return res.status(500).json({
+        error: "Unable to create preview system defenders",
+      });
+    }
+
+    db.prepare("UPDATE users SET is_admin = 1 WHERE id IN (?, ?)")
+      .run(adminOne.id, adminTwo.id);
+
+    const now = nowIso();
+    const startsAt = new Date(Date.now() - (5 * 60 * 1000)).toISOString();
+    const endsAt = new Date(Date.now() + (5 * 60 * 60 * 1000)).toISOString();
+    const contestStartedAt = new Date(Date.now() - (3 * 60 * 1000)).toISOString();
+    const lastTickAt = new Date(Date.now() - (60 * 1000)).toISOString();
+
+    let attackId = null;
+
+    runTransaction(() => {
+      db.prepare(`
+        UPDATE territory_events
+        SET status = 'live',
+            owner_name = 'Admin',
+            challenger_name = ?,
+            control_score = 0,
+            owner_control = 50,
+            challenger_control = 50,
+            protection_until = NULL,
+            frozen_owner_name = NULL,
+            starts_at = ?,
+            ends_at = ?,
+            updated_at = datetime('now')
+        WHERE id = ?
+      `).run(group.name, startsAt, endsAt, event.id);
+
+      db.prepare(`
+        UPDATE territory_attacks
+        SET status = 'cancelled',
+            resolved_at = ?,
+            outcome = 'preview-reset'
+        WHERE event_id = ?
+          AND status IN ('warning', 'active')
+      `).run(now, event.id);
+
+      db.prepare(`
+        INSERT INTO territory_event_registrations
+          (event_id, group_id, registered_by_user_id, status)
+        VALUES (?, ?, ?, 'registered')
+        ON CONFLICT(event_id, group_id)
+        DO UPDATE SET status = 'registered'
+      `).run(event.id, group.id, leader.id);
+
+      db.prepare(`
+        DELETE FROM territory_event_lineups
+        WHERE event_id = ? AND group_id = ?
+      `).run(event.id, group.id);
+
+      const lineupInsert = db.prepare(`
+        INSERT INTO territory_event_lineups
+          (event_id, group_id, user_id, selected_by_user_id, active_from, selected_at)
+        VALUES (?, ?, ?, ?, ?, datetime('now'))
+      `);
+
+      lineupInsert.run(
+        event.id,
+        group.id,
+        leader.id,
+        leader.id,
+        new Date(Date.now() - 1000).toISOString()
+      );
+      lineupInsert.run(
+        event.id,
+        group.id,
+        member.id,
+        leader.id,
+        new Date(Date.now() - 1000).toISOString()
+      );
+
+      db.prepare(
+        "DELETE FROM territory_preview_presence WHERE event_id = ?"
+      ).run(event.id);
+
+      const presenceInsert = db.prepare(`
+        INSERT INTO territory_preview_presence
+          (event_id, user_id, side, in_battlefield, in_claim, updated_at)
+        VALUES (?, ?, ?, 1, 1, ?)
+      `);
+
+      presenceInsert.run(event.id, leader.id, "attacker", now);
+      presenceInsert.run(event.id, member.id, "attacker", now);
+      presenceInsert.run(event.id, adminOne.id, "defender", now);
+      presenceInsert.run(event.id, adminTwo.id, "defender", now);
+
+      db.prepare(
+        "DELETE FROM territory_presence_grace WHERE event_id = ?"
+      ).run(event.id);
+
+      db.prepare(
+        "DELETE FROM territory_combat_events WHERE event_id = ?"
+      ).run(event.id);
+
+      try {
+        db.prepare(
+          "DELETE FROM territory_kill_momentum WHERE event_id = ?"
+        ).run(event.id);
+      } catch {}
+
+      const inserted = db.prepare(`
+        INSERT INTO territory_attacks
+          (
+            event_id,
+            attacker_group_id,
+            defender_group_id,
+            status,
+            declared_by_user_id,
+            declared_at,
+            starts_at,
+            contest_started_at,
+            last_tick_at
+          )
+        VALUES (?, ?, NULL, 'active', ?, ?, ?, ?, ?)
+      `).run(
+        event.id,
+        group.id,
+        leader.id,
+        startsAt,
+        startsAt,
+        contestStartedAt,
+        lastTickAt
+      );
+
+      attackId = Number(inserted.lastInsertRowid);
+    });
+
+    event = eventById(event.id);
+
+    const location = {
+      x: -302000,
+      y: 250000,
+      z: 0,
+    };
+
+    const combatEventId = `preview-kill-momentum-${event.id}-${attackId}-1`;
+    const combatResult = territoryCombatSync._test.processCombatEvent(
+      {
+        id: combatEventId,
+        occurredAt: nowIso(),
+        killerSteamId: String(leader.steam_id),
+        victimSteamId: String(adminOne.steam_id),
+        killerName: leader.username,
+        victimName: adminOne.username,
+        killerLocation: location,
+        victimLocation: location,
+        presenceSampledAt: nowIso(),
+      },
+      event
+    );
+
+    const momentum = territoryMomentum.recentMomentum(
+      event.id,
+      attackId,
+      Date.now()
+    );
+
+    addLog(
+      event.id,
+      "kill",
+      "Preview kill-momentum test recorded one verified attacker kill at equal Claim Zone presence",
+      null
+    );
+
+    return res.json({
+      ok: true,
+      eventId: Number(event.id),
+      attackId,
+      combatCounted: Boolean(combatResult?.counted),
+      combatReason: combatResult?.reason || null,
+      momentum,
+      controlBefore: 0,
+      attackers: 2,
+      defenders: 2,
+      expectedControlAfterOneMinute: 1,
+    });
+  } catch (error) {
+    console.error("[TerritoryWars] Preview kill momentum test failed:", error);
+    return res.status(500).json({
+      error: error?.message || "Unable to run the Territory kill-momentum test.",
+    });
+  }
+});
 
 router.post("/preview-substitution-prepare", requireTerritoryInternalToken, (_req, res) => {
   try {
