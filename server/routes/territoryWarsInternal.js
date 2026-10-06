@@ -807,6 +807,156 @@ router.post("/attack", requireTerritoryInternalToken, (req, res) => {
 });
 
 
+router.post("/preview-contested", requireTerritoryInternalToken, (_req, res) => {
+  try {
+    if (!previewSeedEnabled()) {
+      return res.status(403).json({
+        error: "Territory Wars preview controls are disabled",
+      });
+    }
+
+    const event = latestEventRaw();
+    if (!event || event.status !== "live") {
+      return res.status(409).json({
+        error: "A live Territory Wars preview event is required",
+      });
+    }
+
+    let attack = activeAttack(event.id);
+    if (!attack) {
+      return res.status(409).json({
+        error: "An active or warning Territory attack is required",
+      });
+    }
+
+    if (attack.status === "warning") {
+      const activatedAt = new Date(Date.now() - 1000).toISOString();
+      db.prepare(`
+        UPDATE territory_attacks
+        SET status = 'active',
+            starts_at = ?,
+            last_tick_at = ?
+        WHERE id = ?
+      `).run(
+        activatedAt,
+        activatedAt,
+        attack.id
+      );
+
+      addLog(
+        event.id,
+        "attack",
+        "Preview test fast-forwarded the five-minute warning to ACTIVE",
+        null
+      );
+
+      attack = activeAttack(event.id);
+    }
+
+    if (!attack || attack.status !== "active") {
+      return res.status(409).json({
+        error: "The Territory attack could not be activated",
+      });
+    }
+
+    const attackerLineup = activeLineup(
+      event.id,
+      attack.attacker_group_id
+    );
+
+    const defender = groupMatchingOwner(event.owner_name);
+    const defenderLineup = defender
+      ? activeLineup(event.id, defender.id)
+      : [];
+
+    if (attackerLineup.length < 2) {
+      return res.status(409).json({
+        error: "Preview contested test needs at least 2 active attackers",
+      });
+    }
+
+    if (defenderLineup.length < 2) {
+      return res.status(409).json({
+        error: "Preview contested test needs at least 2 active defenders",
+      });
+    }
+
+    const now = nowIso();
+    const contestStartedAt = new Date(
+      Date.now() - (3 * 60 * 1000)
+    ).toISOString();
+    const lastTickAt = new Date(
+      Date.now() - (60 * 1000)
+    ).toISOString();
+
+    runTransaction(() => {
+      db.prepare(
+        "DELETE FROM territory_preview_presence WHERE event_id = ?"
+      ).run(event.id);
+
+      const insert = db.prepare(`
+        INSERT INTO territory_preview_presence
+          (event_id, user_id, side, in_battlefield, in_claim, updated_at)
+        VALUES (?, ?, ?, 1, 1, ?)
+      `);
+
+      for (const member of attackerLineup.slice(0, 2)) {
+        insert.run(
+          event.id,
+          member.user_id,
+          "attacker",
+          now
+        );
+      }
+
+      for (const member of defenderLineup.slice(0, 2)) {
+        insert.run(
+          event.id,
+          member.user_id,
+          "defender",
+          now
+        );
+      }
+
+      db.prepare(`
+        UPDATE territory_attacks
+        SET contest_started_at = ?,
+            last_tick_at = ?
+        WHERE id = ?
+      `).run(
+        contestStartedAt,
+        lastTickAt,
+        attack.id
+      );
+    });
+
+    addLog(
+      event.id,
+      "contest",
+      "Preview simulation: 2 attackers and 2 defenders are contesting the Claim Zone",
+      null
+    );
+
+    const current = eventById(event.id);
+
+    return res.json({
+      ok: true,
+      event: decorateEvent(current),
+      attack: decorateAttack(activeAttack(event.id)),
+      attackers: 2,
+      defenders: 2,
+      controlBefore: Number(current.control_score || 0),
+      simulated: true,
+      nextStep: "Read public Territory state to process the normal scoring tick",
+    });
+  } catch (error) {
+    console.error("[TerritoryWars] Preview contested simulation failed:", error);
+    return res.status(500).json({
+      error: error?.message || "Unable to simulate contested Territory presence.",
+    });
+  }
+});
+
 router.post("/preview-expire-protection", requireTerritoryInternalToken, (_req, res) => {
   try {
     if (!previewSeedEnabled()) {
