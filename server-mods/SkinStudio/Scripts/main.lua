@@ -495,6 +495,22 @@ local function setProfile(steam, args, config, growth, baseFingerprint, appliedF
     return true
 end
 
+local function emitSkinLifecycleClear(steam, reason)
+    local eventId = string.format("skin-life-%s-%d", tostring(steam), os.time())
+    local line = string.format(
+        '{"id":"%s","ts":%d,"verb":"skin_lifecycle","event":"cleared","steam":"%s","ok":true,"msg":"Skin life assignment cleared","reason":"%s","source":"SkinStudio"}',
+        jsonEscape(eventId),
+        os.time(),
+        jsonEscape(steam),
+        jsonEscape(reason or "new-life")
+    )
+    if not appendLine(RESULTS_FILE, line) then
+        log("WARNING: could not emit skin lifecycle clear event steam=" .. tostring(steam))
+        return false
+    end
+    return true
+end
+
 local function clearProfilesForSteam(steam, reason)
     if profiles[steam] == nil and profileArgs[steam] == nil and profileGrowth[steam] == nil then
         return false
@@ -507,7 +523,9 @@ local function clearProfilesForSteam(steam, reason)
     fingerprintStability[steam] = nil
     pendingLiveRefresh[steam] = nil
     lastProfileSpecies[steam] = nil
-    log("Cleared persisted skin for new dinosaur life steam=" .. tostring(steam) .. " reason=" .. tostring(reason or "new-life"))
+    local clearReason = tostring(reason or "new-life")
+    emitSkinLifecycleClear(steam, clearReason)
+    log("Cleared persisted skin for new dinosaur life steam=" .. tostring(steam) .. " reason=" .. clearReason)
     return true
 end
 
