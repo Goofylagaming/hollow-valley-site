@@ -439,7 +439,7 @@ local function customizerFingerprint(pawn)
         if number == nil then
             table.insert(parts, "x")
         else
-            table.insert(parts, string.format("%.6f", number))
+            table.insert(parts, string.format("%.4f", number))
         end
     end
 
@@ -770,6 +770,7 @@ local function reapplyProfiles()
             lastProfileSpecies[steam] = nil
             hadPawnThisConnection[steam] = nil
             pendingNewLife[steam] = nil
+            fingerprintStability[steam] = nil
         else
             local ctrlAddr = objectAddress(ctrl)
             local previousCtrl = lastControllerAddress[steam]
@@ -780,6 +781,7 @@ local function reapplyProfiles()
                 pendingNewLife[steam] = false
                 lastPawnAddress[steam] = nil
                 lastProfileSpecies[steam] = nil
+                fingerprintStability[steam] = nil
             end
             if ctrlAddr ~= nil then lastControllerAddress[steam] = ctrlAddr end
 
@@ -792,6 +794,7 @@ local function reapplyProfiles()
                 end
                 lastPawnAddress[steam] = nil
                 lastProfileSpecies[steam] = nil
+                fingerprintStability[steam] = nil
             else
                 local addr = objectAddress(pawn)
                 local config, speciesKey = matchingProfileForPawn(steam, pawn)
@@ -828,24 +831,98 @@ local function reapplyProfiles()
                     lastPawnAddress[steam] = addr
                     lastProfileSpecies[steam] = nil
                 elseif config ~= nil then
-                    if addr ~= nil and (addr ~= lastPawnAddress[steam] or speciesKey ~= lastProfileSpecies[steam]) then
-                        local ok = applyConfigToPawn(pawn, config)
-                        if ok then
+                    local needsIdentityCheck =
+                        addr ~= nil
+                        and (addr ~= lastPawnAddress[steam] or speciesKey ~= lastProfileSpecies[steam])
+                    local identityResolved = not needsIdentityCheck
+
+                    if needsIdentityCheck then
+                        local currentFingerprint = customizerFingerprint(pawn)
+                        local baseFingerprint =
+                            profileBaseFingerprint[steam] ~= nil
+                            and profileBaseFingerprint[steam][speciesKey]
+                            or nil
+                        local appliedFingerprint =
+                            profileAppliedFingerprint[steam] ~= nil
+                            and profileAppliedFingerprint[steam][speciesKey]
+                            or nil
+
+                        if fingerprintsMatch(currentFingerprint, appliedFingerprint) then
+                            -- Hot reload / mod restart while the same live pawn
+                            -- still has the Hollow Valley skin. Do not repaint.
+                            fingerprintStability[steam] = nil
                             lastPawnAddress[steam] = addr
                             lastProfileSpecies[steam] = speciesKey
-                            pendingLiveRefresh[steam] = {
-                                config = config,
-                                remaining = LIVE_REFRESH_ATTEMPTS,
-                                pawnAddress = addr,
-                                controllerAddress = ctrlAddr,
-                            }
-                            safeNotify(steam, "Your Hollow Valley " .. tostring(config.species) .. " skin was restored.")
+                            identityResolved = true
+                            log("Reconnect fingerprint already matches applied skin steam=" .. tostring(steam))
+                        elseif fingerprintsMatch(currentFingerprint, baseFingerprint) then
+                            -- EVRIMA has rebuilt the native SkinCode palette for
+                            -- this same dinosaur. It is now safe to re-assert.
+                            fingerprintStability[steam] = nil
+                            local ok = applyConfigToPawn(pawn, config)
+                            if ok then
+                                local refreshedApplied = customizerFingerprint(pawn)
+                                if refreshedApplied ~= nil
+                                    and not fingerprintsMatch(refreshedApplied, appliedFingerprint) then
+                                    profileAppliedFingerprint[steam] = profileAppliedFingerprint[steam] or {}
+                                    profileAppliedFingerprint[steam][speciesKey] = refreshedApplied
+                                    profilesChanged = true
+                                end
+                                lastPawnAddress[steam] = addr
+                                lastProfileSpecies[steam] = speciesKey
+                                identityResolved = true
+                                pendingLiveRefresh[steam] = {
+                                    config = config,
+                                    remaining = LIVE_REFRESH_ATTEMPTS,
+                                    pawnAddress = addr,
+                                    controllerAddress = ctrlAddr,
+                                }
+                                safeNotify(steam, "Your Hollow Valley " .. tostring(config.species) .. " skin was restored.")
+                            end
+                        elseif currentFingerprint ~= nil then
+                            -- Unknown native palette: wait for the same value on
+                            -- multiple polls so ValidateAndSanitize / SkinCode
+                            -- hydration can finish before declaring a new life.
+                            local stable = fingerprintStability[steam]
+                            if stable ~= nil
+                                and stable.pawnAddress == addr
+                                and stable.value == currentFingerprint then
+                                stable.count = (tonumber(stable.count) or 0) + 1
+                            else
+                                stable = {
+                                    pawnAddress = addr,
+                                    value = currentFingerprint,
+                                    count = 1,
+                                }
+                                fingerprintStability[steam] = stable
+                            end
+
+                            if stable.count >= RECONNECT_FINGERPRINT_STABLE_POLLS then
+                                log(string.format(
+                                    "Stable reconnect fingerprint mismatch steam=%s species=%s polls=%d; treating as different dinosaur life",
+                                    tostring(steam), tostring(config.species), stable.count
+                                ))
+                                if clearProfilesForSteam(steam, "native-skin-fingerprint-mismatch") then
+                                    profilesChanged = true
+                                end
+                                lastPawnAddress[steam] = addr
+                                lastProfileSpecies[steam] = nil
+                                identityResolved = true
+                            else
+                                log(string.format(
+                                    "Waiting for native skin fingerprint to settle steam=%s species=%s poll=%d/%d",
+                                    tostring(steam),
+                                    tostring(config.species),
+                                    stable.count,
+                                    RECONNECT_FINGERPRINT_STABLE_POLLS
+                                ))
+                            end
                         end
                     else
                         lastPawnAddress[steam] = addr
                     end
 
-                    if growth ~= nil and speciesKey ~= nil then
+                    if identityResolved and profiles[steam] ~= nil and growth ~= nil and speciesKey ~= nil then
                         local prior = tonumber(profileGrowth[steam] and profileGrowth[steam][speciesKey])
                         if prior == nil or growth >= prior + PROFILE_GROWTH_PERSIST_STEP then
                             profileGrowth[steam] = profileGrowth[steam] or {}
@@ -922,8 +999,9 @@ end
 log(string.format("Loading; version=%s saved=%s", MOD_VERSION, tostring(SAVED_DIR)))
 ensureDir(SAVED_DIR)
 
--- Load only life-scoped profiles. Legacy records without a growth marker are
--- discarded by loadProfiles(), so v012 never revives unsafe pre-life profiles.
+-- Load only life-scoped profiles with native + applied skin fingerprints.
+-- Older records are discarded so v012 never revives a same-species profile
+-- onto an unidentified later dinosaur life.
 loadProfiles()
 
 if LoopInGameThreadWithDelay ~= nil then
