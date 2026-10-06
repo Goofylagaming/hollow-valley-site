@@ -72,3 +72,51 @@
   font-size:9px;
   line-height:1.45;
 }
+
+.map-source-card{
+  margin-top:12px;
+  padding:10px;
+  border:1px solid rgba(255,255,255,.12);
+  border-left:3px solid #66736b;
+  border-radius:8px;
+  background:rgba(4,9,6,.42);
+}
+.map-source-card-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin-bottom:5px;
+}
+.map-source-card-head span{
+  color:#8f9b94;
+  font-size:8px;
+  font-weight:800;
+  letter-spacing:.12em;
+}
+.map-source-card-head b{
+  padding:2px 5px;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:4px;
+  color:#b8c3bd;
+  font-size:7px;
+  letter-spacing:.08em;
+}
+.map-source-card>strong{
+  display:block;
+  color:#e3eae5;
+  font-size:11px;
+}
+.map-source-card>small{
+  display:block;
+  margin-top:4px;
+  color:#87928c;
+  font-size:9px;
+  line-height:1.4;
+}
+.map-source-card[data-state="current"]{border-left-color:#79a744}
+.map-source-card[data-state="current"] .map-source-card-head b{color:#bfe28b;border-color:rgba(121,167,68,.45);background:rgba(121,167,68,.08)}
+.map-source-card[data-state="fallback"]{border-left-color:#d8a928}
+.map-source-card[data-state="fallback"] .map-source-card-head b{color:#f0cf69;border-color:rgba(216,169,40,.45);background:rgba(216,169,40,.08)}
+.map-source-card[data-state="error"]{border-left-color:#a54a3f}
+.map-source-card[data-state="error"] .map-source-card-head b{color:#efa095;border-color:rgba(165,74,63,.5);background:rgba(165,74,63,.08)}
