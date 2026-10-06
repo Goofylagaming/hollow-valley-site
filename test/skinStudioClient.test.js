@@ -104,7 +104,8 @@ test("Skin Studio v012 restores life-scoped skins without using transient pawn s
   assert.match(browser, /presetSpecies\.toLowerCase\(\) !== dinoSpecies\.toLowerCase\(\)/);
   assert.match(browser, /Variation \$\{Number\(preset\.skin\?\.skinVariation\)/);
   assert.match(browser, /function syncColorCodeLabels\(\)/);
-  assert.match(browser, /syncColorCodeLabels\(\);\n  updatePreview\(\);/);
+  assert.match(browser, /syncColorCodeLabels\(\);/);
+  assert.match(browser, /syncPatternPresetButtons\(\);/);
 });
 
 test("Skin Studio 3D preview uses species-specific models and refuses fake universal previews", () => {
