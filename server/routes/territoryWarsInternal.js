@@ -807,6 +807,186 @@ router.post("/attack", requireTerritoryInternalToken, (req, res) => {
 });
 
 
+router.post("/preview-boundary-grace", requireTerritoryInternalToken, (req, res) => {
+  try {
+    if (!previewSeedEnabled()) {
+      return res.status(403).json({
+        error: "Territory Wars preview controls are disabled",
+      });
+    }
+
+    const event = latestEventRaw();
+    if (!event || event.status !== "live") {
+      return res.status(409).json({
+        error: "A live Territory Wars preview event is required",
+      });
+    }
+
+    let attack = activeAttack(event.id);
+    if (!attack) {
+      return res.status(409).json({
+        error: "An active Territory attack is required",
+      });
+    }
+
+    if (attack.status === "warning") {
+      const activatedAt = new Date(Date.now() - 1000).toISOString();
+      db.prepare(`
+        UPDATE territory_attacks
+        SET status = 'active',
+            starts_at = ?,
+            last_tick_at = ?
+        WHERE id = ?
+      `).run(activatedAt, activatedAt, attack.id);
+      attack = activeAttack(event.id);
+    }
+
+    if (!attack || attack.status !== "active") {
+      return res.status(409).json({
+        error: "The Territory attack could not be activated",
+      });
+    }
+
+    const attackerLineup = activeLineup(
+      event.id,
+      attack.attacker_group_id
+    );
+
+    if (attackerLineup.length < 2) {
+      return res.status(409).json({
+        error: "Boundary-grace test needs at least 2 active attackers",
+      });
+    }
+
+    const mode = String(req.body?.mode || "prime")
+      .trim()
+      .toLowerCase();
+
+    if (mode === "prime") {
+      const now = nowIso();
+
+      runTransaction(() => {
+        db.prepare(
+          "DELETE FROM territory_preview_presence WHERE event_id = ?"
+        ).run(event.id);
+
+        db.prepare(
+          "DELETE FROM territory_presence_grace WHERE event_id = ?"
+        ).run(event.id);
+
+        const insert = db.prepare(`
+          INSERT INTO territory_preview_presence
+            (event_id, user_id, side, in_battlefield, in_claim, updated_at)
+          VALUES (?, ?, 'attacker', 1, 1, ?)
+        `);
+
+        for (const member of attackerLineup.slice(0, 2)) {
+          insert.run(event.id, member.user_id, now);
+        }
+
+        db.prepare(`
+          UPDATE territory_attacks
+          SET contest_started_at = ?,
+              last_tick_at = ?
+          WHERE id = ?
+        `).run(now, now, attack.id);
+      });
+
+      addLog(
+        event.id,
+        "presence",
+        "Preview boundary-grace test primed with 2 attackers inside the Claim Zone",
+        null
+      );
+
+      return res.json({
+        ok: true,
+        mode: "prime",
+        attackers: 2,
+        graceSeconds: 30,
+        attack: decorateAttack(activeAttack(event.id)),
+      });
+    }
+
+    const simulated = db.prepare(`
+      SELECT p.user_id, u.username
+      FROM territory_preview_presence p
+      JOIN users u ON u.id = p.user_id
+      WHERE p.event_id = ?
+        AND p.side = 'attacker'
+      ORDER BY p.user_id ASC
+    `).all(event.id);
+
+    if (simulated.length < 2) {
+      return res.status(409).json({
+        error: "Prime the boundary-grace test first",
+      });
+    }
+
+    const steppingUserId = Number(simulated[1].user_id);
+
+    if (mode === "step-out") {
+      db.prepare(`
+        UPDATE territory_preview_presence
+        SET in_claim = 0,
+            updated_at = ?
+        WHERE event_id = ?
+          AND user_id = ?
+      `).run(nowIso(), event.id, steppingUserId);
+
+      addLog(
+        event.id,
+        "presence",
+        `Preview boundary-grace test: ${simulated[1].username || "attacker"} stepped outside the Claim Zone`,
+        null
+      );
+
+      return res.json({
+        ok: true,
+        mode: "step-out",
+        steppedOutUserId: steppingUserId,
+        steppedOutName: simulated[1].username || null,
+        attack: decorateAttack(activeAttack(event.id)),
+      });
+    }
+
+    if (mode === "expire") {
+      const expired = new Date(Date.now() - (31 * 1000)).toISOString();
+
+      db.prepare(`
+        UPDATE territory_presence_grace
+        SET last_inside_at = ?
+        WHERE event_id = ?
+          AND user_id = ?
+      `).run(expired, event.id, steppingUserId);
+
+      addLog(
+        event.id,
+        "presence",
+        "Preview boundary-grace test expired one attacker's 30-second grace window",
+        null
+      );
+
+      return res.json({
+        ok: true,
+        mode: "expire",
+        expiredUserId: steppingUserId,
+        expiredAt: expired,
+        attack: decorateAttack(activeAttack(event.id)),
+      });
+    }
+
+    return res.status(400).json({
+      error: "Boundary-grace mode must be prime, step-out, or expire",
+    });
+  } catch (error) {
+    console.error("[TerritoryWars] Preview boundary-grace simulation failed:", error);
+    return res.status(500).json({
+      error: error?.message || "Unable to run the Territory boundary-grace test.",
+    });
+  }
+});
+
 router.post("/preview-defender-advantage", requireTerritoryInternalToken, (_req, res) => {
   try {
     if (!previewSeedEnabled()) {
