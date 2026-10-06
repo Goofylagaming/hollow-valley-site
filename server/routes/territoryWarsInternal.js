@@ -673,4 +673,76 @@ router.post("/attack", requireTerritoryInternalToken, (req, res) => {
   }
 });
 
+
+router.post("/seed-preview", requireTerritoryInternalToken, (_req, res) => {
+  try {
+    const enabled = String(
+      process.env.TERRITORY_WARS_PREVIEW_SEED || ""
+    ).trim().toLowerCase();
+
+    if (!["1", "true", "yes", "on"].includes(enabled)) {
+      return res.status(403).json({
+        error: "Territory Wars preview seeding is disabled",
+      });
+    }
+
+    const existing = db.prepare(
+      "SELECT * FROM territory_events WHERE name = ? ORDER BY id DESC LIMIT 1"
+    ).get("South Plains Preview Test");
+
+    if (existing) {
+      return res.json({
+        ok: true,
+        created: false,
+        event: decorateEvent(existing),
+      });
+    }
+
+    const result = db.prepare(`
+      INSERT INTO territory_events
+        (
+          name,
+          territory_key,
+          territory_name,
+          status,
+          owner_name,
+          challenger_name,
+          control_score,
+          owner_control,
+          challenger_control,
+          starts_at,
+          ends_at
+        )
+      VALUES (?, ?, ?, 'scheduled', 'Admin', NULL, -100, 100, 0, ?, ?)
+    `).run(
+      "South Plains Preview Test",
+      "south-plains",
+      "South Plains",
+      "2026-10-10T07:00:00.000Z",
+      "2026-10-10T12:00:00.000Z"
+    );
+
+    const eventId = Number(result.lastInsertRowid);
+
+    addLog(
+      eventId,
+      "created",
+      "South Plains preview test event seeded automatically",
+      null
+    );
+
+    return res.json({
+      ok: true,
+      created: true,
+      event: decorateEvent(eventById(eventId)),
+    });
+  } catch (error) {
+    console.error("[TerritoryWars] Preview seed failed:", error);
+    return res.status(500).json({
+      error: error?.message || "Unable to seed Territory Wars preview event.",
+    });
+  }
+});
+
+
 module.exports = router;
