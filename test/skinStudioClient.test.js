@@ -184,6 +184,11 @@ test("Skin Studio 3D preview uses species-specific models and refuses fake unive
   assert.match(renderer, /function loadCalibrationDraft\(\)/);
   assert.match(renderer, /function normalizeCalibrationMaskPayload\(value\)/);
   assert.match(renderer, /function replaceCalibrationMask\(value\)/);
+  assert.match(renderer, /CALIBRATION_DIAGNOSTIC_PALETTE/);
+  assert.match(renderer, /function loadDiagnosticPalette\(\)/);
+  assert.match(renderer, /function updateCalibrationCoverage\(\)/);
+  assert.match(renderer, /Mapped \$\{pct\(mapped\)\}%/);
+  assert.match(renderer, /scheduleCalibrationCoverage\(\)/);
   assert.match(renderer, /Unsupported calibration zone/);
   assert.match(renderer, /contains an invalid or out-of-bounds RLE run/);
   assert.match(renderer, /overlaps .* at UV pixel/);
@@ -197,8 +202,11 @@ test("Skin Studio 3D preview uses species-specific models and refuses fake unive
   assert.match(html, /id="skin-calibration-copy"/);
   assert.match(html, /id="skin-calibration-import"/);
   assert.match(html, /id="skin-calibration-import-button"/);
+  assert.match(html, /id="skin-calibration-diagnostic"/);
+  assert.match(html, /id="skin-calibration-coverage"/);
+  assert.match(html, /Load diagnostic colours/);
   assert.match(html, /Import \/ resume a mask/);
-  assert.match(html, /skin-studio-3d\.js\?v=12/);
+  assert.match(html, /skin-studio-3d\.js\?v=13/);
 });
 
 test("Skin Studio keeps FNF-compatible core zone order and simple pattern controls", () => {
