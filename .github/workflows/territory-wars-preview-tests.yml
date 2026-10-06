@@ -6,6 +6,7 @@ on:
       - test-ui-v2
     paths:
       - 'server/routes/territoryWars.js'
+      - 'server/routes/territoryWarsInternal.js'
       - 'server/services/territoryGeometry.js'
       - 'server/services/territoryControl.js'
       - 'server/services/territoryMomentum.js'
@@ -36,6 +37,7 @@ on:
       - 'public/assets/admin-territory-wars.js'
       - 'public/assets/territory-wars.css'
       - 'test/territoryWarsRoute.test.js'
+      - 'test/territoryWarsInternalRoute.test.js'
       - 'test/territoryGeometry.test.js'
       - 'test/territoryControl.test.js'
       - 'test/territoryMomentum.test.js'
@@ -66,7 +68,7 @@ jobs:
         run: npm ci
 
       - name: Run Territory Wars portal tests
-        run: node --test test/territoryWarsRoute.test.js test/territoryGeometry.test.js test/territoryControl.test.js test/territoryMomentum.test.js test/territoryCombatSync.test.js
+        run: node --test test/territoryWarsRoute.test.js test/territoryWarsInternalRoute.test.js test/territoryGeometry.test.js test/territoryControl.test.js test/territoryMomentum.test.js test/territoryCombatSync.test.js
 
       - name: Run authoritative combat enrichment tests
         run: node --test automation-platform/test/combatEventService.test.js
