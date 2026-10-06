@@ -16,6 +16,7 @@ const modelSourceEl = document.getElementById("skin-model-source");
 const modelCapabilityEl = document.getElementById("skin-model-capability");
 const modelHelpEl = document.getElementById("skin-model-help");
 const modelCreditEl = document.getElementById("skin-model-credit");
+const zoneHintEl = document.getElementById("skin-model-zone-hint");
 const speciesSelect = document.getElementById("skin-species");
 const MODEL_REGISTRY = window.HV_SKIN_MODELS || {};
 
@@ -95,6 +96,7 @@ let shaderControllers = [];
 let materialBindings = [];
 let maskAtlases = [];
 let currentMaskData = null;
+let zoneLookup = null;
 let currentPalette = { ...FALLBACKS };
 let currentSex = "male";
 let previewMode = "accurate";
@@ -310,6 +312,8 @@ function buildMaskAtlases() {
   const atlas0 = make();
   const atlas1 = make();
   const atlas2 = make();
+  const zoneKeys = ["body", "markings", "flank", "underbelly", "detail1", "eyes", "teeth", "mouth", "claws", "maleDisplay"];
+  zoneLookup = new Uint8Array(size * size);
 
   unpackZone("body", atlas0, 0);
   unpackZone("markings", atlas0, 1);
@@ -321,6 +325,19 @@ function buildMaskAtlases() {
   unpackZone("mouth", atlas1, 3);
   unpackZone("claws", atlas2, 0);
   unpackZone("maleDisplay", atlas2, 1);
+
+  zoneKeys.forEach((zoneName, zoneIndex) => {
+    const runs = currentMaskData?.zones?.[zoneName];
+    if (!Array.isArray(runs)) return;
+    const total = size * size;
+    for (let i = 0; i < runs.length; i += 2) {
+      const start = Math.max(0, runs[i] | 0);
+      const end = Math.min(total, start + (runs[i + 1] | 0));
+      for (let pixel = start; pixel < end; pixel += 1) {
+        if (!zoneLookup[pixel]) zoneLookup[pixel] = zoneIndex + 1;
+      }
+    }
+  });
 
   const makeTexture = (data) => {
     const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat, THREE.UnsignedByteType);
@@ -478,6 +495,10 @@ function calibrated() {
   return currentModelDef?.capability === "zones" && maskAtlases.length === 3;
 }
 
+function syncZoneHint() {
+  if (zoneHintEl) zoneHintEl.hidden = !calibrated();
+}
+
 function applyPreviewMode(mode) {
   if (!calibrated()) {
     previewMode = "game";
@@ -533,6 +554,8 @@ function applyPreviewMode(mode) {
     gameButton.classList.toggle("green", calibrated() && !accurate);
   }
   if (lightInput) lightInput.disabled = accurate;
+
+  syncZoneHint();
 
   if (statusEl && model && currentModelDef) {
     if (currentModelDef.capability === "zones") {
@@ -635,6 +658,7 @@ function disposeModel() {
   materialBindings = [];
   disposeMaskAtlases();
   currentMaskData = null;
+  zoneLookup = null;
 }
 
 async function loadChunkedGlb(def, token) {
@@ -688,6 +712,7 @@ function showNoModel(label, def = null) {
   if (accurateButton) accurateButton.disabled = true;
   if (gameButton) gameButton.disabled = true;
   syncZoneStrip();
+  syncZoneHint();
 
   const universal = normalizedSpecies(label).includes("universal") || normalizedSpecies(label).includes("any species");
   const message = universal
@@ -786,6 +811,60 @@ function selectedSpeciesLabel() {
   const option = speciesSelect?.selectedOptions?.[0];
   return option?.textContent || speciesSelect?.value || "";
 }
+
+const zoneRaycaster = new THREE.Raycaster();
+const zonePointer = new THREE.Vector2();
+let pointerDownPosition = null;
+
+function lookupZoneFromUv(uv) {
+  if (!calibrated() || !zoneLookup || !currentMaskData?.size || !uv) return null;
+  const size = currentMaskData.size;
+  const x = Math.max(0, Math.min(size - 1, Math.floor(uv.x * size)));
+  const yDirect = Math.max(0, Math.min(size - 1, Math.floor(uv.y * size)));
+  const yFlipped = Math.max(0, Math.min(size - 1, Math.floor((1 - uv.y) * size)));
+  const zoneKeys = ["body", "markings", "flank", "underbelly", "detail1", "eyes", "teeth", "mouth", "claws", "maleDisplay"];
+  const direct = zoneLookup[yDirect * size + x];
+  const flipped = zoneLookup[yFlipped * size + x];
+  const index = direct || flipped;
+  return index ? zoneKeys[index - 1] : null;
+}
+
+function selectPaintZoneAt(clientX, clientY) {
+  if (!calibrated() || !model) return;
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+
+  zonePointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+  zonePointer.y = -(((clientY - rect.top) / rect.height) * 2 - 1);
+  zoneRaycaster.setFromCamera(zonePointer, camera);
+
+  const hit = zoneRaycaster.intersectObject(model, true).find((entry) => entry.uv);
+  const zone = lookupZoneFromUv(hit?.uv);
+  if (!zone) return;
+
+  const input = document.getElementById(`skin-color-${zone}`);
+  const control = input?.closest?.(".skin-color-control");
+  if (!input || !control) return;
+
+  document.querySelectorAll(".skin-color-control.skin-zone-selected").forEach((node) => {
+    node.classList.remove("skin-zone-selected");
+  });
+  control.classList.add("skin-zone-selected");
+  control.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  setTimeout(() => input.click(), 80);
+}
+
+canvas.addEventListener("pointerdown", (event) => {
+  pointerDownPosition = { x: event.clientX, y: event.clientY };
+});
+
+canvas.addEventListener("pointerup", (event) => {
+  const start = pointerDownPosition;
+  pointerDownPosition = null;
+  if (!start) return;
+  const distance = Math.hypot(event.clientX - start.x, event.clientY - start.y);
+  if (distance <= 5) selectPaintZoneAt(event.clientX, event.clientY);
+});
 
 installModeControls();
 setRail(null, "");
