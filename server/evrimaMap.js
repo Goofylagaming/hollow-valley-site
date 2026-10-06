@@ -88,11 +88,18 @@ function nearestRegion(x, y) {
 // coordinates are documented; the fit reproduces the correct cell for all of
 // them. Rows are letters A-T running north to south, columns are numbers 1-20
 // running west to east.
-const GRID_ROW_ORIGIN = -572.25;
-const GRID_ROW_SIZE = 57.3;
-const GRID_COL_ORIGIN = -555.1;
-const GRID_COL_SIZE = 56.06;
-const GRID_CELLS = 20;
+const GRID = Object.freeze({
+  rowOrigin: -572.25,
+  rowSize: 57.3,
+  colOrigin: -555.1,
+  colSize: 56.06,
+  cells: 20,
+});
+const GRID_ROW_ORIGIN = GRID.rowOrigin;
+const GRID_ROW_SIZE = GRID.rowSize;
+const GRID_COL_ORIGIN = GRID.colOrigin;
+const GRID_COL_SIZE = GRID.colSize;
+const GRID_CELLS = GRID.cells;
 
 function gridCell(x, y) {
   const coords = toLatLong(x, y);
@@ -113,4 +120,4 @@ function fromRconLocation(location) {
   return { x: location.y, y: location.x, z: location.z };
 }
 
-module.exports = { BOUNDS, REGIONS, project, toLatLong, nearestRegion, gridCell, fromRconLocation };
+module.exports = { BOUNDS, GRID, REGIONS, project, toLatLong, nearestRegion, gridCell, fromRconLocation };
