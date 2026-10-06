@@ -150,6 +150,10 @@ test("Skin Studio 3D preview uses species-specific models and refuses fake unive
   assert.match(renderer, /function startCalibration\(\)/);
   assert.match(renderer, /function paintCalibrationUv\(uv\)/);
   assert.match(renderer, /function exportCalibrationMask\(\)/);
+  assert.match(renderer, /async function loadMaskData\(def\)/);
+  assert.match(renderer, /def\.maskUrl/);
+  assert.match(renderer, /await response\.json\(\)/);
+  assert.match(renderer, /JSON\.stringify\(maskPayloadFromLookup\(\), null, 2\)/);
   assert.match(renderer, /function loadCalibrationDraft\(\)/);
   assert.match(renderer, /hv-skin-calibration:/);
   assert.match(renderer, /draft auto-saved/);
