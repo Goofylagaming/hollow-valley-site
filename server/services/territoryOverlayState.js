@@ -1,6 +1,6 @@
 const { db } = require("../db");
 const serverStatus = require("./serverStatus");
-const { fromRconLocation, toLatLong, project } = require("../evrimaMap");
+const { fromRconLocation, toLatLong, project, BOUNDS } = require("../evrimaMap");
 const { territoryGeometry, classifyLatLong } = require("./territoryGeometry");
 const {
   direction8,
@@ -293,24 +293,12 @@ function buildOverlayState(user, { requestedMode } = {}) {
       claimToBattlefieldRatio: Math.max(0, Math.min(1, Number(geometry.claimRadius) / Number(geometry.battlefieldRadius))),
       mapCenter: project(Number(geometry.center.lat) * 1000, Number(geometry.center.long) * 1000),
       battlefieldMapRadius: {
-        x: Math.abs(
-          project(Number(geometry.center.lat) * 1000, (Number(geometry.center.long) + Number(geometry.battlefieldRadius)) * 1000).left -
-          project(Number(geometry.center.lat) * 1000, Number(geometry.center.long) * 1000).left
-        ),
-        y: Math.abs(
-          project((Number(geometry.center.lat) + Number(geometry.battlefieldRadius)) * 1000, Number(geometry.center.long) * 1000).top -
-          project(Number(geometry.center.lat) * 1000, Number(geometry.center.long) * 1000).top
-        ),
+        x: (Number(geometry.battlefieldRadius) * 1000) / (BOUNDS.maxY - BOUNDS.minY),
+        y: (Number(geometry.battlefieldRadius) * 1000) / (BOUNDS.maxX - BOUNDS.minX),
       },
       claimMapRadius: {
-        x: Math.abs(
-          project(Number(geometry.center.lat) * 1000, (Number(geometry.center.long) + Number(geometry.claimRadius)) * 1000).left -
-          project(Number(geometry.center.lat) * 1000, Number(geometry.center.long) * 1000).left
-        ),
-        y: Math.abs(
-          project((Number(geometry.center.lat) + Number(geometry.claimRadius)) * 1000, Number(geometry.center.long) * 1000).top -
-          project(Number(geometry.center.lat) * 1000, Number(geometry.center.long) * 1000).top
-        ),
+        x: (Number(geometry.claimRadius) * 1000) / (BOUNDS.maxY - BOUNDS.minY),
+        y: (Number(geometry.claimRadius) * 1000) / (BOUNDS.maxX - BOUNDS.minX),
       },
       selfRadar: self?.radar || null,
     } : null,
