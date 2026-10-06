@@ -52,6 +52,14 @@ function colorToHex(color) {
   return `#${channel(color?.r)}${channel(color?.g)}${channel(color?.b)}`;
 }
 
+function syncColorCodeLabels() {
+  for (const [key] of COLOR_FIELDS) {
+    const input = document.getElementById(`skin-color-${key}`);
+    const code = document.getElementById(`skin-color-code-${key}`);
+    if (input && code) code.textContent = String(input.value || "#000000").toUpperCase();
+  }
+}
+
 function editorSkin() {
   const skin = {};
   for (const [key] of COLOR_FIELDS) {
@@ -71,10 +79,12 @@ function applySkinToEditor(skin) {
   document.getElementById("skin-pattern").value = Number(skin?.patternIndex) || 0;
   document.getElementById("skin-theme").value = Number(skin?.themeIndex) || 0;
   document.getElementById("skin-variation").value = Number(skin?.skinVariation) || 0;
+  syncColorCodeLabels();
   updatePreview();
 }
 
 function updatePreview() {
+  syncColorCodeLabels();
   const skin = editorSkin();
   const stage = document.getElementById("skin-preview-stage");
   stage.style.setProperty("--skin-body", colorToHex(skin.body));
