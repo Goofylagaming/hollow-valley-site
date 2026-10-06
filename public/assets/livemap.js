@@ -114,7 +114,7 @@ const LABEL_LAYERS = ["areas", "landmarks"];
 // Zones are filled areas (ellipses or polygons); caves stay open outlines.
 const ZONE_LAYERS = ["migrations", "patrolZones", "sanctuaries"];
 const PATH_LAYERS = ["caves"];
-const ALL_LAYERS = [...POINT_LAYERS, ...LABEL_LAYERS, ...PATH_LAYERS, ...ZONE_LAYERS, "players"];
+const ALL_LAYERS = [...POINT_LAYERS, ...LABEL_LAYERS, ...PATH_LAYERS, ...ZONE_LAYERS, "roads", "players"];
 
 function pct(n) {
   return `${(n * 100).toFixed(2)}%`;
@@ -185,6 +185,22 @@ function renderShapes() {
   }
 
   svg.innerHTML = parts.join("");
+}
+
+function renderRoads() {
+  const svg = document.getElementById("tracker-roads");
+  if (!svg) return;
+  if (!mapData || !isLayerOn("roads")) {
+    svg.innerHTML = "";
+    return;
+  }
+
+  svg.innerHTML = (mapData.layers.roads || []).map((road) => {
+    if (!Array.isArray(road.points) || road.points.length < 2) return "";
+    const points = road.points.map(([left, top]) => `${svgUnits(left)},${svgUnits(top)}`).join(" ");
+    const kind = road.trail ? "trail-path" : "road-path";
+    return `<polyline class="gateway-route ${kind}" points="${points}"><title>${escapeHtml(road.name)}</title></polyline>`;
+  }).join("");
 }
 
 function renderPois() {
@@ -391,10 +407,11 @@ async function loadLayers() {
     mapData = data;
     window.dispatchEvent(new CustomEvent("hv:mapdata", { detail: data }));
     renderShapes();
+    renderRoads();
     renderPois();
     if (note) {
       const counts = data.layers;
-      note.textContent = `${counts.saltLicks.length} salt licks, ${counts.migrations.length} migration zones, ${counts.patrolZones.length} patrol zones, ${counts.sanctuaries.length} sanctuaries (${data.mapVersion}).`;
+      note.textContent = `${counts.saltLicks.length} salt licks, ${counts.roads?.length || 0} road/trail segments, ${counts.migrations.length} migration zones, ${counts.patrolZones.length} patrol zones, ${counts.sanctuaries.length} sanctuaries (${data.mapVersion}).`;
     }
   } catch (err) {
     if (note) note.textContent = "Map layer data is unavailable right now. Live player tracking still works.";
@@ -471,6 +488,8 @@ for (const key of ALL_LAYERS) {
   input.addEventListener("change", () => {
     if (key === "players") {
       loadMap();
+    } else if (key === "roads") {
+      renderRoads();
     } else {
       renderShapes();
       renderPois();
