@@ -186,6 +186,45 @@ db.exec(`
     ON economy_skin_grants(steam_id, granted_at DESC);
   CREATE INDEX IF NOT EXISTS idx_economy_skin_grants_preset
     ON economy_skin_grants(preset_id, granted_at DESC);
+
+  CREATE TABLE IF NOT EXISTS economy_skin_live_assignments (
+    steam_id TEXT PRIMARY KEY,
+    preset_id TEXT NOT NULL,
+    species TEXT NOT NULL,
+    skin_json TEXT NOT NULL,
+    life_marker_json TEXT NOT NULL DEFAULT '{}',
+    request_id TEXT,
+    status TEXT NOT NULL DEFAULT 'verified',
+    source TEXT NOT NULL DEFAULT 'wear_live',
+    last_error TEXT,
+    applied_at TEXT,
+    verified_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (steam_id) REFERENCES economy_wallets(steam_id),
+    FOREIGN KEY (preset_id) REFERENCES economy_skin_presets(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_economy_skin_live_assignments_preset
+    ON economy_skin_live_assignments(preset_id, updated_at DESC);
+
+  CREATE TABLE IF NOT EXISTS economy_skin_apply_jobs (
+    id TEXT PRIMARY KEY,
+    steam_id TEXT NOT NULL,
+    preset_id TEXT NOT NULL,
+    species TEXT NOT NULL,
+    skin_json TEXT NOT NULL,
+    life_marker_json TEXT NOT NULL DEFAULT '{}',
+    status TEXT NOT NULL DEFAULT 'queued',
+    error TEXT,
+    attempts INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    completed_at TEXT,
+    FOREIGN KEY (steam_id) REFERENCES economy_wallets(steam_id),
+    FOREIGN KEY (preset_id) REFERENCES economy_skin_presets(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_economy_skin_apply_jobs_steam_created
+    ON economy_skin_apply_jobs(steam_id, created_at DESC);
 `);
 
 (function ensureSkinPresetStoreSchema() {
@@ -779,6 +818,133 @@ function listOwnedSkinPresets(steamId, { limit = 300 } = {}) {
     .map((row) => mapSkinPreset(row, { owned: true }));
 }
 
+function normalizeSkinApplyStatus(value, fallback = 'queued') {
+  const status = String(value || fallback).trim().toLowerCase();
+  if (!/^[a-z][a-z0-9_-]{1,39}$/.test(status)) throw new Error('Invalid skin apply status');
+  return status;
+}
+
+function mapSkinLiveAssignment(row) {
+  if (!row) return null;
+  return {
+    ...row,
+    skin: parseJson(row.skin_json),
+    lifeMarker: parseJson(row.life_marker_json),
+  };
+}
+
+function mapSkinApplyJob(row) {
+  if (!row) return null;
+  return {
+    ...row,
+    attempts: Number(row.attempts) || 0,
+    skin: parseJson(row.skin_json),
+    lifeMarker: parseJson(row.life_marker_json),
+  };
+}
+
+function createSkinApplyJob({ id, steamId, presetId, species, skin, lifeMarker = {} }) {
+  const jobId = String(id || '').trim();
+  if (!/^[A-Za-z0-9:_-]{8,160}$/.test(jobId)) throw new Error('Invalid skin apply job ID');
+  const steam = validateSteamId(steamId);
+  const preset = String(presetId || '').trim();
+  const targetSpecies = String(species || '').trim();
+  if (!preset || !targetSpecies) throw new Error('Skin apply job requires a preset and species');
+  ensureWallet(steam);
+  db.prepare(`
+    INSERT INTO economy_skin_apply_jobs
+      (id, steam_id, preset_id, species, skin_json, life_marker_json, status, attempts)
+    VALUES (?, ?, ?, ?, ?, ?, 'queued', 1)
+    ON CONFLICT(id) DO UPDATE SET
+      status = 'queued',
+      error = NULL,
+      attempts = economy_skin_apply_jobs.attempts + 1,
+      updated_at = datetime('now'),
+      completed_at = NULL
+  `).run(jobId, steam, preset, targetSpecies, JSON.stringify(skin || {}), JSON.stringify(lifeMarker || {}));
+  return getSkinApplyJob(jobId);
+}
+
+function updateSkinApplyJob({ id, status, error = null, completed = false }) {
+  const jobId = String(id || '').trim();
+  const nextStatus = normalizeSkinApplyStatus(status);
+  db.prepare(`
+    UPDATE economy_skin_apply_jobs
+    SET status = ?,
+        error = ?,
+        updated_at = datetime('now'),
+        completed_at = CASE WHEN ? THEN datetime('now') ELSE completed_at END
+    WHERE id = ?
+  `).run(nextStatus, error ? String(error).slice(0, 1000) : null, completed ? 1 : 0, jobId);
+  return getSkinApplyJob(jobId);
+}
+
+function getSkinApplyJob(id) {
+  const row = db.prepare('SELECT * FROM economy_skin_apply_jobs WHERE id = ?').get(String(id || '').trim());
+  return mapSkinApplyJob(row);
+}
+
+function upsertSkinLiveAssignment({
+  steamId,
+  presetId,
+  species,
+  skin,
+  lifeMarker = {},
+  requestId = null,
+  status = 'verified',
+  source = 'wear_live',
+  error = null,
+}) {
+  const steam = validateSteamId(steamId);
+  const preset = String(presetId || '').trim();
+  const targetSpecies = String(species || '').trim();
+  if (!preset || !targetSpecies) throw new Error('Live skin assignment requires a preset and species');
+  const nextStatus = normalizeSkinApplyStatus(status, 'verified');
+  ensureWallet(steam);
+  db.prepare(`
+    INSERT INTO economy_skin_live_assignments
+      (steam_id, preset_id, species, skin_json, life_marker_json, request_id, status, source, last_error, applied_at, verified_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), CASE WHEN ? = 'verified' THEN datetime('now') ELSE NULL END)
+    ON CONFLICT(steam_id) DO UPDATE SET
+      preset_id = excluded.preset_id,
+      species = excluded.species,
+      skin_json = excluded.skin_json,
+      life_marker_json = excluded.life_marker_json,
+      request_id = excluded.request_id,
+      status = excluded.status,
+      source = excluded.source,
+      last_error = excluded.last_error,
+      applied_at = datetime('now'),
+      verified_at = CASE WHEN excluded.status = 'verified' THEN datetime('now') ELSE economy_skin_live_assignments.verified_at END,
+      updated_at = datetime('now')
+  `).run(
+    steam,
+    preset,
+    targetSpecies,
+    JSON.stringify(skin || {}),
+    JSON.stringify(lifeMarker || {}),
+    requestId ? String(requestId) : null,
+    nextStatus,
+    String(source || 'wear_live').slice(0, 40),
+    error ? String(error).slice(0, 1000) : null,
+    nextStatus
+  );
+  return getSkinLiveAssignment(steam);
+}
+
+function getSkinLiveAssignment(steamId) {
+  const steam = validateSteamId(steamId);
+  return mapSkinLiveAssignment(db.prepare(
+    'SELECT * FROM economy_skin_live_assignments WHERE steam_id = ?'
+  ).get(steam));
+}
+
+function clearSkinLiveAssignment(steamId) {
+  const steam = validateSteamId(steamId);
+  const result = db.prepare('DELETE FROM economy_skin_live_assignments WHERE steam_id = ?').run(steam);
+  return { steamId: steam, cleared: Number(result.changes || 0) > 0 };
+}
+
 function getDinoListing(id) {
   const row = db.prepare('SELECT * FROM economy_dino_listings WHERE id = ?').get(String(id || '').trim());
   return row ? { ...row, snapshot: parseJson(row.snapshot_json) } : null;
@@ -875,6 +1041,12 @@ module.exports = {
   listSkinPresets,
   listSkinStore,
   listOwnedSkinPresets,
+  createSkinApplyJob,
+  updateSkinApplyJob,
+  getSkinApplyJob,
+  upsertSkinLiveAssignment,
+  getSkinLiveAssignment,
+  clearSkinLiveAssignment,
   getDinoListing,
   getDinoListingByIdempotency,
   listDinoListings,
