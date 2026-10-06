@@ -34,9 +34,18 @@ local RESULTS_FILE =
     (MODS_ROOT and (MODS_ROOT .. "/CommandBridge/Saved/results.ndjson"))
     or "Mods/CommandBridge/Saved/results.ndjson"
 local POLL_INTERVAL_MS = 1500
-local REAPPLY_INTERVAL_MS = 10000
+-- EVRIMA rebuilds SkinCode-driven colours during login. Re-check on a short
+-- cadence so the mod can re-assert its saved profile after that engine pass.
+local REAPPLY_INTERVAL_MS = 4000
 local LIVE_REFRESH_INTERVAL_MS = 3000
 local LIVE_REFRESH_ATTEMPTS = 5
+
+-- PatternIndex is strict and species-specific in 0.21.720. A bad value can
+-- make the client discard the entire skin rebuild while server readback still
+-- looks correct. Only write patterns for species whose range is verified.
+local PATTERN_MAX_BY_SPECIES = {
+    tyrannosaurus = 2,
+}
 
 local function log(msg)
     print(string.format("[%s] %s\n", MOD_NAME, tostring(msg)))
@@ -328,7 +337,23 @@ local function applyConfigToPawn(pawn, config)
     local theme = math.floor(config.theme)
     if not config.preserveIndices then
         writeScalar("SkinVariation", variation)
-        if pattern >= 0 then writeScalar("PatternIndex", pattern) end
+
+        local speciesKey = tostring(config.species or ""):lower():gsub("[^%w]", "")
+        local patternMax = PATTERN_MAX_BY_SPECIES[speciesKey]
+        if patternMax ~= nil and pattern >= 0 and pattern <= patternMax then
+            writeScalar("PatternIndex", pattern)
+        elseif patternMax ~= nil then
+            log(string.format(
+                "Skipped unsafe PatternIndex species=%s wanted=%s valid=0..%d",
+                tostring(config.species), tostring(pattern), patternMax
+            ))
+        else
+            log(string.format(
+                "Skipped unverified PatternIndex species=%s wanted=%s",
+                tostring(config.species), tostring(pattern)
+            ))
+        end
+
         if theme >= 0 then writeScalar("ThemeIndex", theme) end
     end
 
@@ -364,6 +389,7 @@ local hadPawnThisConnection = {}
 local pendingNewLife = {}
 local pendingLiveRefresh = {}
 local NEW_LIFE_GROWTH_DROP = 0.05
+local BABY_GROWTH_RESET_FLOOR = 0.15
 local PROFILE_GROWTH_PERSIST_STEP = 0.01
 
 local function profileSpeciesKey(species)
@@ -557,12 +583,14 @@ local function processLine(line)
             pcall(function() ctrl = gm:GetControllerBySteamId(steam) end)
             pawn = livePawnFromCtrl(ctrl)
         end
-        -- Persist the verified palette for this dinosaur life. The growth
-        -- marker lets reconnect restoration distinguish the same growing dino
-        -- from a later fresh life without touching TemporarySkinData.
+        -- Persist the verified palette for this dinosaur life. Do not tell
+        -- the website persistence is confirmed unless the reconnect profile
+        -- itself was written successfully.
+        local profileSaved = false
         if pawn ~= nil then
             local growth = pawnGrowth(pawn)
-            if not rememberProfile(steam, args, config, growth) then
+            profileSaved = rememberProfile(steam, args, config, growth)
+            if not profileSaved then
                 log("WARNING: live skin applied but reconnect profile could not be saved steam=" .. tostring(steam))
             end
             lastPawnAddress[steam] = objectAddress(pawn)
@@ -577,7 +605,14 @@ local function processLine(line)
             pawnAddress = objectAddress(pawn),
             controllerAddress = objectAddress(ctrl),
         }
-        safeNotify(steam, "Hollow Valley skin equipped: " .. tostring(config.preset ~= "" and config.preset or "custom skin"))
+        if profileSaved then
+            msg = "Skin applied, verified, and reconnect profile saved."
+            safeNotify(steam, "Hollow Valley skin equipped: " .. tostring(config.preset ~= "" and config.preset or "custom skin"))
+        else
+            ok = false
+            msg = "Skin applied live, but reconnect persistence could not be saved. Retry Wear Live."
+            safeNotify(steam, "Skin applied live, but reconnect persistence failed. Please retry Wear Live.")
+        end
     end
     emitResult(id, steam, ok, msg)
 end
@@ -675,6 +710,10 @@ local function reapplyProfiles()
                 local growthReset =
                     growth ~= nil
                     and rememberedGrowth ~= nil
+                    -- Hatchlings can reconnect around tiny growth values while
+                    -- the server catches up its saved state. Do not classify a
+                    -- nested baby as a new life from a small rollback alone.
+                    and rememberedGrowth > BABY_GROWTH_RESET_FLOOR
                     and growth + NEW_LIFE_GROWTH_DROP < rememberedGrowth
 
                 hadPawnThisConnection[steam] = true
