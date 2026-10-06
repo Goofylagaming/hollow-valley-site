@@ -851,7 +851,7 @@ function selectPaintZoneAt(clientX, clientY) {
   });
   control.classList.add("skin-zone-selected");
   control.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  setTimeout(() => input.click(), 80);
+  input.click();
 }
 
 canvas.addEventListener("pointerdown", (event) => {
