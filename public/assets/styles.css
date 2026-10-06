@@ -1316,3 +1316,73 @@
   border-color:#4f8c61;
   box-shadow:0 0 0 1px rgba(92,156,111,.28),0 0 20px rgba(71,128,88,.12);
 }
+
+
+/* Skin Studio v012 · admin UV zone calibration */
+.skin-calibration-panel{
+  margin-top:14px;
+  padding:14px;
+  border:1px solid #4a3f28;
+  background:linear-gradient(180deg,#14110c,#0d0b09);
+}
+.skin-calibration-help{
+  margin:8px 0 12px;
+  color:#817666;
+  font-size:10px;
+  line-height:1.45;
+}
+.skin-calibration-controls{
+  display:grid;
+  grid-template-columns:minmax(150px,1fr) minmax(190px,1fr) minmax(150px,.8fr);
+  gap:10px;
+}
+.skin-calibration-controls label{
+  display:grid;
+  gap:6px;
+  color:#8e8170;
+  font-size:9px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.skin-calibration-controls select,
+.skin-calibration-controls input[type="range"]{
+  width:100%;
+}
+.skin-calibration-controls select{
+  border:1px solid #3b3429;
+  background:#0d0b09;
+  color:#c8bcaa;
+  padding:8px 9px;
+}
+.skin-calibration-check{
+  align-content:center;
+  grid-template-columns:auto 1fr!important;
+  align-items:center;
+  text-transform:none!important;
+  letter-spacing:0!important;
+}
+.skin-calibration-check input{margin:0}
+.skin-calibration-actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:12px;
+}
+.skin-calibration-status{
+  margin-top:10px;
+  color:#8a7d6c;
+  font-size:10px;
+}
+.skin-calibration-output{
+  margin-top:10px;
+  min-height:130px;
+  font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+  font-size:9px;
+}
+.skin-model-stage.skin-calibrating canvas{cursor:crosshair}
+.skin-model-stage.skin-calibrating .skin-model-hud span:last-child{
+  color:#cbe0cf;
+}
+@media(max-width:750px){
+  .skin-calibration-controls{grid-template-columns:1fr}
+}
