@@ -8,6 +8,7 @@ const pendingModel = (key, displayName, aliases = []) => Object.freeze({
   aliases: Object.freeze([key, displayName, ...aliases]),
   displayName,
   capability: "pending",
+  patternMax: null,
   loader: null,
   credit: null,
   camera: Object.freeze({ yaw: 0.26, targetHeight: 0.48, distanceScale: 0.62 }),
@@ -27,6 +28,7 @@ const shapeModel = ({
   aliases: Object.freeze([key, displayName, ...aliases]),
   displayName,
   capability: "shape",
+  patternMax: null,
   loader: Object.freeze({ type: "url", url: modelUrl }),
   credit: Object.freeze({
     label: `${displayName} preview model · CC0`,
@@ -51,6 +53,7 @@ const calibratedModel = ({
   aliases: Object.freeze([key, displayName, ...aliases]),
   displayName,
   capability: "zones",
+  patternMax: null,
   loader: Object.freeze({ type: "url", url: modelUrl }),
   maskUrl,
   credit: Object.freeze({
@@ -66,6 +69,7 @@ window.HV_SKIN_MODELS = Object.freeze({
     aliases: Object.freeze(["tyrannosaurus", "tyrannosaurus rex", "tyra", "rex"]),
     displayName: "Tyrannosaurus rex",
     capability: "zones",
+    patternMax: 2,
     loader: Object.freeze({
       type: "chunked-base64",
       root: "/assets/skin-models/tyrannosaurus/chunks",
