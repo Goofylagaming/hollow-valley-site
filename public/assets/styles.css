@@ -1440,3 +1440,15 @@
   margin-top:0;
   min-height:100px;
 }
+
+
+.skin-calibration-coverage{
+  margin-top:8px;
+  padding:8px 10px;
+  border:1px solid #242018;
+  background:#0a0907;
+  color:#756b5e;
+  font:9px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;
+  white-space:normal;
+}
+.skin-calibration-coverage b{color:#b9ad9a;font-weight:600}
