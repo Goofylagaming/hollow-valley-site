@@ -99,6 +99,27 @@ test("Skin Studio v012 restores life-scoped skins without using transient pawn s
   assert.match(browser, /syncColorCodeLabels\(\);\n  updatePreview\(\);/);
 });
 
+test("Skin Studio 3D preview uses species-specific models and refuses fake universal previews", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(__dirname, "..", "public", "skins.html"), "utf8");
+  const registry = fs.readFileSync(path.join(__dirname, "..", "public", "assets", "skin-studio-model-registry.js"), "utf8");
+  const renderer = fs.readFileSync(path.join(__dirname, "..", "public", "assets", "skin-studio-3d.js"), "utf8");
+
+  assert.match(html, /skin-studio-model-registry\.js/);
+  assert.match(html, /id="skin-model-name"/);
+  assert.match(registry, /tyrannosaurus:[\s\S]*capability: "zones"/);
+  assert.match(registry, /triceratops:[\s\S]*capability: "shape"/);
+  assert.match(registry, /deinosuchus:[\s\S]*capability: "pending"/);
+  assert.match(registry, /allosaurus: pendingModel/);
+  assert.match(registry, /beipiaosaurus: pendingModel/);
+  assert.match(renderer, /resolveModelDefinition/);
+  assert.match(renderer, /loadModelForSpecies/);
+  assert.match(renderer, /Universal skin/);
+  assert.match(renderer, /colour-zone calibration pending/);
+  assert.match(renderer, /currentModelDef\.capability === "zones"/);
+});
+
 test("Skin Shop published cards hide raw colour swatches but editing views keep them", () => {
   const fs = require("node:fs");
   const path = require("node:path");
