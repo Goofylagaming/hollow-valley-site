@@ -28,6 +28,107 @@ function buildWearTokens(preset, targetSpecies = null) {
   ];
 }
 
+async function reconcileWearState(steamId) {
+  const latest = store.getLatestSkinApplyJob(steamId);
+  if (!latest) {
+    return {
+      assignment: store.getSkinLiveAssignment(steamId),
+      latestJob: null,
+    };
+  }
+
+  if (['queued', 'awaiting_confirmation'].includes(String(latest.status || ''))) {
+    const command = {
+      id: latest.id,
+      steam: String(steamId),
+      verb: 'skin_apply',
+    };
+
+    try {
+      const outcome = await bridge.readOutcome(command);
+      if (outcome?.state === 'confirmed') {
+        store.updateSkinApplyJob({
+          id: latest.id,
+          status: 'verified',
+          completed: true,
+        });
+        store.upsertSkinLiveAssignment({
+          steamId,
+          presetId: latest.preset_id,
+          species: latest.species,
+          skin: latest.skin,
+          lifeMarker: latest.lifeMarker,
+          requestId: latest.id,
+          status: 'verified',
+          source: 'wear_live',
+        });
+      } else if (outcome?.state === 'failed') {
+        store.updateSkinApplyJob({
+          id: latest.id,
+          status: 'failed',
+          error: outcome.message || 'SkinStudio rejected the skin',
+          completed: true,
+        });
+      }
+    } catch {
+      // Status reads are best-effort. Keep the prior job state if the bridge
+      // cannot be checked right now instead of turning a read into a new error.
+    }
+  }
+
+  return {
+    assignment: store.getSkinLiveAssignment(steamId),
+    latestJob: store.getLatestSkinApplyJob(steamId),
+  };
+}
+
+async function getWearState(steamId) {
+  const state = await reconcileWearState(steamId);
+  const assignment = state.assignment;
+  const latestJob = state.latestJob;
+
+  return {
+    assignment: assignment ? {
+      presetId: assignment.preset_id,
+      species: assignment.species,
+      status: assignment.status,
+      source: assignment.source,
+      requestId: assignment.request_id,
+      appliedAt: assignment.applied_at,
+      verifiedAt: assignment.verified_at,
+      lifeMarker: assignment.lifeMarker,
+    } : null,
+    latestJob: latestJob ? {
+      id: latestJob.id,
+      presetId: latestJob.preset_id,
+      species: latestJob.species,
+      status: latestJob.status,
+      error: latestJob.error || null,
+      attempts: latestJob.attempts,
+      createdAt: latestJob.created_at,
+      updatedAt: latestJob.updated_at,
+      completedAt: latestJob.completed_at,
+      lifeMarker: latestJob.lifeMarker,
+    } : null,
+  };
+}
+
+async function retryLastWear(steamId) {
+  const state = await reconcileWearState(steamId);
+  const latest = state.latestJob;
+  if (!latest?.preset_id) {
+    const error = new Error('There is no previous Wear Live request to retry.');
+    error.code = 'SKIN_WEAR_RETRY_NOT_FOUND';
+    throw error;
+  }
+  if (latest.status === 'verified') {
+    const error = new Error('Your most recent Wear Live request is already verified.');
+    error.code = 'SKIN_WEAR_ALREADY_VERIFIED';
+    throw error;
+  }
+  return wearPreset({ steamId, presetId: latest.preset_id });
+}
+
 async function wearPreset({ steamId, presetId }) {
   if (!skinPresets.liveWearEnabled()) {
     const error = new Error('Live skin wearing is disabled');
@@ -159,4 +260,11 @@ async function wearPreset({ steamId, presetId }) {
   };
 }
 
-module.exports = { buildWearTokens, wearPreset, timeoutMs };
+module.exports = {
+  buildWearTokens,
+  wearPreset,
+  getWearState,
+  retryLastWear,
+  reconcileWearState,
+  timeoutMs,
+};
