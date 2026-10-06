@@ -65,19 +65,18 @@ test("Skin Studio website client targets automation skin endpoints", async (t) =
 });
 
 
-test("Skin Studio v011 keeps current-pawn isolation and required runtime helpers", () => {
+test("Skin Studio v012 restores life-scoped skins without using transient pawn skin data", () => {
   const fs = require("node:fs");
   const path = require("node:path");
   const lua = fs.readFileSync(path.join(__dirname, "..", "server-mods", "SkinStudio", "Scripts", "main.lua"), "utf8");
   const browser = fs.readFileSync(path.join(__dirname, "..", "public", "assets", "skins.js"), "utf8");
 
-  assert.match(lua, /SkinStudio v011/);
-  assert.match(lua, /CURRENT pawn only/);
-  assert.match(lua, /never auto-restores an old applied skin onto a future pawn/);
-  assert.match(lua, /TemporarySkinData and bUseSkinPalette are intentionally never modified/);
-  assert.match(lua, /Cleared legacy auto-restore profiles/);
-  assert.equal(lua.includes("loadProfiles()\n\nif LoopInGameThreadWithDelay"), false);
-  assert.equal(lua.includes('safeCall("reapplyProfiles", reapplyProfiles)'), false);
+  assert.match(lua, /SkinStudio v012/);
+  assert.match(lua, /life-scoped reconnect persistence/);
+  assert.match(lua, /rememberProfile\(steam, args, config, growth\)/);
+  assert.match(lua, /loadProfiles\(\)/);
+  assert.match(lua, /safeCall\("reapplyProfiles", reapplyProfiles\)/);
+  assert.match(lua, /pendingLiveRefresh\[steam\]/);
   assert.match(lua, /state\.pawnAddress/);
   assert.match(lua, /state\.controllerAddress/);
   assert.match(lua, /Cancelled live skin refresh after dinosaur life changed/);
