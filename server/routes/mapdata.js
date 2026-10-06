@@ -9,7 +9,7 @@
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
-const { BOUNDS } = require("../evrimaMap");
+const { BOUNDS, GRID } = require("../evrimaMap");
 
 const router = express.Router();
 
@@ -218,6 +218,8 @@ function buildPayload(sec1, sec2, sourceVersion = "Gateway_v0.21.7") {
     mapVersion: sourceVersion,
     source: "Vulnona community cartography",
     fetchedAt: new Date().toISOString(),
+    bounds: BOUNDS,
+    grid: GRID,
     layers: {
       areas: parsePoints(sec1["Area"]),
       landmarks: [...parsePoints(sec1["Landmarks"]), ...parsePoints(sec1["Site (Human Base)"])],

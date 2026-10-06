@@ -389,6 +389,7 @@ async function loadLayers() {
   try {
     const data = await api("/api/mapdata");
     mapData = data;
+    window.dispatchEvent(new CustomEvent("hv:mapdata", { detail: data }));
     renderShapes();
     renderPois();
     if (note) {
@@ -408,6 +409,7 @@ async function loadMap() {
   try {
     const data = await api("/api/map/positions");
     lastMapState = data;
+    window.dispatchEvent(new CustomEvent("hv:map-state", { detail: data }));
 
     if (!data.connected) {
       // An offline response is not a live snapshot. Explicitly clear all live markers.
@@ -552,6 +554,24 @@ function initMapZoom() {
     render();
   }
 
+  function focus(left, top, targetScale = 4) {
+    const safeLeft = clamp(Number(left), 0, 1);
+    const safeTop = clamp(Number(top), 0, 1);
+    const requestedScale = Number(targetScale);
+    scale = clamp(Number.isFinite(requestedScale) ? requestedScale : 4, MIN_ZOOM, MAX_ZOOM);
+    const vw = viewport.clientWidth;
+    const vh = viewport.clientHeight;
+    offsetX = vw / 2 - safeLeft * vw * scale;
+    offsetY = vh / 2 - safeTop * vh * scale;
+    render();
+  }
+
+  window.HVLiveMapView = {
+    focus,
+    reset: resetMap,
+    getState: () => ({ scale, offsetX, offsetY }),
+  };
+
   if (zoomInBtn) {
     zoomInBtn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -582,13 +602,13 @@ function initMapZoom() {
   }, { passive: false });
 
   viewport.addEventListener("dblclick", (e) => {
-    if (e.target.closest(".map-controls")) return;
+    if (e.target.closest(".map-controls, .map-navigator")) return;
     e.preventDefault();
     zoomAt(e.clientX, e.clientY, STEP);
   });
 
   viewport.addEventListener("pointerdown", (e) => {
-    if (e.target.closest(".map-controls")) return;
+    if (e.target.closest(".map-controls, .map-navigator")) return;
     dragging = true;
     viewport.classList.add("is-dragging");
     try { viewport.setPointerCapture(e.pointerId); } catch (_) {}
