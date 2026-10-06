@@ -40,3 +40,51 @@
 .tw-map-hud[data-mode="player"] .tw-leader,.tw-map-hud[data-mode="player"] .tw-admin{display:none!important}
 .tw-map-hud[data-mode="leader"] .tw-admin{display:none!important}
 @media(max-width:900px){.tw-map-top{grid-template-columns:130px 160px 130px}.tw-left{width:190px}.tw-control{width:64%}.tw-direction{right:8px;top:8px}.tw-map-top{top:8px}}
+
+/* Explicit map stacking: territory intel stays above static cartography and
+   wildlife, while live survivor/trail/pin layers always remain readable. */
+#tracker-grid{z-index:2}
+#tracker-heatmap,#tracker-wildlife-density{z-index:3}
+#tracker-shapes{z-index:4}
+#tracker-roads{z-index:5}
+#tracker-pois,#tracker-wildlife,#tracker-labels{z-index:6}
+#territory-war-shapes{z-index:8;pointer-events:none}
+#tracker-trails{z-index:9}
+#tracker-markers{z-index:10}
+#tracker-target-pins,#map-navigation-layer{z-index:11}
+
+.tw-timer em{
+  display:inline-block;
+  margin-top:5px;
+  padding:2px 5px;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:4px;
+  color:#c4b9a6;
+  background:rgba(255,255,255,.035);
+  font-style:normal;
+  font-size:7px;
+  font-weight:800;
+  letter-spacing:.1em;
+}
+.tw-map-hud[data-phase="attack-warning"] .tw-timer em{color:#ffb07c;border-color:rgba(226,92,43,.45)}
+.tw-map-hud[data-phase="claim-arming"] .tw-timer em{color:#ffd66a;border-color:rgba(216,169,40,.5)}
+.tw-map-hud[data-phase="control-live"] .tw-timer em{color:#bfe28b;border-color:rgba(121,167,68,.45)}
+
+#territory-war-shapes[data-phase="attack-warning"] .tw-zone-shape.battlefield{
+  stroke:#e87942;
+  fill:rgba(226,92,43,.045);
+}
+#territory-war-shapes[data-phase="claim-arming"] .tw-zone-shape.claim{
+  stroke:#ffd66a;
+  fill:rgba(216,169,40,.07);
+  stroke-dasharray:3 3;
+}
+#territory-war-shapes[data-phase="control-live"] .tw-zone-shape.claim{
+  stroke:#d8e86f;
+  fill:rgba(121,167,68,.08);
+  stroke-width:1.55;
+  stroke-dasharray:none;
+}
+#territory-war-shapes[data-phase="control-live"] .tw-zone-label{
+  fill:#f4e59a;
+}
