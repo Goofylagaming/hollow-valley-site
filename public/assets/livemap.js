@@ -351,7 +351,7 @@ function renderWildlifeDensity(points, species, mode) {
   if (!svg) return 0;
   if (mode !== "density" && mode !== "both") {
     svg.innerHTML = "";
-    return 0;
+    return { areas: 0, isolated: 0 };
   }
 
   const { clusters, outliers, radius } = clusterWildlifePoints(points);
@@ -379,7 +379,7 @@ function renderWildlifeDensity(points, species, mode) {
   }
 
   svg.innerHTML = parts.join("");
-  return clusters.length + outliers.length;
+  return { areas: clusters.length, isolated: outliers.length };
 }
 
 function renderWildlife() {
@@ -408,10 +408,12 @@ function renderWildlife() {
     return `<span class="wildlife-point ${category}" style="left:${pct(point.left)};top:${pct(point.top)}"><span class="wildlife-label">${escapeHtml(point.species)}${observed}</span></span>`;
   }).join("") : "";
 
-  const densityAreas = renderWildlifeDensity(points, selected, mode);
+  const density = renderWildlifeDensity(points, selected, mode);
   if (note) {
-    const densityText = mode === "points" ? "" : ` · ${densityAreas} approximate density area${densityAreas === 1 ? "" : "s"}`;
-    note.textContent = `${points.length} dated community ${selected} observations${densityText} · not exact spawn-zone boundaries.`;
+    const densityText = mode === "points"
+      ? ""
+      : ` · ${density.areas} density area${density.areas === 1 ? "" : "s"} · ${density.isolated} isolated`;
+    note.textContent = `${points.length} dated community ${selected} observations${densityText} · approximate only, not game spawn boundaries.`;
   }
 }
 
