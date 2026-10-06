@@ -809,6 +809,225 @@ router.post("/attack", requireTerritoryInternalToken, (req, res) => {
 });
 
 
+router.post("/preview-kill-guardrails", requireTerritoryInternalToken, (_req, res) => {
+  try {
+    if (!previewSeedEnabled()) {
+      return res.status(403).json({
+        error: "Territory Wars preview controls are disabled",
+      });
+    }
+
+    let event = latestEventRaw();
+    if (!event) {
+      return res.status(409).json({
+        error: "A Territory preview event is required",
+      });
+    }
+
+    const leader = ensurePreviewUser("999000000000000002");
+    const member = ensurePreviewUser("999000000000000003");
+    const defenderOne = ensurePreviewUser("999000000000000006");
+    const defenderTwo = ensurePreviewUser("999000000000000007");
+    const defenderThree = ensurePreviewUser("999000000000000008");
+
+    if (!leader || !member || !defenderOne || !defenderTwo || !defenderThree) {
+      return res.status(500).json({
+        error: "Unable to create preview kill-guardrail fighters",
+      });
+    }
+
+    let group = groupForUser(leader.id);
+    if (!group) {
+      const created = db.prepare(`
+        INSERT INTO territory_groups (name, tag, leader_user_id)
+        VALUES ('Preview Group 2', 'P00002', ?)
+      `).run(leader.id);
+      const groupId = Number(created.lastInsertRowid);
+      db.prepare(`
+        INSERT INTO territory_group_members (group_id, user_id, role)
+        VALUES (?, ?, 'leader')
+      `).run(groupId, leader.id);
+      db.prepare(
+        "INSERT OR IGNORE INTO territory_group_stats (group_id) VALUES (?)"
+      ).run(groupId);
+      group = groupForUser(leader.id);
+    }
+
+    ensurePreviewGroupMember("999000000000000003", group.id);
+
+    db.prepare("UPDATE users SET is_admin = 1 WHERE id IN (?, ?, ?)")
+      .run(defenderOne.id, defenderTwo.id, defenderThree.id);
+
+    const now = nowIso();
+    const startsAt = new Date(Date.now() - (5 * 60 * 1000)).toISOString();
+    const endsAt = new Date(Date.now() + (5 * 60 * 60 * 1000)).toISOString();
+    const contestStartedAt = new Date(Date.now() - (3 * 60 * 1000)).toISOString();
+    const lastTickAt = new Date(Date.now() - (60 * 1000)).toISOString();
+
+    let attackId = null;
+
+    runTransaction(() => {
+      db.prepare(`
+        UPDATE territory_events
+        SET status = 'live',
+            owner_name = 'Admin',
+            challenger_name = ?,
+            control_score = 0,
+            owner_control = 50,
+            challenger_control = 50,
+            protection_until = NULL,
+            frozen_owner_name = NULL,
+            starts_at = ?,
+            ends_at = ?,
+            updated_at = datetime('now')
+        WHERE id = ?
+      `).run(group.name, startsAt, endsAt, event.id);
+
+      db.prepare(`
+        UPDATE territory_attacks
+        SET status = 'cancelled',
+            resolved_at = ?,
+            outcome = 'preview-reset'
+        WHERE event_id = ?
+          AND status IN ('warning', 'active')
+      `).run(now, event.id);
+
+      db.prepare(`
+        DELETE FROM territory_event_lineups
+        WHERE event_id = ? AND group_id = ?
+      `).run(event.id, group.id);
+
+      const lineupInsert = db.prepare(`
+        INSERT INTO territory_event_lineups
+          (event_id, group_id, user_id, selected_by_user_id, active_from, selected_at)
+        VALUES (?, ?, ?, ?, ?, datetime('now'))
+      `);
+      const activeFrom = new Date(Date.now() - 1000).toISOString();
+      lineupInsert.run(event.id, group.id, leader.id, leader.id, activeFrom);
+      lineupInsert.run(event.id, group.id, member.id, leader.id, activeFrom);
+
+      db.prepare(
+        "DELETE FROM territory_preview_presence WHERE event_id = ?"
+      ).run(event.id);
+
+      const presenceInsert = db.prepare(`
+        INSERT INTO territory_preview_presence
+          (event_id, user_id, side, in_battlefield, in_claim, updated_at)
+        VALUES (?, ?, ?, 1, 1, ?)
+      `);
+      presenceInsert.run(event.id, leader.id, "attacker", now);
+      presenceInsert.run(event.id, member.id, "attacker", now);
+      presenceInsert.run(event.id, defenderOne.id, "defender", now);
+      presenceInsert.run(event.id, defenderTwo.id, "defender", now);
+
+      db.prepare(
+        "DELETE FROM territory_presence_grace WHERE event_id = ?"
+      ).run(event.id);
+      db.prepare(
+        "DELETE FROM territory_combat_events WHERE event_id = ?"
+      ).run(event.id);
+      try {
+        db.prepare(
+          "DELETE FROM territory_kill_momentum WHERE event_id = ?"
+        ).run(event.id);
+      } catch {}
+
+      const inserted = db.prepare(`
+        INSERT INTO territory_attacks
+          (
+            event_id,
+            attacker_group_id,
+            defender_group_id,
+            status,
+            declared_by_user_id,
+            declared_at,
+            starts_at,
+            contest_started_at,
+            last_tick_at
+          )
+        VALUES (?, ?, NULL, 'active', ?, ?, ?, ?, ?)
+      `).run(
+        event.id,
+        group.id,
+        leader.id,
+        startsAt,
+        startsAt,
+        contestStartedAt,
+        lastTickAt
+      );
+      attackId = Number(inserted.lastInsertRowid);
+    });
+
+    event = eventById(event.id);
+
+    const location = { x: -302000, y: 250000, z: 0 };
+    const occurredAt = nowIso();
+
+    const kill = (id, victim) => territoryCombatSync._test.processCombatEvent(
+      {
+        id,
+        occurredAt,
+        killerSteamId: String(leader.steam_id),
+        victimSteamId: String(victim.steam_id),
+        killerName: leader.username,
+        victimName: victim.username,
+        killerLocation: location,
+        victimLocation: location,
+        presenceSampledAt: occurredAt,
+      },
+      event
+    );
+
+    const firstId = `preview-guardrail-${event.id}-${attackId}-1`;
+    const killOne = kill(firstId, defenderOne);
+    const duplicate = kill(firstId, defenderOne);
+    const repeatPair = kill(
+      `preview-guardrail-${event.id}-${attackId}-repeat`,
+      defenderOne
+    );
+    const killTwo = kill(
+      `preview-guardrail-${event.id}-${attackId}-2`,
+      defenderTwo
+    );
+    const killThree = kill(
+      `preview-guardrail-${event.id}-${attackId}-3`,
+      defenderThree
+    );
+
+    const momentum = territoryMomentum.recentMomentum(
+      event.id,
+      attackId,
+      Date.now()
+    );
+
+    addLog(
+      event.id,
+      "kill",
+      "Preview kill guardrail test verified momentum cap, duplicate suppression, and repeat-pair cooldown",
+      null
+    );
+
+    return res.json({
+      ok: true,
+      eventId: Number(event.id),
+      attackId,
+      controlBefore: 0,
+      attackers: 2,
+      defenders: 2,
+      validKills: [killOne, killTwo, killThree],
+      duplicate,
+      repeatPair,
+      momentum,
+      expectedControlAfterOneMinute: 2,
+    });
+  } catch (error) {
+    console.error("[TerritoryWars] Preview kill guardrails failed:", error);
+    return res.status(500).json({
+      error: error?.message || "Unable to run the Territory kill-guardrail test.",
+    });
+  }
+});
+
 router.post("/preview-kill-momentum", requireTerritoryInternalToken, (_req, res) => {
   try {
     if (!previewSeedEnabled()) {
