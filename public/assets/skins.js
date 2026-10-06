@@ -29,6 +29,7 @@ let storedDinos = [];
 let externalQueue = [];
 let editingPresetId = null;
 let wearState = null;
+let previewSex = "male";
 
 const EXTERNAL_LIBRARY_RE = /^\[External Library:([^\]]+)\]\s*/;
 
@@ -80,6 +81,23 @@ function editorSkin() {
   return skin;
 }
 
+function syncPatternPresetButtons() {
+  const value = Number(document.getElementById("skin-pattern")?.value);
+  document.querySelectorAll("#skin-pattern-presets [data-pattern]").forEach((button) => {
+    const active = Number(button.dataset.pattern) === value;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+}
+
+function syncSexPreviewButtons() {
+  document.querySelectorAll("#skin-sex-preview [data-sex]").forEach((button) => {
+    const active = button.dataset.sex === previewSex;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+}
+
 function applySkinToEditor(skin) {
   for (const [key, _label, fallback] of COLOR_FIELDS) {
     const input = document.getElementById(`skin-color-${key}`);
@@ -89,6 +107,8 @@ function applySkinToEditor(skin) {
   document.getElementById("skin-theme").value = Number(skin?.themeIndex) || 0;
   document.getElementById("skin-variation").value = Number(skin?.skinVariation) || 0;
   syncColorCodeLabels();
+  syncPatternPresetButtons();
+  syncSexPreviewButtons();
   updatePreview();
 }
 
@@ -112,6 +132,7 @@ function updatePreview() {
     detail: {
       name,
       species,
+      sex: previewSex,
       skin: Object.fromEntries(Object.entries(skin).map(([key, value]) => [key, colorToHex(value)])),
     },
   }));
@@ -177,6 +198,9 @@ function resetEditor() {
   document.getElementById("skin-pattern").value = 0;
   document.getElementById("skin-theme").value = 0;
   document.getElementById("skin-variation").value = 0;
+  previewSex = "male";
+  syncPatternPresetButtons();
+  syncSexPreviewButtons();
   updatePreview();
 }
 
@@ -725,7 +749,26 @@ async function initSpecies() {
 
 document.getElementById("skin-name").addEventListener("input", updatePreview);
 document.getElementById("skin-species").addEventListener("change", updatePreview);
-["skin-pattern", "skin-theme", "skin-variation"].forEach((id) => document.getElementById(id).addEventListener("input", updatePreview));
+["skin-pattern", "skin-theme", "skin-variation"].forEach((id) => document.getElementById(id).addEventListener("input", () => {
+  if (id === "skin-pattern") syncPatternPresetButtons();
+  updatePreview();
+}));
+
+document.querySelectorAll("#skin-pattern-presets [data-pattern]").forEach((button) => {
+  button.addEventListener("click", () => {
+    document.getElementById("skin-pattern").value = button.dataset.pattern;
+    syncPatternPresetButtons();
+    updatePreview();
+  });
+});
+
+document.querySelectorAll("#skin-sex-preview [data-sex]").forEach((button) => {
+  button.addEventListener("click", () => {
+    previewSex = button.dataset.sex === "female" ? "female" : "male";
+    syncSexPreviewButtons();
+    updatePreview();
+  });
+});
 
 document.getElementById("skin-randomize").addEventListener("click", () => {
   for (const [key] of COLOR_FIELDS) {
