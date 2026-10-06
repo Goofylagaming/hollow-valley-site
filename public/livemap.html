@@ -57,6 +57,7 @@
                   <img class="gateway-live-base" src="assets/gateway-map.webp?v=1" alt="Gateway island map" draggable="false">
                   <svg class="map-layer" id="tracker-grid" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
                   <svg class="map-layer" id="tracker-heatmap" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
+                  <svg class="map-layer" id="tracker-wildlife-density" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
                   <svg class="map-layer map-shapes" id="tracker-shapes" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
                   <svg class="map-layer" id="tracker-roads" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
                   <svg class="map-layer map-shapes" id="territory-war-shapes" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
@@ -83,7 +84,8 @@
             <label class="layer-toggle"><input type="checkbox" id="layer-wildlife"><span class="layer-swatch wildlife"></span>Wildlife / AI points</label>
             <div class="wildlife-filter" id="wildlife-filter" hidden>
               <label for="wildlife-species"><span>SPECIES</span><select id="wildlife-species" aria-label="Wildlife species"></select></label>
-              <small id="wildlife-note">Community-observed points; these are not exact spawn-zone boundaries.</small>
+              <label for="wildlife-display-mode"><span>DISPLAY</span><select id="wildlife-display-mode" aria-label="Wildlife display mode"><option value="points">Points</option><option value="density">Density</option><option value="both">Both</option></select></label>
+              <small id="wildlife-note">Community-observed points; density areas are approximate, not game spawn boundaries.</small>
             </div>
             <label class="layer-toggle"><input type="checkbox" id="layer-areas" checked><span class="layer-swatch area"></span>Region names</label>
             <label class="layer-toggle"><input type="checkbox" id="layer-landmarks"><span class="layer-swatch landmark"></span>Landmarks</label>
