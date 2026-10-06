@@ -121,6 +121,7 @@ let spinInput = null;
 let ultraEnabled = false;
 let calibrationActive = false;
 let calibrationPointerDown = false;
+let calibrationSaveTimer = null;
 const CALIBRATION_SIZE = 256;
 const ZONE_KEYS = Object.freeze(["body","markings","flank","underbelly","detail1","eyes","teeth","mouth","claws","maleDisplay"]);
 const ZONE_CHANNELS = Object.freeze({
@@ -568,7 +569,32 @@ function paintCalibrationUv(uv) {
     }
   }
   for (const texture of maskAtlases) texture.needsUpdate = true;
-  setCalibrationStatus(`${currentModelDef.displayName} · painting ${zone} · brush ${radius}px`);
+  saveCalibrationDraftSoon();
+  setCalibrationStatus(`${currentModelDef.displayName} · painting ${zone} · brush ${radius}px · draft auto-saved`);
+}
+
+function calibrationStorageKey() {
+  return currentModelDef?.key ? `hv-skin-calibration:${currentModelDef.key}:v1` : null;
+}
+
+function maskPayloadFromLookup() {
+  const zones = {};
+  ZONE_KEYS.forEach((key,index) => {
+    const runs = rleForZone(index);
+    if (runs.length) zones[key] = runs;
+  });
+  return { size: CALIBRATION_SIZE, zones };
+}
+
+function saveCalibrationDraftSoon() {
+  clearTimeout(calibrationSaveTimer);
+  calibrationSaveTimer = setTimeout(() => {
+    const key = calibrationStorageKey();
+    if (!key || !calibrationActive || !zoneLookup?.length) return;
+    try {
+      localStorage.setItem(key, JSON.stringify(maskPayloadFromLookup()));
+    } catch {}
+  }, 250);
 }
 
 function rleForZone(zoneIndex) {
@@ -587,13 +613,22 @@ function rleForZone(zoneIndex) {
 
 function exportCalibrationMask() {
   if (!zoneLookup?.length || !currentModelDef) return "";
-  const zones = {};
-  ZONE_KEYS.forEach((key,index) => {
-    const runs = rleForZone(index);
-    if (runs.length) zones[key] = runs;
-  });
   const globalName = `HV_${String(currentModelDef.key || "SPECIES").replace(/[^a-z0-9]/gi,"_").toUpperCase()}_MASK_RLE`;
-  return `window.${globalName} = ${JSON.stringify({size:CALIBRATION_SIZE,zones})};`;
+  return `window.${globalName} = ${JSON.stringify(maskPayloadFromLookup())};`;
+}
+
+function loadCalibrationDraft() {
+  const key = calibrationStorageKey();
+  if (!key) return false;
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) || "null");
+    if (!parsed || Number(parsed.size) !== CALIBRATION_SIZE || !parsed.zones || typeof parsed.zones !== "object") return false;
+    currentMaskData = { size: CALIBRATION_SIZE, zones: parsed.zones };
+    maskAtlases = buildMaskAtlases();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function startCalibration() {
@@ -602,7 +637,8 @@ function startCalibration() {
     return;
   }
   calibrationActive = true;
-  createBlankCalibrationMask();
+  const restoredDraft = loadCalibrationDraft();
+  if (!restoredDraft) createBlankCalibrationMask();
   applyCalibratedMaterials(model);
   applyPreviewMode("accurate");
   stage.classList.add("skin-calibrating");
@@ -611,7 +647,9 @@ function startCalibration() {
   if (calibrationClearAllEl) calibrationClearAllEl.disabled = false;
   if (calibrationCopyEl) calibrationCopyEl.disabled = false;
   if (calibrationOutputEl) { calibrationOutputEl.hidden = true; calibrationOutputEl.value = ""; }
-  setCalibrationStatus(`${currentModelDef.displayName} · calibration active. Drag directly over the model to paint UV zones.`);
+  setCalibrationStatus(restoredDraft
+    ? `${currentModelDef.displayName} · restored saved calibration draft. Continue painting directly on the model.`
+    : `${currentModelDef.displayName} · calibration active. Drag directly over the model to paint UV zones.`);
 }
 
 function stopCalibration() {
@@ -1052,7 +1090,8 @@ calibrationClearZoneEl?.addEventListener("click", () => {
     if (zoneLookup[pixel] === index) setAtlasPixel(pixel, null);
   }
   for (const texture of maskAtlases) texture.needsUpdate = true;
-  setCalibrationStatus(`${currentModelDef?.displayName || "Species"} · cleared ${zone}`);
+  saveCalibrationDraftSoon();
+  setCalibrationStatus(`${currentModelDef?.displayName || "Species"} · cleared ${zone} · draft auto-saved`);
 });
 calibrationClearAllEl?.addEventListener("click", () => {
   if (!calibrationActive) return;
@@ -1061,7 +1100,8 @@ calibrationClearAllEl?.addEventListener("click", () => {
     texture.image.data.fill(0);
     texture.needsUpdate = true;
   }
-  setCalibrationStatus(`${currentModelDef?.displayName || "Species"} · cleared all mapped zones`);
+  saveCalibrationDraftSoon();
+  setCalibrationStatus(`${currentModelDef?.displayName || "Species"} · cleared all mapped zones · draft auto-saved`);
 });
 calibrationCopyEl?.addEventListener("click", async () => {
   const output = exportCalibrationMask();
