@@ -74,3 +74,33 @@
   font-size:8.5px;
   line-height:1.4;
 }
+
+#tracker-wildlife-density{pointer-events:none}
+#tracker-wildlife-density .wildlife-density{
+  vector-effect:non-scaling-stroke;
+  stroke-width:.85;
+  stroke-linejoin:round;
+  fill-opacity:var(--wildlife-density-opacity,.16);
+}
+#tracker-wildlife-density .wildlife-density.terrestrial{
+  stroke:rgba(231,169,90,.72);
+  fill:#d98f3f;
+}
+#tracker-wildlife-density .wildlife-density.aquatic{
+  stroke:rgba(111,200,217,.72);
+  fill:#4ba7bb;
+}
+#tracker-wildlife-density .wildlife-density-outlier{
+  vector-effect:non-scaling-stroke;
+  stroke-width:.7;
+  fill-opacity:.08;
+}
+#tracker-wildlife-density .wildlife-density-outlier.terrestrial{
+  stroke:rgba(231,169,90,.48);
+  fill:#d98f3f;
+}
+#tracker-wildlife-density .wildlife-density-outlier.aquatic{
+  stroke:rgba(111,200,217,.48);
+  fill:#4ba7bb;
+}
+.wildlife-filter label + label{margin-top:6px}
