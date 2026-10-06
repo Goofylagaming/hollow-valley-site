@@ -1,7 +1,8 @@
 // Hollow Valley Skin Studio species-model registry.
 // One entry exists for every species exposed by the website. A species only
-// receives live colour painting after its model AND its EVRIMA zone map have
-// been calibrated. This prevents a generic Rex from masquerading as every dino.
+// receives live colour painting after a high-quality model AND its EVRIMA zone
+// map have been calibrated. Low-detail placeholder models are deliberately not
+// used; a realistic reference embed is preferred until a suitable local mesh exists.
 
 const pendingModel = (key, displayName, aliases = []) => Object.freeze({
   key,
@@ -11,6 +12,27 @@ const pendingModel = (key, displayName, aliases = []) => Object.freeze({
   patternMax: null,
   loader: null,
   credit: null,
+  camera: Object.freeze({ yaw: 0.26, targetHeight: 0.48, distanceScale: 0.62 }),
+});
+
+const referenceModel = ({
+  key,
+  displayName,
+  aliases = [],
+  embedUrl,
+  assetUrl,
+  creditLabel,
+}) => Object.freeze({
+  key,
+  aliases: Object.freeze([key, displayName, ...aliases]),
+  displayName,
+  capability: "reference",
+  patternMax: null,
+  loader: Object.freeze({ type: "reference-embed", url: embedUrl }),
+  credit: Object.freeze({
+    label: creditLabel,
+    url: assetUrl,
+  }),
   camera: Object.freeze({ yaw: 0.26, targetHeight: 0.48, distanceScale: 0.62 }),
 });
 
@@ -86,20 +108,13 @@ window.HV_SKIN_MODELS = Object.freeze({
     camera: Object.freeze({ yaw: 0.24, targetHeight: 0.50, distanceScale: 0.60 }),
   }),
 
-  triceratops: Object.freeze({
+  triceratops: referenceModel({
     key: "triceratops",
-    aliases: Object.freeze(["triceratops", "tric", "trike"]),
     displayName: "Triceratops",
-    capability: "shape",
-    loader: Object.freeze({
-      type: "url",
-      url: "https://cdn.3dassets.dev/assets/4900/v1/model.glb",
-    }),
-    credit: Object.freeze({
-      label: "Triceratops model by 3D Assets · CC0",
-      url: "https://3dassets.dev/assets/dinosaurs-and-prehistoric-life-triceratops-5c18d8d2",
-    }),
-    camera: Object.freeze({ yaw: 0.30, targetHeight: 0.47, distanceScale: 0.62 }),
+    aliases: ["tric", "trike"],
+    embedUrl: "https://sketchfab.com/models/67bccb400cfb45699f4fea6db7664b87/embed?autostart=1&ui_infos=0&ui_controls=1&ui_stop=0&ui_watermark=1&ui_watermark_link=1",
+    assetUrl: "https://sketchfab.com/3d-models/triceratops-prorsus-67bccb400cfb45699f4fea6db7664b87",
+    creditLabel: "Triceratops prorsus by Nobilis 2 · CC BY",
   }),
 
   deinosuchus: Object.freeze({
@@ -115,100 +130,25 @@ window.HV_SKIN_MODELS = Object.freeze({
     camera: Object.freeze({ yaw: 0.26, targetHeight: 0.38, distanceScale: 0.64 }),
   }),
 
-  allosaurus: shapeModel({
-    key: "allosaurus",
-    displayName: "Allosaurus",
-    aliases: ["allo"],
-    modelUrl: "https://cdn.3dassets.dev/assets/1683/v1/model.glb",
-    assetUrl: "https://3dassets.dev/assets/primeval-frontier-allosaurus-bc6c0128",
-    yaw: 0.24,
-    targetHeight: 0.49,
-  }),
+  allosaurus: pendingModel("allosaurus", "Allosaurus", ["allo"]),
   austroraptor: pendingModel("austroraptor", "Austroraptor", ["austro"]),
-  carnotaurus: shapeModel({
-    key: "carnotaurus",
-    displayName: "Carnotaurus",
-    aliases: ["carno"],
-    modelUrl: "https://cdn.3dassets.dev/assets/1686/v1/model.glb",
-    assetUrl: "https://3dassets.dev/assets/primeval-frontier-carnotaurus-545e46a9",
-    yaw: 0.24,
-    targetHeight: 0.49,
-  }),
-  ceratosaurus: shapeModel({
-    key: "ceratosaurus",
-    displayName: "Ceratosaurus",
-    aliases: ["cera"],
-    modelUrl: "https://cdn.3dassets.dev/assets/1689/v1/model.glb",
-    assetUrl: "https://3dassets.dev/assets/primeval-frontier-ceratosaurus-ad5f8d8a",
-    yaw: 0.24,
-    targetHeight: 0.49,
-  }),
-  dilophosaurus: shapeModel({
-    key: "dilophosaurus",
-    displayName: "Dilophosaurus",
-    aliases: ["dilo"],
-    modelUrl: "https://cdn.3dassets.dev/assets/1694/v1/model.glb",
-    assetUrl: "https://3dassets.dev/assets/primeval-frontier-dilophosaurus-2a1eced1",
-    yaw: 0.25,
-    targetHeight: 0.49,
-  }),
+  carnotaurus: pendingModel("carnotaurus", "Carnotaurus", ["carno"]),
+  ceratosaurus: pendingModel("ceratosaurus", "Ceratosaurus", ["cera"]),
+  dilophosaurus: pendingModel("dilophosaurus", "Dilophosaurus", ["dilo"]),
   herrerasaurus: pendingModel("herrerasaurus", "Herrerasaurus", ["herra"]),
   omniraptor: pendingModel("omniraptor", "Omniraptor", ["omni"]),
   troodon: pendingModel("troodon", "Troodon"),
-  pteranodon: shapeModel({
-    key: "pteranodon",
-    displayName: "Pteranodon",
-    aliases: ["ptera"],
-    modelUrl: "https://cdn.3dassets.dev/assets/4912/v1/model.glb",
-    assetUrl: "https://3dassets.dev/assets/dinosaurs-and-prehistoric-life-pteranodon-soaring-53b9c4c3",
-    yaw: 0.20,
-    targetHeight: 0.47,
-    distanceScale: 0.68,
-  }),
+  pteranodon: pendingModel("pteranodon", "Pteranodon", ["ptera"]),
   diabloceratops: pendingModel("diabloceratops", "Diabloceratops", ["diablo"]),
   dryosaurus: pendingModel("dryosaurus", "Dryosaurus", ["dryo"]),
   tenontosaurus: pendingModel("tenontosaurus", "Tenontosaurus", ["teno"]),
   maiasaura: pendingModel("maiasaura", "Maiasaura", ["maia"]),
-  pachycephalosaurus: shapeModel({
-    key: "pachycephalosaurus",
-    displayName: "Pachycephalosaurus",
-    aliases: ["pachy"],
-    modelUrl: "https://cdn.3dassets.dev/assets/4904/v1/model.glb",
-    assetUrl: "https://3dassets.dev/assets/dinosaurs-and-prehistoric-life-pachycephalosaurus-f8596236",
-    yaw: 0.28,
-    targetHeight: 0.50,
-  }),
-  stegosaurus: shapeModel({
-    key: "stegosaurus",
-    displayName: "Stegosaurus",
-    aliases: ["stego"],
-    modelUrl: "https://cdn.3dassets.dev/assets/4901/v1/model.glb",
-    assetUrl: "https://3dassets.dev/assets/dinosaurs-and-prehistoric-life-stegosaurus-afd95818",
-    yaw: 0.26,
-    targetHeight: 0.46,
-    distanceScale: 0.66,
-  }),
+  pachycephalosaurus: pendingModel("pachycephalosaurus", "Pachycephalosaurus", ["pachy"]),
+  stegosaurus: pendingModel("stegosaurus", "Stegosaurus", ["stego"]),
   deinocheirus: pendingModel("deinocheirus", "Deinocheirus"),
-  gallimimus: shapeModel({
-    key: "gallimimus",
-    displayName: "Gallimimus",
-    aliases: ["galli"],
-    modelUrl: "https://cdn.3dassets.dev/assets/4892/v1/model.glb",
-    assetUrl: "https://3dassets.dev/assets/dinosaurs-and-prehistoric-life-gallimimus-1f1ea141",
-    yaw: 0.24,
-    targetHeight: 0.50,
-  }),
+  gallimimus: pendingModel("gallimimus", "Gallimimus", ["galli"]),
   hypsilophodon: pendingModel("hypsilophodon", "Hypsilophodon", ["hypsi"]),
-  kentrosaurus: shapeModel({
-    key: "kentrosaurus",
-    displayName: "Kentrosaurus",
-    aliases: ["kentro"],
-    modelUrl: "https://cdn.3dassets.dev/assets/4907/v1/model.glb",
-    assetUrl: "https://3dassets.dev/assets/dinosaurs-and-prehistoric-life-kentrosaurus-79c955dd",
-    yaw: 0.27,
-    targetHeight: 0.45,
-    distanceScale: 0.66,
-  }),
+  kentrosaurus: pendingModel("kentrosaurus", "Kentrosaurus", ["kentro"]),
   beipiaosaurus: pendingModel("beipiaosaurus", "Beipiaosaurus", ["beipi"]),
 });
 
