@@ -189,6 +189,29 @@ router.post("/:id/buy", requireAuth, async (req, res) => {
   }
 });
 
+router.get("/wear-state", requireAuth, async (req, res) => {
+  const steamId = requireSteam(req, res);
+  if (!steamId) return;
+  try {
+    return res.json(await automation.getSkinWearState(steamId));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not load Wear Live status.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.post("/wear-retry", requireAuth, async (req, res) => {
+  const steamId = requireSteam(req, res);
+  if (!steamId) return;
+  try {
+    const result = await automation.retrySkinWear(steamId);
+    return res.status(result.confirmed ? 200 : 202).json(result);
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not retry Wear Live.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
 router.post("/:id/wear", requireAuth, async (req, res) => {
   const steamId = requireSteam(req, res);
   if (!steamId) return;
