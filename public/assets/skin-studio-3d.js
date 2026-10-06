@@ -99,6 +99,8 @@ let currentPalette = { ...FALLBACKS };
 let previewMode = "accurate";
 let accurateButton = null;
 let gameButton = null;
+let autoRotateButton = null;
+let cleanViewButton = null;
 
 function normalizedSpecies(value) {
   return String(value || "")
@@ -134,10 +136,39 @@ function installModeControls() {
   gameButton.textContent = "Game preview";
   gameButton.title = "Show a calibrated model with Hollow Valley atmospheric lighting and texture shading.";
 
+  autoRotateButton = document.createElement("button");
+  autoRotateButton.className = "small-button";
+  autoRotateButton.id = "skin-model-auto-rotate";
+  autoRotateButton.type = "button";
+  autoRotateButton.textContent = "Auto-rotate";
+  autoRotateButton.title = "Slowly rotate the selected species model.";
+
+  cleanViewButton = document.createElement("button");
+  cleanViewButton.className = "small-button";
+  cleanViewButton.id = "skin-model-clean-view";
+  cleanViewButton.type = "button";
+  cleanViewButton.textContent = "Clean view";
+  cleanViewButton.title = "Hide the model HUD and side rail for an unobstructed preview.";
+
+  modelTools.prepend(cleanViewButton);
+  modelTools.prepend(autoRotateButton);
   modelTools.prepend(gameButton);
   modelTools.prepend(accurateButton);
+
   accurateButton.addEventListener("click", () => applyPreviewMode("accurate"));
   gameButton.addEventListener("click", () => applyPreviewMode("game"));
+  autoRotateButton.addEventListener("click", () => {
+    controls.autoRotate = !controls.autoRotate;
+    controls.autoRotateSpeed = 0.85;
+    autoRotateButton.classList.toggle("green", controls.autoRotate);
+    autoRotateButton.setAttribute("aria-pressed", controls.autoRotate ? "true" : "false");
+  });
+  cleanViewButton.addEventListener("click", () => {
+    const enabled = !stage.classList.contains("skin-model-clean");
+    stage.classList.toggle("skin-model-clean", enabled);
+    cleanViewButton.classList.toggle("green", enabled);
+    cleanViewButton.setAttribute("aria-pressed", enabled ? "true" : "false");
+  });
 }
 
 function setStatus(ok, message) {
