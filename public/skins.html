@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Design, unlock, share and wear Hollow Valley dinosaur skins.">
   <title>Skin Studio | Hollow Valley</title>
-  <link rel="stylesheet" href="assets/styles.css?v=37">
+  <link rel="stylesheet" href="assets/styles.css?v=38">
 </head>
 <body>
   <div class="app-shell">
@@ -126,6 +126,17 @@
               <button class="small-button" id="skin-mine-refresh" type="button">Refresh</button>
             </div>
           </div>
+          <div id="skin-wear-state" class="skin-wear-state-card" hidden>
+            <div>
+              <span class="overline green">WEAR LIVE STATUS</span>
+              <strong id="skin-wear-state-title">No Wear Live request yet</strong>
+              <small id="skin-wear-state-detail">Apply a skin to your live dinosaur to start persistence tracking.</small>
+            </div>
+            <div class="skin-wear-state-actions">
+              <button class="small-button" id="skin-wear-state-refresh" type="button">Refresh status</button>
+              <button class="small-button" id="skin-wear-retry" type="button" hidden>Retry wear</button>
+            </div>
+          </div>
           <div id="skin-mine-guard" class="skin-signin-card">Sign in with Steam to see your saved and unlocked skins.</div>
           <div id="skin-mine-grid" class="skin-card-grid" hidden></div>
         </section>
@@ -204,7 +215,7 @@
 
   <script src="assets/common.js?v=17"></script>
   <script src="assets/external-skin-import.js?v=4"></script>
-  <script src="assets/skins.js?v=22"></script>
+  <script src="assets/skins.js?v=23"></script>
   <script src="assets/hollow-valley-skin-pack.js?v=1"></script>
   <script src="/assets/skin-studio-model-registry.js?v=1"></script>
   <script src="/assets/skin-studio-rex-mask-rle.js?v=1"></script>
