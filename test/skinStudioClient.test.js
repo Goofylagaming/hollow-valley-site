@@ -193,6 +193,9 @@ test("Skin Studio keeps FNF-compatible core zone order and simple pattern contro
   assert.match(html, /id="skin-pattern-presets"/);
   assert.match(html, /id="skin-pattern-safety"/);
   assert.match(html, /id="skin-sex-preview"/);
+  assert.match(html, /<details class="skin-advanced-settings">/);
+  assert.match(html, /Advanced EVRIMA values/);
+  assert.match(html, /Wear Live skips unsafe PatternIndex values/);
 });
 
 test("Skin Shop published cards hide raw colour swatches but editing views keep them", () => {
