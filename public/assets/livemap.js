@@ -117,6 +117,7 @@ const PATH_LAYERS = ["caves"];
 const ALL_LAYERS = [...POINT_LAYERS, ...LABEL_LAYERS, ...PATH_LAYERS, ...ZONE_LAYERS, "roads", "wildlife", "players"];
 const WILDLIFE_ENABLED_KEY = "hollow-valley-map-wildlife-enabled";
 const WILDLIFE_SPECIES_KEY = "hollow-valley-map-wildlife-species";
+const WILDLIFE_MODE_KEY = "hollow-valley-map-wildlife-mode";
 
 function pct(n) {
   return `${(n * 100).toFixed(2)}%`;
@@ -234,28 +235,185 @@ function populateWildlifeSpecies() {
   panel.hidden = !toggle.checked;
 }
 
+function wildlifeDistance(a, b) {
+  return Math.hypot(a.left - b.left, a.top - b.top);
+}
+
+function wildlifeClusterRadius(points) {
+  if (points.length < 2) return 0.045;
+  const nearest = points.map((point, index) => {
+    let best = Infinity;
+    for (let other = 0; other < points.length; other += 1) {
+      if (other === index) continue;
+      best = Math.min(best, wildlifeDistance(point, points[other]));
+    }
+    return best;
+  }).filter(Number.isFinite).sort((a, b) => a - b);
+  const median = nearest[Math.floor(nearest.length / 2)] || 0.035;
+  return Math.max(0.025, Math.min(0.085, median * 2.25));
+}
+
+function clusterWildlifePoints(points) {
+  if (!points.length) return { clusters: [], outliers: [], radius: 0.045 };
+  if (points.length === 1) return { clusters: [], outliers: [points[0]], radius: 0.045 };
+
+  const radius = wildlifeClusterRadius(points);
+  const minPts = points.length < 6 ? 2 : 3;
+  const visited = new Set();
+  const assigned = new Set();
+  const clusters = [];
+
+  const neighbours = (index) => {
+    const nearby = [];
+    for (let other = 0; other < points.length; other += 1) {
+      if (wildlifeDistance(points[index], points[other]) <= radius) nearby.push(other);
+    }
+    return nearby;
+  };
+
+  for (let index = 0; index < points.length; index += 1) {
+    if (visited.has(index)) continue;
+    visited.add(index);
+    const nearby = neighbours(index);
+    if (nearby.length < minPts) continue;
+
+    const queue = [...nearby];
+    const queued = new Set(queue);
+    const cluster = [];
+    while (queue.length) {
+      const current = queue.shift();
+      if (!visited.has(current)) {
+        visited.add(current);
+        const currentNearby = neighbours(current);
+        if (currentNearby.length >= minPts) {
+          for (const candidate of currentNearby) {
+            if (!queued.has(candidate)) {
+              queued.add(candidate);
+              queue.push(candidate);
+            }
+          }
+        }
+      }
+      if (!assigned.has(current)) {
+        assigned.add(current);
+        cluster.push(points[current]);
+      }
+    }
+    if (cluster.length) clusters.push(cluster);
+  }
+
+  const outliers = points.filter((_point, index) => !assigned.has(index));
+  return { clusters, outliers, radius };
+}
+
+function wildlifeHull(points) {
+  const unique = [...new Map(points.map((point) => [`${point.left.toFixed(6)}:${point.top.toFixed(6)}`, point])).values()]
+    .sort((a, b) => a.left - b.left || a.top - b.top);
+  if (unique.length <= 2) return unique;
+
+  const cross = (o, a, b) => (a.left - o.left) * (b.top - o.top) - (a.top - o.top) * (b.left - o.left);
+  const lower = [];
+  for (const point of unique) {
+    while (lower.length >= 2 && cross(lower.at(-2), lower.at(-1), point) <= 0) lower.pop();
+    lower.push(point);
+  }
+  const upper = [];
+  for (let index = unique.length - 1; index >= 0; index -= 1) {
+    const point = unique[index];
+    while (upper.length >= 2 && cross(upper.at(-2), upper.at(-1), point) <= 0) upper.pop();
+    upper.push(point);
+  }
+  lower.pop();
+  upper.pop();
+  return [...lower, ...upper];
+}
+
+function expandedWildlifeHull(points, radius) {
+  const hull = wildlifeHull(points);
+  if (hull.length < 3) return hull;
+  const center = hull.reduce((acc, point) => ({ left: acc.left + point.left, top: acc.top + point.top }), { left: 0, top: 0 });
+  center.left /= hull.length;
+  center.top /= hull.length;
+  const padding = Math.max(0.006, radius * 0.18);
+  return hull.map((point) => {
+    const dx = point.left - center.left;
+    const dy = point.top - center.top;
+    const length = Math.hypot(dx, dy) || 1;
+    return {
+      left: Math.max(0, Math.min(1, point.left + dx / length * padding)),
+      top: Math.max(0, Math.min(1, point.top + dy / length * padding)),
+    };
+  });
+}
+
+function renderWildlifeDensity(points, species, mode) {
+  const svg = document.getElementById("tracker-wildlife-density");
+  if (!svg) return 0;
+  if (mode !== "density" && mode !== "both") {
+    svg.innerHTML = "";
+    return { areas: 0, isolated: 0 };
+  }
+
+  const { clusters, outliers, radius } = clusterWildlifePoints(points);
+  const maxCluster = Math.max(1, ...clusters.map((cluster) => cluster.length));
+  const parts = [];
+  for (const cluster of clusters) {
+    const category = cluster[0]?.category === "aquatic" ? "aquatic" : "terrestrial";
+    const opacity = Math.min(0.28, 0.09 + 0.18 * Math.sqrt(cluster.length / maxCluster));
+    const hull = expandedWildlifeHull(cluster, radius);
+    if (hull.length >= 3) {
+      const polygon = hull.map((point) => `${svgUnits(point.left)},${svgUnits(point.top)}`).join(" ");
+      parts.push(`<polygon class="wildlife-density ${category}" points="${polygon}" style="--wildlife-density-opacity:${opacity.toFixed(3)}"><title>${escapeHtml(species)} density · ${cluster.length} observations</title></polygon>`);
+    } else {
+      const center = cluster.reduce((acc, point) => ({ left: acc.left + point.left, top: acc.top + point.top }), { left: 0, top: 0 });
+      center.left /= cluster.length;
+      center.top /= cluster.length;
+      const r = Math.max(8, radius * 1000 * 0.48);
+      parts.push(`<circle class="wildlife-density ${category}" cx="${svgUnits(center.left)}" cy="${svgUnits(center.top)}" r="${r.toFixed(1)}" style="--wildlife-density-opacity:${opacity.toFixed(3)}"><title>${escapeHtml(species)} density · ${cluster.length} observations</title></circle>`);
+    }
+  }
+
+  for (const point of outliers) {
+    const category = point.category === "aquatic" ? "aquatic" : "terrestrial";
+    parts.push(`<circle class="wildlife-density-outlier ${category}" cx="${svgUnits(point.left)}" cy="${svgUnits(point.top)}" r="7"><title>${escapeHtml(species)} isolated observation</title></circle>`);
+  }
+
+  svg.innerHTML = parts.join("");
+  return { areas: clusters.length, isolated: outliers.length };
+}
+
 function renderWildlife() {
   const layer = document.getElementById("tracker-wildlife");
+  const densityLayer = document.getElementById("tracker-wildlife-density");
   const select = document.getElementById("wildlife-species");
+  const modeSelect = document.getElementById("wildlife-display-mode");
   const note = document.getElementById("wildlife-note");
   if (!layer) return;
 
   if (!mapData || !isLayerOn("wildlife") || !select?.value) {
     layer.innerHTML = "";
-    if (note && mapData) note.textContent = "Community-observed points; these are not exact spawn-zone boundaries.";
+    if (densityLayer) densityLayer.innerHTML = "";
+    if (note && mapData) note.textContent = "Community-observed points; density areas are approximate, not game spawn boundaries.";
     return;
   }
 
   const selected = select.value;
+  const mode = ["points", "density", "both"].includes(modeSelect?.value) ? modeSelect.value : "points";
   const points = (mapData.layers.wildlife || []).filter((point) => point.species === selected);
-  layer.innerHTML = points.map((point) => {
+  const showPoints = mode === "points" || mode === "both";
+
+  layer.innerHTML = showPoints ? points.map((point) => {
     const observed = point.observedOn ? ` · observed ${escapeHtml(point.observedOn)}` : "";
     const category = point.category === "aquatic" ? "aquatic" : "terrestrial";
     return `<span class="wildlife-point ${category}" style="left:${pct(point.left)};top:${pct(point.top)}"><span class="wildlife-label">${escapeHtml(point.species)}${observed}</span></span>`;
-  }).join("");
+  }).join("") : "";
 
+  const density = renderWildlifeDensity(points, selected, mode);
   if (note) {
-    note.textContent = `${points.length} community-observed ${selected} point${points.length === 1 ? "" : "s"} shown · not exact spawn-zone boundaries.`;
+    const densityText = mode === "points"
+      ? ""
+      : ` · ${density.areas} density area${density.areas === 1 ? "" : "s"} · ${density.isolated} isolated`;
+    note.textContent = `${points.length} dated community ${selected} observations${densityText} · approximate only, not game spawn boundaries.`;
   }
 }
 
@@ -562,6 +720,7 @@ for (const key of ALL_LAYERS) {
 
 const wildlifeToggle = document.getElementById("layer-wildlife");
 const wildlifeSelect = document.getElementById("wildlife-species");
+const wildlifeMode = document.getElementById("wildlife-display-mode");
 if (wildlifeToggle) {
   wildlifeToggle.checked = wildlifeStorageGet(WILDLIFE_ENABLED_KEY, "0") === "1";
   const panel = document.getElementById("wildlife-filter");
@@ -570,6 +729,14 @@ if (wildlifeToggle) {
 if (wildlifeSelect) {
   wildlifeSelect.addEventListener("change", () => {
     wildlifeStorageSet(WILDLIFE_SPECIES_KEY, wildlifeSelect.value);
+    renderWildlife();
+  });
+}
+if (wildlifeMode) {
+  const storedMode = wildlifeStorageGet(WILDLIFE_MODE_KEY, "points");
+  wildlifeMode.value = ["points", "density", "both"].includes(storedMode) ? storedMode : "points";
+  wildlifeMode.addEventListener("change", () => {
+    wildlifeStorageSet(WILDLIFE_MODE_KEY, wildlifeMode.value);
     renderWildlife();
   });
 }
