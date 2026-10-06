@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="assets/livemap-trail.css?v=2">
   <link rel="stylesheet" href="assets/territory-map-overlay.css?v=1">
   <link rel="stylesheet" href="assets/livemap-precision.css?v=1">
+  <link rel="stylesheet" href="assets/livemap-navigation.css?v=1">
 </head>
 <body>
   <div class="app-shell">
@@ -40,16 +41,27 @@
                 <button type="button" class="map-control" id="zoom-reset" title="Reset view" aria-label="Reset view">⌂</button>
               </div>
               <div class="zoom-label" id="zoom-label">100%</div>
+              <div class="map-navigator" aria-label="Gateway map navigator">
+                <form class="map-navigator-form" id="map-nav-form">
+                  <input id="map-nav-query" type="search" inputmode="text" autocomplete="off" spellcheck="false" placeholder="Grid A12 or Lat, Long" aria-label="Grid or coordinates">
+                  <button type="submit">FIND</button>
+                  <button type="button" id="map-nav-me">MY DINO</button>
+                </form>
+                <span class="map-nav-status" id="map-nav-status">Loading Gateway grid data…</span>
+              </div>
               <div id="territory-war-overlay-slot" class="tw-map-hud" hidden></div>
               <div class="map-world" id="map-world">
                 <div class="map-plane gateway-live-plane">
                   <img class="gateway-live-base" src="assets/gateway-map.webp?v=1" alt="Gateway island map" draggable="false">
+                  <svg class="map-layer" id="tracker-grid" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
+                  <svg class="map-layer" id="tracker-heatmap" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
                   <svg class="map-layer map-shapes" id="tracker-shapes" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
                   <svg class="map-layer map-shapes" id="territory-war-shapes" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
                   <div class="map-layer" id="tracker-pois"></div>
                   <div class="map-layer" id="tracker-labels"></div>
                   <svg class="map-layer" id="tracker-trails" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
                   <div class="map-layer" id="tracker-markers"></div>
+                  <div class="map-layer" id="map-navigation-layer" aria-hidden="true"></div>
                 </div>
               </div>
             </div>
@@ -60,6 +72,9 @@
             <p class="overline green">MAP LAYERS</p>
             <label class="layer-toggle"><input type="checkbox" id="layer-players" checked><span class="layer-swatch player"></span>Player tracking</label>
             <label class="layer-toggle"><input type="checkbox" id="layer-trails" checked><span class="layer-swatch trail"></span>My dino trail</label>
+            <label class="layer-toggle"><input type="checkbox" id="layer-heatmap"><span class="layer-swatch heatmap"></span>My 24h heatmap</label>
+            <small class="map-private-note">Private to this browser. It stores only your own recent map samples.</small>
+            <label class="layer-toggle"><input type="checkbox" id="layer-grid"><span class="layer-swatch grid"></span>Gateway grid</label>
             <label class="layer-toggle"><input type="checkbox" id="layer-areas" checked><span class="layer-swatch area"></span>Region names</label>
             <label class="layer-toggle"><input type="checkbox" id="layer-landmarks"><span class="layer-swatch landmark"></span>Landmarks</label>
             <label class="layer-toggle"><input type="checkbox" id="layer-saltLicks" checked><span class="layer-swatch salt"></span>Salt licks</label>
@@ -88,6 +103,8 @@
   <script src="assets/livemap.js?v=14"></script>
   <script src="assets/territory-map-overlay.js?v=1"></script>
   <script src="assets/livemap-precision.js?v=1"></script>
+  <script src="assets/livemap-navigation.js?v=1"></script>
+  <script src="assets/livemap-heatmap.js?v=1"></script>
   <script src="assets/livemap-prime-summary.js?v=1"></script>
   <script src="assets/livemap-trail.js?v=1"></script>
 </body>
