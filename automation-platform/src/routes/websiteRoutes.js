@@ -745,6 +745,26 @@ router.post('/skins/wear-retry', async (req, res) => {
   }
 });
 
+router.post('/skins/wear-reset', async (req, res) => {
+  try {
+    const steamId = validateSteamId(req.body?.steamId);
+    const result = await audit.run('website', 'skin_live_wear_reset', {
+      steamId,
+    }, async () => skinWear.resetFailedWear(steamId), (value) => ({
+      latestStatus: value.latestJob?.status || null,
+      activeAssignment: value.assignment?.presetId || null,
+    }));
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    const status = error.code === 'SKIN_WEAR_RESET_NOT_FOUND' ? 404 :
+      error.code === 'SKIN_WEAR_RESET_NOT_FAILED' ? 409 : 400;
+    res.status(status).json({
+      error: error.message || 'Unable to reset Wear Live.',
+      code: error.code || null,
+    });
+  }
+});
+
 router.post('/skins/:presetId/wear', async (req, res) => {
   try {
     const steamId = validateSteamId(req.body?.steamId);
