@@ -888,10 +888,24 @@ function getLatestSkinApplyJob(steamId) {
     SELECT *
     FROM economy_skin_apply_jobs
     WHERE steam_id = ?
+      AND status <> 'dismissed'
     ORDER BY created_at DESC, rowid DESC
     LIMIT 1
   `).get(steam);
   return mapSkinApplyJob(row);
+}
+
+function dismissSkinApplyJob(id) {
+  const jobId = String(id || '').trim();
+  db.prepare(`
+    UPDATE economy_skin_apply_jobs
+    SET status = 'dismissed',
+        error = NULL,
+        updated_at = datetime('now'),
+        completed_at = COALESCE(completed_at, datetime('now'))
+    WHERE id = ?
+  `).run(jobId);
+  return getSkinApplyJob(jobId);
 }
 
 function listSkinApplyJobs(steamId, { limit = 10 } = {}) {
@@ -1067,6 +1081,7 @@ module.exports = {
   updateSkinApplyJob,
   getSkinApplyJob,
   getLatestSkinApplyJob,
+  dismissSkinApplyJob,
   listSkinApplyJobs,
   upsertSkinLiveAssignment,
   getSkinLiveAssignment,
