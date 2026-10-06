@@ -1052,9 +1052,11 @@ async function init() {
   const libraryTab = document.getElementById("skin-library-tab");
   if (libraryTab) libraryTab.hidden = !Boolean(me.user?.is_admin);
   const calibrationPanel = document.getElementById("skin-calibration-panel");
-  if (calibrationPanel) calibrationPanel.hidden = !Boolean(me.user?.is_admin);
+  const calibrationPreview = Boolean(me.skinStudioCalibrationPreview);
+  const canCalibrate = Boolean(me.user?.is_admin) || calibrationPreview;
+  if (calibrationPanel) calibrationPanel.hidden = !canCalibrate;
   document.dispatchEvent(new CustomEvent("hds:skin-admin-ready", {
-    detail: { isAdmin: Boolean(me.user?.is_admin) },
+    detail: { isAdmin: Boolean(me.user?.is_admin), calibrationPreview, canCalibrate },
   }));
   const note = document.getElementById("skin-save-note");
   note.textContent = me.loggedIn ? "Saving is free. Published skins can be priced in Valley Coin." : "Sign in with Steam to save designs.";
