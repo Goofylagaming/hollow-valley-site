@@ -212,6 +212,17 @@ router.post("/wear-retry", requireAuth, async (req, res) => {
   }
 });
 
+router.post("/wear-reset", requireAuth, async (req, res) => {
+  const steamId = requireSteam(req, res);
+  if (!steamId) return;
+  try {
+    return res.json(await automation.resetSkinWear(steamId));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not reset Wear Live.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
 router.post("/:id/wear", requireAuth, async (req, res) => {
   const steamId = requireSteam(req, res);
   if (!steamId) return;
