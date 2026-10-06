@@ -81,7 +81,7 @@ test("Skin Studio v012 restores life-scoped skins without using transient pawn s
 
   assert.match(lua, /SkinStudio v012/);
   assert.match(lua, /life-scoped reconnect persistence/);
-  assert.match(lua, /rememberProfile\(steam, args, config, growth\)/);
+  assert.match(lua, /rememberProfile\(\s*steam, args, config, growth, baseFingerprint, appliedFingerprint\s*\)/);
   assert.match(lua, /loadProfiles\(\)/);
   assert.match(lua, /safeCall\("reapplyProfiles", reapplyProfiles\)/);
   assert.match(lua, /pendingLiveRefresh\[steam\]/);
@@ -89,6 +89,15 @@ test("Skin Studio v012 restores life-scoped skins without using transient pawn s
   assert.match(lua, /PATTERN_MAX_BY_SPECIES/);
   assert.match(lua, /Skipped unverified PatternIndex/);
   assert.match(lua, /BABY_GROWTH_RESET_FLOOR = 0\.15/);
+  assert.match(lua, /RECONNECT_FINGERPRINT_STABLE_POLLS = 2/);
+  assert.match(lua, /local function customizerFingerprint\(pawn\)/);
+  assert.match(lua, /baseFingerprint/);
+  assert.match(lua, /appliedFingerprint/);
+  assert.match(lua, /reusableBaseFingerprint/);
+  assert.match(lua, /Reconnect fingerprint already matches applied skin/);
+  assert.match(lua, /Waiting for native skin fingerprint to settle/);
+  assert.match(lua, /native-skin-fingerprint-mismatch/);
+  assert.match(lua, /Discarded .*legacy skin profile.*safe life fingerprints/);
   assert.match(lua, /reconnect profile saved/);
   assert.equal(lua.includes("SaveDataToFile"), false);
   assert.match(lua, /state\.pawnAddress/);
