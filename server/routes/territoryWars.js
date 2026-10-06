@@ -625,15 +625,56 @@ function contestPresence(event, attack, nowMs) {
   const previewRows = previewPresenceRows(event?.id);
 
   if ((!state?.configured || !state?.online) && geometry && previewRows.length) {
+    const insideClaimSteamIds = new Set(
+      previewRows
+        .filter((row) => Boolean(row.in_claim))
+        .map((row) => String(row.steam_id || ""))
+    );
+
+    const attackerLineup = activeLineup(
+      event.id,
+      attack.attacker_group_id,
+      nowMs
+    );
+    const attackers = attackerLineup
+      .filter((member) => updateGrace(
+        event.id,
+        member,
+        insideClaimSteamIds,
+        nowMs
+      ))
+      .length;
+
+    const attackerSteamIds = new Set(
+      attackerLineup.map((member) => String(member.steam_id))
+    );
+
+    let defenderLineup = [];
+    if (attack.defender_group_id) {
+      defenderLineup = activeLineup(
+        event.id,
+        attack.defender_group_id,
+        nowMs
+      );
+    } else if (isAdminSystemOwner(event)) {
+      defenderLineup = adminSystemDefenders(event)
+        .filter((member) => !attackerSteamIds.has(String(member.steam_id)));
+    }
+
+    const defenders = defenderLineup
+      .filter((member) => updateGrace(
+        event.id,
+        member,
+        insideClaimSteamIds,
+        nowMs
+      ))
+      .length;
+
     return {
       usable: true,
       simulated: true,
-      attackers: previewRows.filter(
-        (row) => row.side === "attacker" && Boolean(row.in_claim)
-      ).length,
-      defenders: previewRows.filter(
-        (row) => row.side === "defender" && Boolean(row.in_claim)
-      ).length,
+      attackers,
+      defenders,
     };
   }
 
