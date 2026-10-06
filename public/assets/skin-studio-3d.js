@@ -29,6 +29,9 @@ const calibrationClearZoneEl = document.getElementById("skin-calibration-clear-z
 const calibrationClearAllEl = document.getElementById("skin-calibration-clear-all");
 const calibrationCopyEl = document.getElementById("skin-calibration-copy");
 const calibrationStatusEl = document.getElementById("skin-calibration-status");
+const calibrationImportEl = document.getElementById("skin-calibration-import");
+const calibrationImportButtonEl = document.getElementById("skin-calibration-import-button");
+const calibrationClearImportEl = document.getElementById("skin-calibration-clear-import");
 const calibrationOutputEl = document.getElementById("skin-calibration-output");
 const MODEL_REGISTRY = window.HV_SKIN_MODELS || {};
 
@@ -643,6 +646,79 @@ function exportCalibrationMask() {
   return JSON.stringify(maskPayloadFromLookup(), null, 2);
 }
 
+function normalizeCalibrationMaskPayload(value) {
+  let parsed = value;
+  if (typeof value === "string") {
+    if (value.length > 1000000) throw new Error("Calibration mask is too large.");
+    try {
+      parsed = JSON.parse(value);
+    } catch {
+      throw new Error("Calibration mask is not valid JSON.");
+    }
+  }
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("Calibration mask must be a JSON object.");
+  }
+  if (Number(parsed.size) !== CALIBRATION_SIZE) {
+    throw new Error(`Calibration mask size must be ${CALIBRATION_SIZE}.`);
+  }
+  if (!parsed.zones || typeof parsed.zones !== "object" || Array.isArray(parsed.zones)) {
+    throw new Error("Calibration mask zones are missing or invalid.");
+  }
+
+  const total = CALIBRATION_SIZE * CALIBRATION_SIZE;
+  const occupied = new Uint8Array(total);
+  const zones = {};
+
+  for (const [zoneName, runs] of Object.entries(parsed.zones)) {
+    if (!ZONE_KEYS.includes(zoneName)) {
+      throw new Error(`Unsupported calibration zone: ${zoneName}`);
+    }
+    if (!Array.isArray(runs) || runs.length % 2 !== 0) {
+      throw new Error(`${zoneName} must contain [start,length] RLE pairs.`);
+    }
+
+    const cleanRuns = [];
+    for (let i = 0; i < runs.length; i += 2) {
+      const start = Number(runs[i]);
+      const length = Number(runs[i + 1]);
+      if (!Number.isInteger(start) || !Number.isInteger(length) || start < 0 || length <= 0 || start + length > total) {
+        throw new Error(`${zoneName} contains an invalid or out-of-bounds RLE run.`);
+      }
+
+      for (let pixel = start; pixel < start + length; pixel += 1) {
+        if (occupied[pixel]) {
+          const otherZone = ZONE_KEYS[occupied[pixel] - 1] || "another zone";
+          throw new Error(`${zoneName} overlaps ${otherZone} at UV pixel ${pixel}.`);
+        }
+        occupied[pixel] = ZONE_KEYS.indexOf(zoneName) + 1;
+      }
+      cleanRuns.push(start, length);
+    }
+
+    if (cleanRuns.length) zones[zoneName] = cleanRuns;
+  }
+
+  return { size: CALIBRATION_SIZE, zones };
+}
+
+function replaceCalibrationMask(value) {
+  if (!calibrationActive || !model || !currentModelDef) {
+    throw new Error("Start mapping on a shape-only species before importing a mask.");
+  }
+
+  const parsed = normalizeCalibrationMaskPayload(value);
+  disposeMaskAtlases();
+  currentMaskData = parsed;
+  maskAtlases = buildMaskAtlases();
+  applyCalibratedMaterials(model);
+  applyPreviewMode("accurate");
+  updatePalette(paletteFromEditor());
+  saveCalibrationDraftNow();
+  return parsed;
+}
+
 async function loadMaskData(def) {
   if (!def) return null;
   if (def.maskGlobal && window[def.maskGlobal]) return window[def.maskGlobal];
@@ -662,12 +738,14 @@ function loadCalibrationDraft() {
   const key = calibrationStorageKey();
   if (!key) return false;
   try {
-    const parsed = JSON.parse(localStorage.getItem(key) || "null");
-    if (!parsed || Number(parsed.size) !== CALIBRATION_SIZE || !parsed.zones || typeof parsed.zones !== "object") return false;
-    currentMaskData = { size: CALIBRATION_SIZE, zones: parsed.zones };
+    const raw = localStorage.getItem(key);
+    if (!raw) return false;
+    currentMaskData = normalizeCalibrationMaskPayload(raw);
     maskAtlases = buildMaskAtlases();
     return true;
-  } catch {
+  } catch (error) {
+    try { localStorage.removeItem(key); } catch {}
+    setCalibrationStatus(`Discarded invalid saved calibration draft: ${error.message}`);
     return false;
   }
 }
@@ -687,6 +765,7 @@ function startCalibration() {
   if (calibrationClearZoneEl) calibrationClearZoneEl.disabled = false;
   if (calibrationClearAllEl) calibrationClearAllEl.disabled = false;
   if (calibrationCopyEl) calibrationCopyEl.disabled = false;
+  if (calibrationImportButtonEl) calibrationImportButtonEl.disabled = false;
   if (calibrationOutputEl) { calibrationOutputEl.hidden = true; calibrationOutputEl.value = ""; }
   setCalibrationStatus(restoredDraft
     ? `${currentModelDef.displayName} · restored saved calibration draft. Continue painting directly on the model.`
@@ -704,6 +783,7 @@ function stopCalibration() {
   if (calibrationClearZoneEl) calibrationClearZoneEl.disabled = true;
   if (calibrationClearAllEl) calibrationClearAllEl.disabled = true;
   if (calibrationCopyEl) calibrationCopyEl.disabled = true;
+  if (calibrationImportButtonEl) calibrationImportButtonEl.disabled = true;
   const label = currentSpeciesLabel;
   currentModelDef = null;
   disposeModel();
@@ -1146,6 +1226,22 @@ calibrationClearAllEl?.addEventListener("click", () => {
   saveCalibrationDraftSoon();
   setCalibrationStatus(`${currentModelDef?.displayName || "Species"} · cleared all mapped zones · draft auto-saved`);
 });
+calibrationImportButtonEl?.addEventListener("click", () => {
+  try {
+    const raw = String(calibrationImportEl?.value || "").trim();
+    if (!raw) throw new Error("Paste a calibration mask first.");
+    const parsed = replaceCalibrationMask(raw);
+    const zoneCount = Object.keys(parsed.zones).length;
+    setCalibrationStatus(`${currentModelDef.displayName} · imported ${zoneCount} mapped zone${zoneCount === 1 ? "" : "s"} · draft saved locally`);
+  } catch (error) {
+    setCalibrationStatus(`Mask import rejected: ${error.message}`);
+  }
+});
+
+calibrationClearImportEl?.addEventListener("click", () => {
+  if (calibrationImportEl) calibrationImportEl.value = "";
+});
+
 calibrationCopyEl?.addEventListener("click", async () => {
   saveCalibrationDraftNow();
   const output = exportCalibrationMask();
