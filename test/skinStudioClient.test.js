@@ -54,6 +54,8 @@ test("Skin Studio website client targets automation skin endpoints", async (t) =
     steamId: "76561198000000401",
     presetId: "preset-12345678",
   });
+  await client.getSkinWearState("76561198000000401");
+  await client.retrySkinWear("76561198000000401");
 
   assert.equal(calls[0].url, "https://automation.example.test/api/website/skins/studio");
   assert.equal(calls[0].options.method, "POST");
@@ -62,6 +64,9 @@ test("Skin Studio website client targets automation skin endpoints", async (t) =
   assert.equal(calls[1].url, "https://automation.example.test/api/website/skins/preset-12345678/buy");
   assert.equal(calls[2].url, "https://automation.example.test/api/website/skins/preset-12345678/wear");
   assert.equal(calls[2].options.headers.Authorization, "Bearer test-token");
+  assert.equal(calls[3].url, "https://automation.example.test/api/website/skins/wear-state/76561198000000401");
+  assert.equal(calls[4].url, "https://automation.example.test/api/website/skins/wear-retry");
+  assert.equal(calls[4].options.method, "POST");
 });
 
 
