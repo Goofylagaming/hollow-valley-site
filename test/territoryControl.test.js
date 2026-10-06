@@ -5,6 +5,7 @@ const {
   CONTROL_CONTRIBUTOR_CAP,
   effectivePresence,
   controlRatePerMinute,
+  normalizeControlScore,
   advanceControlScore,
 } = require('../server/services/territoryControl');
 
@@ -29,6 +30,21 @@ test('equal effective presence freezes territory movement without momentum', () 
 test('a defender advantage pushes control back toward the owner', () => {
   const state = controlRatePerMinute({ attackers: 2, defenders: 3, momentumRate: 0 });
   assert.equal(state.rate, -4);
+});
+
+test('a legitimate zero control score is preserved instead of falling back to -100', () => {
+  assert.equal(normalizeControlScore(0, -100), 0);
+  assert.equal(normalizeControlScore('0', -100), 0);
+  assert.equal(normalizeControlScore(null, -100), -100);
+
+  const oneMinute = advanceControlScore({
+    score: normalizeControlScore(0, -100),
+    attackers: 2,
+    defenders: 3,
+    elapsedSeconds: 60,
+    momentumRate: 0,
+  });
+  assert.equal(oneMinute.score, -4);
 });
 
 test('verified kill momentum only nudges the existing presence rate', () => {
