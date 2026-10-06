@@ -11,12 +11,16 @@ const lightInput = document.getElementById("skin-model-light");
 const resetButton = document.getElementById("skin-model-reset");
 const zoneStrip = document.getElementById("skin-model-zone-strip");
 const modelTools = document.querySelector(".skin-model-tools");
-const maskData = window.HV_REX_MASK_RLE;
+const modelNameEl = document.getElementById("skin-model-name");
+const modelSourceEl = document.getElementById("skin-model-source");
+const modelCapabilityEl = document.getElementById("skin-model-capability");
+const modelHelpEl = document.getElementById("skin-model-help");
+const modelCreditEl = document.getElementById("skin-model-credit");
+const speciesSelect = document.getElementById("skin-species");
+const MODEL_REGISTRY = window.HV_SKIN_MODELS || {};
 
 if (!canvas || !stage) throw new Error("Skin Studio 3D stage is missing");
 
-const CHUNK_COUNT = 22;
-const CHUNK_ROOT = "/assets/skin-models/tyrannosaurus/chunks";
 const FALLBACKS = Object.freeze({
   body: "#6f7652",
   markings: "#232713",
@@ -40,15 +44,15 @@ const scene = new THREE.Scene();
 const gameFog = new THREE.FogExp2(0x06110d, 0.035);
 scene.fog = null;
 
-const camera = new THREE.PerspectiveCamera(32, 1, 0.01, 100);
-camera.position.set(9.5, 2.5, 0.8);
+const camera = new THREE.PerspectiveCamera(38, 1, 0.01, 100);
+camera.position.set(9.5, 2.5, 1.8);
 
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 controls.dampingFactor = 0.075;
 controls.enablePan = false;
-controls.minDistance = 4.5;
-controls.maxDistance = 18;
+controls.minDistance = 4.2;
+controls.maxDistance = 20;
 controls.minPolarAngle = Math.PI * 0.13;
 controls.maxPolarAngle = Math.PI * 0.82;
 controls.autoRotate = false;
@@ -70,37 +74,65 @@ const fill = new THREE.DirectionalLight(0xffffff, 0.0);
 fill.position.set(4, 2, -8);
 scene.add(fill);
 
-const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x171717, roughness: 0.95, metalness: 0.01, transparent: true, opacity: 0.72 });
+const groundMaterial = new THREE.MeshStandardMaterial({
+  color: 0x171717,
+  roughness: 0.95,
+  metalness: 0.01,
+  transparent: true,
+  opacity: 0.72,
+});
 const ground = new THREE.Mesh(new THREE.CircleGeometry(10, 72), groundMaterial);
 ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
 
 let model = null;
+let currentModelDef = null;
+let currentSpeciesLabel = "";
+let currentLoadToken = 0;
 let homeCamera = null;
 let shaderControllers = [];
 let materialBindings = [];
 let maskAtlases = [];
+let currentMaskData = null;
 let currentPalette = { ...FALLBACKS };
 let previewMode = "accurate";
 let accurateButton = null;
 let gameButton = null;
 
+function normalizedSpecies(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function resolveModelDefinition(value) {
+  const wanted = normalizedSpecies(value);
+  if (!wanted || wanted === "universal" || wanted.includes("any species")) return null;
+  for (const def of Object.values(MODEL_REGISTRY)) {
+    const aliases = Array.isArray(def?.aliases) ? def.aliases : [];
+    if (aliases.some((alias) => normalizedSpecies(alias) === wanted)) return def;
+  }
+  return null;
+}
+
 function installModeControls() {
   if (!modelTools || document.getElementById("skin-model-accurate")) return;
+
   accurateButton = document.createElement("button");
   accurateButton.className = "small-button";
   accurateButton.id = "skin-model-accurate";
   accurateButton.type = "button";
   accurateButton.textContent = "Accurate colour";
-  accurateButton.title = "Show the selected HEX colours without cinematic grading or texture-luminance colour shifts.";
+  accurateButton.title = "Show selected HEX colours on species with a calibrated Hollow Valley zone map.";
 
   gameButton = document.createElement("button");
   gameButton.className = "small-button";
   gameButton.id = "skin-model-game";
   gameButton.type = "button";
   gameButton.textContent = "Game preview";
-  gameButton.title = "Show the skin with the original Hollow Valley atmospheric lighting and texture shading.";
+  gameButton.title = "Show a calibrated model with Hollow Valley atmospheric lighting and texture shading.";
 
   modelTools.prepend(gameButton);
   modelTools.prepend(accurateButton);
@@ -114,19 +146,71 @@ function setStatus(ok, message) {
   statusDot?.classList.toggle("ready", ok);
 }
 
+function setRail(def, label = "") {
+  const display = def?.displayName || label || "Choose a species";
+  if (modelNameEl) modelNameEl.textContent = display;
+
+  if (!def) {
+    if (modelCapabilityEl) modelCapabilityEl.textContent = "SPECIES 3D MODEL";
+    if (modelSourceEl) modelSourceEl.textContent = "No dedicated model selected";
+    if (modelHelpEl) {
+      modelHelpEl.textContent = label
+        ? `There is no dedicated Hollow Valley 3D model configured for ${label} yet. Skin colours still save and Wear Live normally; the 3D stage is disabled rather than showing the wrong dinosaur.`
+        : "Choose a species-specific compatibility to load its dedicated 3D model. Universal designs intentionally do not pretend one dinosaur model represents every species.";
+    }
+    if (modelCreditEl) modelCreditEl.hidden = true;
+    return;
+  }
+
+  if (def.capability === "zones") {
+    if (modelCapabilityEl) modelCapabilityEl.textContent = "CALIBRATED 3D MODEL";
+    if (modelSourceEl) modelSourceEl.textContent = "Species mesh + Hollow Valley colour-zone map";
+    if (modelHelpEl) {
+      modelHelpEl.textContent = "This species has a calibrated Hollow Valley zone map. Accurate colour paints the selected HEX values directly; Game preview adds atmospheric lighting and texture shading.";
+    }
+  } else if (def.capability === "shape") {
+    if (modelCapabilityEl) modelCapabilityEl.textContent = "SPECIES SHAPE MODEL";
+    if (modelSourceEl) modelSourceEl.textContent = "Correct species mesh · colour-zone calibration pending";
+    if (modelHelpEl) {
+      modelHelpEl.textContent = "The correct species mesh is loaded, but its EVRIMA colour zones are not calibrated yet. Skin Studio deliberately leaves the model's source materials visible instead of inventing a colour layout that may differ in game.";
+    }
+  } else {
+    if (modelCapabilityEl) modelCapabilityEl.textContent = "MODEL PENDING";
+    if (modelSourceEl) modelSourceEl.textContent = "Dedicated species model not installed yet";
+    if (modelHelpEl) {
+      modelHelpEl.textContent = "A dedicated species model is queued for this dinosaur. The 3D preview stays disabled until the mesh and colour-zone mapping are verified.";
+    }
+  }
+
+  if (modelCreditEl && def.credit?.url) {
+    modelCreditEl.href = def.credit.url;
+    modelCreditEl.textContent = def.credit.label || "Model credit";
+    modelCreditEl.hidden = false;
+  } else if (modelCreditEl) {
+    modelCreditEl.hidden = true;
+  }
+}
+
 function paletteFromEditor() {
   const get = (key) => document.getElementById("skin-color-" + key)?.value || FALLBACKS[key];
   return {
-    body: get("body"), markings: get("markings"), flank: get("flank"), underbelly: get("underbelly"),
-    detail1: get("detail1"), eyes: get("eyes"), teeth: get("teeth"), mouth: get("mouth"),
-    claws: get("claws"), maleDisplay: get("maleDisplay"),
+    body: get("body"),
+    markings: get("markings"),
+    flank: get("flank"),
+    underbelly: get("underbelly"),
+    detail1: get("detail1"),
+    eyes: get("eyes"),
+    teeth: get("teeth"),
+    mouth: get("mouth"),
+    claws: get("claws"),
+    maleDisplay: get("maleDisplay"),
   };
 }
 
 function unpackZone(zoneName, target, channel) {
-  const runs = maskData?.zones?.[zoneName];
+  const runs = currentMaskData?.zones?.[zoneName];
   if (!Array.isArray(runs)) return;
-  const total = maskData.size * maskData.size;
+  const total = currentMaskData.size * currentMaskData.size;
   for (let i = 0; i < runs.length; i += 2) {
     const start = Math.max(0, runs[i] | 0);
     const end = Math.min(total, start + (runs[i + 1] | 0));
@@ -134,9 +218,19 @@ function unpackZone(zoneName, target, channel) {
   }
 }
 
+function disposeMaskAtlases() {
+  for (const texture of maskAtlases) {
+    try { texture.dispose(); } catch {}
+  }
+  maskAtlases = [];
+}
+
 function buildMaskAtlases() {
-  if (!maskData?.size || !maskData?.zones) throw new Error("Rex UV mask data is unavailable");
-  const size = maskData.size;
+  if (!currentMaskData?.size || !currentMaskData?.zones) {
+    throw new Error(`${currentModelDef?.displayName || "Species"} colour-zone mask data is unavailable`);
+  }
+
+  const size = currentMaskData.size;
   const make = () => new Uint8Array(size * size * 4);
   const atlas0 = make();
   const atlas1 = make();
@@ -164,6 +258,7 @@ function buildMaskAtlases() {
     texture.needsUpdate = true;
     return texture;
   };
+
   return [makeTexture(atlas0), makeTexture(atlas1), makeTexture(atlas2)];
 }
 
@@ -171,7 +266,20 @@ function injectMaskShader(shader, uniforms, accurate) {
   Object.assign(shader.uniforms, uniforms);
   shader.fragmentShader = shader.fragmentShader.replace(
     "#include <common>",
-    `#include <common>\nuniform sampler2D hvMask0;\nuniform sampler2D hvMask1;\nuniform sampler2D hvMask2;\nuniform vec3 hvBody;\nuniform vec3 hvMarkings;\nuniform vec3 hvFlank;\nuniform vec3 hvUnderbelly;\nuniform vec3 hvDetail;\nuniform vec3 hvEyes;\nuniform vec3 hvTeeth;\nuniform vec3 hvMouth;\nuniform vec3 hvClaws;\nuniform vec3 hvMaleDisplay;`
+    `#include <common>
+uniform sampler2D hvMask0;
+uniform sampler2D hvMask1;
+uniform sampler2D hvMask2;
+uniform vec3 hvBody;
+uniform vec3 hvMarkings;
+uniform vec3 hvFlank;
+uniform vec3 hvUnderbelly;
+uniform vec3 hvDetail;
+uniform vec3 hvEyes;
+uniform vec3 hvTeeth;
+uniform vec3 hvMouth;
+uniform vec3 hvClaws;
+uniform vec3 hvMaleDisplay;`
   );
 
   const shadeBlock = accurate
@@ -183,7 +291,21 @@ function injectMaskShader(shader, uniforms, accurate) {
 
   shader.fragmentShader = shader.fragmentShader.replace(
     "#include <map_fragment>",
-    `#include <map_fragment>\nvec4 hvM0 = texture2D(hvMask0, vMapUv);\nvec4 hvM1 = texture2D(hvMask1, vMapUv);\nvec4 hvM2 = texture2D(hvMask2, vMapUv);\n${shadeBlock}\ndiffuseColor.rgb = mix(diffuseColor.rgb, hvBody * hvShade, clamp(hvM0.r * ${strength.body}, 0.0, 1.0));\ndiffuseColor.rgb = mix(diffuseColor.rgb, hvMarkings * hvShade, clamp(hvM0.g * ${strength.markings}, 0.0, 1.0));\ndiffuseColor.rgb = mix(diffuseColor.rgb, hvFlank * hvShade, clamp(hvM0.b * ${strength.flank}, 0.0, 1.0));\ndiffuseColor.rgb = mix(diffuseColor.rgb, hvUnderbelly * hvShade, clamp(hvM0.a * ${strength.underbelly}, 0.0, 1.0));\ndiffuseColor.rgb = mix(diffuseColor.rgb, hvDetail * hvShade, clamp(hvM1.r * ${strength.detail}, 0.0, 1.0));\ndiffuseColor.rgb = mix(diffuseColor.rgb, hvEyes * ${accurate ? "1.0" : "max(hvShade, 0.72)"}, clamp(hvM1.g, 0.0, 1.0));\ndiffuseColor.rgb = mix(diffuseColor.rgb, hvTeeth * ${accurate ? "1.0" : "max(hvShade, 0.72)"}, clamp(hvM1.b, 0.0, 1.0));\ndiffuseColor.rgb = mix(diffuseColor.rgb, hvMouth * ${accurate ? "1.0" : "max(hvShade, 0.62)"}, clamp(hvM1.a, 0.0, 1.0));\ndiffuseColor.rgb = mix(diffuseColor.rgb, hvClaws * ${accurate ? "1.0" : "max(hvShade, 0.68)"}, clamp(hvM2.r, 0.0, 1.0));\ndiffuseColor.rgb = mix(diffuseColor.rgb, hvMaleDisplay * hvShade, clamp(hvM2.g * ${strength.male}, 0.0, 1.0));`
+    `#include <map_fragment>
+vec4 hvM0 = texture2D(hvMask0, vMapUv);
+vec4 hvM1 = texture2D(hvMask1, vMapUv);
+vec4 hvM2 = texture2D(hvMask2, vMapUv);
+${shadeBlock}
+diffuseColor.rgb = mix(diffuseColor.rgb, hvBody * hvShade, clamp(hvM0.r * ${strength.body}, 0.0, 1.0));
+diffuseColor.rgb = mix(diffuseColor.rgb, hvMarkings * hvShade, clamp(hvM0.g * ${strength.markings}, 0.0, 1.0));
+diffuseColor.rgb = mix(diffuseColor.rgb, hvFlank * hvShade, clamp(hvM0.b * ${strength.flank}, 0.0, 1.0));
+diffuseColor.rgb = mix(diffuseColor.rgb, hvUnderbelly * hvShade, clamp(hvM0.a * ${strength.underbelly}, 0.0, 1.0));
+diffuseColor.rgb = mix(diffuseColor.rgb, hvDetail * hvShade, clamp(hvM1.r * ${strength.detail}, 0.0, 1.0));
+diffuseColor.rgb = mix(diffuseColor.rgb, hvEyes * ${accurate ? "1.0" : "max(hvShade, 0.72)"}, clamp(hvM1.g, 0.0, 1.0));
+diffuseColor.rgb = mix(diffuseColor.rgb, hvTeeth * ${accurate ? "1.0" : "max(hvShade, 0.72)"}, clamp(hvM1.b, 0.0, 1.0));
+diffuseColor.rgb = mix(diffuseColor.rgb, hvMouth * ${accurate ? "1.0" : "max(hvShade, 0.62)"}, clamp(hvM1.a, 0.0, 1.0));
+diffuseColor.rgb = mix(diffuseColor.rgb, hvClaws * ${accurate ? "1.0" : "max(hvShade, 0.68)"}, clamp(hvM2.r, 0.0, 1.0));
+diffuseColor.rgb = mix(diffuseColor.rgb, hvMaleDisplay * hvShade, clamp(hvM2.g * ${strength.male}, 0.0, 1.0));`
   );
 }
 
@@ -203,7 +325,9 @@ function basicMaterialFrom(source) {
 function maskedMaterial(source, accurate) {
   const material = accurate ? basicMaterialFrom(source) : source.clone();
   const uniforms = {
-    hvMask0: { value: maskAtlases[0] }, hvMask1: { value: maskAtlases[1] }, hvMask2: { value: maskAtlases[2] },
+    hvMask0: { value: maskAtlases[0] },
+    hvMask1: { value: maskAtlases[1] },
+    hvMask2: { value: maskAtlases[2] },
     hvBody: { value: new THREE.Color(currentPalette.body) },
     hvMarkings: { value: new THREE.Color(currentPalette.markings) },
     hvFlank: { value: new THREE.Color(currentPalette.flank) },
@@ -215,9 +339,11 @@ function maskedMaterial(source, accurate) {
     hvClaws: { value: new THREE.Color(currentPalette.claws) },
     hvMaleDisplay: { value: new THREE.Color(currentPalette.maleDisplay) },
   };
+
   material.onBeforeCompile = (shader) => injectMaskShader(shader, uniforms, accurate);
-  material.customProgramCacheKey = () => `hollow-valley-rex-live-zones-v3-${accurate ? "accurate" : "game"}`;
+  material.customProgramCacheKey = () => `hollow-valley-${currentModelDef?.key || "species"}-zones-v4-${accurate ? "accurate" : "game"}`;
   material.needsUpdate = true;
+
   const controller = {
     setPalette(palette) {
       uniforms.hvBody.value.set(palette.body);
@@ -232,12 +358,14 @@ function maskedMaterial(source, accurate) {
       uniforms.hvMaleDisplay.value.set(palette.maleDisplay);
     },
   };
+
   return { material, controller };
 }
 
-function applyMaterials(root) {
+function applyCalibratedMaterials(root) {
   shaderControllers = [];
   materialBindings = [];
+
   root.traverse((child) => {
     if (!child.isMesh || !child.geometry?.attributes?.uv || !child.material) return;
     child.castShadow = true;
@@ -251,47 +379,88 @@ function applyMaterials(root) {
     });
     materialBindings.push({ child, pairs, array: Array.isArray(child.material) });
   });
+
   applyPreviewMode(previewMode);
 }
 
-function applyPreviewMode(mode) {
-  previewMode = mode === "game" ? "game" : "accurate";
-  const accurate = previewMode === "accurate";
+function applyShapeMaterials(root) {
+  shaderControllers = [];
+  materialBindings = [];
+  root.traverse((child) => {
+    if (!child.isMesh) return;
+    child.castShadow = true;
+    child.receiveShadow = true;
+  });
+  applyPreviewMode("game");
+}
 
+function calibrated() {
+  return currentModelDef?.capability === "zones" && maskAtlases.length === 3;
+}
+
+function applyPreviewMode(mode) {
+  if (!calibrated()) {
+    previewMode = "game";
+  } else {
+    previewMode = mode === "game" ? "game" : "accurate";
+  }
+
+  const accurate = previewMode === "accurate" && calibrated();
   renderer.toneMapping = accurate ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = accurate ? 1.0 : 1.08;
   scene.fog = accurate ? null : gameFog;
 
   if (accurate) {
-    hemi.color.set(0xffffff); hemi.groundColor.set(0x666666); hemi.intensity = 1.0;
-    key.color.set(0xffffff); key.intensity = 2.2;
-    rim.color.set(0xffffff); rim.intensity = 0.0;
-    fill.color.set(0xffffff); fill.intensity = 0.0;
+    hemi.color.set(0xffffff);
+    hemi.groundColor.set(0x666666);
+    hemi.intensity = 1.0;
+    key.color.set(0xffffff);
+    key.intensity = 2.2;
+    rim.color.set(0xffffff);
+    rim.intensity = 0.0;
+    fill.color.set(0xffffff);
+    fill.intensity = 0.0;
     groundMaterial.color.set(0x171717);
   } else {
     const factor = Number(lightInput?.value || 105) / 105;
-    hemi.color.set(0xc6e9d4); hemi.groundColor.set(0x07100c); hemi.intensity = 1.05 * Math.max(0.55, factor);
-    key.color.set(0xffedd2); key.intensity = 3.5 * factor;
-    rim.color.set(0x5cffad); rim.intensity = 1.6 * Math.max(0.6, factor);
-    fill.color.set(0x8eb2c4); fill.intensity = 0.65;
+    hemi.color.set(0xc6e9d4);
+    hemi.groundColor.set(0x07100c);
+    hemi.intensity = 1.05 * Math.max(0.55, factor);
+    key.color.set(0xffedd2);
+    key.intensity = 3.5 * factor;
+    rim.color.set(0x5cffad);
+    rim.intensity = 1.6 * Math.max(0.6, factor);
+    fill.color.set(0x8eb2c4);
+    fill.intensity = 0.65;
     groundMaterial.color.set(0x07110d);
   }
 
-  for (const binding of materialBindings) {
-    const materials = binding.pairs.map((pair) => pair[previewMode]);
-    binding.child.material = binding.array ? materials : materials[0];
+  if (calibrated()) {
+    for (const binding of materialBindings) {
+      const materials = binding.pairs.map((pair) => pair[previewMode]);
+      binding.child.material = binding.array ? materials : materials[0];
+    }
   }
 
   if (accurateButton) {
+    accurateButton.disabled = !calibrated();
     accurateButton.setAttribute("aria-pressed", accurate ? "true" : "false");
     accurateButton.classList.toggle("green", accurate);
   }
   if (gameButton) {
-    gameButton.setAttribute("aria-pressed", accurate ? "false" : "true");
-    gameButton.classList.toggle("green", !accurate);
+    gameButton.disabled = !calibrated();
+    gameButton.setAttribute("aria-pressed", accurate ? "false" : calibrated() ? "true" : "false");
+    gameButton.classList.toggle("green", calibrated() && !accurate);
   }
   if (lightInput) lightInput.disabled = accurate;
-  if (statusEl && model) statusEl.textContent = `Tyrannosaurus rex · ${accurate ? "accurate HEX colour" : "game preview"}`;
+
+  if (statusEl && model && currentModelDef) {
+    if (currentModelDef.capability === "zones") {
+      statusEl.textContent = `${currentModelDef.displayName} · ${accurate ? "calibrated HEX preview" : "calibrated game preview"}`;
+    } else {
+      statusEl.textContent = `${currentModelDef.displayName} · species shape loaded · zones pending`;
+    }
+  }
 }
 
 function frameModel(root) {
@@ -307,8 +476,11 @@ function frameModel(root) {
   let centered = new THREE.Box3().setFromObject(root);
   root.position.y += -centered.min.y + 0.04;
   centered = new THREE.Box3().setFromObject(root);
+
   const finalSize = centered.getSize(new THREE.Vector3());
-  const target = new THREE.Vector3(0, centered.min.y + finalSize.y * 0.52, 0);
+  const cameraConfig = currentModelDef?.camera || {};
+  const targetHeight = Number(cameraConfig.targetHeight) || 0.50;
+  const target = new THREE.Vector3(0, centered.min.y + finalSize.y * targetHeight, 0);
   ground.position.y = centered.min.y - 0.035;
 
   const rect = stage.getBoundingClientRect();
@@ -316,13 +488,15 @@ function frameModel(root) {
   const vfov = THREE.MathUtils.degToRad(camera.fov);
   const hfov = 2 * Math.atan(Math.tan(vfov / 2) * aspect);
   const length = Math.max(finalSize.x, finalSize.z);
+  const distanceScale = Number(cameraConfig.distanceScale) || 0.60;
   const distance = Math.max(
-    7.8,
-    (length * 0.57) / Math.tan(hfov / 2),
-    (finalSize.y * 0.62) / Math.tan(vfov / 2)
+    7.2,
+    (length * distanceScale) / Math.tan(hfov / 2),
+    (finalSize.y * 0.68) / Math.tan(vfov / 2)
   );
+  const yaw = Number(cameraConfig.yaw) || 0.24;
 
-  camera.position.set(distance, target.y + finalSize.y * 0.10, distance * 0.075);
+  camera.position.set(distance, target.y + finalSize.y * 0.13, distance * yaw);
   controls.target.copy(target);
   controls.update();
   homeCamera = { position: camera.position.clone(), target: controls.target.clone() };
@@ -338,75 +512,222 @@ function syncZoneStrip() {
   if (!zoneStrip) return;
   const inputs = [...document.querySelectorAll("#skin-colors .skin-color-control input[type=color]")];
   if (!inputs.length) return;
+
+  const isLive = calibrated();
   zoneStrip.innerHTML = inputs.map((input) => {
     const label = input.closest(".skin-color-control")?.querySelector("span")?.textContent || input.id;
-    return '<button type="button" class="skin-model-zone skin-zone-live" data-input="' + input.id + '">' +
+    const className = isLive ? "skin-model-zone skin-zone-live" : "skin-model-zone skin-zone-saved-only";
+    return '<button type="button" class="' + className + '" data-input="' + input.id + '">' +
       '<i style="background:' + input.value + '"></i><span>' + label + '</span><b>' + input.value.toUpperCase() + '</b></button>';
   }).join("");
+
   zoneStrip.querySelectorAll(".skin-model-zone").forEach((button) => {
     button.addEventListener("click", () => document.getElementById(button.dataset.input)?.click());
   });
+
   document.querySelectorAll("#skin-colors .skin-color-control").forEach((control) => {
-    control.classList.add("skin-zone-live-control");
-    control.classList.remove("skin-zone-saved-only");
-    control.title = "Live on the self-hosted 3D Tyrannosaurus.";
+    control.classList.toggle("skin-zone-live-control", isLive);
+    control.classList.toggle("skin-zone-saved-only", !isLive);
+    control.title = isLive
+      ? `Live on the calibrated ${currentModelDef?.displayName || "species"} 3D model.`
+      : "This colour saves and applies in game, but this species 3D model is not zone-calibrated yet.";
   });
 }
 
-async function loadChunkedGlb() {
+function disposeModel() {
+  if (model) {
+    scene.remove(model);
+    model.traverse((child) => {
+      if (!child.isMesh) return;
+      try { child.geometry?.dispose?.(); } catch {}
+      const materials = Array.isArray(child.material) ? child.material : [child.material];
+      for (const material of materials) {
+        try { material?.dispose?.(); } catch {}
+      }
+    });
+  }
+  model = null;
+  homeCamera = null;
+  shaderControllers = [];
+  materialBindings = [];
+  disposeMaskAtlases();
+  currentMaskData = null;
+}
+
+async function loadChunkedGlb(def, token) {
+  const loader = def.loader || {};
+  const count = Number(loader.count) || 0;
+  if (!count || !loader.root) throw new Error("Chunked model configuration is incomplete");
+
   let completed = 0;
-  const urls = Array.from({ length: CHUNK_COUNT }, (_, index) =>
-    `${CHUNK_ROOT}/rex-${String(index).padStart(2, "0")}.b64?v=1`
+  const prefix = loader.prefix || "model-";
+  const extension = loader.extension || ".b64";
+  const version = loader.version ? `?v=${encodeURIComponent(loader.version)}` : "";
+  const urls = Array.from({ length: count }, (_, index) =>
+    `${loader.root}/${prefix}${String(index).padStart(2, "0")}${extension}${version}`
   );
+
   const chunks = await Promise.all(urls.map(async (url) => {
     const response = await fetch(url, { cache: "force-cache" });
     if (!response.ok) throw new Error(`Model chunk failed: ${response.status} ${url}`);
     const text = (await response.text()).replace(/\s+/g, "");
     completed += 1;
-    if (loaderEl) loaderEl.textContent = `Loading Tyrannosaurus… ${Math.round((completed / CHUNK_COUNT) * 72)}%`;
+    if (loaderEl && token === currentLoadToken) {
+      loaderEl.textContent = `Loading ${def.displayName}… ${Math.round((completed / count) * 74)}%`;
+    }
     return text;
   }));
+
+  if (token !== currentLoadToken) throw new Error("Model load superseded");
   const base64 = chunks.join("");
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-  return bytes.buffer;
+  return new GLTFLoader().parseAsync(bytes.buffer, "");
 }
 
-async function loadModel() {
-  try {
-    setStatus(false, "Tyrannosaurus rex · loading self-hosted model");
-    maskAtlases = buildMaskAtlases();
-    currentPalette = paletteFromEditor();
-    syncZoneStrip();
+async function loadModelResource(def, token) {
+  if (!def?.loader) throw new Error("No model loader configured");
+  if (def.loader.type === "chunked-base64") return loadChunkedGlb(def, token);
+  if (def.loader.type === "url" && def.loader.url) {
+    if (loaderEl) loaderEl.textContent = `Loading ${def.displayName}…`;
+    return new GLTFLoader().loadAsync(def.loader.url);
+  }
+  throw new Error(`Unsupported model loader for ${def.displayName}`);
+}
 
-    const buffer = await loadChunkedGlb();
-    if (loaderEl) loaderEl.textContent = "Loading Tyrannosaurus… 80%";
-    const gltf = await new GLTFLoader().parseAsync(buffer, "");
+function showNoModel(label, def = null) {
+  disposeModel();
+  currentModelDef = def;
+  currentSpeciesLabel = label || "";
+  setRail(def, label);
+
+  if (accurateButton) accurateButton.disabled = true;
+  if (gameButton) gameButton.disabled = true;
+  syncZoneStrip();
+
+  const universal = normalizedSpecies(label).includes("universal") || normalizedSpecies(label).includes("any species");
+  const message = universal
+    ? "Universal design · choose a species-specific compatibility for an accurate 3D model"
+    : def?.capability === "pending"
+      ? `${def.displayName} · dedicated model pending`
+      : label
+        ? `${label} · dedicated model not configured yet`
+        : "Choose a species · 3D preview waiting";
+
+  setStatus(false, message);
+  if (loaderEl) {
+    loaderEl.hidden = false;
+    loaderEl.innerHTML = universal
+      ? "<strong>Universal skin</strong><span>Select a specific species to preview its real model.</span>"
+      : def?.capability === "pending"
+        ? `<strong>${def.displayName} model is next</strong><span>The preview is disabled until its mesh and EVRIMA colour zones are verified.</span>`
+        : "<strong>No dedicated species model yet</strong><span>Skin values still save and Wear Live normally.</span>";
+  }
+}
+
+async function loadModelForSpecies(label) {
+  const def = resolveModelDefinition(label);
+  const normalized = normalizedSpecies(label);
+  const sameDefinition = currentModelDef?.key && def?.key === currentModelDef.key;
+
+  if (sameDefinition && model) {
+    currentSpeciesLabel = label;
+    setRail(def, label);
+    return;
+  }
+
+  currentLoadToken += 1;
+  const token = currentLoadToken;
+  disposeModel();
+  currentModelDef = def;
+  currentSpeciesLabel = label || "";
+  setRail(def, label);
+
+  if (!def || def.capability === "pending" || !def.loader) {
+    showNoModel(label, def);
+    return;
+  }
+
+  try {
+    setStatus(false, `${def.displayName} · loading dedicated model`);
+    if (loaderEl) {
+      loaderEl.hidden = false;
+      loaderEl.textContent = `Loading ${def.displayName}…`;
+    }
+
+    currentPalette = paletteFromEditor();
+    if (def.capability === "zones") {
+      currentMaskData = def.maskGlobal ? window[def.maskGlobal] : null;
+      maskAtlases = buildMaskAtlases();
+    }
+
+    const gltf = await loadModelResource(def, token);
+    if (token !== currentLoadToken) return;
+
     model = gltf.scene;
-    applyMaterials(model);
+    if (def.capability === "zones") applyCalibratedMaterials(model);
+    else applyShapeMaterials(model);
+
     scene.add(model);
     frameModel(model);
     updatePalette(paletteFromEditor());
-    applyPreviewMode(previewMode);
-    if (loaderEl) loaderEl.textContent = "Loading Tyrannosaurus… 100%";
-    setStatus(true, `Tyrannosaurus rex · ${previewMode === "accurate" ? "accurate HEX colour" : "game preview"}`);
+
+    if (def.capability === "zones") {
+      applyPreviewMode(previewMode);
+      setStatus(true, `${def.displayName} · ${previewMode === "accurate" ? "calibrated HEX preview" : "calibrated game preview"}`);
+    } else {
+      applyPreviewMode("game");
+      setStatus(true, `${def.displayName} · species shape loaded · zones pending`);
+    }
+
+    if (loaderEl) loaderEl.hidden = true;
+    document.dispatchEvent(new CustomEvent("hds:skin-model-ready", {
+      detail: { species: def.key, capability: def.capability },
+    }));
   } catch (error) {
-    console.error("Failed to load self-hosted Skin Studio rex", error);
-    setStatus(false, "Tyrannosaurus rex · model load failed");
+    if (token !== currentLoadToken || /superseded/i.test(String(error?.message || ""))) return;
+    console.error("Failed to load Skin Studio species model", def?.key, error);
+    disposeModel();
+    currentModelDef = def;
+    setRail(def, label);
+    setStatus(false, `${def.displayName} · model load failed`);
     if (loaderEl) {
       loaderEl.hidden = false;
-      loaderEl.innerHTML = "<strong>3D model failed to load</strong><span>Refresh the page to retry the Hollow Valley model.</span>";
+      loaderEl.innerHTML = `<strong>${def.displayName} model failed to load</strong><span>Skin values are unaffected. Refresh the page to retry the 3D asset.</span>`;
     }
   }
 }
 
-installModeControls();
-applyPreviewMode("accurate");
+function selectedSpeciesLabel() {
+  const option = speciesSelect?.selectedOptions?.[0];
+  return option?.textContent || speciesSelect?.value || "";
+}
 
-document.addEventListener("hds:skin-preview-change", (event) => updatePalette(event.detail?.skin || paletteFromEditor()));
+installModeControls();
+setRail(null, "");
+applyPreviewMode("game");
+syncZoneStrip();
+
+speciesSelect?.addEventListener("change", () => {
+  loadModelForSpecies(selectedSpeciesLabel());
+});
+
+document.addEventListener("hds:skin-preview-change", (event) => {
+  updatePalette(event.detail?.skin || paletteFromEditor());
+  const label = event.detail?.species || selectedSpeciesLabel();
+  const def = resolveModelDefinition(label);
+  if ((def?.key || null) !== (currentModelDef?.key || null) || (!def && model)) {
+    loadModelForSpecies(label);
+  } else if (!currentSpeciesLabel && label) {
+    loadModelForSpecies(label);
+  }
+});
+
 document.addEventListener("input", (event) => {
-  if (event.target?.matches?.("#skin-colors input[type=color]")) updatePalette(paletteFromEditor());
+  if (event.target?.matches?.("#skin-colors input[type=color]")) {
+    updatePalette(paletteFromEditor());
+  }
 });
 
 resetButton?.addEventListener("click", () => {
@@ -432,6 +753,7 @@ function resize() {
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
 }
+
 new ResizeObserver(resize).observe(stage);
 resize();
 
@@ -440,5 +762,6 @@ function animate() {
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
 }
+
 animate();
-loadModel();
+loadModelForSpecies(selectedSpeciesLabel());
