@@ -54,3 +54,10 @@ Supported zones:
 11. Compare the preview against the same skin in EVRIMA before calling the species calibrated.
 
 Do not promote a species to `zones` just because the mask looks plausible. The purpose of the calibrated state is to tell players that the preview has been compared against actual EVRIMA colour placement.
+
+
+## Native index safety
+
+EVRIMA 0.21.720 strictly validates `PatternIndex` per species and can silently discard the visible skin rebuild when the index is invalid. Hollow Valley therefore writes PatternIndex only for species with a verified range.
+
+`ThemeIndex` is also part of the current customizer struct, but its species validation range has not yet been probe-mapped. Hollow Valley preserves the live ThemeIndex until a species-specific range is verified. `SkinVariation` is the exception: current 0.21.720 probing found it does not block a skin apply.
