@@ -30,6 +30,7 @@ const eventsRouter = require("./routes/events");
 const friendsRouter = require("./routes/friends");
 const mapdataRouter = require("./routes/mapdata");
 const territoryWarsRouter = require("./routes/territoryWars");
+const territoryWarsInternalRouter = require("./routes/territoryWarsInternal");
 const supporterInternalRouter = require("./routes/supporterInternal");
 const adminRestoreRouter = require("./routes/adminRestore");
 const adminOperationsRouter = require("./routes/adminOperations");
@@ -245,6 +246,7 @@ function createApp() {
   app.use("/api/events", eventsRouter);
   app.use("/api/friends", friendsRouter);
   app.use("/api/territory-wars", territoryWarsRouter);
+  app.use("/api/territory-wars/internal", territoryWarsInternalRouter);
   app.use("/api/admin-restore", adminRestoreRouter);
   app.use("/api/admin-operations", adminOperationsRouter);
   app.use("/api/admin-player-directory", adminPlayerDirectoryRouter);
