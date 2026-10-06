@@ -94,7 +94,8 @@ function renderPresence(presence) {
   const battlefield = Number(presence.playerCount || 0);
   const claim = Number(presence.claimCount || 0);
   const eligibleClaim = Number(presence.eligibleClaimCount || 0);
-  text("tw-presence", `${eligibleClaim} eligible claim · ${claim} claim · ${battlefield} battlefield`);
+  const prefix = presence.simulated ? "Preview sim · " : "";
+  text("tw-presence", `${prefix}${eligibleClaim} eligible claim · ${claim} claim · ${battlefield} battlefield`);
 }
 
 function renderLog(log) {
@@ -459,6 +460,12 @@ async function loadPublicState() {
     renderLog(data.log);
     renderLeaderboard(data.leaderboard);
     text("tw-registration-count", Number(data.registrationCount || 0));
+    text(
+      "tw-attack-starts",
+      data.attack?.starts_at
+        ? formatDate(data.attack.starts_at)
+        : "No active attack"
+    );
     if (currentPlayerState) {
       currentPlayerState.event = data.event;
       currentPlayerState.attack = data.attack;
