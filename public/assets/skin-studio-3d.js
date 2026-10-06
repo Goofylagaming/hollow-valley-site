@@ -613,8 +613,22 @@ function rleForZone(zoneIndex) {
 
 function exportCalibrationMask() {
   if (!zoneLookup?.length || !currentModelDef) return "";
-  const globalName = `HV_${String(currentModelDef.key || "SPECIES").replace(/[^a-z0-9]/gi,"_").toUpperCase()}_MASK_RLE`;
-  return `window.${globalName} = ${JSON.stringify(maskPayloadFromLookup())};`;
+  return JSON.stringify(maskPayloadFromLookup(), null, 2);
+}
+
+async function loadMaskData(def) {
+  if (!def) return null;
+  if (def.maskGlobal && window[def.maskGlobal]) return window[def.maskGlobal];
+  if (def.maskUrl) {
+    const response = await fetch(def.maskUrl, { cache: "no-cache" });
+    if (!response.ok) throw new Error(`Zone mask failed: ${response.status} ${def.maskUrl}`);
+    const parsed = await response.json();
+    if (!parsed || !Number(parsed.size) || !parsed.zones || typeof parsed.zones !== "object") {
+      throw new Error(`Invalid zone mask for ${def.displayName}`);
+    }
+    return parsed;
+  }
+  return null;
 }
 
 function loadCalibrationDraft() {
@@ -942,7 +956,7 @@ async function loadModelForSpecies(label) {
 
     currentPalette = paletteFromEditor();
     if (def.capability === "zones") {
-      currentMaskData = def.maskGlobal ? window[def.maskGlobal] : null;
+      currentMaskData = await loadMaskData(def);
       maskAtlases = buildMaskAtlases();
     }
 
@@ -1107,8 +1121,8 @@ calibrationCopyEl?.addEventListener("click", async () => {
   const output = exportCalibrationMask();
   if (!output) return;
   if (calibrationOutputEl) { calibrationOutputEl.value = output; calibrationOutputEl.hidden = false; }
-  try { await navigator.clipboard.writeText(output); setCalibrationStatus(`${currentModelDef.displayName} · mask copied to clipboard`); }
-  catch { setCalibrationStatus(`${currentModelDef.displayName} · mask ready below; copy it manually`); }
+  try { await navigator.clipboard.writeText(output); setCalibrationStatus(`${currentModelDef.displayName} · JSON mask copied to clipboard`); }
+  catch { setCalibrationStatus(`${currentModelDef.displayName} · JSON mask ready below; copy it manually`); }
 });
 
 installModeControls();
