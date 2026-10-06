@@ -47,6 +47,12 @@ local PATTERN_MAX_BY_SPECIES = {
     tyrannosaurus = 2,
 }
 
+-- ThemeIndex was added in 0.21.720, but unlike PatternIndex its validation
+-- range has not yet been probe-mapped. Preserve the live value until a
+-- species-specific range is verified rather than assuming it is harmless.
+local THEME_MAX_BY_SPECIES = {
+}
+
 local function log(msg)
     print(string.format("[%s] %s\n", MOD_NAME, tostring(msg)))
 end
@@ -354,7 +360,20 @@ local function applyConfigToPawn(pawn, config)
             ))
         end
 
-        if theme >= 0 then writeScalar("ThemeIndex", theme) end
+        local themeMax = THEME_MAX_BY_SPECIES[speciesKey]
+        if themeMax ~= nil and theme >= 0 and theme <= themeMax then
+            writeScalar("ThemeIndex", theme)
+        elseif themeMax ~= nil then
+            log(string.format(
+                "Skipped unsafe ThemeIndex species=%s wanted=%s valid=0..%d",
+                tostring(config.species), tostring(theme), themeMax
+            ))
+        else
+            log(string.format(
+                "Skipped unverified ThemeIndex species=%s wanted=%s",
+                tostring(config.species), tostring(theme)
+            ))
+        end
     end
 
     local netOk, netErr = pcall(function() pawn:ForceNetUpdate() end)
