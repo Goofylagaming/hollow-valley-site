@@ -34,8 +34,8 @@
 .tw-control-track{display:flex;position:relative;height:7px;overflow:hidden;background:rgba(255,255,255,.08)}
 .tw-control-owner{background:linear-gradient(90deg,#52672e,#879f4a)}.tw-control-challenger{background:linear-gradient(90deg,#8a332d,#b75a4c)}
 .tw-control-mid{position:absolute;left:50%;top:-1px;bottom:-1px;width:1px;background:rgba(255,255,255,.55)}
-.tw-zone-shape{vector-effect:non-scaling-stroke;fill:rgba(216,169,40,.035);stroke:#d8a928;stroke-width:2;stroke-dasharray:8 5}
-.tw-zone-shape.claim{fill:rgba(165,74,63,.06);stroke:#f0b948;stroke-width:2.4;stroke-dasharray:4 4}
+.tw-zone-shape{vector-effect:non-scaling-stroke;fill:rgba(216,169,40,.025);stroke:#d8a928;stroke-width:1.1;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:7 5}
+.tw-zone-shape.claim{fill:rgba(165,74,63,.04);stroke:#f0b948;stroke-width:1.35;stroke-dasharray:4 4}
 .tw-zone-label{font:700 13px Inter,Arial,sans-serif;letter-spacing:2px;fill:#f2d477;paint-order:stroke;stroke:#0a0a08;stroke-width:4px;stroke-linejoin:round}
 .tw-map-hud[data-mode="player"] .tw-leader,.tw-map-hud[data-mode="player"] .tw-admin{display:none!important}
 .tw-map-hud[data-mode="leader"] .tw-admin{display:none!important}
