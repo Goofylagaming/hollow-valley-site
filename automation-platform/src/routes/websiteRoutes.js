@@ -708,6 +708,43 @@ router.post('/skins/:presetId/buy', async (req, res) => {
   }
 });
 
+router.get('/skins/wear-state/:steamId', async (req, res) => {
+  try {
+    const steamId = validateSteamId(req.params.steamId);
+    res.json({ ok: true, ...(await skinWear.getWearState(steamId)) });
+  } catch (error) {
+    res.status(400).json({
+      error: error.message || 'Unable to read Wear Live status.',
+      code: error.code || null,
+    });
+  }
+});
+
+router.post('/skins/wear-retry', async (req, res) => {
+  try {
+    const steamId = validateSteamId(req.body?.steamId);
+    const result = await audit.run('website', 'skin_live_wear_retry', {
+      steamId,
+    }, async () => skinWear.retryLastWear(steamId), (value) => ({
+      presetId: value.preset?.id || null,
+      requestId: value.requestId || null,
+      confirmed: Boolean(value.confirmed),
+    }));
+    res.status(result.confirmed ? 200 : 202).json({ ok: true, ...result });
+  } catch (error) {
+    const status = error.code === 'SKIN_WEAR_RETRY_NOT_FOUND' ? 404 :
+      error.code === 'SKIN_WEAR_ALREADY_VERIFIED' ? 409 :
+      error.code === 'SKIN_LIVE_WEAR_DISABLED' ? 503 :
+      error.code === 'SKIN_PRESET_NOT_FOUND' ? 404 :
+      error.code === 'SKIN_WEAR_FAILED' ? 409 : 400;
+    res.status(status).json({
+      error: error.message || 'Unable to retry Wear Live.',
+      code: error.code || null,
+      requestId: error.requestId || null,
+    });
+  }
+});
+
 router.post('/skins/:presetId/wear', async (req, res) => {
   try {
     const steamId = validateSteamId(req.body?.steamId);
