@@ -35,6 +35,31 @@ const shapeModel = ({
   camera: Object.freeze({ yaw, targetHeight, distanceScale }),
 });
 
+const calibratedModel = ({
+  key,
+  displayName,
+  aliases = [],
+  modelUrl,
+  maskUrl,
+  assetUrl,
+  creditLabel = null,
+  yaw = 0.26,
+  targetHeight = 0.48,
+  distanceScale = 0.62,
+}) => Object.freeze({
+  key,
+  aliases: Object.freeze([key, displayName, ...aliases]),
+  displayName,
+  capability: "zones",
+  loader: Object.freeze({ type: "url", url: modelUrl }),
+  maskUrl,
+  credit: Object.freeze({
+    label: creditLabel || `${displayName} preview model`,
+    url: assetUrl,
+  }),
+  camera: Object.freeze({ yaw, targetHeight, distanceScale }),
+});
+
 window.HV_SKIN_MODELS = Object.freeze({
   tyrannosaurus: Object.freeze({
     key: "tyrannosaurus",
@@ -183,6 +208,11 @@ window.HV_SKIN_MODELS = Object.freeze({
   beipiaosaurus: pendingModel("beipiaosaurus", "Beipiaosaurus", ["beipi"]),
 });
 
+// Promotion path for a newly calibrated species:
+// 1) save its exported RLE JSON at /assets/skin-models/<species>/mask-rle.json
+// 2) switch its registry entry from shapeModel(...) to calibratedModel(...)
+// 3) provide maskUrl. The renderer then enables Accurate/Game paint modes
+//    and click-to-paint automatically; no renderer changes are required.
 window.HV_SKIN_MODEL_ORDER = Object.freeze([
   "tyrannosaurus",
   "triceratops",
