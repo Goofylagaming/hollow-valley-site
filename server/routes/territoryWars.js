@@ -696,6 +696,12 @@ function captureTerritory(event, attack, atMs, actorUserId = null) {
         ON CONFLICT(group_id) DO UPDATE SET losses = losses + 1
       `).run(attack.defender_group_id);
     }
+
+    if (previewSimulationEnabled()) {
+      db.prepare(
+        "DELETE FROM territory_preview_presence WHERE event_id = ?"
+      ).run(event.id);
+    }
   });
   addLog(event.id, "capture", `${attacker.name} captured ${event.territory_name}. Territory protected for 10 minutes.`, actorUserId);
   return eventById(event.id);
