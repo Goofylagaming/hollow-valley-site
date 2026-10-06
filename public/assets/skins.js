@@ -86,13 +86,34 @@ function editorSkin() {
   return skin;
 }
 
+function selectedSpeciesProfile() {
+  const value = String(document.getElementById("skin-species")?.value || "").trim().toLowerCase();
+  return window.HV_SKIN_MODELS?.[value] || null;
+}
+
 function syncPatternPresetButtons() {
   const value = Number(document.getElementById("skin-pattern")?.value);
+  const profile = selectedSpeciesProfile();
+  const patternMax = Number.isInteger(profile?.patternMax) ? profile.patternMax : null;
+  const safety = document.getElementById("skin-pattern-safety");
+
   document.querySelectorAll("#skin-pattern-presets [data-pattern]").forEach((button) => {
-    const active = Number(button.dataset.pattern) === value;
+    const pattern = Number(button.dataset.pattern);
+    const allowed = patternMax !== null && pattern >= 0 && pattern <= patternMax;
+    const active = allowed && pattern === value;
+    button.disabled = !allowed;
     button.classList.toggle("active", active);
     button.setAttribute("aria-pressed", active ? "true" : "false");
+    button.title = allowed
+      ? `Verified EVRIMA PatternIndex ${pattern} for ${profile.displayName}.`
+      : "Wear Live preserves the current in-game pattern until this species range is verified.";
   });
+
+  if (safety) {
+    safety.textContent = patternMax === null
+      ? "Live pattern switching is not verified for this species yet. Wear Live will preserve its current in-game pattern."
+      : `Verified live PatternIndex range: 0–${patternMax}. Other values are skipped for safety.`;
+  }
 }
 
 function syncSexPreviewButtons() {
@@ -762,11 +783,15 @@ async function initSpecies() {
   if (externalSpecies) externalSpecies.innerHTML = '<option value="Universal">Universal / Any Species</option>' + options;
   const librarySpecies = document.getElementById("skin-library-species");
   if (librarySpecies) librarySpecies.innerHTML = '<option value="Universal">Universal / Any Species</option>' + options;
+  syncPatternPresetButtons();
   updatePreview();
 }
 
 document.getElementById("skin-name").addEventListener("input", updatePreview);
-document.getElementById("skin-species").addEventListener("change", updatePreview);
+document.getElementById("skin-species").addEventListener("change", () => {
+  syncPatternPresetButtons();
+  updatePreview();
+});
 ["skin-pattern", "skin-theme", "skin-variation"].forEach((id) => document.getElementById(id).addEventListener("input", () => {
   if (id === "skin-pattern") syncPatternPresetButtons();
   updatePreview();
