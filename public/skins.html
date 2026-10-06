@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Design, unlock, share and wear Hollow Valley dinosaur skins.">
   <title>Skin Studio | Hollow Valley</title>
-  <link rel="stylesheet" href="assets/styles.css?v=41">
+  <link rel="stylesheet" href="assets/styles.css?v=42">
 </head>
 <body>
   <div class="app-shell">
@@ -107,9 +107,11 @@
                   <button class="small-button" id="skin-calibration-toggle" type="button">Start mapping</button>
                   <button class="small-button" id="skin-calibration-clear-zone" type="button" disabled>Clear selected zone</button>
                   <button class="small-button" id="skin-calibration-clear-all" type="button" disabled>Clear all</button>
+                  <button class="small-button" id="skin-calibration-diagnostic" type="button">Load diagnostic colours</button>
                   <button class="small-button" id="skin-calibration-copy" type="button" disabled>Copy mask</button>
                 </div>
                 <div class="skin-calibration-status" id="skin-calibration-status">Load a shape-only species model, then start mapping.</div>
+                <div class="skin-calibration-coverage" id="skin-calibration-coverage">UV coverage will appear while mapping.</div>
 
                 <details class="skin-calibration-import">
                   <summary>Import / resume a mask</summary>
@@ -303,6 +305,6 @@
   <script type="importmap">
     {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}
   </script>
-  <script type="module" src="/assets/skin-studio-3d.js?v=12"></script>
+  <script type="module" src="/assets/skin-studio-3d.js?v=13"></script>
 </body>
 </html>
