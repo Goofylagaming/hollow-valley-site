@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="assets/livemap-navigation.css?v=1">
   <link rel="stylesheet" href="assets/livemap-routes.css?v=1">
   <link rel="stylesheet" href="assets/livemap-wildlife.css?v=1">
+  <link rel="stylesheet" href="assets/livemap-pins.css?v=1">
 </head>
 <body>
   <div class="app-shell">
@@ -66,6 +67,7 @@
                   <div class="map-layer" id="tracker-labels"></div>
                   <svg class="map-layer" id="tracker-trails" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
                   <div class="map-layer" id="tracker-markers"></div>
+                  <div class="map-layer" id="tracker-target-pins"></div>
                   <div class="map-layer" id="map-navigation-layer" aria-hidden="true"></div>
                 </div>
               </div>
@@ -80,6 +82,10 @@
             <label class="layer-toggle"><input type="checkbox" id="layer-heatmap"><span class="layer-swatch heatmap"></span>My 24h heatmap</label>
             <small class="map-private-note">Private to this browser. It stores only your own recent map samples.</small>
             <label class="layer-toggle"><input type="checkbox" id="layer-grid"><span class="layer-swatch grid"></span>Gateway grid</label>
+            <div class="target-pin-tools">
+              <div class="target-pin-tools-head"><span>PRIVATE TARGET PINS</span><button type="button" class="target-pin-clear" id="clear-target-pins">CLEAR</button></div>
+              <small id="target-pin-status">Shift + click anywhere on the map to drop a private target pin.</small>
+            </div>
             <label class="layer-toggle"><input type="checkbox" id="layer-roads"><span class="layer-swatch routes"></span>Roads &amp; trails</label>
             <label class="layer-toggle"><input type="checkbox" id="layer-wildlife"><span class="layer-swatch wildlife"></span>Wildlife / AI points</label>
             <div class="wildlife-filter" id="wildlife-filter" hidden>
@@ -116,6 +122,7 @@
   <script src="assets/territory-map-overlay.js?v=1"></script>
   <script src="assets/livemap-precision.js?v=1"></script>
   <script src="assets/livemap-navigation.js?v=1"></script>
+  <script src="assets/livemap-pins.js?v=1"></script>
   <script src="assets/livemap-heatmap.js?v=1"></script>
   <script src="assets/livemap-prime-summary.js?v=1"></script>
   <script src="assets/livemap-trail.js?v=1"></script>
