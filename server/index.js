@@ -31,6 +31,7 @@ const friendsRouter = require("./routes/friends");
 const mapdataRouter = require("./routes/mapdata");
 const territoryWarsRouter = require("./routes/territoryWars");
 const territoryWarsInternalRouter = require("./routes/territoryWarsInternal");
+const territoryOverlayRouter = require("./routes/territoryOverlay");
 const supporterInternalRouter = require("./routes/supporterInternal");
 const adminRestoreRouter = require("./routes/adminRestore");
 const adminOperationsRouter = require("./routes/adminOperations");
@@ -246,6 +247,7 @@ function createApp() {
   app.use("/api/events", eventsRouter);
   app.use("/api/friends", friendsRouter);
   app.use("/api/territory-wars", territoryWarsRouter);
+  app.use("/api/territory-wars", territoryOverlayRouter);
   app.use("/api/territory-wars/internal", territoryWarsInternalRouter);
   app.use("/api/admin-restore", adminRestoreRouter);
   app.use("/api/admin-operations", adminOperationsRouter);
@@ -259,7 +261,7 @@ function createApp() {
   app.use("/api/dinostorage", legacyDirectGameApiRetired);
   app.all(["/api/park", "/api/playerdata", "/api/redeem", "/api/parked", "/api/admin"], legacyDirectGameApiRetired);
 
-  const PAGE_ROUTES = ["dashboard", "wallet", "quests", "profile", "mydinos", "bodydrop", "friends", "marketplace", "livemap", "leaderboard", "supporter", "events"];
+  const PAGE_ROUTES = ["dashboard", "wallet", "quests", "profile", "mydinos", "bodydrop", "friends", "marketplace", "livemap", "territoryoverlay", "leaderboard", "supporter", "events"];
   for (const page of PAGE_ROUTES) {
     app.get(`/${page}`, (req, res) => {
       res.sendFile(path.join(__dirname, "..", "public", `${page}.html`));

@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Hollow Valley Territory Wars Overlay</title>
+  <link rel="stylesheet" href="/assets/territoryoverlay.css">
+</head>
+<body>
+  <main id="territoryHud" class="territory-hud" data-mode="player" data-phase="idle">
+    <section class="top-state" aria-live="polite">
+      <article class="side-card owner-card">
+        <span class="eyebrow">OWNER</span>
+        <strong id="ownerName">—</strong>
+        <small id="ownerState">Territory secure</small>
+      </article>
+
+      <article class="timer-card">
+        <span id="phaseLabel" class="phase-label">TERRITORY WARS</span>
+        <strong id="countdown">--:--</strong>
+        <small id="territoryName">No active territory</small>
+      </article>
+
+      <article class="side-card challenger-card">
+        <span class="eyebrow">CHALLENGER</span>
+        <strong id="challengerName">—</strong>
+        <small id="challengerState">No active attack</small>
+      </article>
+    </section>
+
+    <section class="left-stack">
+      <div class="view-badge">
+        <span>VIEW</span>
+        <strong id="viewMode">PLAYER</strong>
+      </div>
+
+      <article id="leaderPanel" class="intel-panel leader-panel" hidden>
+        <header>
+          <span>LEADER INTEL</span>
+          <strong id="viewerSide">SPECTATOR</strong>
+        </header>
+        <div class="intel-grid">
+          <div><small>Battlefield</small><b id="battlefieldCounts">0 / 0</b><span>friendly / opposing</span></div>
+          <div><small>Claim Zone</small><b id="claimCounts">0 / 0</b><span>friendly / opposing</span></div>
+          <div><small>Active lineup</small><b id="lineupCount">0</b><span>friendly fighters</span></div>
+        </div>
+      </article>
+    </section>
+
+    <section class="right-stack">
+      <article class="direction-card">
+        <div id="directionArrow" class="direction-arrow">↑</div>
+        <div>
+          <span>ATTACKER DIRECTION</span>
+          <strong id="attackerDirection">—</strong>
+          <small>generalized bearing only</small>
+        </div>
+      </article>
+
+      <article id="adminPanel" class="intel-panel admin-panel" hidden>
+        <header>
+          <span>ADMIN FIGHTERS</span>
+          <strong id="fighterCount">0</strong>
+        </header>
+        <div id="fighterList" class="fighter-list"></div>
+      </article>
+    </section>
+
+    <section class="zone-radar" aria-label="Territory zone radar">
+      <div class="battlefield-ring">
+        <span>BATTLEFIELD</span>
+        <div id="claimRing" class="claim-ring">
+          <span>CLAIM</span>
+        </div>
+        <div id="selfDot" class="self-dot" hidden><i></i><span>YOU</span></div>
+      </div>
+      <div class="zone-meta">
+        <span id="battlefieldRadius">—</span>
+        <span id="claimRadius">—</span>
+      </div>
+    </section>
+
+    <section class="zone-status">
+      <span id="battlefieldStatus" class="status-chip">OUTSIDE BATTLEFIELD</span>
+      <span id="claimStatus" class="status-chip">CLAIM INACTIVE</span>
+    </section>
+
+    <section class="control-wrap">
+      <div class="control-copy">
+        <span id="ownerPercent">100%</span>
+        <strong>CONTROL</strong>
+        <span id="challengerPercent">0%</span>
+      </div>
+      <div class="control-bar" aria-label="Territory control">
+        <div id="ownerBar" class="control-owner"></div>
+        <div id="challengerBar" class="control-challenger"></div>
+        <i class="control-midpoint"></i>
+      </div>
+    </section>
+
+    <div id="connectionState" class="connection-state">CONNECTING</div>
+  </main>
+  <script src="/assets/territoryoverlay.js" defer></script>
+</body>
+</html>
