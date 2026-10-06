@@ -201,8 +201,7 @@ db.exec(`
     verified_at TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-    FOREIGN KEY (steam_id) REFERENCES economy_wallets(steam_id),
-    FOREIGN KEY (preset_id) REFERENCES economy_skin_presets(id)
+    FOREIGN KEY (steam_id) REFERENCES economy_wallets(steam_id)
   );
   CREATE INDEX IF NOT EXISTS idx_economy_skin_live_assignments_preset
     ON economy_skin_live_assignments(preset_id, updated_at DESC);
@@ -220,8 +219,7 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
     completed_at TEXT,
-    FOREIGN KEY (steam_id) REFERENCES economy_wallets(steam_id),
-    FOREIGN KEY (preset_id) REFERENCES economy_skin_presets(id)
+    FOREIGN KEY (steam_id) REFERENCES economy_wallets(steam_id)
   );
   CREATE INDEX IF NOT EXISTS idx_economy_skin_apply_jobs_steam_created
     ON economy_skin_apply_jobs(steam_id, created_at DESC);
