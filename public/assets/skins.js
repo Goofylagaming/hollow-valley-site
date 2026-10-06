@@ -1,16 +1,24 @@
 const { api, escapeHtml } = window.HDS;
 
+const FNF_PRIMARY_COLOR_FIELDS = [
+  ["maleDisplay", "Male display", "#a6732b", "Dominant pattern colour"],
+  ["markings", "Markings", "#232713", "Pattern midtone"],
+  ["body", "Body", "#6f7652", "Back and body"],
+  ["flank", "Flank", "#59613d", "Front and flanks"],
+  ["underbelly", "Underbelly", "#b7ae8d", "Belly and throat"],
+  ["detail1", "Detail", "#9c7b46", "Crest and accents"],
+  ["eyes", "Eyes", "#b7ff35", "Eyes · glow in game"],
+];
+
+const NATIVE_EXTRA_COLOR_FIELDS = [
+  ["teeth", "Teeth", "#ded6b8", "Native EVRIMA channel"],
+  ["mouth", "Mouth", "#6d2e34", "Native EVRIMA channel"],
+  ["claws", "Claws", "#28251e", "Native EVRIMA channel"],
+];
+
 const COLOR_FIELDS = [
-  ["body", "Body", "#6f7652"],
-  ["markings", "Markings", "#232713"],
-  ["flank", "Flank", "#59613d"],
-  ["underbelly", "Underbelly", "#b7ae8d"],
-  ["detail1", "Detail", "#9c7b46"],
-  ["eyes", "Eyes", "#b7ff35"],
-  ["teeth", "Teeth", "#ded6b8"],
-  ["mouth", "Mouth", "#6d2e34"],
-  ["claws", "Claws", "#28251e"],
-  ["maleDisplay", "Male display", "#a6732b"],
+  ...FNF_PRIMARY_COLOR_FIELDS,
+  ...NATIVE_EXTRA_COLOR_FIELDS,
 ];
 
 let me = { loggedIn: false, user: null };
@@ -108,15 +116,42 @@ function updatePreview() {
   }));
 }
 
+function colorEditorGroup(fields, heading, note, className = "") {
+  return `
+    <div class="skin-color-group ${className}">
+      <div class="skin-color-group-heading">
+        <strong>${escapeHtml(heading)}</strong>
+        <span>${escapeHtml(note)}</span>
+      </div>
+      <div class="skin-color-group-grid">
+        ${fields.map(([key, label, fallback, description]) => `
+          <label class="skin-color-control" title="${escapeHtml(description || label)}">
+            <span><b>${escapeHtml(label)}</b><small>${escapeHtml(description || "")}</small></span>
+            <input type="color" id="skin-color-${key}" value="${fallback}" aria-label="${escapeHtml(label)} colour">
+            <code id="skin-color-code-${key}">${fallback.toUpperCase()}</code>
+          </label>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
 function buildColorEditor() {
   const host = document.getElementById("skin-colors");
-  host.innerHTML = COLOR_FIELDS.map(([key, label, fallback]) => `
-    <label class="skin-color-control">
-      <span>${escapeHtml(label)}</span>
-      <input type="color" id="skin-color-${key}" value="${fallback}" aria-label="${escapeHtml(label)} colour">
-      <code id="skin-color-code-${key}">${fallback.toUpperCase()}</code>
-    </label>
-  `).join("");
+  host.innerHTML = [
+    colorEditorGroup(
+      FNF_PRIMARY_COLOR_FIELDS,
+      "Core skin zones",
+      "Fangs & Ferns-compatible order · Male display → Markings → Body → Flank → Underbelly → Detail → Eyes",
+      "skin-color-group-primary"
+    ),
+    colorEditorGroup(
+      NATIVE_EXTRA_COLOR_FIELDS,
+      "Extended EVRIMA channels",
+      "Stored by Hollow Valley when available · not present in standard Fangs & Ferns share codes",
+      "skin-color-group-extended"
+    ),
+  ].join("");
 
   host.querySelectorAll('input[type="color"]').forEach((input) => {
     input.addEventListener("input", () => {
@@ -145,7 +180,7 @@ function resetEditor() {
 }
 
 function swatches(skin) {
-  return COLOR_FIELDS.slice(0, 6).map(([key, label]) =>
+  return FNF_PRIMARY_COLOR_FIELDS.map(([key, label]) =>
     `<span title="${escapeHtml(label)}" style="background:${colorToHex(skin?.[key])}"></span>`
   ).join("");
 }
