@@ -382,6 +382,9 @@ end
 local profiles = {}
 local profileArgs = {}
 local profileGrowth = {}
+local profileBaseFingerprint = {}
+local profileAppliedFingerprint = {}
+local fingerprintStability = {}
 local lastPawnAddress = {}
 local lastControllerAddress = {}
 local lastProfileSpecies = {}
@@ -391,6 +394,7 @@ local pendingLiveRefresh = {}
 local NEW_LIFE_GROWTH_DROP = 0.05
 local BABY_GROWTH_RESET_FLOOR = 0.15
 local PROFILE_GROWTH_PERSIST_STEP = 0.01
+local RECONNECT_FINGERPRINT_STABLE_POLLS = 2
 
 local function profileSpeciesKey(species)
     return tostring(species or ""):lower()
@@ -400,7 +404,10 @@ local function ensureProfileBucket(steam)
     profiles[steam] = profiles[steam] or {}
     profileArgs[steam] = profileArgs[steam] or {}
     profileGrowth[steam] = profileGrowth[steam] or {}
-    return profiles[steam], profileArgs[steam], profileGrowth[steam]
+    profileBaseFingerprint[steam] = profileBaseFingerprint[steam] or {}
+    profileAppliedFingerprint[steam] = profileAppliedFingerprint[steam] or {}
+    return profiles[steam], profileArgs[steam], profileGrowth[steam],
+        profileBaseFingerprint[steam], profileAppliedFingerprint[steam]
 end
 
 local function objectAddress(object)
@@ -421,14 +428,62 @@ local function pawnGrowth(pawn)
     return math.max(0, math.min(1, growth))
 end
 
-local function setProfile(steam, args, config, growth)
+local function customizerFingerprint(pawn)
+    if pawn == nil then return nil end
+    local ok, cdata = pcall(function() return pawn.CustomizerData end)
+    if not ok or cdata == nil then return nil end
+
+    local parts = {}
+    local function addScalar(value)
+        local number = tonumber(value)
+        if number == nil then
+            table.insert(parts, "x")
+        else
+            table.insert(parts, string.format("%.6f", number))
+        end
+    end
+
+    local female = false
+    pcall(function() female = cdata.bIsFemale == true end)
+    table.insert(parts, female and "F" or "M")
+    pcall(function() addScalar(cdata.PatternIndex) end)
+    pcall(function() addScalar(cdata.ThemeIndex) end)
+    pcall(function() addScalar(cdata.SkinVariation) end)
+
+    for _, key in ipairs(COLOR_KEYS) do
+        local field = FIELD_MAP[key]
+        local color
+        pcall(function() color = cdata[field] end)
+        if color == nil then
+            table.insert(parts, "missing:" .. tostring(field))
+        else
+            pcall(function() addScalar(color.R) end)
+            pcall(function() addScalar(color.G) end)
+            pcall(function() addScalar(color.B) end)
+            pcall(function() addScalar(color.A) end)
+        end
+    end
+    return table.concat(parts, "|")
+end
+
+local function fingerprintsMatch(left, right)
+    return left ~= nil and right ~= nil and left == right
+end
+
+local function setProfile(steam, args, config, growth, baseFingerprint, appliedFingerprint)
     local key = profileSpeciesKey(config and config.species)
     if key == "" then return false end
-    local bucket, argBucket, growthBucket = ensureProfileBucket(steam)
+    local bucket, argBucket, growthBucket, baseBucket, appliedBucket = ensureProfileBucket(steam)
     bucket[key] = config
     argBucket[key] = args
     if tonumber(growth) ~= nil then
         growthBucket[key] = math.max(0, math.min(1, tonumber(growth)))
+    end
+    if baseFingerprint ~= nil and baseFingerprint ~= "" then
+        baseBucket[key] = baseFingerprint
+    end
+    if appliedFingerprint ~= nil and appliedFingerprint ~= "" then
+        appliedBucket[key] = appliedFingerprint
     end
     return true
 end
@@ -440,6 +495,9 @@ local function clearProfilesForSteam(steam, reason)
     profiles[steam] = nil
     profileArgs[steam] = nil
     profileGrowth[steam] = nil
+    profileBaseFingerprint[steam] = nil
+    profileAppliedFingerprint[steam] = nil
+    fingerprintStability[steam] = nil
     pendingLiveRefresh[steam] = nil
     lastProfileSpecies[steam] = nil
     log("Cleared persisted skin for new dinosaur life steam=" .. tostring(steam) .. " reason=" .. tostring(reason or "new-life"))
