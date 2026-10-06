@@ -85,6 +85,12 @@ test("Skin Studio v012 restores life-scoped skins without using transient pawn s
   assert.match(lua, /loadProfiles\(\)/);
   assert.match(lua, /safeCall\("reapplyProfiles", reapplyProfiles\)/);
   assert.match(lua, /pendingLiveRefresh\[steam\]/);
+  assert.match(lua, /local REAPPLY_INTERVAL_MS = 4000/);
+  assert.match(lua, /PATTERN_MAX_BY_SPECIES/);
+  assert.match(lua, /Skipped unverified PatternIndex/);
+  assert.match(lua, /BABY_GROWTH_RESET_FLOOR = 0\.15/);
+  assert.match(lua, /reconnect profile saved/);
+  assert.equal(lua.includes("SaveDataToFile"), false);
   assert.match(lua, /state\.pawnAddress/);
   assert.match(lua, /state\.controllerAddress/);
   assert.match(lua, /Cancelled live skin refresh after dinosaur life changed/);
