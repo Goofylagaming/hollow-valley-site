@@ -56,6 +56,7 @@ test("Skin Studio website client targets automation skin endpoints", async (t) =
   });
   await client.getSkinWearState("76561198000000401");
   await client.retrySkinWear("76561198000000401");
+  await client.resetSkinWear("76561198000000401");
 
   assert.equal(calls[0].url, "https://automation.example.test/api/website/skins/studio");
   assert.equal(calls[0].options.method, "POST");
@@ -67,6 +68,8 @@ test("Skin Studio website client targets automation skin endpoints", async (t) =
   assert.equal(calls[3].url, "https://automation.example.test/api/website/skins/wear-state/76561198000000401");
   assert.equal(calls[4].url, "https://automation.example.test/api/website/skins/wear-retry");
   assert.equal(calls[4].options.method, "POST");
+  assert.equal(calls[5].url, "https://automation.example.test/api/website/skins/wear-reset");
+  assert.equal(calls[5].options.method, "POST");
 });
 
 
