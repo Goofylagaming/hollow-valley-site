@@ -1289,3 +1289,7 @@
   .skin-wear-state-card{align-items:flex-start;flex-direction:column}
   .skin-wear-state-actions{justify-content:flex-start}
 }
+
+.skin-model-stage.skin-model-clean .skin-model-hud,
+.skin-model-stage.skin-model-clean .skin-model-rail,
+.skin-model-stage.skin-model-clean .skin-model-code{opacity:0;pointer-events:none}
