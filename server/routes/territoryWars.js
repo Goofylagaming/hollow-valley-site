@@ -762,7 +762,64 @@ function requireGroupRole(req, allowedRoles) {
   return { group };
 }
 
+function ensurePreviewSouthPlainsEvent() {
+  const enabled = ["1", "true", "yes", "on"].includes(
+    String(process.env.TERRITORY_WARS_PREVIEW_SEED || "")
+      .trim()
+      .toLowerCase()
+  );
+
+  if (!enabled) return null;
+
+  const existing = db.prepare(`
+    SELECT *
+    FROM territory_events
+    WHERE territory_key = 'south-plains'
+      AND status != 'ended'
+    ORDER BY id DESC
+    LIMIT 1
+  `).get();
+
+  if (existing) return existing;
+
+  const result = db.prepare(`
+    INSERT INTO territory_events
+      (
+        name,
+        territory_key,
+        territory_name,
+        status,
+        owner_name,
+        challenger_name,
+        control_score,
+        owner_control,
+        challenger_control,
+        starts_at,
+        ends_at
+      )
+    VALUES (?, 'south-plains', 'South Plains', 'scheduled', 'Admin', NULL, -100, 100, 0, ?, ?)
+  `).run(
+    "South Plains Preview Test",
+    "2026-10-10T07:00:00.000Z",
+    "2026-10-10T12:00:00.000Z"
+  );
+
+  const eventId = Number(result.lastInsertRowid);
+  addLog(
+    eventId,
+    "created",
+    "South Plains preview test event seeded automatically"
+  );
+
+  console.log(
+    "[territory-wars] auto-seeded South Plains preview event id=" + eventId
+  );
+
+  return eventById(eventId);
+}
+
 router.get("/state", (_req, res) => {
+  ensurePreviewSouthPlainsEvent();
   res.json({ ok: true, ...publicState() });
 });
 
