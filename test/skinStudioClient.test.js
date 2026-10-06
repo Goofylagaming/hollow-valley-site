@@ -100,6 +100,8 @@ test("Skin Studio v012 restores life-scoped skins without using transient pawn s
   assert.match(lua, /Reconnect fingerprint already matches applied skin/);
   assert.match(lua, /Waiting for native skin fingerprint to settle/);
   assert.match(lua, /native-skin-fingerprint-mismatch/);
+  assert.match(lua, /verb":"skin_lifecycle"/);
+  assert.match(lua, /emitSkinLifecycleClear/);
   assert.match(lua, /Discarded .*legacy skin profile.*safe life fingerprints/);
   assert.match(lua, /reconnect profile saved/);
   assert.equal(lua.includes("SaveDataToFile"), false);
@@ -124,6 +126,8 @@ test("Skin Studio v012 restores life-scoped skins without using transient pawn s
   assert.match(browser, /function syncColorCodeLabels\(\)/);
   assert.match(browser, /syncColorCodeLabels\(\);/);
   assert.match(browser, /syncPatternPresetButtons\(\);/);
+  assert.match(browser, /Previous Wear Live verified/);
+  assert.match(browser, /No reconnect restore is armed now/);
   assert.match(browser, /skinStudioCalibrationPreview/);
   assert.match(browser, /const canCalibrate = Boolean\(me\.user\?\.is_admin\) \|\| calibrationPreview/);
   assert.match(serverIndex, /SKIN_STUDIO_CALIBRATION_PREVIEW === "1"/);
