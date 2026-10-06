@@ -795,6 +795,61 @@ router.post("/attack", requireTerritoryInternalToken, (req, res) => {
 });
 
 
+router.post("/set-preview-live", requireTerritoryInternalToken, (_req, res) => {
+  try {
+    if (!previewSeedEnabled()) {
+      return res.status(403).json({
+        error: "Territory Wars preview controls are disabled",
+      });
+    }
+
+    const event = db.prepare(
+      "SELECT * FROM territory_events WHERE name = ? ORDER BY id DESC LIMIT 1"
+    ).get("South Plains Preview Test");
+
+    if (!event) {
+      return res.status(404).json({
+        error: "South Plains Preview Test does not exist yet",
+      });
+    }
+
+    if (event.status === "ended") {
+      return res.status(409).json({
+        error: "South Plains Preview Test has already ended",
+      });
+    }
+
+    const startsAt = nowIso();
+    const endsAt = new Date(Date.now() + (5 * 60 * 60 * 1000)).toISOString();
+
+    db.prepare(`
+      UPDATE territory_events
+      SET status = 'live',
+          starts_at = ?,
+          ends_at = ?,
+          updated_at = datetime('now')
+      WHERE id = ?
+    `).run(startsAt, endsAt, event.id);
+
+    addLog(
+      event.id,
+      "status",
+      "South Plains preview event set LIVE for attack testing",
+      null
+    );
+
+    return res.json({
+      ok: true,
+      event: decorateEvent(eventById(event.id)),
+    });
+  } catch (error) {
+    console.error("[TerritoryWars] Preview live switch failed:", error);
+    return res.status(500).json({
+      error: error?.message || "Unable to set Territory Wars preview live.",
+    });
+  }
+});
+
 router.post("/seed-preview", requireTerritoryInternalToken, (_req, res) => {
   try {
     const enabled = String(
