@@ -683,6 +683,20 @@
   touch-action:none;
 }
 #skin-model-canvas:active{cursor:grabbing}
+.skin-model-reference-frame{
+  position:absolute;
+  z-index:2;
+  inset:0;
+  width:100%;
+  height:100%;
+  border:0;
+  background:#010705;
+}
+.skin-model-reference-frame[hidden]{display:none}
+.skin-model-stage.skin-reference-mode #skin-model-canvas{visibility:hidden}
+.skin-model-stage.skin-reference-mode .skin-model-hud{display:none}
+.skin-model-stage.skin-reference-mode .skin-model-rail{z-index:4;background:rgba(3,14,9,.9)}
+.skin-model-stage.skin-reference-mode .skin-model-code{z-index:4}
 .skin-model-loader{
   position:absolute;
   z-index:4;
