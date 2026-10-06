@@ -909,6 +909,12 @@ router.post("/preview-defender-advantage", requireTerritoryInternalToken, (_req,
     ).toISOString();
 
     runTransaction(() => {
+      try {
+        db.prepare(
+          "DELETE FROM territory_kill_momentum WHERE event_id = ? AND attack_id = ?"
+        ).run(event.id, attack.id);
+      } catch {}
+
       db.prepare(`
         UPDATE territory_events
         SET control_score = 0,
