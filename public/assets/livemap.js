@@ -614,6 +614,56 @@ async function loadActivityHistory() {
   }
 }
 
+function renderMapSourceStatus(data, error = null) {
+  const card = document.getElementById("map-source-card");
+  const badge = document.getElementById("map-source-badge");
+  const version = document.getElementById("map-source-version");
+  const detail = document.getElementById("map-source-detail");
+  if (!card || !badge || !version || !detail) return;
+
+  if (error || !data) {
+    card.dataset.state = "error";
+    badge.textContent = "UNAVAILABLE";
+    version.textContent = "Gateway cartography";
+    detail.textContent = "Source verification failed. Existing map layers may still be available from cache.";
+    return;
+  }
+
+  const sourceStatus = data.sourceStatus || {};
+  const mode = sourceStatus.mode || (String(data.mapVersion || "").includes("local-fallback") ? "local-fallback" : "network");
+  const mapVersion = sourceStatus.version || data.mapVersion || "Unknown Gateway source";
+  const isCurrentLive = mode === "network" && sourceStatus.validated !== false && sourceStatus.currentAlias === true;
+  const when = (value) => {
+    if (!value) return null;
+    const date = new Date(value);
+    return Number.isFinite(date.getTime()) ? date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : null;
+  };
+
+  version.textContent = mapVersion;
+  if (mode === "local-fallback") {
+    card.dataset.state = "fallback";
+    badge.textContent = "FALLBACK";
+    const saved = when(sourceStatus.savedAt);
+    detail.textContent = saved
+      ? `Live source unavailable · using last validated copy saved ${saved}.`
+      : "Live source unavailable · using the last validated local copy.";
+  } else if (isCurrentLive) {
+    card.dataset.state = "current";
+    badge.textContent = "VERIFIED CURRENT";
+    const fetched = when(sourceStatus.fetchedAt || data.fetchedAt);
+    detail.textContent = fetched
+      ? `Validated from the current Gateway_v0.21 source · refreshed ${fetched}.`
+      : "Validated from the current Gateway_v0.21 source.";
+  } else {
+    card.dataset.state = "network";
+    badge.textContent = sourceStatus.validated === false ? "UNVERIFIED" : "LIVE SOURCE";
+    const fetched = when(sourceStatus.fetchedAt || data.fetchedAt);
+    detail.textContent = fetched
+      ? `Operator-selected Gateway source · refreshed ${fetched}.`
+      : "Operator-selected Gateway source.";
+  }
+}
+
 async function loadLayers() {
   const note = document.getElementById("layer-note");
   try {
@@ -626,11 +676,13 @@ async function loadLayers() {
     populateWildlifeSpecies();
     renderWildlife();
     renderPois();
+    renderMapSourceStatus(data);
     if (note) {
       const counts = data.layers;
       note.textContent = `${counts.saltLicks.length} salt licks, ${counts.roads?.length || 0} road/trail segments, ${counts.wildlife?.length || 0} wildlife points, ${counts.migrations.length} migration zones, ${counts.patrolZones.length} patrol zones, ${counts.sanctuaries.length} sanctuaries (${data.mapVersion}).`;
     }
   } catch (err) {
+    renderMapSourceStatus(null, err);
     if (note) note.textContent = "Map layer data is unavailable right now. Live player tracking still works.";
     console.error(err);
   }

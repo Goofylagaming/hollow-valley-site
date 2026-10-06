@@ -7,8 +7,8 @@
   <title>Live map | Hollow Valley</title>
   <link rel="stylesheet" href="assets/styles.css?v=38">
   <link rel="stylesheet" href="assets/livemap-trail.css?v=2">
-  <link rel="stylesheet" href="assets/territory-map-overlay.css?v=1">
-  <link rel="stylesheet" href="assets/livemap-precision.css?v=1">
+  <link rel="stylesheet" href="assets/territory-map-overlay.css?v=2">
+  <link rel="stylesheet" href="assets/livemap-precision.css?v=2">
   <link rel="stylesheet" href="assets/livemap-navigation.css?v=1">
   <link rel="stylesheet" href="assets/livemap-routes.css?v=1">
   <link rel="stylesheet" href="assets/livemap-wildlife.css?v=1">
@@ -108,6 +108,11 @@
               <label class="precision-row" for="zone-fill-strength"><b>Fill</b><input type="range" id="zone-fill-strength" min="0" max="28" value="12" step="1"><i class="precision-value" id="zone-fill-value">12%</i></label>
               <small class="map-source-status">Thin borders are the default so zone geometry follows the terrain without covering it.</small>
             </div>
+            <div class="map-source-card" id="map-source-card" data-state="loading">
+              <div class="map-source-card-head"><span>CARTOGRAPHY SOURCE</span><b id="map-source-badge">CHECKING</b></div>
+              <strong id="map-source-version">Gateway cartography</strong>
+              <small id="map-source-detail">Verifying the current Gateway source&hellip;</small>
+            </div>
             <p class="layer-note" id="layer-note">Loading Gateway map data&hellip;</p>
           </aside>
         </div>
@@ -118,8 +123,8 @@
     <footer><span>&copy; 2026 Hollow Valley</span><span>ISLE SERVER</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="assets/common.js?v=19"></script>
-  <script src="assets/livemap.js?v=14"></script>
-  <script src="assets/territory-map-overlay.js?v=1"></script>
+  <script src="assets/livemap.js?v=15"></script>
+  <script src="assets/territory-map-overlay.js?v=2"></script>
   <script src="assets/livemap-precision.js?v=1"></script>
   <script src="assets/livemap-navigation.js?v=1"></script>
   <script src="assets/livemap-pins.js?v=1"></script>

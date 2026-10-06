@@ -289,26 +289,37 @@ function parseZones(items) {
   return shapes;
 }
 
-function buildPayload(sec1, sec2, sourceVersion = "Gateway_v0.21.7") {
+function buildPayload(sec1, sec2, sourceVersion = "Gateway_v0.21.7", sourceMeta = {}) {
+  const fetchedAt = sourceMeta.fetchedAt || new Date().toISOString();
+  const layers = {
+    areas: parsePoints(sec1["Area"]),
+    landmarks: [...parsePoints(sec1["Landmarks"]), ...parsePoints(sec1["Site (Human Base)"])],
+    saltLicks: parsePoints(sec2["SaltRock"]),
+    water: parsePoints(sec1["Water"]),
+    wallows: parsePoints(sec1["Mud"]),
+    caves: parsePaths(sec1["Cave"]),
+    roads: parseRoads(sec2["_Road_"]),
+    wildlife: parseWildlifePoints(sec2),
+    migrations: parseZones(sec1["Migration"]),
+    patrolZones: parseZones(sec1["PatrolZone"]),
+    sanctuaries: parseZones(sec1["Sanctuary"]),
+  };
+
   return {
     mapVersion: sourceVersion,
     source: "Vulnona community cartography",
-    fetchedAt: new Date().toISOString(),
+    fetchedAt,
+    sourceStatus: {
+      mode: sourceMeta.mode || "network",
+      version: sourceVersion,
+      validated: true,
+      fetchedAt,
+      savedAt: sourceMeta.savedAt || null,
+      currentAlias: sourceVersion === "Gateway_v0.21",
+    },
     bounds: BOUNDS,
     grid: GRID,
-    layers: {
-      areas: parsePoints(sec1["Area"]),
-      landmarks: [...parsePoints(sec1["Landmarks"]), ...parsePoints(sec1["Site (Human Base)"])],
-      saltLicks: parsePoints(sec2["SaltRock"]),
-      water: parsePoints(sec1["Water"]),
-      wallows: parsePoints(sec1["Mud"]),
-      caves: parsePaths(sec1["Cave"]),
-      roads: parseRoads(sec2["_Road_"]),
-      wildlife: parseWildlifePoints(sec2),
-      migrations: parseZones(sec1["Migration"]),
-      patrolZones: parseZones(sec1["PatrolZone"]),
-      sanctuaries: parseZones(sec1["Sanctuary"]),
-    },
+    layers,
   };
 }
 
@@ -376,7 +387,7 @@ async function fetchFromNetwork() {
       } catch (_) {}
 
       console.info(`[mapdata] loaded ${version} from Vulnona current Gateway data`);
-      return buildPayload(parseVulnonaFile(txt1), parseVulnonaFile(txt2), version);
+      return buildPayload(parseVulnonaFile(txt1), parseVulnonaFile(txt2), version, { mode: "network" });
     } catch (error) {
       lastError = error;
       console.warn(`[mapdata] ${candidate.version} unavailable:`, error.message);
@@ -391,13 +402,18 @@ function loadLocalFallback() {
     const txt1 = fs.readFileSync(LOCAL_DATA1_PATH, "utf8");
     const txt2 = fs.readFileSync(LOCAL_DATA2_PATH, "utf8");
     let version = "Gateway_v0.21.7-local-fallback";
+    let savedAt = null;
     try {
       const meta = JSON.parse(
         fs.readFileSync(path.join(__dirname, "../data/vulnona_data_meta.json"), "utf8")
       );
       if (meta?.version) version = `${meta.version}-local-fallback`;
+      if (meta?.savedAt) savedAt = meta.savedAt;
     } catch (_) {}
-    return buildPayload(parseVulnonaFile(txt1), parseVulnonaFile(txt2), version);
+    return buildPayload(parseVulnonaFile(txt1), parseVulnonaFile(txt2), version, {
+      mode: "local-fallback",
+      savedAt,
+    });
   }
   return null;
 }

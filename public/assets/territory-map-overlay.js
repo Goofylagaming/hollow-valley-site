@@ -14,7 +14,7 @@
     root.innerHTML = `
       <div class="tw-map-top">
         <div class="tw-side tw-owner"><small>Owner</small><strong data-tw-owner>—</strong></div>
-        <div class="tw-timer"><span data-tw-phase>TERRITORY WARS</span><b data-tw-countdown>--:--</b><small data-tw-territory>—</small></div>
+        <div class="tw-timer"><span data-tw-phase>TERRITORY WARS</span><b data-tw-countdown>--:--</b><small data-tw-territory>—</small><em data-tw-event-state>EVENT ACTIVE</em></div>
         <div class="tw-side tw-challenger"><small>Challenger</small><strong data-tw-challenger>—</strong></div>
       </div>
       <div class="tw-left">
@@ -33,7 +33,7 @@
       </div>
       <div class="tw-direction"><i data-tw-arrow>↑</i><div><small>Attacker direction</small><strong data-tw-direction>—</strong></div></div>
       <div class="tw-control">
-        <div class="tw-control-copy"><span data-tw-owner-pct>100%</span><b>CONTROL</b><span data-tw-challenger-pct>0%</span></div>
+        <div class="tw-control-copy"><span data-tw-owner-pct>100%</span><b data-tw-control-label>CONTROL</b><span data-tw-challenger-pct>0%</span></div>
         <div class="tw-control-track"><i class="tw-control-owner" data-tw-owner-bar></i><i class="tw-control-challenger" data-tw-challenger-bar></i><i class="tw-control-mid"></i></div>
       </div>`;
   }
@@ -41,12 +41,28 @@
   function renderTimer(){
     if(!state) return;
     const node=$("[data-tw-countdown]");
+    const phase=state.timer?.phase||"idle";
     const t=state.timer?.endsAt?new Date(state.timer.endsAt).getTime():NaN;
     if(Number.isFinite(t)) node.textContent=clock(t-Date.now());
-    else node.textContent=state.timer?.phase==="control-live"?"LIVE":state.timer?.phase==="waiting-claim"?"ARMED":"--:--";
+    else node.textContent=phase==="control-live"?"LIVE":phase==="waiting-claim"?"ARMED":"--:--";
+
+    const phaseState=$("[data-tw-event-state]");
+    if(phaseState){
+      const copy={
+        "attack-warning":"ATTACK WARNING",
+        "claim-arming":"CLAIM ARMING",
+        "waiting-claim":"CLAIM READY",
+        "control-live":"CLAIM LIVE",
+        "complete":"EVENT COMPLETE"
+      };
+      phaseState.textContent=copy[phase]||"EVENT ACTIVE";
+    }
+    const controlLabel=$("[data-tw-control-label]");
+    if(controlLabel) controlLabel.textContent=phase==="control-live"?"CLAIM CONTROL":"CONTROL";
   }
 
   function renderZones(z){
+    shapeLayer.dataset.phase=state?.timer?.phase||"idle";
     if(!z?.mapCenter || !z?.battlefieldMapRadius || !z?.claimMapRadius){shapeLayer.innerHTML="";return;}
     const cx=(z.mapCenter.left*1000).toFixed(1), cy=(z.mapCenter.top*1000).toFixed(1);
     const brx=(z.battlefieldMapRadius.x*1000).toFixed(1), bry=(z.battlefieldMapRadius.y*1000).toFixed(1);
@@ -79,7 +95,7 @@
   }
 
   function render(data){
-    state=data; root.hidden=!data.event; if(!data.event){shapeLayer.innerHTML="";return;}
+    state=data; root.hidden=!data.event; if(!data.event){shapeLayer.innerHTML="";shapeLayer.dataset.phase="idle";return;}
     root.dataset.mode=data.viewer?.mode||"player"; root.dataset.phase=data.timer?.phase||"idle";
     $("[data-tw-owner]").textContent=data.event?.owner||"—";
     $("[data-tw-challenger]").textContent=data.event?.challenger||data.attack?.attacker||"—";
