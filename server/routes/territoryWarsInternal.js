@@ -807,6 +807,172 @@ router.post("/attack", requireTerritoryInternalToken, (req, res) => {
 });
 
 
+router.post("/preview-defender-advantage", requireTerritoryInternalToken, (_req, res) => {
+  try {
+    if (!previewSeedEnabled()) {
+      return res.status(403).json({
+        error: "Territory Wars preview controls are disabled",
+      });
+    }
+
+    const event = latestEventRaw();
+    if (!event || event.status !== "live") {
+      return res.status(409).json({
+        error: "A live Territory Wars preview event is required",
+      });
+    }
+
+    let attack = activeAttack(event.id);
+    if (!attack) {
+      return res.status(409).json({
+        error: "An active Territory attack is required",
+      });
+    }
+
+    if (attack.status === "warning") {
+      const activatedAt = new Date(Date.now() - 1000).toISOString();
+      db.prepare(`
+        UPDATE territory_attacks
+        SET status = 'active',
+            starts_at = ?,
+            last_tick_at = ?
+        WHERE id = ?
+      `).run(activatedAt, activatedAt, attack.id);
+      attack = activeAttack(event.id);
+    }
+
+    const attackerLineup = activeLineup(
+      event.id,
+      attack.attacker_group_id
+    );
+
+    const defender = groupMatchingOwner(event.owner_name);
+    if (!defender) {
+      return res.status(409).json({
+        error: "The current Territory owner is not a permanent Group",
+      });
+    }
+
+    let defenderLineup = activeLineup(event.id, defender.id);
+
+    if (defenderLineup.length < 3) {
+      const extraDiscordId = "999000000000000004";
+      const extra = ensurePreviewUser(extraDiscordId);
+
+      if (!extra) {
+        return res.status(500).json({
+          error: "Unable to create the preview defender",
+        });
+      }
+
+      const extraGroup = groupForUser(extra.id);
+      if (!extraGroup) {
+        db.prepare(`
+          INSERT INTO territory_group_members (group_id, user_id, role)
+          VALUES (?, ?, 'member')
+        `).run(defender.id, extra.id);
+      } else if (Number(extraGroup.id) !== Number(defender.id)) {
+        return res.status(409).json({
+          error: "Preview defender is already assigned to another Group",
+        });
+      }
+
+      db.prepare(`
+        INSERT INTO territory_event_lineups
+          (event_id, group_id, user_id, selected_by_user_id, active_from, selected_at)
+        VALUES (?, ?, ?, ?, ?, datetime('now'))
+        ON CONFLICT(event_id, group_id, user_id)
+        DO UPDATE SET active_from = excluded.active_from
+      `).run(
+        event.id,
+        defender.id,
+        extra.id,
+        defender.leader_user_id || extra.id,
+        nowIso()
+      );
+
+      defenderLineup = activeLineup(event.id, defender.id);
+    }
+
+    if (attackerLineup.length < 2 || defenderLineup.length < 3) {
+      return res.status(409).json({
+        error: "Defender advantage test needs 2 attackers and 3 defenders",
+      });
+    }
+
+    const now = nowIso();
+    const contestStartedAt = new Date(
+      Date.now() - (3 * 60 * 1000)
+    ).toISOString();
+    const lastTickAt = new Date(
+      Date.now() - (60 * 1000)
+    ).toISOString();
+
+    runTransaction(() => {
+      db.prepare(`
+        UPDATE territory_events
+        SET control_score = 0,
+            owner_control = 50,
+            challenger_control = 50,
+            updated_at = datetime('now')
+        WHERE id = ?
+      `).run(event.id);
+
+      db.prepare(
+        "DELETE FROM territory_preview_presence WHERE event_id = ?"
+      ).run(event.id);
+
+      const insert = db.prepare(`
+        INSERT INTO territory_preview_presence
+          (event_id, user_id, side, in_battlefield, in_claim, updated_at)
+        VALUES (?, ?, ?, 1, 1, ?)
+      `);
+
+      for (const member of attackerLineup.slice(0, 2)) {
+        insert.run(event.id, member.user_id, "attacker", now);
+      }
+
+      for (const member of defenderLineup.slice(0, 3)) {
+        insert.run(event.id, member.user_id, "defender", now);
+      }
+
+      db.prepare(`
+        UPDATE territory_attacks
+        SET contest_started_at = ?,
+            last_tick_at = ?
+        WHERE id = ?
+      `).run(
+        contestStartedAt,
+        lastTickAt,
+        attack.id
+      );
+    });
+
+    addLog(
+      event.id,
+      "contest",
+      "Preview simulation: defender advantage test started at 2 attackers vs 3 defenders",
+      null
+    );
+
+    return res.json({
+      ok: true,
+      attackers: 2,
+      defenders: 3,
+      controlBefore: 0,
+      event: decorateEvent(eventById(event.id)),
+      attack: decorateAttack(activeAttack(event.id)),
+      simulated: true,
+      nextStep: "Read public Territory state to process the normal defender-favoured scoring tick",
+    });
+  } catch (error) {
+    console.error("[TerritoryWars] Preview defender advantage simulation failed:", error);
+    return res.status(500).json({
+      error: error?.message || "Unable to simulate defender advantage.",
+    });
+  }
+});
+
 router.post("/preview-contested", requireTerritoryInternalToken, (_req, res) => {
   try {
     if (!previewSeedEnabled()) {
