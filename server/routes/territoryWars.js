@@ -156,6 +156,16 @@ db.exec(`
     PRIMARY KEY (event_id, user_id)
   );
 
+  CREATE TABLE IF NOT EXISTS territory_preview_presence (
+    event_id INTEGER NOT NULL REFERENCES territory_events(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK(side IN ('attacker', 'defender')),
+    in_battlefield INTEGER NOT NULL DEFAULT 1,
+    in_claim INTEGER NOT NULL DEFAULT 1,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (event_id, user_id)
+  );
+
   CREATE TABLE IF NOT EXISTS territory_event_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     event_id INTEGER NOT NULL REFERENCES territory_events(id) ON DELETE CASCADE,
@@ -185,6 +195,27 @@ const EVENT_STATUSES = new Set(["scheduled", "live", "paused", "ended"]);
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function previewSimulationEnabled() {
+  return ["1", "true", "yes", "on"].includes(
+    String(process.env.TERRITORY_WARS_PREVIEW_SEED || "")
+      .trim()
+      .toLowerCase()
+  );
+}
+
+function previewPresenceRows(eventId) {
+  if (!previewSimulationEnabled() || !eventId) return [];
+
+  return db.prepare(`
+    SELECT p.event_id, p.user_id, p.side, p.in_battlefield, p.in_claim, p.updated_at,
+           u.username, u.steam_id
+    FROM territory_preview_presence p
+    JOIN users u ON u.id = p.user_id
+    WHERE p.event_id = ?
+    ORDER BY p.side, p.user_id
+  `).all(Number(eventId));
 }
 
 function parseDate(value) {
@@ -435,9 +466,47 @@ function lineupMembershipBySteam(eventId, steamId) {
 function territoryPresence(event, includePlayers = false) {
   const state = serverStatus.getState();
   const geometry = eventGeometry(event);
+  const previewRows = previewPresenceRows(event?.id);
+
+  if ((!state?.configured || !state?.online) && geometry && previewRows.length) {
+    const players = previewRows
+      .filter((row) => Boolean(row.in_battlefield))
+      .map((row) => ({
+        steamId: String(row.steam_id || ""),
+        name: row.username || "Preview fighter",
+        species: "Preview",
+        isPrime: false,
+        lineupActive: true,
+        systemDefender: row.side === "defender",
+        inClaim: Boolean(row.in_claim),
+        distanceMetres: 0,
+        groupName: row.side === "attacker"
+          ? (event?.challenger_name || "Challenger")
+          : (event?.owner_name || "Defender"),
+        groupTag: row.side === "attacker" ? "PREVIEW" : "ADMIN",
+        groupRole: row.side,
+      }));
+
+    return {
+      serverOnline: true,
+      simulated: true,
+      tracking: true,
+      region: geometry.territoryName,
+      geometry,
+      playerCount: players.length,
+      claimCount: players.filter((player) => player.inClaim).length,
+      eligibleCount: players.length,
+      eligibleClaimCount: players.filter((player) => player.inClaim).length,
+      systemDefenderCount: players.filter((player) => player.systemDefender).length,
+      ...(includePlayers ? { players } : {}),
+      lastChecked: previewRows[0]?.updated_at || nowIso(),
+    };
+  }
+
   if (!state?.configured || !state?.online || !geometry) {
     return {
       serverOnline: Boolean(state?.online),
+      simulated: false,
       tracking: Boolean(geometry),
       region: geometry?.territoryName || null,
       geometry,
@@ -552,8 +621,23 @@ function updateGrace(eventId, member, insideSteamIds, nowMs) {
 function contestPresence(event, attack, nowMs) {
   const state = serverStatus.getState();
   const geometry = eventGeometry(event);
+  const previewRows = previewPresenceRows(event?.id);
+
+  if ((!state?.configured || !state?.online) && geometry && previewRows.length) {
+    return {
+      usable: true,
+      simulated: true,
+      attackers: previewRows.filter(
+        (row) => row.side === "attacker" && Boolean(row.in_claim)
+      ).length,
+      defenders: previewRows.filter(
+        (row) => row.side === "defender" && Boolean(row.in_claim)
+      ).length,
+    };
+  }
+
   if (!state?.configured || !state?.online || !geometry) {
-    return { usable: false, attackers: 0, defenders: 0 };
+    return { usable: false, simulated: false, attackers: 0, defenders: 0 };
   }
 
   const insideClaimSteamIds = new Set();
