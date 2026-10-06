@@ -292,6 +292,26 @@ function buildOverlayState(user, { requestedMode } = {}) {
       claimRadiusMetres: Math.round(Number(geometry.claimRadius) * Number(geometry.metresPerUnit || 10)),
       claimToBattlefieldRatio: Math.max(0, Math.min(1, Number(geometry.claimRadius) / Number(geometry.battlefieldRadius))),
       mapCenter: project(Number(geometry.center.lat) * 1000, Number(geometry.center.long) * 1000),
+      battlefieldMapRadius: {
+        x: Math.abs(
+          project(Number(geometry.center.lat) * 1000, (Number(geometry.center.long) + Number(geometry.battlefieldRadius)) * 1000).left -
+          project(Number(geometry.center.lat) * 1000, Number(geometry.center.long) * 1000).left
+        ),
+        y: Math.abs(
+          project((Number(geometry.center.lat) + Number(geometry.battlefieldRadius)) * 1000, Number(geometry.center.long) * 1000).top -
+          project(Number(geometry.center.lat) * 1000, Number(geometry.center.long) * 1000).top
+        ),
+      },
+      claimMapRadius: {
+        x: Math.abs(
+          project(Number(geometry.center.lat) * 1000, (Number(geometry.center.long) + Number(geometry.claimRadius)) * 1000).left -
+          project(Number(geometry.center.lat) * 1000, Number(geometry.center.long) * 1000).left
+        ),
+        y: Math.abs(
+          project((Number(geometry.center.lat) + Number(geometry.claimRadius)) * 1000, Number(geometry.center.long) * 1000).top -
+          project(Number(geometry.center.lat) * 1000, Number(geometry.center.long) * 1000).top
+        ),
+      },
       selfRadar: self?.radar || null,
     } : null,
     intel: {
