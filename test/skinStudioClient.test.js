@@ -257,3 +257,25 @@ test("Skin Shop published cards hide raw colour swatches but editing views keep 
     false
   );
 });
+
+
+test("CommandBridge forwards unsolicited SkinStudio lifecycle result lines", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const bridgeLua = fs.readFileSync(
+    path.join(__dirname, "..", "server-mods", "CommandBridge", "Scripts", "main.lua"),
+    "utf8"
+  );
+
+  const forwardStart = bridgeLua.indexOf("local function forwardSubmodResults()");
+  const forwardEnd = bridgeLua.indexOf("local function pollFileInput()", forwardStart);
+  assert.equal(forwardStart >= 0, true);
+  assert.equal(forwardEnd > forwardStart, true);
+
+  const forwarder = bridgeLua.slice(forwardStart, forwardEnd);
+  assert.match(forwarder, /local id = jsonReadString\(line, "id"\)/);
+  assert.match(forwarder, /if id ~= nil and not forwardedResults\[line\]/);
+  assert.match(forwarder, /postResultLine\(line\)/);
+  assert.equal(forwarder.includes("getRequest"), false);
+  assert.equal(forwarder.includes("known"), false);
+});
