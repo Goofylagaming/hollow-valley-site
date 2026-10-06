@@ -91,6 +91,8 @@ test("Skin Studio v012 restores life-scoped skins without using transient pawn s
   assert.match(lua, /BABY_GROWTH_RESET_FLOOR = 0\.15/);
   assert.match(lua, /RECONNECT_FINGERPRINT_STABLE_POLLS = 2/);
   assert.match(lua, /local function customizerFingerprint\(pawn\)/);
+  assert.match(lua, /pawnClassName\(pawn\):lower\(\)/);
+  assert.match(lua, /GetElderReplicationStacks\(\)/);
   assert.match(lua, /baseFingerprint/);
   assert.match(lua, /appliedFingerprint/);
   assert.match(lua, /reusableBaseFingerprint/);
