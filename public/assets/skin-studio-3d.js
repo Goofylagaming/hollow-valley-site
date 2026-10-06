@@ -96,11 +96,15 @@ let materialBindings = [];
 let maskAtlases = [];
 let currentMaskData = null;
 let currentPalette = { ...FALLBACKS };
+let currentSex = "male";
 let previewMode = "accurate";
 let accurateButton = null;
 let gameButton = null;
 let autoRotateButton = null;
 let cleanViewButton = null;
+let ultraButton = null;
+let spinInput = null;
+let ultraEnabled = false;
 
 function normalizedSpecies(value) {
   return String(value || "")
@@ -150,7 +154,29 @@ function installModeControls() {
   cleanViewButton.textContent = "Clean view";
   cleanViewButton.title = "Hide the model HUD and side rail for an unobstructed preview.";
 
+  ultraButton = document.createElement("button");
+  ultraButton.className = "small-button";
+  ultraButton.id = "skin-model-ultra";
+  ultraButton.type = "button";
+  ultraButton.textContent = "Ultra";
+  ultraButton.title = "Increase preview resolution and shadow quality on stronger devices.";
+
+  const spinLabel = document.createElement("label");
+  spinLabel.className = "skin-model-spin-control";
+  spinLabel.textContent = "Spin ";
+  spinInput = document.createElement("input");
+  spinInput.id = "skin-model-spin";
+  spinInput.type = "range";
+  spinInput.min = "-180";
+  spinInput.max = "180";
+  spinInput.step = "1";
+  spinInput.value = "0";
+  spinInput.setAttribute("aria-label", "Rotate species model");
+  spinLabel.append(spinInput);
+
   modelTools.prepend(cleanViewButton);
+  modelTools.prepend(ultraButton);
+  modelTools.prepend(spinLabel);
   modelTools.prepend(autoRotateButton);
   modelTools.prepend(gameButton);
   modelTools.prepend(accurateButton);
@@ -168,6 +194,24 @@ function installModeControls() {
     stage.classList.toggle("skin-model-clean", enabled);
     cleanViewButton.classList.toggle("green", enabled);
     cleanViewButton.setAttribute("aria-pressed", enabled ? "true" : "false");
+  });
+
+  ultraButton.addEventListener("click", () => {
+    ultraEnabled = !ultraEnabled;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, ultraEnabled ? 3 : 2));
+    key.shadow.mapSize.set(ultraEnabled ? 2048 : 1024, ultraEnabled ? 2048 : 1024);
+    if (key.shadow.map) {
+      key.shadow.map.dispose();
+      key.shadow.map = null;
+    }
+    ultraButton.classList.toggle("green", ultraEnabled);
+    ultraButton.setAttribute("aria-pressed", ultraEnabled ? "true" : "false");
+    resize();
+  });
+
+  spinInput.addEventListener("input", () => {
+    if (!model) return;
+    model.rotation.y = THREE.MathUtils.degToRad(Number(spinInput.value) || 0);
   });
 }
 
@@ -310,7 +354,8 @@ uniform vec3 hvEyes;
 uniform vec3 hvTeeth;
 uniform vec3 hvMouth;
 uniform vec3 hvClaws;
-uniform vec3 hvMaleDisplay;`
+uniform vec3 hvMaleDisplay;
+uniform float hvMaleVisible;`
   );
 
   const shadeBlock = accurate
@@ -336,7 +381,7 @@ diffuseColor.rgb = mix(diffuseColor.rgb, hvEyes * ${accurate ? "1.0" : "max(hvSh
 diffuseColor.rgb = mix(diffuseColor.rgb, hvTeeth * ${accurate ? "1.0" : "max(hvShade, 0.72)"}, clamp(hvM1.b, 0.0, 1.0));
 diffuseColor.rgb = mix(diffuseColor.rgb, hvMouth * ${accurate ? "1.0" : "max(hvShade, 0.62)"}, clamp(hvM1.a, 0.0, 1.0));
 diffuseColor.rgb = mix(diffuseColor.rgb, hvClaws * ${accurate ? "1.0" : "max(hvShade, 0.68)"}, clamp(hvM2.r, 0.0, 1.0));
-diffuseColor.rgb = mix(diffuseColor.rgb, hvMaleDisplay * hvShade, clamp(hvM2.g * ${strength.male}, 0.0, 1.0));`
+diffuseColor.rgb = mix(diffuseColor.rgb, hvMaleDisplay * hvShade, clamp(hvM2.g * ${strength.male} * hvMaleVisible, 0.0, 1.0));`
   );
 }
 
@@ -369,6 +414,7 @@ function maskedMaterial(source, accurate) {
     hvMouth: { value: new THREE.Color(currentPalette.mouth) },
     hvClaws: { value: new THREE.Color(currentPalette.claws) },
     hvMaleDisplay: { value: new THREE.Color(currentPalette.maleDisplay) },
+    hvMaleVisible: { value: currentSex === "female" ? 0 : 1 },
   };
 
   material.onBeforeCompile = (shader) => injectMaskShader(shader, uniforms, accurate);
@@ -387,6 +433,9 @@ function maskedMaterial(source, accurate) {
       uniforms.hvMouth.value.set(palette.mouth);
       uniforms.hvClaws.value.set(palette.claws);
       uniforms.hvMaleDisplay.value.set(palette.maleDisplay);
+    },
+    setSex(sex) {
+      uniforms.hvMaleVisible.value = sex === "female" ? 0 : 1;
     },
   };
 
@@ -535,7 +584,10 @@ function frameModel(root) {
 
 function updatePalette(palette) {
   currentPalette = { ...currentPalette, ...(palette || {}) };
-  for (const controller of shaderControllers) controller.setPalette(currentPalette);
+  for (const controller of shaderControllers) {
+    controller.setPalette(currentPalette);
+    controller.setSex?.(currentSex);
+  }
   syncZoneStrip();
 }
 
@@ -745,6 +797,7 @@ speciesSelect?.addEventListener("change", () => {
 });
 
 document.addEventListener("hds:skin-preview-change", (event) => {
+  currentSex = event.detail?.sex === "female" ? "female" : "male";
   updatePalette(event.detail?.skin || paletteFromEditor());
   const label = event.detail?.species || selectedSpeciesLabel();
   const def = resolveModelDefinition(label);
@@ -762,6 +815,8 @@ document.addEventListener("input", (event) => {
 });
 
 resetButton?.addEventListener("click", () => {
+  if (model) model.rotation.y = 0;
+  if (spinInput) spinInput.value = "0";
   if (!homeCamera) return;
   camera.position.copy(homeCamera.position);
   controls.target.copy(homeCamera.target);
