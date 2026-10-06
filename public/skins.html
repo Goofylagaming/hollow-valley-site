@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Design, unlock, share and wear Hollow Valley dinosaur skins.">
   <title>Skin Studio | Hollow Valley</title>
-  <link rel="stylesheet" href="assets/styles.css?v=38">
+  <link rel="stylesheet" href="assets/styles.css?v=39">
 </head>
 <body>
   <div class="app-shell">
@@ -71,6 +71,47 @@
                 <small id="skin-model-help">Choose a species to load its dedicated model. Accurate colour is only shown where that species has a calibrated Hollow Valley zone map; otherwise the model is clearly marked shape-only so players are not shown a fake in-game match.</small>
                 <a class="skin-model-credit" id="skin-model-credit" href="#" target="_blank" rel="noopener" hidden>Model credit</a>
               </div>
+
+              <section class="skin-calibration-panel" id="skin-calibration-panel" hidden>
+                <div class="list-heading">
+                  <span>ADMIN · ZONE CALIBRATION</span>
+                  <span id="skin-calibration-species">Select a shape model</span>
+                </div>
+                <p class="skin-calibration-help">Paint the website model's UV regions once, then export the compact mask used by Skin Studio. This is calibration tooling only; players never see these controls.</p>
+                <div class="skin-calibration-controls">
+                  <label>Zone
+                    <select id="skin-calibration-zone">
+                      <option value="maleDisplay">Male display</option>
+                      <option value="markings">Markings</option>
+                      <option value="body" selected>Body</option>
+                      <option value="flank">Flank</option>
+                      <option value="underbelly">Underbelly</option>
+                      <option value="detail1">Detail</option>
+                      <option value="eyes">Eyes</option>
+                      <option value="teeth">Teeth</option>
+                      <option value="mouth">Mouth</option>
+                      <option value="claws">Claws</option>
+                      <option value="erase">Eraser</option>
+                    </select>
+                  </label>
+                  <label>Brush
+                    <input id="skin-calibration-brush" type="range" min="1" max="32" value="7">
+                    <span id="skin-calibration-brush-value">7 px</span>
+                  </label>
+                  <label class="skin-calibration-check">
+                    <input id="skin-calibration-flip-v" type="checkbox">
+                    Flip UV vertically
+                  </label>
+                </div>
+                <div class="skin-calibration-actions">
+                  <button class="small-button" id="skin-calibration-toggle" type="button">Start mapping</button>
+                  <button class="small-button" id="skin-calibration-clear-zone" type="button" disabled>Clear selected zone</button>
+                  <button class="small-button" id="skin-calibration-clear-all" type="button" disabled>Clear all</button>
+                  <button class="small-button" id="skin-calibration-copy" type="button" disabled>Copy mask</button>
+                </div>
+                <div class="skin-calibration-status" id="skin-calibration-status">Load a shape-only species model, then start mapping.</div>
+                <textarea id="skin-calibration-output" class="comms-textarea skin-calibration-output" readonly hidden aria-label="Exported zone mask"></textarea>
+              </section>
             </div>
 
             <div class="skin-editor-card">
@@ -244,6 +285,6 @@
   <script type="importmap">
     {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}
   </script>
-  <script type="module" src="/assets/skin-studio-3d.js?v=9"></script>
+  <script type="module" src="/assets/skin-studio-3d.js?v=10"></script>
 </body>
 </html>
