@@ -27,8 +27,10 @@ const calibrationFlipVEl = document.getElementById("skin-calibration-flip-v");
 const calibrationToggleEl = document.getElementById("skin-calibration-toggle");
 const calibrationClearZoneEl = document.getElementById("skin-calibration-clear-zone");
 const calibrationClearAllEl = document.getElementById("skin-calibration-clear-all");
+const calibrationDiagnosticEl = document.getElementById("skin-calibration-diagnostic");
 const calibrationCopyEl = document.getElementById("skin-calibration-copy");
 const calibrationStatusEl = document.getElementById("skin-calibration-status");
+const calibrationCoverageEl = document.getElementById("skin-calibration-coverage");
 const calibrationImportEl = document.getElementById("skin-calibration-import");
 const calibrationImportButtonEl = document.getElementById("skin-calibration-import-button");
 const calibrationClearImportEl = document.getElementById("skin-calibration-clear-import");
@@ -125,12 +127,26 @@ let ultraEnabled = false;
 let calibrationActive = false;
 let calibrationPointerDown = false;
 let calibrationSaveTimer = null;
+let calibrationCoverageTimer = null;
 const CALIBRATION_SIZE = 256;
 const ZONE_KEYS = Object.freeze(["body","markings","flank","underbelly","detail1","eyes","teeth","mouth","claws","maleDisplay"]);
 const ZONE_CHANNELS = Object.freeze({
   body:[0,0], markings:[0,1], flank:[0,2], underbelly:[0,3],
   detail1:[1,0], eyes:[1,1], teeth:[1,2], mouth:[1,3],
   claws:[2,0], maleDisplay:[2,1],
+});
+
+const CALIBRATION_DIAGNOSTIC_PALETTE = Object.freeze({
+  maleDisplay:"#ff00ff",
+  markings:"#00ff00",
+  body:"#ff0000",
+  flank:"#0000ff",
+  underbelly:"#ffff00",
+  detail1:"#00ffff",
+  eyes:"#ffffff",
+  teeth:"#ff8800",
+  mouth:"#8000ff",
+  claws:"#00ff88",
 });
 
 // Skin Studio / FNF HEX values serialize EVRIMA FLinearColor components as
@@ -549,6 +565,43 @@ function setCalibrationStatus(message) {
   if (calibrationSpeciesEl) calibrationSpeciesEl.textContent = currentModelDef?.displayName || "Select a shape model";
 }
 
+function updateCalibrationCoverage() {
+  if (!calibrationCoverageEl) return;
+  if (!zoneLookup?.length) {
+    calibrationCoverageEl.textContent = "UV coverage will appear while mapping.";
+    return;
+  }
+
+  const counts = new Uint32Array(ZONE_KEYS.length + 1);
+  for (const value of zoneLookup) counts[value] += 1;
+  const total = zoneLookup.length;
+  const mapped = total - counts[0];
+  const pct = (value) => ((value / total) * 100).toFixed(1);
+  const zoneSummary = ZONE_KEYS
+    .map((zone, index) => `${zone} ${pct(counts[index + 1])}%`)
+    .join(" · ");
+
+  calibrationCoverageEl.innerHTML =
+    `<b>Mapped ${pct(mapped)}%</b> · unmapped ${pct(counts[0])}% · ${zoneSummary}`;
+}
+
+function scheduleCalibrationCoverage() {
+  clearTimeout(calibrationCoverageTimer);
+  calibrationCoverageTimer = setTimeout(updateCalibrationCoverage, 100);
+}
+
+function loadDiagnosticPalette() {
+  let lastInput = null;
+  for (const [zone, value] of Object.entries(CALIBRATION_DIAGNOSTIC_PALETTE)) {
+    const input = document.getElementById(`skin-color-${zone}`);
+    if (!input) continue;
+    input.value = value;
+    lastInput = input;
+  }
+  lastInput?.dispatchEvent(new Event("input", { bubbles: true }));
+  setCalibrationStatus("Diagnostic colours loaded. Each EVRIMA channel now has a deliberately loud test colour; this changes the editor only until you choose Wear Live.");
+}
+
 function createBlankCalibrationMask() {
   currentMaskData = { size: CALIBRATION_SIZE, zones: {} };
   maskAtlases = buildMaskAtlases();
@@ -593,6 +646,7 @@ function paintCalibrationUv(uv) {
   }
   for (const texture of maskAtlases) texture.needsUpdate = true;
   saveCalibrationDraftSoon();
+  scheduleCalibrationCoverage();
   setCalibrationStatus(`${currentModelDef.displayName} · painting ${zone} · brush ${radius}px · draft auto-saved`);
 }
 
@@ -716,6 +770,7 @@ function replaceCalibrationMask(value) {
   applyPreviewMode("accurate");
   updatePalette(paletteFromEditor());
   saveCalibrationDraftNow();
+  scheduleCalibrationCoverage();
   return parsed;
 }
 
@@ -767,6 +822,7 @@ function startCalibration() {
   if (calibrationCopyEl) calibrationCopyEl.disabled = false;
   if (calibrationImportButtonEl) calibrationImportButtonEl.disabled = false;
   if (calibrationOutputEl) { calibrationOutputEl.hidden = true; calibrationOutputEl.value = ""; }
+  scheduleCalibrationCoverage();
   setCalibrationStatus(restoredDraft
     ? `${currentModelDef.displayName} · restored saved calibration draft. Continue painting directly on the model.`
     : `${currentModelDef.displayName} · calibration active. Drag directly over the model to paint UV zones.`);
@@ -777,6 +833,7 @@ function stopCalibration() {
   saveCalibrationDraftNow();
   calibrationActive = false;
   calibrationPointerDown = false;
+  clearTimeout(calibrationCoverageTimer);
   controls.enabled = true;
   stage.classList.remove("skin-calibrating");
   if (calibrationToggleEl) calibrationToggleEl.textContent = "Start mapping";
@@ -1201,6 +1258,8 @@ canvas.addEventListener("pointercancel", () => {
   controls.enabled = true;
 });
 
+calibrationDiagnosticEl?.addEventListener("click", loadDiagnosticPalette);
+
 calibrationBrushEl?.addEventListener("input", () => {
   if (calibrationBrushValueEl) calibrationBrushValueEl.textContent = `${calibrationBrushEl.value} px`;
 });
@@ -1214,6 +1273,7 @@ calibrationClearZoneEl?.addEventListener("click", () => {
   }
   for (const texture of maskAtlases) texture.needsUpdate = true;
   saveCalibrationDraftSoon();
+  scheduleCalibrationCoverage();
   setCalibrationStatus(`${currentModelDef?.displayName || "Species"} · cleared ${zone} · draft auto-saved`);
 });
 calibrationClearAllEl?.addEventListener("click", () => {
@@ -1224,6 +1284,7 @@ calibrationClearAllEl?.addEventListener("click", () => {
     texture.needsUpdate = true;
   }
   saveCalibrationDraftSoon();
+  scheduleCalibrationCoverage();
   setCalibrationStatus(`${currentModelDef?.displayName || "Species"} · cleared all mapped zones · draft auto-saved`);
 });
 calibrationImportButtonEl?.addEventListener("click", () => {
