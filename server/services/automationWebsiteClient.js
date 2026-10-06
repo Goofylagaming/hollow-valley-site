@@ -476,6 +476,13 @@ function retrySkinWear(steamId) {
   });
 }
 
+function resetSkinWear(steamId) {
+  return call('/skins/wear-reset', {
+    method: 'POST',
+    body: { steamId: validateSteamId(steamId) },
+  });
+}
+
 function grantExclusiveSkin({ presetId, steamId, grantedBySteamId = null, note = '' }) {
   const id = String(presetId || '').trim();
   if (!/^[A-Za-z0-9_-]{8,128}$/.test(id)) throw new Error('Invalid skin preset ID');
@@ -802,6 +809,7 @@ module.exports = {
   wearSkin,
   getSkinWearState,
   retrySkinWear,
+  resetSkinWear,
   grantExclusiveSkin,
   revokeExclusiveSkin,
   listExclusiveSkinGrants,
