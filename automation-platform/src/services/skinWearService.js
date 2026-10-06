@@ -126,7 +126,33 @@ async function retryLastWear(steamId) {
     error.code = 'SKIN_WEAR_ALREADY_VERIFIED';
     throw error;
   }
+  if (latest.status !== 'failed') {
+    const updatedAt = Date.parse(String(latest.updated_at || latest.created_at || '').replace(' ', 'T') + 'Z');
+    const stale = Number.isFinite(updatedAt) && Date.now() - updatedAt > 60000;
+    if (!stale) {
+      const error = new Error('Your Wear Live request is still pending. Refresh the status before retrying.');
+      error.code = 'SKIN_WEAR_STILL_PENDING';
+      throw error;
+    }
+  }
   return wearPreset({ steamId, presetId: latest.preset_id });
+}
+
+async function resetFailedWear(steamId) {
+  const state = await reconcileWearState(steamId);
+  const latest = state.latestJob;
+  if (!latest) {
+    const error = new Error('There is no Wear Live request to reset.');
+    error.code = 'SKIN_WEAR_RESET_NOT_FOUND';
+    throw error;
+  }
+  if (latest.status !== 'failed') {
+    const error = new Error('Only failed Wear Live requests can be reset.');
+    error.code = 'SKIN_WEAR_RESET_NOT_FAILED';
+    throw error;
+  }
+  store.dismissSkinApplyJob(latest.id);
+  return getWearState(steamId);
 }
 
 async function wearPreset({ steamId, presetId }) {
@@ -265,6 +291,7 @@ module.exports = {
   wearPreset,
   getWearState,
   retryLastWear,
+  resetFailedWear,
   reconcileWearState,
   timeoutMs,
 };
