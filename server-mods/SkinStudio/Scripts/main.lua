@@ -341,19 +341,33 @@ local function applyConfigToPawn(pawn, config)
     local variation = math.floor(config.variation)
     local pattern = math.floor(config.pattern)
     local theme = math.floor(config.theme)
+    local variationResult = "preserved"
+    local patternResult = "preserved"
+    local themeResult = "preserved"
+
     if not config.preserveIndices then
-        writeScalar("SkinVariation", variation)
+        if writeScalar("SkinVariation", variation) then
+            variationResult = tostring(variation)
+        else
+            variationResult = "write-failed"
+        end
 
         local speciesKey = tostring(config.species or ""):lower():gsub("[^%w]", "")
         local patternMax = PATTERN_MAX_BY_SPECIES[speciesKey]
         if patternMax ~= nil and pattern >= 0 and pattern <= patternMax then
-            writeScalar("PatternIndex", pattern)
+            if writeScalar("PatternIndex", pattern) then
+                patternResult = tostring(pattern)
+            else
+                patternResult = "write-failed"
+            end
         elseif patternMax ~= nil then
+            patternResult = "preserved-unsafe"
             log(string.format(
                 "Skipped unsafe PatternIndex species=%s wanted=%s valid=0..%d",
                 tostring(config.species), tostring(pattern), patternMax
             ))
         else
+            patternResult = "preserved-unverified"
             log(string.format(
                 "Skipped unverified PatternIndex species=%s wanted=%s",
                 tostring(config.species), tostring(pattern)
@@ -362,13 +376,19 @@ local function applyConfigToPawn(pawn, config)
 
         local themeMax = THEME_MAX_BY_SPECIES[speciesKey]
         if themeMax ~= nil and theme >= 0 and theme <= themeMax then
-            writeScalar("ThemeIndex", theme)
+            if writeScalar("ThemeIndex", theme) then
+                themeResult = tostring(theme)
+            else
+                themeResult = "write-failed"
+            end
         elseif themeMax ~= nil then
+            themeResult = "preserved-unsafe"
             log(string.format(
                 "Skipped unsafe ThemeIndex species=%s wanted=%s valid=0..%d",
                 tostring(config.species), tostring(theme), themeMax
             ))
         else
+            themeResult = "preserved-unverified"
             log(string.format(
                 "Skipped unverified ThemeIndex species=%s wanted=%s",
                 tostring(config.species), tostring(theme)
@@ -387,13 +407,13 @@ local function applyConfigToPawn(pawn, config)
     end
 
     log(string.format(
-        "Verified current-pawn skin write species=%s pawn=%s colors=%d pattern=%d theme=%d variation=%d temporary=false",
+        "Verified current-pawn skin write species=%s pawn=%s colors=%d pattern=%s theme=%s variation=%s temporary=false",
         tostring(config.species),
         pawnClassName(pawn),
         writes,
-        config.preserveIndices and -1 or pattern,
-        config.preserveIndices and -1 or theme,
-        config.preserveIndices and -1 or variation
+        patternResult,
+        themeResult,
+        variationResult
     ))
     return true, "Skin applied and verified on the live customizer."
 end
