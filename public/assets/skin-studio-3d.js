@@ -18,6 +18,18 @@ const modelHelpEl = document.getElementById("skin-model-help");
 const modelCreditEl = document.getElementById("skin-model-credit");
 const zoneHintEl = document.getElementById("skin-model-zone-hint");
 const speciesSelect = document.getElementById("skin-species");
+const calibrationPanel = document.getElementById("skin-calibration-panel");
+const calibrationSpeciesEl = document.getElementById("skin-calibration-species");
+const calibrationZoneEl = document.getElementById("skin-calibration-zone");
+const calibrationBrushEl = document.getElementById("skin-calibration-brush");
+const calibrationBrushValueEl = document.getElementById("skin-calibration-brush-value");
+const calibrationFlipVEl = document.getElementById("skin-calibration-flip-v");
+const calibrationToggleEl = document.getElementById("skin-calibration-toggle");
+const calibrationClearZoneEl = document.getElementById("skin-calibration-clear-zone");
+const calibrationClearAllEl = document.getElementById("skin-calibration-clear-all");
+const calibrationCopyEl = document.getElementById("skin-calibration-copy");
+const calibrationStatusEl = document.getElementById("skin-calibration-status");
+const calibrationOutputEl = document.getElementById("skin-calibration-output");
 const MODEL_REGISTRY = window.HV_SKIN_MODELS || {};
 
 if (!canvas || !stage) throw new Error("Skin Studio 3D stage is missing");
@@ -107,6 +119,15 @@ let cleanViewButton = null;
 let ultraButton = null;
 let spinInput = null;
 let ultraEnabled = false;
+let calibrationActive = false;
+let calibrationPointerDown = false;
+const CALIBRATION_SIZE = 256;
+const ZONE_KEYS = Object.freeze(["body","markings","flank","underbelly","detail1","eyes","teeth","mouth","claws","maleDisplay"]);
+const ZONE_CHANNELS = Object.freeze({
+  body:[0,0], markings:[0,1], flank:[0,2], underbelly:[0,3],
+  detail1:[1,0], eyes:[1,1], teeth:[1,2], mouth:[1,3],
+  claws:[2,0], maleDisplay:[2,1],
+});
 
 function normalizedSpecies(value) {
   return String(value || "")
@@ -492,11 +513,128 @@ function applyShapeMaterials(root) {
 }
 
 function calibrated() {
-  return currentModelDef?.capability === "zones" && maskAtlases.length === 3;
+  return (currentModelDef?.capability === "zones" || calibrationActive) && maskAtlases.length === 3;
+}
+
+function calibrationAvailable() {
+  return Boolean(model && currentModelDef?.capability === "shape");
+}
+
+function setCalibrationStatus(message) {
+  if (calibrationStatusEl) calibrationStatusEl.textContent = message;
+  if (calibrationSpeciesEl) calibrationSpeciesEl.textContent = currentModelDef?.displayName || "Select a shape model";
+}
+
+function createBlankCalibrationMask() {
+  currentMaskData = { size: CALIBRATION_SIZE, zones: {} };
+  maskAtlases = buildMaskAtlases();
+  zoneLookup = new Uint8Array(CALIBRATION_SIZE * CALIBRATION_SIZE);
+}
+
+function setAtlasPixel(pixel, zoneName) {
+  for (const texture of maskAtlases) {
+    const data = texture.image?.data;
+    if (!data) continue;
+    const offset = pixel * 4;
+    data[offset] = 0; data[offset+1] = 0; data[offset+2] = 0; data[offset+3] = 0;
+  }
+  if (!zoneName || zoneName === "erase") {
+    zoneLookup[pixel] = 0;
+    return;
+  }
+  const zoneIndex = ZONE_KEYS.indexOf(zoneName);
+  const channel = ZONE_CHANNELS[zoneName];
+  if (zoneIndex < 0 || !channel) return;
+  const data = maskAtlases[channel[0]].image.data;
+  data[pixel * 4 + channel[1]] = 255;
+  zoneLookup[pixel] = zoneIndex + 1;
+}
+
+function paintCalibrationUv(uv) {
+  if (!calibrationActive || !uv || !zoneLookup?.length) return;
+  const size = CALIBRATION_SIZE;
+  const flipV = Boolean(calibrationFlipVEl?.checked);
+  const cx = Math.max(0, Math.min(size - 1, Math.floor(uv.x * size)));
+  const cyUv = flipV ? 1 - uv.y : uv.y;
+  const cy = Math.max(0, Math.min(size - 1, Math.floor(cyUv * size)));
+  const radius = Math.max(1, Number(calibrationBrushEl?.value || 7));
+  const zone = calibrationZoneEl?.value || "body";
+  for (let dy=-radius;dy<=radius;dy+=1) {
+    for (let dx=-radius;dx<=radius;dx+=1) {
+      if (dx*dx+dy*dy > radius*radius) continue;
+      const x=cx+dx,y=cy+dy;
+      if(x<0||x>=size||y<0||y>=size) continue;
+      setAtlasPixel(y*size+x, zone);
+    }
+  }
+  for (const texture of maskAtlases) texture.needsUpdate = true;
+  setCalibrationStatus(`${currentModelDef.displayName} · painting ${zone} · brush ${radius}px`);
+}
+
+function rleForZone(zoneIndex) {
+  const runs = [];
+  let start = -1;
+  for (let i=0;i<=zoneLookup.length;i+=1) {
+    const on = i < zoneLookup.length && zoneLookup[i] === zoneIndex + 1;
+    if (on && start < 0) start = i;
+    if (!on && start >= 0) {
+      runs.push(start, i-start);
+      start = -1;
+    }
+  }
+  return runs;
+}
+
+function exportCalibrationMask() {
+  if (!zoneLookup?.length || !currentModelDef) return "";
+  const zones = {};
+  ZONE_KEYS.forEach((key,index) => {
+    const runs = rleForZone(index);
+    if (runs.length) zones[key] = runs;
+  });
+  const globalName = `HV_${String(currentModelDef.key || "SPECIES").replace(/[^a-z0-9]/gi,"_").toUpperCase()}_MASK_RLE`;
+  return `window.${globalName} = ${JSON.stringify({size:CALIBRATION_SIZE,zones})};`;
+}
+
+function startCalibration() {
+  if (!calibrationAvailable()) {
+    setCalibrationStatus("Load a shape-only species model before starting calibration.");
+    return;
+  }
+  calibrationActive = true;
+  createBlankCalibrationMask();
+  applyCalibratedMaterials(model);
+  applyPreviewMode("accurate");
+  stage.classList.add("skin-calibrating");
+  if (calibrationToggleEl) calibrationToggleEl.textContent = "Stop mapping";
+  if (calibrationClearZoneEl) calibrationClearZoneEl.disabled = false;
+  if (calibrationClearAllEl) calibrationClearAllEl.disabled = false;
+  if (calibrationCopyEl) calibrationCopyEl.disabled = false;
+  if (calibrationOutputEl) { calibrationOutputEl.hidden = true; calibrationOutputEl.value = ""; }
+  setCalibrationStatus(`${currentModelDef.displayName} · calibration active. Drag directly over the model to paint UV zones.`);
+}
+
+function stopCalibration() {
+  calibrationActive = false;
+  calibrationPointerDown = false;
+  controls.enabled = true;
+  stage.classList.remove("skin-calibrating");
+  if (calibrationToggleEl) calibrationToggleEl.textContent = "Start mapping";
+  if (calibrationClearZoneEl) calibrationClearZoneEl.disabled = true;
+  if (calibrationClearAllEl) calibrationClearAllEl.disabled = true;
+  if (calibrationCopyEl) calibrationCopyEl.disabled = true;
+  const label = currentSpeciesLabel;
+  currentModelDef = null;
+  disposeModel();
+  loadModelForSpecies(label);
+  setCalibrationStatus("Calibration stopped. Export before stopping if you want to keep the current mapping.");
 }
 
 function syncZoneHint() {
-  if (zoneHintEl) zoneHintEl.hidden = !calibrated();
+  if (zoneHintEl) {
+    zoneHintEl.hidden = !calibrated();
+    zoneHintEl.textContent = calibrationActive ? "DRAG ON HIDE TO MAP ZONES" : "CLICK ZONE TO PAINT";
+  }
 }
 
 function applyPreviewMode(mode) {
@@ -790,6 +928,10 @@ async function loadModelForSpecies(label) {
     }
 
     if (loaderEl) loaderEl.hidden = true;
+    setCalibrationStatus(def.capability === "shape"
+      ? `${def.displayName} is ready for admin zone mapping.`
+      : `${def.displayName} already has a calibrated zone map.`);
+    if (calibrationToggleEl) calibrationToggleEl.disabled = def.capability !== "shape";
     document.dispatchEvent(new CustomEvent("hds:skin-model-ready", {
       detail: { species: def.key, capability: def.capability },
     }));
@@ -815,6 +957,16 @@ function selectedSpeciesLabel() {
 const zoneRaycaster = new THREE.Raycaster();
 const zonePointer = new THREE.Vector2();
 let pointerDownPosition = null;
+
+function hitUvAt(clientX, clientY) {
+  if (!model) return null;
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) return null;
+  zonePointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+  zonePointer.y = -(((clientY - rect.top) / rect.height) * 2 - 1);
+  zoneRaycaster.setFromCamera(zonePointer, camera);
+  return zoneRaycaster.intersectObject(model, true).find((entry) => entry.uv)?.uv || null;
+}
 
 function lookupZoneFromUv(uv) {
   if (!calibrated() || !zoneLookup || !currentMaskData?.size || !uv) return null;
@@ -856,14 +1008,67 @@ function selectPaintZoneAt(clientX, clientY) {
 
 canvas.addEventListener("pointerdown", (event) => {
   pointerDownPosition = { x: event.clientX, y: event.clientY };
+  if (calibrationActive && event.button === 0) {
+    calibrationPointerDown = true;
+    controls.enabled = false;
+    paintCalibrationUv(hitUvAt(event.clientX, event.clientY));
+  }
+});
+
+canvas.addEventListener("pointermove", (event) => {
+  if (calibrationActive && calibrationPointerDown) {
+    paintCalibrationUv(hitUvAt(event.clientX, event.clientY));
+  }
 });
 
 canvas.addEventListener("pointerup", (event) => {
   const start = pointerDownPosition;
   pointerDownPosition = null;
+  if (calibrationActive) {
+    calibrationPointerDown = false;
+    controls.enabled = true;
+    paintCalibrationUv(hitUvAt(event.clientX, event.clientY));
+    return;
+  }
   if (!start) return;
   const distance = Math.hypot(event.clientX - start.x, event.clientY - start.y);
   if (distance <= 5) selectPaintZoneAt(event.clientX, event.clientY);
+});
+
+canvas.addEventListener("pointercancel", () => {
+  calibrationPointerDown = false;
+  controls.enabled = true;
+});
+
+calibrationBrushEl?.addEventListener("input", () => {
+  if (calibrationBrushValueEl) calibrationBrushValueEl.textContent = `${calibrationBrushEl.value} px`;
+});
+calibrationToggleEl?.addEventListener("click", () => calibrationActive ? stopCalibration() : startCalibration());
+calibrationClearZoneEl?.addEventListener("click", () => {
+  const zone = calibrationZoneEl?.value || "body";
+  if (zone === "erase") return;
+  const index = ZONE_KEYS.indexOf(zone) + 1;
+  for (let pixel=0;pixel<zoneLookup.length;pixel+=1) {
+    if (zoneLookup[pixel] === index) setAtlasPixel(pixel, null);
+  }
+  for (const texture of maskAtlases) texture.needsUpdate = true;
+  setCalibrationStatus(`${currentModelDef?.displayName || "Species"} · cleared ${zone}`);
+});
+calibrationClearAllEl?.addEventListener("click", () => {
+  if (!calibrationActive) return;
+  zoneLookup.fill(0);
+  for (const texture of maskAtlases) {
+    texture.image.data.fill(0);
+    texture.needsUpdate = true;
+  }
+  setCalibrationStatus(`${currentModelDef?.displayName || "Species"} · cleared all mapped zones`);
+});
+calibrationCopyEl?.addEventListener("click", async () => {
+  const output = exportCalibrationMask();
+  if (!output) return;
+  if (calibrationOutputEl) { calibrationOutputEl.value = output; calibrationOutputEl.hidden = false; }
+  try { await navigator.clipboard.writeText(output); setCalibrationStatus(`${currentModelDef.displayName} · mask copied to clipboard`); }
+  catch { setCalibrationStatus(`${currentModelDef.displayName} · mask ready below; copy it manually`); }
 });
 
 installModeControls();
