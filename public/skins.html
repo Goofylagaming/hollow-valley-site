@@ -33,15 +33,15 @@
           <div class="skin-studio-grid">
             <div class="skin-preview-card skin-preview-card-3d">
               <div class="skin-model-toolbar">
-                <div class="skin-model-status"><span id="skin-model-status-dot"></span><strong id="skin-model-status">Tyrannosaurus · loading 3D preview</strong></div>
+                <div class="skin-model-status"><span id="skin-model-status-dot"></span><strong id="skin-model-status">Choose a species · loading 3D preview</strong></div>
                 <div class="skin-model-tools">
                   <button class="small-button" id="skin-model-reset" type="button">Reset view</button>
                 </div>
               </div>
 
               <div class="skin-preview-stage skin-model-stage" id="skin-preview-stage">
-                <canvas id="skin-model-canvas" aria-label="Interactive Tyrannosaurus rex skin preview"></canvas>
-                <div class="skin-model-loader" id="skin-model-loader">Loading Tyrannosaurus…</div>
+                <canvas id="skin-model-canvas" aria-label="Interactive dinosaur skin preview"></canvas>
+                <div class="skin-model-loader" id="skin-model-loader">Preparing species preview…</div>
 
                 <div class="skin-model-hud">
                   <span>DRAG TO ORBIT</span>
@@ -54,9 +54,9 @@
                 </div>
 
                 <aside class="skin-model-rail">
-                  <small>3D PAINT MODEL</small>
-                  <strong>Tyrannosaurus rex</strong>
-                  <span>Self-hosted Tyrannosaurus · CC BY</span>
+                  <small id="skin-model-capability">SPECIES 3D MODEL</small>
+                  <strong id="skin-model-name">Choose a species</strong>
+                  <span id="skin-model-source">Species-specific preview system</span>
                   <label>LIGHT
                     <input id="skin-model-light" type="range" min="35" max="180" value="105">
                   </label>
@@ -67,8 +67,8 @@
 
               <div class="skin-preview-meta skin-preview-meta-3d">
                 <span>LIVE 3D PREVIEW</span>
-                <small>Use Accurate colour to judge the selected HEX values directly, or Game preview to see the same skin with Hollow Valley atmospheric lighting and texture shading. Drag to orbit, scroll to zoom, and change any colour below to repaint that region.</small>
-                <a class="skin-model-credit" href="https://sketchfab.com/3d-models/tyrannosaurus-rex-939e5dd6af554fccb986db94a85116a1" target="_blank" rel="noopener">3D model by Nobilis the Palaeovespa · CC BY</a>
+                <small id="skin-model-help">Choose a species to load its dedicated model. Accurate colour is only shown where that species has a calibrated Hollow Valley zone map; otherwise the model is clearly marked shape-only so players are not shown a fake in-game match.</small>
+                <a class="skin-model-credit" id="skin-model-credit" href="#" target="_blank" rel="noopener" hidden>Model credit</a>
               </div>
             </div>
 
@@ -206,10 +206,11 @@
   <script src="assets/external-skin-import.js?v=4"></script>
   <script src="assets/skins.js?v=22"></script>
   <script src="assets/hollow-valley-skin-pack.js?v=1"></script>
+  <script src="/assets/skin-studio-model-registry.js?v=1"></script>
   <script src="/assets/skin-studio-rex-mask-rle.js?v=1"></script>
   <script type="importmap">
     {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}
   </script>
-  <script type="module" src="/assets/skin-studio-3d.js?v=8"></script>
+  <script type="module" src="/assets/skin-studio-3d.js?v=9"></script>
 </body>
 </html>
