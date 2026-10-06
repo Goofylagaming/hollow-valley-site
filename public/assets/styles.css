@@ -1293,3 +1293,16 @@
 .skin-model-stage.skin-model-clean .skin-model-hud,
 .skin-model-stage.skin-model-clean .skin-model-rail,
 .skin-model-stage.skin-model-clean .skin-model-code{opacity:0;pointer-events:none}
+
+
+/* Skin Studio v012 · simple F&F-inspired studio controls */
+.skin-fnf-controls{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0 6px}
+.skin-fnf-control{display:grid;gap:7px;padding:11px 12px;border:1px solid #29251d;background:#0e0c0a}
+.skin-fnf-control>span{font-size:9px;letter-spacing:.14em;color:#7f7466}
+.skin-fnf-control>small{font-size:8px;line-height:1.35;color:#665e53}
+.skin-segmented{display:flex;gap:6px}
+.skin-segmented button{min-width:44px;border:1px solid #3c362b;background:#15120f;color:#928574;padding:7px 11px;font-size:10px;cursor:pointer}
+.skin-segmented button:hover{border-color:#6f654f;color:#d5c9b7}
+.skin-segmented button.active,
+.skin-segmented button[aria-pressed="true"]{border-color:#3f6c4d;background:#16261b;color:#bce0c5}
+@media(max-width:650px){.skin-fnf-controls{grid-template-columns:1fr}}
