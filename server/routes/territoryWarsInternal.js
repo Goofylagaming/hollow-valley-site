@@ -807,6 +807,56 @@ router.post("/attack", requireTerritoryInternalToken, (req, res) => {
 });
 
 
+router.post("/preview-expire-protection", requireTerritoryInternalToken, (_req, res) => {
+  try {
+    if (!previewSeedEnabled()) {
+      return res.status(403).json({
+        error: "Territory Wars preview controls are disabled",
+      });
+    }
+
+    const event = latestEventRaw();
+    if (!event || event.status !== "live") {
+      return res.status(409).json({
+        error: "A live Territory Wars preview event is required",
+      });
+    }
+
+    const expiredAt = new Date(Date.now() - 1000).toISOString();
+
+    runTransaction(() => {
+      db.prepare(`
+        UPDATE territory_events
+        SET protection_until = ?,
+            updated_at = datetime('now')
+        WHERE id = ?
+      `).run(expiredAt, event.id);
+
+      db.prepare(
+        "DELETE FROM territory_preview_presence WHERE event_id = ?"
+      ).run(event.id);
+    });
+
+    addLog(
+      event.id,
+      "protection",
+      "Preview test expired the capture-protection window",
+      null
+    );
+
+    return res.json({
+      ok: true,
+      event: decorateEvent(eventById(event.id)),
+      expiredAt,
+    });
+  } catch (error) {
+    console.error("[TerritoryWars] Preview protection expiry failed:", error);
+    return res.status(500).json({
+      error: error?.message || "Unable to expire preview protection.",
+    });
+  }
+});
+
 router.post("/preview-counterattacker", requireTerritoryInternalToken, (_req, res) => {
   try {
     if (!previewSeedEnabled()) {
