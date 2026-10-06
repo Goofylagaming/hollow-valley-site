@@ -144,6 +144,9 @@ test("Skin Studio 3D preview uses species-specific models and refuses fake unive
   assert.match(renderer, /function startCalibration\(\)/);
   assert.match(renderer, /function paintCalibrationUv\(uv\)/);
   assert.match(renderer, /function exportCalibrationMask\(\)/);
+  assert.match(renderer, /function loadCalibrationDraft\(\)/);
+  assert.match(renderer, /hv-skin-calibration:/);
+  assert.match(renderer, /draft auto-saved/);
   assert.match(html, /CLICK ZONE TO PAINT/);
   assert.match(html, /id="skin-calibration-panel"/);
   assert.match(html, /id="skin-calibration-zone"/);
