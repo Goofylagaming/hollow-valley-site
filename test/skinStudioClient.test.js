@@ -91,6 +91,8 @@ test("Skin Studio v012 restores life-scoped skins without using transient pawn s
   assert.match(lua, /THEME_MAX_BY_SPECIES/);
   assert.match(lua, /Skipped unverified PatternIndex/);
   assert.match(lua, /Skipped unverified ThemeIndex/);
+  assert.match(lua, /pattern=%s theme=%s variation=%s temporary=false/);
+  assert.match(lua, /preserved-unverified/);
   assert.match(lua, /BABY_GROWTH_RESET_FLOOR = 0\.15/);
   assert.match(lua, /RECONNECT_FINGERPRINT_STABLE_POLLS = 2/);
   assert.match(lua, /local function customizerFingerprint\(pawn\)/);
