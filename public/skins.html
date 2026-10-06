@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Design, unlock, share and wear Hollow Valley dinosaur skins.">
   <title>Skin Studio | Hollow Valley</title>
-  <link rel="stylesheet" href="assets/styles.css?v=43">
+  <link rel="stylesheet" href="assets/styles.css?v=44">
 </head>
 <body>
   <div class="app-shell">
@@ -41,6 +41,15 @@
 
               <div class="skin-preview-stage skin-model-stage" id="skin-preview-stage">
                 <canvas id="skin-model-canvas" aria-label="Interactive dinosaur skin preview"></canvas>
+                <iframe
+                  id="skin-model-reference-frame"
+                  class="skin-model-reference-frame"
+                  title="Realistic dinosaur reference model"
+                  loading="eager"
+                  allow="autoplay; fullscreen; xr-spatial-tracking"
+                  allowfullscreen
+                  hidden
+                ></iframe>
                 <div class="skin-model-loader" id="skin-model-loader">Preparing species preview…</div>
 
                 <div class="skin-model-hud">
@@ -305,6 +314,6 @@
   <script type="importmap">
     {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}
   </script>
-  <script type="module" src="/assets/skin-studio-3d.js?v=13"></script>
+  <script type="module" src="/assets/skin-studio-3d.js?v=14"></script>
 </body>
 </html>
