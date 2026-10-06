@@ -113,6 +113,27 @@ async function getWearState(steamId) {
   };
 }
 
+function handleLifecycleEvent({ steam, event, reason = null } = {}) {
+  const steamId = store.validateSteamId(steam);
+  const eventName = String(event || '').trim().toLowerCase();
+  if (eventName !== 'cleared') {
+    const error = new Error('Unsupported SkinStudio lifecycle event.');
+    error.code = 'SKIN_LIFECYCLE_EVENT_INVALID';
+    throw error;
+  }
+
+  const previous = store.getSkinLiveAssignment(steamId);
+  const cleared = store.clearSkinLiveAssignment(steamId);
+  return {
+    steamId,
+    event: eventName,
+    reason: String(reason || 'new-life').slice(0, 120),
+    cleared: cleared.cleared,
+    previousPresetId: previous?.preset_id || null,
+    previousRequestId: previous?.request_id || null,
+  };
+}
+
 async function retryLastWear(steamId) {
   const state = await reconcileWearState(steamId);
   const latest = state.latestJob;
@@ -292,6 +313,7 @@ module.exports = {
   getWearState,
   retryLastWear,
   resetFailedWear,
+  handleLifecycleEvent,
   reconcileWearState,
   timeoutMs,
 };
