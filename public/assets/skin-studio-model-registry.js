@@ -1,13 +1,22 @@
 // Hollow Valley Skin Studio species-model registry.
-// Add a species here once its model and zone calibration are ready.
-// "zones" means the model has a calibrated colour-zone mask.
-// "shape" means the species mesh is available but colour zones are intentionally
-// not painted yet, so Skin Studio does not pretend the preview matches EVRIMA.
+// One entry exists for every species exposed by the website. A species only
+// receives live colour painting after its model AND its EVRIMA zone map have
+// been calibrated. This prevents a generic Rex from masquerading as every dino.
+
+const pendingModel = (key, displayName, aliases = []) => Object.freeze({
+  key,
+  aliases: Object.freeze([key, displayName, ...aliases]),
+  displayName,
+  capability: "pending",
+  loader: null,
+  credit: null,
+  camera: Object.freeze({ yaw: 0.26, targetHeight: 0.48, distanceScale: 0.62 }),
+});
 
 window.HV_SKIN_MODELS = Object.freeze({
   tyrannosaurus: Object.freeze({
     key: "tyrannosaurus",
-    aliases: ["tyrannosaurus", "tyrannosaurus rex", "tyra", "rex"],
+    aliases: Object.freeze(["tyrannosaurus", "tyrannosaurus rex", "tyra", "rex"]),
     displayName: "Tyrannosaurus rex",
     capability: "zones",
     loader: Object.freeze({
@@ -28,7 +37,7 @@ window.HV_SKIN_MODELS = Object.freeze({
 
   triceratops: Object.freeze({
     key: "triceratops",
-    aliases: ["triceratops", "tric", "trike"],
+    aliases: Object.freeze(["triceratops", "tric", "trike"]),
     displayName: "Triceratops",
     capability: "shape",
     loader: Object.freeze({
@@ -44,16 +53,57 @@ window.HV_SKIN_MODELS = Object.freeze({
 
   deinosuchus: Object.freeze({
     key: "deinosuchus",
-    aliases: ["deinosuchus", "deino"],
+    aliases: Object.freeze(["deinosuchus", "deino"]),
     displayName: "Deinosuchus",
     capability: "pending",
     loader: null,
     credit: Object.freeze({
-      label: "Deinosuchus species model pending calibration",
+      label: "Candidate Deinosuchus model by hidsf · CC BY",
       url: "https://sketchfab.com/3d-models/deinosuchus-f953eaa748534fb39a2eaba0c5463af2",
     }),
     camera: Object.freeze({ yaw: 0.26, targetHeight: 0.38, distanceScale: 0.64 }),
   }),
+
+  allosaurus: pendingModel("allosaurus", "Allosaurus", ["allo"]),
+  carnotaurus: pendingModel("carnotaurus", "Carnotaurus", ["carno"]),
+  ceratosaurus: pendingModel("ceratosaurus", "Ceratosaurus", ["cera"]),
+  dilophosaurus: pendingModel("dilophosaurus", "Dilophosaurus", ["dilo"]),
+  herrerasaurus: pendingModel("herrerasaurus", "Herrerasaurus", ["herra"]),
+  omniraptor: pendingModel("omniraptor", "Omniraptor", ["omni"]),
+  troodon: pendingModel("troodon", "Troodon"),
+  pteranodon: pendingModel("pteranodon", "Pteranodon", ["ptera"]),
+  diabloceratops: pendingModel("diabloceratops", "Diabloceratops", ["diablo"]),
+  dryosaurus: pendingModel("dryosaurus", "Dryosaurus", ["dryo"]),
+  tenontosaurus: pendingModel("tenontosaurus", "Tenontosaurus", ["teno"]),
+  maiasaura: pendingModel("maiasaura", "Maiasaura", ["maia"]),
+  pachycephalosaurus: pendingModel("pachycephalosaurus", "Pachycephalosaurus", ["pachy"]),
+  stegosaurus: pendingModel("stegosaurus", "Stegosaurus", ["stego"]),
+  deinocheirus: pendingModel("deinocheirus", "Deinocheirus"),
+  gallimimus: pendingModel("gallimimus", "Gallimimus", ["galli"]),
+  hypsilophodon: pendingModel("hypsilophodon", "Hypsilophodon", ["hypsi"]),
+  beipiaosaurus: pendingModel("beipiaosaurus", "Beipiaosaurus", ["beipi"]),
 });
 
-window.HV_SKIN_MODEL_ORDER = Object.freeze(["tyrannosaurus", "triceratops", "deinosuchus"]);
+window.HV_SKIN_MODEL_ORDER = Object.freeze([
+  "tyrannosaurus",
+  "triceratops",
+  "deinosuchus",
+  "allosaurus",
+  "carnotaurus",
+  "ceratosaurus",
+  "dilophosaurus",
+  "herrerasaurus",
+  "omniraptor",
+  "troodon",
+  "pteranodon",
+  "diabloceratops",
+  "dryosaurus",
+  "tenontosaurus",
+  "maiasaura",
+  "pachycephalosaurus",
+  "stegosaurus",
+  "deinocheirus",
+  "gallimimus",
+  "hypsilophodon",
+  "beipiaosaurus",
+]);
