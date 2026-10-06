@@ -882,6 +882,30 @@ function getSkinApplyJob(id) {
   return mapSkinApplyJob(row);
 }
 
+function getLatestSkinApplyJob(steamId) {
+  const steam = validateSteamId(steamId);
+  const row = db.prepare(`
+    SELECT *
+    FROM economy_skin_apply_jobs
+    WHERE steam_id = ?
+    ORDER BY created_at DESC, rowid DESC
+    LIMIT 1
+  `).get(steam);
+  return mapSkinApplyJob(row);
+}
+
+function listSkinApplyJobs(steamId, { limit = 10 } = {}) {
+  const steam = validateSteamId(steamId);
+  const safeLimit = Math.max(1, Math.min(100, Number(limit) || 10));
+  return db.prepare(`
+    SELECT *
+    FROM economy_skin_apply_jobs
+    WHERE steam_id = ?
+    ORDER BY created_at DESC, rowid DESC
+    LIMIT ?
+  `).all(steam, safeLimit).map(mapSkinApplyJob);
+}
+
 function upsertSkinLiveAssignment({
   steamId,
   presetId,
@@ -1042,6 +1066,8 @@ module.exports = {
   createSkinApplyJob,
   updateSkinApplyJob,
   getSkinApplyJob,
+  getLatestSkinApplyJob,
+  listSkinApplyJobs,
   upsertSkinLiveAssignment,
   getSkinLiveAssignment,
   clearSkinLiveAssignment,
