@@ -586,14 +586,21 @@ function maskPayloadFromLookup() {
   return { size: CALIBRATION_SIZE, zones };
 }
 
+function saveCalibrationDraftNow() {
+  const key = calibrationStorageKey();
+  if (!key || !zoneLookup?.length) return false;
+  try {
+    localStorage.setItem(key, JSON.stringify(maskPayloadFromLookup()));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function saveCalibrationDraftSoon() {
   clearTimeout(calibrationSaveTimer);
   calibrationSaveTimer = setTimeout(() => {
-    const key = calibrationStorageKey();
-    if (!key || !calibrationActive || !zoneLookup?.length) return;
-    try {
-      localStorage.setItem(key, JSON.stringify(maskPayloadFromLookup()));
-    } catch {}
+    if (calibrationActive) saveCalibrationDraftNow();
   }, 250);
 }
 
@@ -667,6 +674,8 @@ function startCalibration() {
 }
 
 function stopCalibration() {
+  clearTimeout(calibrationSaveTimer);
+  saveCalibrationDraftNow();
   calibrationActive = false;
   calibrationPointerDown = false;
   controls.enabled = true;
@@ -1118,6 +1127,7 @@ calibrationClearAllEl?.addEventListener("click", () => {
   setCalibrationStatus(`${currentModelDef?.displayName || "Species"} · cleared all mapped zones · draft auto-saved`);
 });
 calibrationCopyEl?.addEventListener("click", async () => {
+  saveCalibrationDraftNow();
   const output = exportCalibrationMask();
   if (!output) return;
   if (calibrationOutputEl) { calibrationOutputEl.value = output; calibrationOutputEl.hidden = false; }
