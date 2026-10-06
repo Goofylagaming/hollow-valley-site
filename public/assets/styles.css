@@ -1416,3 +1416,27 @@
 .skin-advanced-settings>.skin-editor-fields{
   margin:10px 12px 12px;
 }
+
+
+.skin-calibration-import{
+  margin-top:12px;
+  border-top:1px solid #29251d;
+  padding-top:8px;
+}
+.skin-calibration-import summary{
+  cursor:pointer;
+  color:#938674;
+  font-size:9px;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+}
+.skin-calibration-import>p{
+  margin:8px 0;
+  color:#6f6659;
+  font-size:9px;
+  line-height:1.45;
+}
+.skin-calibration-import .skin-calibration-output{
+  margin-top:0;
+  min-height:100px;
+}
