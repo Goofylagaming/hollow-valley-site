@@ -40,6 +40,99 @@ function secureTokenEquals(left, right) {
   return timingSafeEqual(a, b);
 }
 
+function previewSeedEnabled() {
+  return ["1", "true", "yes", "on"].includes(
+    String(process.env.TERRITORY_WARS_PREVIEW_SEED || "")
+      .trim()
+      .toLowerCase()
+  );
+}
+
+function previewSteamId(discordId) {
+  const digits = String(discordId || "").replace(/\D/g, "");
+  return `76561199${digits.slice(-9).padStart(9, "0")}`;
+}
+
+function ensurePreviewUser(discordId) {
+  if (!previewSeedEnabled()) return null;
+
+  const id = String(discordId || "").trim();
+  if (!/^\d{15,22}$/.test(id)) return null;
+
+  let user = userByDiscordId(id);
+  if (user) return user;
+
+  const result = db.prepare(`
+    INSERT INTO users (discord_id, steam_id, username, is_admin)
+    VALUES (?, ?, ?, 0)
+  `).run(
+    id,
+    previewSteamId(id),
+    `Preview-${id.slice(-6)}`
+  );
+
+  db.prepare(
+    "INSERT OR IGNORE INTO wallets (user_id, balance) VALUES (?, 0)"
+  ).run(Number(result.lastInsertRowid));
+
+  return db.prepare(`
+    SELECT id, discord_id, steam_id, username, is_admin
+    FROM users
+    WHERE id = ?
+  `).get(Number(result.lastInsertRowid)) || null;
+}
+
+function ensurePreviewLeader(discordId) {
+  const user = ensurePreviewUser(discordId);
+  if (!user) return null;
+
+  let group = groupForUser(user.id);
+  if (group) return { user, group };
+
+  const tag = `P${String(user.id).padStart(5, "0").slice(-5)}`;
+  const created = db.prepare(`
+    INSERT INTO territory_groups (name, tag, leader_user_id)
+    VALUES (?, ?, ?)
+  `).run(
+    `Preview Group ${user.id}`,
+    tag,
+    user.id
+  );
+
+  const groupId = Number(created.lastInsertRowid);
+
+  db.prepare(`
+    INSERT INTO territory_group_members (group_id, user_id, role)
+    VALUES (?, ?, 'leader')
+  `).run(groupId, user.id);
+
+  db.prepare(
+    "INSERT OR IGNORE INTO territory_group_stats (group_id) VALUES (?)"
+  ).run(groupId);
+
+  group = groupForUser(user.id);
+  return { user, group };
+}
+
+function ensurePreviewGroupMember(discordId, groupId) {
+  const user = ensurePreviewUser(discordId);
+  if (!user) return null;
+
+  const existingGroup = groupForUser(user.id);
+  if (existingGroup) {
+    return Number(existingGroup.id) === Number(groupId)
+      ? user
+      : null;
+  }
+
+  db.prepare(`
+    INSERT INTO territory_group_members (group_id, user_id, role)
+    VALUES (?, ?, 'member')
+  `).run(Number(groupId), user.id);
+
+  return user;
+}
+
 function requireTerritoryInternalToken(req, res, next) {
   const expected = String(process.env.TERRITORY_WARS_INTERNAL_TOKEN || "").trim();
   if (!expected) {
@@ -247,7 +340,15 @@ router.post("/register", requireTerritoryInternalToken, (req, res) => {
       return res.status(400).json({ error: "A valid Discord user ID is required" });
     }
 
-    const user = userByDiscordId(discordId);
+    let user = userByDiscordId(discordId);
+    let previewProvisioned = false;
+
+    if (!user && previewSeedEnabled()) {
+      const provisioned = ensurePreviewLeader(discordId);
+      user = provisioned?.user || null;
+      previewProvisioned = Boolean(provisioned);
+    }
+
     if (!user) {
       return res.status(404).json({
         error: "Your Discord account is not linked to a Hollow Valley account. Link Discord on the website first.",
@@ -260,7 +361,13 @@ router.post("/register", requireTerritoryInternalToken, (req, res) => {
       });
     }
 
-    const group = groupForUser(user.id);
+    let group = groupForUser(user.id);
+
+    if (!group && previewSeedEnabled()) {
+      group = ensurePreviewLeader(discordId)?.group || null;
+      previewProvisioned = Boolean(group);
+    }
+
     if (!group) {
       return res.status(409).json({
         error: "You must create or join a permanent Hollow Valley Group first.",
@@ -313,6 +420,7 @@ router.post("/register", requireTerritoryInternalToken, (req, res) => {
       event: decorateEvent(eventById(event.id)),
       registration: eventRegistration(event.id, group.id),
       lineup: eventLineup(event.id, group.id),
+      previewProvisioned,
     });
   } catch (error) {
     console.error("[TerritoryWars] HerbyBot registration failed:", error);
@@ -436,7 +544,20 @@ router.post("/lineup", requireTerritoryInternalToken, (req, res) => {
       });
     }
 
-    const selectedUsers = linkedUsersByDiscordIds(requestedDiscordIds);
+    let selectedUsers = linkedUsersByDiscordIds(requestedDiscordIds);
+
+    if (
+      previewSeedEnabled() &&
+      selectedUsers.length !== requestedDiscordIds.length
+    ) {
+      for (const memberDiscordId of requestedDiscordIds) {
+        if (!selectedUsers.some((member) => String(member.discord_id) === memberDiscordId)) {
+          ensurePreviewGroupMember(memberDiscordId, group.id);
+        }
+      }
+      selectedUsers = linkedUsersByDiscordIds(requestedDiscordIds);
+    }
+
     if (selectedUsers.length !== requestedDiscordIds.length) {
       return res.status(400).json({
         error: "Every lineup fighter must have Discord linked to their Hollow Valley account.",
