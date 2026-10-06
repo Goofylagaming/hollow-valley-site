@@ -807,6 +807,250 @@ router.post("/attack", requireTerritoryInternalToken, (req, res) => {
 });
 
 
+router.post("/preview-substitution-prepare", requireTerritoryInternalToken, (_req, res) => {
+  try {
+    if (!previewSeedEnabled()) {
+      return res.status(403).json({
+        error: "Territory Wars preview controls are disabled",
+      });
+    }
+
+    let event = latestEventRaw();
+
+    if (!event || event.status === "ended") {
+      const startsAt = nowIso();
+      const endsAt = new Date(Date.now() + (5 * 60 * 60 * 1000)).toISOString();
+
+      const created = db.prepare(`
+        INSERT INTO territory_events
+          (
+            name,
+            territory_key,
+            territory_name,
+            status,
+            owner_name,
+            challenger_name,
+            control_score,
+            owner_control,
+            challenger_control,
+            starts_at,
+            ends_at
+          )
+        VALUES (?, 'south-plains', 'South Plains', 'live', 'Admin', NULL, -100, 100, 0, ?, ?)
+      `).run(
+        "South Plains Live Substitution Test",
+        startsAt,
+        endsAt
+      );
+
+      event = eventById(Number(created.lastInsertRowid));
+    } else {
+      const startsAt = nowIso();
+      const endsAt = new Date(Date.now() + (5 * 60 * 60 * 1000)).toISOString();
+
+      db.prepare(`
+        UPDATE territory_events
+        SET status = 'live',
+            owner_name = 'Admin',
+            challenger_name = NULL,
+            control_score = -100,
+            owner_control = 100,
+            challenger_control = 0,
+            protection_until = NULL,
+            frozen_owner_name = NULL,
+            starts_at = ?,
+            ends_at = ?,
+            updated_at = datetime('now')
+        WHERE id = ?
+      `).run(startsAt, endsAt, event.id);
+
+      db.prepare(`
+        UPDATE territory_attacks
+        SET status = 'cancelled',
+            resolved_at = ?,
+            outcome = 'preview-reset'
+        WHERE event_id = ?
+          AND status IN ('warning', 'active')
+      `).run(nowIso(), event.id);
+
+      event = eventById(event.id);
+    }
+
+    const leaderDiscordId = "999000000000000002";
+    const memberDiscordId = "999000000000000003";
+    const substituteDiscordId = "999000000000000005";
+
+    const leader = ensurePreviewUser(leaderDiscordId);
+    const member = ensurePreviewUser(memberDiscordId);
+
+    if (!leader || !member) {
+      return res.status(500).json({
+        error: "Unable to create preview substitution users",
+      });
+    }
+
+    let group = groupForUser(leader.id);
+    if (!group) {
+      const created = db.prepare(`
+        INSERT INTO territory_groups (name, tag, leader_user_id)
+        VALUES ('Preview Group 2', 'P00002', ?)
+      `).run(leader.id);
+
+      const groupId = Number(created.lastInsertRowid);
+
+      db.prepare(`
+        INSERT INTO territory_group_members (group_id, user_id, role)
+        VALUES (?, ?, 'leader')
+      `).run(groupId, leader.id);
+
+      db.prepare(`
+        INSERT OR IGNORE INTO territory_group_stats (group_id)
+        VALUES (?)
+      `).run(groupId);
+
+      group = groupForUser(leader.id);
+    }
+
+    ensurePreviewGroupMember(memberDiscordId, group.id);
+
+    db.prepare(`
+      INSERT INTO territory_event_registrations
+        (event_id, group_id, registered_by_user_id, status)
+      VALUES (?, ?, ?, 'registered')
+      ON CONFLICT(event_id, group_id)
+      DO UPDATE SET status = 'registered'
+    `).run(event.id, group.id, leader.id);
+
+    const activeFrom = new Date(Date.now() - 1000).toISOString();
+
+    runTransaction(() => {
+      db.prepare(`
+        DELETE FROM territory_event_lineups
+        WHERE event_id = ?
+          AND group_id = ?
+      `).run(event.id, group.id);
+
+      const insert = db.prepare(`
+        INSERT INTO territory_event_lineups
+          (event_id, group_id, user_id, selected_by_user_id, active_from, selected_at)
+        VALUES (?, ?, ?, ?, ?, datetime('now'))
+      `);
+
+      insert.run(
+        event.id,
+        group.id,
+        leader.id,
+        leader.id,
+        activeFrom
+      );
+
+      insert.run(
+        event.id,
+        group.id,
+        member.id,
+        leader.id,
+        activeFrom
+      );
+    });
+
+    addLog(
+      event.id,
+      "lineup",
+      "Preview live-substitution test prepared with 2 active fighters",
+      null
+    );
+
+    return res.json({
+      ok: true,
+      event: decorateEvent(eventById(event.id)),
+      group: {
+        id: Number(group.id),
+        name: group.name,
+        tag: group.tag || null,
+      },
+      leaderDiscordId,
+      memberDiscordIds: [
+        leaderDiscordId,
+        memberDiscordId,
+        substituteDiscordId,
+      ],
+      substituteDiscordId,
+      liveSubstitutionDelayMinutes: 10,
+    });
+  } catch (error) {
+    console.error("[TerritoryWars] Preview substitution prepare failed:", error);
+    return res.status(500).json({
+      error: error?.message || "Unable to prepare the Territory substitution test.",
+    });
+  }
+});
+
+router.post("/preview-substitution-fast-forward", requireTerritoryInternalToken, (req, res) => {
+  try {
+    if (!previewSeedEnabled()) {
+      return res.status(403).json({
+        error: "Territory Wars preview controls are disabled",
+      });
+    }
+
+    const eventId = Number(req.body?.eventId || 0);
+    const groupId = Number(req.body?.groupId || 0);
+    const substituteDiscordId = String(req.body?.substituteDiscordId || "").trim();
+
+    if (!eventId || !groupId || !/^\d{15,22}$/.test(substituteDiscordId)) {
+      return res.status(400).json({
+        error: "Valid event, group, and substitute Discord IDs are required",
+      });
+    }
+
+    const substitute = userByDiscordId(substituteDiscordId);
+    if (!substitute) {
+      return res.status(404).json({
+        error: "Preview substitute was not found",
+      });
+    }
+
+    const activeFrom = new Date(Date.now() - 1000).toISOString();
+
+    const result = db.prepare(`
+      UPDATE territory_event_lineups
+      SET active_from = ?
+      WHERE event_id = ?
+        AND group_id = ?
+        AND user_id = ?
+    `).run(
+      activeFrom,
+      eventId,
+      groupId,
+      substitute.id
+    );
+
+    if (!result.changes) {
+      return res.status(404).json({
+        error: "Preview substitute is not in the event lineup",
+      });
+    }
+
+    addLog(
+      eventId,
+      "lineup",
+      "Preview live-substitution delay fast-forwarded for verification",
+      null
+    );
+
+    return res.json({
+      ok: true,
+      activeFrom,
+      substituteUserId: Number(substitute.id),
+    });
+  } catch (error) {
+    console.error("[TerritoryWars] Preview substitution fast-forward failed:", error);
+    return res.status(500).json({
+      error: error?.message || "Unable to fast-forward the Territory substitution test.",
+    });
+  }
+});
+
 router.post("/preview-event-end", requireTerritoryInternalToken, (_req, res) => {
   try {
     if (!previewSeedEnabled()) {
