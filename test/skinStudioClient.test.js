@@ -96,6 +96,8 @@ test("Skin Studio v011 keeps current-pawn isolation and required runtime helpers
   assert.match(browser, /storedDinos\.find/);
   assert.match(browser, /presetSpecies\.toLowerCase\(\) !== dinoSpecies\.toLowerCase\(\)/);
   assert.match(browser, /Variation \$\{Number\(preset\.skin\?\.skinVariation\)/);
+  assert.match(browser, /function syncColorCodeLabels\(\)/);
+  assert.match(browser, /syncColorCodeLabels\(\);\n  updatePreview\(\);/);
 });
 
 test("Skin Shop published cards hide raw colour swatches but editing views keep them", () => {
