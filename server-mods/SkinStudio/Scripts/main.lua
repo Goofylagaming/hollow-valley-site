@@ -443,9 +443,16 @@ local function customizerFingerprint(pawn)
         end
     end
 
+    table.insert(parts, pawnClassName(pawn):lower())
+
     local female = false
     pcall(function() female = cdata.bIsFemale == true end)
     table.insert(parts, female and "F" or "M")
+
+    local elderStacks
+    pcall(function() elderStacks = pawn:GetElderReplicationStacks() end)
+    addScalar(elderStacks)
+
     pcall(function() addScalar(cdata.PatternIndex) end)
     pcall(function() addScalar(cdata.ThemeIndex) end)
     pcall(function() addScalar(cdata.SkinVariation) end)
