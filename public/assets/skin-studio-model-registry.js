@@ -65,6 +65,7 @@ window.HV_SKIN_MODELS = Object.freeze({
   }),
 
   allosaurus: pendingModel("allosaurus", "Allosaurus", ["allo"]),
+  austroraptor: pendingModel("austroraptor", "Austroraptor", ["austro"]),
   carnotaurus: pendingModel("carnotaurus", "Carnotaurus", ["carno"]),
   ceratosaurus: pendingModel("ceratosaurus", "Ceratosaurus", ["cera"]),
   dilophosaurus: pendingModel("dilophosaurus", "Dilophosaurus", ["dilo"]),
@@ -81,6 +82,7 @@ window.HV_SKIN_MODELS = Object.freeze({
   deinocheirus: pendingModel("deinocheirus", "Deinocheirus"),
   gallimimus: pendingModel("gallimimus", "Gallimimus", ["galli"]),
   hypsilophodon: pendingModel("hypsilophodon", "Hypsilophodon", ["hypsi"]),
+  kentrosaurus: pendingModel("kentrosaurus", "Kentrosaurus", ["kentro"]),
   beipiaosaurus: pendingModel("beipiaosaurus", "Beipiaosaurus", ["beipi"]),
 });
 
