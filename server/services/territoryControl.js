@@ -51,6 +51,15 @@ function controlRatePerMinute({ attackers = 0, defenders = 0, contributorCap = C
   };
 }
 
+function normalizeControlScore(value, fallback = -100) {
+  if (value === null || value === undefined || value === '') {
+    return fallback;
+  }
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return fallback;
+  return Math.max(-100, Math.min(100, numeric));
+}
+
 function advanceControlScore({
   score = -100,
   attackers = 0,
@@ -59,7 +68,7 @@ function advanceControlScore({
   contributorCap = CONTROL_CONTRIBUTOR_CAP,
   momentumRate,
 } = {}) {
-  const current = Math.max(-100, Math.min(100, Number(score) || 0));
+  const current = normalizeControlScore(score, 0);
   const seconds = Math.max(0, Math.min(60, Number(elapsedSeconds) || 0));
   const state = controlRatePerMinute({ attackers, defenders, contributorCap, momentumRate });
   const next = Math.max(-100, Math.min(100, current + (state.rate * seconds / 60)));
@@ -77,5 +86,6 @@ module.exports = {
   effectivePresence,
   resolveMomentumRate,
   controlRatePerMinute,
+  normalizeControlScore,
   advanceControlScore,
 };
