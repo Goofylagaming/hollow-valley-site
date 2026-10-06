@@ -7,6 +7,18 @@ const router = express.Router();
 const ATTACK_WARNING_MS = 5 * 60 * 1000;
 const MIN_ATTACKERS_TO_CONTEST = 2;
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS territory_preview_presence (
+    event_id INTEGER NOT NULL REFERENCES territory_events(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK(side IN ('attacker', 'defender')),
+    in_battlefield INTEGER NOT NULL DEFAULT 1,
+    in_claim INTEGER NOT NULL DEFAULT 1,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (event_id, user_id)
+  );
+`);
+
 function runTransaction(work) {
   db.exec("BEGIN IMMEDIATE");
   try {
@@ -794,6 +806,124 @@ router.post("/attack", requireTerritoryInternalToken, (req, res) => {
   }
 });
 
+
+router.post("/preview-presence", requireTerritoryInternalToken, (req, res) => {
+  try {
+    if (!previewSeedEnabled()) {
+      return res.status(403).json({
+        error: "Territory Wars preview controls are disabled",
+      });
+    }
+
+    const event = latestEventRaw();
+    if (!event || event.status !== "live") {
+      return res.status(409).json({
+        error: "A live Territory Wars preview event is required",
+      });
+    }
+
+    const mode = String(req.body?.mode || "attackers-claim")
+      .trim()
+      .toLowerCase();
+
+    if (mode === "clear") {
+      db.prepare(
+        "DELETE FROM territory_preview_presence WHERE event_id = ?"
+      ).run(event.id);
+
+      addLog(
+        event.id,
+        "presence",
+        "Preview Claim Zone simulation cleared",
+        null
+      );
+
+      return res.json({
+        ok: true,
+        mode: "clear",
+        event: decorateEvent(event),
+        attackers: 0,
+        defenders: 0,
+      });
+    }
+
+    const attack = activeAttack(event.id);
+    if (!attack || attack.status !== "active") {
+      return res.status(409).json({
+        error: "Wait until the five-minute warning ends and the attack is ACTIVE",
+      });
+    }
+
+    const attackerLineup = activeLineup(
+      event.id,
+      attack.attacker_group_id
+    );
+
+    const requestedAttackers = Math.max(
+      0,
+      Math.min(
+        attackerLineup.length,
+        Number.isFinite(Number(req.body?.attackers))
+          ? Math.floor(Number(req.body.attackers))
+          : attackerLineup.length
+      )
+    );
+
+    if (requestedAttackers < MIN_ATTACKERS_TO_CONTEST) {
+      return res.status(409).json({
+        error: `Preview capture testing needs at least ${MIN_ATTACKERS_TO_CONTEST} active attackers`,
+      });
+    }
+
+    runTransaction(() => {
+      db.prepare(
+        "DELETE FROM territory_preview_presence WHERE event_id = ?"
+      ).run(event.id);
+
+      const insert = db.prepare(`
+        INSERT INTO territory_preview_presence
+          (event_id, user_id, side, in_battlefield, in_claim, updated_at)
+        VALUES (?, ?, 'attacker', 1, 1, ?)
+      `);
+
+      for (const member of attackerLineup.slice(0, requestedAttackers)) {
+        insert.run(
+          event.id,
+          member.user_id,
+          nowIso()
+        );
+      }
+    });
+
+    const attackerNames = attackerLineup
+      .slice(0, requestedAttackers)
+      .map((member) => member.username || `Player ${member.user_id}`);
+
+    addLog(
+      event.id,
+      "presence",
+      `Preview simulation: ${requestedAttackers} eligible attackers entered the South Plains Claim Zone`,
+      null
+    );
+
+    return res.json({
+      ok: true,
+      mode: "attackers-claim",
+      event: decorateEvent(eventById(event.id)),
+      attack: decorateAttack(activeAttack(event.id)),
+      attackers: requestedAttackers,
+      defenders: 0,
+      fighters: attackerNames,
+      contestArmMinutes: 2,
+      simulated: true,
+    });
+  } catch (error) {
+    console.error("[TerritoryWars] Preview presence simulation failed:", error);
+    return res.status(500).json({
+      error: error?.message || "Unable to simulate Territory Wars presence.",
+    });
+  }
+});
 
 router.post("/set-preview-live", requireTerritoryInternalToken, (_req, res) => {
   try {
