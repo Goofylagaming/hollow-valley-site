@@ -22,8 +22,10 @@ const VULNONA_MAP_BASE_URL =
 // Map down. Explicit DATA URLs still win when an operator pins a source.
 const VULNONA_GATEWAY_VERSIONS = [
   process.env.VULNONA_GATEWAY_VERSION,
-  "Gateway_v0.21.772",
-  "Gateway_v0.21.738",
+  // Vulnona keeps the current Gateway data under a stable alias even when
+  // its UI/update notes refer to a more specific game build (for example
+  // v0.21.772). The build-number folders themselves currently return 404.
+  "Gateway_v0.21",
   "Gateway_v0.21.7",
 ].map((value) => String(value || "").trim()).filter(Boolean);
 
@@ -373,6 +375,7 @@ async function fetchFromNetwork() {
         );
       } catch (_) {}
 
+      console.info(`[mapdata] loaded ${version} from Vulnona current Gateway data`);
       return buildPayload(parseVulnonaFile(txt1), parseVulnonaFile(txt2), version);
     } catch (error) {
       lastError = error;
