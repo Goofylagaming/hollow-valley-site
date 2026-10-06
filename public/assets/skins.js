@@ -1026,6 +1026,11 @@ async function init() {
   me = await window.HDS.loadMe();
   const libraryTab = document.getElementById("skin-library-tab");
   if (libraryTab) libraryTab.hidden = !Boolean(me.user?.is_admin);
+  const calibrationPanel = document.getElementById("skin-calibration-panel");
+  if (calibrationPanel) calibrationPanel.hidden = !Boolean(me.user?.is_admin);
+  document.dispatchEvent(new CustomEvent("hds:skin-admin-ready", {
+    detail: { isAdmin: Boolean(me.user?.is_admin) },
+  }));
   const note = document.getElementById("skin-save-note");
   note.textContent = me.loggedIn ? "Saving is free. Published skins can be priced in Valley Coin." : "Sign in with Steam to save designs.";
   await Promise.all([loadStore(), loadMine(), loadStoredSlots()]);
