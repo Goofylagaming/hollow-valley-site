@@ -807,6 +807,115 @@ router.post("/attack", requireTerritoryInternalToken, (req, res) => {
 });
 
 
+router.post("/preview-counterattacker", requireTerritoryInternalToken, (_req, res) => {
+  try {
+    if (!previewSeedEnabled()) {
+      return res.status(403).json({
+        error: "Territory Wars preview controls are disabled",
+      });
+    }
+
+    const event = latestEventRaw();
+    if (!event || event.status !== "live") {
+      return res.status(409).json({
+        error: "A live Territory Wars preview event is required",
+      });
+    }
+
+    const leaderDiscordId = "999000000000000002";
+    const memberDiscordId = "999000000000000003";
+    const leader = ensurePreviewUser(leaderDiscordId);
+    const member = ensurePreviewUser(memberDiscordId);
+
+    if (!leader || !member) {
+      return res.status(500).json({
+        error: "Unable to create preview counterattack users",
+      });
+    }
+
+    let group = groupForUser(leader.id);
+
+    if (!group) {
+      const created = db.prepare(`
+        INSERT INTO territory_groups (name, tag, leader_user_id)
+        VALUES ('Preview Group 2', 'P00002', ?)
+      `).run(leader.id);
+
+      const groupId = Number(created.lastInsertRowid);
+
+      db.prepare(`
+        INSERT INTO territory_group_members (group_id, user_id, role)
+        VALUES (?, ?, 'leader')
+      `).run(groupId, leader.id);
+
+      db.prepare(`
+        INSERT OR IGNORE INTO territory_group_stats (group_id)
+        VALUES (?)
+      `).run(groupId);
+
+      group = groupForUser(leader.id);
+    }
+
+    const memberGroup = groupForUser(member.id);
+    if (!memberGroup) {
+      db.prepare(`
+        INSERT INTO territory_group_members (group_id, user_id, role)
+        VALUES (?, ?, 'member')
+      `).run(group.id, member.id);
+    }
+
+    db.prepare(`
+      INSERT INTO territory_event_registrations
+        (event_id, group_id, registered_by_user_id, status)
+      VALUES (?, ?, ?, 'registered')
+      ON CONFLICT(event_id, group_id)
+      DO UPDATE SET status = 'registered'
+    `).run(event.id, group.id, leader.id);
+
+    const lineupInsert = db.prepare(`
+      INSERT INTO territory_event_lineups
+        (event_id, group_id, user_id, selected_by_user_id, active_from, selected_at)
+      VALUES (?, ?, ?, ?, ?, datetime('now'))
+      ON CONFLICT(event_id, group_id, user_id)
+      DO UPDATE SET active_from = excluded.active_from,
+                    selected_by_user_id = excluded.selected_by_user_id
+    `);
+
+    const activeFrom = nowIso();
+    lineupInsert.run(
+      event.id,
+      group.id,
+      leader.id,
+      leader.id,
+      activeFrom
+    );
+    lineupInsert.run(
+      event.id,
+      group.id,
+      member.id,
+      leader.id,
+      activeFrom
+    );
+
+    return res.json({
+      ok: true,
+      leaderDiscordId,
+      group: {
+        id: Number(group.id),
+        name: group.name,
+        tag: group.tag || null,
+      },
+      event: decorateEvent(eventById(event.id)),
+      lineup: eventLineup(event.id, group.id),
+    });
+  } catch (error) {
+    console.error("[TerritoryWars] Preview counterattacker seed failed:", error);
+    return res.status(500).json({
+      error: error?.message || "Unable to create preview counterattacker.",
+    });
+  }
+});
+
 router.post("/preview-near-capture", requireTerritoryInternalToken, (_req, res) => {
   try {
     if (!previewSeedEnabled()) {
