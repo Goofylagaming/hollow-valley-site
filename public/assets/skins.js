@@ -28,6 +28,7 @@ let mineState = null;
 let storedDinos = [];
 let externalQueue = [];
 let editingPresetId = null;
+let wearState = null;
 
 const EXTERNAL_LIBRARY_RE = /^\[External Library:([^\]]+)\]\s*/;
 
@@ -403,7 +404,13 @@ function wireCardActions(root) {
     button.disabled = true;
     try {
       const result = await api(`/api/skins/${button.dataset.id}/wear`, { method: "POST", body: "{}" });
-      showAlert(result.confirmed ? "Skin applied to your live dinosaur." : (result.message || "Skin request queued."), result.confirmed ? "success" : "info");
+      showAlert(
+        result.confirmed
+          ? (result.persisted ? "Skin applied and persistence verified for this dinosaur life." : "Skin applied to your live dinosaur.")
+          : (result.message || "Skin request queued."),
+        result.confirmed ? "success" : "info"
+      );
+      await loadWearState();
     } catch (err) {
       showAlert(err.message, "error");
     } finally {
@@ -560,6 +567,92 @@ function renderExternalLibrary() {
   wireCardActions(grid);
 }
 
+function wearPresetName(presetId) {
+  const preset = (mineState?.presets || []).find((item) => String(item.id) === String(presetId));
+  return preset?.name || null;
+}
+
+function formatWearTimestamp(value) {
+  if (!value) return "";
+  const text = String(value);
+  const normalized = /[zZ]|[+-]\d\d:?\d\d$/.test(text)
+    ? text
+    : text.replace(" ", "T") + "Z";
+  const date = new Date(normalized);
+  return Number.isNaN(date.getTime()) ? "" : date.toLocaleString();
+}
+
+function renderWearState() {
+  const card = document.getElementById("skin-wear-state");
+  const title = document.getElementById("skin-wear-state-title");
+  const detail = document.getElementById("skin-wear-state-detail");
+  const retry = document.getElementById("skin-wear-retry");
+  if (!card || !title || !detail || !retry) return;
+
+  card.hidden = !me.loggedIn || !me.user?.steam_id;
+  if (card.hidden) return;
+
+  const job = wearState?.latestJob || null;
+  const assignment = wearState?.assignment || null;
+  retry.hidden = true;
+  card.dataset.status = job?.status || "none";
+
+  if (!job) {
+    title.textContent = "No Wear Live request yet";
+    detail.textContent = "Apply a skin to your live dinosaur to start persistence tracking.";
+    return;
+  }
+
+  const name = wearPresetName(job.presetId);
+  const subject = name ? `${name} · ${job.species}` : job.species;
+  const when = formatWearTimestamp(job.completedAt || job.updatedAt || job.createdAt);
+
+  if (job.status === "verified") {
+    title.textContent = `Verified · ${subject}`;
+    detail.textContent = assignment
+      ? `Reconnect restore is armed for this dinosaur life${assignment.verifiedAt ? ` · verified ${formatWearTimestamp(assignment.verifiedAt)}` : ""}.`
+      : `Game-side application verified${when ? ` · ${when}` : ""}.`;
+    return;
+  }
+
+  if (job.status === "failed") {
+    title.textContent = `Failed · ${subject}`;
+    detail.textContent = job.error || "The game rejected the Wear Live request.";
+    retry.hidden = false;
+    return;
+  }
+
+  if (job.status === "awaiting_confirmation" || job.status === "queued") {
+    title.textContent = `Waiting for game confirmation · ${subject}`;
+    detail.textContent = "Skin Studio will reconcile the CommandBridge result when this status is refreshed. Persistence is only shown as verified after the game confirms it.";
+    return;
+  }
+
+  title.textContent = `${job.status || "Pending"} · ${subject}`;
+  detail.textContent = job.error || (when ? `Last updated ${when}.` : "Wear Live is still being processed.");
+}
+
+async function loadWearState() {
+  if (!me.loggedIn || !me.user?.steam_id) {
+    wearState = null;
+    renderWearState();
+    return;
+  }
+  try {
+    wearState = await api("/api/skins/wear-state");
+  } catch (error) {
+    wearState = {
+      latestJob: {
+        status: "failed",
+        species: "Wear Live status",
+        error: error.message || "Could not load Wear Live status.",
+      },
+      assignment: null,
+    };
+  }
+  renderWearState();
+}
+
 async function loadMine() {
   const guard = document.getElementById("skin-mine-guard");
   const grid = document.getElementById("skin-mine-grid");
@@ -581,6 +674,7 @@ async function loadMine() {
       : '<div class="empty-roster"><strong>No saved skins</strong><span>Create a design in Skin Studio or unlock one from the shop.</span></div>';
     wireCardActions(grid);
     renderExternalLibrary();
+    await loadWearState();
   } catch (err) {
     grid.innerHTML = `<div class="empty-roster"><strong>Could not load My Skins</strong><span>${escapeHtml(err.message)}</span></div>`;
     const libraryGrid = document.getElementById("skin-library-grid");
@@ -678,7 +772,27 @@ document.getElementById("skin-save").addEventListener("click", async () => {
 
 document.getElementById("skin-store-refresh").addEventListener("click", loadStore);
 document.getElementById("skin-store-species").addEventListener("change", loadStore);
-document.getElementById("skin-mine-refresh").addEventListener("click", loadMine);
+document.getElementById("skin-mine-refresh").addEventListener("click", async () => {
+  await loadMine();
+  await loadWearState();
+});
+document.getElementById("skin-wear-state-refresh")?.addEventListener("click", loadWearState);
+document.getElementById("skin-wear-retry")?.addEventListener("click", async () => {
+  const button = document.getElementById("skin-wear-retry");
+  button.disabled = true;
+  try {
+    const result = await api("/api/skins/wear-retry", { method: "POST", body: "{}" });
+    showAlert(
+      result.confirmed ? "Skin retry verified by the game." : (result.message || "Skin retry queued."),
+      result.confirmed ? "success" : "info"
+    );
+  } catch (error) {
+    showAlert(error.message, "error");
+  } finally {
+    button.disabled = false;
+    await loadWearState();
+  }
+});
 document.getElementById("skin-library-refresh")?.addEventListener("click", loadMine);
 
 document.getElementById("skin-library-parse")?.addEventListener("click", async () => {
