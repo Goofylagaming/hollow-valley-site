@@ -41,8 +41,8 @@ Supported zones:
 
 1. Sign in as a Hollow Valley website admin.
 2. Open Skin Studio and select a species whose preview says **SPECIES SHAPE MODEL**.
-3. Open **ADMIN · ZONE CALIBRATION** and choose **Start mapping**.
-4. Select a zone and paint directly over the 3D dinosaur. Adjust brush size or UV flip when needed.
+3. Open **ADMIN · ZONE CALIBRATION**. Use **Load diagnostic colours** if you want a deliberately loud one-colour-per-channel palette for EVRIMA comparison, then choose **Start mapping**.
+4. Select a zone and paint directly over the 3D dinosaur. Adjust brush size or UV flip when needed. Watch the UV coverage readout while you work; it reports total mapped/unmapped area plus each zone's share.
 5. Draft progress auto-saves in the browser for that species.
 6. To move work to another browser or another admin, use **Copy mask**, paste the JSON into **Import / resume a mask** on the other browser, start mapping, then choose **Load mask**. Imports are rejected if they contain unknown zones, malformed RLE pairs, out-of-bounds runs, or overlapping UV pixels.
 7. Use **Copy mask** when the mapping is ready.
