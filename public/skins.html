@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Design, unlock, share and wear Hollow Valley dinosaur skins.">
   <title>Skin Studio | Hollow Valley</title>
-  <link rel="stylesheet" href="assets/styles.css?v=40">
+  <link rel="stylesheet" href="assets/styles.css?v=41">
 </head>
 <body>
   <div class="app-shell">
@@ -110,6 +110,17 @@
                   <button class="small-button" id="skin-calibration-copy" type="button" disabled>Copy mask</button>
                 </div>
                 <div class="skin-calibration-status" id="skin-calibration-status">Load a shape-only species model, then start mapping.</div>
+
+                <details class="skin-calibration-import">
+                  <summary>Import / resume a mask</summary>
+                  <p>Paste a previously exported Hollow Valley mask for this species. The importer rejects invalid, overlapping or out-of-bounds RLE data before it reaches the renderer.</p>
+                  <textarea id="skin-calibration-import" class="comms-textarea skin-calibration-output" spellcheck="false" placeholder='{"size":256,"zones":{"body":[0,12]}}' aria-label="Calibration mask to import"></textarea>
+                  <div class="skin-calibration-actions">
+                    <button class="small-button" id="skin-calibration-import-button" type="button" disabled>Load mask</button>
+                    <button class="small-button" id="skin-calibration-clear-import" type="button">Clear paste</button>
+                  </div>
+                </details>
+
                 <textarea id="skin-calibration-output" class="comms-textarea skin-calibration-output" readonly hidden aria-label="Exported zone mask"></textarea>
               </section>
             </div>
@@ -292,6 +303,6 @@
   <script type="importmap">
     {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}
   </script>
-  <script type="module" src="/assets/skin-studio-3d.js?v=11"></script>
+  <script type="module" src="/assets/skin-studio-3d.js?v=12"></script>
 </body>
 </html>
