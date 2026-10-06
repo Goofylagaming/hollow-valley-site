@@ -83,6 +83,26 @@
                 <label>Variation<input id="skin-variation" type="number" min="0" max="65535" value="0"></label>
               </div>
 
+              <div class="skin-fnf-controls">
+                <div class="skin-fnf-control">
+                  <span>PATTERN</span>
+                  <div class="skin-segmented" id="skin-pattern-presets">
+                    <button type="button" data-pattern="0">A</button>
+                    <button type="button" data-pattern="1">B</button>
+                    <button type="button" data-pattern="2">C</button>
+                  </div>
+                  <small>A/B/C mirrors the simple pattern control used by Fangs & Ferns; the raw index remains available above.</small>
+                </div>
+                <div class="skin-fnf-control">
+                  <span>PREVIEW SEX</span>
+                  <div class="skin-segmented" id="skin-sex-preview">
+                    <button type="button" data-sex="male">Male</button>
+                    <button type="button" data-sex="female">Female</button>
+                  </div>
+                  <small>Preview-only. The live dinosaur keeps its actual in-game sex.</small>
+                </div>
+              </div>
+
               <div class="list-heading skin-color-heading"><span>COLOUR ZONES</span><button class="small-button" id="skin-randomize" type="button">Randomise</button></div>
               <div id="skin-colors" class="skin-color-grid"></div>
 
