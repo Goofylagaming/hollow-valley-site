@@ -13,13 +13,27 @@ const { BOUNDS } = require("../evrimaMap");
 
 const router = express.Router();
 
-const VULNONA_DATA1_URL =
-  process.env.VULNONA_DATA1_URL ||
-  "https://vulnona.com/game/map/map/Gateway_v0.21.7/data_1.txt";
+const VULNONA_MAP_BASE_URL =
+  process.env.VULNONA_MAP_BASE_URL ||
+  "https://vulnona.com/game/map/map";
 
-const VULNONA_DATA2_URL =
-  process.env.VULNONA_DATA2_URL ||
-  "https://vulnona.com/game/map/map/Gateway_v0.21.7/data_2.txt";
+// Prefer the latest verified Gateway cartography first. Fall back through the
+// previous 0.21.7 builds so a community-map folder rename never takes the Live
+// Map down. Explicit DATA URLs still win when an operator pins a source.
+const VULNONA_GATEWAY_VERSIONS = [
+  process.env.VULNONA_GATEWAY_VERSION,
+  "Gateway_v0.21.772",
+  "Gateway_v0.21.738",
+  "Gateway_v0.21.7",
+].map((value) => String(value || "").trim()).filter(Boolean);
+
+const PINNED_DATA_URLS = process.env.VULNONA_DATA1_URL && process.env.VULNONA_DATA2_URL
+  ? {
+      data1: process.env.VULNONA_DATA1_URL,
+      data2: process.env.VULNONA_DATA2_URL,
+      version: process.env.VULNONA_GATEWAY_VERSION || "operator-pinned",
+    }
+  : null;
 
 const LOCAL_DATA1_PATH = path.join(__dirname, "../data/vulnona_data_1.txt");
 const LOCAL_DATA2_PATH = path.join(__dirname, "../data/vulnona_data_2.txt");
@@ -199,9 +213,10 @@ function parseZones(items) {
   return shapes;
 }
 
-function buildPayload(sec1, sec2) {
+function buildPayload(sec1, sec2, sourceVersion = "Gateway_v0.21.7") {
   return {
-    mapVersion: "Gateway_v0.21.7",
+    mapVersion: sourceVersion,
+    source: "Vulnona community cartography",
     fetchedAt: new Date().toISOString(),
     layers: {
       areas: parsePoints(sec1["Area"]),
@@ -217,42 +232,88 @@ function buildPayload(sec1, sec2) {
   };
 }
 
-async function fetchFromNetwork() {
+function validateGatewayData(txt1, txt2) {
+  const requiredSections = ["dir\tMigration", "dir\tPatrolZone", "dir\tSanctuary"];
+  if (!requiredSections.every((needle) => String(txt1 || "").includes(needle))) {
+    throw new Error("Vulnona Gateway layer data is missing required zone sections");
+  }
+  if (!String(txt2 || "").includes("dir")) {
+    throw new Error("Vulnona Gateway resource data is incomplete");
+  }
+}
+
+async function fetchPair({ data1, data2, version }) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
     const [res1, res2] = await Promise.all([
-      fetch(VULNONA_DATA1_URL, {
+      fetch(data1, {
         headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
         signal: controller.signal,
       }),
-      fetch(VULNONA_DATA2_URL, {
+      fetch(data2, {
         headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
         signal: controller.signal,
       }),
     ]);
     if (!res1.ok || !res2.ok) {
-      throw new Error(`Vulnona fetch failed: data1=${res1.status}, data2=${res2.status}`);
+      throw new Error(`Vulnona ${version} fetch failed: data1=${res1.status}, data2=${res2.status}`);
     }
     const [txt1, txt2] = await Promise.all([res1.text(), res2.text()]);
-
-    // Save fallback copies locally if possible
-    try {
-      fs.writeFileSync(LOCAL_DATA1_PATH, txt1, "utf8");
-      fs.writeFileSync(LOCAL_DATA2_PATH, txt2, "utf8");
-    } catch (_) {}
-
-    return buildPayload(parseVulnonaFile(txt1), parseVulnonaFile(txt2));
+    validateGatewayData(txt1, txt2);
+    return { txt1, txt2, version };
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function fetchFromNetwork() {
+  const candidates = PINNED_DATA_URLS
+    ? [PINNED_DATA_URLS]
+    : VULNONA_GATEWAY_VERSIONS.map((version) => ({
+        version,
+        data1: `${VULNONA_MAP_BASE_URL}/${version}/data_1.txt`,
+        data2: `${VULNONA_MAP_BASE_URL}/${version}/data_2.txt`,
+      }));
+
+  let lastError = null;
+  for (const candidate of candidates) {
+    try {
+      const { txt1, txt2, version } = await fetchPair(candidate);
+
+      // Save the newest successfully validated pair as the local fallback.
+      try {
+        fs.writeFileSync(LOCAL_DATA1_PATH, txt1, "utf8");
+        fs.writeFileSync(LOCAL_DATA2_PATH, txt2, "utf8");
+        fs.writeFileSync(
+          path.join(__dirname, "../data/vulnona_data_meta.json"),
+          JSON.stringify({ version, savedAt: new Date().toISOString() }, null, 2),
+          "utf8"
+        );
+      } catch (_) {}
+
+      return buildPayload(parseVulnonaFile(txt1), parseVulnonaFile(txt2), version);
+    } catch (error) {
+      lastError = error;
+      console.warn(`[mapdata] ${candidate.version} unavailable:`, error.message);
+    }
+  }
+
+  throw lastError || new Error("No Vulnona Gateway data source was available");
 }
 
 function loadLocalFallback() {
   if (fs.existsSync(LOCAL_DATA1_PATH) && fs.existsSync(LOCAL_DATA2_PATH)) {
     const txt1 = fs.readFileSync(LOCAL_DATA1_PATH, "utf8");
     const txt2 = fs.readFileSync(LOCAL_DATA2_PATH, "utf8");
-    return buildPayload(parseVulnonaFile(txt1), parseVulnonaFile(txt2));
+    let version = "Gateway_v0.21.7-local-fallback";
+    try {
+      const meta = JSON.parse(
+        fs.readFileSync(path.join(__dirname, "../data/vulnona_data_meta.json"), "utf8")
+      );
+      if (meta?.version) version = `${meta.version}-local-fallback`;
+    } catch (_) {}
+    return buildPayload(parseVulnonaFile(txt1), parseVulnonaFile(txt2), version);
   }
   return null;
 }
