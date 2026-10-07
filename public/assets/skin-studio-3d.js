@@ -836,16 +836,28 @@ function updateCalibrationCoverage() {
   }
 
   const counts = new Uint32Array(ZONE_KEYS.length + 1);
-  for (const value of zoneLookup) counts[value] += 1;
-  const total = zoneLookup.length;
+  let footprint = 0;
+  for (let pixel = 0; pixel < zoneLookup.length; pixel += 1) {
+    const x = pixel % CALIBRATION_SIZE;
+    const y = Math.floor(pixel / CALIBRATION_SIZE);
+    if (uvCoverage?.length && !maskPixelCovered(x, y)) continue;
+    footprint += 1;
+    counts[zoneLookup[pixel]] += 1;
+  }
+
+  const total = Math.max(1, footprint || zoneLookup.length);
   const mapped = total - counts[0];
   const pct = (value) => ((value / total) * 100).toFixed(1);
   const zoneSummary = ZONE_KEYS
     .map((zone, index) => `${zone} ${pct(counts[index + 1])}%`)
     .join(" · ");
 
+  const footprintLabel = uvCoverage?.length
+    ? ` · UV footprint ${footprint.toLocaleString()} px`
+    : "";
+
   calibrationCoverageEl.innerHTML =
-    `<b>Mapped ${pct(mapped)}%</b> · unmapped ${pct(counts[0])}% · ${zoneSummary}`;
+    `<b>Mapped ${pct(mapped)}%</b> · unmapped ${pct(counts[0])}%${footprintLabel} · ${zoneSummary}`;
 }
 
 function scheduleCalibrationCoverage() {
