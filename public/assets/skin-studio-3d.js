@@ -603,6 +603,231 @@ function setCalibrationStatus(message) {
   if (calibrationSpeciesEl) calibrationSpeciesEl.textContent = currentModelDef?.displayName || "Select a shape model";
 }
 
+function updateCalibrationHistoryButtons() {
+  if (calibrationUndoEl) calibrationUndoEl.disabled = !calibrationActive || calibrationUndoStack.length === 0;
+  if (calibrationRedoEl) calibrationRedoEl.disabled = !calibrationActive || calibrationRedoStack.length === 0;
+}
+
+function pushCalibrationHistory() {
+  if (!calibrationActive || !zoneLookup?.length) return;
+  calibrationUndoStack.push(new Uint8Array(zoneLookup));
+  if (calibrationUndoStack.length > CALIBRATION_HISTORY_LIMIT) calibrationUndoStack.shift();
+  calibrationRedoStack = [];
+  updateCalibrationHistoryButtons();
+}
+
+function markCalibrationTexturesDirty() {
+  for (const texture of maskAtlases) texture.needsUpdate = true;
+}
+
+function rebuildMaskAtlasesFromLookup() {
+  if (!zoneLookup?.length || maskAtlases.length !== 3) return;
+  for (const texture of maskAtlases) texture.image?.data?.fill(0);
+
+  for (let pixel = 0; pixel < zoneLookup.length; pixel += 1) {
+    const zoneIndex = zoneLookup[pixel] - 1;
+    if (zoneIndex < 0) continue;
+    const zoneName = ZONE_KEYS[zoneIndex];
+    const channel = ZONE_CHANNELS[zoneName];
+    if (!channel) continue;
+    const data = maskAtlases[channel[0]].image?.data;
+    if (data) data[pixel * 4 + channel[1]] = 255;
+  }
+  markCalibrationTexturesDirty();
+}
+
+function restoreCalibrationSnapshot(snapshot) {
+  if (!snapshot || !zoneLookup || snapshot.length !== zoneLookup.length) return;
+  zoneLookup.set(snapshot);
+  rebuildMaskAtlasesFromLookup();
+  saveCalibrationDraftNow();
+  scheduleCalibrationCoverage();
+}
+
+function undoCalibration() {
+  if (!calibrationUndoStack.length || !zoneLookup?.length) return;
+  calibrationRedoStack.push(new Uint8Array(zoneLookup));
+  const previous = calibrationUndoStack.pop();
+  restoreCalibrationSnapshot(previous);
+  updateCalibrationHistoryButtons();
+  setCalibrationStatus(`${currentModelDef?.displayName || "Species"} · undo`);
+}
+
+function redoCalibration() {
+  if (!calibrationRedoStack.length || !zoneLookup?.length) return;
+  calibrationUndoStack.push(new Uint8Array(zoneLookup));
+  const next = calibrationRedoStack.pop();
+  restoreCalibrationSnapshot(next);
+  updateCalibrationHistoryButtons();
+  setCalibrationStatus(`${currentModelDef?.displayName || "Species"} · redo`);
+}
+
+function normalizedUv(value) {
+  const n = Number(value) || 0;
+  return ((n % 1) + 1) % 1;
+}
+
+function unwrapTriangleAxis(values) {
+  const out = values.map(normalizedUv);
+  const min = Math.min(...out);
+  const max = Math.max(...out);
+  if (max - min > 0.5) {
+    return out.map((value) => value < 0.5 ? value + 1 : value);
+  }
+  return out;
+}
+
+function edge2d(ax, ay, bx, by, px, py) {
+  return (px - ax) * (by - ay) - (py - ay) * (bx - ax);
+}
+
+function rasterizeUvTriangle(coverage, uv0, uv1, uv2) {
+  const size = CALIBRATION_SIZE;
+  const us = unwrapTriangleAxis([uv0.x, uv1.x, uv2.x]);
+  const vs = unwrapTriangleAxis([uv0.y, uv1.y, uv2.y]);
+  const ax = us[0], ay = vs[0];
+  const bx = us[1], by = vs[1];
+  const cx = us[2], cy = vs[2];
+
+  const minX = Math.floor(Math.min(ax, bx, cx) * size) - 1;
+  const maxX = Math.ceil(Math.max(ax, bx, cx) * size) + 1;
+  const minY = Math.floor(Math.min(ay, by, cy) * size) - 1;
+  const maxY = Math.ceil(Math.max(ay, by, cy) * size) + 1;
+  const area = edge2d(ax, ay, bx, by, cx, cy);
+  if (Math.abs(area) < 1e-10) return;
+
+  for (let y = minY; y <= maxY; y += 1) {
+    const py = (y + 0.5) / size;
+    for (let x = minX; x <= maxX; x += 1) {
+      const px = (x + 0.5) / size;
+      const e0 = edge2d(ax, ay, bx, by, px, py);
+      const e1 = edge2d(bx, by, cx, cy, px, py);
+      const e2 = edge2d(cx, cy, ax, ay, px, py);
+      const hasNegative = e0 < -1e-8 || e1 < -1e-8 || e2 < -1e-8;
+      const hasPositive = e0 > 1e-8 || e1 > 1e-8 || e2 > 1e-8;
+      if (hasNegative && hasPositive) continue;
+
+      const wrappedX = ((x % size) + size) % size;
+      const wrappedY = ((y % size) + size) % size;
+      coverage[wrappedY * size + wrappedX] = 1;
+    }
+  }
+}
+
+function buildModelUvCoverage(root) {
+  const coverage = new Uint8Array(CALIBRATION_SIZE * CALIBRATION_SIZE);
+  if (!root) return coverage;
+
+  root.traverse((child) => {
+    if (!child.isMesh) return;
+    const geometry = child.geometry;
+    const uv = geometry?.attributes?.uv;
+    const position = geometry?.attributes?.position;
+    if (!uv || !position) return;
+
+    const index = geometry.index;
+    const triangleCount = index
+      ? Math.floor(index.count / 3)
+      : Math.floor(position.count / 3);
+
+    for (let triangle = 0; triangle < triangleCount; triangle += 1) {
+      const base = triangle * 3;
+      const i0 = index ? index.getX(base) : base;
+      const i1 = index ? index.getX(base + 1) : base + 1;
+      const i2 = index ? index.getX(base + 2) : base + 2;
+      rasterizeUvTriangle(
+        coverage,
+        { x: uv.getX(i0), y: uv.getY(i0) },
+        { x: uv.getX(i1), y: uv.getY(i1) },
+        { x: uv.getX(i2), y: uv.getY(i2) }
+      );
+    }
+  });
+  return coverage;
+}
+
+function uvToMaskPoint(uv) {
+  if (!uv) return null;
+  const size = CALIBRATION_SIZE;
+  const x = Math.max(0, Math.min(size - 1, Math.floor(normalizedUv(uv.x) * size)));
+  const directY = Math.max(0, Math.min(size - 1, Math.floor(normalizedUv(uv.y) * size)));
+  const y = calibrationFlipVEl?.checked ? size - 1 - directY : directY;
+  return { x, y };
+}
+
+function maskPixelCovered(x, y) {
+  if (!uvCoverage?.length) return true;
+  const size = CALIBRATION_SIZE;
+  if (x < 0 || x >= size || y < 0 || y >= size) return false;
+  const geometryY = calibrationFlipVEl?.checked ? size - 1 - y : y;
+  return uvCoverage[geometryY * size + x] === 1;
+}
+
+function nearestCoveredMaskPoint(point, radius = 5) {
+  if (!point) return null;
+  if (maskPixelCovered(point.x, point.y)) return point;
+  for (let r = 1; r <= radius; r += 1) {
+    for (let dy = -r; dy <= r; dy += 1) {
+      for (let dx = -r; dx <= r; dx += 1) {
+        if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
+        const x = point.x + dx, y = point.y + dy;
+        if (maskPixelCovered(x, y)) return { x, y };
+      }
+    }
+  }
+  return null;
+}
+
+function fillCalibrationIsland(uv) {
+  if (!calibrationActive || !zoneLookup?.length || !uvCoverage?.length || !uv) return false;
+  const size = CALIBRATION_SIZE;
+  const seed = nearestCoveredMaskPoint(uvToMaskPoint(uv));
+  if (!seed) {
+    setCalibrationStatus("No UV island was found under that point.");
+    return false;
+  }
+
+  pushCalibrationHistory();
+
+  const visited = new Uint8Array(size * size);
+  const queue = new Int32Array(size * size);
+  let head = 0, tail = 0;
+  const seedPixel = seed.y * size + seed.x;
+  queue[tail++] = seedPixel;
+  visited[seedPixel] = 1;
+
+  const zone = calibrationZoneEl?.value || "body";
+  let painted = 0;
+
+  while (head < tail) {
+    const pixel = queue[head++];
+    const x = pixel % size;
+    const y = Math.floor(pixel / size);
+    if (!maskPixelCovered(x, y)) continue;
+
+    setAtlasPixel(pixel, zone);
+    painted += 1;
+
+    const neighbors = [
+      [x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1],
+    ];
+    for (const [nx, ny] of neighbors) {
+      if (nx < 0 || nx >= size || ny < 0 || ny >= size) continue;
+      const next = ny * size + nx;
+      if (visited[next] || !maskPixelCovered(nx, ny)) continue;
+      visited[next] = 1;
+      queue[tail++] = next;
+    }
+  }
+
+  markCalibrationTexturesDirty();
+  saveCalibrationDraftSoon();
+  scheduleCalibrationCoverage();
+  updateCalibrationHistoryButtons();
+  setCalibrationStatus(`${currentModelDef.displayName} · filled UV island with ${zone} · ${painted.toLocaleString()} pixels`);
+  return true;
+}
+
 function updateCalibrationCoverage() {
   if (!calibrationCoverageEl) return;
   if (!zoneLookup?.length) {
