@@ -1,4 +1,4 @@
-# Hollow Valley model vendor v2
+# Hollow Valley model vendor v3
 name: Vendor Skin Studio Models
 
 on:
@@ -44,6 +44,7 @@ jobs:
           }
 
           fetch_model triceratops 502f1f8929504255219a65b9fd5228827a3ea0b4
+          fetch_model carnotaurus b581941b92a37d6d254b8aea2b66efd49724afb2
           fetch_model dilophosaurus e669ccf5b0aa4860842179f290b7bbc84d64bf2a
           fetch_model maiasaura 6628afb9bd1f473aa76e95883f8889262b4ea748
           fetch_model pachycephalosaurus 5cc7f8f0d44cbf480168c8d39d245e5e3202e61b
