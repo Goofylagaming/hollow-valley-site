@@ -1419,7 +1419,7 @@ router.post("/preview-lineup-eligibility", requireTerritoryInternalToken, (req, 
       eligibleAttackers: active.length,
       playersPresent: sevenUsers.length,
       controlBefore: 0,
-      expectedControlAfterOneMinute: 5,
+      expectedControlAfterOneMinute: 4,
     });
   } catch (error) {
     console.error("[TerritoryWars] Preview lineup eligibility test failed:", error);
