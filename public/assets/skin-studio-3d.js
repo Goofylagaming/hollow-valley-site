@@ -994,9 +994,15 @@ function applyInspectorCaptureColours() {
   const pattern = Number(customizer.patternIndex);
   const theme = Number(customizer.themeIndex);
   const variation = Number(customizer.skinVariation);
-  if (Number.isFinite(pattern)) document.getElementById("skin-pattern").value = String(pattern);
-  if (Number.isFinite(theme)) document.getElementById("skin-theme").value = String(theme);
-  if (Number.isFinite(variation)) document.getElementById("skin-variation").value = String(variation);
+  const patternInput = document.getElementById("skin-pattern");
+  const themeInput = document.getElementById("skin-theme");
+  const variationInput = document.getElementById("skin-variation");
+  if (Number.isFinite(pattern) && patternInput) {
+    patternInput.value = String(pattern);
+    patternInput.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+  if (Number.isFinite(theme) && themeInput) themeInput.value = String(theme);
+  if (Number.isFinite(variation) && variationInput) variationInput.value = String(variation);
 
   const sex = customizer.female === true ? "female" : customizer.female === false ? "male" : null;
   if (sex) document.querySelector(`#skin-sex-preview [data-sex="${sex}"]`)?.click();
@@ -1798,6 +1804,12 @@ canvas.addEventListener("pointercancel", () => {
 
 calibrationDiagnosticEl?.addEventListener("click", loadDiagnosticPalette);
 
+inspectorFileEl?.addEventListener("change", () => {
+  loadInspectorCaptureFile(inspectorFileEl.files?.[0] || null);
+});
+inspectorApplyColoursEl?.addEventListener("click", applyInspectorCaptureColours);
+inspectorClearEl?.addEventListener("click", clearInspectorCapture);
+
 calibrationIslandFillEl?.addEventListener("click", () => {
   if (!calibrationActive || !uvCoverage?.length) return;
   calibrationIslandFillMode = !calibrationIslandFillMode;
@@ -1875,9 +1887,11 @@ installModeControls();
 setRail(null, "");
 applyPreviewMode("game");
 syncZoneStrip();
+renderInspectorCapture();
 
 speciesSelect?.addEventListener("change", () => {
   loadModelForSpecies(selectedSpeciesLabel());
+  queueMicrotask(renderInspectorCapture);
 });
 
 document.addEventListener("hds:skin-preview-change", (event) => {
@@ -1890,6 +1904,7 @@ document.addEventListener("hds:skin-preview-change", (event) => {
   } else if (!currentSpeciesLabel && label) {
     loadModelForSpecies(label);
   }
+  queueMicrotask(renderInspectorCapture);
 });
 
 document.addEventListener("input", (event) => {
