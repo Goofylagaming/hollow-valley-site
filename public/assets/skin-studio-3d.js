@@ -121,6 +121,7 @@ let homeCamera = null;
 let shaderControllers = [];
 let materialBindings = [];
 let shapeTintMaterials = [];
+let shapeTintControllers = [];
 let maskAtlases = [];
 let currentMaskData = null;
 let zoneLookup = null;
@@ -324,9 +325,9 @@ function setRail(def, label = "") {
     }
   } else if (def.capability === "shape") {
     if (modelCapabilityEl) modelCapabilityEl.textContent = "SPECIES PAINT MESH";
-    if (modelSourceEl) modelSourceEl.textContent = "Realistic species mesh · provisional Body tint · EVRIMA zone calibration pending";
+    if (modelSourceEl) modelSourceEl.textContent = "Realistic species mesh · neutral Body preview · EVRIMA zone calibration pending";
     if (modelHelpEl) {
-      modelHelpEl.textContent = "This realistic mesh is rendered directly by Hollow Valley. Body colour tints the whole model immediately as a provisional preview; markings, flank, underbelly and the other EVRIMA channels stay unmapped until their UV zones are calibrated.";
+      modelHelpEl.textContent = "This realistic mesh is rendered directly by Hollow Valley. The source texture hue is neutralised so Body uses your selected EVRIMA colour while retaining surface light/detail; markings, flank, underbelly and other channels stay unmapped until their UV zones are calibrated.";
     }
   } else if (def.capability === "reference") {
     if (modelCapabilityEl) modelCapabilityEl.textContent = "REALISTIC REFERENCE MODEL";
@@ -563,10 +564,46 @@ function applyCalibratedMaterials(root) {
   applyPreviewMode(previewMode);
 }
 
+function provisionalShapeMaterial(source) {
+  const material = source?.clone ? source.clone() : source;
+  if (!material) return { material, controller: null };
+
+  if (material.color?.isColor) material.color.setRGB(1, 1, 1, THREE.LinearSRGBColorSpace);
+
+  const hvShapeBody = { value: engineColorFromHex(currentPalette.body) };
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.hvShapeBody = hvShapeBody;
+    shader.fragmentShader = shader.fragmentShader.replace(
+      "#include <common>",
+      `#include <common>
+uniform vec3 hvShapeBody;`
+    );
+    shader.fragmentShader = shader.fragmentShader.replace(
+      "#include <map_fragment>",
+      `#include <map_fragment>
+float hvShapeLuma = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+float hvShapeShade = clamp(0.34 + hvShapeLuma * 1.06, 0.28, 1.22);
+diffuseColor.rgb = hvShapeBody * hvShapeShade;`
+    );
+  };
+  material.customProgramCacheKey = () => `hollow-valley-${currentModelDef?.key || "species"}-shape-neutral-v2`;
+  material.needsUpdate = true;
+
+  return {
+    material,
+    controller: {
+      setBody(hex) {
+        engineColorFromHex(hex, hvShapeBody.value);
+      },
+    },
+  };
+}
+
 function applyShapeMaterials(root) {
   shaderControllers = [];
   materialBindings = [];
   shapeTintMaterials = [];
+  shapeTintControllers = [];
 
   root.traverse((child) => {
     if (!child.isMesh) return;
@@ -574,11 +611,12 @@ function applyShapeMaterials(root) {
     child.receiveShadow = true;
 
     const sources = Array.isArray(child.material) ? child.material : [child.material];
-    const clones = sources.map((source) => {
-      const material = source?.clone ? source.clone() : source;
-      if (material?.color?.isColor) shapeTintMaterials.push(material);
-      return material;
-    });
+    const entries = sources.map((source) => provisionalShapeMaterial(source));
+    const clones = entries.map((entry) => entry.material);
+    for (const entry of entries) {
+      if (entry.material) shapeTintMaterials.push(entry.material);
+      if (entry.controller) shapeTintControllers.push(entry.controller);
+    }
     child.material = Array.isArray(child.material) ? clones : clones[0];
   });
 
@@ -588,11 +626,7 @@ function applyShapeMaterials(root) {
 
 function updateShapeBodyTint(hex) {
   if (currentModelDef?.capability !== "shape" || calibrationActive) return;
-  for (const material of shapeTintMaterials) {
-    if (!material?.color?.isColor) continue;
-    engineColorFromHex(hex, material.color);
-    material.needsUpdate = true;
-  }
+  for (const controller of shapeTintControllers) controller.setBody(hex);
 }
 
 function calibrated() {
@@ -1382,7 +1416,7 @@ function applyPreviewMode(mode) {
     if (currentModelDef.capability === "zones") {
       statusEl.textContent = `${currentModelDef.displayName} · ${accurate ? "EVRIMA linear colour" : "calibrated game preview"}`;
     } else {
-      statusEl.textContent = `${currentModelDef.displayName} · provisional Body tint · zones pending`;
+      statusEl.textContent = `${currentModelDef.displayName} · neutral Body preview · zones pending`;
     }
   }
 }
@@ -1485,6 +1519,7 @@ function disposeModel() {
   shaderControllers = [];
   materialBindings = [];
   shapeTintMaterials = [];
+  shapeTintControllers = [];
   disposeMaskAtlases();
   currentMaskData = null;
   zoneLookup = null;
@@ -1673,13 +1708,13 @@ async function loadModelForSpecies(label) {
       setStatus(true, `${def.displayName} · ${previewMode === "accurate" ? "EVRIMA linear colour" : "calibrated game preview"}`);
     } else {
       applyPreviewMode("game");
-      setStatus(true, `${def.displayName} · realistic paint mesh · provisional Body tint · zones pending`);
+      setStatus(true, `${def.displayName} · realistic paint mesh · neutral Body preview · zones pending`);
     }
 
     if (loaderEl) loaderEl.hidden = true;
     setLocalModelControlsEnabled(true);
     setCalibrationStatus(def.capability === "shape"
-      ? `${def.displayName} is inside Hollow Valley's renderer. Body colour is live as a provisional whole-model tint; map the EVRIMA UV zones to unlock accurate per-region colour painting.`
+      ? `${def.displayName} is inside Hollow Valley's renderer. Body colour now uses a hue-neutral texture preview; map the EVRIMA UV zones to unlock accurate per-region colour painting.`
       : `${def.displayName} already has a calibrated zone map.`);
     if (calibrationToggleEl) calibrationToggleEl.disabled = def.capability !== "shape";
     document.dispatchEvent(new CustomEvent("hds:skin-model-ready", {
