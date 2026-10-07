@@ -145,6 +145,7 @@ test("Skin Studio 3D preview uses species-specific models and refuses fake unive
   const renderer = fs.readFileSync(path.join(__dirname, "..", "public", "assets", "skin-studio-3d.js"), "utf8");
 
   assert.match(html, /skin-studio-model-registry\.js/);
+  assert.match(html, /skin-studio-model-registry\.js\?v=5/);
   assert.match(html, /id="skin-model-name"/);
   assert.match(registry, /tyrannosaurus:[\s\S]*capability: "zones"[\s\S]*patternMax: 2/);
   assert.match(registry, /const calibratedModel =/);
@@ -154,8 +155,9 @@ test("Skin Studio 3D preview uses species-specific models and refuses fake unive
   assert.match(registry, /triceratops: shapeModel/);
   assert.match(registry, /wojciechmiedziocha/);
   assert.match(registry, /87527079bad44917ab1b98a456b46c7e/);
-  assert.match(registry, /MUSEUM_REVISION = "dbdb0a3fc1ec82c586f8aaa45667aac76c424669"/);
-  assert.match(registry, /museumModelUrl\("triceratops"\)/);
+  assert.match(registry, /const localModelUrl = \(species\) => `\/assets\/skin-models\/\$\{species\}\/model\.glb`/);
+  assert.match(registry, /localModelUrl\("triceratops"\)/);
+  assert.equal(registry.includes("raw.githubusercontent.com"), false);
   assert.match(registry, /deinosuchus:[\s\S]*capability: "pending"/);
   assert.match(registry, /allosaurus: pendingModel/);
   assert.match(registry, /carnotaurus: pendingModel/);
