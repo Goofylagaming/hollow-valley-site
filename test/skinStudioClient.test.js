@@ -216,6 +216,11 @@ test("Skin Studio 3D preview uses species-specific models and refuses fake unive
   assert.match(renderer, /function replaceCalibrationMask\(value\)/);
   assert.match(renderer, /CALIBRATION_DIAGNOSTIC_PALETTE/);
   assert.match(renderer, /function loadDiagnosticPalette\(\)/);
+  assert.match(renderer, /function validateInspectorCapture\(value\)/);
+  assert.match(renderer, /function inspectorSpeciesMatchesCurrent\(\)/);
+  assert.match(renderer, /function applyInspectorCaptureColours\(\)/);
+  assert.match(renderer, /hollow-valley-skin-inspector\/v1/);
+  assert.match(renderer, /matches selected species/);
   assert.match(renderer, /function updateCalibrationCoverage\(\)/);
   assert.match(renderer, /Mapped \$\{pct\(mapped\)\}%/);
   assert.match(renderer, /scheduleCalibrationCoverage\(\)/);
@@ -238,9 +243,12 @@ test("Skin Studio 3D preview uses species-specific models and refuses fake unive
   assert.match(html, /id="skin-calibration-undo"/);
   assert.match(html, /id="skin-calibration-redo"/);
   assert.match(html, /id="skin-calibration-coverage"/);
+  assert.match(html, /id="skin-inspector-file"/);
+  assert.match(html, /id="skin-inspector-apply-colours"/);
+  assert.match(html, /EVRIMA SkinInspector capture/);
   assert.match(html, /Load diagnostic colours/);
   assert.match(html, /Import \/ resume a mask/);
-  assert.match(html, /skin-studio-3d\.js\?v=16/);
+  assert.match(html, /skin-studio-3d\.js\?v=17/);
 });
 
 test("Skin Studio keeps FNF-compatible core zone order and simple pattern controls", () => {
@@ -267,7 +275,7 @@ test("Skin Studio keeps FNF-compatible core zone order and simple pattern contro
   assert.match(browser, /function selectedSpeciesProfile\(\)/);
   assert.match(browser, /Number\.isInteger\(profile\?\.patternMax\)/);
   assert.match(browser, /Wear Live will preserve its current in-game pattern/);
-  assert.match(html, /skin-studio-3d\.js\?v=16/);
+  assert.match(html, /skin-studio-3d\.js\?v=17/);
   assert.match(html, /id="skin-pattern-presets"/);
   assert.match(html, /id="skin-pattern-safety"/);
   assert.match(html, /id="skin-sex-preview"/);
