@@ -882,6 +882,159 @@ function loadDiagnosticPalette() {
   setCalibrationStatus("Diagnostic colours loaded. Each EVRIMA channel now has a deliberately loud test colour; this changes the editor only until you choose Wear Live.");
 }
 
+function validateInspectorCapture(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("SkinInspector capture must be a JSON object.");
+  }
+  if (value.schema !== "hollow-valley-skin-inspector/v1") {
+    throw new Error("Unsupported SkinInspector schema. Capture again with the current Hollow Valley inspector.");
+  }
+  if (!value.species || !value.customizer || value.customizer.available !== true) {
+    throw new Error("Capture is missing the live species or readable CustomizerData.");
+  }
+  if (!value.customizer.colors || typeof value.customizer.colors !== "object") {
+    throw new Error("Capture does not contain EVRIMA colour channels.");
+  }
+  return value;
+}
+
+function inspectorSpeciesMatchesCurrent() {
+  if (!inspectorCapture) return false;
+  const def = currentModelDef || resolveModelDefinition(selectedSpeciesLabel());
+  if (!def) return false;
+
+  const captured = normalizedSpecies(inspectorCapture.species);
+  const aliases = [def.key, ...(Array.isArray(def.aliases) ? def.aliases : [])]
+    .map(normalizedSpecies)
+    .filter(Boolean);
+
+  return aliases.some((alias) =>
+    captured === alias ||
+    captured.includes(alias) ||
+    alias.includes(captured)
+  );
+}
+
+function inspectorColorToHex(snapshot) {
+  if (!snapshot || snapshot.available === false) return null;
+  const values = [snapshot.r, snapshot.g, snapshot.b].map(Number);
+  if (!values.every(Number.isFinite)) return null;
+  const bytes = values.map((value) =>
+    Math.max(0, Math.min(255, Math.round(Math.max(0, Math.min(1, value)) * 255)))
+  );
+  return `#${bytes.map((value) => value.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function renderInspectorCapture() {
+  if (!inspectorSummaryEl) return;
+
+  if (!inspectorCapture) {
+    inspectorSummaryEl.textContent = "No EVRIMA capture loaded.";
+    inspectorSummaryEl.removeAttribute("data-match");
+    if (inspectorApplyColoursEl) inspectorApplyColoursEl.disabled = true;
+    if (inspectorClearEl) inspectorClearEl.disabled = true;
+    return;
+  }
+
+  const matches = inspectorSpeciesMatchesCurrent();
+  const customizer = inspectorCapture.customizer || {};
+  const mesh = inspectorCapture.mesh || {};
+  const materialCount = Array.isArray(mesh.materialSlots) ? mesh.materialSlots.length : 0;
+  const sex = customizer.female === true ? "female" : customizer.female === false ? "male" : "unknown sex";
+  const meshName = mesh.skeletalAssetObject || mesh.componentObject || "mesh unavailable";
+  const indices = `pattern=${customizer.patternIndex ?? "?"} theme=${customizer.themeIndex ?? "?"} variation=${customizer.skinVariation ?? "?"}`;
+
+  inspectorSummaryEl.textContent =
+    `${inspectorCapture.species} · ${sex} · ${indices} · materials=${materialCount} · ${meshName} · ${matches ? "matches selected species" : "DOES NOT match selected species"}`;
+  inspectorSummaryEl.dataset.match = matches ? "true" : "false";
+
+  if (inspectorApplyColoursEl) inspectorApplyColoursEl.disabled = !matches;
+  if (inspectorClearEl) inspectorClearEl.disabled = false;
+}
+
+function applyInspectorCaptureColours() {
+  if (!inspectorCapture || !inspectorSpeciesMatchesCurrent()) {
+    setCalibrationStatus("SkinInspector capture does not match the selected species.");
+    return;
+  }
+
+  const customizer = inspectorCapture.customizer || {};
+  const colors = customizer.colors || {};
+  const mapping = {
+    body: "body",
+    markings: "markings",
+    flank: "flank",
+    underbelly: "underbelly",
+    detail: "detail1",
+    eyes: "eyes",
+    teeth: "teeth",
+    mouth: "mouth",
+    claws: "claws",
+    maleDisplay: "maleDisplay",
+  };
+
+  let lastInput = null;
+  let clipped = 0;
+  let applied = 0;
+
+  for (const [captureKey, editorKey] of Object.entries(mapping)) {
+    const snapshot = colors[captureKey];
+    const hex = inspectorColorToHex(snapshot);
+    const input = document.getElementById(`skin-color-${editorKey}`);
+    if (!hex || !input) continue;
+
+    const raw = [snapshot.r, snapshot.g, snapshot.b].map(Number);
+    if (raw.some((value) => Number.isFinite(value) && (value < 0 || value > 1))) clipped += 1;
+
+    input.value = hex;
+    lastInput = input;
+    applied += 1;
+  }
+
+  const pattern = Number(customizer.patternIndex);
+  const theme = Number(customizer.themeIndex);
+  const variation = Number(customizer.skinVariation);
+  if (Number.isFinite(pattern)) document.getElementById("skin-pattern").value = String(pattern);
+  if (Number.isFinite(theme)) document.getElementById("skin-theme").value = String(theme);
+  if (Number.isFinite(variation)) document.getElementById("skin-variation").value = String(variation);
+
+  const sex = customizer.female === true ? "female" : customizer.female === false ? "male" : null;
+  if (sex) document.querySelector(`#skin-sex-preview [data-sex="${sex}"]`)?.click();
+
+  lastInput?.dispatchEvent(new Event("input", { bubbles: true }));
+  setCalibrationStatus(
+    `${currentModelDef?.displayName || inspectorCapture.species} · loaded ${applied} live EVRIMA colour channels from SkinInspector` +
+    (clipped ? ` · ${clipped} out-of-range channel${clipped === 1 ? "" : "s"} clipped for browser colour inputs` : "")
+  );
+}
+
+async function loadInspectorCaptureFile(file) {
+  if (!file) return;
+  try {
+    if (file.size > 1000000) throw new Error("SkinInspector capture is unexpectedly large.");
+    const text = await file.text();
+    const parsed = validateInspectorCapture(JSON.parse(text));
+    inspectorCapture = parsed;
+    renderInspectorCapture();
+    setCalibrationStatus(
+      inspectorSpeciesMatchesCurrent()
+        ? `${parsed.species} EVRIMA capture loaded. You can now use its real live colours and mesh/material identity.`
+        : `${parsed.species} capture loaded, but it does not match the selected species.`
+    );
+  } catch (error) {
+    inspectorCapture = null;
+    renderInspectorCapture();
+    setCalibrationStatus(`SkinInspector capture rejected: ${error.message}`);
+  }
+}
+
+function clearInspectorCapture() {
+  inspectorCapture = null;
+  if (inspectorFileEl) inspectorFileEl.value = "";
+  renderInspectorCapture();
+  setCalibrationStatus("SkinInspector capture cleared.");
+}
+
 function createBlankCalibrationMask() {
   currentMaskData = { size: CALIBRATION_SIZE, zones: {} };
   maskAtlases = buildMaskAtlases();
