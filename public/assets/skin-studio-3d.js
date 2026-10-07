@@ -1589,14 +1589,22 @@ function selectPaintZoneAt(clientX, clientY) {
 canvas.addEventListener("pointerdown", (event) => {
   pointerDownPosition = { x: event.clientX, y: event.clientY };
   if (calibrationActive && event.button === 0) {
-    calibrationPointerDown = true;
     controls.enabled = false;
+
+    if (calibrationIslandFillMode) {
+      calibrationPointerDown = false;
+      fillCalibrationIsland(hitUvAt(event.clientX, event.clientY));
+      return;
+    }
+
+    calibrationPointerDown = true;
+    pushCalibrationHistory();
     paintCalibrationUv(hitUvAt(event.clientX, event.clientY));
   }
 });
 
 canvas.addEventListener("pointermove", (event) => {
-  if (calibrationActive && calibrationPointerDown) {
+  if (calibrationActive && calibrationPointerDown && !calibrationIslandFillMode) {
     paintCalibrationUv(hitUvAt(event.clientX, event.clientY));
   }
 });
@@ -1605,9 +1613,13 @@ canvas.addEventListener("pointerup", (event) => {
   const start = pointerDownPosition;
   pointerDownPosition = null;
   if (calibrationActive) {
+    const wasPainting = calibrationPointerDown;
     calibrationPointerDown = false;
     controls.enabled = true;
-    paintCalibrationUv(hitUvAt(event.clientX, event.clientY));
+    if (wasPainting && !calibrationIslandFillMode) {
+      paintCalibrationUv(hitUvAt(event.clientX, event.clientY));
+      updateCalibrationHistoryButtons();
+    }
     return;
   }
   if (!start) return;
