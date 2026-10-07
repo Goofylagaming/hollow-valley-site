@@ -151,9 +151,10 @@ test("Skin Studio 3D preview uses species-specific models and refuses fake unive
   assert.match(registry, /maskUrl/);
   assert.match(registry, /switch its registry entry from shapeModel/);
   assert.match(registry, /const referenceModel =/);
-  assert.match(registry, /triceratops: referenceModel/);
-  assert.match(registry, /Triceratops prorsus by Nobilis 2/);
-  assert.match(registry, /67bccb400cfb45699f4fea6db7664b87/);
+  assert.match(registry, /triceratops: shapeModel/);
+  assert.match(registry, /wojciechmiedziocha/);
+  assert.match(registry, /87527079bad44917ab1b98a456b46c7e/);
+  assert.match(registry, /prehistoric-animal-museum\/3b8adfd3838b2f3fa5dae2e19fee9bc5764c232c/);
   assert.match(registry, /deinosuchus:[\s\S]*capability: "pending"/);
   assert.match(registry, /allosaurus: pendingModel/);
   assert.match(registry, /carnotaurus: pendingModel/);
@@ -169,9 +170,11 @@ test("Skin Studio 3D preview uses species-specific models and refuses fake unive
   assert.match(renderer, /resolveModelDefinition/);
   assert.match(renderer, /loadModelForSpecies/);
   assert.match(renderer, /function showReferenceModel\(def, label\)/);
+  assert.match(renderer, /MeshoptDecoder/);
+  assert.match(renderer, /setMeshoptDecoder\(MeshoptDecoder\)/);
+  assert.match(renderer, /function updateShapeBodyTint\(hex\)/);
+  assert.match(renderer, /provisional Body tint/);
   assert.match(renderer, /skin-reference-mode/);
-  assert.match(renderer, /realistic reference model/);
-  assert.match(renderer, /reference-only/);
   assert.match(renderer, /Universal skin/);
   assert.match(renderer, /colour-zone calibration pending/);
   assert.match(renderer, /currentModelDef\.capability === "zones"/);
@@ -219,7 +222,7 @@ test("Skin Studio 3D preview uses species-specific models and refuses fake unive
   assert.match(html, /id="skin-calibration-coverage"/);
   assert.match(html, /Load diagnostic colours/);
   assert.match(html, /Import \/ resume a mask/);
-  assert.match(html, /skin-studio-3d\.js\?v=14/);
+  assert.match(html, /skin-studio-3d\.js\?v=15/);
 });
 
 test("Skin Studio keeps FNF-compatible core zone order and simple pattern controls", () => {
@@ -246,7 +249,7 @@ test("Skin Studio keeps FNF-compatible core zone order and simple pattern contro
   assert.match(browser, /function selectedSpeciesProfile\(\)/);
   assert.match(browser, /Number\.isInteger\(profile\?\.patternMax\)/);
   assert.match(browser, /Wear Live will preserve its current in-game pattern/);
-  assert.match(html, /skin-studio-3d\.js\?v=14/);
+  assert.match(html, /skin-studio-3d\.js\?v=15/);
   assert.match(html, /id="skin-pattern-presets"/);
   assert.match(html, /id="skin-pattern-safety"/);
   assert.match(html, /id="skin-sex-preview"/);
