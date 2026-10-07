@@ -136,7 +136,17 @@ window.HV_SKIN_MODELS = Object.freeze({
     camera: Object.freeze({ yaw: 0.26, targetHeight: 0.38, distanceScale: 0.64 }),
   }),
 
-  allosaurus: pendingModel("allosaurus", "Allosaurus", ["allo"]),
+  allosaurus: shapeModel({
+    key: "allosaurus",
+    displayName: "Allosaurus",
+    aliases: ["allo"],
+    modelUrl: localModelUrl("allosaurus"),
+    assetUrl: "https://sketchfab.com/3d-models/allosaurus-fc2918c4ed474b99b8d61c73879c195c",
+    creditLabel: "Allosaurus by FunkoDrunko · CC BY 4.0 · LOD0 redistributed by evo-dino-preview",
+    yaw: 0.23,
+    targetHeight: 0.50,
+    distanceScale: 0.61,
+  }),
   austroraptor: pendingModel("austroraptor", "Austroraptor", ["austro"]),
   carnotaurus: shapeModel({
     key: "carnotaurus",
