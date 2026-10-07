@@ -69,3 +69,13 @@ Hollow Valley distinguishes:
 - **pending** — no acceptable reusable paint mesh has been installed yet.
 
 SkinInspector captures are used to compare the website preview against the actual live EVRIMA customizer values and mesh/material metadata.
+
+
+## Carnotaurus
+
+- Original: “CARNOTAURUS DİNOSAUR” by Cenker Turhan
+- Source: https://sketchfab.com/3d-models/carnotaurus-dinosaur-548c9a0575b14deaae1f12ca9a6c31ca
+- License: CC BY 4.0
+- Web preparation: Prehistoric Animal Museum
+- Upstream project: https://github.com/s010s/prehistoric-animal-museum
+- Hollow Valley vendored blob: `b581941b92a37d6d254b8aea2b66efd49724afb2`
