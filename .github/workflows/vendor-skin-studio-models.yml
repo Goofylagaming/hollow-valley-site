@@ -1,0 +1,64 @@
+name: Vendor Skin Studio Models
+
+on:
+  push:
+    paths:
+      - ".github/workflows/vendor-skin-studio-models.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  vendor:
+    if: github.ref == 'refs/heads/skin-studio-persistence-v012'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download and verify licensed model assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          REV="dbdb0a3fc1ec82c586f8aaa45667aac76c424669"
+          ROOT="https://raw.githubusercontent.com/s010s/prehistoric-animal-museum/$REV/src/content/animals"
+
+          fetch_model() {
+            local species="$1"
+            local expected_blob="$2"
+            local destination="public/assets/skin-models/$species/model.glb"
+            mkdir -p "$(dirname "$destination")"
+            curl --fail --location --retry 4 --retry-delay 2 \
+              "$ROOT/$species/model/model.glb" \
+              --output "$destination"
+
+            local actual_blob
+            actual_blob="$(git hash-object "$destination")"
+            if [[ "$actual_blob" != "$expected_blob" ]]; then
+              echo "::error::Blob verification failed for $species: expected $expected_blob got $actual_blob"
+              exit 1
+            fi
+            echo "$species verified: $actual_blob"
+          }
+
+          fetch_model triceratops 502f1f8929504255219a65b9fd5228827a3ea0b4
+          fetch_model dilophosaurus e669ccf5b0aa4860842179f290b7bbc84d64bf2a
+          fetch_model maiasaura 6628afb9bd1f473aa76e95883f8889262b4ea748
+          fetch_model pachycephalosaurus 5cc7f8f0d44cbf480168c8d39d245e5e3202e61b
+          fetch_model pteranodon 7b45961cd3f454464856d580fa9fa0a7ad38c596
+          fetch_model stegosaurus c70a388085479e8fbbd7eb3a7a00a369542bef4b
+
+      - name: Commit vendored model assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Hollow Valley Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add public/assets/skin-models/*/model.glb
+          if git diff --cached --quiet; then
+            echo "Model assets are already vendored."
+            exit 0
+          fi
+          git commit -m "Vendor licensed Skin Studio species models"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
