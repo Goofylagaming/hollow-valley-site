@@ -619,6 +619,7 @@ function renderMapSourceStatus(data, error = null) {
   const badge = document.getElementById("map-source-badge");
   const version = document.getElementById("map-source-version");
   const detail = document.getElementById("map-source-detail");
+  const auditNode = document.getElementById("map-source-audit");
   if (!card || !badge || !version || !detail) return;
 
   if (error || !data) {
@@ -626,6 +627,7 @@ function renderMapSourceStatus(data, error = null) {
     badge.textContent = "UNAVAILABLE";
     version.textContent = "Gateway cartography";
     detail.textContent = "Source verification failed. Existing map layers may still be available from cache.";
+    if (auditNode) auditNode.textContent = "Geometry audit unavailable.";
     return;
   }
 
@@ -662,6 +664,19 @@ function renderMapSourceStatus(data, error = null) {
       ? `Operator-selected Gateway source · refreshed ${fetched}.`
       : "Operator-selected Gateway source.";
   }
+
+  if (auditNode) {
+    const audit = sourceStatus.geometryAudit;
+    if (audit) {
+      const zones = audit.zoneShapes || {};
+      const rejected = Number(audit.rejectedCoordinates || 0);
+      auditNode.textContent = `Geometry audit · ${zones.migrations ?? "—"} migration · ${zones.patrolZones ?? "—"} patrol · ${zones.sanctuaries ?? "—"} sanctuary shapes · ${rejected} rejected coords.`;
+      card.dataset.geometry = rejected === 0 ? "checked" : "review";
+    } else {
+      auditNode.textContent = "Geometry audit unavailable for this source.";
+      card.dataset.geometry = "unknown";
+    }
+  }
 }
 
 async function loadLayers() {
@@ -695,6 +710,7 @@ async function loadMap() {
   try {
     const data = await api("/api/map/positions");
     lastMapState = data;
+    window.HVLiveMapState = data;
     window.dispatchEvent(new CustomEvent("hv:map-state", { detail: data }));
 
     if (!data.connected) {
@@ -711,6 +727,7 @@ async function loadMap() {
     // Never leave an earlier successful snapshot painted as live after a failed refresh.
     renderMarkers(null);
     lastMapState = null;
+    window.HVLiveMapState = null;
 
     if (err && err.status === 401) {
       if (status) status.textContent = "Sign in to see your character · no player positions are shown";

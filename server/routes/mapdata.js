@@ -50,11 +50,30 @@ let cache = null;
 let cachedAt = 0;
 let inflight = null;
 
-function projectLatLong(lat, long) {
-  const left = (long * 1000 - BOUNDS.minY) / WIDTH_UNITS;
-  const top = (lat * 1000 - BOUNDS.minX) / HEIGHT_UNITS;
-  const clamp = (n) => Math.min(1, Math.max(0, n));
-  return { left: clamp(left), top: clamp(top) };
+function projectLatLong(lat, long, audit = null) {
+  const numericLat = Number(lat);
+  const numericLong = Number(long);
+  const minLat = BOUNDS.minX / 1000;
+  const maxLat = BOUNDS.maxX / 1000;
+  const minLong = BOUNDS.minY / 1000;
+  const maxLong = BOUNDS.maxY / 1000;
+
+  if (
+    !Number.isFinite(numericLat) ||
+    !Number.isFinite(numericLong) ||
+    numericLat < minLat ||
+    numericLat > maxLat ||
+    numericLong < minLong ||
+    numericLong > maxLong
+  ) {
+    if (audit) audit.rejectedCoordinates += 1;
+    return null;
+  }
+
+  return {
+    left: (numericLong * 1000 - BOUNDS.minY) / WIDTH_UNITS,
+    top: (numericLat * 1000 - BOUNDS.minX) / HEIGHT_UNITS,
+  };
 }
 
 function parseVulnonaFile(text) {
@@ -96,7 +115,7 @@ function parseVulnonaFile(text) {
   return sections;
 }
 
-function parsePoints(items) {
+function parsePoints(items, audit = null) {
   const pts = [];
   for (const { item, coords } of items || []) {
     const rawName = item[2] || item[1] || "Location";
@@ -106,7 +125,8 @@ function parsePoints(items) {
       if (parts.length >= 2 && !isNaN(parseFloat(parts[0])) && !isNaN(parseFloat(parts[1]))) {
         const lat = parseFloat(parts[0]);
         const long = parseFloat(parts[1]);
-        const pos = projectLatLong(lat, long);
+        const pos = projectLatLong(lat, long, audit);
+        if (!pos) continue;
         pts.push({ name: cleanName, left: pos.left, top: pos.top });
         break;
       }
@@ -115,7 +135,7 @@ function parsePoints(items) {
   return pts;
 }
 
-function parsePaths(items) {
+function parsePaths(items, audit = null) {
   const paths = [];
   for (const { item, coords } of items || []) {
     const rawName = item[2] || item[1] || "Path";
@@ -126,7 +146,8 @@ function parsePaths(items) {
       if (parts.length >= 2 && !isNaN(parseFloat(parts[0])) && !isNaN(parseFloat(parts[1]))) {
         const lat = parseFloat(parts[0]);
         const long = parseFloat(parts[1]);
-        const pos = projectLatLong(lat, long);
+        const pos = projectLatLong(lat, long, audit);
+        if (!pos) continue;
         points.push([pos.left, pos.top]);
       }
     }
@@ -137,7 +158,7 @@ function parsePaths(items) {
   return paths;
 }
 
-function parseRoads(items) {
+function parseRoads(items, audit = null) {
   const roads = [];
   for (const { item, coords } of items || []) {
     const rawName = item[2] || item[1] || "Road";
@@ -162,7 +183,8 @@ function parseRoads(items) {
         flush();
       }
 
-      const pos = projectLatLong(lat, long);
+      const pos = projectLatLong(lat, long, audit);
+        if (!pos) continue;
       points.push([pos.left, pos.top]);
     }
     flush();
@@ -185,7 +207,7 @@ const WILDLIFE_SECTIONS = Object.freeze([
   ["Turtle", "Turtle", "aquatic"],
 ]);
 
-function parseWildlifePoints(sections) {
+function parseWildlifePoints(sections, audit = null) {
   const points = [];
   for (const [section, species, category] of WILDLIFE_SECTIONS) {
     for (const { coords } of sections[section] || []) {
@@ -196,7 +218,8 @@ function parseWildlifePoints(sections) {
         if (!Number.isFinite(lat) || !Number.isFinite(long)) continue;
 
         const observedMatch = coord.match(/\bup(\d{4}\/\d{2}\/\d{2})\b/i);
-        const pos = projectLatLong(lat, long);
+        const pos = projectLatLong(lat, long, audit);
+        if (!pos) continue;
         points.push({
           species,
           sourceSection: section,
@@ -211,7 +234,7 @@ function parseWildlifePoints(sections) {
   return points;
 }
 
-function parseZones(items) {
+function parseZones(items, audit = null) {
   const shapes = [];
   for (const { item, coords } of items || []) {
     const kind = item[0];
@@ -227,7 +250,8 @@ function parseZones(items) {
           const rx = parseFloat(nums[2]) || 15;
           const ry = parseFloat(nums[3]) || rx;
           const rot = parseFloat(nums[4]) || 0;
-          const pos = projectLatLong(lat, long);
+          const pos = projectLatLong(lat, long, audit);
+        if (!pos) continue;
           shapes.push({
             name: cleanName,
             shape: "ellipse",
@@ -257,7 +281,8 @@ function parseZones(items) {
         const rx = parseFloat(rMatch[1]) || 15;
         const ry = parseFloat(rMatch[2]) || rx;
         const rot = parseFloat(rMatch[3]) || 0;
-        const pos = projectLatLong(lat, long);
+        const pos = projectLatLong(lat, long, audit);
+        if (!pos) continue;
         shapes.push({
           name: cleanName,
           shape: "ellipse",
@@ -276,7 +301,8 @@ function parseZones(items) {
           }
           const lat = parseFloat(parts[0]);
           const long = parseFloat(parts[1]);
-          const pos = projectLatLong(lat, long);
+          const pos = projectLatLong(lat, long, audit);
+        if (!pos) continue;
           currentPoly.push([pos.left, pos.top]);
         }
       }
@@ -291,18 +317,31 @@ function parseZones(items) {
 
 function buildPayload(sec1, sec2, sourceVersion = "Gateway_v0.21.7", sourceMeta = {}) {
   const fetchedAt = sourceMeta.fetchedAt || new Date().toISOString();
+  const audit = { rejectedCoordinates: 0 };
   const layers = {
-    areas: parsePoints(sec1["Area"]),
-    landmarks: [...parsePoints(sec1["Landmarks"]), ...parsePoints(sec1["Site (Human Base)"])],
-    saltLicks: parsePoints(sec2["SaltRock"]),
-    water: parsePoints(sec1["Water"]),
-    wallows: parsePoints(sec1["Mud"]),
-    caves: parsePaths(sec1["Cave"]),
-    roads: parseRoads(sec2["_Road_"]),
-    wildlife: parseWildlifePoints(sec2),
-    migrations: parseZones(sec1["Migration"]),
-    patrolZones: parseZones(sec1["PatrolZone"]),
-    sanctuaries: parseZones(sec1["Sanctuary"]),
+    areas: parsePoints(sec1["Area"], audit),
+    landmarks: [...parsePoints(sec1["Landmarks"], audit), ...parsePoints(sec1["Site (Human Base)"], audit)],
+    saltLicks: parsePoints(sec2["SaltRock"], audit),
+    water: parsePoints(sec1["Water"], audit),
+    wallows: parsePoints(sec1["Mud"], audit),
+    caves: parsePaths(sec1["Cave"], audit),
+    roads: parseRoads(sec2["_Road_"], audit),
+    wildlife: parseWildlifePoints(sec2, audit),
+    migrations: parseZones(sec1["Migration"], audit),
+    patrolZones: parseZones(sec1["PatrolZone"], audit),
+    sanctuaries: parseZones(sec1["Sanctuary"], audit),
+  };
+
+  const geometryAudit = {
+    status: audit.rejectedCoordinates === 0 ? "bounds-checked" : "review",
+    rejectedCoordinates: audit.rejectedCoordinates,
+    zoneShapes: {
+      migrations: layers.migrations.length,
+      patrolZones: layers.patrolZones.length,
+      sanctuaries: layers.sanctuaries.length,
+    },
+    routes: layers.roads.length,
+    wildlifePoints: layers.wildlife.length,
   };
 
   return {
@@ -316,6 +355,7 @@ function buildPayload(sec1, sec2, sourceVersion = "Gateway_v0.21.7", sourceMeta 
       fetchedAt,
       savedAt: sourceMeta.savedAt || null,
       currentAlias: sourceVersion === "Gateway_v0.21",
+      geometryAudit,
     },
     bounds: BOUNDS,
     grid: GRID,

@@ -120,3 +120,12 @@
 .map-source-card[data-state="fallback"] .map-source-card-head b{color:#f0cf69;border-color:rgba(216,169,40,.45);background:rgba(216,169,40,.08)}
 .map-source-card[data-state="error"]{border-left-color:#a54a3f}
 .map-source-card[data-state="error"] .map-source-card-head b{color:#efa095;border-color:rgba(165,74,63,.5);background:rgba(165,74,63,.08)}
+
+#map-source-audit{
+  margin-top:7px;
+  padding-top:7px;
+  border-top:1px solid rgba(255,255,255,.08);
+  color:#9ea9a2;
+}
+.map-source-card[data-geometry="checked"] #map-source-audit{color:#a9c984}
+.map-source-card[data-geometry="review"] #map-source-audit{color:#efae72}
