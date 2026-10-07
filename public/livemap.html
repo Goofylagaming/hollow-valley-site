@@ -6,9 +6,9 @@
   <meta name="description" content="Gateway map with live Hollow Valley positions when available and verified activity history during downtime.">
   <title>Live map | Hollow Valley</title>
   <link rel="stylesheet" href="assets/styles.css?v=38">
-  <link rel="stylesheet" href="assets/livemap-trail.css?v=2">
+  <link rel="stylesheet" href="assets/livemap-trail.css?v=3">
   <link rel="stylesheet" href="assets/territory-map-overlay.css?v=2">
-  <link rel="stylesheet" href="assets/livemap-precision.css?v=2">
+  <link rel="stylesheet" href="assets/livemap-precision.css?v=3">
   <link rel="stylesheet" href="assets/livemap-navigation.css?v=1">
   <link rel="stylesheet" href="assets/livemap-routes.css?v=1">
   <link rel="stylesheet" href="assets/livemap-wildlife.css?v=1">
@@ -79,6 +79,14 @@
             <p class="overline green">MAP LAYERS</p>
             <label class="layer-toggle"><input type="checkbox" id="layer-players" checked><span class="layer-swatch player"></span>Player tracking</label>
             <label class="layer-toggle"><input type="checkbox" id="layer-trails" checked><span class="layer-swatch trail"></span>My dino trail</label>
+            <div class="trail-tools" id="trail-tools">
+              <div class="trail-tools-head"><span>FOOTSTEP HISTORY</span><button type="button" id="trail-clear">CLEAR</button></div>
+              <div class="trail-tools-grid">
+                <label for="trail-window"><span>WINDOW</span><select id="trail-window"><option value="10">10 min</option><option value="30" selected>30 min</option><option value="60">60 min</option></select></label>
+                <label for="trail-mode"><span>DISPLAY</span><select id="trail-mode"><option value="both" selected>Both</option><option value="breadcrumb">Breadcrumb</option><option value="footprints">Footprints</option></select></label>
+              </div>
+              <small id="trail-stats">Waiting for movement samples…</small>
+            </div>
             <label class="layer-toggle"><input type="checkbox" id="layer-heatmap"><span class="layer-swatch heatmap"></span>My 24h heatmap</label>
             <small class="map-private-note">Private to this browser. It stores only your own recent map samples.</small>
             <label class="layer-toggle"><input type="checkbox" id="layer-grid"><span class="layer-swatch grid"></span>Gateway grid</label>
@@ -112,6 +120,7 @@
               <div class="map-source-card-head"><span>CARTOGRAPHY SOURCE</span><b id="map-source-badge">CHECKING</b></div>
               <strong id="map-source-version">Gateway cartography</strong>
               <small id="map-source-detail">Verifying the current Gateway source&hellip;</small>
+              <small id="map-source-audit">Geometry audit pending&hellip;</small>
             </div>
             <p class="layer-note" id="layer-note">Loading Gateway map data&hellip;</p>
           </aside>
@@ -123,13 +132,13 @@
     <footer><span>&copy; 2026 Hollow Valley</span><span>ISLE SERVER</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="assets/common.js?v=19"></script>
-  <script src="assets/livemap.js?v=15"></script>
+  <script src="assets/livemap.js?v=16"></script>
   <script src="assets/territory-map-overlay.js?v=2"></script>
   <script src="assets/livemap-precision.js?v=1"></script>
   <script src="assets/livemap-navigation.js?v=1"></script>
   <script src="assets/livemap-pins.js?v=1"></script>
   <script src="assets/livemap-heatmap.js?v=1"></script>
   <script src="assets/livemap-prime-summary.js?v=1"></script>
-  <script src="assets/livemap-trail.js?v=1"></script>
+  <script src="assets/livemap-trail.js?v=2"></script>
 </body>
 </html>
