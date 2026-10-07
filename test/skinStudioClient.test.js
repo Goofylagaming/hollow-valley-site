@@ -179,8 +179,11 @@ test("Skin Studio 3D preview uses species-specific models and refuses fake unive
   assert.match(renderer, /function showReferenceModel\(def, label\)/);
   assert.match(renderer, /MeshoptDecoder/);
   assert.match(renderer, /setMeshoptDecoder\(MeshoptDecoder\)/);
+  assert.match(renderer, /function provisionalShapeMaterial\(source\)/);
+  assert.match(renderer, /hvShapeLuma/);
+  assert.match(renderer, /hvShapeBody \* hvShapeShade/);
   assert.match(renderer, /function updateShapeBodyTint\(hex\)/);
-  assert.match(renderer, /provisional Body tint/);
+  assert.match(renderer, /neutral Body preview/);
   assert.match(renderer, /skin-reference-mode/);
   assert.match(renderer, /Universal skin/);
   assert.match(renderer, /EVRIMA zone calibration pending/);
@@ -248,7 +251,7 @@ test("Skin Studio 3D preview uses species-specific models and refuses fake unive
   assert.match(html, /EVRIMA SkinInspector capture/);
   assert.match(html, /Load diagnostic colours/);
   assert.match(html, /Import \/ resume a mask/);
-  assert.match(html, /skin-studio-3d\.js\?v=17/);
+  assert.match(html, /skin-studio-3d\.js\?v=18/);
 });
 
 test("Skin Studio keeps FNF-compatible core zone order and simple pattern controls", () => {
@@ -275,7 +278,7 @@ test("Skin Studio keeps FNF-compatible core zone order and simple pattern contro
   assert.match(browser, /function selectedSpeciesProfile\(\)/);
   assert.match(browser, /Number\.isInteger\(profile\?\.patternMax\)/);
   assert.match(browser, /Wear Live will preserve its current in-game pattern/);
-  assert.match(html, /skin-studio-3d\.js\?v=17/);
+  assert.match(html, /skin-studio-3d\.js\?v=18/);
   assert.match(html, /id="skin-pattern-presets"/);
   assert.match(html, /id="skin-pattern-safety"/);
   assert.match(html, /id="skin-sex-preview"/);
