@@ -1286,6 +1286,347 @@ router.post("/preview-kill-momentum", requireTerritoryInternalToken, (_req, res)
   }
 });
 
+router.post("/preview-group-takeover", requireTerritoryInternalToken, (_req, res) => {
+  try {
+    if (!previewSeedEnabled()) {
+      return res.status(403).json({
+        error: "Territory Wars preview controls are disabled",
+      });
+    }
+
+    const ensureNamedGroup = (name, tag, leaderDiscordId, memberDiscordId) => {
+      let group = db.prepare(
+        "SELECT id, name, tag, leader_user_id FROM territory_groups WHERE name = ? LIMIT 1"
+      ).get(name) || null;
+
+      if (!group) {
+        const leader = ensurePreviewUser(leaderDiscordId);
+        if (!leader) throw new Error(`Unable to create ${name} leader`);
+
+        const existingLeaderGroup = groupForUser(leader.id);
+        if (existingLeaderGroup) {
+          group = db.prepare(
+            "SELECT id, name, tag, leader_user_id FROM territory_groups WHERE id = ?"
+          ).get(existingLeaderGroup.id);
+        } else {
+          const created = db.prepare(`
+            INSERT INTO territory_groups (name, tag, leader_user_id)
+            VALUES (?, ?, ?)
+          `).run(name, tag, leader.id);
+
+          const groupId = Number(created.lastInsertRowid);
+          db.prepare(`
+            INSERT INTO territory_group_members (group_id, user_id, role)
+            VALUES (?, ?, 'leader')
+          `).run(groupId, leader.id);
+          db.prepare(
+            "INSERT OR IGNORE INTO territory_group_stats (group_id) VALUES (?)"
+          ).run(groupId);
+
+          group = db.prepare(
+            "SELECT id, name, tag, leader_user_id FROM territory_groups WHERE id = ?"
+          ).get(groupId);
+        }
+      }
+
+      const member = ensurePreviewGroupMember(memberDiscordId, group.id);
+      if (!member) {
+        throw new Error(`Unable to add a member to ${name}`);
+      }
+
+      const leader = db.prepare(`
+        SELECT u.id, u.discord_id, u.steam_id, u.username
+        FROM users u
+        WHERE u.id = ?
+      `).get(group.leader_user_id);
+
+      return {
+        group,
+        leader,
+        member,
+      };
+    };
+
+    const defenderSide = ensureNamedGroup(
+      "Preview Group 1",
+      "P00001",
+      "999000000000000010",
+      "999000000000000011"
+    );
+
+    const attackerSide = ensureNamedGroup(
+      "Preview Group 2",
+      "P00002",
+      "999000000000000012",
+      "999000000000000013"
+    );
+
+    const defender = defenderSide.group;
+    const attacker = attackerSide.group;
+
+    let event = latestEventRaw();
+    if (!event) {
+      const created = db.prepare(`
+        INSERT INTO territory_events
+          (
+            name,
+            territory_key,
+            territory_name,
+            status,
+            owner_name,
+            challenger_name,
+            control_score,
+            owner_control,
+            challenger_control,
+            starts_at,
+            ends_at
+          )
+        VALUES (?, 'south-plains', 'South Plains', 'live', ?, ?, 99, 1, 99, ?, ?)
+      `).run(
+        "South Plains Group Takeover Test",
+        defender.name,
+        attacker.name,
+        new Date(Date.now() - (5 * 60 * 1000)).toISOString(),
+        new Date(Date.now() + (5 * 60 * 60 * 1000)).toISOString()
+      );
+      event = eventById(Number(created.lastInsertRowid));
+    }
+
+    const now = nowIso();
+    const startsAt = new Date(Date.now() - (5 * 60 * 1000)).toISOString();
+    const endsAt = new Date(Date.now() + (5 * 60 * 60 * 1000)).toISOString();
+    const contestStartedAt = new Date(Date.now() - (3 * 60 * 1000)).toISOString();
+    const lastTickAt = new Date(Date.now() - (60 * 1000)).toISOString();
+
+    let attackId = null;
+
+    runTransaction(() => {
+      db.prepare(`
+        UPDATE territory_events
+        SET status = 'live',
+            owner_name = ?,
+            challenger_name = ?,
+            control_score = 99,
+            owner_control = 1,
+            challenger_control = 99,
+            protection_until = NULL,
+            frozen_owner_name = NULL,
+            starts_at = ?,
+            ends_at = ?,
+            updated_at = datetime('now')
+        WHERE id = ?
+      `).run(
+        defender.name,
+        attacker.name,
+        startsAt,
+        endsAt,
+        event.id
+      );
+
+      db.prepare(`
+        UPDATE territory_attacks
+        SET status = 'cancelled',
+            resolved_at = ?,
+            outcome = 'preview-reset'
+        WHERE event_id = ?
+          AND status IN ('warning', 'active')
+      `).run(now, event.id);
+
+      db.prepare(`
+        INSERT INTO territory_event_registrations
+          (event_id, group_id, registered_by_user_id, status)
+        VALUES (?, ?, ?, 'registered')
+        ON CONFLICT(event_id, group_id)
+        DO UPDATE SET status = 'registered'
+      `).run(
+        event.id,
+        attacker.id,
+        attacker.leader_user_id,
+      );
+
+      db.prepare(`
+        DELETE FROM territory_event_lineups
+        WHERE event_id = ?
+          AND group_id = ?
+      `).run(event.id, attacker.id);
+
+      const lineupInsert = db.prepare(`
+        INSERT INTO territory_event_lineups
+          (event_id, group_id, user_id, selected_by_user_id, active_from, selected_at)
+        VALUES (?, ?, ?, ?, ?, datetime('now'))
+      `);
+
+      const activeFrom = new Date(Date.now() - 1000).toISOString();
+
+      lineupInsert.run(
+        event.id,
+        attacker.id,
+        attackerSide.leader.id,
+        attackerSide.leader.id,
+        activeFrom
+      );
+      lineupInsert.run(
+        event.id,
+        attacker.id,
+        attackerSide.member.id,
+        attackerSide.leader.id,
+        activeFrom
+      );
+
+      db.prepare(
+        "DELETE FROM territory_preview_presence WHERE event_id = ?"
+      ).run(event.id);
+
+      const presenceInsert = db.prepare(`
+        INSERT INTO territory_preview_presence
+          (event_id, user_id, side, in_battlefield, in_claim, updated_at)
+        VALUES (?, ?, 'attacker', 1, 1, ?)
+      `);
+
+      presenceInsert.run(
+        event.id,
+        attackerSide.leader.id,
+        now
+      );
+      presenceInsert.run(
+        event.id,
+        attackerSide.member.id,
+        now
+      );
+
+      db.prepare(
+        "DELETE FROM territory_presence_grace WHERE event_id = ?"
+      ).run(event.id);
+
+      try {
+        db.prepare(
+          "DELETE FROM territory_kill_momentum WHERE event_id = ?"
+        ).run(event.id);
+      } catch {}
+
+      const inserted = db.prepare(`
+        INSERT INTO territory_attacks
+          (
+            event_id,
+            attacker_group_id,
+            defender_group_id,
+            status,
+            declared_by_user_id,
+            declared_at,
+            starts_at,
+            contest_started_at,
+            last_tick_at
+          )
+        VALUES (?, ?, ?, 'active', ?, ?, ?, ?, ?)
+      `).run(
+        event.id,
+        attacker.id,
+        defender.id,
+        attackerSide.leader.id,
+        startsAt,
+        startsAt,
+        contestStartedAt,
+        lastTickAt
+      );
+
+      attackId = Number(inserted.lastInsertRowid);
+    });
+
+    const statsFor = (groupId) => db.prepare(`
+      SELECT wins, losses, captures, kills, deaths, zone_seconds
+      FROM territory_group_stats
+      WHERE group_id = ?
+    `).get(groupId) || {
+      wins: 0,
+      losses: 0,
+      captures: 0,
+      kills: 0,
+      deaths: 0,
+      zone_seconds: 0,
+    };
+
+    const attackerBefore = statsFor(attacker.id);
+    const defenderBefore = statsFor(defender.id);
+
+    addLog(
+      event.id,
+      "preview",
+      "Preview Group-vs-Group takeover test primed at 99% challenger control",
+      null
+    );
+
+    return res.json({
+      ok: true,
+      eventId: Number(event.id),
+      attackId,
+      ownerBefore: defender.name,
+      challengerBefore: attacker.name,
+      attackerGroupId: Number(attacker.id),
+      defenderGroupId: Number(defender.id),
+      attackerStatsBefore: attackerBefore,
+      defenderStatsBefore: defenderBefore,
+      controlBefore: 99,
+    });
+  } catch (error) {
+    console.error("[TerritoryWars] Preview Group takeover test failed:", error);
+    return res.status(500).json({
+      error: error?.message || "Unable to prepare the Territory Group takeover test.",
+    });
+  }
+});
+
+router.post("/preview-group-takeover-result", requireTerritoryInternalToken, (req, res) => {
+  try {
+    if (!previewSeedEnabled()) {
+      return res.status(403).json({
+        error: "Territory Wars preview controls are disabled",
+      });
+    }
+
+    const eventId = Number(req.body?.eventId || 0);
+    const attackId = Number(req.body?.attackId || 0);
+    const attackerGroupId = Number(req.body?.attackerGroupId || 0);
+    const defenderGroupId = Number(req.body?.defenderGroupId || 0);
+
+    if (!eventId || !attackId || !attackerGroupId || !defenderGroupId) {
+      return res.status(400).json({
+        error: "Valid takeover test IDs are required",
+      });
+    }
+
+    const event = eventById(eventId);
+    const attack = db.prepare(
+      "SELECT * FROM territory_attacks WHERE id = ? AND event_id = ?"
+    ).get(attackId, eventId) || null;
+
+    const statsFor = (groupId) => db.prepare(`
+      SELECT wins, losses, captures, kills, deaths, zone_seconds
+      FROM territory_group_stats
+      WHERE group_id = ?
+    `).get(groupId) || {
+      wins: 0,
+      losses: 0,
+      captures: 0,
+      kills: 0,
+      deaths: 0,
+      zone_seconds: 0,
+    };
+
+    return res.json({
+      ok: true,
+      event: decorateEvent(event),
+      attack: decorateAttack(attack),
+      attackerStats: statsFor(attackerGroupId),
+      defenderStats: statsFor(defenderGroupId),
+    });
+  } catch (error) {
+    console.error("[TerritoryWars] Preview Group takeover result failed:", error);
+    return res.status(500).json({
+      error: error?.message || "Unable to inspect the Territory Group takeover result.",
+    });
+  }
+});
+
 router.post("/preview-expire-kill-momentum", requireTerritoryInternalToken, (req, res) => {
   try {
     if (!previewSeedEnabled()) {
