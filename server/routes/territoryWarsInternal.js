@@ -1286,6 +1286,149 @@ router.post("/preview-kill-momentum", requireTerritoryInternalToken, (_req, res)
   }
 });
 
+router.post("/preview-lineup-eligibility", requireTerritoryInternalToken, (req, res) => {
+  try {
+    if (!previewSeedEnabled()) {
+      return res.status(403).json({ error: "Territory preview controls are disabled" });
+    }
+
+    const mode = String(req.body?.mode || "prepare").trim().toLowerCase();
+    if (!["prepare", "score"].includes(mode)) {
+      return res.status(400).json({ error: "Mode must be prepare or score" });
+    }
+
+    const event = latestEventRaw();
+    const leaderDiscordId = "999000000000000020";
+    const otherDiscordIds = [
+      "999000000000000021",
+      "999000000000000022",
+      "999000000000000023",
+      "999000000000000024",
+      "999000000000000025",
+      "999000000000000026",
+    ];
+    const allDiscordIds = [leaderDiscordId, ...otherDiscordIds];
+    const leader = userByDiscordId(leaderDiscordId);
+    const group = leader ? groupForUser(leader.id) : null;
+    const attack = event ? activeAttack(event.id) : null;
+
+    if (
+      !event || event.status !== "live" ||
+      !leader || !group ||
+      !attack || attack.status !== "active" ||
+      Number(attack.attacker_group_id) !== Number(group.id)
+    ) {
+      return res.status(409).json({
+        error: "Prepare the contributor-cap preview test before lineup eligibility",
+      });
+    }
+
+    if (mode === "prepare") {
+      for (const discordId of otherDiscordIds) {
+        if (!ensurePreviewGroupMember(discordId, group.id)) {
+          return res.status(409).json({
+            error: "Unable to add all seven test members to the same preview Group",
+          });
+        }
+      }
+
+      db.prepare(`
+        INSERT INTO territory_event_registrations
+          (event_id, group_id, registered_by_user_id, status)
+        VALUES (?, ?, ?, 'registered')
+        ON CONFLICT(event_id, group_id)
+        DO UPDATE SET status = 'registered'
+      `).run(event.id, group.id, leader.id);
+
+      return res.json({
+        ok: true,
+        mode,
+        eventId: Number(event.id),
+        groupId: Number(group.id),
+        leaderDiscordId,
+        allDiscordIds,
+        selectedDiscordIds: allDiscordIds.slice(0, 2),
+        lineupBefore: eventLineup(event.id, group.id).length,
+      });
+    }
+
+    const lineup = eventLineup(event.id, group.id);
+    const active = activeLineup(event.id, group.id);
+    if (lineup.length !== 2 || active.length !== 2) {
+      return res.status(409).json({
+        error: "Select exactly two already-active lineup fighters before the eligibility score test",
+      });
+    }
+
+    const sevenUsers = allDiscordIds.map((discordId) => userByDiscordId(discordId));
+    if (sevenUsers.some((user) => !user || Number(groupForUser(user.id)?.id) !== Number(group.id))) {
+      return res.status(409).json({ error: "All seven preview players must be in the same Group" });
+    }
+
+    const contestStartedAt = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+    const lastTickAt = new Date(Date.now() - 60 * 1000).toISOString();
+    const currentTime = nowIso();
+
+    runTransaction(() => {
+      db.prepare(`
+        UPDATE territory_events
+        SET control_score = 0, owner_control = 50, challenger_control = 50,
+            updated_at = datetime('now')
+        WHERE id = ?
+      `).run(event.id);
+
+      db.prepare("DELETE FROM territory_preview_presence WHERE event_id = ?")
+        .run(event.id);
+      db.prepare("DELETE FROM territory_presence_grace WHERE event_id = ?")
+        .run(event.id);
+
+      try {
+        db.prepare("DELETE FROM territory_kill_momentum WHERE event_id = ?")
+          .run(event.id);
+      } catch {}
+
+      const insert = db.prepare(`
+        INSERT INTO territory_preview_presence
+          (event_id, user_id, side, in_battlefield, in_claim, updated_at)
+        VALUES (?, ?, 'attacker', 1, 1, ?)
+      `);
+      for (const user of sevenUsers) {
+        insert.run(event.id, user.id, currentTime);
+      }
+
+      db.prepare(`
+        UPDATE territory_attacks
+        SET contest_started_at = ?, last_tick_at = ?
+        WHERE id = ?
+      `).run(contestStartedAt, lastTickAt, attack.id);
+    });
+
+    addLog(
+      event.id,
+      "preview",
+      "Preview lineup eligibility: 7 bodies in Claim Zone; only 2 selected and active",
+      null
+    );
+
+    return res.json({
+      ok: true,
+      mode,
+      eventId: Number(event.id),
+      groupId: Number(group.id),
+      lineupSize: lineup.length,
+      eligibleAttackers: active.length,
+      playersPresent: sevenUsers.length,
+      controlBefore: 0,
+      expectedControlAfterOneMinute: 5,
+    });
+  } catch (error) {
+    console.error("[TerritoryWars] Preview lineup eligibility test failed:", error);
+    return res.status(500).json({
+      error: error?.message || "Unable to prepare the preview lineup eligibility test",
+    });
+  }
+});
+
 router.post("/preview-contributor-cap", requireTerritoryInternalToken, (req, res) => {
   try {
     if (!previewSeedEnabled()) {
