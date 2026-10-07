@@ -88,3 +88,123 @@
 #territory-war-shapes[data-phase="control-live"] .tw-zone-label{
   fill:#f4e59a;
 }
+
+
+.layer-swatch.territory{
+  position:relative;
+  border:1px dashed rgba(216,169,40,.85);
+  background:rgba(216,169,40,.06);
+}
+.layer-swatch.territory:after{
+  position:absolute;
+  inset:3px;
+  content:"";
+  border:1px dashed rgba(190,226,139,.9);
+  border-radius:50%;
+}
+
+.territory-layer-tools{
+  margin:8px 0 10px 23px;
+  padding:9px 10px;
+  border:1px solid rgba(255,255,255,.09);
+  border-left:2px solid rgba(216,169,40,.55);
+  border-radius:7px;
+  background:rgba(4,9,6,.34);
+}
+.territory-layer-tools[hidden]{display:none!important}
+.territory-preview-switch{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  color:#dfe6e1;
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:.09em;
+}
+.territory-preview-switch input{accent-color:#d8a928}
+.territory-preview-select{
+  display:grid;
+  gap:4px;
+  margin-top:8px;
+}
+.territory-preview-select>span{
+  color:#77837c;
+  font-size:7px;
+  font-weight:800;
+  letter-spacing:.09em;
+}
+.territory-preview-select select{
+  width:100%;
+  padding:5px 6px;
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:4px;
+  background:#0c120e;
+  color:#dfe6e1;
+  font-size:9px;
+}
+#territory-preview-note{
+  display:block;
+  margin-top:7px;
+  color:#8f9b94;
+  font-size:8px;
+  line-height:1.4;
+}
+
+.tw-preview-banner{
+  display:none;
+  position:absolute;
+  top:14px;
+  left:50%;
+  min-width:220px;
+  max-width:min(420px,70%);
+  transform:translateX(-50%);
+  padding:8px 12px;
+  border:1px solid rgba(216,169,40,.48);
+  border-left:3px solid #d8a928;
+  background:rgba(9,10,8,.82);
+  backdrop-filter:blur(7px);
+  -webkit-backdrop-filter:blur(7px);
+  text-align:center;
+  box-shadow:0 10px 24px rgba(0,0,0,.4);
+}
+.tw-preview-banner small{
+  display:block;
+  color:#d8a928;
+  font-size:7px;
+  font-weight:800;
+  letter-spacing:.12em;
+}
+.tw-preview-banner strong{
+  display:block;
+  margin-top:2px;
+  font-size:13px;
+}
+.tw-preview-banner span{
+  display:block;
+  margin-top:2px;
+  color:#aa9b86;
+  font-size:8px;
+}
+.tw-map-hud[data-preview="true"] .tw-preview-banner{display:block}
+.tw-map-hud[data-preview="true"] .tw-map-top,
+.tw-map-hud[data-preview="true"] .tw-left,
+.tw-map-hud[data-preview="true"] .tw-direction,
+.tw-map-hud[data-preview="true"] .tw-control{display:none!important}
+
+#territory-war-shapes[data-preview="true"] .tw-zone-shape.battlefield{
+  stroke:#d8a928;
+  fill:rgba(216,169,40,.025);
+  stroke-dasharray:8 5;
+}
+#territory-war-shapes[data-preview="true"] .tw-zone-shape.claim{
+  stroke:#bfe28b;
+  fill:rgba(121,167,68,.055);
+  stroke-dasharray:4 3;
+}
+#territory-war-shapes[data-preview="true"] .tw-zone-label{
+  fill:#f1df9c;
+}
+@media(max-width:700px){
+  .territory-layer-tools{margin-left:0}
+  .tw-preview-banner{top:8px;max-width:78%}
+}
