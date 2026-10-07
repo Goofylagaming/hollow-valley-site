@@ -1286,6 +1286,101 @@ router.post("/preview-kill-momentum", requireTerritoryInternalToken, (_req, res)
   }
 });
 
+router.post("/preview-expire-kill-momentum", requireTerritoryInternalToken, (req, res) => {
+  try {
+    if (!previewSeedEnabled()) {
+      return res.status(403).json({
+        error: "Territory Wars preview controls are disabled",
+      });
+    }
+
+    const eventId = Number(req.body?.eventId || 0);
+    const attackId = Number(req.body?.attackId || 0);
+
+    if (!Number.isInteger(eventId) || eventId <= 0 || !Number.isInteger(attackId) || attackId <= 0) {
+      return res.status(400).json({
+        error: "Valid event and attack IDs are required",
+      });
+    }
+
+    const event = eventById(eventId);
+    const attack = db.prepare(
+      "SELECT * FROM territory_attacks WHERE id = ? AND event_id = ?"
+    ).get(attackId, eventId);
+
+    if (!event || !attack) {
+      return res.status(404).json({
+        error: "Preview Territory event or attack was not found",
+      });
+    }
+
+    const expiredAt = new Date(
+      Date.now() - (territoryMomentum.KILL_MOMENTUM_WINDOW_MS + 1000)
+    ).toISOString();
+    const contestStartedAt = new Date(Date.now() - (3 * 60 * 1000)).toISOString();
+    const lastTickAt = new Date(Date.now() - (60 * 1000)).toISOString();
+
+    runTransaction(() => {
+      db.prepare(`
+        UPDATE territory_kill_momentum
+        SET occurred_at = ?
+        WHERE event_id = ?
+          AND attack_id = ?
+      `).run(expiredAt, eventId, attackId);
+
+      db.prepare(`
+        UPDATE territory_events
+        SET control_score = 0,
+            owner_control = 50,
+            challenger_control = 50,
+            status = 'live',
+            updated_at = datetime('now')
+        WHERE id = ?
+      `).run(eventId);
+
+      db.prepare(`
+        UPDATE territory_attacks
+        SET status = 'active',
+            contest_started_at = ?,
+            last_tick_at = ?
+        WHERE id = ?
+      `).run(
+        contestStartedAt,
+        lastTickAt,
+        attackId
+      );
+    });
+
+    const momentum = territoryMomentum.recentMomentum(
+      eventId,
+      attackId,
+      Date.now()
+    );
+
+    addLog(
+      eventId,
+      "kill",
+      "Preview kill-momentum test expired the 60-second momentum window",
+      null
+    );
+
+    return res.json({
+      ok: true,
+      eventId,
+      attackId,
+      expiredAt,
+      momentum,
+      controlBefore: 0,
+      expectedControlAfterOneMinute: 0,
+    });
+  } catch (error) {
+    console.error("[TerritoryWars] Preview kill momentum expiry failed:", error);
+    return res.status(500).json({
+      error: error?.message || "Unable to expire preview Territory kill momentum.",
+    });
+  }
+});
+
 router.post("/preview-substitution-prepare", requireTerritoryInternalToken, (_req, res) => {
   try {
     if (!previewSeedEnabled()) {
