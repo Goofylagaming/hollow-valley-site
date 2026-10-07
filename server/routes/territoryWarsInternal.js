@@ -2047,6 +2047,130 @@ router.post("/preview-group-takeover-result", requireTerritoryInternalToken, (re
   }
 });
 
+router.post("/preview-combat-eligibility", requireTerritoryInternalToken, (req, res) => {
+  try {
+    if (!previewSeedEnabled()) {
+      return res.status(403).json({ error: "Territory preview controls are disabled" });
+    }
+
+    const eventId = Number(req.body?.eventId || 0);
+    const attackId = Number(req.body?.attackId || 0);
+
+    if (!Number.isInteger(eventId) || eventId <= 0 || !Number.isInteger(attackId) || attackId <= 0) {
+      return res.status(400).json({ error: "Valid event and attack IDs are required" });
+    }
+
+    const event = eventById(eventId);
+    const attack = db.prepare(
+      "SELECT * FROM territory_attacks WHERE id = ? AND event_id = ?"
+    ).get(attackId, eventId);
+
+    if (!event || event.status !== "live" || !attack || attack.status !== "active") {
+      return res.status(409).json({ error: "A live preview event with an active attack is required" });
+    }
+
+    const attackerGroup = db.prepare(
+      "SELECT id, leader_user_id FROM territory_groups WHERE id = ?"
+    ).get(Number(attack.attacker_group_id));
+
+    if (!attackerGroup) {
+      return res.status(409).json({ error: "Preview attacker Group was not found" });
+    }
+
+    const activeAttackers = activeLineup(eventId, attackerGroup.id);
+    if (activeAttackers.length < 2) {
+      return res.status(409).json({ error: "At least two active attackers are required" });
+    }
+
+    const unselectedDiscordId = "999000000000000009";
+    const unselected = ensurePreviewGroupMember(unselectedDiscordId, attackerGroup.id);
+    if (!unselected) {
+      return res.status(409).json({ error: "Unable to create the unselected preview fighter" });
+    }
+
+    db.prepare(
+      "DELETE FROM territory_event_lineups WHERE event_id = ? AND group_id = ? AND user_id = ?"
+    ).run(eventId, attackerGroup.id, unselected.id);
+
+    const defenders = db.prepare(`
+      SELECT id, steam_id, username
+      FROM users
+      WHERE is_admin = 1
+        AND steam_id IS NOT NULL
+        AND id NOT IN (
+          SELECT user_id
+          FROM territory_event_lineups
+          WHERE event_id = ? AND group_id = ?
+        )
+      ORDER BY id ASC
+      LIMIT 3
+    `).all(eventId, attackerGroup.id);
+
+    if (defenders.length < 2) {
+      return res.status(409).json({
+        error: "Preview combat eligibility test needs at least two system defenders",
+      });
+    }
+
+    const inside = { x: -302000, y: 250000, z: 0 };
+    const outside = { x: 9999999, y: 9999999, z: 0 };
+    const occurredAt = nowIso();
+
+    const nonLineupKill = territoryCombatSync._test.processCombatEvent(
+      {
+        id: `preview-combat-eligibility-${eventId}-${attackId}-nonlineup`,
+        occurredAt,
+        killerSteamId: String(unselected.steam_id),
+        victimSteamId: String(defenders[0].steam_id),
+        killerName: unselected.username,
+        victimName: defenders[0].username,
+        killerLocation: inside,
+        victimLocation: inside,
+        presenceSampledAt: occurredAt,
+      },
+      event
+    );
+
+    const selected = activeAttackers[1];
+    const outsideKill = territoryCombatSync._test.processCombatEvent(
+      {
+        id: `preview-combat-eligibility-${eventId}-${attackId}-outside`,
+        occurredAt,
+        killerSteamId: String(selected.steam_id),
+        victimSteamId: String(defenders[1].steam_id),
+        killerName: selected.username,
+        victimName: defenders[1].username,
+        killerLocation: outside,
+        victimLocation: outside,
+        presenceSampledAt: occurredAt,
+      },
+      event
+    );
+
+    addLog(
+      eventId,
+      "preview",
+      "Preview combat eligibility verified non-lineup and outside-Battlefield kills are ignored",
+      null
+    );
+
+    return res.json({
+      ok: true,
+      eventId,
+      attackId,
+      nonLineup: nonLineupKill,
+      outsideBattlefield: outsideKill,
+      expectedNonLineupReason: "fighter-not-active-lineup",
+      expectedOutsideReason: "outside-or-unverified-battlefield",
+    });
+  } catch (error) {
+    console.error("[TerritoryWars] Preview combat eligibility test failed:", error);
+    return res.status(500).json({
+      error: error?.message || "Unable to run the Territory combat eligibility test",
+    });
+  }
+});
+
 router.post("/preview-expire-kill-momentum", requireTerritoryInternalToken, (req, res) => {
   try {
     if (!previewSeedEnabled()) {
