@@ -153,7 +153,7 @@ function repeatKillWithinCooldown(eventId, killerSteamId, victimSteamId, occurre
       AND victim_steam_id = ?
       AND counted = 1
       AND datetime(occurred_at) >= datetime(?)
-      AND datetime(occurred_at) < datetime(?)
+      AND datetime(occurred_at) <= datetime(?)
     ORDER BY occurred_at DESC
     LIMIT 1
   `).get(Number(eventId), String(killerSteamId), String(victimSteamId), since, at.toISOString()));
