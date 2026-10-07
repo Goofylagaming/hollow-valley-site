@@ -210,6 +210,55 @@ test("Discord leader can register Group, view roster and set scheduled lineup", 
   assert.match((await response.json()).error, /current member/i);
 });
 
+test("seven fighters are rejected without replacing a valid six-player lineup", async (t) => {
+  const leader = insertUser();
+  const groupId = createGroup(leader);
+  const members = Array.from({ length: 6 }, () =>
+    insertUser({ groupId, role: "member" })
+  );
+  const eventId = createEvent({ status: "scheduled" });
+  const server = await listen(appForInternal());
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const registered = await request(server, "/api/territory-wars/internal/register", {
+    method: "POST",
+    body: JSON.stringify({ discordId: leader.discord_id, eventId }),
+  });
+  assert.equal(registered.status, 200);
+
+  const sixIds = [leader.discord_id, ...members.slice(0, 5).map((member) => member.discord_id)];
+  const six = await request(server, "/api/territory-wars/internal/lineup", {
+    method: "POST",
+    body: JSON.stringify({
+      discordId: leader.discord_id,
+      eventId,
+      memberDiscordIds: sixIds,
+    }),
+  });
+  assert.equal(six.status, 200);
+  assert.equal((await six.json()).lineup.length, 6);
+
+  const seven = await request(server, "/api/territory-wars/internal/lineup", {
+    method: "POST",
+    body: JSON.stringify({
+      discordId: leader.discord_id,
+      eventId,
+      memberDiscordIds: [leader.discord_id, ...members.map((member) => member.discord_id)],
+    }),
+  });
+  assert.equal(seven.status, 400);
+  assert.match((await seven.json()).error, /capped at 6/i);
+
+  const roster = await request(server, "/api/territory-wars/internal/roster", {
+    method: "POST",
+    body: JSON.stringify({ discordId: leader.discord_id, eventId }),
+  });
+  assert.equal(roster.status, 200);
+  const body = await roster.json();
+  assert.equal(body.roster.length, 7);
+  assert.equal(body.roster.filter((member) => member.inLineup).length, 6);
+});
+
 test("only Group Leader can register and only Leader or Officer can set lineup", async (t) => {
   const leader = insertUser();
   const groupId = createGroup(leader);
