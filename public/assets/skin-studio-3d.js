@@ -1042,6 +1042,7 @@ function replaceCalibrationMask(value) {
     throw new Error("Start mapping on a shape-only species before importing a mask.");
   }
 
+  pushCalibrationHistory();
   const parsed = normalizeCalibrationMaskPayload(value);
   disposeMaskAtlases();
   currentMaskData = parsed;
@@ -1323,6 +1324,11 @@ function disposeModel() {
   disposeMaskAtlases();
   currentMaskData = null;
   zoneLookup = null;
+  uvCoverage = null;
+  calibrationUndoStack = [];
+  calibrationRedoStack = [];
+  calibrationIslandFillMode = false;
+  updateCalibrationHistoryButtons();
 }
 
 function setLocalModelControlsEnabled(enabled) {
@@ -1634,6 +1640,25 @@ canvas.addEventListener("pointercancel", () => {
 
 calibrationDiagnosticEl?.addEventListener("click", loadDiagnosticPalette);
 
+calibrationIslandFillEl?.addEventListener("click", () => {
+  if (!calibrationActive || !uvCoverage?.length) return;
+  calibrationIslandFillMode = !calibrationIslandFillMode;
+  calibrationIslandFillEl.textContent = `Island fill: ${calibrationIslandFillMode ? "on" : "off"}`;
+  calibrationIslandFillEl.classList.toggle("green", calibrationIslandFillMode);
+  calibrationIslandFillEl.setAttribute("aria-pressed", calibrationIslandFillMode ? "true" : "false");
+  setCalibrationStatus(calibrationIslandFillMode
+    ? `${currentModelDef.displayName} · Island fill ON. Click a connected UV island to assign the selected zone.`
+    : `${currentModelDef.displayName} · Island fill OFF. Brush painting restored.`);
+});
+
+calibrationUndoEl?.addEventListener("click", undoCalibration);
+calibrationRedoEl?.addEventListener("click", redoCalibration);
+
+calibrationFlipVEl?.addEventListener("change", () => {
+  scheduleCalibrationCoverage();
+  setCalibrationStatus(`${currentModelDef?.displayName || "Species"} · UV vertical orientation ${calibrationFlipVEl.checked ? "flipped" : "normal"}.`);
+});
+
 calibrationBrushEl?.addEventListener("input", () => {
   if (calibrationBrushValueEl) calibrationBrushValueEl.textContent = `${calibrationBrushEl.value} px`;
 });
@@ -1641,6 +1666,7 @@ calibrationToggleEl?.addEventListener("click", () => calibrationActive ? stopCal
 calibrationClearZoneEl?.addEventListener("click", () => {
   const zone = calibrationZoneEl?.value || "body";
   if (zone === "erase") return;
+  pushCalibrationHistory();
   const index = ZONE_KEYS.indexOf(zone) + 1;
   for (let pixel=0;pixel<zoneLookup.length;pixel+=1) {
     if (zoneLookup[pixel] === index) setAtlasPixel(pixel, null);
@@ -1652,6 +1678,7 @@ calibrationClearZoneEl?.addEventListener("click", () => {
 });
 calibrationClearAllEl?.addEventListener("click", () => {
   if (!calibrationActive) return;
+  pushCalibrationHistory();
   zoneLookup.fill(0);
   for (const texture of maskAtlases) {
     texture.image.data.fill(0);
