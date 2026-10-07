@@ -905,24 +905,29 @@ function setAtlasPixel(pixel, zoneName) {
 function paintCalibrationUv(uv) {
   if (!calibrationActive || !uv || !zoneLookup?.length) return;
   const size = CALIBRATION_SIZE;
-  const flipV = Boolean(calibrationFlipVEl?.checked);
-  const cx = Math.max(0, Math.min(size - 1, Math.floor(uv.x * size)));
-  const cyUv = flipV ? 1 - uv.y : uv.y;
-  const cy = Math.max(0, Math.min(size - 1, Math.floor(cyUv * size)));
+  const point = uvToMaskPoint(uv);
+  if (!point) return;
+
   const radius = Math.max(1, Number(calibrationBrushEl?.value || 7));
   const zone = calibrationZoneEl?.value || "body";
+  let painted = 0;
+
   for (let dy=-radius;dy<=radius;dy+=1) {
     for (let dx=-radius;dx<=radius;dx+=1) {
       if (dx*dx+dy*dy > radius*radius) continue;
-      const x=cx+dx,y=cy+dy;
+      const x=point.x+dx,y=point.y+dy;
       if(x<0||x>=size||y<0||y>=size) continue;
+      if (uvCoverage?.length && !maskPixelCovered(x, y)) continue;
       setAtlasPixel(y*size+x, zone);
+      painted += 1;
     }
   }
-  for (const texture of maskAtlases) texture.needsUpdate = true;
+
+  if (!painted) return;
+  markCalibrationTexturesDirty();
   saveCalibrationDraftSoon();
   scheduleCalibrationCoverage();
-  setCalibrationStatus(`${currentModelDef.displayName} · painting ${zone} · brush ${radius}px · draft auto-saved`);
+  setCalibrationStatus(`${currentModelDef.displayName} · painting ${zone} · brush ${radius}px · UV-clipped · draft auto-saved`);
 }
 
 function calibrationStorageKey() {
