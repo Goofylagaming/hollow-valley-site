@@ -79,3 +79,12 @@ SkinInspector captures are used to compare the website preview against the actua
 - Web preparation: Prehistoric Animal Museum
 - Upstream project: https://github.com/s010s/prehistoric-animal-museum
 - Hollow Valley vendored blob: `b581941b92a37d6d254b8aea2b66efd49724afb2`
+
+
+## Allosaurus
+
+- Original: “Allosaurus” by FunkoDrunko
+- Source: https://sketchfab.com/3d-models/allosaurus-fc2918c4ed474b99b8d61c73879c195c
+- License: CC BY 4.0
+- Web/LOD redistribution: https://github.com/drleandroalm/evo-dino-preview
+- Hollow Valley vendored LOD0 blob: `74154451bcda7f5e1d0a8066b78edabb11ebe8b0`
