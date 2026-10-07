@@ -1,17 +1,55 @@
 (() => {
   const root = document.getElementById("territory-war-overlay-slot");
   const shapeLayer = document.getElementById("territory-war-shapes");
-  if (!root || !shapeLayer) return;
+  const layerToggle = document.getElementById("layer-territoryWars");
+  const adminTools = document.getElementById("territory-layer-tools");
+  const previewToggle = document.getElementById("territory-admin-preview");
+  const previewSelect = document.getElementById("territory-preview-territory");
+  const previewNote = document.getElementById("territory-preview-note");
+  if (!root || !shapeLayer || !layerToggle) return;
 
+  const LAYER_KEY = "hollow-valley-map-territory-enabled";
+  const PREVIEW_KEY = "hollow-valley-map-territory-admin-preview";
+  const PREVIEW_TERRITORY_KEY = "hollow-valley-map-territory-preview-name";
   const $ = (selector) => root.querySelector(selector);
   const rotation = {N:0,NE:45,E:90,SE:135,S:180,SW:225,W:270,NW:315};
   let state = null;
+  let adminPreviewAvailable = false;
+  let refreshInFlight = false;
 
-  function esc(value){return String(value ?? "").replace(/[&<>"']/g,(ch)=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]));}
-  function clock(ms){const s=Math.max(0,Math.ceil(ms/1000));return `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;}
+  function storageGet(key, fallback = null) {
+    try {
+      const value = localStorage.getItem(key);
+      return value === null ? fallback : value;
+    } catch {
+      return fallback;
+    }
+  }
+
+  function storageSet(key, value) {
+    try { localStorage.setItem(key, String(value)); } catch {}
+  }
+
+  function esc(value){
+    return String(value ?? "").replace(/[&<>"']/g,(ch)=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]));
+  }
+
+  function clock(ms){
+    const s=Math.max(0,Math.ceil(ms/1000));
+    return `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
+  }
+
+  function layerEnabled() {
+    return Boolean(layerToggle.checked);
+  }
+
+  function previewEnabled() {
+    return Boolean(adminPreviewAvailable && previewToggle?.checked);
+  }
 
   function mountShell(){
     root.innerHTML = `
+      <div class="tw-preview-banner"><small>ADMIN PREVIEW</small><strong data-tw-preview-name>—</strong><span>Battlefield + Claim boundaries · read only</span></div>
       <div class="tw-map-top">
         <div class="tw-side tw-owner"><small>Owner</small><strong data-tw-owner>—</strong></div>
         <div class="tw-timer"><span data-tw-phase>TERRITORY WARS</span><b data-tw-countdown>--:--</b><small data-tw-territory>—</small><em data-tw-event-state>EVENT ACTIVE</em></div>
@@ -38,8 +76,41 @@
       </div>`;
   }
 
+  function syncAdminControls(data) {
+    const preview = data?.preview || {};
+    adminPreviewAvailable = Boolean(preview.available);
+
+    if (adminTools) adminTools.hidden = !adminPreviewAvailable;
+    if (!adminPreviewAvailable) {
+      if (previewToggle) previewToggle.checked = false;
+      return;
+    }
+
+    const territories = Array.isArray(preview.territories) ? preview.territories.filter(Boolean) : [];
+    if (previewSelect && territories.length) {
+      const currentOptions = [...previewSelect.options].map((option) => option.value);
+      if (currentOptions.join("|") !== territories.join("|")) {
+        previewSelect.innerHTML = territories.map((name) => `<option value="${esc(name)}">${esc(name)}</option>`).join("");
+      }
+
+      const stored = storageGet(PREVIEW_TERRITORY_KEY, "South Plains");
+      const selected = territories.includes(preview.territoryName)
+        ? preview.territoryName
+        : territories.includes(stored)
+          ? stored
+          : territories[0];
+      previewSelect.value = selected;
+    }
+
+    if (previewNote) {
+      previewNote.textContent = preview.active
+        ? "Read-only admin preview active. No Territory War event has been created or changed."
+        : "Read-only boundary preview. Does not create or change a Territory War event.";
+    }
+  }
+
   function renderTimer(){
-    if(!state) return;
+    if(!state || state.preview?.active) return;
     const node=$("[data-tw-countdown]");
     const phase=state.timer?.phase||"idle";
     const t=state.timer?.endsAt?new Date(state.timer.endsAt).getTime():NaN;
@@ -61,9 +132,13 @@
     if(controlLabel) controlLabel.textContent=phase==="control-live"?"CLAIM CONTROL":"CONTROL";
   }
 
-  function renderZones(z){
-    shapeLayer.dataset.phase=state?.timer?.phase||"idle";
-    if(!z?.mapCenter || !z?.battlefieldMapRadius || !z?.claimMapRadius){shapeLayer.innerHTML="";return;}
+  function renderZones(z, preview = false){
+    shapeLayer.dataset.phase=preview ? "preview" : (state?.timer?.phase||"idle");
+    shapeLayer.dataset.preview=preview?"true":"false";
+    if(!z?.mapCenter || !z?.battlefieldMapRadius || !z?.claimMapRadius){
+      shapeLayer.innerHTML="";
+      return;
+    }
     const cx=(z.mapCenter.left*1000).toFixed(1), cy=(z.mapCenter.top*1000).toFixed(1);
     const brx=(z.battlefieldMapRadius.x*1000).toFixed(1), bry=(z.battlefieldMapRadius.y*1000).toFixed(1);
     const crx=(z.claimMapRadius.x*1000).toFixed(1), cry=(z.claimMapRadius.y*1000).toFixed(1);
@@ -94,32 +169,125 @@
     list.innerHTML=fighters.slice(0,10).map(f=>`<div class="tw-fighter" data-side="${esc(f.side)}"><div><strong>${esc(f.name)}</strong><small>${esc(f.species)} · ${esc(String(f.side).toUpperCase())}</small></div><span>${f.inClaim?"CLAIM":f.inBattlefield?"FIELD":"OUT"}</span></div>`).join("");
   }
 
+  function clearOverlay() {
+    root.hidden=true;
+    root.dataset.preview="false";
+    shapeLayer.innerHTML="";
+    shapeLayer.dataset.phase="idle";
+    shapeLayer.dataset.preview="false";
+  }
+
   function render(data){
-    state=data; root.hidden=!data.event; if(!data.event){shapeLayer.innerHTML="";shapeLayer.dataset.phase="idle";return;}
-    root.dataset.mode=data.viewer?.mode||"player"; root.dataset.phase=data.timer?.phase||"idle";
+    state=data;
+    syncAdminControls(data);
+
+    if(!layerEnabled()){
+      clearOverlay();
+      return;
+    }
+
+    if(data.preview?.active){
+      root.hidden=false;
+      root.dataset.preview="true";
+      root.dataset.mode="admin";
+      root.dataset.phase="preview";
+      const name=$("[data-tw-preview-name]");
+      if(name) name.textContent=data.preview.territoryName||data.zones?.territoryName||"Territory";
+      renderZones(data.zones,true);
+      return;
+    }
+
+    root.dataset.preview="false";
+    if(!data.event){
+      clearOverlay();
+      return;
+    }
+
+    root.hidden=false;
+    root.dataset.mode=data.viewer?.mode||"player";
+    root.dataset.phase=data.timer?.phase||"idle";
     $("[data-tw-owner]").textContent=data.event?.owner||"—";
     $("[data-tw-challenger]").textContent=data.event?.challenger||data.attack?.attacker||"—";
     $("[data-tw-territory]").textContent=data.event?.territoryName||"—";
     $("[data-tw-phase]").textContent=String(data.timer?.label||"Territory Wars").toUpperCase();
+
     const owner=Math.max(0,Math.min(100,Number(data.control?.owner??100)));
     const challenger=Math.max(0,Math.min(100,Number(data.control?.challenger??0)));
     $("[data-tw-owner-pct]").textContent=`${Math.round(owner)}%`;
     $("[data-tw-challenger-pct]").textContent=`${Math.round(challenger)}%`;
     $("[data-tw-owner-bar]").style.width=`${owner}%`;
     $("[data-tw-challenger-bar]").style.width=`${challenger}%`;
+
     const dir=data.intel?.attackerDirection||null;
     $("[data-tw-direction]").textContent=dir||"—";
-    const arrow=$("[data-tw-arrow]"); arrow.style.opacity=dir?"1":".28"; arrow.style.transform=`rotate(${rotation[dir]??0}deg)`;
-    renderZones(data.zones); renderLeader(data); renderAdmin(data); renderTimer();
+    const arrow=$("[data-tw-arrow]");
+    arrow.style.opacity=dir?"1":".28";
+    arrow.style.transform=`rotate(${rotation[dir]??0}deg)`;
+
+    renderZones(data.zones,false);
+    renderLeader(data);
+    renderAdmin(data);
+    renderTimer();
+  }
+
+  function requestUrl(){
+    const url=new URL("/api/territory-wars/overlay-state",window.location.origin);
+    if(previewEnabled()){
+      url.searchParams.set("preview","1");
+      if(previewSelect?.value) url.searchParams.set("territory",previewSelect.value);
+    }
+    return `${url.pathname}${url.search}`;
   }
 
   async function refresh(){
+    if(refreshInFlight) return;
+    refreshInFlight=true;
     try{
-      const response=await fetch("/api/territory-wars/overlay-state",{headers:{Accept:"application/json"},credentials:"same-origin",cache:"no-store"});
-      if(!response.ok){if(response.status===401){root.hidden=true;shapeLayer.innerHTML="";return;}throw new Error(`HTTP ${response.status}`);}
+      const response=await fetch(requestUrl(),{
+        headers:{Accept:"application/json"},
+        credentials:"same-origin",
+        cache:"no-store"
+      });
+      if(!response.ok){
+        if(response.status===401){
+          adminPreviewAvailable=false;
+          if(adminTools) adminTools.hidden=true;
+          clearOverlay();
+          return;
+        }
+        throw new Error(`HTTP ${response.status}`);
+      }
       render(await response.json());
-    }catch(err){console.warn("[territory-map-overlay]",err);root.hidden=true;shapeLayer.innerHTML="";}
+    }catch(err){
+      console.warn("[territory-map-overlay]",err);
+      clearOverlay();
+    }finally{
+      refreshInFlight=false;
+    }
   }
 
-  mountShell(); refresh(); setInterval(renderTimer,200); setInterval(refresh,2000);
+  mountShell();
+
+  layerToggle.checked=storageGet(LAYER_KEY,"1")!=="0";
+  if(previewToggle) previewToggle.checked=storageGet(PREVIEW_KEY,"0")==="1";
+
+  layerToggle.addEventListener("change",()=>{
+    storageSet(LAYER_KEY,layerToggle.checked?"1":"0");
+    if(!layerToggle.checked) clearOverlay();
+    else refresh();
+  });
+
+  previewToggle?.addEventListener("change",()=>{
+    storageSet(PREVIEW_KEY,previewToggle.checked?"1":"0");
+    refresh();
+  });
+
+  previewSelect?.addEventListener("change",()=>{
+    storageSet(PREVIEW_TERRITORY_KEY,previewSelect.value);
+    if(previewEnabled()) refresh();
+  });
+
+  refresh();
+  setInterval(renderTimer,200);
+  setInterval(refresh,2000);
 })();
