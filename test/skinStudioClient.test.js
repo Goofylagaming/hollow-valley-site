@@ -145,7 +145,7 @@ test("Skin Studio 3D preview uses species-specific models and refuses fake unive
   const renderer = fs.readFileSync(path.join(__dirname, "..", "public", "assets", "skin-studio-3d.js"), "utf8");
 
   assert.match(html, /skin-studio-model-registry\.js/);
-  assert.match(html, /skin-studio-model-registry\.js\?v=5/);
+  assert.match(html, /skin-studio-model-registry\.js\?v=6/);
   assert.match(html, /id="skin-model-name"/);
   assert.match(registry, /tyrannosaurus:[\s\S]*capability: "zones"[\s\S]*patternMax: 2/);
   assert.match(registry, /const calibratedModel =/);
@@ -159,8 +159,12 @@ test("Skin Studio 3D preview uses species-specific models and refuses fake unive
   assert.match(registry, /localModelUrl\("triceratops"\)/);
   assert.equal(registry.includes("raw.githubusercontent.com"), false);
   assert.match(registry, /deinosuchus:[\s\S]*capability: "pending"/);
-  assert.match(registry, /allosaurus: pendingModel/);
-  assert.match(registry, /carnotaurus: pendingModel/);
+  assert.match(registry, /allosaurus: shapeModel/);
+  assert.match(registry, /Allosaurus by FunkoDrunko · CC BY 4\.0/);
+  assert.match(registry, /localModelUrl\("allosaurus"\)/);
+  assert.match(registry, /carnotaurus: shapeModel/);
+  assert.match(registry, /CARNOTAURUS DİNOSAUR by Cenker Turhan · CC BY 4\.0/);
+  assert.match(registry, /localModelUrl\("carnotaurus"\)/);
   assert.match(registry, /ceratosaurus: pendingModel/);
   assert.match(registry, /dilophosaurus: shapeModel/);
   assert.match(registry, /Dilophosaurus by Marcel Schanz · CC BY 4\.0/);
@@ -254,6 +258,34 @@ test("Skin Studio 3D preview uses species-specific models and refuses fake unive
   assert.match(html, /Load diagnostic colours/);
   assert.match(html, /Import \/ resume a mask/);
   assert.match(html, /skin-studio-3d\.js\?v=18/);
+});
+
+
+test("Vendored Skin Studio model binaries match their approved source blobs", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const crypto = require("node:crypto");
+
+  const expected = {
+    allosaurus: "74154451bcda7f5e1d0a8066b78edabb11ebe8b0",
+    carnotaurus: "b581941b92a37d6d254b8aea2b66efd49724afb2",
+    dilophosaurus: "e669ccf5b0aa4860842179f290b7bbc84d64bf2a",
+    maiasaura: "6628afb9bd1f473aa76e95883f8889262b4ea748",
+    pachycephalosaurus: "5cc7f8f0d44cbf480168c8d39d245e5e3202e61b",
+    pteranodon: "7b45961cd3f454464856d580fa9fa0a7ad38c596",
+    stegosaurus: "c70a388085479e8fbbd7eb3a7a00a369542bef4b",
+    triceratops: "502f1f8929504255219a65b9fd5228827a3ea0b4",
+  };
+
+  for (const [species, expectedSha] of Object.entries(expected)) {
+    const file = fs.readFileSync(
+      path.join(__dirname, "..", "public", "assets", "skin-models", species, "model.glb")
+    );
+    assert.equal(file.length > 500_000, true, `${species} GLB is unexpectedly small`);
+    const header = Buffer.from(`blob ${file.length}\0`);
+    const actualSha = crypto.createHash("sha1").update(header).update(file).digest("hex");
+    assert.equal(actualSha, expectedSha, `${species} GLB blob hash changed`);
+  }
 });
 
 test("Skin Studio keeps FNF-compatible core zone order and simple pattern controls", () => {
