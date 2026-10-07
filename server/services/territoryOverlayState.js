@@ -1,6 +1,6 @@
 const { db } = require("../db");
 const serverStatus = require("./serverStatus");
-const { fromRconLocation, toLatLong, project, BOUNDS } = require("../evrimaMap");
+const { fromRconLocation, toLatLong, project, BOUNDS, REGIONS } = require("../evrimaMap");
 const { territoryGeometry, classifyLatLong } = require("./territoryGeometry");
 const {
   direction8,
@@ -225,7 +225,92 @@ function attackNames(event, attack) {
   };
 }
 
-function buildOverlayState(user, { requestedMode } = {}) {
+function previewTerritories() {
+  return REGIONS.map(([name]) => String(name));
+}
+
+function zonePayload(geometry, selfRadar = null) {
+  if (!geometry) return null;
+  return {
+    territoryName: geometry.territoryName,
+    battlefieldRadiusMetres: Math.round(Number(geometry.battlefieldRadius) * Number(geometry.metresPerUnit || 10)),
+    claimRadiusMetres: Math.round(Number(geometry.claimRadius) * Number(geometry.metresPerUnit || 10)),
+    claimToBattlefieldRatio: Math.max(0, Math.min(1, Number(geometry.claimRadius) / Number(geometry.battlefieldRadius))),
+    mapCenter: project(Number(geometry.center.lat) * 1000, Number(geometry.center.long) * 1000),
+    battlefieldMapRadius: {
+      x: (Number(geometry.battlefieldRadius) * 1000) / (BOUNDS.maxY - BOUNDS.minY),
+      y: (Number(geometry.battlefieldRadius) * 1000) / (BOUNDS.maxX - BOUNDS.minX),
+    },
+    claimMapRadius: {
+      x: (Number(geometry.claimRadius) * 1000) / (BOUNDS.maxY - BOUNDS.minY),
+      y: (Number(geometry.claimRadius) * 1000) / (BOUNDS.maxX - BOUNDS.minX),
+    },
+    selfRadar: selfRadar || null,
+  };
+}
+
+function buildAdminPreviewState(user, requestedTerritory) {
+  if (!user?.is_admin) return null;
+
+  const available = previewTerritories();
+  const wanted = String(requestedTerritory || "").trim();
+  const selected = available.find((name) => name.toLowerCase() === wanted.toLowerCase())
+    || (available.includes("South Plains") ? "South Plains" : available[0]);
+
+  const geometry = territoryGeometry({
+    territoryName: selected,
+    territoryKey: selected,
+  });
+
+  return {
+    ok: true,
+    generatedAt: new Date().toISOString(),
+    viewer: {
+      mode: "admin",
+      side: "spectator",
+      role: "admin",
+      groupName: null,
+      groupTag: null,
+      inBattlefield: false,
+      inClaim: false,
+    },
+    event: null,
+    attack: null,
+    timer: {
+      phase: "preview",
+      label: "Admin boundary preview",
+      endsAt: null,
+    },
+    control: { owner: 100, challenger: 0 },
+    zones: zonePayload(geometry),
+    intel: {
+      attackerDirection: null,
+      generalized: true,
+      exactOpponentPositionsExposed: false,
+    },
+    server: {
+      online: false,
+      configured: false,
+      lastChecked: null,
+    },
+    preview: {
+      active: true,
+      available: true,
+      territoryName: selected,
+      territories: available,
+      readOnly: true,
+    },
+  };
+}
+
+function buildOverlayState(user, {
+  requestedMode,
+  preview = false,
+  previewTerritory = null,
+} = {}) {
+  if (preview && user?.is_admin) {
+    return buildAdminPreviewState(user, previewTerritory);
+  }
   const event = latestEvent();
   const attack = activeAttack(event?.id);
   const group = groupForUser(user?.id);
@@ -286,22 +371,7 @@ function buildOverlayState(user, { requestedMode } = {}) {
       owner: Math.round(controlOwner),
       challenger: Math.round(controlChallenger),
     },
-    zones: geometry ? {
-      territoryName: geometry.territoryName,
-      battlefieldRadiusMetres: Math.round(Number(geometry.battlefieldRadius) * Number(geometry.metresPerUnit || 10)),
-      claimRadiusMetres: Math.round(Number(geometry.claimRadius) * Number(geometry.metresPerUnit || 10)),
-      claimToBattlefieldRatio: Math.max(0, Math.min(1, Number(geometry.claimRadius) / Number(geometry.battlefieldRadius))),
-      mapCenter: project(Number(geometry.center.lat) * 1000, Number(geometry.center.long) * 1000),
-      battlefieldMapRadius: {
-        x: (Number(geometry.battlefieldRadius) * 1000) / (BOUNDS.maxY - BOUNDS.minY),
-        y: (Number(geometry.battlefieldRadius) * 1000) / (BOUNDS.maxX - BOUNDS.minX),
-      },
-      claimMapRadius: {
-        x: (Number(geometry.claimRadius) * 1000) / (BOUNDS.maxY - BOUNDS.minY),
-        y: (Number(geometry.claimRadius) * 1000) / (BOUNDS.maxX - BOUNDS.minX),
-      },
-      selfRadar: self?.radar || null,
-    } : null,
+    zones: zonePayload(geometry, self?.radar || null),
     intel: {
       attackerDirection: attackerBearing,
       generalized: true,
@@ -311,6 +381,13 @@ function buildOverlayState(user, { requestedMode } = {}) {
       online: live.online,
       configured: live.configured,
       lastChecked: live.lastChecked,
+    },
+    preview: {
+      active: false,
+      available: Boolean(user?.is_admin),
+      territoryName: null,
+      territories: user?.is_admin ? previewTerritories() : [],
+      readOnly: true,
     },
   };
 
@@ -365,5 +442,8 @@ module.exports = {
     characterize,
     centroid,
     attackNames,
+    previewTerritories,
+    zonePayload,
+    buildAdminPreviewState,
   },
 };
