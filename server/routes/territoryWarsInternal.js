@@ -1286,6 +1286,283 @@ router.post("/preview-kill-momentum", requireTerritoryInternalToken, (_req, res)
   }
 });
 
+router.post("/preview-contributor-cap", requireTerritoryInternalToken, (req, res) => {
+  try {
+    if (!previewSeedEnabled()) {
+      return res.status(403).json({
+        error: "Territory Wars preview controls are disabled",
+      });
+    }
+
+    const mode = String(req.body?.mode || "prepare").trim().toLowerCase();
+    const leaderDiscordId = "999000000000000020";
+    const memberDiscordIds = [
+      "999000000000000021",
+      "999000000000000022",
+      "999000000000000023",
+      "999000000000000024",
+      "999000000000000025",
+    ];
+
+    const leader = ensurePreviewUser(leaderDiscordId);
+    if (!leader) {
+      return res.status(500).json({
+        error: "Unable to create contributor-cap leader",
+      });
+    }
+
+    let group = groupForUser(leader.id);
+    if (!group) {
+      const created = db.prepare(`
+        INSERT INTO territory_groups (name, tag, leader_user_id)
+        VALUES ('Preview Cap Group', 'PCAP', ?)
+      `).run(leader.id);
+
+      const groupId = Number(created.lastInsertRowid);
+
+      db.prepare(`
+        INSERT INTO territory_group_members (group_id, user_id, role)
+        VALUES (?, ?, 'leader')
+      `).run(groupId, leader.id);
+
+      db.prepare(
+        "INSERT OR IGNORE INTO territory_group_stats (group_id) VALUES (?)"
+      ).run(groupId);
+
+      group = groupForUser(leader.id);
+    }
+
+    const members = [leader];
+    for (const discordId of memberDiscordIds) {
+      const member = ensurePreviewGroupMember(discordId, group.id);
+      if (!member) {
+        return res.status(409).json({
+          error: "Unable to create all six preview lineup members",
+        });
+      }
+      members.push(member);
+    }
+
+    let event = latestEventRaw();
+    if (!event) {
+      const created = db.prepare(`
+        INSERT INTO territory_events
+          (
+            name,
+            territory_key,
+            territory_name,
+            status,
+            owner_name,
+            challenger_name,
+            control_score,
+            owner_control,
+            challenger_control,
+            starts_at,
+            ends_at
+          )
+        VALUES (?, 'south-plains', 'South Plains', 'live', 'Admin', ?, 0, 50, 50, ?, ?)
+      `).run(
+        "South Plains Contributor Cap Test",
+        group.name,
+        new Date(Date.now() - (5 * 60 * 1000)).toISOString(),
+        new Date(Date.now() + (5 * 60 * 60 * 1000)).toISOString()
+      );
+      event = eventById(Number(created.lastInsertRowid));
+    }
+
+    const activeFrom = new Date(Date.now() - 1000).toISOString();
+    const now = nowIso();
+    const startsAt = new Date(Date.now() - (5 * 60 * 1000)).toISOString();
+    const endsAt = new Date(Date.now() + (5 * 60 * 60 * 1000)).toISOString();
+    const contestStartedAt = new Date(Date.now() - (3 * 60 * 1000)).toISOString();
+    const lastTickAt = new Date(Date.now() - (60 * 1000)).toISOString();
+
+    let attack = activeAttack(event.id);
+
+    if (mode === "prepare") {
+      runTransaction(() => {
+        db.prepare(`
+          UPDATE territory_events
+          SET status = 'live',
+              owner_name = 'Admin',
+              challenger_name = ?,
+              control_score = 0,
+              owner_control = 50,
+              challenger_control = 50,
+              protection_until = NULL,
+              frozen_owner_name = NULL,
+              starts_at = ?,
+              ends_at = ?,
+              updated_at = datetime('now')
+          WHERE id = ?
+        `).run(group.name, startsAt, endsAt, event.id);
+
+        db.prepare(`
+          UPDATE territory_attacks
+          SET status = 'cancelled',
+              resolved_at = ?,
+              outcome = 'preview-reset'
+          WHERE event_id = ?
+            AND status IN ('warning', 'active')
+        `).run(now, event.id);
+
+        db.prepare(`
+          DELETE FROM territory_event_lineups
+          WHERE event_id = ? AND group_id = ?
+        `).run(event.id, group.id);
+
+        const lineupInsert = db.prepare(`
+          INSERT INTO territory_event_lineups
+            (event_id, group_id, user_id, selected_by_user_id, active_from, selected_at)
+          VALUES (?, ?, ?, ?, ?, datetime('now'))
+        `);
+
+        for (const member of members) {
+          lineupInsert.run(
+            event.id,
+            group.id,
+            member.id,
+            leader.id,
+            activeFrom
+          );
+        }
+
+        db.prepare(
+          "DELETE FROM territory_preview_presence WHERE event_id = ?"
+        ).run(event.id);
+
+        db.prepare(
+          "DELETE FROM territory_presence_grace WHERE event_id = ?"
+        ).run(event.id);
+
+        try {
+          db.prepare(
+            "DELETE FROM territory_kill_momentum WHERE event_id = ?"
+          ).run(event.id);
+        } catch {}
+
+        const inserted = db.prepare(`
+          INSERT INTO territory_attacks
+            (
+              event_id,
+              attacker_group_id,
+              defender_group_id,
+              status,
+              declared_by_user_id,
+              declared_at,
+              starts_at,
+              contest_started_at,
+              last_tick_at
+            )
+          VALUES (?, ?, NULL, 'active', ?, ?, ?, ?, ?)
+        `).run(
+          event.id,
+          group.id,
+          leader.id,
+          startsAt,
+          startsAt,
+          contestStartedAt,
+          lastTickAt
+        );
+
+        attack = {
+          id: Number(inserted.lastInsertRowid),
+        };
+      });
+
+      addLog(
+        event.id,
+        "preview",
+        "Preview contributor-cap test prepared with a six-fighter active lineup",
+        null
+      );
+
+      return res.json({
+        ok: true,
+        mode: "prepare",
+        eventId: Number(event.id),
+        attackId: Number(attack.id),
+        groupId: Number(group.id),
+        lineupSize: members.length,
+      });
+    }
+
+    attack = db.prepare(
+      "SELECT * FROM territory_attacks WHERE event_id = ? AND status = 'active' ORDER BY id DESC LIMIT 1"
+    ).get(event.id);
+
+    if (!attack) {
+      return res.status(409).json({
+        error: "Prepare the contributor-cap test first",
+      });
+    }
+
+    const attackerCount = mode === "six" ? 6 : mode === "four" ? 4 : 0;
+    if (!attackerCount) {
+      return res.status(400).json({
+        error: "Contributor-cap mode must be prepare, four, or six",
+      });
+    }
+
+    runTransaction(() => {
+      db.prepare(`
+        UPDATE territory_events
+        SET control_score = 0,
+            owner_control = 50,
+            challenger_control = 50,
+            updated_at = datetime('now')
+        WHERE id = ?
+      `).run(event.id);
+
+      db.prepare(
+        "DELETE FROM territory_preview_presence WHERE event_id = ?"
+      ).run(event.id);
+
+      const presenceInsert = db.prepare(`
+        INSERT INTO territory_preview_presence
+          (event_id, user_id, side, in_battlefield, in_claim, updated_at)
+        VALUES (?, ?, 'attacker', 1, 1, ?)
+      `);
+
+      for (const member of members.slice(0, attackerCount)) {
+        presenceInsert.run(
+          event.id,
+          member.id,
+          nowIso()
+        );
+      }
+
+      db.prepare(`
+        UPDATE territory_attacks
+        SET contest_started_at = ?,
+            last_tick_at = ?
+        WHERE id = ?
+      `).run(
+        contestStartedAt,
+        lastTickAt,
+        attack.id
+      );
+    });
+
+    return res.json({
+      ok: true,
+      mode,
+      eventId: Number(event.id),
+      attackId: Number(attack.id),
+      lineupSize: members.length,
+      attackersPresent: attackerCount,
+      controlBefore: 0,
+      expectedControlAfterOneMinute: 7,
+      contributorCap: 4,
+    });
+  } catch (error) {
+    console.error("[TerritoryWars] Preview contributor-cap test failed:", error);
+    return res.status(500).json({
+      error: error?.message || "Unable to run the Territory contributor-cap test.",
+    });
+  }
+});
+
 router.post("/preview-group-takeover", requireTerritoryInternalToken, (_req, res) => {
   try {
     if (!previewSeedEnabled()) {
