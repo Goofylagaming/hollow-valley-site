@@ -3,6 +3,7 @@ const { timingSafeEqual } = require("node:crypto");
 const { db } = require("../db");
 const territoryCombatSync = require("../services/territoryCombatSync");
 const territoryMomentum = require("../services/territoryMomentum");
+const { controlRatePerMinute } = require("../services/territoryControl");
 
 const router = express.Router();
 
@@ -1419,7 +1420,11 @@ router.post("/preview-lineup-eligibility", requireTerritoryInternalToken, (req, 
       eligibleAttackers: active.length,
       playersPresent: sevenUsers.length,
       controlBefore: 0,
-      expectedControlAfterOneMinute: 4,
+      expectedControlAfterOneMinute: controlRatePerMinute({
+        attackers: active.length,
+        defenders: 0,
+        momentumRate: 0,
+      }).rate,
     });
   } catch (error) {
     console.error("[TerritoryWars] Preview lineup eligibility test failed:", error);
