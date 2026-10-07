@@ -42,6 +42,7 @@ const shapeModel = ({
   aliases = [],
   modelUrl,
   assetUrl,
+  creditLabel = null,
   yaw = 0.26,
   targetHeight = 0.48,
   distanceScale = 0.62,
@@ -53,7 +54,7 @@ const shapeModel = ({
   patternMax: null,
   loader: Object.freeze({ type: "url", url: modelUrl }),
   credit: Object.freeze({
-    label: `${displayName} preview model · CC0`,
+    label: creditLabel || `${displayName} preview model`,
     url: assetUrl,
   }),
   camera: Object.freeze({ yaw, targetHeight, distanceScale }),
@@ -108,13 +109,16 @@ window.HV_SKIN_MODELS = Object.freeze({
     camera: Object.freeze({ yaw: 0.24, targetHeight: 0.50, distanceScale: 0.60 }),
   }),
 
-  triceratops: referenceModel({
+  triceratops: shapeModel({
     key: "triceratops",
     displayName: "Triceratops",
     aliases: ["tric", "trike"],
-    embedUrl: "https://sketchfab.com/models/67bccb400cfb45699f4fea6db7664b87/embed?autostart=1&ui_infos=0&ui_controls=1&ui_stop=0&ui_watermark=1&ui_watermark_link=1",
-    assetUrl: "https://sketchfab.com/3d-models/triceratops-prorsus-67bccb400cfb45699f4fea6db7664b87",
-    creditLabel: "Triceratops prorsus by Nobilis 2 · CC BY",
+    modelUrl: "https://raw.githubusercontent.com/s010s/prehistoric-animal-museum/3b8adfd3838b2f3fa5dae2e19fee9bc5764c232c/src/content/animals/triceratops/model/model.glb",
+    assetUrl: "https://sketchfab.com/3d-models/triceratops-dinosaur-87527079bad44917ab1b98a456b46c7e",
+    creditLabel: "Triceratops dinosaur by wojciechmiedziocha · CC BY 4.0 · web-prepared by Prehistoric Animal Museum",
+    yaw: -0.28,
+    targetHeight: 0.48,
+    distanceScale: 0.62,
   }),
 
   deinosuchus: Object.freeze({
