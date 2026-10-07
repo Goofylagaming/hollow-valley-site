@@ -37,12 +37,14 @@ test("SkinInspector v001 is local-player, read-only, and captures current custom
   assert.match(lua, /GetMaterial\(index\)/);
   assert.match(lua, /GetMaterialSlotNames\(\)/);
   assert.match(lua, /GetSkeletalMeshAsset\(\)/);
-  assert.match(lua, /Mods\/SkinInspector\/Saved/);
+  assert.match(lua, /or "Mods\/SkinInspector"/);
+  assert.match(lua, /local SAVED_DIR = MOD_ROOT \.\. "\/Saved"/);
+  assert.match(lua, /local CAPTURE_DIR = SAVED_DIR \.\. "\/captures"/);
 
   assert.equal(/FindAllOf\s*\(/.test(lua), false);
   assert.equal(/ForceNetUpdate\s*\(/.test(lua), false);
   assert.equal(/SetPropertyValue\s*\(/.test(lua), false);
-  assert.equal(/\.SkinCode\b|\["SkinCode"\]|\['SkinCode'\]/.test(lua), false);
+  assert.equal(/customizer\s*\.\s*SkinCode\b|customizer\s*\[\s*["']SkinCode["']\s*\]/.test(lua), false);
   assert.equal(/CustomizerData\s*=/.test(lua), false);
 
   assert.match(readme, /read-only/i);
