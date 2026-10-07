@@ -1091,21 +1091,32 @@ function startCalibration() {
     return;
   }
   calibrationActive = true;
+  calibrationIslandFillMode = false;
+  calibrationUndoStack = [];
+  calibrationRedoStack = [];
+  uvCoverage = buildModelUvCoverage(model);
   const restoredDraft = loadCalibrationDraft();
   if (!restoredDraft) createBlankCalibrationMask();
   applyCalibratedMaterials(model);
   applyPreviewMode("accurate");
   stage.classList.add("skin-calibrating");
   if (calibrationToggleEl) calibrationToggleEl.textContent = "Stop mapping";
+  if (calibrationIslandFillEl) {
+    calibrationIslandFillEl.disabled = !uvCoverage?.some?.((value) => value === 1);
+    calibrationIslandFillEl.textContent = "Island fill: off";
+    calibrationIslandFillEl.classList.remove("green");
+  }
+  updateCalibrationHistoryButtons();
   if (calibrationClearZoneEl) calibrationClearZoneEl.disabled = false;
   if (calibrationClearAllEl) calibrationClearAllEl.disabled = false;
   if (calibrationCopyEl) calibrationCopyEl.disabled = false;
   if (calibrationImportButtonEl) calibrationImportButtonEl.disabled = false;
   if (calibrationOutputEl) { calibrationOutputEl.hidden = true; calibrationOutputEl.value = ""; }
   scheduleCalibrationCoverage();
+  const uvPixels = uvCoverage?.reduce?.((sum, value) => sum + (value ? 1 : 0), 0) || 0;
   setCalibrationStatus(restoredDraft
-    ? `${currentModelDef.displayName} · restored saved calibration draft. Continue painting directly on the model.`
-    : `${currentModelDef.displayName} · calibration active. Drag directly over the model to paint UV zones.`);
+    ? `${currentModelDef.displayName} · restored saved calibration draft · ${uvPixels.toLocaleString()} UV pixels detected.`
+    : `${currentModelDef.displayName} · calibration active · ${uvPixels.toLocaleString()} UV pixels detected. Brush or enable Island fill.`);
 }
 
 function stopCalibration() {
@@ -1113,10 +1124,19 @@ function stopCalibration() {
   saveCalibrationDraftNow();
   calibrationActive = false;
   calibrationPointerDown = false;
+  calibrationIslandFillMode = false;
   clearTimeout(calibrationCoverageTimer);
   controls.enabled = true;
   stage.classList.remove("skin-calibrating");
   if (calibrationToggleEl) calibrationToggleEl.textContent = "Start mapping";
+  if (calibrationIslandFillEl) {
+    calibrationIslandFillEl.disabled = true;
+    calibrationIslandFillEl.textContent = "Island fill: off";
+    calibrationIslandFillEl.classList.remove("green");
+  }
+  calibrationUndoStack = [];
+  calibrationRedoStack = [];
+  updateCalibrationHistoryButtons();
   if (calibrationClearZoneEl) calibrationClearZoneEl.disabled = true;
   if (calibrationClearAllEl) calibrationClearAllEl.disabled = true;
   if (calibrationCopyEl) calibrationCopyEl.disabled = true;
