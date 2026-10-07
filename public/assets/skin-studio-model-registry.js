@@ -60,9 +60,7 @@ const shapeModel = ({
   camera: Object.freeze({ yaw, targetHeight, distanceScale }),
 });
 
-const MUSEUM_REVISION = "dbdb0a3fc1ec82c586f8aaa45667aac76c424669";
-const museumModelUrl = (species) =>
-  `https://raw.githubusercontent.com/s010s/prehistoric-animal-museum/${MUSEUM_REVISION}/src/content/animals/${species}/model/model.glb`;
+const localModelUrl = (species) => `/assets/skin-models/${species}/model.glb`;
 
 const calibratedModel = ({
   key,
@@ -117,7 +115,7 @@ window.HV_SKIN_MODELS = Object.freeze({
     key: "triceratops",
     displayName: "Triceratops",
     aliases: ["tric", "trike"],
-    modelUrl: museumModelUrl("triceratops"),
+    modelUrl: localModelUrl("triceratops"),
     assetUrl: "https://sketchfab.com/3d-models/triceratops-dinosaur-87527079bad44917ab1b98a456b46c7e",
     creditLabel: "Triceratops dinosaur by wojciechmiedziocha · CC BY 4.0 · web-prepared by Prehistoric Animal Museum",
     yaw: -0.28,
@@ -146,7 +144,7 @@ window.HV_SKIN_MODELS = Object.freeze({
     key: "dilophosaurus",
     displayName: "Dilophosaurus",
     aliases: ["dilo"],
-    modelUrl: museumModelUrl("dilophosaurus"),
+    modelUrl: localModelUrl("dilophosaurus"),
     assetUrl: "https://sketchfab.com/3d-models/dilophosaurus-d09b3aa874db4e1cbf29a14797ca351f",
     creditLabel: "Dilophosaurus by Marcel Schanz · CC BY 4.0 · web-prepared by Prehistoric Animal Museum",
     yaw: 0.22,
@@ -160,7 +158,7 @@ window.HV_SKIN_MODELS = Object.freeze({
     key: "pteranodon",
     displayName: "Pteranodon",
     aliases: ["ptera"],
-    modelUrl: museumModelUrl("pteranodon"),
+    modelUrl: localModelUrl("pteranodon"),
     assetUrl: "https://sketchfab.com/3d-models/pteranodon-animated-7d7683df41d1405283f160e81a5dff1b",
     creditLabel: "Pteranodon by Oscar López Riviello · CC BY 4.0 · web-prepared by Prehistoric Animal Museum",
     yaw: 0.18,
@@ -174,7 +172,7 @@ window.HV_SKIN_MODELS = Object.freeze({
     key: "maiasaura",
     displayName: "Maiasaura",
     aliases: ["maia"],
-    modelUrl: museumModelUrl("maiasaura"),
+    modelUrl: localModelUrl("maiasaura"),
     assetUrl: "https://sketchfab.com/3d-models/maiasaura-with-rig-3da9f211ae304bd0afd1d15a290eabbd",
     creditLabel: "Maiasaura With Rig by Dino Dan · CC BY 4.0 · web-prepared by Prehistoric Animal Museum",
     yaw: 0.23,
@@ -185,7 +183,7 @@ window.HV_SKIN_MODELS = Object.freeze({
     key: "pachycephalosaurus",
     displayName: "Pachycephalosaurus",
     aliases: ["pachy"],
-    modelUrl: museumModelUrl("pachycephalosaurus"),
+    modelUrl: localModelUrl("pachycephalosaurus"),
     assetUrl: "https://sketchfab.com/3d-models/pbr-pachycephalasaurus-animated-6eea5cee4afa4730bf75c6329a43e56d",
     creditLabel: "PBR Pachycephalosaurus by Ferocious Industries · CC BY 4.0 · web-prepared by Prehistoric Animal Museum",
     yaw: 0.24,
@@ -196,7 +194,7 @@ window.HV_SKIN_MODELS = Object.freeze({
     key: "stegosaurus",
     displayName: "Stegosaurus",
     aliases: ["stego"],
-    modelUrl: museumModelUrl("stegosaurus"),
+    modelUrl: localModelUrl("stegosaurus"),
     assetUrl: "https://sketchfab.com/3d-models/pbr-stegasaurus-animated-ec254ea1554941fe8a131f62db0faf3d",
     creditLabel: "PBR Stegosaurus by Ferocious Industries · CC BY 4.0 · web-prepared by Prehistoric Animal Museum",
     yaw: 0.25,
