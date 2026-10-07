@@ -198,6 +198,14 @@ test("Skin Studio 3D preview uses species-specific models and refuses fake unive
   assert.match(renderer, /selectPaintZoneAt/);
   assert.match(renderer, /function startCalibration\(\)/);
   assert.match(renderer, /function paintCalibrationUv\(uv\)/);
+  assert.match(renderer, /function buildModelUvCoverage\(root\)/);
+  assert.match(renderer, /function fillCalibrationIsland\(uv\)/);
+  assert.match(renderer, /function pushCalibrationHistory\(\)/);
+  assert.match(renderer, /function undoCalibration\(\)/);
+  assert.match(renderer, /function redoCalibration\(\)/);
+  assert.match(renderer, /maskPixelCovered\(x, y\)/);
+  assert.match(renderer, /UV footprint/);
+  assert.match(renderer, /UV-clipped/);
   assert.match(renderer, /function exportCalibrationMask\(\)/);
   assert.match(renderer, /async function loadMaskData\(def\)/);
   assert.match(renderer, /def\.maskUrl/);
@@ -226,10 +234,13 @@ test("Skin Studio 3D preview uses species-specific models and refuses fake unive
   assert.match(html, /id="skin-calibration-import"/);
   assert.match(html, /id="skin-calibration-import-button"/);
   assert.match(html, /id="skin-calibration-diagnostic"/);
+  assert.match(html, /id="skin-calibration-island-fill"/);
+  assert.match(html, /id="skin-calibration-undo"/);
+  assert.match(html, /id="skin-calibration-redo"/);
   assert.match(html, /id="skin-calibration-coverage"/);
   assert.match(html, /Load diagnostic colours/);
   assert.match(html, /Import \/ resume a mask/);
-  assert.match(html, /skin-studio-3d\.js\?v=15/);
+  assert.match(html, /skin-studio-3d\.js\?v=16/);
 });
 
 test("Skin Studio keeps FNF-compatible core zone order and simple pattern controls", () => {
@@ -256,7 +267,7 @@ test("Skin Studio keeps FNF-compatible core zone order and simple pattern contro
   assert.match(browser, /function selectedSpeciesProfile\(\)/);
   assert.match(browser, /Number\.isInteger\(profile\?\.patternMax\)/);
   assert.match(browser, /Wear Live will preserve its current in-game pattern/);
-  assert.match(html, /skin-studio-3d\.js\?v=15/);
+  assert.match(html, /skin-studio-3d\.js\?v=16/);
   assert.match(html, /id="skin-pattern-presets"/);
   assert.match(html, /id="skin-pattern-safety"/);
   assert.match(html, /id="skin-sex-preview"/);
