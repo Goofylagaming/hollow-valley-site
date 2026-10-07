@@ -299,7 +299,7 @@ test("Skin Studio colour-zone groups stack cleanly without nested desktop grid o
   assert.match(css, /grid-template-areas:"copy swatch" "copy code"/);
   assert.match(css, /@media\(max-width:760px\)\{[\s\S]*?\.skin-color-group-grid\{grid-template-columns:1fr\}/);
   assert.match(css, /grid-template-columns:minmax\(0,1\.18fr\) minmax\(500px,\.95fr\)!important/);
-  assert.match(html, /assets\/styles\.css\?v=44/);
+  assert.match(html, /assets\/styles\.css\?v=45/);
 });
 
 test("Skin Shop published cards hide raw colour swatches but editing views keep them", () => {
