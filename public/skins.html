@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Design, unlock, share and wear Hollow Valley dinosaur skins.">
   <title>Skin Studio | Hollow Valley</title>
-  <link rel="stylesheet" href="assets/styles.css?v=44">
+  <link rel="stylesheet" href="assets/styles.css?v=45">
 </head>
 <body>
   <div class="app-shell">
@@ -124,6 +124,17 @@
                 </div>
                 <div class="skin-calibration-status" id="skin-calibration-status">Load a shape-only species model, then start mapping.</div>
                 <div class="skin-calibration-coverage" id="skin-calibration-coverage">UV coverage will appear while mapping.</div>
+
+                <details class="skin-inspector-import">
+                  <summary>EVRIMA SkinInspector capture</summary>
+                  <p>Load a local SkinInspector <code>latest.json</code> capture to compare the real in-game customizer values, mesh identity and material slots with this preview.</p>
+                  <input id="skin-inspector-file" type="file" accept=".json,application/json">
+                  <div class="skin-inspector-summary" id="skin-inspector-summary">No EVRIMA capture loaded.</div>
+                  <div class="skin-calibration-actions">
+                    <button class="small-button" id="skin-inspector-apply-colours" type="button" disabled>Use captured colours</button>
+                    <button class="small-button" id="skin-inspector-clear" type="button" disabled>Clear capture</button>
+                  </div>
+                </details>
 
                 <details class="skin-calibration-import">
                   <summary>Import / resume a mask</summary>
@@ -317,6 +328,6 @@
   <script type="importmap">
     {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}
   </script>
-  <script type="module" src="/assets/skin-studio-3d.js?v=16"></script>
+  <script type="module" src="/assets/skin-studio-3d.js?v=17"></script>
 </body>
 </html>
