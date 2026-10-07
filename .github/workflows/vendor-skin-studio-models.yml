@@ -1,4 +1,4 @@
-# Hollow Valley model vendor v3
+# Hollow Valley model vendor v4
 name: Vendor Skin Studio Models
 
 on:
@@ -43,6 +43,23 @@ jobs:
             echo "$species verified: $actual_blob"
           }
 
+          fetch_direct_model() {
+            local species="$1"
+            local url="$2"
+            local expected_blob="$3"
+            local destination="public/assets/skin-models/$species/model.glb"
+            mkdir -p "$(dirname "$destination")"
+            curl --fail --location --retry 4 --retry-delay 2 "$url" --output "$destination"
+
+            local actual_blob
+            actual_blob="$(git hash-object "$destination")"
+            if [[ "$actual_blob" != "$expected_blob" ]]; then
+              echo "::error::Blob verification failed for $species: expected $expected_blob got $actual_blob"
+              exit 1
+            fi
+            echo "$species verified: $actual_blob"
+          }
+
           fetch_model triceratops 502f1f8929504255219a65b9fd5228827a3ea0b4
           fetch_model carnotaurus b581941b92a37d6d254b8aea2b66efd49724afb2
           fetch_model dilophosaurus e669ccf5b0aa4860842179f290b7bbc84d64bf2a
@@ -50,6 +67,11 @@ jobs:
           fetch_model pachycephalosaurus 5cc7f8f0d44cbf480168c8d39d245e5e3202e61b
           fetch_model pteranodon 7b45961cd3f454464856d580fa9fa0a7ad38c596
           fetch_model stegosaurus c70a388085479e8fbbd7eb3a7a00a369542bef4b
+
+          fetch_direct_model \
+            allosaurus \
+            "https://raw.githubusercontent.com/drleandroalm/evo-dino-preview/fddc2283da2e9883494c8161e7d4c2c85645939e/site/assets/optimized/allosaurus-lod0.glb" \
+            74154451bcda7f5e1d0a8066b78edabb11ebe8b0
 
       - name: Commit vendored model assets
         shell: bash
