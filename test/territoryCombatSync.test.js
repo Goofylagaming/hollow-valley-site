@@ -175,6 +175,32 @@ test('same killer and victim cannot farm another Territory kill inside ten minut
   assert.equal(cooldownAudit.reason, 'repeat-kill-cooldown');
 });
 
+test('same killer and victim are blocked even when two combat events share the exact same timestamp', () => {
+  const war = seedWar();
+  const territoryEvent = db.prepare('SELECT * FROM territory_events WHERE id = ?').get(war.eventId);
+
+  const first = combatEvent(war, { occurredAt: '2026-10-05T08:00:00.000Z' });
+  const repeatedSameTimestamp = combatEvent(war, { occurredAt: '2026-10-05T08:00:00.000Z' });
+
+  assert.notEqual(first.id, repeatedSameTimestamp.id);
+  assert.equal(sync._test.processCombatEvent(first, territoryEvent).counted, true);
+
+  const repeatResult = sync._test.processCombatEvent(repeatedSameTimestamp, territoryEvent);
+  assert.equal(repeatResult.counted, false);
+  assert.equal(repeatResult.reason, 'repeat-kill-cooldown');
+
+  assert.equal(
+    db.prepare('SELECT kills FROM territory_group_stats WHERE group_id = ?').get(war.attackerGroupId).kills,
+    1
+  );
+
+  const cooldownAudit = db.prepare(
+    'SELECT counted, reason FROM territory_combat_events WHERE combat_event_id = ?'
+  ).get(repeatedSameTimestamp.id);
+  assert.equal(cooldownAudit.counted, 0);
+  assert.equal(cooldownAudit.reason, 'repeat-kill-cooldown');
+});
+
 test('natural deaths and non-lineup fighters never award Territory kills', () => {
   const war = seedWar();
   const territoryEvent = db.prepare('SELECT * FROM territory_events WHERE id = ?').get(war.eventId);
