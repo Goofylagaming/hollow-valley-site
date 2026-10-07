@@ -138,7 +138,17 @@ window.HV_SKIN_MODELS = Object.freeze({
 
   allosaurus: pendingModel("allosaurus", "Allosaurus", ["allo"]),
   austroraptor: pendingModel("austroraptor", "Austroraptor", ["austro"]),
-  carnotaurus: pendingModel("carnotaurus", "Carnotaurus", ["carno"]),
+  carnotaurus: shapeModel({
+    key: "carnotaurus",
+    displayName: "Carnotaurus",
+    aliases: ["carno"],
+    modelUrl: localModelUrl("carnotaurus"),
+    assetUrl: "https://sketchfab.com/3d-models/carnotaurus-dinosaur-548c9a0575b14deaae1f12ca9a6c31ca",
+    creditLabel: "CARNOTAURUS DİNOSAUR by Cenker Turhan · CC BY 4.0 · web-prepared by Prehistoric Animal Museum",
+    yaw: 0.23,
+    targetHeight: 0.50,
+    distanceScale: 0.61,
+  }),
   ceratosaurus: pendingModel("ceratosaurus", "Ceratosaurus", ["cera"]),
   dilophosaurus: shapeModel({
     key: "dilophosaurus",
