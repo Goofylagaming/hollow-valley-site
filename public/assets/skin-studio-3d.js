@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 
 const canvas = document.getElementById("skin-model-canvas");
 const referenceFrame = document.getElementById("skin-model-reference-frame");
@@ -112,6 +113,7 @@ let currentLoadToken = 0;
 let homeCamera = null;
 let shaderControllers = [];
 let materialBindings = [];
+let shapeTintMaterials = [];
 let maskAtlases = [];
 let currentMaskData = null;
 let zoneLookup = null;
@@ -308,10 +310,10 @@ function setRail(def, label = "") {
       modelHelpEl.textContent = "This species has a calibrated Hollow Valley zone map. EVRIMA colour interprets Studio/FNF HEX as the same linear components Wear Live writes in game; Game preview adds atmospheric lighting and texture shading.";
     }
   } else if (def.capability === "shape") {
-    if (modelCapabilityEl) modelCapabilityEl.textContent = "SPECIES SHAPE MODEL";
-    if (modelSourceEl) modelSourceEl.textContent = "High-quality local species mesh · colour-zone calibration pending";
+    if (modelCapabilityEl) modelCapabilityEl.textContent = "SPECIES PAINT MESH";
+    if (modelSourceEl) modelSourceEl.textContent = "Realistic species mesh · provisional Body tint · EVRIMA zone calibration pending";
     if (modelHelpEl) {
-      modelHelpEl.textContent = "A high-quality local mesh is loaded, but its EVRIMA colour zones are not calibrated yet. Skin Studio leaves the source materials visible instead of inventing a colour layout that may differ in game.";
+      modelHelpEl.textContent = "This realistic mesh is rendered directly by Hollow Valley. Body colour tints the whole model immediately as a provisional preview; markings, flank, underbelly and the other EVRIMA channels stay unmapped until their UV zones are calibrated.";
     }
   } else if (def.capability === "reference") {
     if (modelCapabilityEl) modelCapabilityEl.textContent = "REALISTIC REFERENCE MODEL";
@@ -551,12 +553,33 @@ function applyCalibratedMaterials(root) {
 function applyShapeMaterials(root) {
   shaderControllers = [];
   materialBindings = [];
+  shapeTintMaterials = [];
+
   root.traverse((child) => {
     if (!child.isMesh) return;
     child.castShadow = true;
     child.receiveShadow = true;
+
+    const sources = Array.isArray(child.material) ? child.material : [child.material];
+    const clones = sources.map((source) => {
+      const material = source?.clone ? source.clone() : source;
+      if (material?.color?.isColor) shapeTintMaterials.push(material);
+      return material;
+    });
+    child.material = Array.isArray(child.material) ? clones : clones[0];
   });
+
+  updateShapeBodyTint(currentPalette.body);
   applyPreviewMode("game");
+}
+
+function updateShapeBodyTint(hex) {
+  if (currentModelDef?.capability !== "shape" || calibrationActive) return;
+  for (const material of shapeTintMaterials) {
+    if (!material?.color?.isColor) continue;
+    engineColorFromHex(hex, material.color);
+    material.needsUpdate = true;
+  }
 }
 
 function calibrated() {
@@ -924,7 +947,7 @@ function applyPreviewMode(mode) {
     if (currentModelDef.capability === "zones") {
       statusEl.textContent = `${currentModelDef.displayName} · ${accurate ? "EVRIMA linear colour" : "calibrated game preview"}`;
     } else {
-      statusEl.textContent = `${currentModelDef.displayName} · species shape loaded · zones pending`;
+      statusEl.textContent = `${currentModelDef.displayName} · provisional Body tint · zones pending`;
     }
   }
 }
@@ -974,6 +997,7 @@ function updatePalette(palette) {
     controller.setPalette(currentPalette);
     controller.setSex?.(currentSex);
   }
+  updateShapeBodyTint(currentPalette.body);
   syncZoneStrip();
 }
 
@@ -1025,6 +1049,7 @@ function disposeModel() {
   homeCamera = null;
   shaderControllers = [];
   materialBindings = [];
+  shapeTintMaterials = [];
   disposeMaskAtlases();
   currentMaskData = null;
   zoneLookup = null;
@@ -1100,7 +1125,9 @@ async function loadChunkedGlb(def, token) {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-  return new GLTFLoader().parseAsync(bytes.buffer, "");
+  const gltfLoader = new GLTFLoader();
+  gltfLoader.setMeshoptDecoder(MeshoptDecoder);
+  return gltfLoader.parseAsync(bytes.buffer, "");
 }
 
 async function loadModelResource(def, token) {
@@ -1108,7 +1135,9 @@ async function loadModelResource(def, token) {
   if (def.loader.type === "chunked-base64") return loadChunkedGlb(def, token);
   if (def.loader.type === "url" && def.loader.url) {
     if (loaderEl) loaderEl.textContent = `Loading ${def.displayName}…`;
-    return new GLTFLoader().loadAsync(def.loader.url);
+    const gltfLoader = new GLTFLoader();
+    gltfLoader.setMeshoptDecoder(MeshoptDecoder);
+    return gltfLoader.loadAsync(def.loader.url);
   }
   throw new Error(`Unsupported model loader for ${def.displayName}`);
 }
@@ -1204,13 +1233,13 @@ async function loadModelForSpecies(label) {
       setStatus(true, `${def.displayName} · ${previewMode === "accurate" ? "EVRIMA linear colour" : "calibrated game preview"}`);
     } else {
       applyPreviewMode("game");
-      setStatus(true, `${def.displayName} · species shape loaded · zones pending`);
+      setStatus(true, `${def.displayName} · realistic paint mesh · provisional Body tint · zones pending`);
     }
 
     if (loaderEl) loaderEl.hidden = true;
     setLocalModelControlsEnabled(true);
     setCalibrationStatus(def.capability === "shape"
-      ? `${def.displayName} is ready for admin zone mapping.`
+      ? `${def.displayName} is inside Hollow Valley's renderer. Body colour is live as a provisional whole-model tint; map the EVRIMA UV zones to unlock accurate per-region colour painting.`
       : `${def.displayName} already has a calibrated zone map.`);
     if (calibrationToggleEl) calibrationToggleEl.disabled = def.capability !== "shape";
     document.dispatchEvent(new CustomEvent("hds:skin-model-ready", {
