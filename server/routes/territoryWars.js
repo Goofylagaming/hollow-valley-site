@@ -1071,6 +1071,9 @@ router.get("/me", requireAuth, (req, res) => {
     lineup: group && eventRaw ? eventLineup(eventRaw.id, group.id) : [],
     lineupCap: LINEUP_CAP,
     liveSubstitutionDelayMinutes: LIVE_SUB_DELAY_MS / 60000,
+    liveTestAllowed: eventRaw
+      ? liveTestGroupAllowed(eventRaw, group?.id)
+      : true,
   });
 });
 
