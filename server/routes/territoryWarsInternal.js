@@ -811,6 +811,291 @@ router.post("/attack", requireTerritoryInternalToken, (req, res) => {
 
 
 
+
+router.post("/preview-death-presence", requireTerritoryInternalToken, (req, res) => {
+  try {
+    if (!previewSeedEnabled()) {
+      return res.status(403).json({
+        error: "Territory Wars preview controls are disabled",
+      });
+    }
+
+    const mode = String(req.body?.mode || "prepare").trim().toLowerCase();
+    const attackerOne = ensurePreviewUser("999000000000000050");
+    const attackerTwo = ensurePreviewUser("999000000000000051");
+    const defender = ensurePreviewUser("999000000000000052");
+
+    if (!attackerOne || !attackerTwo || !defender) {
+      return res.status(500).json({
+        error: "Unable to create death-presence preview fighters",
+      });
+    }
+
+    let group = groupForUser(attackerOne.id);
+    if (!group) {
+      const created = db.prepare(`
+        INSERT INTO territory_groups (name, tag, leader_user_id)
+        VALUES ('Preview Death Group', 'DEATH', ?)
+      `).run(attackerOne.id);
+      const groupId = Number(created.lastInsertRowid);
+      db.prepare(`
+        INSERT INTO territory_group_members (group_id, user_id, role)
+        VALUES (?, ?, 'leader')
+      `).run(groupId, attackerOne.id);
+      db.prepare(
+        "INSERT OR IGNORE INTO territory_group_stats (group_id) VALUES (?)"
+      ).run(groupId);
+      group = groupForUser(attackerOne.id);
+    }
+
+    const attackerTwoMember = ensurePreviewGroupMember(
+      "999000000000000051",
+      group.id
+    );
+    if (!attackerTwoMember) {
+      return res.status(409).json({
+        error: "Unable to place second preview attacker in the Group",
+      });
+    }
+
+    db.prepare("UPDATE users SET is_admin = 1 WHERE id = ?")
+      .run(defender.id);
+
+    let event = latestEventRaw();
+    if (!event || event.status === "ended") {
+      const created = db.prepare(`
+        INSERT INTO territory_events
+          (name, territory_key, territory_name, status, owner_name,
+           challenger_name, control_score, owner_control, challenger_control,
+           starts_at, ends_at)
+        VALUES (?, 'south-plains', 'South Plains', 'live', 'Admin', ?, -100, 100, 0, ?, ?)
+      `).run(
+        "South Plains Death Presence Test",
+        group.name,
+        new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+        new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString()
+      );
+      event = eventById(Number(created.lastInsertRowid));
+    }
+
+    const activeAttackForFixture = () => db.prepare(`
+      SELECT *
+      FROM territory_attacks
+      WHERE event_id = ? AND status = 'active'
+      ORDER BY id DESC
+      LIMIT 1
+    `).get(event.id) || null;
+
+    if (mode === "prepare") {
+      const now = Date.now();
+      const activeFrom = new Date(now - 10 * 60 * 1000).toISOString();
+      const startedAt = new Date(now - 5 * 60 * 1000).toISOString();
+      const contestStartedAt = new Date(now - 3 * 60 * 1000).toISOString();
+      const lastTickAt = new Date(now - 60 * 1000).toISOString();
+      const endsAt = new Date(now + 5 * 60 * 60 * 1000).toISOString();
+
+      let attackId = null;
+      runTransaction(() => {
+        db.prepare(`
+          UPDATE territory_events
+          SET status = 'live',
+              owner_name = 'Admin',
+              challenger_name = ?,
+              control_score = -100,
+              owner_control = 100,
+              challenger_control = 0,
+              protection_until = NULL,
+              starts_at = ?,
+              ends_at = ?,
+              updated_at = datetime('now')
+          WHERE id = ?
+        `).run(
+          group.name,
+          new Date(now - 10 * 60 * 1000).toISOString(),
+          endsAt,
+          event.id
+        );
+
+        db.prepare(`
+          INSERT INTO territory_event_registrations
+            (event_id, group_id, registered_by_user_id, status)
+          VALUES (?, ?, ?, 'registered')
+          ON CONFLICT(event_id, group_id) DO UPDATE SET status = 'registered'
+        `).run(event.id, group.id, attackerOne.id);
+
+        db.prepare(
+          "DELETE FROM territory_event_lineups WHERE event_id = ? AND group_id = ?"
+        ).run(event.id, group.id);
+
+        const lineupInsert = db.prepare(`
+          INSERT INTO territory_event_lineups
+            (event_id, group_id, user_id, selected_by_user_id, active_from, selected_at)
+          VALUES (?, ?, ?, ?, ?, datetime('now'))
+        `);
+        lineupInsert.run(
+          event.id, group.id, attackerOne.id, attackerOne.id, activeFrom
+        );
+        lineupInsert.run(
+          event.id, group.id, attackerTwo.id, attackerOne.id, activeFrom
+        );
+
+        db.prepare(
+          "DELETE FROM territory_preview_presence WHERE event_id = ?"
+        ).run(event.id);
+        db.prepare(
+          "DELETE FROM territory_presence_grace WHERE event_id = ?"
+        ).run(event.id);
+        try {
+          db.prepare(
+            "DELETE FROM territory_presence_deaths WHERE event_id = ?"
+          ).run(event.id);
+        } catch {}
+        try {
+          db.prepare(
+            "DELETE FROM territory_kill_momentum WHERE event_id = ?"
+          ).run(event.id);
+        } catch {}
+        db.prepare(
+          "DELETE FROM territory_combat_events WHERE event_id = ?"
+        ).run(event.id);
+
+        const presenceInsert = db.prepare(`
+          INSERT INTO territory_preview_presence
+            (event_id, user_id, side, in_battlefield, in_claim, updated_at)
+          VALUES (?, ?, ?, 1, 1, ?)
+        `);
+        const nowText = nowIso();
+        presenceInsert.run(
+          event.id, attackerOne.id, "attacker", nowText
+        );
+        presenceInsert.run(
+          event.id, attackerTwo.id, "attacker", nowText
+        );
+        presenceInsert.run(
+          event.id, defender.id, "defender", nowText
+        );
+
+        db.prepare(`
+          UPDATE territory_attacks
+          SET status = 'cancelled',
+              resolved_at = ?,
+              outcome = 'preview-death-reset'
+          WHERE event_id = ? AND status IN ('warning', 'active')
+        `).run(nowText, event.id);
+
+        const inserted = db.prepare(`
+          INSERT INTO territory_attacks
+            (event_id, attacker_group_id, defender_group_id, status,
+             declared_by_user_id, declared_at, starts_at,
+             contest_started_at, last_tick_at)
+          VALUES (?, ?, NULL, 'active', ?, ?, ?, ?, ?)
+        `).run(
+          event.id,
+          group.id,
+          attackerOne.id,
+          startedAt,
+          startedAt,
+          contestStartedAt,
+          lastTickAt
+        );
+        attackId = Number(inserted.lastInsertRowid);
+      });
+
+      return res.json({
+        ok: true,
+        mode,
+        eventId: Number(event.id),
+        attackId,
+        victimSteamId: String(attackerTwo.steam_id),
+        defenderSteamId: String(defender.steam_id),
+        controlBefore: -100,
+        attackersBefore: 2,
+      });
+    }
+
+    const attack = activeAttackForFixture();
+    if (!attack) {
+      return res.status(409).json({
+        error: "Prepare the death-presence test first",
+      });
+    }
+
+    if (mode === "kill") {
+      const location = { x: -302000, y: 250000, z: 0 };
+      const occurredAt = nowIso();
+      const result = territoryCombatSync._test.processCombatEvent(
+        {
+          id: `preview-death-presence-${event.id}-${attack.id}`,
+          occurredAt,
+          killerSteamId: String(defender.steam_id),
+          victimSteamId: String(attackerTwo.steam_id),
+          killerName: defender.username,
+          victimName: attackerTwo.username,
+          killerLocation: location,
+          victimLocation: location,
+          presenceSampledAt: occurredAt,
+        },
+        eventById(event.id)
+      );
+
+      const deathRow = db.prepare(`
+        SELECT killed_at, seen_absent
+        FROM territory_presence_deaths
+        WHERE event_id = ? AND user_id = ?
+      `).get(event.id, attackerTwo.id) || null;
+
+      return res.json({
+        ok: true,
+        mode,
+        eventId: Number(event.id),
+        attackId: Number(attack.id),
+        combat: result,
+        deathLock: Boolean(deathRow),
+        seenAbsent: Boolean(deathRow?.seen_absent),
+      });
+    }
+
+    if (mode === "absent") {
+      db.prepare(`
+        UPDATE territory_preview_presence
+        SET in_claim = 0, in_battlefield = 0, updated_at = ?
+        WHERE event_id = ? AND user_id = ?
+      `).run(nowIso(), event.id, attackerTwo.id);
+
+      return res.json({
+        ok: true,
+        mode,
+        eventId: Number(event.id),
+        attackId: Number(attack.id),
+      });
+    }
+
+    if (mode === "return") {
+      db.prepare(`
+        UPDATE territory_preview_presence
+        SET in_claim = 1, in_battlefield = 1, updated_at = ?
+        WHERE event_id = ? AND user_id = ?
+      `).run(nowIso(), event.id, attackerTwo.id);
+
+      return res.json({
+        ok: true,
+        mode,
+        eventId: Number(event.id),
+        attackId: Number(attack.id),
+      });
+    }
+
+    return res.status(400).json({
+      error: "Death-presence mode must be prepare, kill, absent, or return",
+    });
+  } catch (error) {
+    console.error("[TerritoryWars] Preview death-presence test failed:", error);
+    return res.status(500).json({
+      error: error?.message || "Unable to run the Territory death-presence test",
+    });
+  }
+});
+
 router.post("/preview-phase-chain", requireTerritoryInternalToken, (req, res) => {
   try {
     if (!previewSeedEnabled()) {
