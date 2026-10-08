@@ -28,3 +28,22 @@ test("unknown preview territory falls back to South Plains", () => {
   const state = _test.buildAdminPreviewState({ is_admin: true }, "Not A Real Territory");
   assert.equal(state.preview.territoryName, "South Plains");
 });
+
+
+test("admin all-territories preview returns every configured boundary pair", () => {
+  const state = _test.buildAdminPreviewState({ is_admin: true }, "__all__");
+
+  assert.equal(state.preview.active, true);
+  assert.equal(state.preview.allTerritories, true);
+  assert.equal(state.preview.territoryName, "All Territories");
+  assert.equal(state.preview.territoryValue, "__all__");
+  assert.equal(state.zones, null);
+  assert.equal(state.preview.zones.length, _test.previewTerritories().length);
+  assert.ok(state.preview.zones.length > 1);
+  assert.ok(state.preview.zones.every((zone) =>
+    zone.mapCenter &&
+    zone.battlefieldRadiusMetres === 600 &&
+    zone.claimRadiusMetres === 200
+  ));
+  assert.equal(state.intel.exactOpponentPositionsExposed, false);
+});
