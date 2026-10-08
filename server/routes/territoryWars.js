@@ -157,6 +157,14 @@ db.exec(`
     PRIMARY KEY (event_id, user_id)
   );
 
+  CREATE TABLE IF NOT EXISTS territory_presence_deaths (
+    event_id INTEGER NOT NULL REFERENCES territory_events(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    killed_at TEXT NOT NULL,
+    seen_absent INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (event_id, user_id)
+  );
+
   CREATE TABLE IF NOT EXISTS territory_preview_presence (
     event_id INTEGER NOT NULL REFERENCES territory_events(id) ON DELETE CASCADE,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -602,19 +610,59 @@ function decorateAttack(attack) {
 }
 
 function updateGrace(eventId, member, insideSteamIds, nowMs) {
+  const eventIdNumber = Number(eventId);
+  const userIdNumber = Number(member.user_id);
   const inside = insideSteamIds.has(String(member.steam_id));
+
+  const death = db.prepare(`
+    SELECT killed_at, seen_absent
+    FROM territory_presence_deaths
+    WHERE event_id = ? AND user_id = ?
+  `).get(eventIdNumber, userIdNumber) || null;
+
+  if (death) {
+    if (!inside) {
+      if (!Number(death.seen_absent)) {
+        db.prepare(`
+          UPDATE territory_presence_deaths
+          SET seen_absent = 1
+          WHERE event_id = ? AND user_id = ?
+        `).run(eventIdNumber, userIdNumber);
+      }
+      db.prepare(`
+        DELETE FROM territory_presence_grace
+        WHERE event_id = ? AND user_id = ?
+      `).run(eventIdNumber, userIdNumber);
+      return false;
+    }
+
+    if (!Number(death.seen_absent)) {
+      db.prepare(`
+        DELETE FROM territory_presence_grace
+        WHERE event_id = ? AND user_id = ?
+      `).run(eventIdNumber, userIdNumber);
+      return false;
+    }
+
+    db.prepare(`
+      DELETE FROM territory_presence_deaths
+      WHERE event_id = ? AND user_id = ?
+    `).run(eventIdNumber, userIdNumber);
+  }
+
   if (inside) {
     db.prepare(`
       INSERT INTO territory_presence_grace (event_id, user_id, last_inside_at)
       VALUES (?, ?, ?)
       ON CONFLICT(event_id, user_id) DO UPDATE SET last_inside_at = excluded.last_inside_at
-    `).run(Number(eventId), Number(member.user_id), new Date(nowMs).toISOString());
+    `).run(eventIdNumber, userIdNumber, new Date(nowMs).toISOString());
     return true;
   }
+
   const row = db.prepare(`
     SELECT last_inside_at FROM territory_presence_grace
     WHERE event_id = ? AND user_id = ?
-  `).get(Number(eventId), Number(member.user_id));
+  `).get(eventIdNumber, userIdNumber);
   const lastInside = parseDate(row?.last_inside_at);
   return Boolean(lastInside && nowMs - lastInside.getTime() <= BOUNDARY_GRACE_MS);
 }
