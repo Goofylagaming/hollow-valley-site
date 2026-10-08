@@ -845,6 +845,8 @@ router.post("/attack", requireTerritoryInternalToken, (req, res) => {
 
 router.post("/preview-death-presence", requireTerritoryInternalToken, (req, res) => {
   try {
+    territoryCombatSync._test.ensureSchema();
+
     if (!previewSeedEnabled()) {
       return res.status(403).json({
         error: "Territory Wars preview controls are disabled",
