@@ -2176,6 +2176,118 @@ router.post("/preview-combat-eligibility", requireTerritoryInternalToken, (req, 
   }
 });
 
+router.post("/preview-combat-integrity", requireTerritoryInternalToken, (req, res) => {
+  try {
+    if (!previewSeedEnabled()) {
+      return res.status(403).json({ error: "Territory preview controls are disabled" });
+    }
+
+    const eventId = Number(req.body?.eventId || 0);
+    const attackId = Number(req.body?.attackId || 0);
+
+    if (!Number.isInteger(eventId) || eventId <= 0 || !Number.isInteger(attackId) || attackId <= 0) {
+      return res.status(400).json({ error: "Valid event and attack IDs are required" });
+    }
+
+    const event = eventById(eventId);
+    const attack = db.prepare(
+      "SELECT * FROM territory_attacks WHERE id = ? AND event_id = ?"
+    ).get(attackId, eventId);
+
+    if (!event || event.status !== "live" || !attack || attack.status !== "active") {
+      return res.status(409).json({
+        error: "A live Territory preview event with an active attack is required",
+      });
+    }
+
+    const attackers = activeLineup(eventId, attack.attacker_group_id);
+    if (attackers.length < 2) {
+      return res.status(409).json({
+        error: "Combat integrity test needs at least two active attackers",
+      });
+    }
+
+    const inside = { x: -302000, y: 250000, z: 0 };
+    const occurredAt = nowIso();
+    const momentumBefore = territoryMomentum.recentMomentum(
+      eventId,
+      attackId,
+      Date.now()
+    );
+
+    const natural = territoryCombatSync._test.processCombatEvent(
+      {
+        id: `preview-combat-integrity-${eventId}-${attackId}-natural`,
+        occurredAt,
+        killerSteamId: "",
+        victimSteamId: String(attackers[0].steam_id),
+        victimName: attackers[0].username,
+        killerLocation: inside,
+        victimLocation: inside,
+        presenceSampledAt: occurredAt,
+      },
+      event
+    );
+
+    const selfKill = territoryCombatSync._test.processCombatEvent(
+      {
+        id: `preview-combat-integrity-${eventId}-${attackId}-self`,
+        occurredAt,
+        killerSteamId: String(attackers[0].steam_id),
+        victimSteamId: String(attackers[0].steam_id),
+        killerName: attackers[0].username,
+        victimName: attackers[0].username,
+        killerLocation: inside,
+        victimLocation: inside,
+        presenceSampledAt: occurredAt,
+      },
+      event
+    );
+
+    const sameSide = territoryCombatSync._test.processCombatEvent(
+      {
+        id: `preview-combat-integrity-${eventId}-${attackId}-friendly`,
+        occurredAt,
+        killerSteamId: String(attackers[0].steam_id),
+        victimSteamId: String(attackers[1].steam_id),
+        killerName: attackers[0].username,
+        victimName: attackers[1].username,
+        killerLocation: inside,
+        victimLocation: inside,
+        presenceSampledAt: occurredAt,
+      },
+      event
+    );
+
+    const momentumAfter = territoryMomentum.recentMomentum(
+      eventId,
+      attackId,
+      Date.now()
+    );
+
+    addLog(
+      eventId,
+      "preview",
+      "Preview combat integrity verified natural, self, and same-side kills are ignored",
+      null
+    );
+
+    return res.json({
+      ok: true,
+      natural,
+      selfKill,
+      sameSide,
+      momentumBefore,
+      momentumAfter,
+    });
+  } catch (error) {
+    console.error("[TerritoryWars] Preview combat integrity test failed:", error);
+    return res.status(500).json({
+      error: error?.message || "Unable to run the Territory combat integrity test",
+    });
+  }
+});
+
 router.post("/preview-expire-kill-momentum", requireTerritoryInternalToken, (req, res) => {
   try {
     if (!previewSeedEnabled()) {
