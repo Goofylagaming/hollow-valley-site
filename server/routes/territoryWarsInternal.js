@@ -1069,6 +1069,38 @@ router.post("/preview-phase-chain", requireTerritoryInternalToken, (req, res) =>
       });
     }
 
+    if (mode === "claim-grace-expired") {
+      const active = activeLineup(event.id, group.id);
+      if (active.length < MIN_ATTACKERS_TO_CONTEST) {
+        return res.status(409).json({
+          error: "Phase-chain test needs two active lineup attackers",
+        });
+      }
+
+      const expiredAt = new Date(Date.now() - (31 * 1000)).toISOString();
+      db.prepare(`
+        INSERT INTO territory_presence_grace
+          (event_id, user_id, last_inside_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(event_id, user_id)
+        DO UPDATE SET last_inside_at = excluded.last_inside_at
+      `).run(
+        event.id,
+        active[1].user_id,
+        expiredAt
+      );
+
+      return res.json({
+        ok: true,
+        mode,
+        eventId: Number(event.id),
+        attackId: Number(attack.id),
+        graceSeconds: 30,
+        expiredUserId: Number(active[1].user_id),
+        expiredAt,
+      });
+    }
+
     if (mode === "arm-expired") {
       const now = Date.now();
       db.prepare(`
@@ -1097,7 +1129,7 @@ router.post("/preview-phase-chain", requireTerritoryInternalToken, (req, res) =>
     }
 
     return res.status(400).json({
-      error: "Phase-chain mode must be prepare, warning-expired, claim-entered, claim-broken, or arm-expired",
+      error: "Phase-chain mode must be prepare, warning-expired, claim-entered, claim-broken, claim-grace-expired, or arm-expired",
     });
   } catch (error) {
     console.error("[TerritoryWars] Preview phase-chain test failed:", error);
