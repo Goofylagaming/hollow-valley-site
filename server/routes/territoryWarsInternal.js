@@ -1040,6 +1040,35 @@ router.post("/preview-phase-chain", requireTerritoryInternalToken, (req, res) =>
       });
     }
 
+    if (mode === "claim-broken") {
+      const active = activeLineup(event.id, group.id);
+      if (active.length < 1) {
+        return res.status(409).json({
+          error: "Phase-chain test needs an active lineup attacker",
+        });
+      }
+
+      runTransaction(() => {
+        db.prepare(
+          "DELETE FROM territory_preview_presence WHERE event_id = ?"
+        ).run(event.id);
+
+        db.prepare(`
+          INSERT INTO territory_preview_presence
+            (event_id, user_id, side, in_battlefield, in_claim, updated_at)
+          VALUES (?, ?, 'attacker', 1, 1, ?)
+        `).run(event.id, active[0].user_id, nowIso());
+      });
+
+      return res.json({
+        ok: true,
+        mode,
+        eventId: Number(event.id),
+        attackId: Number(attack.id),
+        attackers: 1,
+      });
+    }
+
     if (mode === "arm-expired") {
       const now = Date.now();
       db.prepare(`
@@ -1068,7 +1097,7 @@ router.post("/preview-phase-chain", requireTerritoryInternalToken, (req, res) =>
     }
 
     return res.status(400).json({
-      error: "Phase-chain mode must be prepare, warning-expired, claim-entered, or arm-expired",
+      error: "Phase-chain mode must be prepare, warning-expired, claim-entered, claim-broken, or arm-expired",
     });
   } catch (error) {
     console.error("[TerritoryWars] Preview phase-chain test failed:", error);
