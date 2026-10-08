@@ -82,12 +82,14 @@ function insertUser({ role = null, groupId = null, discord = true } = {}) {
 }
 
 function createGroup(leader) {
+  sequence += 1;
+  const groupSequence = sequence;
   const result = db.prepare(`
     INSERT INTO territory_groups (name, tag, leader_user_id)
     VALUES (?, ?, ?)
   `).run(
-    `Internal Pack ${sequence}`,
-    `I${String(sequence).slice(-4)}`,
+    `Internal Pack ${groupSequence}`,
+    `I${String(groupSequence).slice(-4)}`,
     leader.id
   );
 
