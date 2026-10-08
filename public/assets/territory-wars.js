@@ -414,7 +414,30 @@ function renderEventEntry(data) {
   if (empty) empty.hidden = true;
   setHidden("tw-event-entry-state", false);
   text("tw-entry-event-name", event.name || "Territory War");
-  text("tw-entry-event-detail", `${event.territory_name || "South Plains"} · ${String(event.status || "scheduled").toUpperCase()} · ${formatDate(event.starts_at)} to ${formatDate(event.ends_at)}`);
+
+  const liveTestLocked = Boolean(Number(event.live_test_mode || 0)) && data?.liveTestAllowed === false;
+  if (liveTestLocked) {
+    text(
+      "tw-entry-event-detail",
+      `${event.territory_name || "South Plains"} · CONTROLLED LIVE TEST · ${formatDate(event.starts_at)} to ${formatDate(event.ends_at)}`
+    );
+    if (status) {
+      status.textContent = "Live test locked";
+      status.className = "tw-status warn";
+    }
+    if (registerButton) registerButton.hidden = true;
+    setHidden("tw-lineup-state", true);
+    setHidden("tw-attack-state", true);
+    setMessage(
+      "tw-event-entry-message",
+      "This event is in controlled live testing. Only Groups approved by Hollow Valley admins can register, change lineups, or declare attacks."
+    );
+    return;
+  }
+  text(
+    "tw-entry-event-detail",
+    `${event.territory_name || "South Plains"} · ${Number(event.live_test_mode || 0) ? "CONTROLLED LIVE TEST · " : ""}${String(event.status || "scheduled").toUpperCase()} · ${formatDate(event.starts_at)} to ${formatDate(event.ends_at)}`
+  );
 
   const isLeader = group.role === "leader";
   if (status) {
