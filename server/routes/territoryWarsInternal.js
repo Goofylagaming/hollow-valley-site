@@ -2288,6 +2288,150 @@ router.post("/preview-combat-integrity", requireTerritoryInternalToken, (req, re
   }
 });
 
+router.post("/preview-combat-timing", requireTerritoryInternalToken, (req, res) => {
+  try {
+    if (!previewSeedEnabled()) {
+      return res.status(403).json({ error: "Territory preview controls are disabled" });
+    }
+
+    const eventId = Number(req.body?.eventId || 0);
+    const attackId = Number(req.body?.attackId || 0);
+
+    if (!Number.isInteger(eventId) || eventId <= 0 || !Number.isInteger(attackId) || attackId <= 0) {
+      return res.status(400).json({ error: "Valid event and attack IDs are required" });
+    }
+
+    const event = eventById(eventId);
+    const attack = db.prepare(
+      "SELECT * FROM territory_attacks WHERE id = ? AND event_id = ?"
+    ).get(attackId, eventId);
+
+    if (!event || event.status !== "live" || !attack || attack.status !== "active") {
+      return res.status(409).json({
+        error: "A live Territory preview event with an active attack is required",
+      });
+    }
+
+    const attackers = activeLineup(eventId, attack.attacker_group_id);
+    const defenders = db.prepare(`
+      SELECT id, steam_id, username
+      FROM users
+      WHERE is_admin = 1
+        AND steam_id IS NOT NULL
+      ORDER BY id ASC
+      LIMIT 1
+    `).all();
+
+    if (attackers.length < 1 || defenders.length < 1) {
+      return res.status(409).json({
+        error: "Combat timing test needs an active attacker and a system defender",
+      });
+    }
+
+    const attacker = attackers[0];
+    const defender = defenders[0];
+    const inside = { x: -302000, y: 250000, z: 0 };
+
+    const eventStart = new Date(event.starts_at);
+    const eventEnd = new Date(event.ends_at);
+    const attackStart = new Date(attack.starts_at);
+
+    if (
+      Number.isNaN(eventStart.getTime()) ||
+      Number.isNaN(eventEnd.getTime()) ||
+      Number.isNaN(attackStart.getTime())
+    ) {
+      return res.status(409).json({
+        error: "Preview event or attack timestamps are invalid",
+      });
+    }
+
+    const beforeEventAt = new Date(eventStart.getTime() - 1000).toISOString();
+    const afterEventAt = new Date(eventEnd.getTime() + 1000).toISOString();
+
+    // Use an event-window clone that begins before the attack so the verifier
+    // reaches the no-active-attack check without mutating the real event.
+    const timingEvent = {
+      ...event,
+      starts_at: new Date(attackStart.getTime() - 5 * 60 * 1000).toISOString(),
+      ends_at: event.ends_at,
+    };
+    const noAttackAt = new Date(attackStart.getTime() - 60 * 1000).toISOString();
+
+    const momentumBefore = territoryMomentum.recentMomentum(
+      eventId,
+      attackId,
+      Date.now()
+    );
+
+    const base = {
+      killerSteamId: String(attacker.steam_id),
+      victimSteamId: String(defender.steam_id),
+      killerName: attacker.username,
+      victimName: defender.username,
+      killerLocation: inside,
+      victimLocation: inside,
+    };
+
+    const beforeEvent = territoryCombatSync._test.processCombatEvent(
+      {
+        ...base,
+        id: `preview-combat-timing-${eventId}-${attackId}-before`,
+        occurredAt: beforeEventAt,
+        presenceSampledAt: beforeEventAt,
+      },
+      event
+    );
+
+    const afterEvent = territoryCombatSync._test.processCombatEvent(
+      {
+        ...base,
+        id: `preview-combat-timing-${eventId}-${attackId}-after`,
+        occurredAt: afterEventAt,
+        presenceSampledAt: afterEventAt,
+      },
+      event
+    );
+
+    const noActiveAttack = territoryCombatSync._test.processCombatEvent(
+      {
+        ...base,
+        id: `preview-combat-timing-${eventId}-${attackId}-no-attack`,
+        occurredAt: noAttackAt,
+        presenceSampledAt: noAttackAt,
+      },
+      timingEvent
+    );
+
+    const momentumAfter = territoryMomentum.recentMomentum(
+      eventId,
+      attackId,
+      Date.now()
+    );
+
+    addLog(
+      eventId,
+      "preview",
+      "Preview combat timing verified before-event, after-event, and no-active-attack kills are ignored",
+      null
+    );
+
+    return res.json({
+      ok: true,
+      beforeEvent,
+      afterEvent,
+      noActiveAttack,
+      momentumBefore,
+      momentumAfter,
+    });
+  } catch (error) {
+    console.error("[TerritoryWars] Preview combat timing test failed:", error);
+    return res.status(500).json({
+      error: error?.message || "Unable to run the Territory combat timing test",
+    });
+  }
+});
+
 router.post("/preview-expire-kill-momentum", requireTerritoryInternalToken, (req, res) => {
   try {
     if (!previewSeedEnabled()) {
