@@ -190,6 +190,22 @@ function groupForUser(userId) {
   `).get(Number(userId)) || null;
 }
 
+function liveTestGroupAllowed(event, groupId) {
+  if (!event || !Number(event.live_test_mode)) return true;
+  if (!groupId) return false;
+  return Boolean(db.prepare(`
+    SELECT 1
+    FROM territory_live_test_groups
+    WHERE event_id = ? AND group_id = ?
+    LIMIT 1
+  `).get(Number(event.id), Number(groupId)));
+}
+
+function requireLiveTestAccess(event, groupId) {
+  if (liveTestGroupAllowed(event, groupId)) return null;
+  return "This Territory War is in controlled live testing. Your Group is not on the live-test allowlist.";
+}
+
 function latestEventRaw() {
   return db.prepare(`
     SELECT * FROM territory_events
@@ -404,6 +420,11 @@ router.post("/register", requireTerritoryInternalToken, (req, res) => {
       return res.status(409).json({ error: "That Territory War has already ended." });
     }
 
+    const liveTestError = requireLiveTestAccess(event, group.id);
+    if (liveTestError) {
+      return res.status(403).json({ error: liveTestError });
+    }
+
     db.prepare(`
       INSERT INTO territory_event_registrations
         (event_id, group_id, registered_by_user_id, status)
@@ -531,6 +552,11 @@ router.post("/lineup", requireTerritoryInternalToken, (req, res) => {
     const event = latestUsableEvent(req.body?.eventId);
     if (!event) {
       return res.status(404).json({ error: "No Territory War event is available." });
+    }
+
+    const liveTestError = requireLiveTestAccess(event, group.id);
+    if (liveTestError) {
+      return res.status(403).json({ error: liveTestError });
     }
 
     if (!eventRegistration(event.id, group.id)) {
@@ -704,6 +730,11 @@ router.post("/attack", requireTerritoryInternalToken, (req, res) => {
 
     if (!event) {
       return res.status(404).json({ error: "No Territory War event is available." });
+    }
+
+    const liveTestError = requireLiveTestAccess(event, group.id);
+    if (liveTestError) {
+      return res.status(403).json({ error: liveTestError });
     }
 
     if (event.status !== "live") {
