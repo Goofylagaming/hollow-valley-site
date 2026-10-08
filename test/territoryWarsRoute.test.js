@@ -315,3 +315,91 @@ test('live lineup substitutions wait ten minutes before the new fighter becomes 
   assert.equal(response.status, 409);
   assert.match((await response.json()).error, /at least 2 active lineup fighters/i);
 });
+
+
+test('controlled live-test mode restricts Territory participation to approved Groups', async (t) => {
+  const approvedLeader = insertUser();
+  const blockedLeader = insertUser();
+  const admin = insertUser({ admin: true });
+
+  const approvedServer = await listen(appFor(approvedLeader));
+  const blockedServer = await listen(appFor(blockedLeader));
+  const adminServer = await listen(appFor(admin));
+  t.after(() => Promise.all([
+    new Promise((resolve) => approvedServer.close(resolve)),
+    new Promise((resolve) => blockedServer.close(resolve)),
+    new Promise((resolve) => adminServer.close(resolve)),
+  ]));
+
+  let response = await request(approvedServer, '/api/territory-wars/group', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: `Approved Live Test ${sequence}`,
+      tag: `AL${sequence}`,
+    }),
+  });
+  assert.equal(response.status, 200);
+  const approvedGroupId = Number((await response.json()).group.id);
+
+  response = await request(blockedServer, '/api/territory-wars/group', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: `Blocked Live Test ${sequence}`,
+      tag: `BL${sequence}`,
+    }),
+  });
+  assert.equal(response.status, 200);
+  const blockedGroupId = Number((await response.json()).group.id);
+  assert.notEqual(blockedGroupId, approvedGroupId);
+
+  response = await request(adminServer, '/api/territory-wars/admin/event', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: `Controlled Live Test ${sequence}`,
+      territoryName: 'South Plains',
+      territoryKey: 'south-plains',
+      ownerName: 'Admin',
+    }),
+  });
+  assert.equal(response.status, 200);
+  const eventId = Number((await response.json()).event.id);
+
+  response = await request(adminServer, '/api/territory-wars/admin/live-test', {
+    method: 'POST',
+    body: JSON.stringify({ id: eventId, enabled: true }),
+  });
+  assert.equal(response.status, 200);
+  assert.equal(Number((await response.json()).event.live_test_mode), 1);
+
+  response = await request(adminServer, '/api/territory-wars/admin/live-test-group', {
+    method: 'POST',
+    body: JSON.stringify({
+      id: eventId,
+      groupId: approvedGroupId,
+      allowed: true,
+    }),
+  });
+  assert.equal(response.status, 200);
+  const allowed = await response.json();
+  assert.equal(allowed.liveTestGroups.length, 1);
+  assert.equal(Number(allowed.liveTestGroups[0].id), approvedGroupId);
+
+  response = await request(approvedServer, '/api/territory-wars/event-register', {
+    method: 'POST',
+    body: JSON.stringify({ eventId }),
+  });
+  assert.equal(response.status, 200);
+
+  response = await request(blockedServer, '/api/territory-wars/event-register', {
+    method: 'POST',
+    body: JSON.stringify({ eventId }),
+  });
+  assert.equal(response.status, 403);
+  assert.match((await response.json()).error, /controlled live testing/i);
+
+  response = await request(blockedServer, '/api/territory-wars/me');
+  assert.equal(response.status, 200);
+  const blockedState = await response.json();
+  assert.equal(Number(blockedState.event.live_test_mode), 1);
+  assert.equal(blockedState.liveTestAllowed, false);
+});
