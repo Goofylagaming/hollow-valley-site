@@ -2334,12 +2334,18 @@ router.post("/preview-combat-timing", requireTerritoryInternalToken, (req, res) 
 
     const eventStart = new Date(event.starts_at);
     const eventEnd = new Date(event.ends_at);
-    const attackStart = new Date(attack.starts_at);
+    const earliestAttackStartRaw = db.prepare(`
+      SELECT MIN(starts_at) AS starts_at
+      FROM territory_attacks
+      WHERE event_id = ?
+        AND starts_at IS NOT NULL
+    `).get(eventId)?.starts_at || attack.starts_at;
+    const earliestAttackStart = new Date(earliestAttackStartRaw);
 
     if (
       Number.isNaN(eventStart.getTime()) ||
       Number.isNaN(eventEnd.getTime()) ||
-      Number.isNaN(attackStart.getTime())
+      Number.isNaN(earliestAttackStart.getTime())
     ) {
       return res.status(409).json({
         error: "Preview event or attack timestamps are invalid",
@@ -2349,14 +2355,19 @@ router.post("/preview-combat-timing", requireTerritoryInternalToken, (req, res) 
     const beforeEventAt = new Date(eventStart.getTime() - 1000).toISOString();
     const afterEventAt = new Date(eventEnd.getTime() + 1000).toISOString();
 
-    // Use an event-window clone that begins before the attack so the verifier
-    // reaches the no-active-attack check without mutating the real event.
+    // Pick a timestamp before the earliest attack ever recorded for this event.
+    // Widen only the in-memory event window so the production verifier reaches
+    // the no-active-attack check without mutating the actual event or attacks.
+    const noAttackAt = new Date(
+      earliestAttackStart.getTime() - 60 * 1000
+    ).toISOString();
     const timingEvent = {
       ...event,
-      starts_at: new Date(attackStart.getTime() - 5 * 60 * 1000).toISOString(),
+      starts_at: new Date(
+        earliestAttackStart.getTime() - 5 * 60 * 1000
+      ).toISOString(),
       ends_at: event.ends_at,
     };
-    const noAttackAt = new Date(attackStart.getTime() - 60 * 1000).toISOString();
 
     const momentumBefore = territoryMomentum.recentMomentum(
       eventId,
