@@ -890,8 +890,8 @@ router.post("/preview-death-presence", requireTerritoryInternalToken, (req, res)
       const now = Date.now();
       const activeFrom = new Date(now - 10 * 60 * 1000).toISOString();
       const startedAt = new Date(now - 5 * 60 * 1000).toISOString();
-      const contestStartedAt = new Date(now - 3 * 60 * 1000).toISOString();
-      const lastTickAt = new Date(now - 60 * 1000).toISOString();
+      const contestStartedAt = new Date(now).toISOString();
+      const lastTickAt = new Date(now).toISOString();
       const endsAt = new Date(now + 5 * 60 * 60 * 1000).toISOString();
 
       let attackId = null;
