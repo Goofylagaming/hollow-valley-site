@@ -7,7 +7,7 @@
   <title>Live map | Hollow Valley</title>
   <link rel="stylesheet" href="assets/styles.css?v=38">
   <link rel="stylesheet" href="assets/livemap-trail.css?v=3">
-  <link rel="stylesheet" href="assets/territory-map-overlay.css?v=3">
+  <link rel="stylesheet" href="assets/territory-map-overlay.css?v=4">
   <link rel="stylesheet" href="assets/livemap-precision.css?v=3">
   <link rel="stylesheet" href="assets/livemap-navigation.css?v=1">
   <link rel="stylesheet" href="assets/livemap-routes.css?v=1">
@@ -94,7 +94,8 @@
             <div class="territory-layer-tools" id="territory-layer-tools" hidden>
               <label class="territory-preview-switch" for="territory-admin-preview"><input type="checkbox" id="territory-admin-preview"><span>ADMIN PREVIEW</span></label>
               <label class="territory-preview-select" for="territory-preview-territory"><span>TERRITORY</span><select id="territory-preview-territory" aria-label="Territory boundary preview"></select></label>
-              <small id="territory-preview-note">Read-only boundary preview. Does not create or change a Territory War event.</small>
+              <div class="territory-preview-legend" aria-label="Territory boundary legend"><span><i class="battlefield"></i>Battlefield · 600m</span><span><i class="claim"></i>Claim · 200m</span></div>
+              <small id="territory-preview-note">Read-only boundary preview. Choose ALL TERRITORIES for the full Battlefield + Claim layout.</small>
             </div>
             <div class="target-pin-tools">
               <div class="target-pin-tools-head"><span>PRIVATE TARGET PINS</span><button type="button" class="target-pin-clear" id="clear-target-pins">CLEAR</button></div>
@@ -139,7 +140,7 @@
   </div>
   <script src="assets/common.js?v=19"></script>
   <script src="assets/livemap.js?v=16"></script>
-  <script src="assets/territory-map-overlay.js?v=3"></script>
+  <script src="assets/territory-map-overlay.js?v=4"></script>
   <script src="assets/livemap-precision.js?v=1"></script>
   <script src="assets/livemap-navigation.js?v=1"></script>
   <script src="assets/livemap-pins.js?v=1"></script>

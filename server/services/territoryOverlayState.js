@@ -254,13 +254,22 @@ function buildAdminPreviewState(user, requestedTerritory) {
 
   const available = previewTerritories();
   const wanted = String(requestedTerritory || "").trim();
-  const selected = available.find((name) => name.toLowerCase() === wanted.toLowerCase())
-    || (available.includes("South Plains") ? "South Plains" : available[0]);
+  const allSelected = ["__all__", "all", "all territories"].includes(wanted.toLowerCase());
+  const selected = allSelected
+    ? "__all__"
+    : available.find((name) => name.toLowerCase() === wanted.toLowerCase())
+      || (available.includes("South Plains") ? "South Plains" : available[0]);
 
-  const geometry = territoryGeometry({
+  const geometry = selected === "__all__" ? null : territoryGeometry({
     territoryName: selected,
     territoryKey: selected,
   });
+  const previewZones = selected === "__all__"
+    ? available.map((name) => zonePayload(territoryGeometry({
+        territoryName: name,
+        territoryKey: name,
+      }))).filter(Boolean)
+    : [];
 
   return {
     ok: true,
@@ -296,8 +305,11 @@ function buildAdminPreviewState(user, requestedTerritory) {
     preview: {
       active: true,
       available: true,
-      territoryName: selected,
-      territories: available,
+      allTerritories: selected === "__all__",
+      territoryName: selected === "__all__" ? "All Territories" : selected,
+      territoryValue: selected,
+      territories: ["__all__", ...available],
+      zones: previewZones,
       readOnly: true,
     },
   };
@@ -385,8 +397,11 @@ function buildOverlayState(user, {
     preview: {
       active: false,
       available: Boolean(user?.is_admin),
+      allTerritories: false,
       territoryName: null,
-      territories: user?.is_admin ? previewTerritories() : [],
+      territoryValue: null,
+      territories: user?.is_admin ? ["__all__", ...previewTerritories()] : [],
+      zones: [],
       readOnly: true,
     },
   };

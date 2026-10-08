@@ -90,16 +90,19 @@
     if (previewSelect && territories.length) {
       const currentOptions = [...previewSelect.options].map((option) => option.value);
       if (currentOptions.join("|") !== territories.join("|")) {
-        previewSelect.innerHTML = territories.map((name) => `<option value="${esc(name)}">${esc(name)}</option>`).join("");
+        previewSelect.innerHTML = territories.map((name) => {
+          const label = name === "__all__" ? "ALL TERRITORIES" : name;
+          return `<option value="${esc(name)}">${esc(label)}</option>`;
+        }).join("");
       }
 
-      const stored = storageGet(PREVIEW_TERRITORY_KEY, "South Plains");
-      const selected = territories.includes(preview.territoryName)
-        ? preview.territoryName
+      const stored = storageGet(PREVIEW_TERRITORY_KEY, "__all__");
+      const selectedValue = territories.includes(preview.territoryValue)
+        ? preview.territoryValue
         : territories.includes(stored)
           ? stored
           : territories[0];
-      previewSelect.value = selected;
+      previewSelect.value = selectedValue;
     }
 
     if (previewNote) {
@@ -132,21 +135,41 @@
     if(controlLabel) controlLabel.textContent=phase==="control-live"?"CLAIM CONTROL":"CONTROL";
   }
 
-  function renderZones(z, preview = false){
-    shapeLayer.dataset.phase=preview ? "preview" : (state?.timer?.phase||"idle");
-    shapeLayer.dataset.preview=preview?"true":"false";
-    if(!z?.mapCenter || !z?.battlefieldMapRadius || !z?.claimMapRadius){
-      shapeLayer.innerHTML="";
-      return;
-    }
+  function zoneMarkup(z, { compact = false } = {}){
+    if(!z?.mapCenter || !z?.battlefieldMapRadius || !z?.claimMapRadius) return "";
     const cx=(z.mapCenter.left*1000).toFixed(1), cy=(z.mapCenter.top*1000).toFixed(1);
     const brx=(z.battlefieldMapRadius.x*1000).toFixed(1), bry=(z.battlefieldMapRadius.y*1000).toFixed(1);
     const crx=(z.claimMapRadius.x*1000).toFixed(1), cry=(z.claimMapRadius.y*1000).toFixed(1);
-    shapeLayer.innerHTML=`
+    if(compact){
+      return `
+        <g class="tw-zone-group" data-territory="${esc(z.territoryName)}">
+          <ellipse class="tw-zone-shape battlefield" cx="${cx}" cy="${cy}" rx="${brx}" ry="${bry}"><title>${esc(z.territoryName)} Battlefield · ${z.battlefieldRadiusMetres ?? "?"}m radius</title></ellipse>
+          <ellipse class="tw-zone-shape claim" cx="${cx}" cy="${cy}" rx="${crx}" ry="${cry}"><title>${esc(z.territoryName)} Claim Zone · ${z.claimRadiusMetres ?? "?"}m radius</title></ellipse>
+          <circle class="tw-zone-center" cx="${cx}" cy="${cy}" r="2.5"><title>${esc(z.territoryName)}</title></circle>
+          <text class="tw-zone-label tw-territory-name" x="${cx}" y="${(Number(cy)-Number(cry)-5).toFixed(1)}" text-anchor="middle">${esc(z.territoryName)}</text>
+        </g>`;
+    }
+    return `
       <ellipse class="tw-zone-shape battlefield" cx="${cx}" cy="${cy}" rx="${brx}" ry="${bry}"><title>${esc(z.territoryName)} Battlefield</title></ellipse>
       <ellipse class="tw-zone-shape claim" cx="${cx}" cy="${cy}" rx="${crx}" ry="${cry}"><title>${esc(z.territoryName)} Claim Zone</title></ellipse>
       <text class="tw-zone-label" x="${cx}" y="${(Number(cy)-Number(bry)-8).toFixed(1)}" text-anchor="middle">BATTLEFIELD</text>
       <text class="tw-zone-label" x="${cx}" y="${(Number(cy)-Number(cry)-8).toFixed(1)}" text-anchor="middle">CLAIM ZONE</text>`;
+  }
+
+  function renderZones(z, preview = false){
+    shapeLayer.dataset.phase=preview ? "preview" : (state?.timer?.phase||"idle");
+    shapeLayer.dataset.preview=preview?"true":"false";
+    shapeLayer.dataset.allTerritories="false";
+    const markup=zoneMarkup(z);
+    shapeLayer.innerHTML=markup;
+  }
+
+  function renderAllPreviewZones(zones){
+    const entries=Array.isArray(zones)?zones.filter(Boolean):[];
+    shapeLayer.dataset.phase="preview";
+    shapeLayer.dataset.preview="true";
+    shapeLayer.dataset.allTerritories="true";
+    shapeLayer.innerHTML=entries.map((zone)=>zoneMarkup(zone,{compact:true})).join("");
   }
 
   function renderLeader(data){
@@ -193,7 +216,11 @@
       root.dataset.phase="preview";
       const name=$("[data-tw-preview-name]");
       if(name) name.textContent=data.preview.territoryName||data.zones?.territoryName||"Territory";
-      renderZones(data.zones,true);
+      if(data.preview.allTerritories){
+        renderAllPreviewZones(data.preview.zones);
+      }else{
+        renderZones(data.zones,true);
+      }
       return;
     }
 
