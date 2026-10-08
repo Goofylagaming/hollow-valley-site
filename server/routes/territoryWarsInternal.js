@@ -2332,21 +2332,17 @@ router.post("/preview-combat-timing", requireTerritoryInternalToken, (req, res) 
     const defender = defenders[0];
     const inside = { x: -302000, y: 250000, z: 0 };
 
-    const eventStart = new Date(event.starts_at);
-    const eventEnd = new Date(event.ends_at);
+    const eventStart = parseDate(event.starts_at);
+    const eventEnd = parseDate(event.ends_at);
     const earliestAttackStartRaw = db.prepare(`
       SELECT MIN(starts_at) AS starts_at
       FROM territory_attacks
       WHERE event_id = ?
         AND starts_at IS NOT NULL
     `).get(eventId)?.starts_at || attack.starts_at;
-    const earliestAttackStart = new Date(earliestAttackStartRaw);
+    const earliestAttackStart = parseDate(earliestAttackStartRaw);
 
-    if (
-      Number.isNaN(eventStart.getTime()) ||
-      Number.isNaN(eventEnd.getTime()) ||
-      Number.isNaN(earliestAttackStart.getTime())
-    ) {
+    if (!eventStart || !eventEnd || !earliestAttackStart) {
       return res.status(409).json({
         error: "Preview event or attack timestamps are invalid",
       });
