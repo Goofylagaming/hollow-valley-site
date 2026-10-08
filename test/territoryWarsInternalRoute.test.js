@@ -370,3 +370,87 @@ test("live lineup additions receive the ten-minute substitution delay", async (t
     assert.ok(delay <= (10 * 60 * 1000) + 5000, `delay was ${delay}ms`);
   }
 });
+
+
+test("HerbyBot Territory actions honor controlled live-test allowlist", async (t) => {
+  const approvedLeader = insertUser();
+  const blockedLeader = insertUser();
+  const approvedGroupId = createGroup(approvedLeader);
+  const blockedGroupId = createGroup(blockedLeader);
+  const eventId = createEvent({ status: "live" });
+
+  db.prepare(
+    "UPDATE territory_events SET live_test_mode = 1 WHERE id = ?"
+  ).run(eventId);
+
+  db.prepare(`
+    INSERT INTO territory_live_test_groups
+      (event_id, group_id, added_by_user_id)
+    VALUES (?, ?, NULL)
+  `).run(eventId, approvedGroupId);
+
+  const server = await listen(appForInternal());
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  let response = await request(
+    server,
+    "/api/territory-wars/internal/register",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        discordId: approvedLeader.discord_id,
+        eventId,
+      }),
+    }
+  );
+  assert.equal(response.status, 200);
+
+  response = await request(
+    server,
+    "/api/territory-wars/internal/register",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        discordId: blockedLeader.discord_id,
+        eventId,
+      }),
+    }
+  );
+  assert.equal(response.status, 403);
+  assert.match((await response.json()).error, /controlled live testing/i);
+
+  db.prepare(`
+    INSERT INTO territory_event_registrations
+      (event_id, group_id, registered_by_user_id, status)
+    VALUES (?, ?, ?, 'registered')
+  `).run(eventId, blockedGroupId, blockedLeader.id);
+
+  response = await request(
+    server,
+    "/api/territory-wars/internal/lineup",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        discordId: blockedLeader.discord_id,
+        eventId,
+        memberDiscordIds: [blockedLeader.discord_id],
+      }),
+    }
+  );
+  assert.equal(response.status, 403);
+  assert.match((await response.json()).error, /controlled live testing/i);
+
+  response = await request(
+    server,
+    "/api/territory-wars/internal/attack",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        discordId: blockedLeader.discord_id,
+        eventId,
+      }),
+    }
+  );
+  assert.equal(response.status, 403);
+  assert.match((await response.json()).error, /controlled live testing/i);
+});
