@@ -384,6 +384,12 @@ test('controlled live-test mode restricts Territory participation to approved Gr
   assert.equal(allowed.liveTestGroups.length, 1);
   assert.equal(Number(allowed.liveTestGroups[0].id), approvedGroupId);
 
+  response = await request(adminServer, '/api/territory-wars/admin/status', {
+    method: 'POST',
+    body: JSON.stringify({ id: eventId, status: 'live' }),
+  });
+  assert.equal(response.status, 200);
+
   response = await request(approvedServer, '/api/territory-wars/event-register', {
     method: 'POST',
     body: JSON.stringify({ eventId }),
