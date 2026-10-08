@@ -810,6 +810,274 @@ router.post("/attack", requireTerritoryInternalToken, (req, res) => {
 });
 
 
+
+router.post("/preview-phase-chain", requireTerritoryInternalToken, (req, res) => {
+  try {
+    if (!previewSeedEnabled()) {
+      return res.status(403).json({
+        error: "Territory Wars preview controls are disabled",
+      });
+    }
+
+    const mode = String(req.body?.mode || "prepare").trim().toLowerCase();
+    const leaderDiscordId = "999000000000000040";
+    const memberDiscordId = "999000000000000041";
+
+    const leader = ensurePreviewUser(leaderDiscordId);
+    if (!leader) {
+      return res.status(500).json({ error: "Unable to create phase-chain leader" });
+    }
+
+    let group = groupForUser(leader.id);
+    if (!group) {
+      const created = db.prepare(`
+        INSERT INTO territory_groups (name, tag, leader_user_id)
+        VALUES ('Preview Phase Group', 'PHASE', ?)
+      `).run(leader.id);
+      const groupId = Number(created.lastInsertRowid);
+      db.prepare(`
+        INSERT INTO territory_group_members (group_id, user_id, role)
+        VALUES (?, ?, 'leader')
+      `).run(groupId, leader.id);
+      db.prepare(
+        "INSERT OR IGNORE INTO territory_group_stats (group_id) VALUES (?)"
+      ).run(groupId);
+      group = groupForUser(leader.id);
+    }
+
+    const member = ensurePreviewGroupMember(memberDiscordId, group.id);
+    if (!member) {
+      return res.status(409).json({ error: "Unable to create phase-chain member" });
+    }
+
+    let event = latestEventRaw();
+    if (!event || event.status === "ended") {
+      const created = db.prepare(`
+        INSERT INTO territory_events
+          (name, territory_key, territory_name, status, owner_name, control_score,
+           owner_control, challenger_control, starts_at, ends_at)
+        VALUES (?, 'south-plains', 'South Plains', 'live', 'Admin', -100, 100, 0, ?, ?)
+      `).run(
+        "South Plains Phase Chain Test",
+        new Date(Date.now() - 60 * 1000).toISOString(),
+        new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString()
+      );
+      event = eventById(Number(created.lastInsertRowid));
+    }
+
+    const findAttack = () => db.prepare(`
+      SELECT *
+      FROM territory_attacks
+      WHERE event_id = ?
+        AND status IN ('warning', 'active')
+      ORDER BY id DESC
+      LIMIT 1
+    `).get(event.id) || null;
+
+    if (mode === "prepare") {
+      const now = Date.now();
+      const activeFrom = new Date(now - 10 * 60 * 1000).toISOString();
+      const declaredAt = new Date(now).toISOString();
+      const startsAt = new Date(now + ATTACK_WARNING_MS).toISOString();
+      const endsAt = new Date(now + 5 * 60 * 60 * 1000).toISOString();
+
+      let attackId = null;
+      runTransaction(() => {
+        db.prepare(`
+          UPDATE territory_events
+          SET status = 'live',
+              owner_name = 'Admin',
+              challenger_name = ?,
+              control_score = -100,
+              owner_control = 100,
+              challenger_control = 0,
+              protection_until = NULL,
+              starts_at = ?,
+              ends_at = ?,
+              updated_at = datetime('now')
+          WHERE id = ?
+        `).run(
+          group.name,
+          new Date(now - 60 * 1000).toISOString(),
+          endsAt,
+          event.id
+        );
+
+        db.prepare(`
+          INSERT INTO territory_event_registrations
+            (event_id, group_id, registered_by_user_id, status)
+          VALUES (?, ?, ?, 'registered')
+          ON CONFLICT(event_id, group_id) DO UPDATE SET status = 'registered'
+        `).run(event.id, group.id, leader.id);
+
+        db.prepare(
+          "DELETE FROM territory_event_lineups WHERE event_id = ? AND group_id = ?"
+        ).run(event.id, group.id);
+
+        const lineupInsert = db.prepare(`
+          INSERT INTO territory_event_lineups
+            (event_id, group_id, user_id, selected_by_user_id, active_from, selected_at)
+          VALUES (?, ?, ?, ?, ?, datetime('now'))
+        `);
+        lineupInsert.run(event.id, group.id, leader.id, leader.id, activeFrom);
+        lineupInsert.run(event.id, group.id, member.id, leader.id, activeFrom);
+
+        db.prepare(
+          "DELETE FROM territory_preview_presence WHERE event_id = ?"
+        ).run(event.id);
+        db.prepare(
+          "DELETE FROM territory_presence_grace WHERE event_id = ?"
+        ).run(event.id);
+        db.prepare(`
+          UPDATE territory_attacks
+          SET status = 'cancelled', resolved_at = ?, outcome = 'preview-phase-reset'
+          WHERE event_id = ? AND status IN ('warning', 'active')
+        `).run(declaredAt, event.id);
+
+        try {
+          db.prepare(
+            "DELETE FROM territory_kill_momentum WHERE event_id = ?"
+          ).run(event.id);
+        } catch {}
+
+        const inserted = db.prepare(`
+          INSERT INTO territory_attacks
+            (event_id, attacker_group_id, defender_group_id, status,
+             declared_by_user_id, declared_at, starts_at,
+             contest_started_at, last_tick_at)
+          VALUES (?, ?, NULL, 'warning', ?, ?, ?, NULL, NULL)
+        `).run(
+          event.id,
+          group.id,
+          leader.id,
+          declaredAt,
+          startsAt
+        );
+        attackId = Number(inserted.lastInsertRowid);
+      });
+
+      addLog(
+        event.id,
+        "preview",
+        "Preview phase-chain test prepared at the five-minute warning",
+        null
+      );
+
+      return res.json({
+        ok: true,
+        mode,
+        eventId: Number(event.id),
+        attackId,
+        groupId: Number(group.id),
+        warningMinutes: ATTACK_WARNING_MS / 60000,
+        contestArmMinutes: 2,
+        controlBefore: -100,
+      });
+    }
+
+    const attack = findAttack();
+    if (!attack) {
+      return res.status(409).json({
+        error: "Prepare the Territory phase-chain test first",
+      });
+    }
+
+    if (mode === "warning-expired") {
+      db.prepare(`
+        UPDATE territory_attacks
+        SET starts_at = ?, status = 'warning',
+            contest_started_at = NULL, last_tick_at = NULL
+        WHERE id = ?
+      `).run(
+        new Date(Date.now() - 1000).toISOString(),
+        attack.id
+      );
+
+      return res.json({
+        ok: true,
+        mode,
+        eventId: Number(event.id),
+        attackId: Number(attack.id),
+      });
+    }
+
+    if (mode === "claim-entered") {
+      const active = activeLineup(event.id, group.id);
+      if (active.length < MIN_ATTACKERS_TO_CONTEST) {
+        return res.status(409).json({
+          error: "Phase-chain test needs two active lineup attackers",
+        });
+      }
+
+      runTransaction(() => {
+        db.prepare(
+          "DELETE FROM territory_preview_presence WHERE event_id = ?"
+        ).run(event.id);
+
+        const insert = db.prepare(`
+          INSERT INTO territory_preview_presence
+            (event_id, user_id, side, in_battlefield, in_claim, updated_at)
+          VALUES (?, ?, 'attacker', 1, 1, ?)
+        `);
+        const now = nowIso();
+        for (const fighter of active.slice(0, MIN_ATTACKERS_TO_CONTEST)) {
+          insert.run(event.id, fighter.user_id, now);
+        }
+
+        db.prepare(`
+          UPDATE territory_attacks
+          SET status = 'active', contest_started_at = NULL, last_tick_at = ?
+          WHERE id = ?
+        `).run(now, attack.id);
+      });
+
+      return res.json({
+        ok: true,
+        mode,
+        eventId: Number(event.id),
+        attackId: Number(attack.id),
+        attackers: MIN_ATTACKERS_TO_CONTEST,
+      });
+    }
+
+    if (mode === "arm-expired") {
+      const now = Date.now();
+      db.prepare(`
+        UPDATE territory_attacks
+        SET status = 'active',
+            contest_started_at = ?,
+            last_tick_at = ?
+        WHERE id = ?
+      `).run(
+        new Date(now - (2 * 60 * 1000) - 1000).toISOString(),
+        new Date(now - 60 * 1000).toISOString(),
+        attack.id
+      );
+
+      return res.json({
+        ok: true,
+        mode,
+        eventId: Number(event.id),
+        attackId: Number(attack.id),
+        expectedControlAfterOneMinute: controlRatePerMinute({
+          attackers: MIN_ATTACKERS_TO_CONTEST,
+          defenders: 0,
+          momentumRate: 0,
+        }).rate - 100,
+      });
+    }
+
+    return res.status(400).json({
+      error: "Phase-chain mode must be prepare, warning-expired, claim-entered, or arm-expired",
+    });
+  } catch (error) {
+    console.error("[TerritoryWars] Preview phase-chain test failed:", error);
+    return res.status(500).json({
+      error: error?.message || "Unable to run the Territory phase-chain test",
+    });
+  }
+});
+
 router.post("/preview-kill-guardrails", requireTerritoryInternalToken, (_req, res) => {
   try {
     if (!previewSeedEnabled()) {
