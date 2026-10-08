@@ -7,13 +7,21 @@ process.env.TERRITORY_WARS_INTERNAL_TOKEN = "territory-internal-test-secret";
 
 const { db } = require("../server/db");
 // Import the main Territory Wars router once so the shared tables are initialized.
-require("../server/routes/territoryWars");
+const territoryRouter = require("../server/routes/territoryWars");
 const internalRouter = require("../server/routes/territoryWarsInternal");
 
 function appForInternal() {
   const app = express();
   app.use(express.json());
   app.use("/api/territory-wars/internal", internalRouter);
+  return app;
+}
+
+function appForPreviewRuntime() {
+  const app = express();
+  app.use(express.json());
+  app.use("/api/territory-wars/internal", internalRouter);
+  app.use("/api/territory-wars", territoryRouter);
   return app;
 }
 
@@ -453,4 +461,97 @@ test("HerbyBot Territory actions honor controlled live-test allowlist", async (t
   );
   assert.equal(response.status, 403);
   assert.match((await response.json()).error, /controlled live testing/i);
+});
+
+
+test("verified death removes Claim contribution until absence and a real return", async (t) => {
+  const previousPreviewSeed = process.env.TERRITORY_WARS_PREVIEW_SEED;
+  process.env.TERRITORY_WARS_PREVIEW_SEED = "true";
+
+  const server = await listen(appForPreviewRuntime());
+  t.after(async () => {
+    if (previousPreviewSeed === undefined) {
+      delete process.env.TERRITORY_WARS_PREVIEW_SEED;
+    } else {
+      process.env.TERRITORY_WARS_PREVIEW_SEED = previousPreviewSeed;
+    }
+    await new Promise((resolve) => server.close(resolve));
+  });
+
+  let response = await request(
+    server,
+    "/api/territory-wars/internal/preview-death-presence",
+    {
+      method: "POST",
+      body: JSON.stringify({ mode: "prepare" }),
+    }
+  );
+  assert.equal(response.status, 200);
+  const prepared = await response.json();
+  assert.equal(prepared.attackersBefore, 2);
+  assert.equal(prepared.controlBefore, -100);
+
+  response = await request(server, "/api/territory-wars/state");
+  assert.equal(response.status, 200);
+  let state = await response.json();
+  assert.ok(state.attack?.contest_started_at);
+  assert.equal(Number(state.event.control_score), -100);
+
+  response = await request(
+    server,
+    "/api/territory-wars/internal/preview-death-presence",
+    {
+      method: "POST",
+      body: JSON.stringify({ mode: "kill" }),
+    }
+  );
+  assert.equal(response.status, 200);
+  const killed = await response.json();
+  assert.equal(killed.combat?.counted, true);
+  assert.equal(killed.deathLock, true);
+  assert.equal(killed.seenAbsent, false);
+
+  response = await request(server, "/api/territory-wars/state");
+  state = await response.json();
+  assert.equal(state.attack?.contest_started_at, null);
+  assert.equal(Number(state.event.control_score), -100);
+
+  response = await request(
+    server,
+    "/api/territory-wars/internal/preview-death-presence",
+    {
+      method: "POST",
+      body: JSON.stringify({ mode: "absent" }),
+    }
+  );
+  assert.equal(response.status, 200);
+
+  response = await request(server, "/api/territory-wars/state");
+  state = await response.json();
+  assert.equal(state.attack?.contest_started_at, null);
+  assert.equal(Number(state.event.control_score), -100);
+
+  response = await request(
+    server,
+    "/api/territory-wars/internal/preview-death-presence",
+    {
+      method: "POST",
+      body: JSON.stringify({ mode: "return" }),
+    }
+  );
+  assert.equal(response.status, 200);
+
+  response = await request(server, "/api/territory-wars/state");
+  state = await response.json();
+  assert.ok(state.attack?.contest_started_at);
+  assert.equal(Number(state.event.control_score), -100);
+
+  const remainingLock = db.prepare(`
+    SELECT 1
+    FROM territory_presence_deaths
+    WHERE event_id = ? AND user_id = (
+      SELECT id FROM users WHERE steam_id = ?
+    )
+  `).get(prepared.eventId, prepared.victimSteamId);
+  assert.equal(remainingLock, undefined);
 });
