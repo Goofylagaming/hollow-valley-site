@@ -131,6 +131,43 @@ test('verified opposing lineup kill inside the Battlefield increments war kills/
   assert.equal(db.prepare('SELECT kills FROM territory_group_stats WHERE group_id = ?').get(war.attackerGroupId).kills, 1);
 });
 
+test('verified Territory death creates a presence lock and clears boundary grace immediately', () => {
+  const war = seedWar();
+  const territoryEvent = db.prepare(
+    'SELECT * FROM territory_events WHERE id = ?'
+  ).get(war.eventId);
+
+  db.prepare(`
+    INSERT INTO territory_presence_grace (event_id, user_id, last_inside_at)
+    VALUES (?, ?, ?)
+  `).run(war.eventId, war.defender.id, '2026-10-05T08:00:00.000Z');
+
+  const event = combatEvent(war, {
+    occurredAt: '2026-10-05T08:00:05.000Z',
+  });
+
+  const result = sync._test.processCombatEvent(event, territoryEvent);
+  assert.equal(result.counted, true);
+
+  const lock = db.prepare(`
+    SELECT killed_at, seen_absent
+    FROM territory_presence_deaths
+    WHERE event_id = ? AND user_id = ?
+  `).get(war.eventId, war.defender.id);
+
+  assert.ok(lock);
+  assert.equal(lock.seen_absent, 0);
+  assert.equal(new Date(lock.killed_at).toISOString(), event.occurredAt);
+
+  const grace = db.prepare(`
+    SELECT last_inside_at
+    FROM territory_presence_grace
+    WHERE event_id = ? AND user_id = ?
+  `).get(war.eventId, war.defender.id);
+
+  assert.equal(grace, undefined);
+});
+
 test('kills outside the Battlefield or without qualified locations are audited but do not score', () => {
   const war = seedWar();
   const territoryEvent = db.prepare('SELECT * FROM territory_events WHERE id = ?').get(war.eventId);
