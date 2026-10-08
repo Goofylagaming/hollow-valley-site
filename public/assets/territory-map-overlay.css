@@ -208,3 +208,46 @@
   .territory-layer-tools{margin-left:0}
   .tw-preview-banner{top:8px;max-width:78%}
 }
+
+
+.territory-preview-legend{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px 10px;
+  margin-top:8px;
+  color:#9ca8a0;
+  font-size:8px;
+}
+.territory-preview-legend span{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+}
+.territory-preview-legend i{
+  width:15px;
+  height:8px;
+  border:1px dashed currentColor;
+  border-radius:999px;
+}
+.territory-preview-legend i.battlefield{color:#d8a928;background:rgba(216,169,40,.05)}
+.territory-preview-legend i.claim{color:#bfe28b;background:rgba(121,167,68,.08)}
+
+#territory-war-shapes[data-all-territories="true"] .tw-zone-shape{
+  stroke-width:.8;
+  fill-opacity:.6;
+}
+#territory-war-shapes[data-all-territories="true"] .tw-zone-shape.claim{
+  stroke-width:1;
+}
+#territory-war-shapes[data-all-territories="true"] .tw-territory-name{
+  font-size:8px;
+  letter-spacing:.7px;
+  stroke-width:2.5px;
+  fill:#eee4c6;
+}
+#territory-war-shapes[data-all-territories="true"] .tw-zone-center{
+  vector-effect:non-scaling-stroke;
+  fill:#f0df9c;
+  stroke:#0a0a08;
+  stroke-width:1;
+}
