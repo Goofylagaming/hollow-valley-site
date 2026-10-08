@@ -54,6 +54,31 @@
                 <button class="tw-button danger" type="button" id="tw-admin-reset">Reset Territory</button>
               </div>
               <div style="height:14px"></div>
+              <div class="tw-card-head" style="padding:0 0 10px;border:0">
+                <div>
+                  <div class="tw-kicker">Controlled Live Test</div>
+                  <h3>Participation gate</h3>
+                </div>
+                <span class="tw-status" id="tw-admin-live-test-status">Off</span>
+              </div>
+              <p class="tw-note" style="margin-top:0">When enabled, only approved Groups can register, edit lineups, or declare attacks. Everyone else remains read-only.</p>
+              <div class="tw-actions" style="margin-top:10px">
+                <button class="tw-button warn" type="button" id="tw-admin-live-test-toggle">Enable Live Test Mode</button>
+              </div>
+              <div class="tw-form-grid" style="margin-top:12px">
+                <div class="tw-field full">
+                  <label for="tw-admin-live-test-group">Approved test Group</label>
+                  <select id="tw-admin-live-test-group"></select>
+                </div>
+              </div>
+              <div class="tw-actions" style="margin-top:8px">
+                <button class="tw-button" type="button" id="tw-admin-live-test-add">Add Group to Live Test</button>
+              </div>
+              <div class="tw-list" id="tw-admin-live-test-groups" style="margin-top:10px">
+                <div class="tw-empty">No Groups are approved for controlled live testing.</div>
+              </div>
+
+              <div style="height:14px"></div>
               <div class="tw-control-editor">
                 <div class="tw-control-labels"><span>Owner control</span><strong id="tw-admin-control-value">100%</strong></div>
                 <input id="tw-admin-control" type="range" min="0" max="100" value="100">
@@ -119,6 +144,6 @@
     </main>
   </div>
   <script src="/assets/common.js?v=20"></script>
-  <script src="/assets/admin-territory-wars.js?v=4"></script>
+  <script src="/assets/admin-territory-wars.js?v=5"></script>
 </body>
 </html>
