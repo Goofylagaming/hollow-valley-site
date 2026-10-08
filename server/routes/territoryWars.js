@@ -119,6 +119,14 @@ db.exec(`
     PRIMARY KEY (event_id, group_id)
   );
 
+  CREATE TABLE IF NOT EXISTS territory_live_test_groups (
+    event_id INTEGER NOT NULL REFERENCES territory_events(id) ON DELETE CASCADE,
+    group_id INTEGER NOT NULL REFERENCES territory_groups(id) ON DELETE CASCADE,
+    added_by_user_id INTEGER REFERENCES users(id),
+    added_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (event_id, group_id)
+  );
+
   CREATE TABLE IF NOT EXISTS territory_event_lineups (
     event_id INTEGER NOT NULL REFERENCES territory_events(id) ON DELETE CASCADE,
     group_id INTEGER NOT NULL REFERENCES territory_groups(id) ON DELETE CASCADE,
@@ -199,6 +207,7 @@ ensureEventColumn(
 );
 ensureEventColumn("protection_until", "protection_until TEXT");
 ensureEventColumn("frozen_owner_name", "frozen_owner_name TEXT");
+ensureEventColumn("live_test_mode", "live_test_mode INTEGER NOT NULL DEFAULT 0");
 
 const EVENT_STATUSES = new Set(["scheduled", "live", "paused", "ended"]);
 
@@ -370,6 +379,44 @@ function groupForUser(userId) {
     ORDER BY gm.joined_at DESC
     LIMIT 1
   `).get(Number(userId)) || null;
+}
+
+function liveTestGroups(eventId) {
+  if (!eventId) return [];
+  return db.prepare(`
+    SELECT g.id, g.name, g.tag, l.added_at
+    FROM territory_live_test_groups l
+    JOIN territory_groups g ON g.id = l.group_id
+    WHERE l.event_id = ?
+    ORDER BY g.name COLLATE NOCASE
+  `).all(Number(eventId));
+}
+
+function allTerritoryGroups() {
+  return db.prepare(`
+    SELECT g.id, g.name, g.tag,
+           COALESCE(s.wins, 0) AS wins,
+           COALESCE(s.losses, 0) AS losses
+    FROM territory_groups g
+    LEFT JOIN territory_group_stats s ON s.group_id = g.id
+    ORDER BY g.name COLLATE NOCASE
+  `).all();
+}
+
+function liveTestGroupAllowed(event, groupId) {
+  if (!event || !Number(event.live_test_mode)) return true;
+  if (!groupId) return false;
+  return Boolean(db.prepare(`
+    SELECT 1
+    FROM territory_live_test_groups
+    WHERE event_id = ? AND group_id = ?
+    LIMIT 1
+  `).get(Number(event.id), Number(groupId)));
+}
+
+function requireLiveTestAccess(event, groupId) {
+  if (liveTestGroupAllowed(event, groupId)) return null;
+  return "This Territory War is in controlled live testing. Your Group is not on the live-test allowlist.";
 }
 
 function groupRoster(groupId) {
@@ -930,6 +977,7 @@ function publicState({ includePlayers = false, includeRegistrations = false } = 
       battlefieldRadiusMetres: DEFAULT_BATTLEFIELD_RADIUS * 10,
       claimRadiusMetres: DEFAULT_CLAIM_RADIUS * 10,
       adminSystemDefenders: true,
+      liveTestMode: Boolean(eventRaw?.live_test_mode),
     },
     ...(includeRegistrations ? { registrations: eventRaw ? registrationsForEvent(eventRaw.id) : [] } : {}),
   };
@@ -1109,6 +1157,8 @@ router.post("/event-register", requireAuth, (req, res) => {
   const event = eventById(req.body?.eventId) || processEventRuntime(latestEventRaw());
   if (!event) return res.status(404).json({ error: "No Territory War event is available" });
   if (event.status === "ended") return res.status(409).json({ error: "That Territory War has already ended" });
+  const liveTestError = requireLiveTestAccess(event, access.group.id);
+  if (liveTestError) return res.status(403).json({ error: liveTestError });
 
   db.prepare(`
     INSERT INTO territory_event_registrations (event_id, group_id, registered_by_user_id, status)
@@ -1124,6 +1174,8 @@ router.post("/lineup", requireAuth, (req, res) => {
   if (access.error) return res.status(403).json({ error: access.error });
   const event = eventById(req.body?.eventId) || processEventRuntime(latestEventRaw());
   if (!event) return res.status(404).json({ error: "No Territory War event is available" });
+  const liveTestError = requireLiveTestAccess(event, access.group.id);
+  if (liveTestError) return res.status(403).json({ error: liveTestError });
   if (!eventRegistration(event.id, access.group.id)) return res.status(409).json({ error: "Your Group must register for this event before selecting a lineup" });
   if (event.status === "ended") return res.status(409).json({ error: "That Territory War has already ended" });
 
@@ -1173,6 +1225,8 @@ router.post("/attack-declare", requireAuth, (req, res) => {
   if (access.error) return res.status(403).json({ error: access.error });
   const event = processEventRuntime(eventById(req.body?.eventId) || latestEventRaw());
   if (!event) return res.status(404).json({ error: "No Territory War event is available" });
+  const liveTestError = requireLiveTestAccess(event, access.group.id);
+  if (liveTestError) return res.status(403).json({ error: liveTestError });
   if (event.status !== "live") return res.status(409).json({ error: "Attacks can only be declared while the Territory War is live" });
   if (!eventRegistration(event.id, access.group.id)) return res.status(409).json({ error: "Your Group must be registered for this event" });
   if (activeLineup(event.id, access.group.id).length < MIN_ATTACKERS_TO_CONTEST) {
@@ -1208,7 +1262,13 @@ router.post("/attack-declare", requireAuth, (req, res) => {
 });
 
 router.get("/admin/state", requireAdmin, (_req, res) => {
-  res.json({ ok: true, ...publicState({ includePlayers: true, includeRegistrations: true }) });
+  const state = publicState({ includePlayers: true, includeRegistrations: true });
+  res.json({
+    ok: true,
+    ...state,
+    liveTestGroups: liveTestGroups(state.event?.id),
+    availableGroups: allTerritoryGroups(),
+  });
 });
 
 router.post("/admin/event", requireAdmin, (req, res) => {
@@ -1267,6 +1327,74 @@ router.post("/admin/status", requireAdmin, (req, res) => {
   addLog(event.id, "status", `Event ${status}`, req.user.id);
   event = eventById(event.id);
   res.json({ ok: true, event: decorateEvent(event), log: eventLog(event.id) });
+});
+
+router.post("/admin/live-test", requireAdmin, (req, res) => {
+  const event = eventById(req.body?.id) || latestEventRaw();
+  if (!event) return res.status(404).json({ error: "No Territory War event exists yet" });
+  if (event.status === "ended") return res.status(409).json({ error: "Ended events cannot enter live-test mode" });
+
+  const enabled = Boolean(req.body?.enabled);
+  db.prepare(`
+    UPDATE territory_events
+    SET live_test_mode = ?, updated_at = datetime('now')
+    WHERE id = ?
+  `).run(enabled ? 1 : 0, event.id);
+
+  addLog(
+    event.id,
+    "live-test",
+    enabled
+      ? "Controlled live-test mode enabled; participation restricted to approved Groups"
+      : "Controlled live-test mode disabled; normal event participation restored",
+    req.user.id
+  );
+
+  res.json({
+    ok: true,
+    event: decorateEvent(eventById(event.id)),
+    liveTestGroups: liveTestGroups(event.id),
+  });
+});
+
+router.post("/admin/live-test-group", requireAdmin, (req, res) => {
+  const event = eventById(req.body?.id) || latestEventRaw();
+  if (!event) return res.status(404).json({ error: "No Territory War event exists yet" });
+
+  const groupId = Number(req.body?.groupId);
+  const group = groupById(groupId);
+  if (!group) return res.status(404).json({ error: "Territory Group not found" });
+
+  const allowed = req.body?.allowed !== false;
+  if (allowed) {
+    db.prepare(`
+      INSERT INTO territory_live_test_groups
+        (event_id, group_id, added_by_user_id)
+      VALUES (?, ?, ?)
+      ON CONFLICT(event_id, group_id)
+      DO UPDATE SET added_by_user_id = excluded.added_by_user_id,
+                    added_at = datetime('now')
+    `).run(event.id, groupId, req.user.id);
+  } else {
+    db.prepare(`
+      DELETE FROM territory_live_test_groups
+      WHERE event_id = ? AND group_id = ?
+    `).run(event.id, groupId);
+  }
+
+  addLog(
+    event.id,
+    "live-test",
+    `${group.name} ${allowed ? "added to" : "removed from"} controlled live-test access`,
+    req.user.id
+  );
+
+  res.json({
+    ok: true,
+    event: decorateEvent(eventById(event.id)),
+    liveTestGroups: liveTestGroups(event.id),
+    availableGroups: allTerritoryGroups(),
+  });
 });
 
 router.post("/admin/control", requireAdmin, (req, res) => {
