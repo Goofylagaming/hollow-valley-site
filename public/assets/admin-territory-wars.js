@@ -1,6 +1,8 @@
 const { api } = window.HDS;
 
 let currentEvent = null;
+let currentLiveTestGroups = [];
+let availableTerritoryGroups = [];
 
 function text(id, value) {
   const el = document.getElementById(id);
@@ -173,6 +175,73 @@ function renderRegistrations(registrations) {
   }
 }
 
+function renderLiveTest(event, allowedGroups, availableGroups) {
+  currentLiveTestGroups = Array.isArray(allowedGroups) ? allowedGroups : [];
+  availableTerritoryGroups = Array.isArray(availableGroups) ? availableGroups : [];
+
+  const enabled = Boolean(Number(event?.live_test_mode || 0));
+  const status = document.getElementById("tw-admin-live-test-status");
+  if (status) {
+    status.textContent = enabled ? "LIVE TEST" : "Off";
+    status.className = `tw-status ${enabled ? "live" : ""}`;
+  }
+
+  const toggle = document.getElementById("tw-admin-live-test-toggle");
+  if (toggle) {
+    toggle.textContent = enabled ? "Disable Live Test Mode" : "Enable Live Test Mode";
+    toggle.className = `tw-button ${enabled ? "danger" : "warn"}`;
+  }
+
+  const select = document.getElementById("tw-admin-live-test-group");
+  if (select) {
+    const allowedIds = new Set(currentLiveTestGroups.map((group) => Number(group.id)));
+    const choices = availableTerritoryGroups.filter((group) => !allowedIds.has(Number(group.id)));
+    select.replaceChildren();
+
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = choices.length ? "Select a Group…" : "All available Groups are already approved";
+    select.append(placeholder);
+
+    for (const group of choices) {
+      const option = document.createElement("option");
+      option.value = String(group.id);
+      option.textContent = `${group.name || "Group"}${group.tag ? ` [${group.tag}]` : ""}`;
+      select.append(option);
+    }
+  }
+
+  const target = document.getElementById("tw-admin-live-test-groups");
+  if (!target) return;
+  target.replaceChildren();
+
+  if (!currentLiveTestGroups.length) {
+    target.innerHTML = '<div class="tw-empty">No Groups are approved for controlled live testing.</div>';
+    return;
+  }
+
+  for (const group of currentLiveTestGroups) {
+    const row = document.createElement("div");
+    row.className = "tw-list-row";
+
+    const main = document.createElement("div");
+    const strong = document.createElement("strong");
+    strong.textContent = `${group.name || "Group"}${group.tag ? ` [${group.tag}]` : ""}`;
+    const detail = document.createElement("span");
+    detail.textContent = "Approved for controlled live testing";
+    main.append(strong, detail);
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "tw-button danger";
+    remove.textContent = "Remove";
+    remove.addEventListener("click", () => setLiveTestGroup(group.id, false));
+
+    row.append(main, remove);
+    target.append(row);
+  }
+}
+
 function renderAttackState(event, attack) {
   const score = Math.max(-100, Math.min(100, Number(event?.control_score ?? -100)));
   text("tw-admin-control-score", `${score > 0 ? "+" : ""}${Math.round(score * 10) / 10}`);
@@ -265,6 +334,8 @@ async function refreshState() {
     renderAttackState(data.event, data.attack);
     renderPresence(data.presence);
     renderRegistrations(data.registrations);
+    renderLiveTest(data.event, data.liveTestGroups, data.availableGroups);
+    renderLiveTest(data.event, data.liveTestGroups, data.availableGroups);
   } catch (error) {
     setMessage(error.message || "Could not load Territory Wars admin state.", true);
   }
@@ -331,6 +402,56 @@ async function setEventStatus(status) {
   }
 }
 
+async function setLiveTestMode() {
+  if (!currentEvent?.id) return setMessage("Save an event first.", true);
+  const enabled = !Boolean(Number(currentEvent.live_test_mode || 0));
+
+  if (
+    enabled &&
+    !confirm("Enable CONTROLLED LIVE TEST mode? Only approved Groups will be able to register, edit lineups, or attack.")
+  ) {
+    return;
+  }
+
+  try {
+    const data = await api("/api/territory-wars/admin/live-test", {
+      method: "POST",
+      body: JSON.stringify({ id: currentEvent.id, enabled }),
+    });
+    currentEvent = data.event || currentEvent;
+    await refreshState();
+    setMessage(
+      enabled
+        ? "Controlled live-test mode enabled. Add the participating Groups before starting the event."
+        : "Controlled live-test mode disabled."
+    );
+  } catch (error) {
+    setMessage(error.message || "Could not update controlled live-test mode.", true);
+  }
+}
+
+async function setLiveTestGroup(groupId, allowed) {
+  if (!currentEvent?.id) return setMessage("Save an event first.", true);
+  const id = Number(groupId);
+  if (!Number.isInteger(id) || id <= 0) return setMessage("Select a Territory Group first.", true);
+
+  try {
+    await api("/api/territory-wars/admin/live-test-group", {
+      method: "POST",
+      body: JSON.stringify({ id: currentEvent.id, groupId: id, allowed }),
+    });
+    await refreshState();
+    setMessage(allowed ? "Group approved for controlled live testing." : "Group removed from controlled live testing.");
+  } catch (error) {
+    setMessage(error.message || "Could not update live-test Group access.", true);
+  }
+}
+
+async function addSelectedLiveTestGroup() {
+  const value = document.getElementById("tw-admin-live-test-group")?.value;
+  return setLiveTestGroup(Number(value), true);
+}
+
 async function applyControl() {
   if (!currentEvent?.id) return setMessage("Save an event first.", true);
   const ownerControl = Number(document.getElementById("tw-admin-control").value);
@@ -380,6 +501,8 @@ document.getElementById("tw-admin-control")?.addEventListener("input", (event) =
   text("tw-admin-control-value", `${event.currentTarget.value}%`);
 });
 
+document.getElementById("tw-admin-live-test-toggle")?.addEventListener("click", setLiveTestMode);
+document.getElementById("tw-admin-live-test-add")?.addEventListener("click", addSelectedLiveTestGroup);
 document.getElementById("tw-admin-apply-control")?.addEventListener("click", applyControl);
 document.getElementById("tw-admin-reset")?.addEventListener("click", () => postAction("reset", "Reset this territory to current-owner control and pause the event?"));
 document.getElementById("tw-admin-remove-challenger")?.addEventListener("click", () => postAction("remove-challenger", "Remove the current challenger and reset control?"));
