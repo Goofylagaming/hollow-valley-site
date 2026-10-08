@@ -35,6 +35,14 @@ function ensureSchema() {
       ON territory_combat_events(event_id, occurred_at DESC);
     CREATE INDEX IF NOT EXISTS idx_territory_combat_repeat
       ON territory_combat_events(event_id, killer_steam_id, victim_steam_id, counted, occurred_at DESC);
+
+    CREATE TABLE IF NOT EXISTS territory_presence_deaths (
+      event_id INTEGER NOT NULL REFERENCES territory_events(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      killed_at TEXT NOT NULL,
+      seen_absent INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (event_id, user_id)
+    );
   `);
   territoryMomentum.ensureSchema();
 }
@@ -219,6 +227,23 @@ function displayPlayer(eventName, fallbackSteamId) {
   return name || String(fallbackSteamId || 'Unknown player');
 }
 
+function markFighterDead(eventId, userId, occurredAt) {
+  if (!eventId || !userId) return;
+  const at = parseDate(occurredAt) || new Date();
+  db.prepare(`
+    INSERT INTO territory_presence_deaths
+      (event_id, user_id, killed_at, seen_absent)
+    VALUES (?, ?, ?, 0)
+    ON CONFLICT(event_id, user_id)
+    DO UPDATE SET killed_at = excluded.killed_at, seen_absent = 0
+  `).run(Number(eventId), Number(userId), at.toISOString());
+
+  db.prepare(`
+    DELETE FROM territory_presence_grace
+    WHERE event_id = ? AND user_id = ?
+  `).run(Number(eventId), Number(userId));
+}
+
 function incrementGroupStat(groupId, column) {
   if (!groupId || !['kills', 'deaths'].includes(column)) return;
   db.prepare(`
@@ -318,6 +343,7 @@ function processCombatEvent(event, territoryEvent = latestLiveEvent()) {
     writeAudit({ ...enrichedAudit, counted: true, reason: 'counted' });
     incrementGroupStat(killerMember.group_id, 'kills');
     incrementGroupStat(victimMember.group_id, 'deaths');
+    markFighterDead(territoryEvent.id, victimMember.user_id, occurredAt);
     territoryMomentum.recordKill({
       combatEventId,
       eventId: territoryEvent.id,
