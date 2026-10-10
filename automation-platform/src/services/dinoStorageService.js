@@ -241,32 +241,9 @@ async function runImmediateCommand({ verb, steamId, tokens = [], timeoutMs = 700
     throw error;
   }
 
-  // Mutation requests return a pending receipt before the website's 8-second
-  // upstream timeout. Other immediate game commands retain their old behaviour.
-  const waitMs = tracking ? 3500 : timeoutMs;
-  const deadline = Date.now() + Math.max(1000, Number(waitMs) || 7000);
-  do {
-    const outcome = await commandBridge.readOutcome(command);
-    if (outcome?.state === 'failed') {
-      if (tracking) store.updateRequest(command.id, {
-        status: 'failed', message: outcome.message, error: outcome.message,
-      });
-      const error = new Error(outcome.message || `${verb} failed`);
-      error.code = 'DINOSTORAGE_COMMAND_FAILED';
-      error.requestId = command.id;
-      throw error;
-    }
-    if (outcome?.state === 'confirmed') {
-      if (tracking) store.updateRequest(command.id, {
-        status: 'accepted', message: outcome.message, error: null,
-      });
-      return { command, outcome };
-    }
-    const remaining = deadline - Date.now();
-    if (remaining <= 0) break;
-    await new Promise((resolve) => setTimeout(resolve, Math.min(250, remaining)));
-  } while (true);
-
+  // Mutation writes are non-idempotent game actions. Return the durable
+  // receipt immediately: the browser can poll the *same* command ID instead
+  // of exhausting its HTTP timeout or sending another dino_edit.
   if (tracking) {
     return {
       command,
@@ -276,6 +253,23 @@ async function runImmediateCommand({ verb, steamId, tokens = [], timeoutMs = 700
       },
     };
   }
+
+  const deadline = Date.now() + Math.max(1000, Number(timeoutMs) || 7000);
+  do {
+    const outcome = await commandBridge.readOutcome(command);
+    if (outcome?.state === 'failed') {
+      const error = new Error(outcome.message || `${verb} failed`);
+      error.code = 'DINOSTORAGE_COMMAND_FAILED';
+      error.requestId = command.id;
+      throw error;
+    }
+    if (outcome?.state === 'confirmed') {
+      return { command, outcome };
+    }
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) break;
+    await new Promise((resolve) => setTimeout(resolve, Math.min(250, remaining)));
+  } while (true);
 
   const error = new Error(`${verb} timed out waiting for DinoStorage confirmation`);
   error.code = 'DINOSTORAGE_COMMAND_TIMEOUT';
