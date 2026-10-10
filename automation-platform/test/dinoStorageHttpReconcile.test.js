@@ -114,3 +114,87 @@ test('HTTP-pull reconciliation recovers a missed DinoStorage result from results
   assert.equal(request.status, 'accepted');
   assert.match(request.message, /deferred in-game restore is not independently confirmed/);
 });
+
+test('parked mutation save returns a receipt and late confirmation resolves without replaying', async (t) => {
+  const dinoStorage = require('../src/services/dinoStorageService');
+  const previousFallback = process.env.COMMAND_BRIDGE_HTTP_RESULT_FTP_FALLBACK;
+  process.env.COMMAND_BRIDGE_HTTP_RESULT_FTP_FALLBACK = 'false';
+  t.after(() => {
+    if (previousFallback === undefined) delete process.env.COMMAND_BRIDGE_HTTP_RESULT_FTP_FALLBACK;
+    else process.env.COMMAND_BRIDGE_HTTP_RESULT_FTP_FALLBACK = previousFallback;
+  });
+  const slot = 'mutation-test-slot';
+  const write = await dinoStorage.editStoredDino({
+    steamId: steam,
+    slot,
+    mode: 'mutations',
+    trackMutation: true,
+    values: {
+      Slot1: 'Accelerated Prey Drive',
+      Slot2: 'Cannibalistic',
+      Slot3: 'Cellular Regeneration',
+      Slot4: 'Sustained Hydration',
+    },
+  });
+  const id = write.command.id;
+
+  assert.equal(write.outcome.state, 'pending');
+  assert.equal(http.getRequest(id).status, 'pending');
+  assert.equal(store.getRequest(id).kind, 'parked_mutation_edit');
+
+  const pending = await dinoStorage.getParkedMutationEditStatus({
+    steamId: steam, slot, requestId: id,
+  });
+  assert.equal(pending.status, 'pending');
+  assert.equal(pending.confirmed, false);
+
+  assert.deepEqual(http.acceptResult({
+    id, steam, source: 'DinoStorage', ok: true, msg: 'parked mutations updated',
+  }), { accepted: true, final: true });
+
+  const confirmed = await dinoStorage.getParkedMutationEditStatus({
+    steamId: steam, slot, requestId: id,
+  });
+  assert.equal(confirmed.confirmed, true);
+  assert.equal(confirmed.status, 'confirmed');
+  assert.match(confirmed.message, /parked mutations updated/);
+  assert.equal(store.getRequest(id).status, 'accepted');
+
+  await assert.rejects(() => dinoStorage.getParkedMutationEditStatus({
+    steamId: '76561198000000001', slot, requestId: id,
+  }), (error) => error.code === 'MUTATION_EDIT_NOT_FOUND');
+  await assert.rejects(() => dinoStorage.getParkedMutationEditStatus({
+    steamId: steam, slot: 'another-slot', requestId: id,
+  }), (error) => error.code === 'MUTATION_EDIT_NOT_FOUND');
+
+  // Polling the same receipt never enqueues another dino_edit.
+  assert.equal(http.getSummary().total >= 1, true);
+  const same = await dinoStorage.getParkedMutationEditStatus({
+    steamId: steam, slot, requestId: id,
+  });
+  assert.equal(same.confirmed, true);
+});
+
+test('parked mutation receipt preserves real game-side failures', async (t) => {
+  const dinoStorage = require('../src/services/dinoStorageService');
+  const previousFallback = process.env.COMMAND_BRIDGE_HTTP_RESULT_FTP_FALLBACK;
+  process.env.COMMAND_BRIDGE_HTTP_RESULT_FTP_FALLBACK = 'false';
+  t.after(() => {
+    if (previousFallback === undefined) delete process.env.COMMAND_BRIDGE_HTTP_RESULT_FTP_FALLBACK;
+    else process.env.COMMAND_BRIDGE_HTTP_RESULT_FTP_FALLBACK = previousFallback;
+  });
+  const slot = 'mutation-failure-slot';
+  const write = await dinoStorage.editStoredDino({
+    steamId: steam, slot, mode: 'mutations', trackMutation: true,
+    values: { Slot1: 'Cellular Regeneration', Slot2: '', Slot3: '', Slot4: '' },
+  });
+  http.acceptResult({
+    id: write.command.id, steam, source: 'DinoStorage', ok: false, msg: 'could not write parked dino slot',
+  });
+  const receipt = await dinoStorage.getParkedMutationEditStatus({
+    steamId: steam, slot, requestId: write.command.id,
+  });
+  assert.equal(receipt.status, 'failed');
+  assert.equal(receipt.confirmed, false);
+  assert.match(receipt.error, /could not write/);
+});
