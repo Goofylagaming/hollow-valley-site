@@ -8,7 +8,7 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-function loadService({ enabled = false } = {}) {
+function loadService({ enabled = false, editReceipt = null } = {}) {
   const previous = process.env.PARKED_DINO_EDIT_ENABLED;
   process.env.PARKED_DINO_EDIT_ENABLED = enabled ? 'true' : 'false';
   let state = {
@@ -47,7 +47,10 @@ function loadService({ enabled = false } = {}) {
       async getStoredDino() { return clone(state); },
       async editStoredDino(command) {
         editCalls.push(clone(command));
-        return { ok: true };
+        return editReceipt || { ok: true };
+      },
+      async getParkedMutationEditStatus(params) {
+        return { ...params, requestId: params.requestId, status: 'confirmed', confirmed: true };
       },
     },
   };
@@ -344,4 +347,40 @@ test('mutation constraints do not alter inherited or elder fields', async (t) =>
   assert.equal(Object.keys(values).length, 4);
   assert.equal(fixture.getState().mutations.ParentSlot1, 'Inherited Example');
   assert.equal(fixture.getState().mutations.ElderSlot1A, 'Elder Example');
+});
+
+test('queued mutation edits return an unconfirmed receipt instead of throwing timeout', async (t) => {
+  const fixture = loadService({
+    enabled: true,
+    editReceipt: {
+      command: { id: 'b8d90bba-88b0-462c-87e6-a5d0ffec8121' },
+      outcome: { state: 'pending' },
+    },
+  });
+  t.after(fixture.cleanup);
+
+  const result = await fixture.service.updateMutations({
+    steamId: '76561198000000201',
+    slot: 'slot_a',
+    mutations: { Slot1: 'Accelerated Prey Drive', Slot2: 'Cannibalistic' },
+  });
+  assert.equal(fixture.getWrites(), 1);
+  assert.equal(fixture.getEditCalls()[0].trackMutation, true);
+  assert.equal(result.confirmed, false);
+  assert.equal(result.pending, true);
+  assert.equal(result.requestId, 'b8d90bba-88b0-462c-87e6-a5d0ffec8121');
+  assert.match(result.message, /waiting for confirmation/i);
+});
+
+test('mutation edit status lookup uses the original request ID and slot', async (t) => {
+  const fixture = loadService({ enabled: true });
+  t.after(fixture.cleanup);
+  const status = await fixture.service.getMutationEditStatus({
+    steamId: '76561198000000201',
+    slot: 'slot_a',
+    requestId: 'e91e7904-6bdc-4b72-90de-a46360c10f98',
+  });
+  assert.equal(status.confirmed, true);
+  assert.equal(status.requestId, 'e91e7904-6bdc-4b72-90de-a46360c10f98');
+  assert.equal(fixture.getWrites(), 0);
 });
