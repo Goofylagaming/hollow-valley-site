@@ -40,12 +40,14 @@ const MUTATION_DIETS = Object.freeze({
   'Hemomania': ['carnivore'],
   'Hypermetabolic Inanition': ['carnivore'],
   'Osteophagic': ['carnivore'],
-  'Barometric Sensitivity': ['herbivore'],
-  'Hypervigilance': ['herbivore'],
-  'Photosynthetic Regeneration': ['herbivore'],
-  'Tactile Endurance': ['herbivore'],
-  'Truculency': ['herbivore'],
-  'Xerocole Adaptation': ['herbivore'],
+  // Evrima's plant-eating pool also includes omnivores (Beipiaosaurus,
+  // Gallimimus). It is never offered to a carnivore.
+  'Barometric Sensitivity': ['herbivore', 'omnivore'],
+  'Hypervigilance': ['herbivore', 'omnivore'],
+  'Photosynthetic Regeneration': ['herbivore', 'omnivore'],
+  'Tactile Endurance': ['herbivore', 'omnivore'],
+  'Truculency': ['herbivore', 'omnivore'],
+  'Xerocole Adaptation': ['herbivore', 'omnivore'],
   'Social Behavior': ['herbivore', 'omnivore'],
 });
 
