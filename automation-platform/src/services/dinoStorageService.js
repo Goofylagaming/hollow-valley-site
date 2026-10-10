@@ -214,22 +214,52 @@ async function getStoredDino(steamId, slot) {
   return found;
 }
 
-async function runImmediateCommand({ verb, steamId, tokens = [], timeoutMs = 7000 }) {
+async function runImmediateCommand({ verb, steamId, tokens = [], timeoutMs = 7000, tracking = null }) {
   const steam = validateSteamId(steamId);
   commandBridge.assertPublisherReady();
   const command = commandBridge.buildCommand(verb, steam, tokens);
-  await commandBridge.queueCommand(command);
 
-  const deadline = Date.now() + Math.max(1000, Number(timeoutMs) || 7000);
+  // Persist the command before publishing it. A delayed game acknowledgement
+  // can then be checked by request ID, without ever publishing a second edit.
+  if (tracking) {
+    store.createRequest({
+      id: command.id,
+      kind: 'parked_mutation_edit',
+      steamId: steam,
+      status: 'queued',
+      commandId: command.id,
+      details: { slot: tracking.slot, command },
+      message: 'Waiting for DinoStorage mutation confirmation.',
+    });
+  }
+  try {
+    await commandBridge.queueCommand(command);
+  } catch (error) {
+    if (tracking) store.updateRequest(command.id, {
+      status: 'failed', message: error.message, error: error.message,
+    });
+    throw error;
+  }
+
+  // Mutation requests return a pending receipt before the website's 8-second
+  // upstream timeout. Other immediate game commands retain their old behaviour.
+  const waitMs = tracking ? 3500 : timeoutMs;
+  const deadline = Date.now() + Math.max(1000, Number(waitMs) || 7000);
   do {
     const outcome = await commandBridge.readOutcome(command);
     if (outcome?.state === 'failed') {
+      if (tracking) store.updateRequest(command.id, {
+        status: 'failed', message: outcome.message, error: outcome.message,
+      });
       const error = new Error(outcome.message || `${verb} failed`);
       error.code = 'DINOSTORAGE_COMMAND_FAILED';
       error.requestId = command.id;
       throw error;
     }
     if (outcome?.state === 'confirmed') {
+      if (tracking) store.updateRequest(command.id, {
+        status: 'accepted', message: outcome.message, error: null,
+      });
       return { command, outcome };
     }
     const remaining = deadline - Date.now();
@@ -237,13 +267,70 @@ async function runImmediateCommand({ verb, steamId, tokens = [], timeoutMs = 700
     await new Promise((resolve) => setTimeout(resolve, Math.min(250, remaining)));
   } while (true);
 
+  if (tracking) {
+    return {
+      command,
+      outcome: {
+        state: 'pending',
+        message: 'Mutation edit queued. Waiting for DinoStorage confirmation; do not submit it again.',
+      },
+    };
+  }
+
   const error = new Error(`${verb} timed out waiting for DinoStorage confirmation`);
   error.code = 'DINOSTORAGE_COMMAND_TIMEOUT';
   error.requestId = command.id;
   throw error;
 }
 
-async function editStoredDino({ steamId, slot, mode, values = {} }) {
+async function getParkedMutationEditStatus({ steamId, slot, requestId }) {
+  const steam = validateSteamId(steamId);
+  const selectedSlot = validateSlot(slot);
+  const id = String(requestId || '');
+  if (!/^[a-f0-9-]{36}$/i.test(id)) {
+    const error = new Error('Mutation edit request not found');
+    error.code = 'MUTATION_EDIT_NOT_FOUND';
+    throw error;
+  }
+  const request = store.getRequest(id);
+  if (!request || request.kind !== 'parked_mutation_edit' ||
+      request.steam_id !== steam || request.details?.slot !== selectedSlot ||
+      request.details?.command?.verb !== 'dino_edit') {
+    const error = new Error('Mutation edit request not found');
+    error.code = 'MUTATION_EDIT_NOT_FOUND';
+    throw error;
+  }
+
+  let current = request;
+  if (request.status === 'queued' || request.status === 'acknowledged') {
+    const outcome = await commandBridge.readOutcome(request.details.command);
+    if (outcome?.state === 'confirmed') {
+      invalidateStoredDinoCache(steam);
+      current = store.updateRequest(id, {
+        status: 'accepted', message: outcome.message, error: null,
+      });
+    } else if (outcome?.state === 'failed') {
+      current = store.updateRequest(id, {
+        status: 'failed', message: outcome.message, error: outcome.message,
+      });
+    } else if (outcome?.state === 'acknowledged' && current.status !== 'acknowledged') {
+      current = store.updateRequest(id, {
+        status: 'acknowledged', message: outcome.message, error: null,
+      });
+    }
+  }
+
+  return {
+    requestId: id,
+    status: current.status === 'accepted' ? 'confirmed' :
+      current.status === 'failed' ? 'failed' : 'pending',
+    confirmed: current.status === 'accepted',
+    message: current.message || null,
+    error: current.error || null,
+  };
+}
+
+async function editStoredDino({ steamId, slot, mode, values = {}, trackMutation = false }) {
   const steam = validateSteamId(steamId);
   const selectedSlot = validateSlot(slot);
   if (!['mutations', 'skin'].includes(mode)) throw new Error('Unsupported parked dino edit mode');
@@ -267,7 +354,10 @@ async function editStoredDino({ steamId, slot, mode, values = {} }) {
     }
   }
 
-  const result = await runImmediateCommand({ verb: 'dino_edit', steamId: steam, tokens });
+  const result = await runImmediateCommand({
+    verb: 'dino_edit', steamId: steam, tokens,
+    tracking: trackMutation && mode === 'mutations' ? { slot: selectedSlot } : null,
+  });
   invalidateStoredDinoCache(steam);
   return result;
 }
@@ -526,6 +616,7 @@ module.exports = {
   listTimeoutMs,
   getStoredDino,
   editStoredDino,
+  getParkedMutationEditStatus,
   deleteStoredDino,
   grantLivePrime,
   runImmediateCommand,
