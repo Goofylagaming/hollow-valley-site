@@ -231,11 +231,12 @@ async function updateMutations({ steamId, slot, mutations }) {
   const state = await dinoStorage.getStoredDino(steam, selectedSlot);
   const nextSlots = normalizeSlots(mutations, { ...speciesContext(state), isFemale: state?.isFemale === true });
 
-  await dinoStorage.editStoredDino({
+  const receipt = await dinoStorage.editStoredDino({
     steamId: steam,
     slot: selectedSlot,
     mode: 'mutations',
     values: nextSlots,
+    trackMutation: true,
   });
 
   const updated = {
@@ -245,7 +246,20 @@ async function updateMutations({ steamId, slot, mutations }) {
       ...nextSlots,
     },
   };
-  return editorState(updated, selectedSlot);
+  const confirmed = receipt?.outcome?.state !== 'pending';
+  return {
+    ...editorState(updated, selectedSlot),
+    requestId: receipt?.command?.id || null,
+    confirmed,
+    pending: !confirmed,
+    message: confirmed
+      ? receipt?.outcome?.message || 'Mutation loadout saved.'
+      : 'Mutation update submitted. Waiting for confirmation; do not submit it again.',
+  };
+}
+
+async function getMutationEditStatus({ steamId, slot, requestId }) {
+  return dinoStorage.getParkedMutationEditStatus({ steamId, slot, requestId });
 }
 
 module.exports = {
@@ -263,4 +277,5 @@ module.exports = {
   editorState,
   getMutationEditor,
   updateMutations,
+  getMutationEditStatus,
 };
