@@ -355,6 +355,12 @@ function updateParkedDinoMutations({ steamId, slot, mutations }) {
   });
 }
 
+function getParkedDinoMutationEditStatus({ steamId, slot, requestId }) {
+  const selectedSlot = String(slot || '').trim();
+  if (!/^[A-Za-z0-9_-]{1,80}$/.test(selectedSlot)) throw new Error('Invalid DinoStorage slot');
+  return call(`/dinostorage/stored/${encodeURIComponent(validateSteamId(steamId))}/${encodeURIComponent(selectedSlot)}/mutations/requests/${encodeURIComponent(validateRequestId(requestId))}`);
+}
+
 function listSkinPresets(steamId, species = null) {
   const id = validateSteamId(steamId);
   const query = species ? `?species=${encodeURIComponent(String(species))}` : '';
@@ -777,6 +783,7 @@ module.exports = {
   buyDinoMarketplaceListing,
   getParkedDinoMutations,
   updateParkedDinoMutations,
+  getParkedDinoMutationEditStatus,
   listSkinPresets,
   createSkinPresetFromStored,
   applySkinPreset,

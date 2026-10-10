@@ -433,6 +433,25 @@ router.get("/stored/:slot/mutations", requireAuth, async (req, res) => {
   }
 });
 
+router.get("/stored/:slot/mutations/requests/:requestId", requireAuth, async (req, res) => {
+  const steamId = requireSteam(req, res);
+  if (!steamId) return;
+  let slot;
+  try { slot = validateSlot(req.params.slot); }
+  catch (error) { return res.status(400).json({ error: error.message }); }
+  try {
+    res.set("Cache-Control", "private, no-store");
+    return res.json(await automation.getParkedDinoMutationEditStatus({
+      steamId,
+      slot,
+      requestId: req.params.requestId,
+    }));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not check parked mutation edit.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
 router.put("/stored/:slot/mutations", requireAuth, async (req, res) => {
   const steamId = requireSteam(req, res);
   if (!steamId) return;

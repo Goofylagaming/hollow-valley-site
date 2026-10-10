@@ -403,23 +403,71 @@ async function openMutationEditor(dino) {
           `).join("")}
         </div>
         <div class="parked-tool-note">${data.writeEnabled ? "Changes are written only to this parked DinoStorage slot." : "Mutation editing is currently locked until the parked-dino write gate is enabled."}</div>
+        <div class="parked-tool-note" data-mutation-save-status role="status" aria-live="polite" hidden></div>
         <button class="primary-button" type="submit" ${data.writeEnabled ? "" : "disabled"}>Save mutations <b>→</b></button>
       </form>`;
     content.querySelector("#mutation-editor-form").addEventListener("submit", async (event) => {
       event.preventDefault();
       const form = event.currentTarget;
       const button = form.querySelector('button[type="submit"]');
+      const statusNote = form.querySelector("[data-mutation-save-status]");
+      const showStatus = (message) => {
+        statusNote.hidden = false;
+        statusNote.textContent = message;
+      };
       button.disabled = true;
       button.textContent = "Saving…";
+      let submittedRequestId = null;
       try {
-        await api(`/api/mydinos/stored/${encodeURIComponent(dino.slot)}/mutations`, {
+        const result = await api(`/api/mydinos/stored/${encodeURIComponent(dino.slot)}/mutations`, {
           method: "PUT",
           body: JSON.stringify({ mutations: Object.fromEntries(new FormData(form).entries()) }),
         });
+        submittedRequestId = result?.requestId || null;
+        if (result?.pending && submittedRequestId) {
+          button.textContent = "Waiting for confirmation…";
+          showStatus("Mutation edit submitted to DinoStorage. Checking the original request; please do not save again.");
+          const deadline = Date.now() + 75000;
+          let confirmed = false;
+          let statusFailed = null;
+          while (Date.now() < deadline && !confirmed) {
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+            let receipt;
+            try {
+              receipt = await api(`/api/mydinos/stored/${encodeURIComponent(dino.slot)}/mutations/requests/${encodeURIComponent(submittedRequestId)}`);
+            } catch (error) {
+              // The status check itself may be slow; this does not mean the
+              // game command failed. Never resubmit from this polling loop.
+              showStatus("Mutation edit was sent. Still checking DinoStorage confirmation…");
+              continue;
+            }
+            if (receipt?.status === "failed") {
+              statusFailed = new Error(receipt.error || receipt.message || "DinoStorage rejected the mutation edit.");
+              break;
+            }
+            if (receipt?.confirmed) confirmed = true;
+          }
+          if (statusFailed) throw statusFailed;
+          if (!confirmed) {
+            showStatus(`Mutation update was submitted but confirmation is delayed (request ${submittedRequestId}). Check this dinosaur later before saving again. No second command has been sent.`);
+            button.textContent = "Awaiting DinoStorage confirmation";
+            return;
+          }
+        }
+        showStatus("DinoStorage confirmed the mutation update.");
         alert("Mutation loadout updated on the parked dino.");
         ensureParkedToolsDialog().close();
-        await refresh();
+        try {
+          await refresh();
+        } catch (refreshError) {
+          // An unrelated roster refresh failure must not turn a confirmed
+          // saved mutation into a false save error.
+          console.warn("Mutation was saved but the dino roster refresh failed", refreshError);
+        }
       } catch (error) {
+        if (submittedRequestId) {
+          showStatus(`Mutation edit request ${submittedRequestId}: ${error.message || "Confirmation failed."}`);
+        }
         alert(error.message || "Could not update mutations.");
         button.disabled = false;
         button.textContent = "Save mutations →";
