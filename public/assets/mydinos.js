@@ -457,7 +457,13 @@ async function openMutationEditor(dino) {
         showStatus("DinoStorage confirmed the mutation update.");
         alert("Mutation loadout updated on the parked dino.");
         ensureParkedToolsDialog().close();
-        await refresh();
+        try {
+          await refresh();
+        } catch (refreshError) {
+          // An unrelated roster refresh failure must not turn a confirmed
+          // saved mutation into a false save error.
+          console.warn("Mutation was saved but the dino roster refresh failed", refreshError);
+        }
       } catch (error) {
         if (submittedRequestId) {
           showStatus(`Mutation edit request ${submittedRequestId}: ${error.message || "Confirmation failed."}`);
