@@ -480,12 +480,27 @@ router.put('/dinostorage/stored/:steamId/:slot/mutations', async (req, res) => {
       slot: value.slot,
       mutationCount: Object.values(value.mutations || {}).filter(Boolean).length,
     }));
-    res.json({ ok: true, ...result });
+    res.status(result.pending ? 202 : 200).json({ ok: true, ...result });
   } catch (error) {
     const status = error.code === 'PARKED_DINO_EDIT_DISABLED' ? 503 :
       error.code === 'DINO_FILE_NOT_FOUND' ? 404 :
       error.code === 'DUPLICATE_MUTATION' || error.code === 'MUTATION_NOT_ALLOWED' ? 400 : 400;
-    res.status(status).json({ error: error.message || 'Unable to update parked dino mutations.', code: error.code || null });
+    res.status(status).json({ error: error.message || 'Unable to update parked dino mutations.', code: error.code || null, requestId: error.requestId || null });
+  }
+});
+
+router.get('/dinostorage/stored/:steamId/:slot/mutations/requests/:requestId', async (req, res) => {
+  try {
+    const result = await parkedDinoMutations.getMutationEditStatus({
+      steamId: validateSteamId(req.params.steamId),
+      slot: dinoStorage.validateSlot(req.params.slot),
+      requestId: req.params.requestId,
+    });
+    res.set('Cache-Control', 'private, no-store');
+    res.json(result);
+  } catch (error) {
+    const status = error.code === 'MUTATION_EDIT_NOT_FOUND' ? 404 : 400;
+    res.status(status).json({ error: error.message || 'Unable to check mutation edit.' });
   }
 });
 
