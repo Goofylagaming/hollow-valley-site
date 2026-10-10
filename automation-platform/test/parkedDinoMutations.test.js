@@ -13,6 +13,8 @@ function loadService({ enabled = false } = {}) {
   process.env.PARKED_DINO_EDIT_ENABLED = enabled ? 'true' : 'false';
   let state = {
     slot: 'slot_a',
+    classPath: '/Game/TheIsle/Core/Characters/Dinosaurs/Tyrannosaurus/BP_Tyrannosaurus.BP_Tyrannosaurus_C',
+    species: 'Tyrannosaurus',
     isFemale: true,
     mutations: {
       Slot1: 'Cellular Regeneration',
@@ -207,4 +209,139 @@ test('mutation editor JSON keys match DinoStorage serializer contract', () => {
   assert.match(lua, /"Slot1": "%s", "Slot2": "%s", "Slot3": "%s", "Slot4": "%s"/);
   assert.match(lua, /jsonReadString\(mutBlock,"Slot1"\)/);
   assert.match(lua, /MutationSlot1 = jsonReadString\(mutBlock,"Slot1"\)/);
+});
+
+test('T-Rex only sees carnivore and universal mutations', async (t) => {
+  const fixture = loadService({ enabled: true });
+  t.after(fixture.cleanup);
+  const result = await fixture.service.getMutationEditor('76561198000000201', 'slot_a');
+
+  assert.equal(result.species, 'Tyrannosaurus');
+  assert.equal(result.diet, 'carnivore');
+  assert.ok(result.slotCatalog.Slot2.includes('Cannibalistic'));
+  assert.ok(result.slotCatalog.Slot2.includes('Hypermetabolic Inanition'));
+  assert.ok(result.slotCatalog.Slot2.includes('Cellular Regeneration'));
+  assert.equal(result.slotCatalog.Slot2.includes('Tactile Endurance'), false);
+  assert.equal(result.slotCatalog.Slot1.includes('Barometric Sensitivity'), false);
+  assert.equal(result.catalog.includes('Photosynthetic Regeneration'), false);
+});
+
+test('T-Rex cannot write herbivore-only Tactile Endurance', async (t) => {
+  const fixture = loadService({ enabled: true });
+  t.after(fixture.cleanup);
+  await assert.rejects(() => fixture.service.updateMutations({
+    steamId: '76561198000000201',
+    slot: 'slot_a',
+    mutations: { Slot2: 'Tactile Endurance' },
+  }), (error) => error.code === 'MUTATION_SLOT_NOT_ALLOWED' &&
+    /not available for Tyrannosaurus/.test(error.message));
+  assert.equal(fixture.getWrites(), 0);
+});
+
+test('Triceratops only sees herbivore and universal mutations, not carnivore mutations', async (t) => {
+  const fixture = loadService({ enabled: true });
+  t.after(fixture.cleanup);
+  fixture.getState().species = 'Triceratops';
+  fixture.getState().classPath = '/Game/Dinosaurs/Triceratops/BP_Triceratops.BP_Triceratops_C';
+
+  const result = await fixture.service.getMutationEditor('76561198000000201', 'slot_a');
+  assert.equal(result.diet, 'herbivore');
+  assert.ok(result.slotCatalog.Slot2.includes('Tactile Endurance'));
+  assert.ok(result.slotCatalog.Slot2.includes('Cellular Regeneration'));
+  assert.equal(result.slotCatalog.Slot2.includes('Cannibalistic'), false);
+  assert.equal(result.catalog.includes('Accelerated Prey Drive'), false);
+  await assert.rejects(() => fixture.service.updateMutations({
+    steamId: '76561198000000201',
+    slot: 'slot_a',
+    mutations: { Slot1: 'Accelerated Prey Drive' },
+  }), (error) => error.code === 'MUTATION_SLOT_NOT_ALLOWED');
+  assert.equal(fixture.getWrites(), 0);
+});
+
+test('carnivore and herbivore mutations still work for their own diet', async (t) => {
+  const carnivore = loadService({ enabled: true });
+  t.after(carnivore.cleanup);
+  await carnivore.service.updateMutations({
+    steamId: '76561198000000201',
+    slot: 'slot_a',
+    mutations: { Slot1: 'Accelerated Prey Drive', Slot2: 'Cannibalistic' },
+  });
+  assert.equal(carnivore.getWrites(), 1);
+
+  const herbivore = loadService({ enabled: true });
+  t.after(herbivore.cleanup);
+  herbivore.getState().species = 'Triceratops';
+  herbivore.getState().classPath = '/Game/Dinosaurs/Triceratops/BP_Triceratops.BP_Triceratops_C';
+  await herbivore.service.updateMutations({
+    steamId: '76561198000000201',
+    slot: 'slot_a',
+    mutations: { Slot1: 'Barometric Sensitivity', Slot2: 'Tactile Endurance' },
+  });
+  assert.equal(herbivore.getWrites(), 1);
+});
+
+test('plant-eating omnivores can use plant pool but cannot equip carnivore-only mutations', async (t) => {
+  const fixture = loadService({ enabled: true });
+  t.after(fixture.cleanup);
+  fixture.getState().species = 'Beipiaosaurus';
+  fixture.getState().classPath = '/Game/Dinosaurs/Beipiaosaurus/BP_Beipiaosaurus.BP_Beipiaosaurus_C';
+
+  const result = await fixture.service.getMutationEditor('76561198000000201', 'slot_a');
+  assert.equal(result.diet, 'omnivore');
+  assert.ok(result.slotCatalog.Slot2.includes('Tactile Endurance'));
+  assert.equal(result.catalog.includes('Hemomania'), false);
+  await assert.rejects(() => fixture.service.updateMutations({
+    steamId: '76561198000000201',
+    slot: 'slot_a',
+    mutations: { Slot1: 'Hemomania' },
+  }), (error) => error.code === 'MUTATION_SLOT_NOT_ALLOWED');
+  assert.equal(fixture.getWrites(), 0);
+});
+
+test('innate cannibals do not see or receive Cannibalistic mutation', async (t) => {
+  const fixture = loadService({ enabled: true });
+  t.after(fixture.cleanup);
+  fixture.getState().species = 'Deinosuchus';
+  fixture.getState().classPath = '/Game/Dinosaurs/Deinosuchus/BP_Deinosuchus.BP_Deinosuchus_C';
+
+  const result = await fixture.service.getMutationEditor('76561198000000201', 'slot_a');
+  assert.equal(result.slotCatalog.Slot2.includes('Cannibalistic'), false);
+  await assert.rejects(() => fixture.service.updateMutations({
+    steamId: '76561198000000201',
+    slot: 'slot_a',
+    mutations: { Slot2: 'Cannibalistic' },
+  }), (error) => error.code === 'MUTATION_SLOT_NOT_ALLOWED');
+  assert.equal(fixture.getWrites(), 0);
+});
+
+test('unrecognised dinosaur species cannot edit mutations even by sending a crafted write', async (t) => {
+  const fixture = loadService({ enabled: true });
+  t.after(fixture.cleanup);
+  fixture.getState().species = 'Unknown';
+  fixture.getState().classPath = '/Game/Dinosaurs/Unreleased/BP_Unreleased.BP_Unreleased_C';
+
+  const state = await fixture.service.getMutationEditor('76561198000000201', 'slot_a');
+  assert.equal(state.writeEnabled, false);
+  assert.deepEqual(state.catalog, []);
+  await assert.rejects(() => fixture.service.updateMutations({
+    steamId: '76561198000000201',
+    slot: 'slot_a',
+    mutations: { Slot1: 'Cellular Regeneration' },
+  }), (error) => error.code === 'MUTATION_SPECIES_UNKNOWN');
+  assert.equal(fixture.getWrites(), 0);
+});
+
+test('mutation constraints do not alter inherited or elder fields', async (t) => {
+  const fixture = loadService({ enabled: true });
+  t.after(fixture.cleanup);
+  fixture.getState().species = 'Triceratops';
+  await fixture.service.updateMutations({
+    steamId: '76561198000000201',
+    slot: 'slot_a',
+    mutations: { Slot1: 'Cellular Regeneration', Slot2: 'Tactile Endurance' },
+  });
+  const values = fixture.getEditCalls()[0].values;
+  assert.equal(Object.keys(values).length, 4);
+  assert.equal(fixture.getState().mutations.ParentSlot1, 'Inherited Example');
+  assert.equal(fixture.getState().mutations.ElderSlot1A, 'Elder Example');
 });
