@@ -120,6 +120,7 @@ test('mutation editor changes only active slots and preserves inherited/elder da
     steamId: '76561198000000201',
     slot: 'slot_a',
     mode: 'mutations',
+    trackMutation: true,
     values: {
       Slot1: 'Hemomania',
       Slot2: 'Sustained Hydration',
