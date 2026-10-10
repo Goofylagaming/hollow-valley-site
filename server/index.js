@@ -164,6 +164,7 @@ function createApp() {
       user: req.user || null,
       discordLoginConfigured: authRouter.isConfigured,
       steamLoginConfigured: authSteamRouter.isConfigured,
+      skinStudioCalibrationPreview: process.env.SKIN_STUDIO_CALIBRATION_PREVIEW === "1",
     });
   });
 

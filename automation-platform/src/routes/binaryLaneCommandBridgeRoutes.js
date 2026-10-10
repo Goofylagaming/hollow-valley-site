@@ -4,6 +4,7 @@ const bridge = require('../services/commandBridgeHttpService');
 const dinoStorage = require('../services/dinoStorageService');
 const deathSuppression = require('../services/combatDeathSuppressionService');
 const restartTelemetry = require('../services/restartTelemetryService');
+const skinWear = require('../services/skinWearService');
 
 const router = express.Router();
 router.use(requireBinaryLaneCommandToken);
@@ -54,6 +55,25 @@ router.post('/restart-event', (req, res) => {
 
 router.post('/result', async (req, res) => {
   try {
+    if (req.body?.source === 'SkinStudio' && req.body?.verb === 'skin_lifecycle') {
+      try {
+        const lifecycle = skinWear.handleLifecycleEvent(req.body || {});
+        return res.json({
+          accepted: true,
+          duplicate: false,
+          final: true,
+          lifecycle: true,
+          ...lifecycle,
+        });
+      } catch (error) {
+        return res.status(400).json({
+          accepted: false,
+          reason: error.code || 'skin_lifecycle_invalid',
+          error: error.message || 'Invalid SkinStudio lifecycle event.',
+        });
+      }
+    }
+
     const outcome = bridge.acceptResult(req.body || {});
 
     // A late result for a request already rotated out should not make the

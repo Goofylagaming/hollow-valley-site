@@ -54,6 +54,9 @@ test("Skin Studio website client targets automation skin endpoints", async (t) =
     steamId: "76561198000000401",
     presetId: "preset-12345678",
   });
+  await client.getSkinWearState("76561198000000401");
+  await client.retrySkinWear("76561198000000401");
+  await client.resetSkinWear("76561198000000401");
 
   assert.equal(calls[0].url, "https://automation.example.test/api/website/skins/studio");
   assert.equal(calls[0].options.method, "POST");
@@ -62,22 +65,50 @@ test("Skin Studio website client targets automation skin endpoints", async (t) =
   assert.equal(calls[1].url, "https://automation.example.test/api/website/skins/preset-12345678/buy");
   assert.equal(calls[2].url, "https://automation.example.test/api/website/skins/preset-12345678/wear");
   assert.equal(calls[2].options.headers.Authorization, "Bearer test-token");
+  assert.equal(calls[3].url, "https://automation.example.test/api/website/skins/wear-state/76561198000000401");
+  assert.equal(calls[4].url, "https://automation.example.test/api/website/skins/wear-retry");
+  assert.equal(calls[4].options.method, "POST");
+  assert.equal(calls[5].url, "https://automation.example.test/api/website/skins/wear-reset");
+  assert.equal(calls[5].options.method, "POST");
 });
 
 
-test("Skin Studio v011 keeps current-pawn isolation and required runtime helpers", () => {
+test("Skin Studio v012 restores life-scoped skins without using transient pawn skin data", () => {
   const fs = require("node:fs");
   const path = require("node:path");
   const lua = fs.readFileSync(path.join(__dirname, "..", "server-mods", "SkinStudio", "Scripts", "main.lua"), "utf8");
   const browser = fs.readFileSync(path.join(__dirname, "..", "public", "assets", "skins.js"), "utf8");
+  const serverIndex = fs.readFileSync(path.join(__dirname, "..", "server", "index.js"), "utf8");
 
-  assert.match(lua, /SkinStudio v011/);
-  assert.match(lua, /CURRENT pawn only/);
-  assert.match(lua, /never auto-restores an old applied skin onto a future pawn/);
-  assert.match(lua, /TemporarySkinData and bUseSkinPalette are intentionally never modified/);
-  assert.match(lua, /Cleared legacy auto-restore profiles/);
-  assert.equal(lua.includes("loadProfiles()\n\nif LoopInGameThreadWithDelay"), false);
-  assert.equal(lua.includes('safeCall("reapplyProfiles", reapplyProfiles)'), false);
+  assert.match(lua, /SkinStudio v012/);
+  assert.match(lua, /life-scoped reconnect persistence/);
+  assert.match(lua, /rememberProfile\(\s*steam, args, config, growth, baseFingerprint, appliedFingerprint\s*\)/);
+  assert.match(lua, /loadProfiles\(\)/);
+  assert.match(lua, /safeCall\("reapplyProfiles", reapplyProfiles\)/);
+  assert.match(lua, /pendingLiveRefresh\[steam\]/);
+  assert.match(lua, /local REAPPLY_INTERVAL_MS = 4000/);
+  assert.match(lua, /PATTERN_MAX_BY_SPECIES/);
+  assert.match(lua, /THEME_MAX_BY_SPECIES/);
+  assert.match(lua, /Skipped unverified PatternIndex/);
+  assert.match(lua, /Skipped unverified ThemeIndex/);
+  assert.match(lua, /pattern=%s theme=%s variation=%s temporary=false/);
+  assert.match(lua, /preserved-unverified/);
+  assert.match(lua, /BABY_GROWTH_RESET_FLOOR = 0\.15/);
+  assert.match(lua, /RECONNECT_FINGERPRINT_STABLE_POLLS = 2/);
+  assert.match(lua, /local function customizerFingerprint\(pawn\)/);
+  assert.match(lua, /pawnClassName\(pawn\):lower\(\)/);
+  assert.match(lua, /GetElderReplicationStacks\(\)/);
+  assert.match(lua, /baseFingerprint/);
+  assert.match(lua, /appliedFingerprint/);
+  assert.match(lua, /reusableBaseFingerprint/);
+  assert.match(lua, /Reconnect fingerprint already matches applied skin/);
+  assert.match(lua, /Waiting for native skin fingerprint to settle/);
+  assert.match(lua, /native-skin-fingerprint-mismatch/);
+  assert.match(lua, /verb":"skin_lifecycle"/);
+  assert.match(lua, /emitSkinLifecycleClear/);
+  assert.match(lua, /Discarded .*legacy skin profile.*safe life fingerprints/);
+  assert.match(lua, /reconnect profile saved/);
+  assert.equal(lua.includes("SaveDataToFile"), false);
   assert.match(lua, /state\.pawnAddress/);
   assert.match(lua, /state\.controllerAddress/);
   assert.match(lua, /Cancelled live skin refresh after dinosaur life changed/);
@@ -96,6 +127,213 @@ test("Skin Studio v011 keeps current-pawn isolation and required runtime helpers
   assert.match(browser, /storedDinos\.find/);
   assert.match(browser, /presetSpecies\.toLowerCase\(\) !== dinoSpecies\.toLowerCase\(\)/);
   assert.match(browser, /Variation \$\{Number\(preset\.skin\?\.skinVariation\)/);
+  assert.match(browser, /function syncColorCodeLabels\(\)/);
+  assert.match(browser, /syncColorCodeLabels\(\);/);
+  assert.match(browser, /syncPatternPresetButtons\(\);/);
+  assert.match(browser, /Previous Wear Live verified/);
+  assert.match(browser, /No reconnect restore is armed now/);
+  assert.match(browser, /skinStudioCalibrationPreview/);
+  assert.match(browser, /const canCalibrate = Boolean\(me\.user\?\.is_admin\) \|\| calibrationPreview/);
+  assert.match(serverIndex, /SKIN_STUDIO_CALIBRATION_PREVIEW === "1"/);
+});
+
+test("Skin Studio 3D preview uses species-specific models and refuses fake universal previews", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(__dirname, "..", "public", "skins.html"), "utf8");
+  const registry = fs.readFileSync(path.join(__dirname, "..", "public", "assets", "skin-studio-model-registry.js"), "utf8");
+  const renderer = fs.readFileSync(path.join(__dirname, "..", "public", "assets", "skin-studio-3d.js"), "utf8");
+
+  assert.match(html, /skin-studio-model-registry\.js/);
+  assert.match(html, /skin-studio-model-registry\.js\?v=6/);
+  assert.match(html, /id="skin-model-name"/);
+  assert.match(registry, /tyrannosaurus:[\s\S]*capability: "zones"[\s\S]*patternMax: 2/);
+  assert.match(registry, /const calibratedModel =/);
+  assert.match(registry, /maskUrl/);
+  assert.match(registry, /switch its registry entry from shapeModel/);
+  assert.match(registry, /const referenceModel =/);
+  assert.match(registry, /triceratops: shapeModel/);
+  assert.match(registry, /wojciechmiedziocha/);
+  assert.match(registry, /87527079bad44917ab1b98a456b46c7e/);
+  assert.match(registry, /const localModelUrl = \(species\) => `\/assets\/skin-models\/\$\{species\}\/model\.glb`/);
+  assert.match(registry, /localModelUrl\("triceratops"\)/);
+  assert.equal(registry.includes("raw.githubusercontent.com"), false);
+  assert.match(registry, /deinosuchus:[\s\S]*capability: "pending"/);
+  assert.match(registry, /allosaurus: shapeModel/);
+  assert.match(registry, /Allosaurus by FunkoDrunko · CC BY 4\.0/);
+  assert.match(registry, /localModelUrl\("allosaurus"\)/);
+  assert.match(registry, /carnotaurus: shapeModel/);
+  assert.match(registry, /CARNOTAURUS DİNOSAUR by Cenker Turhan · CC BY 4\.0/);
+  assert.match(registry, /localModelUrl\("carnotaurus"\)/);
+  assert.match(registry, /ceratosaurus: pendingModel/);
+  assert.match(registry, /dilophosaurus: shapeModel/);
+  assert.match(registry, /Dilophosaurus by Marcel Schanz · CC BY 4\.0/);
+  assert.match(registry, /gallimimus: pendingModel/);
+  assert.match(registry, /maiasaura: shapeModel/);
+  assert.match(registry, /Maiasaura With Rig by Dino Dan · CC BY 4\.0/);
+  assert.match(registry, /kentrosaurus: pendingModel/);
+  assert.match(registry, /pachycephalosaurus: shapeModel/);
+  assert.match(registry, /PBR Pachycephalosaurus by Ferocious Industries · CC BY 4\.0/);
+  assert.match(registry, /pteranodon: shapeModel/);
+  assert.match(registry, /Pteranodon by Oscar López Riviello · CC BY 4\.0/);
+  assert.match(registry, /stegosaurus: shapeModel/);
+  assert.match(registry, /PBR Stegosaurus by Ferocious Industries · CC BY 4\.0/);
+  assert.equal(registry.includes("cdn.3dassets.dev"), false);
+  assert.match(registry, /beipiaosaurus: pendingModel/);
+  assert.match(renderer, /resolveModelDefinition/);
+  assert.match(renderer, /loadModelForSpecies/);
+  assert.match(renderer, /function showReferenceModel\(def, label\)/);
+  assert.match(renderer, /MeshoptDecoder/);
+  assert.match(renderer, /setMeshoptDecoder\(MeshoptDecoder\)/);
+  assert.match(renderer, /function provisionalShapeMaterial\(source\)/);
+  assert.match(renderer, /hvShapeLuma/);
+  assert.match(renderer, /hvShapeBody \* hvShapeShade/);
+  assert.match(renderer, /function updateShapeBodyTint\(hex\)/);
+  assert.match(renderer, /neutral Body preview/);
+  assert.match(renderer, /skin-reference-mode/);
+  assert.match(renderer, /Universal skin/);
+  assert.match(renderer, /EVRIMA zone calibration pending/);
+  assert.match(renderer, /currentModelDef\.capability === "zones"/);
+  assert.match(renderer, /skin-model-auto-rotate/);
+  assert.match(renderer, /skin-model-clean-view/);
+  assert.match(renderer, /skin-model-ultra/);
+  assert.match(renderer, /skin-model-spin/);
+  assert.match(renderer, /function engineChannelsFromHex\(value\)/);
+  assert.match(renderer, /THREE\.LinearSRGBColorSpace/);
+  assert.match(renderer, /engineColorFromHex\(currentPalette\.body\)/);
+  assert.match(renderer, /EVRIMA linear colour/);
+  assert.equal(renderer.includes("new THREE.Color(currentPalette.body)"), false);
+  assert.match(renderer, /lookupZoneFromUv/);
+  assert.match(renderer, /selectPaintZoneAt/);
+  assert.match(renderer, /function startCalibration\(\)/);
+  assert.match(renderer, /function paintCalibrationUv\(uv\)/);
+  assert.match(renderer, /function buildModelUvCoverage\(root\)/);
+  assert.match(renderer, /function fillCalibrationIsland\(uv\)/);
+  assert.match(renderer, /function pushCalibrationHistory\(\)/);
+  assert.match(renderer, /function undoCalibration\(\)/);
+  assert.match(renderer, /function redoCalibration\(\)/);
+  assert.match(renderer, /maskPixelCovered\(x, y\)/);
+  assert.match(renderer, /UV footprint/);
+  assert.match(renderer, /UV-clipped/);
+  assert.match(renderer, /function exportCalibrationMask\(\)/);
+  assert.match(renderer, /async function loadMaskData\(def\)/);
+  assert.match(renderer, /def\.maskUrl/);
+  assert.match(renderer, /await response\.json\(\)/);
+  assert.match(renderer, /JSON\.stringify\(maskPayloadFromLookup\(\), null, 2\)/);
+  assert.match(renderer, /function loadCalibrationDraft\(\)/);
+  assert.match(renderer, /function normalizeCalibrationMaskPayload\(value\)/);
+  assert.match(renderer, /function replaceCalibrationMask\(value\)/);
+  assert.match(renderer, /CALIBRATION_DIAGNOSTIC_PALETTE/);
+  assert.match(renderer, /function loadDiagnosticPalette\(\)/);
+  assert.match(renderer, /function validateInspectorCapture\(value\)/);
+  assert.match(renderer, /function inspectorSpeciesMatchesCurrent\(\)/);
+  assert.match(renderer, /function applyInspectorCaptureColours\(\)/);
+  assert.match(renderer, /hollow-valley-skin-inspector\/v1/);
+  assert.match(renderer, /matches selected species/);
+  assert.match(renderer, /function updateCalibrationCoverage\(\)/);
+  assert.match(renderer, /Mapped \$\{pct\(mapped\)\}%/);
+  assert.match(renderer, /scheduleCalibrationCoverage\(\)/);
+  assert.match(renderer, /Unsupported calibration zone/);
+  assert.match(renderer, /contains an invalid or out-of-bounds RLE run/);
+  assert.match(renderer, /overlaps .* at UV pixel/);
+  assert.match(renderer, /Discarded invalid saved calibration draft/);
+  assert.match(renderer, /Mask import rejected/);
+  assert.match(renderer, /hv-skin-calibration:/);
+  assert.match(renderer, /draft auto-saved/);
+  assert.match(html, /CLICK ZONE TO PAINT/);
+  assert.match(html, /id="skin-model-reference-frame"/);
+  assert.match(html, /id="skin-calibration-panel"/);
+  assert.match(html, /id="skin-calibration-zone"/);
+  assert.match(html, /id="skin-calibration-copy"/);
+  assert.match(html, /id="skin-calibration-import"/);
+  assert.match(html, /id="skin-calibration-import-button"/);
+  assert.match(html, /id="skin-calibration-diagnostic"/);
+  assert.match(html, /id="skin-calibration-island-fill"/);
+  assert.match(html, /id="skin-calibration-undo"/);
+  assert.match(html, /id="skin-calibration-redo"/);
+  assert.match(html, /id="skin-calibration-coverage"/);
+  assert.match(html, /id="skin-inspector-file"/);
+  assert.match(html, /id="skin-inspector-apply-colours"/);
+  assert.match(html, /EVRIMA SkinInspector capture/);
+  assert.match(html, /Load diagnostic colours/);
+  assert.match(html, /Import \/ resume a mask/);
+  assert.match(html, /skin-studio-3d\.js\?v=18/);
+});
+
+
+test("Vendored Skin Studio model binaries match their approved source blobs", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const crypto = require("node:crypto");
+
+  const expected = {
+    allosaurus: "74154451bcda7f5e1d0a8066b78edabb11ebe8b0",
+    carnotaurus: "b581941b92a37d6d254b8aea2b66efd49724afb2",
+    dilophosaurus: "e669ccf5b0aa4860842179f290b7bbc84d64bf2a",
+    maiasaura: "6628afb9bd1f473aa76e95883f8889262b4ea748",
+    pachycephalosaurus: "5cc7f8f0d44cbf480168c8d39d245e5e3202e61b",
+    pteranodon: "7b45961cd3f454464856d580fa9fa0a7ad38c596",
+    stegosaurus: "c70a388085479e8fbbd7eb3a7a00a369542bef4b",
+    triceratops: "502f1f8929504255219a65b9fd5228827a3ea0b4",
+  };
+
+  for (const [species, expectedSha] of Object.entries(expected)) {
+    const file = fs.readFileSync(
+      path.join(__dirname, "..", "public", "assets", "skin-models", species, "model.glb")
+    );
+    assert.equal(file.length > 500_000, true, `${species} GLB is unexpectedly small`);
+    const header = Buffer.from(`blob ${file.length}\0`);
+    const actualSha = crypto.createHash("sha1").update(header).update(file).digest("hex");
+    assert.equal(actualSha, expectedSha, `${species} GLB blob hash changed`);
+  }
+});
+
+test("Skin Studio keeps FNF-compatible core zone order and simple pattern controls", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const browser = fs.readFileSync(path.join(__dirname, "..", "public", "assets", "skins.js"), "utf8");
+  const html = fs.readFileSync(path.join(__dirname, "..", "public", "skins.html"), "utf8");
+
+  const ordered = [
+    '["maleDisplay", "Male display"',
+    '["markings", "Markings"',
+    '["body", "Body"',
+    '["flank", "Flank"',
+    '["underbelly", "Underbelly"',
+    '["detail1", "Detail"',
+    '["eyes", "Eyes"',
+  ].map((needle) => browser.indexOf(needle));
+
+  assert.equal(ordered.every((index) => index >= 0), true);
+  assert.deepEqual([...ordered].sort((a, b) => a - b), ordered);
+  assert.match(browser, /Fangs & Ferns-compatible order/);
+  assert.match(browser, /Extended EVRIMA channels/);
+  assert.match(browser, /previewSex/);
+  assert.match(browser, /function selectedSpeciesProfile\(\)/);
+  assert.match(browser, /Number\.isInteger\(profile\?\.patternMax\)/);
+  assert.match(browser, /Wear Live will preserve its current in-game pattern/);
+  assert.match(html, /skin-studio-3d\.js\?v=18/);
+  assert.match(html, /id="skin-pattern-presets"/);
+  assert.match(html, /id="skin-pattern-safety"/);
+  assert.match(html, /id="skin-sex-preview"/);
+  assert.match(html, /<details class="skin-advanced-settings">/);
+  assert.match(html, /Advanced EVRIMA values/);
+  assert.match(html, /Wear Live preserves unverified PatternIndex \/ ThemeIndex values/);
+});
+
+
+test("Skin Studio colour-zone groups stack cleanly without nested desktop grid overlap", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const css = fs.readFileSync(path.join(__dirname, "..", "public", "assets", "styles.css"), "utf8");
+  const html = fs.readFileSync(path.join(__dirname, "..", "public", "skins.html"), "utf8");
+
+  assert.match(css, /\.skin-color-grid\{display:block;min-width:0\}/);
+  assert.match(css, /\.skin-color-group-grid\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\);gap:8px\}/);
+  assert.match(css, /grid-template-areas:"copy swatch" "copy code"/);
+  assert.match(css, /@media\(max-width:760px\)\{[\s\S]*?\.skin-color-group-grid\{grid-template-columns:1fr\}/);
+  assert.match(css, /grid-template-columns:minmax\(0,1\.18fr\) minmax\(500px,\.95fr\)!important/);
+  assert.match(html, /assets\/styles\.css\?v=45/);
 });
 
 test("Skin Shop published cards hide raw colour swatches but editing views keep them", () => {
@@ -110,4 +348,26 @@ test("Skin Shop published cards hide raw colour swatches but editing views keep 
     browser.includes('<p>\${escapeHtml(description)}</p>\n        <div class="skin-swatch-row">\${swatches(preset.skin)}</div>'),
     false
   );
+});
+
+
+test("CommandBridge forwards unsolicited SkinStudio lifecycle result lines", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const bridgeLua = fs.readFileSync(
+    path.join(__dirname, "..", "server-mods", "CommandBridge", "Scripts", "main.lua"),
+    "utf8"
+  );
+
+  const forwardStart = bridgeLua.indexOf("local function forwardSubmodResults()");
+  const forwardEnd = bridgeLua.indexOf("local function pollFileInput()", forwardStart);
+  assert.equal(forwardStart >= 0, true);
+  assert.equal(forwardEnd > forwardStart, true);
+
+  const forwarder = bridgeLua.slice(forwardStart, forwardEnd);
+  assert.match(forwarder, /local id = jsonReadString\(line, "id"\)/);
+  assert.match(forwarder, /if id ~= nil and not forwardedResults\[line\]/);
+  assert.match(forwarder, /postResultLine\(line\)/);
+  assert.equal(forwarder.includes("getRequest"), false);
+  assert.equal(forwarder.includes("known"), false);
 });

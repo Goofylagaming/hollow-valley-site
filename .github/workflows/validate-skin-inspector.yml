@@ -1,0 +1,27 @@
+name: Validate SkinInspector
+
+on:
+  push:
+    paths:
+      - "client-mods/SkinInspector/**"
+      - "test/skinInspectorClient.test.js"
+      - ".github/workflows/validate-skin-inspector.yml"
+  pull_request:
+    paths:
+      - "client-mods/SkinInspector/**"
+      - "test/skinInspectorClient.test.js"
+      - ".github/workflows/validate-skin-inspector.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Lua
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y lua5.4
+      - name: Validate Lua syntax
+        run: luac -p client-mods/SkinInspector/Scripts/main.lua
+      - name: Validate read-only client inspector contract
+        run: node --test test/skinInspectorClient.test.js
