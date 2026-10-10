@@ -2,6 +2,75 @@ const dinoStorage = require('./dinoStorageService');
 
 const SLOT_KEYS = Object.freeze(['Slot1', 'Slot2', 'Slot3', 'Slot4']);
 
+// Website eligibility policy: this is not a game-derived, per-patch mutation table.
+// Keep unknown species fail-closed rather than granting all mutations to them.
+// DinoStorage normalizes the stored BP_ class path into state.species.
+const SPECIES_DIETS = Object.freeze({
+  tyrannosaurus: 'carnivore',
+  allosaurus: 'carnivore',
+  austroraptor: 'carnivore',
+  carnotaurus: 'carnivore',
+  ceratosaurus: 'carnivore',
+  deinosuchus: 'carnivore',
+  dilophosaurus: 'carnivore',
+  herrerasaurus: 'carnivore',
+  omniraptor: 'carnivore',
+  pteranodon: 'carnivore',
+  troodon: 'carnivore',
+  diabloceratops: 'herbivore',
+  dryosaurus: 'herbivore',
+  hypsilophodon: 'herbivore',
+  kentrosaurus: 'herbivore',
+  maiasaura: 'herbivore',
+  pachycephalosaurus: 'herbivore',
+  stegosaurus: 'herbivore',
+  tenontosaurus: 'herbivore',
+  triceratops: 'herbivore',
+  beipiaosaurus: 'omnivore',
+  gallimimus: 'omnivore',
+});
+
+// Restrict only documented diet-specific mutations. All other catalog entries
+// retain their existing slot/sex policy pending a versioned per-species audit.
+const MUTATION_DIETS = Object.freeze({
+  'Accelerated Prey Drive': ['carnivore'],
+  'Augmented Tapetum': ['carnivore'],
+  'Cannibalistic': ['carnivore'],
+  'Hematophagy': ['carnivore'],
+  'Hemomania': ['carnivore'],
+  'Hypermetabolic Inanition': ['carnivore'],
+  'Osteophagic': ['carnivore'],
+  'Barometric Sensitivity': ['herbivore'],
+  'Hypervigilance': ['herbivore'],
+  'Photosynthetic Regeneration': ['herbivore'],
+  'Tactile Endurance': ['herbivore'],
+  'Truculency': ['herbivore'],
+  'Xerocole Adaptation': ['herbivore'],
+  'Social Behavior': ['herbivore', 'omnivore'],
+});
+
+// Species with innate cannibalism do not need/cannot select this mutation.
+const MUTATION_SPECIES_EXCLUSIONS = Object.freeze({
+  Cannibalistic: ['ceratosaurus', 'deinosuchus'],
+});
+
+function speciesContext(state) {
+  const raw = String(state?.species || '').trim();
+  const fromPath = /BP_([A-Za-z]+)(?:_C)?(?:\.|$)/i.exec(String(state?.classPath || ''))?.[1];
+  const species = raw && raw.toLowerCase() !== 'unknown' ? raw : (fromPath || '');
+  const speciesKey = species.toLowerCase().replace(/[^a-z]/g, '');
+  return { species, speciesKey, diet: SPECIES_DIETS[speciesKey] || null };
+}
+
+function mutationAllowedForSpecies(name, { speciesKey, diet } = {}) {
+  if (!name) return true;
+  if (!diet || !speciesKey) return false;
+  const allowedDiets = MUTATION_DIETS[name];
+  if (allowedDiets && !allowedDiets.includes(diet)) return false;
+  if (MUTATION_SPECIES_EXCLUSIONS[name]?.includes(speciesKey)) return false;
+  return true;
+}
+
 const MUTATION_RULES = Object.freeze({
   'Advanced Gestation': { femaleOnly: true },
   'Gastronomic Regeneration': { slots: ['Slot2', 'Slot4'] },
@@ -79,23 +148,33 @@ function normalizeMutation(value) {
   return canonical;
 }
 
-function mutationAllowedInSlot(name, slotKey, { isFemale = null } = {}) {
+function mutationAllowedInSlot(name, slotKey, context = {}) {
   if (!name) return true;
+  if (!mutationAllowedForSpecies(name, context)) return false;
   const rules = MUTATION_RULES[name] || {};
   if (Array.isArray(rules.slots) && !rules.slots.includes(slotKey)) return false;
-  if (rules.femaleOnly && isFemale !== true) return false;
+  if (rules.femaleOnly && context.isFemale !== true) return false;
   return true;
 }
 
-function normalizeSlots(input = {}, { isFemale = null } = {}) {
+function normalizeSlots(input = {}, context = {}) {
+  // Never write to an unrecognised dinosaur; otherwise slot checks alone
+  // would permit a carnivore to receive herbivore-only mutations.
+  if (!context.diet || !context.speciesKey) {
+    const error = new Error('Cannot edit mutations: this dinosaur species is not recognised');
+    error.code = 'MUTATION_SPECIES_UNKNOWN';
+    throw error;
+  }
   const result = {};
   for (const key of SLOT_KEYS) {
     const value = normalizeMutation(input?.[key]);
-    if (value && !mutationAllowedInSlot(value, key, { isFemale })) {
+    if (value && !mutationAllowedInSlot(value, key, context)) {
       const rules = MUTATION_RULES[value] || {};
-      const reason = rules.femaleOnly && isFemale !== true
-        ? `${value} is female-only`
-        : `${value} cannot be equipped in ${key}`;
+      const reason = !mutationAllowedForSpecies(value, context)
+        ? `${value} is not available for ${context.species} (${context.diet})`
+        : rules.femaleOnly && context.isFemale !== true
+          ? `${value} is female-only`
+          : `${value} cannot be equipped in ${key}`;
       const error = new Error(reason);
       error.code = 'MUTATION_SLOT_NOT_ALLOWED';
       throw error;
@@ -114,16 +193,20 @@ function normalizeSlots(input = {}, { isFemale = null } = {}) {
 function editorState(state, slot) {
   const mutations = state?.mutations && typeof state.mutations === 'object' ? state.mutations : {};
   const isFemale = state?.isFemale === true ? true : state?.isFemale === false ? false : null;
+  const species = speciesContext(state);
+  const context = { ...species, isFemale };
   return {
     slot,
+    species: species.species || 'Unknown',
+    diet: species.diet,
     mutations: Object.fromEntries(SLOT_KEYS.map((key) => [key, mutations[key] || ''])),
-    catalog: [...MUTATION_CATALOG],
+    catalog: MUTATION_CATALOG.filter((name) => mutationAllowedForSpecies(name, context)),
     slotCatalog: Object.fromEntries(SLOT_KEYS.map((key) => [
       key,
-      MUTATION_CATALOG.filter((name) => mutationAllowedInSlot(name, key, { isFemale })),
+      MUTATION_CATALOG.filter((name) => mutationAllowedInSlot(name, key, context)),
     ])),
     isFemale,
-    writeEnabled: writeEnabled(),
+    writeEnabled: writeEnabled() && Boolean(species.diet),
   };
 }
 
@@ -144,7 +227,7 @@ async function updateMutations({ steamId, slot, mutations }) {
   const steam = dinoStorage.validateSteamId(steamId);
   const selectedSlot = dinoStorage.validateSlot(slot);
   const state = await dinoStorage.getStoredDino(steam, selectedSlot);
-  const nextSlots = normalizeSlots(mutations, { isFemale: state?.isFemale === true });
+  const nextSlots = normalizeSlots(mutations, { ...speciesContext(state), isFemale: state?.isFemale === true });
 
   await dinoStorage.editStoredDino({
     steamId: steam,
@@ -167,6 +250,10 @@ module.exports = {
   SLOT_KEYS,
   MUTATION_RULES,
   MUTATION_CATALOG,
+  SPECIES_DIETS,
+  MUTATION_DIETS,
+  speciesContext,
+  mutationAllowedForSpecies,
   writeEnabled,
   normalizeMutation,
   mutationAllowedInSlot,
