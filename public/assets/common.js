@@ -24,7 +24,9 @@ window.HDS = (function () {
   }
 
   function ensureSnapshotStyles() {
-    if (document.querySelector('link[data-hv-snapshot-ui]')) return;
+    // Pages now preload the theme in <head>. Do not append the same CSS again
+    // after the legacy layout has rendered, which causes a visible theme flash.
+    if (document.querySelector('link[href*="/assets/snapshot-ui.css"]')) return;
     const link = document.createElement("link");
     link.rel = "stylesheet";
     link.href = "/assets/snapshot-ui.css?v=2";
