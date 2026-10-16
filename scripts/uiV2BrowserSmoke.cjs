@@ -88,6 +88,11 @@ async function checkPage(browser, origin, route, size, name, opts = {}) {
       await page.keyboard.press("Escape");
       assert.equal(await page.locator(".main-nav").evaluate((el) => el.classList.contains("open")), false, name + " Escape does not close menu");
     }
+    if (route === "/groups") {
+      assert.equal(await page.locator(".groups-note").isVisible(), true, "Groups must be website-only");
+      assert.equal(await page.locator("#groups-signin").isVisible(), true, "Guest should be prompted to sign in");
+      assert.equal(await page.locator('a[href="/groups/territory-wars/"]').count(), 0, "Territory Wars not enabled");
+    }
     if (opts.capture) {
       await page.screenshot({ path: path.join(screenshots, name.replace(/[^a-z0-9_-]/gi, "_") + ".png"), fullPage: false });
     }
@@ -119,14 +124,14 @@ async function main() {
     for (const [route, label] of [
       ["/", "home"], ["/wallet", "wallet"], ["/marketplace", "marketplace"],
       ["/marketplace-official.html", "market-official"], ["/marketplace-players.html", "market-player"],
-      ["/dinostorage/", "dino-storage"], ["/events", "events"],
+      ["/dinostorage/", "dino-storage"], ["/groups", "groups"], ["/events", "events"],
       ["/owner-login", "owner-login"], ["/livemap", "live-map"], ["/skins", "skin-studio"],
     ]) {
       await checkPage(browser, origin, route, desktop, label + "-desktop", { capture: ["home", "wallet", "marketplace", "dino-storage"].includes(label) });
     }
     for (const [route, label] of [
       ["/", "home"], ["/wallet", "wallet"], ["/marketplace", "marketplace"],
-      ["/dinostorage/", "dino-storage"],
+      ["/dinostorage/", "dino-storage"], ["/groups", "groups"],
     ]) {
       await checkPage(browser, origin, route, tablet, label + "-tablet");
       await checkPage(browser, origin, route, phone, label + "-phone", { capture: true });
