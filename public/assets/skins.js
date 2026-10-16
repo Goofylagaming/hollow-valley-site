@@ -1,17 +1,30 @@
 const { api, escapeHtml } = window.HDS;
 
-const COLOR_FIELDS = [
-  ["body", "Body", "#6f7652"],
-  ["markings", "Markings", "#232713"],
-  ["flank", "Flank", "#59613d"],
-  ["underbelly", "Underbelly", "#b7ae8d"],
-  ["detail1", "Detail", "#9c7b46"],
-  ["eyes", "Eyes", "#b7ff35"],
-  ["teeth", "Teeth", "#ded6b8"],
-  ["mouth", "Mouth", "#6d2e34"],
-  ["claws", "Claws", "#28251e"],
-  ["maleDisplay", "Male display", "#a6732b"],
+const FNF_PRIMARY_COLOR_FIELDS = [
+  ["maleDisplay", "Male display", "#a6732b", "Dominant pattern colour"],
+  ["markings", "Markings", "#232713", "Pattern midtone"],
+  ["body", "Body", "#6f7652", "Back and body"],
+  ["flank", "Flank", "#59613d", "Front and flanks"],
+  ["underbelly", "Underbelly", "#b7ae8d", "Belly and throat"],
+  ["detail1", "Detail", "#9c7b46", "Crest and accents"],
+  ["eyes", "Eyes", "#b7ff35", "Eyes · glow in game"],
 ];
+
+const NATIVE_EXTRA_COLOR_FIELDS = [
+  ["teeth", "Teeth", "#ded6b8", "Native EVRIMA channel"],
+  ["mouth", "Mouth", "#6d2e34", "Native EVRIMA channel"],
+  ["claws", "Claws", "#28251e", "Native EVRIMA channel"],
+];
+
+const COLOR_FIELDS = [
+  ...FNF_PRIMARY_COLOR_FIELDS,
+  ...NATIVE_EXTRA_COLOR_FIELDS,
+];
+
+const SKIN_STUDIO_EXTRA_SPECIES = Object.freeze([
+  { id: "austroraptor", name: "Austroraptor", releasedInEvrima: true },
+  { id: "kentrosaurus", name: "Kentrosaurus", releasedInEvrima: true },
+]);
 
 let me = { loggedIn: false, user: null };
 let speciesList = [];
@@ -20,6 +33,8 @@ let mineState = null;
 let storedDinos = [];
 let externalQueue = [];
 let editingPresetId = null;
+let wearState = null;
+let previewSex = "male";
 
 const EXTERNAL_LIBRARY_RE = /^\[External Library:([^\]]+)\]\s*/;
 
@@ -52,6 +67,14 @@ function colorToHex(color) {
   return `#${channel(color?.r)}${channel(color?.g)}${channel(color?.b)}`;
 }
 
+function syncColorCodeLabels() {
+  for (const [key] of COLOR_FIELDS) {
+    const input = document.getElementById(`skin-color-${key}`);
+    const code = document.getElementById(`skin-color-code-${key}`);
+    if (input && code) code.textContent = String(input.value || "#000000").toUpperCase();
+  }
+}
+
 function editorSkin() {
   const skin = {};
   for (const [key] of COLOR_FIELDS) {
@@ -63,6 +86,44 @@ function editorSkin() {
   return skin;
 }
 
+function selectedSpeciesProfile() {
+  const value = String(document.getElementById("skin-species")?.value || "").trim().toLowerCase();
+  return window.HV_SKIN_MODELS?.[value] || null;
+}
+
+function syncPatternPresetButtons() {
+  const value = Number(document.getElementById("skin-pattern")?.value);
+  const profile = selectedSpeciesProfile();
+  const patternMax = Number.isInteger(profile?.patternMax) ? profile.patternMax : null;
+  const safety = document.getElementById("skin-pattern-safety");
+
+  document.querySelectorAll("#skin-pattern-presets [data-pattern]").forEach((button) => {
+    const pattern = Number(button.dataset.pattern);
+    const allowed = patternMax !== null && pattern >= 0 && pattern <= patternMax;
+    const active = allowed && pattern === value;
+    button.disabled = !allowed;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+    button.title = allowed
+      ? `Verified EVRIMA PatternIndex ${pattern} for ${profile.displayName}.`
+      : "Wear Live preserves the current in-game pattern until this species range is verified.";
+  });
+
+  if (safety) {
+    safety.textContent = patternMax === null
+      ? "Live pattern switching is not verified for this species yet. Wear Live will preserve its current in-game pattern."
+      : `Verified live PatternIndex range: 0–${patternMax}. Other values are skipped for safety.`;
+  }
+}
+
+function syncSexPreviewButtons() {
+  document.querySelectorAll("#skin-sex-preview [data-sex]").forEach((button) => {
+    const active = button.dataset.sex === previewSex;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+}
+
 function applySkinToEditor(skin) {
   for (const [key, _label, fallback] of COLOR_FIELDS) {
     const input = document.getElementById(`skin-color-${key}`);
@@ -71,10 +132,14 @@ function applySkinToEditor(skin) {
   document.getElementById("skin-pattern").value = Number(skin?.patternIndex) || 0;
   document.getElementById("skin-theme").value = Number(skin?.themeIndex) || 0;
   document.getElementById("skin-variation").value = Number(skin?.skinVariation) || 0;
+  syncColorCodeLabels();
+  syncPatternPresetButtons();
+  syncSexPreviewButtons();
   updatePreview();
 }
 
 function updatePreview() {
+  syncColorCodeLabels();
   const skin = editorSkin();
   const stage = document.getElementById("skin-preview-stage");
   stage.style.setProperty("--skin-body", colorToHex(skin.body));
@@ -93,20 +158,48 @@ function updatePreview() {
     detail: {
       name,
       species,
+      sex: previewSex,
       skin: Object.fromEntries(Object.entries(skin).map(([key, value]) => [key, colorToHex(value)])),
     },
   }));
 }
 
+function colorEditorGroup(fields, heading, note, className = "") {
+  return `
+    <div class="skin-color-group ${className}">
+      <div class="skin-color-group-heading">
+        <strong>${escapeHtml(heading)}</strong>
+        <span>${escapeHtml(note)}</span>
+      </div>
+      <div class="skin-color-group-grid">
+        ${fields.map(([key, label, fallback, description]) => `
+          <label class="skin-color-control" title="${escapeHtml(description || label)}">
+            <span><b>${escapeHtml(label)}</b><small>${escapeHtml(description || "")}</small></span>
+            <input type="color" id="skin-color-${key}" value="${fallback}" aria-label="${escapeHtml(label)} colour">
+            <code id="skin-color-code-${key}">${fallback.toUpperCase()}</code>
+          </label>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
 function buildColorEditor() {
   const host = document.getElementById("skin-colors");
-  host.innerHTML = COLOR_FIELDS.map(([key, label, fallback]) => `
-    <label class="skin-color-control">
-      <span>${escapeHtml(label)}</span>
-      <input type="color" id="skin-color-${key}" value="${fallback}" aria-label="${escapeHtml(label)} colour">
-      <code id="skin-color-code-${key}">${fallback.toUpperCase()}</code>
-    </label>
-  `).join("");
+  host.innerHTML = [
+    colorEditorGroup(
+      FNF_PRIMARY_COLOR_FIELDS,
+      "Core skin zones",
+      "Fangs & Ferns-compatible order · Male display → Markings → Body → Flank → Underbelly → Detail → Eyes",
+      "skin-color-group-primary"
+    ),
+    colorEditorGroup(
+      NATIVE_EXTRA_COLOR_FIELDS,
+      "Extended EVRIMA channels",
+      "Stored by Hollow Valley when available · not present in standard Fangs & Ferns share codes",
+      "skin-color-group-extended"
+    ),
+  ].join("");
 
   host.querySelectorAll('input[type="color"]').forEach((input) => {
     input.addEventListener("input", () => {
@@ -131,11 +224,14 @@ function resetEditor() {
   document.getElementById("skin-pattern").value = 0;
   document.getElementById("skin-theme").value = 0;
   document.getElementById("skin-variation").value = 0;
+  previewSex = "male";
+  syncPatternPresetButtons();
+  syncSexPreviewButtons();
   updatePreview();
 }
 
 function swatches(skin) {
-  return COLOR_FIELDS.slice(0, 6).map(([key, label]) =>
+  return FNF_PRIMARY_COLOR_FIELDS.map(([key, label]) =>
     `<span title="${escapeHtml(label)}" style="background:${colorToHex(skin?.[key])}"></span>`
   ).join("");
 }
@@ -358,7 +454,13 @@ function wireCardActions(root) {
     button.disabled = true;
     try {
       const result = await api(`/api/skins/${button.dataset.id}/wear`, { method: "POST", body: "{}" });
-      showAlert(result.confirmed ? "Skin applied to your live dinosaur." : (result.message || "Skin request queued."), result.confirmed ? "success" : "info");
+      showAlert(
+        result.confirmed
+          ? (result.persisted ? "Skin applied and persistence verified for this dinosaur life." : "Skin applied to your live dinosaur.")
+          : (result.message || "Skin request queued."),
+        result.confirmed ? "success" : "info"
+      );
+      await loadWearState();
     } catch (err) {
       showAlert(err.message, "error");
     } finally {
@@ -515,6 +617,98 @@ function renderExternalLibrary() {
   wireCardActions(grid);
 }
 
+function wearPresetName(presetId) {
+  const preset = (mineState?.presets || []).find((item) => String(item.id) === String(presetId));
+  return preset?.name || null;
+}
+
+function formatWearTimestamp(value) {
+  if (!value) return "";
+  const text = String(value);
+  const normalized = /[zZ]|[+-]\d\d:?\d\d$/.test(text)
+    ? text
+    : text.replace(" ", "T") + "Z";
+  const date = new Date(normalized);
+  return Number.isNaN(date.getTime()) ? "" : date.toLocaleString();
+}
+
+function renderWearState() {
+  const card = document.getElementById("skin-wear-state");
+  const title = document.getElementById("skin-wear-state-title");
+  const detail = document.getElementById("skin-wear-state-detail");
+  const retry = document.getElementById("skin-wear-retry");
+  const reset = document.getElementById("skin-wear-reset");
+  if (!card || !title || !detail || !retry || !reset) return;
+
+  card.hidden = !me.loggedIn || !me.user?.steam_id;
+  if (card.hidden) return;
+
+  const job = wearState?.latestJob || null;
+  const assignment = wearState?.assignment || null;
+  retry.hidden = true;
+  reset.hidden = true;
+  card.dataset.status = job?.status || "none";
+
+  if (!job) {
+    title.textContent = "No Wear Live request yet";
+    detail.textContent = "Apply a skin to your live dinosaur to start persistence tracking.";
+    return;
+  }
+
+  const name = wearPresetName(job.presetId);
+  const subject = name ? `${name} · ${job.species}` : job.species;
+  const when = formatWearTimestamp(job.completedAt || job.updatedAt || job.createdAt);
+
+  if (job.status === "verified") {
+    if (assignment) {
+      title.textContent = `Verified · ${subject}`;
+      detail.textContent = `Reconnect restore is armed for this dinosaur life${assignment.verifiedAt ? ` · verified ${formatWearTimestamp(assignment.verifiedAt)}` : ""}.`;
+    } else {
+      title.textContent = `Previous Wear Live verified · ${subject}`;
+      detail.textContent = `No reconnect restore is armed now. The previous dinosaur life ended or its saved skin identity no longer matched${when ? ` · last verified ${when}` : ""}.`;
+    }
+    return;
+  }
+
+  if (job.status === "failed") {
+    title.textContent = `Failed · ${subject}`;
+    detail.textContent = job.error || "The game rejected the Wear Live request.";
+    retry.hidden = false;
+    reset.hidden = !job.id;
+    return;
+  }
+
+  if (job.status === "awaiting_confirmation" || job.status === "queued") {
+    title.textContent = `Waiting for game confirmation · ${subject}`;
+    detail.textContent = "Skin Studio will reconcile the CommandBridge result when this status is refreshed. Persistence is only shown as verified after the game confirms it.";
+    return;
+  }
+
+  title.textContent = `${job.status || "Pending"} · ${subject}`;
+  detail.textContent = job.error || (when ? `Last updated ${when}.` : "Wear Live is still being processed.");
+}
+
+async function loadWearState() {
+  if (!me.loggedIn || !me.user?.steam_id) {
+    wearState = null;
+    renderWearState();
+    return;
+  }
+  try {
+    wearState = await api("/api/skins/wear-state");
+  } catch (error) {
+    wearState = {
+      latestJob: {
+        status: "failed",
+        species: "Wear Live status",
+        error: error.message || "Could not load Wear Live status.",
+      },
+      assignment: null,
+    };
+  }
+  renderWearState();
+}
+
 async function loadMine() {
   const guard = document.getElementById("skin-mine-guard");
   const grid = document.getElementById("skin-mine-grid");
@@ -536,6 +730,7 @@ async function loadMine() {
       : '<div class="empty-roster"><strong>No saved skins</strong><span>Create a design in Skin Studio or unlock one from the shop.</span></div>';
     wireCardActions(grid);
     renderExternalLibrary();
+    await loadWearState();
   } catch (err) {
     grid.innerHTML = `<div class="empty-roster"><strong>Could not load My Skins</strong><span>${escapeHtml(err.message)}</span></div>`;
     const libraryGrid = document.getElementById("skin-library-grid");
@@ -573,7 +768,17 @@ function wireTabs() {
 }
 
 async function initSpecies() {
-  speciesList = await api("/api/species");
+  const source = await api("/api/species");
+  const merged = [...(Array.isArray(source) ? source : []), ...SKIN_STUDIO_EXTRA_SPECIES];
+  const seen = new Set();
+  speciesList = merged.filter((species) => {
+    if (!species || species.releasedInEvrima === false) return false;
+    const id = String(species.id || "").trim().toLowerCase();
+    if (!id || seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  }).sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id)));
+
   const options = speciesList.map((species) => `<option value="${escapeHtml(species.id)}">${escapeHtml(species.name)}</option>`).join("");
   document.getElementById("skin-species").innerHTML = '<option value="Universal">Universal / Any Species</option>' + options;
   document.getElementById("skin-store-species").innerHTML = '<option value="">All species</option>' + options;
@@ -581,12 +786,35 @@ async function initSpecies() {
   if (externalSpecies) externalSpecies.innerHTML = '<option value="Universal">Universal / Any Species</option>' + options;
   const librarySpecies = document.getElementById("skin-library-species");
   if (librarySpecies) librarySpecies.innerHTML = '<option value="Universal">Universal / Any Species</option>' + options;
+  syncPatternPresetButtons();
   updatePreview();
 }
 
 document.getElementById("skin-name").addEventListener("input", updatePreview);
-document.getElementById("skin-species").addEventListener("change", updatePreview);
-["skin-pattern", "skin-theme", "skin-variation"].forEach((id) => document.getElementById(id).addEventListener("input", updatePreview));
+document.getElementById("skin-species").addEventListener("change", () => {
+  syncPatternPresetButtons();
+  updatePreview();
+});
+["skin-pattern", "skin-theme", "skin-variation"].forEach((id) => document.getElementById(id).addEventListener("input", () => {
+  if (id === "skin-pattern") syncPatternPresetButtons();
+  updatePreview();
+}));
+
+document.querySelectorAll("#skin-pattern-presets [data-pattern]").forEach((button) => {
+  button.addEventListener("click", () => {
+    document.getElementById("skin-pattern").value = button.dataset.pattern;
+    syncPatternPresetButtons();
+    updatePreview();
+  });
+});
+
+document.querySelectorAll("#skin-sex-preview [data-sex]").forEach((button) => {
+  button.addEventListener("click", () => {
+    previewSex = button.dataset.sex === "female" ? "female" : "male";
+    syncSexPreviewButtons();
+    updatePreview();
+  });
+});
 
 document.getElementById("skin-randomize").addEventListener("click", () => {
   for (const [key] of COLOR_FIELDS) {
@@ -633,7 +861,40 @@ document.getElementById("skin-save").addEventListener("click", async () => {
 
 document.getElementById("skin-store-refresh").addEventListener("click", loadStore);
 document.getElementById("skin-store-species").addEventListener("change", loadStore);
-document.getElementById("skin-mine-refresh").addEventListener("click", loadMine);
+document.getElementById("skin-mine-refresh").addEventListener("click", async () => {
+  await loadMine();
+  await loadWearState();
+});
+document.getElementById("skin-wear-state-refresh")?.addEventListener("click", loadWearState);
+document.getElementById("skin-wear-retry")?.addEventListener("click", async () => {
+  const button = document.getElementById("skin-wear-retry");
+  button.disabled = true;
+  try {
+    const result = await api("/api/skins/wear-retry", { method: "POST", body: "{}" });
+    showAlert(
+      result.confirmed ? "Skin retry verified by the game." : (result.message || "Skin retry queued."),
+      result.confirmed ? "success" : "info"
+    );
+  } catch (error) {
+    showAlert(error.message, "error");
+  } finally {
+    button.disabled = false;
+    await loadWearState();
+  }
+});
+document.getElementById("skin-wear-reset")?.addEventListener("click", async () => {
+  const button = document.getElementById("skin-wear-reset");
+  button.disabled = true;
+  try {
+    await api("/api/skins/wear-reset", { method: "POST", body: "{}" });
+    showAlert("Failed Wear Live request reset. Your last verified skin assignment was left untouched.", "success");
+  } catch (error) {
+    showAlert(error.message, "error");
+  } finally {
+    button.disabled = false;
+    await loadWearState();
+  }
+});
 document.getElementById("skin-library-refresh")?.addEventListener("click", loadMine);
 
 document.getElementById("skin-library-parse")?.addEventListener("click", async () => {
@@ -793,6 +1054,13 @@ async function init() {
   me = await window.HDS.loadMe();
   const libraryTab = document.getElementById("skin-library-tab");
   if (libraryTab) libraryTab.hidden = !Boolean(me.user?.is_admin);
+  const calibrationPanel = document.getElementById("skin-calibration-panel");
+  const calibrationPreview = Boolean(me.skinStudioCalibrationPreview);
+  const canCalibrate = Boolean(me.user?.is_admin) || calibrationPreview;
+  if (calibrationPanel) calibrationPanel.hidden = !canCalibrate;
+  document.dispatchEvent(new CustomEvent("hds:skin-admin-ready", {
+    detail: { isAdmin: Boolean(me.user?.is_admin), calibrationPreview, canCalibrate },
+  }));
   const note = document.getElementById("skin-save-note");
   note.textContent = me.loggedIn ? "Saving is free. Published skins can be priced in Valley Coin." : "Sign in with Steam to save designs.";
   await Promise.all([loadStore(), loadMine(), loadStoredSlots()]);

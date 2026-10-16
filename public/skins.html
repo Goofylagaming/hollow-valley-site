@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Design, unlock, share and wear Hollow Valley dinosaur skins.">
   <title>Skin Studio | Hollow Valley</title>
-  <link rel="stylesheet" href="assets/styles.css?v=37">
+  <link rel="stylesheet" href="assets/styles.css?v=45">
 </head>
 <body>
   <div class="app-shell">
@@ -33,19 +33,29 @@
           <div class="skin-studio-grid">
             <div class="skin-preview-card skin-preview-card-3d">
               <div class="skin-model-toolbar">
-                <div class="skin-model-status"><span id="skin-model-status-dot"></span><strong id="skin-model-status">Tyrannosaurus · loading 3D preview</strong></div>
+                <div class="skin-model-status"><span id="skin-model-status-dot"></span><strong id="skin-model-status">Choose a species · loading 3D preview</strong></div>
                 <div class="skin-model-tools">
                   <button class="small-button" id="skin-model-reset" type="button">Reset view</button>
                 </div>
               </div>
 
               <div class="skin-preview-stage skin-model-stage" id="skin-preview-stage">
-                <canvas id="skin-model-canvas" aria-label="Interactive Tyrannosaurus rex skin preview"></canvas>
-                <div class="skin-model-loader" id="skin-model-loader">Loading Tyrannosaurus…</div>
+                <canvas id="skin-model-canvas" aria-label="Interactive dinosaur skin preview"></canvas>
+                <iframe
+                  id="skin-model-reference-frame"
+                  class="skin-model-reference-frame"
+                  title="Realistic dinosaur reference model"
+                  loading="eager"
+                  allow="autoplay; fullscreen; xr-spatial-tracking"
+                  allowfullscreen
+                  hidden
+                ></iframe>
+                <div class="skin-model-loader" id="skin-model-loader">Preparing species preview…</div>
 
                 <div class="skin-model-hud">
                   <span>DRAG TO ORBIT</span>
                   <span>SCROLL TO ZOOM</span>
+                  <span id="skin-model-zone-hint" hidden>CLICK ZONE TO PAINT</span>
                 </div>
 
                 <div class="skin-model-code">
@@ -54,9 +64,9 @@
                 </div>
 
                 <aside class="skin-model-rail">
-                  <small>3D PAINT MODEL</small>
-                  <strong>Tyrannosaurus rex</strong>
-                  <span>Self-hosted Tyrannosaurus · CC BY</span>
+                  <small id="skin-model-capability">SPECIES 3D MODEL</small>
+                  <strong id="skin-model-name">Choose a species</strong>
+                  <span id="skin-model-source">Species-specific preview system</span>
                   <label>LIGHT
                     <input id="skin-model-light" type="range" min="35" max="180" value="105">
                   </label>
@@ -67,9 +77,77 @@
 
               <div class="skin-preview-meta skin-preview-meta-3d">
                 <span>LIVE 3D PREVIEW</span>
-                <small>Use Accurate colour to judge the selected HEX values directly, or Game preview to see the same skin with Hollow Valley atmospheric lighting and texture shading. Drag to orbit, scroll to zoom, and change any colour below to repaint that region.</small>
-                <a class="skin-model-credit" href="https://sketchfab.com/3d-models/tyrannosaurus-rex-939e5dd6af554fccb986db94a85116a1" target="_blank" rel="noopener">3D model by Nobilis the Palaeovespa · CC BY</a>
+                <small id="skin-model-help">Choose a species to load its dedicated model. Accurate colour is only shown where that species has a calibrated Hollow Valley zone map; otherwise the model is clearly marked shape-only so players are not shown a fake in-game match.</small>
+                <a class="skin-model-credit" id="skin-model-credit" href="#" target="_blank" rel="noopener" hidden>Model credit</a>
               </div>
+
+              <section class="skin-calibration-panel" id="skin-calibration-panel" hidden>
+                <div class="list-heading">
+                  <span>ADMIN · ZONE CALIBRATION</span>
+                  <span id="skin-calibration-species">Select a shape model</span>
+                </div>
+                <p class="skin-calibration-help">Paint the website model's UV regions once, then export the compact mask used by Skin Studio. This is calibration tooling only; players never see these controls.</p>
+                <div class="skin-calibration-controls">
+                  <label>Zone
+                    <select id="skin-calibration-zone">
+                      <option value="maleDisplay">Male display</option>
+                      <option value="markings">Markings</option>
+                      <option value="body" selected>Body</option>
+                      <option value="flank">Flank</option>
+                      <option value="underbelly">Underbelly</option>
+                      <option value="detail1">Detail</option>
+                      <option value="eyes">Eyes</option>
+                      <option value="teeth">Teeth</option>
+                      <option value="mouth">Mouth</option>
+                      <option value="claws">Claws</option>
+                      <option value="erase">Eraser</option>
+                    </select>
+                  </label>
+                  <label>Brush
+                    <input id="skin-calibration-brush" type="range" min="1" max="32" value="7">
+                    <span id="skin-calibration-brush-value">7 px</span>
+                  </label>
+                  <label class="skin-calibration-check">
+                    <input id="skin-calibration-flip-v" type="checkbox">
+                    Flip UV vertically
+                  </label>
+                </div>
+                <div class="skin-calibration-actions">
+                  <button class="small-button" id="skin-calibration-toggle" type="button">Start mapping</button>
+                  <button class="small-button" id="skin-calibration-island-fill" type="button" disabled>Island fill: off</button>
+                  <button class="small-button" id="skin-calibration-undo" type="button" disabled>Undo</button>
+                  <button class="small-button" id="skin-calibration-redo" type="button" disabled>Redo</button>
+                  <button class="small-button" id="skin-calibration-clear-zone" type="button" disabled>Clear selected zone</button>
+                  <button class="small-button" id="skin-calibration-clear-all" type="button" disabled>Clear all</button>
+                  <button class="small-button" id="skin-calibration-diagnostic" type="button">Load diagnostic colours</button>
+                  <button class="small-button" id="skin-calibration-copy" type="button" disabled>Copy mask</button>
+                </div>
+                <div class="skin-calibration-status" id="skin-calibration-status">Load a shape-only species model, then start mapping.</div>
+                <div class="skin-calibration-coverage" id="skin-calibration-coverage">UV coverage will appear while mapping.</div>
+
+                <details class="skin-inspector-import">
+                  <summary>EVRIMA SkinInspector capture</summary>
+                  <p>Load a local SkinInspector <code>latest.json</code> capture to compare the real in-game customizer values, mesh identity and material slots with this preview.</p>
+                  <input id="skin-inspector-file" type="file" accept=".json,application/json">
+                  <div class="skin-inspector-summary" id="skin-inspector-summary">No EVRIMA capture loaded.</div>
+                  <div class="skin-calibration-actions">
+                    <button class="small-button" id="skin-inspector-apply-colours" type="button" disabled>Use captured colours</button>
+                    <button class="small-button" id="skin-inspector-clear" type="button" disabled>Clear capture</button>
+                  </div>
+                </details>
+
+                <details class="skin-calibration-import">
+                  <summary>Import / resume a mask</summary>
+                  <p>Paste a previously exported Hollow Valley mask for this species. The importer rejects invalid, overlapping or out-of-bounds RLE data before it reaches the renderer.</p>
+                  <textarea id="skin-calibration-import" class="comms-textarea skin-calibration-output" spellcheck="false" placeholder='{"size":256,"zones":{"body":[0,12]}}' aria-label="Calibration mask to import"></textarea>
+                  <div class="skin-calibration-actions">
+                    <button class="small-button" id="skin-calibration-import-button" type="button" disabled>Load mask</button>
+                    <button class="small-button" id="skin-calibration-clear-import" type="button">Clear paste</button>
+                  </div>
+                </details>
+
+                <textarea id="skin-calibration-output" class="comms-textarea skin-calibration-output" readonly hidden aria-label="Exported zone mask"></textarea>
+              </section>
             </div>
 
             <div class="skin-editor-card">
@@ -78,9 +156,36 @@
                 <label>Compatibility<select id="skin-species"></select></label>
                 <label>Skin name<input id="skin-name" maxlength="60" placeholder="e.g. Ashen Valley"></label>
                 <label class="wide">Description<input id="skin-description" maxlength="240" placeholder="Short description for the shop or share page"></label>
-                <label>Pattern index<input id="skin-pattern" type="number" min="0" max="65535" value="0"></label>
-                <label>Theme index<input id="skin-theme" type="number" min="0" max="65535" value="0"></label>
-                <label>Variation<input id="skin-variation" type="number" min="0" max="65535" value="0"></label>
+              </div>
+
+              <details class="skin-advanced-settings">
+                <summary>Advanced EVRIMA values</summary>
+                <p>Normally leave these alone. Imported/captured skins may carry native values here; Wear Live preserves unverified PatternIndex / ThemeIndex values rather than risking a silent full-skin failure.</p>
+                <div class="skin-editor-fields">
+                  <label>Pattern index<input id="skin-pattern" type="number" min="0" max="65535" value="0"></label>
+                  <label>Theme index<input id="skin-theme" type="number" min="0" max="65535" value="0"></label>
+                  <label>Variation<input id="skin-variation" type="number" min="0" max="65535" value="0"></label>
+                </div>
+              </details>
+
+              <div class="skin-fnf-controls">
+                <div class="skin-fnf-control">
+                  <span>PATTERN</span>
+                  <div class="skin-segmented" id="skin-pattern-presets">
+                    <button type="button" data-pattern="0">A</button>
+                    <button type="button" data-pattern="1">B</button>
+                    <button type="button" data-pattern="2">C</button>
+                  </div>
+                  <small id="skin-pattern-safety">Pattern changes are enabled only after that species' EVRIMA range is verified.</small>
+                </div>
+                <div class="skin-fnf-control">
+                  <span>PREVIEW SEX</span>
+                  <div class="skin-segmented" id="skin-sex-preview">
+                    <button type="button" data-sex="male">Male</button>
+                    <button type="button" data-sex="female">Female</button>
+                  </div>
+                  <small>Preview-only. The live dinosaur keeps its actual in-game sex.</small>
+                </div>
               </div>
 
               <div class="list-heading skin-color-heading"><span>COLOUR ZONES</span><button class="small-button" id="skin-randomize" type="button">Randomise</button></div>
@@ -124,6 +229,18 @@
             <div class="skin-toolbar-actions">
               <select id="skin-stored-slot"><option value="">Parked dino slot (optional)</option></select>
               <button class="small-button" id="skin-mine-refresh" type="button">Refresh</button>
+            </div>
+          </div>
+          <div id="skin-wear-state" class="skin-wear-state-card" hidden>
+            <div>
+              <span class="overline green">WEAR LIVE STATUS</span>
+              <strong id="skin-wear-state-title">No Wear Live request yet</strong>
+              <small id="skin-wear-state-detail">Apply a skin to your live dinosaur to start persistence tracking.</small>
+            </div>
+            <div class="skin-wear-state-actions">
+              <button class="small-button" id="skin-wear-state-refresh" type="button">Refresh status</button>
+              <button class="small-button" id="skin-wear-retry" type="button" hidden>Retry wear</button>
+              <button class="small-button" id="skin-wear-reset" type="button" hidden>Reset failed request</button>
             </div>
           </div>
           <div id="skin-mine-guard" class="skin-signin-card">Sign in with Steam to see your saved and unlocked skins.</div>
@@ -204,12 +321,13 @@
 
   <script src="assets/common.js?v=17"></script>
   <script src="assets/external-skin-import.js?v=4"></script>
-  <script src="assets/skins.js?v=22"></script>
+  <script src="/assets/skin-studio-model-registry.js?v=6"></script>
+  <script src="assets/skins.js?v=24"></script>
   <script src="assets/hollow-valley-skin-pack.js?v=1"></script>
   <script src="/assets/skin-studio-rex-mask-rle.js?v=1"></script>
   <script type="importmap">
     {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}
   </script>
-  <script type="module" src="/assets/skin-studio-3d.js?v=8"></script>
+  <script type="module" src="/assets/skin-studio-3d.js?v=18"></script>
 </body>
 </html>

@@ -615,8 +615,8 @@
 /* === LIVE Skin Studio 3D model === */
 /* === Skin Studio 3D paint stage · test branch === */
 .skin-studio-grid{
-  grid-template-columns:minmax(0,1.55fr) minmax(380px,.8fr)!important;
-  gap:12px!important;
+  grid-template-columns:minmax(0,1.18fr) minmax(500px,.95fr)!important;
+  gap:14px!important;
   align-items:start;
 }
 .skin-preview-card-3d{
@@ -683,6 +683,20 @@
   touch-action:none;
 }
 #skin-model-canvas:active{cursor:grabbing}
+.skin-model-reference-frame{
+  position:absolute;
+  z-index:2;
+  inset:0;
+  width:100%;
+  height:100%;
+  border:0;
+  background:#010705;
+}
+.skin-model-reference-frame[hidden]{display:none}
+.skin-model-stage.skin-reference-mode #skin-model-canvas{visibility:hidden}
+.skin-model-stage.skin-reference-mode .skin-model-hud{display:none}
+.skin-model-stage.skin-reference-mode .skin-model-rail{z-index:4;background:rgba(3,14,9,.9)}
+.skin-model-stage.skin-reference-mode .skin-model-code{z-index:4}
 .skin-model-loader{
   position:absolute;
   z-index:4;
@@ -848,7 +862,7 @@
 
 @media(max-width:1250px){
   .skin-studio-grid{
-    grid-template-columns:minmax(0,1.28fr) minmax(340px,.85fr)!important;
+    grid-template-columns:minmax(0,1fr) minmax(460px,.95fr)!important;
   }
   .skin-model-stage{min-height:440px!important;height:48vw}
   .skin-model-zone-strip{grid-template-columns:repeat(5,minmax(90px,1fr))}
@@ -1259,3 +1273,277 @@
 
 .admin-player-controls{margin-top:18px}.admin-player-controls-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}.admin-player-controls-heading h2{margin:6px 0 8px}.admin-player-controls-heading p{margin:0;color:#9c8a72;font-size:11px;line-height:1.6}.admin-player-list{display:grid;gap:8px;margin-top:14px}.admin-player-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 13px;border:1px solid #3a2420;background:#100908}.admin-player-identity{display:flex;min-width:0;flex-direction:column;gap:4px}.admin-player-identity strong{color:#eee9d6;font:600 13px Manrope}.admin-player-identity span{overflow-wrap:anywhere;color:#8a7a6c;font:10px Oswald;letter-spacing:.04em}.admin-slay-button{border-color:#7d2721;color:#efb1a8}.admin-slay-button:hover{border-color:#b0201a;color:#fff}@media(max-width:700px){.admin-player-controls-heading,.admin-player-row{align-items:stretch;flex-direction:column}.admin-slay-button{width:100%}}
 .admin-records-list{display:grid;gap:6px;max-height:420px;overflow:auto}.admin-player-controls #admin-records-result h3{margin:18px 0 9px;color:#eee9d6}.admin-player-controls #admin-records-result>p{margin:12px 0;color:#eee9d6}
+
+
+/* Skin Studio v012 · Fangs & Ferns-compatible core zone presentation */
+.skin-color-grid{display:block;min-width:0}
+.skin-editor-card{min-width:0;overflow:hidden}
+.skin-color-group{display:grid;gap:10px;min-width:0;margin-top:10px}
+.skin-color-group+.skin-color-group{margin-top:18px;padding-top:16px;border-top:1px solid #2c281f}
+.skin-color-group-heading{display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px;align-items:end}
+.skin-color-group-heading strong{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#d1c5b3}
+.skin-color-group-heading span{min-width:0;font-size:9px;line-height:1.4;color:#746a5d;text-align:right}
+.skin-color-group-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.skin-color-control{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 58px;
+  grid-template-areas:"copy swatch" "copy code";
+  column-gap:10px;
+  row-gap:3px;
+  min-width:0;
+  min-height:62px;
+  padding:10px 11px;
+  overflow:hidden;
+}
+.skin-color-group .skin-color-control>span{grid-area:copy;display:grid;align-content:center;gap:3px;min-width:0}
+.skin-color-group .skin-color-control>span b{overflow:hidden;font-weight:600;color:#b8a995;text-overflow:ellipsis;white-space:nowrap}
+.skin-color-group .skin-color-control>span small{font-size:8px;line-height:1.3;color:#665e53;white-space:normal;overflow-wrap:anywhere}
+.skin-color-group .skin-color-control input{
+  grid-area:swatch;
+  justify-self:end;
+  width:58px;
+  height:31px;
+  min-width:0;
+}
+.skin-color-group .skin-color-control code{
+  grid-area:code;
+  justify-self:end;
+  min-width:0;
+  color:#7f7466;
+  font-size:9px;
+  line-height:1;
+  white-space:nowrap;
+}
+.skin-color-group-extended{opacity:.9}
+.skin-color-group-extended .skin-color-control{background:#0c0b09}
+.skin-wear-state-card{display:flex;justify-content:space-between;align-items:center;gap:18px;margin:0 0 18px;padding:14px 16px;border:1px solid #2e2a21;background:#0f0d0a}
+.skin-wear-state-card>div:first-child{display:grid;gap:4px}
+.skin-wear-state-card strong{font-size:13px;color:#d8cfbf}
+.skin-wear-state-card small{font-size:10px;color:#7e7466}
+.skin-wear-state-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.skin-wear-state-card[data-status="verified"]{border-color:#315a3f}
+.skin-wear-state-card[data-status="failed"]{border-color:#704035}
+.skin-wear-state-card[data-status="queued"],
+.skin-wear-state-card[data-status="awaiting_confirmation"]{border-color:#655d39}
+@media(max-width:650px){
+  .skin-color-group-grid{grid-template-columns:1fr}
+  .skin-color-group-heading{grid-template-columns:1fr;align-items:start;gap:5px}
+  .skin-color-group-heading span{text-align:left}
+  .skin-wear-state-card{align-items:flex-start;flex-direction:column}
+  .skin-wear-state-actions{justify-content:flex-start}
+}
+
+.skin-model-stage.skin-model-clean .skin-model-hud,
+.skin-model-stage.skin-model-clean .skin-model-rail,
+.skin-model-stage.skin-model-clean .skin-model-code{opacity:0;pointer-events:none}
+
+
+/* Skin Studio v012 · simple F&F-inspired studio controls */
+.skin-fnf-controls{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0 6px}
+.skin-fnf-control{display:grid;gap:7px;padding:11px 12px;border:1px solid #29251d;background:#0e0c0a}
+.skin-fnf-control>span{font-size:9px;letter-spacing:.14em;color:#7f7466}
+.skin-fnf-control>small{font-size:8px;line-height:1.35;color:#665e53}
+.skin-segmented{display:flex;gap:6px}
+.skin-segmented button{min-width:44px;border:1px solid #3c362b;background:#15120f;color:#928574;padding:7px 11px;font-size:10px;cursor:pointer}
+.skin-segmented button:hover{border-color:#6f654f;color:#d5c9b7}
+.skin-segmented button.active,
+.skin-segmented button[aria-pressed="true"]{border-color:#3f6c4d;background:#16261b;color:#bce0c5}
+@media(max-width:650px){.skin-fnf-controls{grid-template-columns:1fr}}
+
+
+.skin-model-spin-control{display:inline-flex;align-items:center;gap:6px;color:#7e7466;font-size:9px;letter-spacing:.08em;text-transform:uppercase}
+.skin-model-spin-control input{width:92px;accent-color:#6aa276}
+
+
+.skin-color-control.skin-zone-selected{
+  border-color:#4f8c61;
+  box-shadow:0 0 0 1px rgba(92,156,111,.28),0 0 20px rgba(71,128,88,.12);
+}
+
+
+/* Skin Studio v012 · admin UV zone calibration */
+.skin-calibration-panel{
+  margin-top:14px;
+  padding:14px;
+  border:1px solid #4a3f28;
+  background:linear-gradient(180deg,#14110c,#0d0b09);
+}
+.skin-calibration-help{
+  margin:8px 0 12px;
+  color:#817666;
+  font-size:10px;
+  line-height:1.45;
+}
+.skin-calibration-controls{
+  display:grid;
+  grid-template-columns:minmax(150px,1fr) minmax(190px,1fr) minmax(150px,.8fr);
+  gap:10px;
+}
+.skin-calibration-controls label{
+  display:grid;
+  gap:6px;
+  color:#8e8170;
+  font-size:9px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.skin-calibration-controls select,
+.skin-calibration-controls input[type="range"]{
+  width:100%;
+}
+.skin-calibration-controls select{
+  border:1px solid #3b3429;
+  background:#0d0b09;
+  color:#c8bcaa;
+  padding:8px 9px;
+}
+.skin-calibration-check{
+  align-content:center;
+  grid-template-columns:auto 1fr!important;
+  align-items:center;
+  text-transform:none!important;
+  letter-spacing:0!important;
+}
+.skin-calibration-check input{margin:0}
+.skin-calibration-actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:12px;
+}
+.skin-calibration-status{
+  margin-top:10px;
+  color:#8a7d6c;
+  font-size:10px;
+}
+.skin-calibration-output{
+  margin-top:10px;
+  min-height:130px;
+  font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+  font-size:9px;
+}
+.skin-model-stage.skin-calibrating canvas{cursor:crosshair}
+.skin-model-stage.skin-calibrating .skin-model-hud span:last-child{
+  color:#cbe0cf;
+}
+@media(max-width:750px){
+  .skin-calibration-controls{grid-template-columns:1fr}
+}
+
+
+/* Skin Studio v012 · advanced native EVRIMA values */
+.skin-advanced-settings{
+  margin:12px 0 4px;
+  border:1px solid #29251d;
+  background:#0d0b09;
+}
+.skin-advanced-settings summary{
+  cursor:pointer;
+  padding:10px 12px;
+  color:#938674;
+  font-size:9px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  user-select:none;
+}
+.skin-advanced-settings[open] summary{
+  border-bottom:1px solid #29251d;
+  color:#c6baa8;
+}
+.skin-advanced-settings>p{
+  margin:10px 12px 0;
+  color:#6f6659;
+  font-size:9px;
+  line-height:1.45;
+}
+.skin-advanced-settings>.skin-editor-fields{
+  margin:10px 12px 12px;
+}
+
+
+.skin-calibration-import{
+  margin-top:12px;
+  border-top:1px solid #29251d;
+  padding-top:8px;
+}
+.skin-calibration-import summary{
+  cursor:pointer;
+  color:#938674;
+  font-size:9px;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+}
+.skin-calibration-import>p{
+  margin:8px 0;
+  color:#6f6659;
+  font-size:9px;
+  line-height:1.45;
+}
+.skin-calibration-import .skin-calibration-output{
+  margin-top:0;
+  min-height:100px;
+}
+
+
+.skin-calibration-coverage{
+  margin-top:8px;
+  padding:8px 10px;
+  border:1px solid #242018;
+  background:#0a0907;
+  color:#756b5e;
+  font:9px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;
+  white-space:normal;
+}
+.skin-calibration-coverage b{color:#b9ad9a;font-weight:600}
+
+@media(max-width:1080px){
+  .skin-studio-grid{grid-template-columns:1fr!important}
+  .skin-preview-card-3d{position:static!important}
+  .skin-model-stage{height:58vw;min-height:390px!important;max-height:540px}
+}
+@media(max-width:760px){
+  .skin-color-group-grid{grid-template-columns:1fr}
+  .skin-color-group-heading{grid-template-columns:1fr;align-items:start;gap:5px}
+  .skin-color-group-heading span{text-align:left}
+}
+
+
+.skin-inspector-import{
+  margin-top:12px;
+  border-top:1px solid #29251d;
+  padding-top:8px;
+}
+.skin-inspector-import summary{
+  cursor:pointer;
+  color:#9b8f7e;
+  font-size:9px;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+}
+.skin-inspector-import>p{
+  margin:8px 0;
+  color:#6f6659;
+  font-size:9px;
+  line-height:1.45;
+}
+.skin-inspector-import code{color:#a89b88}
+.skin-inspector-import input[type="file"]{
+  width:100%;
+  border:1px solid #2f2a21;
+  background:#0b0908;
+  color:#8f8373;
+  padding:8px;
+  font-size:9px;
+}
+.skin-inspector-summary{
+  margin-top:8px;
+  padding:9px 10px;
+  border:1px solid #242018;
+  background:#090806;
+  color:#756b5e;
+  font:9px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;
+  overflow-wrap:anywhere;
+}
+.skin-inspector-summary strong{color:#c0b4a2;font-weight:600}
+.skin-inspector-summary[data-match="true"]{border-color:#31543a;color:#8eaf95}
+.skin-inspector-summary[data-match="false"]{border-color:#604934;color:#af9377}

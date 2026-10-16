@@ -178,3 +178,63 @@ test('live skin wear surfaces game-side rejection without claiming success', asy
     (error) => error.code === 'SKIN_WEAR_FAILED' && error.requestId === 'skin-command-001'
   );
 });
+
+
+test('SkinStudio lifecycle clear removes only the active assignment and keeps verified job history', (t) => {
+  const fixture = loadFixture();
+  t.after(fixture.cleanup);
+  const store = require('../src/services/economyStore');
+  const steamId = '76561198000000619';
+  const preset = samplePreset();
+
+  store.createSkinApplyJob({
+    id: 'skin-lifecycle-job-001',
+    steamId,
+    presetId: preset.id,
+    species: preset.species,
+    skin: preset.skin,
+    lifeMarker: { species: preset.species, growth: 0.42 },
+  });
+  store.updateSkinApplyJob({
+    id: 'skin-lifecycle-job-001',
+    status: 'verified',
+    completed: true,
+  });
+  store.upsertSkinLiveAssignment({
+    steamId,
+    presetId: preset.id,
+    species: preset.species,
+    skin: preset.skin,
+    lifeMarker: { species: preset.species, growth: 0.42 },
+    requestId: 'skin-lifecycle-job-001',
+    status: 'verified',
+    source: 'wear_live',
+  });
+
+  const outcome = fixture.service.handleLifecycleEvent({
+    steam: steamId,
+    event: 'cleared',
+    reason: 'native-skin-fingerprint-mismatch',
+  });
+
+  assert.equal(outcome.cleared, true);
+  assert.equal(outcome.previousPresetId, preset.id);
+  assert.equal(store.getSkinLiveAssignment(steamId), null);
+  assert.equal(store.getSkinApplyJob('skin-lifecycle-job-001').status, 'verified');
+});
+
+test('BinaryLane result route handles SkinStudio lifecycle before normal command result matching', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const source = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'routes', 'binaryLaneCommandBridgeRoutes.js'),
+    'utf8'
+  );
+
+  const lifecycleIndex = source.indexOf("req.body?.verb === 'skin_lifecycle'");
+  const normalResultIndex = source.indexOf('const outcome = bridge.acceptResult');
+  assert.equal(lifecycleIndex >= 0, true);
+  assert.equal(normalResultIndex >= 0, true);
+  assert.equal(lifecycleIndex < normalResultIndex, true);
+  assert.match(source, /skinWear\.handleLifecycleEvent/);
+});

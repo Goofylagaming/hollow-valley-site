@@ -7,6 +7,10 @@ on:
       - "server/services/automationWebsiteClient.js"
       - "public/skins.html"
       - "public/assets/skins.js"
+      - "public/assets/skin-studio-3d.js"
+      - "public/assets/skin-studio-model-registry.js"
+      - "public/assets/skin-studio-rex-mask-rle.js"
+      - "public/assets/skin-models/**"
       - "public/assets/styles.css"
       - "public/partials/nav.html"
       - "server-mods/SkinStudio/**"
@@ -27,6 +31,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Validate Skin Studio browser module syntax
+        run: node --input-type=module --check < public/assets/skin-studio-3d.js
       - run: node --test test/skinStudioClient.test.js
 
   lua:
