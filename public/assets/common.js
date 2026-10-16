@@ -227,16 +227,32 @@ window.HDS = (function () {
     const menuButton = document.querySelector(".menu-toggle");
     const navLinks = document.querySelector(".main-nav");
 
+    const setMenuOpen = (open) => {
+      navLinks?.classList.toggle("open", open);
+      menuButton?.setAttribute("aria-expanded", String(open));
+      menuButton?.setAttribute("aria-label", open ? "Close navigation menu" : "Open navigation menu");
+    };
+
     menuButton?.addEventListener("click", () => {
-      const isOpen = navLinks?.classList.toggle("open");
-      menuButton.setAttribute("aria-expanded", String(Boolean(isOpen)));
+      setMenuOpen(!navLinks?.classList.contains("open"));
     });
 
     navLinks?.querySelectorAll("a").forEach((link) => {
-      link.addEventListener("click", () => {
-        navLinks.classList.remove("open");
-        menuButton?.setAttribute("aria-expanded", "false");
-      });
+      link.addEventListener("click", () => setMenuOpen(false));
+    });
+
+    document.addEventListener("click", (event) => {
+      if (!navLinks?.classList.contains("open")) return;
+      if (!navLinks.contains(event.target) && !menuButton?.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && navLinks?.classList.contains("open")) {
+        setMenuOpen(false);
+        menuButton?.focus();
+      }
     });
 
     wireGlobalSearch();
