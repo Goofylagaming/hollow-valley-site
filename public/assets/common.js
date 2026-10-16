@@ -1,4 +1,4 @@
-// Shared helpers used by every page: API wrapper, auth state, and the injected nav partial.
+// Shared helpers used by every page: API wrapper, auth state, injected navigation and test UI shell.
 window.HDS = (function () {
   const PUBLIC_TAGLINE = "WELCOME TO THE AUSTRALIAN ISLE SERVER - HOLLOW VALLEY";
   const DISCORD_INVITE = "https://discord.gg/hollowvalleyisle";
@@ -67,6 +67,17 @@ window.HDS = (function () {
     return div.innerHTML;
   }
 
+  function ensureSnapshotStyles() {
+    // Pages now preload the theme in <head>. Do not append the same CSS again
+    // after the legacy layout has rendered, which causes a visible theme flash.
+    if (document.querySelector('link[href*="/assets/snapshot-ui.css"]')) return;
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = "/assets/snapshot-ui.css?v=4";
+    link.dataset.hvSnapshotUi = "true";
+    document.head.appendChild(link);
+  }
+
   let cachedMe = null;
   let mePromise = null;
 
@@ -99,7 +110,13 @@ window.HDS = (function () {
 
     const me = await mePromise;
     applyAuthUi(me);
+    updateWelcomeName(me);
     return me;
+  }
+
+  function playerInitial(name) {
+    const value = String(name || "HV").trim();
+    return escapeHtml((value[0] || "H").toUpperCase());
   }
 
   function applyAuthUi(me) {
@@ -107,12 +124,24 @@ window.HDS = (function () {
     if (!authArea) return;
 
     if (me.loggedIn && me.user) {
-      authArea.innerHTML = `<a class="steam-signin logged-in" href="/dashboard"><span class="steam-icon">●</span> Logged in as: ${escapeHtml(me.user.username)}</a><a class="logout-link" id="auth-action" href="#">Logout</a>`;
+      const username = escapeHtml(me.user.username || "Player");
+      authArea.innerHTML = `
+        <a class="player-chip" href="/profile" title="Open My Profile">
+          <span class="snapshot-avatar">${playerInitial(me.user.username)}</span>
+          <strong>${username}</strong><span aria-hidden="true">⌄</span>
+        </a>
+        <a class="logout-link" id="auth-action" href="#" title="Log out" aria-label="Log out">↪</a>`;
     } else {
-      const steamLabel = me.steamLoginConfigured ? "Sign in with Steam" : "Steam login not configured";
+      const steamLabel = me.steamLoginConfigured ? "Sign in" : "Steam unavailable";
       const href = me.steamLoginConfigured ? "/auth/steam" : "#";
-      authArea.innerHTML = `<a class="steam-signin" id="auth-steam" href="${href}"><span class="steam-icon">◈</span> ${steamLabel}</a><a class="logout-link" href="/owner-login">Owner login</a>`;
+      authArea.innerHTML = `<a class="steam-signin" id="auth-steam" href="${href}"><span class="snapshot-avatar">HV</span>${steamLabel}</a><a class="logout-link" href="/owner-login" title="Owner login" aria-label="Owner login">⚙</a>`;
     }
+  }
+
+  function updateWelcomeName(me) {
+    const target = document.getElementById("snapshot-welcome-name");
+    if (!target) return;
+    target.textContent = me?.loggedIn && me?.user?.username ? me.user.username : "Survivor";
   }
 
   async function claimDailyLoginBonus(me) {
@@ -131,53 +160,173 @@ window.HDS = (function () {
     }
   }
 
+  function normalizePath(pathname) {
+    const normalized = String(pathname || "/").replace(/\/+$/, "");
+    return normalized || "/";
+  }
+
+  function applyActiveNavState() {
+    const currentPath = normalizePath(window.location.pathname);
+    const links = Array.from(document.querySelectorAll(".main-nav a"));
+    let activeLink = null;
+
+    const sectionAliases = [
+      ["/marketplace", "/marketplace"],
+      ["/leaderboard", "/leaderboard"],
+      ["/mydinos", "/profile"],
+      ["/dinostorage", "/profile"],
+      ["/wallet", "/profile"],
+      ["/friends", "/profile"],
+      ["/groups", "/profile"],
+      ["/bodydrop", "/profile"],
+      ["/adminoperations", "/admin"],
+      ["/admincomms", "/admin"],
+      ["/adminrestore", "/admin"],
+    ];
+
+    links.forEach((link) => {
+      const href = link.getAttribute("href");
+      if (!href || href.startsWith("#") || /^https?:/i.test(href)) return;
+      let linkPath;
+      try {
+        linkPath = normalizePath(new URL(href, window.location.origin).pathname);
+      } catch {
+        return;
+      }
+
+      const exactMatch = linkPath === currentPath;
+      const aliasMatch = sectionAliases.some(([currentPrefix, navPrefix]) =>
+        currentPath.startsWith(currentPrefix) && linkPath.startsWith(navPrefix)
+      );
+
+      if (exactMatch || aliasMatch) {
+        link.classList.add("is-active");
+        link.setAttribute("aria-current", "page");
+        if (!activeLink || exactMatch) activeLink = link;
+      }
+    });
+  }
+
+  const RAIL_ITEMS = [
+    ["/profile", "♟", "My Profile"],
+    ["/wallet", "V", "Wallet"],
+    ["/skins?tab=mine", "◆", "My Skins"],
+    ["/skins", "⚒", "Skin Studio"],
+    ["/friends", "♟", "Friends"],
+    ["/groups", "♣", "Groups"],
+    ["/mydinos", "♟", "My Characters"],
+    ["/dinostorage/", "▣", "Dino Storage"],
+    ["/bodydrop", "◉", "Body Drop"],
+  ];
+
+  function railEnabled(path) {
+    return path === "/" || [
+      "/profile", "/wallet", "/skins", "/friends", "/groups", "/mydinos",
+      "/dinostorage", "/bodydrop", "/marketplace"
+    ].some((prefix) => path.startsWith(prefix));
+  }
+
+  function railItemMatches(href, path) {
+    const cleanHref = normalizePath(String(href).split("?")[0]);
+    if (cleanHref === "/skins" && path === "/skins") return true;
+    if (cleanHref === "/mydinos" && path.startsWith("/mydinos")) return true;
+    if (cleanHref === "/dinostorage" && path.startsWith("/dinostorage")) return true;
+    if (cleanHref === "/groups" && path.startsWith("/groups")) return true;
+    return cleanHref !== "/skins" && cleanHref === path;
+  }
+
+  function injectMyStuffRail() {
+    const path = normalizePath(window.location.pathname);
+    if (!railEnabled(path) || document.querySelector(".my-stuff-rail")) return;
+    const shell = document.querySelector(".app-shell");
+    const navSlot = document.getElementById("nav-slot");
+    if (!shell || !navSlot) return;
+
+    const aside = document.createElement("aside");
+    aside.className = "my-stuff-rail";
+    aside.setAttribute("aria-label", "My Stuff");
+    const items = RAIL_ITEMS.map(([href, icon, label]) => {
+      const active = railItemMatches(href, path) ? " is-active" : "";
+      return `<a class="${active.trim()}" href="${href}"><span class="rail-icon">${icon}</span><span>${label}</span></a>`;
+    }).join("");
+    aside.innerHTML = `<h3>My Stuff</h3><nav class="my-stuff-nav">${items}<div class="rail-divider"></div><a href="/quests"><span class="rail-icon">▤</span><span>My Reports</span></a><a href="/profile#account-links"><span class="rail-icon">⚙</span><span>Settings</span></a></nav>`;
+    navSlot.insertAdjacentElement("afterend", aside);
+    document.body.classList.add("has-my-stuff-rail");
+  }
+
+  function wireGlobalSearch() {
+    const form = document.getElementById("global-player-search");
+    const input = document.getElementById("global-player-search-input");
+    if (!form || !input) return;
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const query = String(input.value || "").trim();
+      if (!query) return;
+      try { sessionStorage.setItem("hv:player-search", query); } catch {}
+      window.location.href = `/friends?search=${encodeURIComponent(query)}`;
+    });
+  }
+
   function wireNavInteractions() {
     const menuButton = document.querySelector(".menu-toggle");
     const navLinks = document.querySelector(".main-nav");
 
+    const setMenuOpen = (open) => {
+      navLinks?.classList.toggle("open", open);
+      menuButton?.setAttribute("aria-expanded", String(open));
+      menuButton?.setAttribute("aria-label", open ? "Close navigation menu" : "Open navigation menu");
+    };
+
     menuButton?.addEventListener("click", () => {
-      const isOpen = navLinks.classList.toggle("open");
-      menuButton.setAttribute("aria-expanded", String(isOpen));
+      setMenuOpen(!navLinks?.classList.contains("open"));
     });
 
     navLinks?.querySelectorAll("a").forEach((link) => {
-      link.addEventListener("click", () => {
-        navLinks.classList.remove("open");
-        menuButton?.setAttribute("aria-expanded", "false");
-      });
+      link.addEventListener("click", () => setMenuOpen(false));
     });
 
-    navLinks?.querySelectorAll(".nav-group > button").forEach((button) => {
-      button.addEventListener("click", () => {
-        const group = button.parentElement;
-        const isOpen = group.classList.toggle("open");
-        button.setAttribute("aria-expanded", String(isOpen));
-        navLinks.querySelectorAll(".nav-group").forEach((other) => {
-          if (other !== group) {
-            other.classList.remove("open");
-            other.querySelector("button")?.setAttribute("aria-expanded", "false");
-          }
-        });
-      });
+    document.addEventListener("click", (event) => {
+      if (!navLinks?.classList.contains("open")) return;
+      if (!navLinks.contains(event.target) && !menuButton?.contains(event.target)) {
+        setMenuOpen(false);
+      }
     });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && navLinks?.classList.contains("open")) {
+        setMenuOpen(false);
+        menuButton?.focus();
+      }
+    });
+
+    wireGlobalSearch();
   }
 
   async function initNav() {
+    ensureSnapshotStyles();
+    // Reserve the sidebar layout before the asynchronous navigation fetch.
+    // Otherwise the main content jumps when the rail is finally injected.
+    if (railEnabled(normalizePath(window.location.pathname))) {
+      document.body.classList.add("has-my-stuff-rail");
+      injectMyStuffRail();
+    }
     const slot = document.getElementById("nav-slot");
     if (!slot) return;
     try {
-      const response = await fetch("/partials/nav.html");
+      const response = await fetch("/partials/nav.html?v=4", { cache: "no-store" });
       slot.innerHTML = await response.text();
     } catch (err) {
       console.error("Failed to load nav partial", err);
       return;
     }
-    normalizePublicBranding();
     wireNavInteractions();
+    applyActiveNavState();
     const me = await loadMe();
     const isAdmin = Boolean(me?.user?.is_admin);
-    const adminNavGroup = document.getElementById("admin-nav-group");
-    if (adminNavGroup) adminNavGroup.hidden = !isAdmin;
+    const adminNavLink = document.getElementById("admin-nav-link");
+    const territoryAdminNavLink = document.getElementById("territory-admin-nav-link");
+    if (adminNavLink) adminNavLink.hidden = !isAdmin;
+    if (territoryAdminNavLink) territoryAdminNavLink.hidden = !isAdmin;
     await claimDailyLoginBonus(me);
 
     document.getElementById("auth-area")?.addEventListener("click", (event) => {
@@ -191,9 +340,7 @@ window.HDS = (function () {
       }
 
       const href = link.getAttribute("href");
-      if (!href || href === "#") {
-        event.preventDefault();
-      }
+      if (!href || href === "#") event.preventDefault();
     });
   }
 
@@ -210,12 +357,21 @@ window.HDS = (function () {
       } else if (status.configured && !status.online) {
         el.innerHTML = `<span class="status-dot offline"></span> Server name: <b>Hollow Valley</b> <span class="status-note">— currently offline</span>`;
       }
-    } catch (err) {
-      // Leave static fallback
+    } catch {
+      // Leave static fallback.
     }
   }
 
-  return { api, escapeHtml, loadMe, loadServerStatus, initNav, claimDailyLoginBonus, normalizePublicBranding };
+  return {
+    api,
+    escapeHtml,
+    loadMe,
+    loadServerStatus,
+    initNav,
+    claimDailyLoginBonus,
+    injectMyStuffRail,
+    normalizePublicBranding,
+  };
 })();
 
 document.addEventListener("DOMContentLoaded", () => {
