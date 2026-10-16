@@ -18,14 +18,15 @@ const guest = {
 const serverStatus = { configured: true, online: true, playerCount: 12, maxPlayers: 100 };
 
 async function setReadOnlyApiMocks(page, me = guest) {
-  await page.route("**/api/me", (route) => route.fulfill({
-    status: 200, contentType: "application/json", body: JSON.stringify(me),
-  }));
-  await page.route("**/api/server-status", (route) => route.fulfill({
-    status: 200, contentType: "application/json", body: JSON.stringify(serverStatus),
-  }));
-  // Avoid accidental writes even if a page auto-submits a login bonus request.
   await page.route("**/api/**", (route) => {
+    const pathname = new URL(route.request().url()).pathname;
+    if (pathname === "/api/me") {
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(me) });
+    }
+    if (pathname === "/api/server-status") {
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(serverStatus) });
+    }
+    // Avoid accidental writes even if a page auto-submits a login bonus request.
     if (route.request().method() !== "GET") {
       return route.fulfill({ status: 200, contentType: "application/json",
         body: JSON.stringify({ duplicate: true, ok: true }) });
