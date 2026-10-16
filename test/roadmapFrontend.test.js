@@ -201,7 +201,9 @@ test("leaderboard uses only verified automation sources for playtime and combat"
   assert.match(js, /Combat ranking unavailable/);
   assert.match(js, /No verified combat events/);
   assert.match(route, /getPlaytimeLeaderboard/);
-  assert.match(route, /getCombatLeaderboard/);
+  // Production combat leaderboards now use the protected combat-control client.
+  assert.match(route, /combat\.getLeaderboard\("daily"\)/);
+  assert.match(route, /combat\.getLeaderboard\("weekly"\)/);
   assert.match(route, /getProgressionLeaderboard/);
   assert.match(html, /data-tab="mostLevels"/);
   assert.match(js, /mostLevels/);
