@@ -9,13 +9,26 @@
 
   <nav class="main-nav" id="primary-nav" aria-label="Primary navigation">
     <a href="/">Home</a>
-    <a href="/profile">Players</a>
-    <a href="/livemap">Map</a>
-    <a href="/skins">Skin Shop</a>
-    <a href="/leaderboard">Leaderboards</a>
-    <a href="/events">Events</a>
+    <a href="/profile">My profile</a>
+    <a href="/wallet">WALLET</a>
+    <a href="/quests">QUESTS</a>
+    <a href="/marketplace">Marketplace</a>
+    <a href="/livemap">Live Map</a>
+    <a href="/skins">Skin Studio</a>
+    <a href="/leaderboard?tab=levels">Leaderboards</a>
     <a href="/supporter">Support</a>
-    <a id="admin-nav-link" href="/admin" hidden>Admin</a>
+    <a href="/events">Events</a>
+    <div class="nav-group" id="admin-nav-group" hidden>
+      <button type="button" aria-expanded="false" aria-controls="admin-submenu">Admin ▾</button>
+      <div class="mega-menu" id="admin-submenu">
+        <a href="/admin" id="admin-nav-link">Admin hub</a>
+        <a href="/adminoperations">Operations</a>
+        <a href="/admincomms">Comms</a>
+        <a href="/adminrestore">Admin Restore</a>
+        <a href="/adminsupporters">Supporters</a>
+        <a href="/events#event-admin-panel">Event rewards</a>
+      </div>
+    </div>
   </nav>
 
   <form class="snapshot-search" id="global-player-search" role="search">
