@@ -5,7 +5,7 @@ on:
     paths:
       - "public/**"
       - "test/productionUiRelease.test.js"
-      - "test/uiV2BrowserSmoke.cjs"
+      - "scripts/uiV2BrowserSmoke.cjs"
       - ".github/workflows/validate-ui-v2-production-release.yml"
   workflow_dispatch:
 
@@ -82,7 +82,7 @@ jobs:
           DB_PATH: ${{ runner.temp }}/hollow-valley-ui-v2-staging.sqlite
           NODE_ENV: test
           SESSION_SECRET: ci-staging-only-not-a-production-secret
-        run: node test/uiV2BrowserSmoke.cjs
+        run: node scripts/uiV2BrowserSmoke.cjs
       - name: Upload browser screenshots for desktop/phone acceptance
         if: always()
         uses: actions/upload-artifact@v4
