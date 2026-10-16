@@ -299,6 +299,21 @@ window.HDS = (function () {
       }
     });
 
+    navLinks?.querySelectorAll(".nav-group > button").forEach((button) => {
+      button.addEventListener("click", () => {
+        const group = button.closest(".nav-group");
+        const open = !group?.classList.contains("open");
+        navLinks.querySelectorAll(".nav-group").forEach((item) => {
+          item.classList.remove("open");
+          item.querySelector("button")?.setAttribute("aria-expanded", "false");
+        });
+        if (open && group && !group.hidden) {
+          group.classList.add("open");
+          button.setAttribute("aria-expanded", "true");
+        }
+      });
+    });
+
     wireGlobalSearch();
   }
 
@@ -323,6 +338,8 @@ window.HDS = (function () {
     applyActiveNavState();
     const me = await loadMe();
     const isAdmin = Boolean(me?.user?.is_admin);
+    const adminNavGroup = document.getElementById("admin-nav-group");
+    if (adminNavGroup) adminNavGroup.hidden = !isAdmin;
     const adminNavLink = document.getElementById("admin-nav-link");
     const territoryAdminNavLink = document.getElementById("territory-admin-nav-link");
     if (adminNavLink) adminNavLink.hidden = !isAdmin;
