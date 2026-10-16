@@ -1,0 +1,26 @@
+name: Validate UI-v2 visual migration
+
+on:
+  pull_request:
+    paths:
+      - "public/**"
+      - "test/uiV2Layout.test.js"
+      - ".github/workflows/validate-ui-v2.yml"
+  push:
+    branches:
+      - test-ui-v2
+    paths:
+      - "public/**"
+      - "test/uiV2Layout.test.js"
+      - ".github/workflows/validate-ui-v2.yml"
+
+jobs:
+  validate-ui-v2:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check website layout and theme regressions
+        run: node --test test/uiV2Layout.test.js
