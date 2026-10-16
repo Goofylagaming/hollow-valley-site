@@ -1013,3 +1013,78 @@ main :is(a, button, input, select, textarea):focus-visible {
     animation: none !important;
   }
 }
+
+/* Production navigation parity (Owner/Admin, Wallet, Quests and Marketplace). */
+@media (min-width:1051px) {
+  .snapshot-topbar .main-nav { overflow:visible; }
+}
+.snapshot-topbar .main-nav > .nav-group { position:relative; display:flex; align-items:center; flex-shrink:0; }
+.snapshot-topbar .main-nav > .nav-group > button {
+  min-height:30px;
+  padding:0 8px;
+  border:0;
+  border-radius:6px;
+  color:var(--snap-text);
+  background:transparent;
+  font-size:9px;
+  font-weight:700;
+  cursor:pointer;
+}
+.snapshot-topbar .main-nav > .nav-group > button:hover,
+.snapshot-topbar .main-nav > .nav-group.open > button {
+  color:#fff; background:rgba(44,223,149,.10);
+}
+.snapshot-topbar .nav-group .mega-menu {
+  display:none;
+  position:absolute;
+  top:calc(100% + 4px);
+  left:auto;
+  right:0;
+  z-index:1700;
+  min-width:190px;
+  width:max-content;
+  max-width:min(300px,90vw);
+  grid-template-columns:1fr;
+  padding:8px;
+  border:1px solid var(--snap-line);
+  border-radius:8px;
+  background:#031913;
+  box-shadow:0 18px 36px rgba(0,0,0,.55);
+}
+.snapshot-topbar .nav-group.open .mega-menu { display:grid; }
+.snapshot-topbar .nav-group .mega-menu a {
+  display:block;
+  min-height:34px;
+  padding:9px;
+  border-radius:6px;
+  color:var(--snap-text);
+  background:transparent;
+  font-size:11px;
+  text-decoration:none;
+}
+.snapshot-topbar .nav-group .mega-menu a:hover,
+.snapshot-topbar .nav-group .mega-menu a:focus-visible { background:rgba(44,223,149,.12); }
+@media(max-width:1050px) {
+  .snapshot-topbar .main-nav.open > .nav-group:not([hidden]) { display:block; grid-column:1 / -1; width:100%; }
+  .snapshot-topbar .main-nav.open > .nav-group > button {
+    width:100%; min-height:42px; padding:8px 12px; text-align:left;
+    font-size:12px;
+  }
+  .snapshot-topbar .nav-group .mega-menu { position:static; width:100%; max-width:none; box-shadow:none; }
+}
+.home-species-disclosure {
+  margin-top:12px;
+  padding:12px 16px;
+  border:1px solid var(--snap-line-soft);
+  border-radius:8px;
+  color:var(--snap-text);
+  background:var(--snap-panel);
+}
+.home-species-disclosure > summary {
+  cursor:pointer; font-weight:800; color:var(--snap-green);
+}
+.home-species-disclosure .roster-section {
+  padding:12px 0 !important;
+  background:transparent !important;
+  border:0 !important;
+}
