@@ -57,3 +57,36 @@ jobs:
             baseline-install.log
           if-no-files-found: ignore
           retention-days: 3
+
+  staging-browser-smoke:
+    name: Browser staging (isolated DB, desktop/mobile, guest auth)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install production dependencies
+        run: npm ci
+      - name: Install temporary browser test harness
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Launch isolated staging site and test real pages in Chromium
+        env:
+          DB_PATH: ${{ runner.temp }}/hollow-valley-ui-v2-staging.sqlite
+          NODE_ENV: test
+          SESSION_SECRET: ci-staging-only-not-a-production-secret
+        run: node test/uiV2BrowserSmoke.cjs
+      - name: Upload browser screenshots for desktop/phone acceptance
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-v2-release-candidate-browser-screenshots
+          path: staging-ui-screenshots/
+          if-no-files-found: ignore
+          retention-days: 7
