@@ -2,6 +2,7 @@ const express = require("express");
 const { requireAuth, requireAdmin } = require("../middleware/requireAuth");
 const { listSteamLinkedUsers } = require("../db");
 const automation = require("../services/automationWebsiteClient");
+const eventAdmin = require("../services/eventAdminClient");
 
 const router = express.Router();
 const EVENT_CACHE_CONTROL = "public, max-age=30, stale-while-revalidate=120";
@@ -73,6 +74,17 @@ router.post("/attendance", requireAuth, async (req, res) => {
     return res.status(result.duplicate ? 200 : 201).json(result);
   } catch (error) {
     return proxyError(res, error, "Could not update event attendance.");
+  }
+});
+
+router.delete("/admin/:eventId", requireAdmin, async (req, res) => {
+  try {
+    return res.json(await eventAdmin.deleteWebsiteEvent({
+      eventId: req.params.eventId,
+      deletedBySteamId: actorSteamId(req),
+    }));
+  } catch (error) {
+    return proxyError(res, error, "Could not delete the event from the website.");
   }
 });
 
