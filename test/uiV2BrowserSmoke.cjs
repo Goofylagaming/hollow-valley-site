@@ -26,6 +26,15 @@ async function setReadOnlyApiMocks(page, me = guest) {
     if (pathname === "/api/server-status") {
       return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(serverStatus) });
     }
+    // These APIs normally proxy to live automation. Test page rendering with
+    // read-only fixture data instead of accessing the real game economy.
+    if (["/api/marketplace/catalog", "/api/marketplace/listings"].includes(pathname)) {
+      return route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
+    }
+    if (pathname === "/api/marketplace/state") {
+      return route.fulfill({ status: 200, contentType: "application/json",
+        body: JSON.stringify({ officialWritesEnabled: false, p2pWritesEnabled: false, p2pBuyEnabled: false }) });
+    }
     // Avoid accidental writes even if a page auto-submits a login bonus request.
     if (route.request().method() !== "GET") {
       return route.fulfill({ status: 200, contentType: "application/json",
