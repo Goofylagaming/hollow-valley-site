@@ -55,6 +55,7 @@ for (const legacyHost of [
 test("HollowValleyIsle.com serves the main portal", async () => {
   const response = await request("/", HOLLOW_VALLEY_HOSTNAME);
   assert.strictEqual(response.status, 200);
-  assert.match(response.body, /COMMAND CENTER/);
-  assert.match(response.body, /View my dinos/);
+  assert.match(response.body, /snapshot-welcome/);
+  assert.match(response.body, /My Stuff/);
+  assert.match(response.body, /href="\/wallet"/);
 });
