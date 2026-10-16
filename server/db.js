@@ -248,18 +248,11 @@ function findOrCreateUser({ currentUserId, discordId, username, avatar }) {
     const currentUser = db.prepare("SELECT * FROM users WHERE id = ?").get(currentUserId);
     if (currentUser) {
       if (existingDiscordUser && existingDiscordUser.id !== currentUser.id) {
-        const targetId = currentUser.id;
-        const sourceId = existingDiscordUser.id;
-        db.prepare("UPDATE roster SET user_id = ? WHERE user_id = ?").run(targetId, sourceId);
-        const sourceWallet = db.prepare("SELECT balance FROM wallets WHERE user_id = ?").get(sourceId);
-        if (sourceWallet && sourceWallet.balance > 0) {
-          db.prepare("UPDATE wallets SET balance = balance + ? WHERE user_id = ?").run(sourceWallet.balance, targetId);
-        }
-        db.prepare("UPDATE wallet_transactions SET user_id = ? WHERE user_id = ?").run(targetId, sourceId);
-        db.prepare("UPDATE skins SET owner_user_id = ? WHERE owner_user_id = ?").run(targetId, sourceId);
-        db.prepare("DELETE FROM wallets WHERE user_id = ?").run(sourceId);
-        db.prepare("DELETE FROM player_stats WHERE user_id = ?").run(sourceId);
-        db.prepare("DELETE FROM users WHERE id = ?").run(sourceId);
+        // Never merge a different account automatically: it can hold real purchases,
+        // dinosaur records, subscriptions, and wallet history.
+        const error = new Error("This identity is already linked to another Hollow Valley account. Sign in with the existing account and contact an admin for assisted recovery.");
+        error.code = "ACCOUNT_LINK_CONFLICT";
+        throw error;
       }
       db.prepare("UPDATE users SET discord_id = ?, username = ?, avatar = ? WHERE id = ?").run(discordId, username, avatar, currentUser.id);
       return db.prepare("SELECT * FROM users WHERE id = ?").get(currentUser.id);
@@ -285,18 +278,11 @@ function findOrCreateUserBySteam({ currentUserId, steamId, username, avatar, has
     const currentUser = db.prepare("SELECT * FROM users WHERE id = ?").get(currentUserId);
     if (currentUser) {
       if (existingSteamUser && existingSteamUser.id !== currentUser.id) {
-        const targetId = currentUser.id;
-        const sourceId = existingSteamUser.id;
-        db.prepare("UPDATE roster SET user_id = ? WHERE user_id = ?").run(targetId, sourceId);
-        const sourceWallet = db.prepare("SELECT balance FROM wallets WHERE user_id = ?").get(sourceId);
-        if (sourceWallet && sourceWallet.balance > 0) {
-          db.prepare("UPDATE wallets SET balance = balance + ? WHERE user_id = ?").run(sourceWallet.balance, targetId);
-        }
-        db.prepare("UPDATE wallet_transactions SET user_id = ? WHERE user_id = ?").run(targetId, sourceId);
-        db.prepare("UPDATE skins SET owner_user_id = ? WHERE owner_user_id = ?").run(targetId, sourceId);
-        db.prepare("DELETE FROM wallets WHERE user_id = ?").run(sourceId);
-        db.prepare("DELETE FROM player_stats WHERE user_id = ?").run(sourceId);
-        db.prepare("DELETE FROM users WHERE id = ?").run(sourceId);
+        // Never merge a different account automatically: it can hold real purchases,
+        // dinosaur records, subscriptions, and wallet history.
+        const error = new Error("This identity is already linked to another Hollow Valley account. Sign in with the existing account and contact an admin for assisted recovery.");
+        error.code = "ACCOUNT_LINK_CONFLICT";
+        throw error;
       }
       let newName = currentUser.username;
       if (hasRealProfile && username) {
