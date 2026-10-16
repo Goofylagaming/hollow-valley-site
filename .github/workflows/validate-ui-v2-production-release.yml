@@ -28,5 +28,32 @@ jobs:
         run: npm ci
       - name: Check production backend and page-script compatibility
         run: node --test test/productionUiRelease.test.js
-      - name: Run complete site regression test suite
-        run: npm test
+      - name: Compare full regression suite against pinned live-production baseline
+        shell: bash
+        run: |
+          set +e
+          npm test > candidate-suite.log 2>&1
+          candidate_exit=$?
+          set -e
+          git worktree add --detach "$RUNNER_TEMP/hollow-valley-production-baseline" 86499c14d1e587714dcd2e4ab9ec91a85284aa15
+          cd "$RUNNER_TEMP/hollow-valley-production-baseline"
+          npm ci > "$GITHUB_WORKSPACE/baseline-install.log" 2>&1
+          set +e
+          npm test > "$GITHUB_WORKSPACE/baseline-suite.log" 2>&1
+          baseline_exit=$?
+          set -e
+          cd "$GITHUB_WORKSPACE"
+          echo "Candidate npm test exit: $candidate_exit"
+          echo "Baseline npm test exit: $baseline_exit"
+          node scripts/compare-ui-release-baseline-tests.cjs candidate-suite.log baseline-suite.log
+      - name: Archive comparison test outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-v2-production-vs-baseline
+          path: |
+            candidate-suite.log
+            baseline-suite.log
+            baseline-install.log
+          if-no-files-found: ignore
+          retention-days: 3
