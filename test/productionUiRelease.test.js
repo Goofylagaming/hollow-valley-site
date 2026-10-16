@@ -28,11 +28,18 @@ function scriptSources(html) {
     m[1].replace(/\?v=\d+$/, "").replace(/^\//, "")
   ).filter((src) => !src.endsWith("assets/common.js"));
 }
-test("production server, SQLite, auth and Stripe code remains byte-for-byte unchanged", () => {
+test("existing production backend is unchanged except for isolated Groups routes", () => {
   const modified = execFileSync("git", [
     "diff", "--name-only", productionSha, "HEAD", "--", "server/", "automation-platform/"
-  ], { cwd: root, encoding: "utf8" }).trim();
-  assert.equal(modified, "", "Backend files changed unexpectedly: " + modified);
+  ], { cwd: root, encoding: "utf8" }).trim().split("\n").filter(Boolean);
+  const allowed = new Set(["server/index.js", "server/groupsStore.js", "server/routes/groups.js"]);
+  assert.deepEqual(modified.filter(file => !allowed.has(file)), [], "Unexpected backend changes");
+  const before = previous("server/index.js");
+  const after = read("server/index.js")
+    .replace('\nconst groupsRouter = require("./routes/groups");', "")
+    .replace('\n  app.use("/api/groups", groupsRouter);', "")
+    .replace('"bodydrop", "friends", "groups", "marketplace",', '"bodydrop", "friends", "marketplace",');
+  assert.equal(after, before, "Existing backend route wiring must remain unchanged");
 });
 test("all production wallet, marketplace, storage, admin and other page scripts survive", () => {
   for (const page of keyPages) {

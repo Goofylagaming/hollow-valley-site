@@ -28,6 +28,7 @@ const bodydropRouter = require("./routes/bodydrop");
 const serverStatusRouter = require("./routes/serverStatus");
 const eventsRouter = require("./routes/events");
 const friendsRouter = require("./routes/friends");
+const groupsRouter = require("./routes/groups");
 const mapdataRouter = require("./routes/mapdata");
 const supporterInternalRouter = require("./routes/supporterInternal");
 const adminRestoreRouter = require("./routes/adminRestore");
@@ -201,6 +202,7 @@ function createApp() {
   app.use("/api/server-status", serverStatusRouter);
   app.use("/api/events", eventsRouter);
   app.use("/api/friends", friendsRouter);
+  app.use("/api/groups", groupsRouter);
   app.use("/api/admin-restore", adminRestoreRouter);
   app.use("/api/admin-operations", adminOperationsRouter);
   app.use("/api/admin-combat", adminCombatRouter);
@@ -214,7 +216,7 @@ function createApp() {
   app.use("/api/dinostorage", legacyDirectGameApiRetired);
   app.all(["/api/park", "/api/playerdata", "/api/redeem", "/api/parked", "/api/admin"], legacyDirectGameApiRetired);
 
-  const PAGE_ROUTES = ["dashboard", "wallet", "quests", "profile", "mydinos", "bodydrop", "friends", "marketplace", "livemap", "leaderboard", "supporter", "events"];
+  const PAGE_ROUTES = ["dashboard", "wallet", "quests", "profile", "mydinos", "bodydrop", "friends", "groups", "marketplace", "livemap", "leaderboard", "supporter", "events"];
   for (const page of PAGE_ROUTES) {
     app.get(`/${page}`, (req, res) => {
       res.sendFile(path.join(__dirname, "..", "public", `${page}.html`));

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Manage your Hollow Valley website group, invitations and group history.">
+  <title>Groups | Hollow Valley</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=22">
+  <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
+  <link rel="stylesheet" href="/assets/snapshot-ui.css?v=4">
+  <link rel="stylesheet" href="/assets/groups.css?v=1">
+</head>
+<body class="has-my-stuff-rail">
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main>
+      <section class="page-header">
+        <p class="overline green">MY STUFF · COMMUNITY</p>
+        <h1>Your <span>Groups.</span></h1>
+        <p class="section-intro">Form a group, invite Steam-linked Hollow Valley players and revisit your previous groups.</p>
+        <p class="groups-note">Website groups are separate from in-game parties. Territory Wars is not enabled.</p>
+      </section>
+      <div id="groups-alert" class="skin-alert" role="status" aria-live="polite" hidden></div>
+      <div id="groups-signin" class="panel groups-guest">Sign in with Steam to create or join a Hollow Valley group.</div>
+      <div id="groups-app" hidden>
+        <section class="groups-stats" aria-label="Group overview">
+          <div class="summary-tile"><small>CURRENT GROUP</small><b id="groups-total">—</b><span id="groups-current-label">Not in a group</span></div>
+          <div class="summary-tile"><small>MEMBERS</small><b id="groups-member-count">0</b><span>Up to 12 members</span></div>
+          <div class="summary-tile"><small>INVITES</small><b id="groups-invite-count">0</b><span>Invitations for you</span></div>
+          <div class="summary-tile"><small>PREVIOUS GROUPS</small><b id="groups-history-count">0</b><span>Your completed group memberships</span></div>
+        </section>
+        <section id="groups-create-panel" class="panel groups-card" hidden>
+          <p class="overline green">CREATE A GROUP</p>
+          <h2>Start your own group</h2>
+          <p class="section-intro">Choose a unique name. Your group will be saved until you leave or disband it.</p>
+          <form id="groups-create-form" class="groups-form">
+            <label for="groups-name">Group name</label>
+            <div class="groups-inline"><input id="groups-name" required minlength="3" maxlength="40" placeholder="e.g. Valley Wanderers" autocomplete="off"><button type="submit" class="primary-button green">Create group</button></div>
+          </form>
+        </section>
+        <section id="groups-current-panel" class="panel groups-card" hidden>
+          <div class="groups-panel-head">
+            <div><p class="overline green">CURRENT GROUP</p><h2 id="groups-name-title">Your group</h2><p class="section-intro" id="groups-created"> </p></div>
+            <button id="groups-leave" type="button" class="small-button">Leave group</button>
+          </div>
+          <div class="list-heading"><span>MEMBERS</span><span id="groups-capacity"></span></div>
+          <div id="groups-members" class="groups-rows"></div>
+          <section id="groups-owner-panel" class="groups-owner" hidden>
+            <div class="list-heading"><span>GROUP MANAGEMENT</span><span>Owner only</span></div>
+            <form id="groups-invite-form" class="groups-form">
+              <label for="groups-steam-id">Invite a player using their Steam ID</label>
+              <div class="groups-inline"><input id="groups-steam-id" required pattern="[0-9]{17}" minlength="17" maxlength="17" inputmode="numeric" placeholder="17-digit Steam ID" autocomplete="off"><button type="submit" class="primary-button green">Send invite</button></div>
+              <small>Players must have signed into this test website with Steam at least once.</small>
+            </form>
+            <div id="groups-sent" class="groups-rows"></div>
+            <button id="groups-disband" type="button" class="small-button groups-danger">Disband group</button>
+          </section>
+        </section>
+        <section class="panel groups-card">
+          <div class="list-heading"><span>GROUP INVITATIONS</span><span>Accept or decline</span></div>
+          <div id="groups-incoming" class="groups-rows"></div>
+        </section>
+        <section class="panel groups-card">
+          <div class="list-heading"><span>PREVIOUS GROUPS</span><span>Membership history</span></div>
+          <div id="groups-history" class="groups-history"></div>
+        </section>
+      </div>
+    </main>
+    <footer><span>© 2026 Hollow Valley</span><span>AUSTRALIAN ISLE SERVER</span><a href="/">Back to top ↑</a></footer>
+  </div>
+  <script src="/assets/common.js?v=21"></script>
+  <script src="/assets/groups.js?v=1"></script>
+</body>
+</html>
