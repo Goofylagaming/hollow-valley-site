@@ -31,7 +31,7 @@ test("all My Stuff pages reserve rail width before asynchronous JS navigation", 
     assert.match(html, /<body class="has-my-stuff-rail">/, filename);
     assert.match(html, /id="nav-slot"/, filename);
     assert.match(html, /href="\/assets\/ui-v2\.css\?v=3"/, filename);
-    assert.match(html, /href="\/assets\/snapshot-ui\.css\?v=2"/, filename);
+    assert.match(html, /href="\/assets\/snapshot-ui\.css\?v=3"/, filename);
   }
 });
 
