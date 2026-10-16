@@ -1,0 +1,32 @@
+name: Validate UI-v2 production release
+
+on:
+  pull_request:
+    paths:
+      - "public/**"
+      - "test/productionUiRelease.test.js"
+      - ".github/workflows/validate-ui-v2-production-release.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release-safety:
+    name: Production identity and feature-preservation tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install exact production dependencies
+        run: npm ci
+      - name: Check production backend and page-script compatibility
+        run: node --test test/productionUiRelease.test.js
+      - name: Run complete site regression test suite
+        run: npm test
