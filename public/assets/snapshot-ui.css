@@ -987,8 +987,7 @@ main .ops-table td {
 }
 main .ops-empty,
 main .event-card p,
-main .quest-copy > small,
-main .event-admin-status {
+main .quest-copy > small {
   color: var(--snap-muted) !important;
 }
 main .outline-button {
