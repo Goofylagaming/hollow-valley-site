@@ -3,45 +3,75 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Hollow Valley — Australian Isle Server community.">
-  <title>Hollow Valley | Australian Isle Server</title>
-  <link rel="stylesheet" href="assets/styles.css?v=16">
+  <meta name="description" content="Hollow Valley — Isle Server community portal.">
+  <title>Hollow Valley | Isle Server</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=38">
+  <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
+  <link rel="stylesheet" href="/assets/snapshot-ui.css?v=4">
 </head>
-<body>
+<body class="has-my-stuff-rail">
   <div class="app-shell">
     <div id="nav-slot"></div>
 
-    <main id="top">
-      <section class="portal-hero">
-        <div class="hero-grid"></div>
-        <div class="hero-copy">
-          <p class="overline"><span class="rule"></span> COMMAND CENTER</p>
-          <h1 id="hero-heading">Welcome,<br><span>survivor.</span></h1>
-          <p class="hero-description">Manage your survivors and keep up with everything happening in Hollow Valley.</p>
-          <div class="hero-actions"><a class="primary-button" href="/mydinos">View my dinos <b>→</b></a><a class="secondary-link" href="https://discord.gg/hollowvalleyisle" target="_blank" rel="noreferrer">Open Discord <b>↗</b></a></div>
+    <main class="home-main snapshot-home">
+      <section class="snapshot-welcome">
+        <div>
+          <h1>Welcome back, <span id="snapshot-welcome-name">Survivor</span></h1>
+          <p>Track your progress, manage your dinos and explore Hollow Valley.</p>
         </div>
-        <div class="hero-dinosaur" aria-hidden="true"><div class="dino-eye"></div><div class="dino-ridge"></div></div>
       </section>
 
-      
+      <section class="snapshot-home-hero" aria-label="Hollow Valley">
 
-      
+        <div class="snapshot-server-bar">
+          <a class="snapshot-server-card" href="/profile">
+            <i>♟</i>
+            <div><small>Players Online</small><b id="home-player-count">— / —</b></div>
+          </a>
+          <a class="snapshot-server-card" href="/livemap">
+            <i>⌖</i>
+            <div><small>Server Map</small><b>Gateway</b></div>
+          </a>
+          <div class="snapshot-server-card">
+            <i>◉</i>
+            <div><small>Server Status</small><b class="online" id="home-server-state">CHECKING</b></div>
+          </div>
+          <a class="snapshot-play-now" href="/livemap">Play Now</a>
+        </div>
+      </section>
 
-      <section class="roster-section" id="species" hidden>
+      <section class="snapshot-quick-grid" aria-label="Quick links">
+        <a class="snapshot-quick-card" href="/wallet">
+          <span class="snapshot-quick-art"></span>
+          <span class="snapshot-quick-copy"><b>Wallet</b><span>Check your balance and history.</span><span><strong id="home-wallet-balance">—</strong> Valley Coin</span></span>
+          <span class="snapshot-quick-arrow">→</span>
+        </a>
+        <a class="snapshot-quick-card" href="/quests">
+          <span class="snapshot-quick-art"></span>
+          <span class="snapshot-quick-copy"><b>Quests</b><span>Complete quests and earn coins.</span></span>
+          <span class="snapshot-quick-arrow">→</span>
+        </a>
+        <a class="snapshot-quick-card" href="/skins">
+          <span class="snapshot-quick-art"></span>
+          <span class="snapshot-quick-copy"><b>Skin Studio</b><span>Create and manage your skins.</span></span>
+          <span class="snapshot-quick-arrow">→</span>
+        </a>
+        <a class="snapshot-quick-card" href="/marketplace-official.html">
+          <span class="snapshot-quick-art"></span>
+          <span class="snapshot-quick-copy"><b>Marketplace</b><span>Browse and purchase items.</span><span id="home-dino-count">Open dinosaur listings</span></span>
+          <span class="snapshot-quick-arrow">→</span>
+        </a>
+      </section>
+      <details class="panel home-species-disclosure"><summary>Explore playable dinosaur species</summary>
+      <section class="roster-section" id="species">
         <div class="section-top"><div><p class="overline green">SPECIES DATABASE</p><h2>Playable<br><em>dinosaurs.</em></h2></div><p class="section-intro">Every dinosaur currently playable in Isle Evrima.</p></div>
         <div class="filter-row" role="group" aria-label="Filter species"><button class="filter active" data-filter="all">All species</button><button class="filter" data-filter="herbivore">Herbivores</button><button class="filter" data-filter="carnivore">Carnivores</button><button class="filter" data-filter="omnivore">Omnivores</button><button class="filter" data-filter="flying">Flying</button><span class="roster-count" id="roster-count">.. / LIVE EVRIMA ROSTER</span></div>
         <div class="dino-grid" id="dino-grid"><p class="section-intro">Loading species database…</p></div>
       </section>
-
-      
-      
-
-      
-
-      <section class="community-section" id="community"><div class="community-orb">HV</div><div class="community-copy"><p class="overline green">THE GATHERING</p><h2>Welcome to<br><em>Hollow Valley.</em></h2><p>Meet your packmates, follow server updates and be part of the Hollow Valley community.</p><a class="primary-button dark" href="https://discord.gg/hollowvalleyisle" target="_blank" rel="noreferrer">Join the Discord <b>→</b></a></div></section>
+      </details>
     </main>
-    <footer><span>© 2026 Hollow Valley</span><span>WELCOME TO THE AUSTRALIAN ISLE SERVER - HOLLOW VALLEY</span><a href="#top">Back to top ↑</a></footer>
   </div>
+
   <dialog class="dino-dialog" aria-labelledby="dialog-title">
     <button class="dialog-close" aria-label="Close species details">×</button>
     <p class="overline green">SPECIES PROFILE</p>
@@ -58,7 +88,8 @@
     <p class="dialog-note">In-game Evrima gameplay stat values (not real-world physics units) &mdash; approximate and subject to patch changes.</p>
     <div class="dialog-social"><span>Best played as</span><strong></strong></div>
   </dialog>
-  <script src="assets/common.js?v=16"></script>
-  <script src="assets/site.js?v=8"></script>
+  <script src="/assets/common.js?v=21"></script>
+  <script src="/assets/home-v2.js?v=2"></script>
+  <script src="/assets/site.js?v=8"></script>
 </body>
 </html>

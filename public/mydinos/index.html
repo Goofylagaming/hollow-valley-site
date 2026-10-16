@@ -8,8 +8,10 @@
   <link rel="stylesheet" href="/assets/styles.css?v=14">
   <script src="script.js"></script>
   <script src="redeem.js"></script>
+  <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
+  <link rel="stylesheet" href="/assets/snapshot-ui.css?v=4">
 </head>
-<body>
+<body class="has-my-stuff-rail">
   <div class="app-shell">
     <div id="nav-slot"></div>
     <main>
@@ -34,7 +36,7 @@
     </footer>
   </div>
 
-  <script src="/assets/common.js?v=10"></script>
+  <script src="/assets/common.js?v=21"></script>
   <script>
     function renderDinoCardHtml(dino, options = {}) {
       const species = dino.species || dino.species_id || "Dinosaur";
