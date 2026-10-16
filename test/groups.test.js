@@ -101,7 +101,7 @@ test("groups routes require sessions and Steam identities",async()=>{
    res=await fetch(base+"/api/groups",{headers:{"x-test-steam":A}});
    assert.equal(res.status,200);assert.equal((await res.json()).current,null);
    res=await fetch(base+"/api/groups",{method:"POST",headers:{"content-type":"application/json","x-test-steam":B},body:JSON.stringify({name:"New Group"})});
-   assert.equal(res.status,201===res.status?201:200);
+   assert.equal(res.status,200);
    assert.equal((await res.json()).current.name,"New Group");
  }finally{await new Promise(resolve=>server.close(resolve));}
 });
