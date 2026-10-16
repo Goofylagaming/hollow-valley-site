@@ -120,7 +120,7 @@ router.get("/callback", async (req, res) => {
     redirectAfterSessionSave(req, res, returnPath);
   } catch (error) {
     console.error("Steam OpenID error:", error);
-    res.redirect("/?login=failed");
+    res.redirect(error.code === "ACCOUNT_LINK_CONFLICT" ? "/?login=account-conflict" : "/?login=failed");
   }
 });
 
