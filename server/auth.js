@@ -158,7 +158,7 @@ router.get("/discord/callback", async (req, res) => {
     res.redirect(returnPath);
   } catch (error) {
     console.error("Discord OAuth error:", error);
-    res.redirect("/wallet?discord=failed");
+    res.redirect(error.code === "ACCOUNT_LINK_CONFLICT" ? "/wallet?discord=account-conflict" : "/wallet?discord=failed");
   }
 });
 
@@ -183,7 +183,7 @@ router.post("/discord/implicit-callback", async (req, res) => {
     return res.json({ ok: true, returnTo: returnPath });
   } catch (error) {
     console.error("Discord implicit OAuth error:", error);
-    return res.status(400).json({ error: "Could not link Discord. Please try again." });
+    return res.status(error.code === "ACCOUNT_LINK_CONFLICT" ? 409 : 400).json({ error: error.code === "ACCOUNT_LINK_CONFLICT" ? error.message : "Could not link Discord. Please try again." });
   }
 });
 
