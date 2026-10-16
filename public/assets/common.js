@@ -244,6 +244,12 @@ window.HDS = (function () {
 
   async function initNav() {
     ensureSnapshotStyles();
+    // Reserve the sidebar layout before the asynchronous navigation fetch.
+    // Otherwise the main content jumps when the rail is finally injected.
+    if (railEnabled(normalizePath(window.location.pathname))) {
+      document.body.classList.add("has-my-stuff-rail");
+      injectMyStuffRail();
+    }
     const slot = document.getElementById("nav-slot");
     if (!slot) return;
     try {
@@ -255,7 +261,6 @@ window.HDS = (function () {
     }
     wireNavInteractions();
     applyActiveNavState();
-    injectMyStuffRail();
     const me = await loadMe();
     const isAdmin = Boolean(me?.user?.is_admin);
     const adminNavLink = document.getElementById("admin-nav-link");
