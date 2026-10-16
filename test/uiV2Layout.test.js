@@ -37,8 +37,8 @@ test("all My Stuff pages reserve rail width before asynchronous JS navigation", 
 
 test("Live Map preloads the new styling before loading map-specific CSS", () => {
   const html = read("public/livemap.html");
-  assert.ok(html.indexOf("/assets/snapshot-ui.css?v=2") > 0);
-  assert.ok(html.indexOf("/assets/snapshot-ui.css?v=2") < html.indexOf("livemap-trail.css"));
+  assert.ok(html.indexOf("/assets/snapshot-ui.css?v=3") > 0);
+  assert.ok(html.indexOf("/assets/snapshot-ui.css?v=3") < html.indexOf("livemap-trail.css"));
 });
 
 test("tablet/mobile navigation has an accessible menu without dropping links", () => {
