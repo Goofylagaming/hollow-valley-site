@@ -56,6 +56,6 @@ test("HollowValleyIsle.com serves the main portal", async () => {
   const response = await request("/", HOLLOW_VALLEY_HOSTNAME);
   assert.strictEqual(response.status, 200);
   assert.match(response.body, /snapshot-welcome/);
-  assert.match(response.body, /My Stuff/);
+  assert.match(response.body, /snapshot-quick-grid/);
   assert.match(response.body, /href="\/wallet"/);
 });
