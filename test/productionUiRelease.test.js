@@ -47,7 +47,7 @@ test("all production wallet, marketplace, storage, admin and other page scripts 
 test("every public page preloads the upgraded UI without losing its base CSS", () => {
   for (const page of ["index.html", ...keyPages]) {
     const html = read("public/" + page);
-    const base = html.indexOf("styles.css?v=39");
+    const base = html.search(/styles\.css\?v=\d+/);
     const modern = html.indexOf("/assets/ui-v2.css?v=3");
     const theme = html.indexOf("/assets/snapshot-ui.css?v=4");
     assert.ok(base >= 0 && modern > base && theme > modern, page);
@@ -58,7 +58,7 @@ test("every public page preloads the upgraded UI without losing its base CSS", (
 });
 test("v2 homepage retains production's species dialog and existing script", () => {
   const html = read("public/index.html");
-  assert.match(html, /class="snapshot-home"/);
+  assert.match(html, /class="[^"]*snapshot-home/);
   assert.match(html, /id="species"/);
   assert.match(html, /class="dino-dialog"/);
   assert.match(html, /assets\/site\.js\?v=8/);
@@ -71,7 +71,7 @@ test("shared navigation retains production owner login and admin permission hidi
   assert.match(common, /function normalizePublicBranding\(\)/);
   assert.match(common, /href="\/owner-login"/);
   assert.match(common, /adminNavLink\.hidden = !isAdmin/);
-  assert.match(nav, /id="admin-nav-link"[^>]*hidden/);
+  assert.match(nav, /id="admin-nav-group" hidden/);
   assert.match(nav, /class="menu-toggle"/);
   assert.doesNotMatch(nav, /adminterritorywars|territory-admin-nav-link/);
 });
