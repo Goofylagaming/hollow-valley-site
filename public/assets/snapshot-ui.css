@@ -844,3 +844,84 @@ body.has-my-stuff-rail .wallet-section { padding:8px !important; }
   .profile-hub-grid { grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
   .prime-tracker-stats { grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
 }
+
+/* ACCESSIBLE RESPONSIVE NAVIGATION -----------------------
+   Show all permitted links on smaller screens instead of
+   removing the last links or hiding sign-in controls. */
+.snapshot-topbar .main-nav > [hidden] { display:none !important; }
+
+@media (max-width:1050px) {
+  .topbar.snapshot-topbar {
+    grid-template-columns:minmax(90px,1fr) 38px max-content;
+    gap:8px;
+  }
+  .snapshot-topbar .menu-toggle {
+    grid-column:2;
+    grid-row:1;
+    display:grid;
+    place-content:center;
+    gap:4px;
+    width:38px;
+    height:36px;
+    padding:0;
+    border:1px solid rgba(52,231,159,.3);
+    border-radius:7px;
+    background:rgba(2,18,15,.75);
+    cursor:pointer;
+  }
+  .snapshot-topbar .menu-toggle span {
+    display:block;
+    width:17px;
+    height:2px;
+    border-radius:2px;
+    background:#d9f9ed;
+  }
+  .snapshot-topbar .menu-toggle:focus-visible,
+  .snapshot-topbar .main-nav a:focus-visible {
+    outline:2px solid var(--snap-green);
+    outline-offset:3px;
+  }
+  .snapshot-topbar .main-nav {
+    position:absolute;
+    top:calc(100% + 4px);
+    left:10px;
+    right:10px;
+    z-index:1600;
+    display:none;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:5px;
+    width:auto;
+    max-height:calc(100dvh - var(--snap-topbar) - 20px);
+    padding:9px;
+    overflow-y:auto;
+    border:1px solid rgba(52,231,159,.28);
+    border-radius:10px;
+    background:#041913;
+    box-shadow:0 16px 42px rgba(0,0,0,.55);
+  }
+  .snapshot-topbar .main-nav.open { display:grid; }
+  .snapshot-topbar .main-nav.open > a:not([hidden]) {
+    display:flex;
+    align-items:center;
+    justify-content:flex-start;
+    min-height:42px;
+    padding:8px 12px;
+    font-size:12px;
+    white-space:normal;
+  }
+  .snapshot-topbar .snapshot-topbar-tools {
+    grid-column:3;
+    grid-row:1;
+    display:flex;
+  }
+}
+@media (max-width:560px) {
+  .topbar.snapshot-topbar {
+    grid-template-columns:minmax(78px,1fr) 38px max-content !important;
+    padding:0 8px;
+  }
+  .snapshot-topbar .snapshot-topbar-tools { display:flex; }
+  .snapshot-topbar .snapshot-notify { display:none; }
+  .snapshot-topbar .player-chip strong { display:none; }
+  .snapshot-topbar .main-nav.open { grid-template-columns:1fr; }
+}
