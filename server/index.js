@@ -6,6 +6,7 @@ const session = require("express-session");
 const { db } = require("./db");
 const { SqliteSessionStore } = require("./sessionStore");
 const { requireAdmin } = require("./middleware/requireAuth");
+const { isAuthorized: isTerritoryAdmin, requireTerritoryAdmin } = require("./middleware/requireTerritoryAdmin");
 const { skinShareCodeRedaction } = require("./middleware/skinShareCodeRedaction");
 const authRouter = require("./auth");
 const authSteamRouter = require("./authSteam");
@@ -46,6 +47,8 @@ const { syncSteamProfiles } = require("./services/steamProfile");
 
 const PORT = process.env.PORT || 3000;
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
+// Defaults OFF: safe to merge code before a verified production DB backup.
+const TERRITORY_WARS_ADMIN_TEST_ENABLED = process.env.TERRITORY_WARS_ADMIN_TEST_ENABLED === "1";
 const HOLLOW_VALLEY_HOSTNAME = "hollowvalleyisle.com";
 const LEGACY_HOSTNAMES = new Set([
   "hollowvalley.herbydeathsquadgames.com",
@@ -151,6 +154,19 @@ function createApp() {
     return res.redirect(308, destination.toString());
   });
 
+  // Gated ahead of static files AND API mounts: knowing the URL is not access.
+  app.use([
+    "/api/territory-wars",
+    "/adminterritorywars",
+    "/adminterritorywars.html",
+    "/groups/territory-wars",
+  ], (req, res, next) => {
+    if (!TERRITORY_WARS_ADMIN_TEST_ENABLED) {
+      return res.status(404).json({ error: "Territory Wars admin test is not enabled" });
+    }
+    return requireTerritoryAdmin(req, res, next);
+  });
+
   app.get("/api/me", (req, res) => {
     if (req.user?.steam_id && req.user?.discord_id) {
       automationWebsiteClient.linkProgressionIdentity({
@@ -163,6 +179,7 @@ function createApp() {
     res.json({
       loggedIn: Boolean(req.user),
       user: req.user || null,
+      territoryWarsAdminAccess: TERRITORY_WARS_ADMIN_TEST_ENABLED && isTerritoryAdmin(req.user),
       discordLoginConfigured: authRouter.isConfigured,
       steamLoginConfigured: authSteamRouter.isConfigured,
       skinStudioCalibrationPreview: process.env.SKIN_STUDIO_CALIBRATION_PREVIEW === "1",
@@ -203,6 +220,10 @@ function createApp() {
   app.use("/api/events", eventsRouter);
   app.use("/api/friends", friendsRouter);
   app.use("/api/groups", groupsRouter);
+  if (TERRITORY_WARS_ADMIN_TEST_ENABLED) {
+    // Loading the module creates isolated territory_* tables: never load while disabled.
+    app.use("/api/territory-wars", require("./routes/territoryWars"));
+  }
   app.use("/api/admin-restore", adminRestoreRouter);
   app.use("/api/admin-operations", adminOperationsRouter);
   app.use("/api/admin-combat", adminCombatRouter);
@@ -242,6 +263,13 @@ function createApp() {
     });
   }
 
+  if (TERRITORY_WARS_ADMIN_TEST_ENABLED) {
+    app.get(["/adminterritorywars", "/adminterritorywars.html"], requireTerritoryAdmin, (_req, res) => {
+      res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
+      res.sendFile(path.join(__dirname, "..", "public", "adminterritorywars.html"));
+    });
+  }
+
   app.get(["/skins", "/skins.html"], (_req, res) => {
     return res.sendFile(path.join(__dirname, "..", "public", "skins.html"));
   });
@@ -266,6 +294,18 @@ function startServer() {
     console.log(`Herby Death Squad portal running on port ${PORT}`);
     console.log("[legacy-api] direct game execution paths retired");
     serverStatusService.start();
+    if (TERRITORY_WARS_ADMIN_TEST_ENABLED) {
+      const territoryRouter = require("./routes/territoryWars");
+      const runtimeTimer = setInterval(() => {
+        try { territoryRouter.tickRuntime(); }
+        catch (error) { console.warn("[territory-wars] admin-test runtime warning:", error.message); }
+      }, 15_000);
+      runtimeTimer.unref?.();
+      // Combat ingestion is a separate rollout; do not assume automation has its endpoint.
+      if (process.env.TERRITORY_WARS_COMBAT_SYNC_ENABLED === "1") {
+        require("./services/territoryCombatSync").start();
+      }
+    }
     syncSkinSharePolicy();
     const skinSharePolicyTimer = setInterval(syncSkinSharePolicy, 5 * 60 * 1000);
     skinSharePolicyTimer.unref?.();
