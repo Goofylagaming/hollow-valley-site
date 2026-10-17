@@ -6,7 +6,7 @@ const root = path.join(__dirname, "..");
 const read = p => fs.readFileSync(path.join(root,p), "utf8");
 const { ALLOWED_STEAM_IDS, isAuthorized, requireTerritoryAdmin } = require("../server/middleware/requireTerritoryAdmin");
 
-function send(status) { return { status, body: null, json(data) { this.body=data; return this; } }; }
+function send() { return { code: 0, body: null, status(code) { this.code = code; return this; }, json(data) { this.body=data; return this; } }; }
 test("Territory Wars allowlist contains exactly four distinct known website admin IDs", () => {
   assert.equal(ALLOWED_STEAM_IDS.length, 4);
   assert.equal(new Set(ALLOWED_STEAM_IDS).size, 4);
