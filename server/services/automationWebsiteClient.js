@@ -629,10 +629,11 @@ function getAdminOperationsStatus({ force = false } = {}) {
   return callAdmin(`/status${force ? '?force=1' : ''}`);
 }
 
-function getAdminAudit({ limit = 50, category = null } = {}) {
+function getAdminAudit({ limit = 50, category = null, action = null } = {}) {
   const params = new URLSearchParams();
   params.set('limit', String(Math.max(1, Math.min(200, Number(limit) || 50))));
   if (category) params.set('category', String(category));
+  if (action) params.set('action', String(action));
   return callAdmin(`/audit?${params.toString()}`);
 }
 
@@ -738,10 +739,15 @@ function grantAdminPrime(steamId) {
   });
 }
 
-function slayAdminPlayer(steamId) {
+function slayAdminPlayer({ steamId, actorSteamId, actorName }) {
+  const verifiedActorSteamId = validateSteamId(actorSteamId);
   return callAdmin('/admin-actions/slay', {
     method: 'POST',
-    body: { steamId: validateSteamId(steamId) },
+    body: {
+      steamId: validateSteamId(steamId),
+      actorSteamId: verifiedActorSteamId,
+      actorName: String(actorName || '').trim().slice(0, 100) || verifiedActorSteamId,
+    },
   });
 }
 

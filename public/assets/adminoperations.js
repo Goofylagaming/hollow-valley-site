@@ -89,6 +89,33 @@ function emptyRow(cols, message) {
   return `<tr><td colspan="${cols}" class="ops-empty">${escapeHtml(message)}</td></tr>`;
 }
 
+async function loadSlayAudit() {
+  const status = document.getElementById("ops-slay-audit-status");
+  const table = document.getElementById("ops-slay-audit");
+  if (!table) return;
+  try {
+    const result = await api("/api/admin-operations/slay-audit");
+    const rows = Array.isArray(result.audit) ? result.audit : [];
+    table.innerHTML = rows.length
+      ? rows.map((item) => {
+          const details = item.details || {};
+          const actorSteamId = details.actorSteamId || "";
+          const actor = actorSteamId
+            ? `${escapeHtml(details.actorName || actorSteamId)}<small style="display:block">${escapeHtml(actorSteamId)}</small>`
+            : "Not recorded (legacy)";
+          const resultText = item.status === "succeeded" && details.confirmed === true
+            ? "Confirmed"
+            : item.status === "failed" ? "Failed" : item.status || "Unknown";
+          return `<tr><td>${escapeHtml(formatDate(item.created_at || item.createdAt))}</td><td>${actor}</td><td>${escapeHtml(details.steamId || "—")}</td><td>${escapeHtml(resultText)}</td></tr>`;
+        }).join("")
+      : emptyRow(4, "No website Slay actions recorded in the available history.");
+    if (status) status.textContent = `${rows.length} most recent website Slay action(s) · older records may have no admin identity`;
+  } catch (error) {
+    table.innerHTML = emptyRow(4, "Slay history could not be loaded.");
+    if (status) status.textContent = error.message || "Audit history unavailable";
+  }
+}
+
 function render(data) {
   const status = data.status || {};
   const server = status.server || {};
@@ -248,6 +275,7 @@ async function loadOperations({ force = false } = {}) {
 
 document.getElementById("ops-refresh")?.addEventListener("click", () => {
   loadOperations({ force: true });
+  loadSlayAudit();
   loadGlobalBodyDrop();
 });
 
@@ -378,7 +406,7 @@ async function init() {
       button.textContent = "Expand chat";
     }
   } catch (_) { /* Storage may be unavailable. */ }
-  await Promise.all([loadOperations(), loadGlobalBodyDrop()]);
+  await Promise.all([loadOperations(), loadSlayAudit(), loadGlobalBodyDrop()]);
   await loadChat();
   setInterval(loadChat, 5000);
 }

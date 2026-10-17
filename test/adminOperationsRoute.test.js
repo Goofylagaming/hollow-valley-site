@@ -253,8 +253,9 @@ test("Admin Operations lists connected players and guards Slay with explicit con
   });
 
   const slayed = [];
-  automation.slayAdminPlayer = async (steamId) => {
-    slayed.push(steamId);
+  automation.slayAdminPlayer = async (payload) => {
+    slayed.push(payload);
+    const { steamId } = payload;
     return {
       ok: true,
       slay: {
@@ -266,7 +267,9 @@ test("Admin Operations lists connected players and guards Slay with explicit con
     };
   };
 
-  const server = await listen(appFor({ id: 1, is_admin: 1 }));
+  const server = await listen(appFor({
+    id: 1, is_admin: 1, steam_id: "76561198000000987", username: "Trusted Admin",
+  }));
   t.after(() => new Promise((resolve) => server.close(resolve)));
 
   let response = await fetch(`${baseUrl(server)}/api/admin-operations/players`);
@@ -295,11 +298,52 @@ test("Admin Operations lists connected players and guards Slay with explicit con
   response = await fetch(`${baseUrl(server)}/api/admin-operations/slay`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ steamId: "76561198000000801", confirm: "SLAY" }),
+    body: JSON.stringify({
+      steamId: "76561198000000801", confirm: "SLAY",
+      actorSteamId: "76561198000000001", actorName: "Forged Admin",
+    }),
   });
   assert.equal(response.status, 200);
   body = await response.json();
   assert.equal(body.slay.confirmed, true);
   assert.equal(body.slay.source, "AdminActions");
-  assert.deepEqual(slayed, ["76561198000000801"]);
+  assert.deepEqual(slayed, [{
+    steamId: "76561198000000801",
+    actorSteamId: "76561198000000987",
+    actorName: "Trusted Admin",
+  }]);
+});
+
+test("Slay is refused when an admin has no verified Steam identity", async (t) => {
+  const original = automation.slayAdminPlayer;
+  let called = false;
+  automation.slayAdminPlayer = async () => { called = true; return {}; };
+  t.after(() => { automation.slayAdminPlayer = original; });
+
+  const server = await listen(appFor({ id: 1, is_admin: 1, username: "Discord Admin" }));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const response = await fetch(`${baseUrl(server)}/api/admin-operations/slay`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ steamId: "76561198000000801", confirm: "SLAY" }),
+  });
+  assert.equal(response.status, 403);
+  assert.equal(called, false);
+});
+
+test("Slay history returns filtered automation audit to website admins only", async (t) => {
+  const original = automation.getAdminAudit;
+  const queries = [];
+  automation.getAdminAudit = async (filters) => {
+    queries.push(filters);
+    return { audit: [{ action: "slay_player", details: { steamId: "76561198000000801" } }] };
+  };
+  t.after(() => { automation.getAdminAudit = original; });
+
+  const server = await listen(appFor({ id: 1, is_admin: 1 }));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const response = await fetch(`${baseUrl(server)}/api/admin-operations/slay-audit`);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("cache-control"), "private, no-store");
+  assert.equal((await response.json()).audit.length, 1);
+  assert.deepEqual(queries, [{ category: "game_admin", action: "slay_player", limit: 100 }]);
 });
