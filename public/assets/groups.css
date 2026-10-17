@@ -41,3 +41,23 @@
  .groups-row{flex-wrap:wrap}.groups-actions{width:100%;justify-content:flex-end}
  .groups-history-card{grid-template-columns:1fr}.groups-past-members{grid-column:1}
 }
+.groups-xp{display:grid;gap:3px;align-content:center;min-width:155px;border:1px solid rgba(48,230,154,.25);border-radius:10px;padding:12px 18px;text-align:center;background:rgba(8,50,35,.45)}
+.groups-xp small{font-size:11px;font-weight:700;letter-spacing:.1em;color:#a0cbb8}
+.groups-xp strong{font-size:30px;color:#30e69a}
+.groups-xp span{font-size:10px;color:#a0cbb8}
+.groups-progress-heading{margin-top:24px}
+.groups-progress-heading .list-heading{margin-bottom:3px}
+.groups-milestones{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:14px 0 18px}
+.groups-milestone{border-radius:12px;border:1px solid rgba(88,127,111,.28);background:rgba(7,27,23,.84);padding:16px;min-width:0}
+.groups-milestone.is-complete{border-color:rgba(48,230,154,.65);background:linear-gradient(140deg,rgba(8,54,39,.85),rgba(6,26,22,.95))}
+.groups-milestone-head{display:flex;align-items:center;gap:9px}
+.groups-milestone-icon{display:grid;place-items:center;flex-shrink:0;width:34px;height:34px;border-radius:8px;background:rgba(40,131,98,.2);color:#30e69a;font-size:20px}
+.groups-milestone-head h3{margin:2px 0 0;color:#eafbf2;font-size:15px;line-height:1.3}
+.groups-milestone-head small{font-size:9px;color:#91b3a3;letter-spacing:.1em;font-weight:700}
+.groups-milestone-xp{margin-left:auto;white-space:nowrap;font-weight:700;font-size:10px;color:#9ef1c5}
+.groups-milestone p{font-size:12px;color:#b0c5b8;min-height:40px;line-height:1.5}
+.groups-milestone-count{display:flex;justify-content:space-between;font-size:11px;color:#9ef1c5}
+.groups-milestone-track{height:6px;border-radius:6px;background:rgba(95,131,117,.28);overflow:hidden;margin-top:7px}
+.groups-milestone-track i{height:100%;display:block;background:#30e69a;border-radius:6px}
+@media(max-width:1100px){.groups-milestones{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){.groups-milestones{grid-template-columns:1fr}.groups-xp{width:100%;min-width:0}.groups-milestone p{min-height:0}}
