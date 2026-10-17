@@ -67,6 +67,28 @@
       if(!name)return;
       await action("/",{name});
     });
+    $("groups-player-search-form").addEventListener("submit",async event=>{
+      event.preventDefault();
+      const query=$("groups-player-search").value.trim();
+      const results=$("groups-player-search-results");
+      if(query.length<2){
+        results.innerHTML=empty("Enter at least two letters from their Steam username or Steam ID.");
+        return;
+      }
+      results.innerHTML=empty("Searching registered Hollow Valley accounts...");
+      try{
+        const response=await api("/api/friends/search?q="+encodeURIComponent(query));
+        const players=Array.isArray(response.results)?response.results:[];
+        results.innerHTML=players.length?players.map(player=>
+          '<div class="groups-row">'+
+          '<div class="groups-person"><span class="groups-avatar">'+safe((player.username||"H")[0].toUpperCase())+'</span>'+
+          '<span><strong>'+safe(player.username||"Steam player")+'</strong><small>Steam linked · '+safe(player.steamId)+'</small></span></div>'+
+          '<button type="button" class="primary-button green" data-action="invite-found" data-steam="'+safe(player.steamId)+'">Invite</button></div>'
+        ).join(""):empty("No matching Steam-linked account was found on the live Hollow Valley website. Ask the player to open My Profile and link Steam, then search again.");
+      }catch(error){
+        results.innerHTML=empty(error.message||"Could not search existing accounts.");
+      }
+    });
     $("groups-invite-form").addEventListener("submit",async event=>{
       event.preventDefault();
       const id=$("groups-steam-id").value.trim();
@@ -82,6 +104,7 @@
       if(["accept","decline"].includes(kind))action("/invites/"+encodeURIComponent(id)+"/"+kind);
       if(kind==="cancel")action("/invites/"+encodeURIComponent(id)+"/cancel");
       if(kind==="remove")action("/remove",{steamId:target.dataset.steam},"Remove this player from your group?");
+      if(kind==="invite-found")action("/invites",{steamId:target.dataset.steam});
     });
   }
   async function init(){
