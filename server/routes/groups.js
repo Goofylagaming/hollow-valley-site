@@ -14,6 +14,7 @@ function handle(fn){return (req,res)=>{try{return res.json(fn(req));}catch(error
  return res.status(Number(error.status)||500).json({error:error.status?error.message:"Could not complete Groups request."});
 }};}
 router.get("/",handle(req=>groups.getState(req.groupSteam)));
+router.get("/progress",handle(req=>require("../groupProgress").getProgress(req.groupSteam)));
 router.post("/",handle(req=>groups.createGroup(req.groupSteam,req.body?.name)));
 router.post("/invites",handle(req=>groups.invite(req.groupSteam,req.body?.steamId)));
 router.post("/invites/:id/accept",handle(req=>groups.actOnInvite(req.groupSteam,req.params.id,"accept")));
