@@ -52,9 +52,9 @@ test("live site defaults to dormant Territory Wars without SQLite territory migr
   assert.equal(data.meAccess,false);
 });
 
-test("enabling the test still blocks guest API, admin page and direct player HTML",()=>{
+test("enabling the test still blocks guest API/admin access and sends guests to Steam login for player invites",()=>{
   const data=check(true);
-  assert.deepEqual(data.statuses,[401,401,401,401,401,401]);
+  assert.deepEqual(data.statuses,[401,401,302,302,401,401]);
   assert.ok(data.tables > 0);
   assert.equal(data.meAccess,false);
 });
