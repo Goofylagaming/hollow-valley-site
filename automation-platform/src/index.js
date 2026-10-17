@@ -18,6 +18,7 @@ const safeLogRecoveryRoutes = require('./routes/safeLogRecoveryRoutes');
 const dinoStorageRequestAdminRoutes = require('./routes/dinoStorageRequestAdminRoutes');
 const websiteRoutes = require('./routes/websiteRoutes');
 const websiteCombatRoutes = require('./routes/websiteCombatRoutes');
+const websiteTerritoryFeedRoutes = require('./routes/websiteTerritoryFeedRoutes');
 const websiteAdminWalletRoutes = require('./routes/websiteAdminWalletRoutes');
 const websiteDailyLoginRoutes = require('./routes/websiteDailyLoginRoutes');
 const skinSharePolicyRoutes = require('./routes/skinSharePolicyRoutes');
@@ -219,6 +220,11 @@ app.use('/api/website', (_req, res, next) => {
   res.set('Cache-Control', 'no-store');
   next();
 }, websiteCombatRoutes);
+
+app.use('/api/website/territory-wars', (_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+}, websiteTerritoryFeedRoutes);
 
 app.use('/api/website', (_req, res, next) => {
   res.set('Cache-Control', 'no-store');
