@@ -335,7 +335,6 @@ async function refreshState() {
     renderPresence(data.presence);
     renderRegistrations(data.registrations);
     renderLiveTest(data.event, data.liveTestGroups, data.availableGroups);
-    renderLiveTest(data.event, data.liveTestGroups, data.availableGroups);
   } catch (error) {
     setMessage(error.message || "Could not load Territory Wars admin state.", true);
   }
@@ -491,6 +490,137 @@ async function postAction(path, confirmText, payload = {}) {
     setMessage(error.message || "Territory War action failed.", true);
   }
 }
+
+function testerMessage(message, isError = false) {
+  const element = document.getElementById("tw-admin-tester-message");
+  if (!element) return;
+  element.className = `tw-inline-message${isError ? " error" : ""}`;
+  element.textContent = message || "";
+}
+
+function renderTesters(testers) {
+  const target = document.getElementById("tw-admin-testers");
+  const count = document.getElementById("tw-admin-tester-count");
+  if (!target) return;
+  target.replaceChildren();
+  const rows = Array.isArray(testers) ? testers : [];
+  if (count) count.textContent = `${rows.length} approved`;
+  if (!rows.length) {
+    target.innerHTML = '<div class="tw-empty">No non-admin players approved for the test yet.</div>';
+    return;
+  }
+  for (const item of rows) {
+    const row = document.createElement("div");
+    row.className = "tw-list-row";
+    const main = document.createElement("div");
+    const strong = document.createElement("strong");
+    strong.textContent = item.username || "Steam player (has not signed into this website yet)";
+    const detail = document.createElement("span");
+    detail.textContent = `${item.steamId} · Approved ${formatDate(item.approvedAt)}`;
+    main.append(strong, detail);
+    const removeButton = document.createElement("button");
+    removeButton.type = "button";
+    removeButton.className = "tw-button danger";
+    removeButton.textContent = "Remove";
+    removeButton.addEventListener("click", () => removeTester(item.steamId));
+    row.append(main, removeButton);
+    target.append(row);
+  }
+}
+
+async function refreshTesters() {
+  try {
+    const result = await api("/api/territory-wars/admin/testers");
+    renderTesters(result.testers);
+  } catch (error) {
+    testerMessage(error.message || "Could not load approved testers.", true);
+  }
+}
+
+async function approveTester(steamId) {
+  try {
+    const result = await api("/api/territory-wars/admin/testers", {
+      method: "POST",
+      body: JSON.stringify({ steamId }),
+    });
+    renderTesters(result.testers);
+    testerMessage("Player approved. They can sign in with Steam and open the Territory Wars player link.");
+    const field = document.getElementById("tw-admin-tester-steam");
+    if (field) field.value = "";
+    const query = document.getElementById("tw-admin-tester-search");
+    if (query?.value?.trim()) await findTesters();
+  } catch (error) {
+    testerMessage(error.message || "Could not approve that Steam account.", true);
+  }
+}
+
+async function removeTester(steamId) {
+  if (!confirm(`Remove tester ${steamId} from Territory Wars access?`)) return;
+  try {
+    const result = await api(`/api/territory-wars/admin/testers/${encodeURIComponent(steamId)}`, {
+      method: "DELETE",
+    });
+    renderTesters(result.testers);
+    testerMessage(result.removed ? "Tester removed. Future player-page and API requests are now blocked." : "Tester was already removed.");
+    const query = document.getElementById("tw-admin-tester-search");
+    if (query?.value?.trim()) await findTesters();
+  } catch (error) {
+    testerMessage(error.message || "Could not remove tester.", true);
+  }
+}
+
+async function findTesters() {
+  const target = document.getElementById("tw-admin-tester-results");
+  const q = document.getElementById("tw-admin-tester-search")?.value?.trim() || "";
+  if (!target) return;
+  target.replaceChildren();
+  if (q.length < 2) {
+    testerMessage("Enter at least two characters to find a website player.", true);
+    return;
+  }
+  try {
+    const data = await api(`/api/territory-wars/admin/testers/search?q=${encodeURIComponent(q)}`);
+    const rows = Array.isArray(data.players) ? data.players : [];
+    if (!rows.length) {
+      target.innerHTML = '<div class="tw-empty">No matching website accounts found. You can still approve a valid Steam ID directly above.</div>';
+      return;
+    }
+    for (const player of rows) {
+      const row = document.createElement("div");
+      row.className = "tw-list-row";
+      const main = document.createElement("div");
+      const name = document.createElement("strong");
+      name.textContent = player.username || "Steam player";
+      const detail = document.createElement("span");
+      detail.textContent = player.steamId;
+      main.append(name, detail);
+      const approveButton = document.createElement("button");
+      approveButton.type = "button";
+      approveButton.className = "tw-button";
+      approveButton.textContent = player.approved ? "Approved" : "Approve";
+      approveButton.disabled = Boolean(player.approved);
+      approveButton.addEventListener("click", () => approveTester(player.steamId));
+      row.append(main, approveButton);
+      target.append(row);
+    }
+  } catch (error) {
+    testerMessage(error.message || "Player search failed.", true);
+  }
+}
+
+document.getElementById("tw-admin-tester-form")?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  approveTester(document.getElementById("tw-admin-tester-steam")?.value?.trim());
+});
+document.getElementById("tw-admin-tester-find")?.addEventListener("click", findTesters);
+document.getElementById("tw-admin-tester-search")?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    findTesters();
+  }
+});
+
+refreshTesters();
 
 document.getElementById("tw-admin-event-form")?.addEventListener("submit", saveEvent);
 document.querySelectorAll("[data-status]").forEach((button) => {
