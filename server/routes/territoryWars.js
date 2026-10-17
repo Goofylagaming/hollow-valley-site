@@ -215,13 +215,8 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-function previewSimulationEnabled() {
-  return ["1", "true", "yes", "on"].includes(
-    String(process.env.TERRITORY_WARS_PREVIEW_SEED || "")
-      .trim()
-      .toLowerCase()
-  );
-}
+// No simulated positions are permitted in the live four-admin test.
+function previewSimulationEnabled() { return false; }
 
 function previewPresenceRows(eventId) {
   if (!previewSimulationEnabled() || !eventId) return [];
@@ -1486,5 +1481,8 @@ router.post("/admin/force-capture", requireAdmin, (req, res) => {
   }
   res.json({ ok: true, event: decorateEvent(eventById(event.id)), log: eventLog(event.id) });
 });
+
+// The authenticated app drives ticks in-process; no unauthenticated HTTP loopback route.
+router.tickRuntime = () => processEventRuntime(latestEventRaw());
 
 module.exports = router;
