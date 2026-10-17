@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Hollow Valley Territory Wars.">
+  <title>Territory Wars | Hollow Valley</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=38">
+  <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
+  <link rel="stylesheet" href="/assets/snapshot-ui.css?v=4">
+  <link rel="stylesheet" href="/assets/territory-wars.css?v=2">
+</head>
+<body class="has-my-stuff-rail">
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main>
+      <section class="page-header">
+        <p class="overline green">MY STUFF · GROUPS · TERRITORY WARS</p>
+        <h1>Territory Wars</h1>
+        <p class="section-intro">Build a permanent Group, register it for a war, choose your event lineup, and fight for control of Hollow Valley territories.</p>
+      </section>
+
+      <section class="groups-page tw-shell">
+        <nav class="tw-tabs" aria-label="Groups pages">
+          <a href="/groups/">Groups</a>
+          <a class="is-active" href="/groups/territory-wars/" aria-current="page">Territory Wars</a>
+        </nav>
+
+        <div class="tw-grid">
+          <section class="tw-card">
+            <div class="tw-hero">
+              <div>
+                <div class="tw-kicker">Live Territory</div>
+                <h2 id="tw-territory-name">South Plains</h2>
+                <p class="tw-muted" id="tw-event-name">No Territory War event is scheduled yet.</p>
+              </div>
+
+              <div class="tw-owner-row">
+                <div class="tw-faction">
+                  <span>Current owner</span>
+                  <strong id="tw-owner-name">Admin</strong>
+                </div>
+                <div class="tw-versus">VS</div>
+                <div class="tw-faction">
+                  <span>Challenger</span>
+                  <strong id="tw-challenger-name">Open</strong>
+                </div>
+              </div>
+
+              <div class="tw-control-wrap">
+                <div class="tw-control-labels"><span id="tw-owner-percent">100%</span><span id="tw-challenger-percent">0%</span></div>
+                <div class="tw-control-bar" aria-label="Territory control">
+                  <span class="tw-control-owner" id="tw-owner-bar"></span>
+                  <span class="tw-control-challenger" id="tw-challenger-bar"></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="tw-card-body">
+              <div class="tw-meta-grid">
+                <div class="tw-meta"><small>Status</small><b><span class="tw-status" id="tw-status">Scheduled</span></b></div>
+                <div class="tw-meta"><small>Control Score</small><b id="tw-control-score">-100</b></div>
+                <div class="tw-meta"><small>Live Presence</small><b id="tw-presence">Server offline</b></div>
+                <div class="tw-meta"><small>Registered Groups</small><b id="tw-registration-count">0</b></div>
+                <div class="tw-meta"><small>Event Start</small><b id="tw-starts">Not set</b></div>
+                <div class="tw-meta"><small>Attack Active From</small><b id="tw-attack-starts">No active attack</b></div>
+                <div class="tw-meta"><small>Protection</small><b id="tw-protection">None</b></div>
+                <div class="tw-meta"><small>Event Ends</small><b id="tw-ends">Not set</b></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="tw-card">
+            <div class="tw-card-head">
+              <div><div class="tw-kicker">Your War Identity</div><h3>Permanent Group</h3></div>
+              <span class="tw-status" id="tw-group-status">Sign in required</span>
+            </div>
+            <div class="tw-card-body">
+              <div id="tw-login-state" class="tw-empty">Sign in with the Steam account you use on Hollow Valley to create or join a permanent Group.</div>
+
+              <div id="tw-group-create-state" hidden>
+                <p class="tw-muted">You are not currently in a permanent Territory Wars Group. Create one, or accept an invite below.</p>
+                <form id="tw-group-create-form">
+                  <div class="tw-form-grid">
+                    <div class="tw-field"><label for="tw-group-create-name">Group name</label><input id="tw-group-create-name" maxlength="40" placeholder="Ridge Runners" required></div>
+                    <div class="tw-field"><label for="tw-group-create-tag">Tag</label><input id="tw-group-create-tag" maxlength="6" placeholder="RIDGE" required></div>
+                  </div>
+                  <div class="tw-actions"><button class="tw-button primary" type="submit">Create Permanent Group</button></div>
+                </form>
+                <div class="tw-inline-message" id="tw-group-create-message" aria-live="polite"></div>
+                <div class="tw-section-break"></div>
+                <div class="tw-kicker">Pending Invites</div>
+                <div class="tw-list" id="tw-group-invites"><div class="tw-empty">No pending Group invites.</div></div>
+              </div>
+
+              <div id="tw-group-current-state" hidden>
+                <div class="tw-group-title-row">
+                  <div><strong id="tw-group-name">Your Group</strong><span id="tw-group-role">Member</span></div>
+                  <span class="tw-status live">Permanent</span>
+                </div>
+                <div class="tw-stat-grid">
+                  <div class="tw-stat"><small>Wins</small><b id="tw-group-wins">0</b></div>
+                  <div class="tw-stat"><small>Captures</small><b id="tw-group-captures">0</b></div>
+                  <div class="tw-stat"><small>Kills</small><b id="tw-group-kills">0</b></div>
+                </div>
+                <div class="tw-section-break"></div>
+                <div class="tw-list" id="tw-group-roster"></div>
+
+                <form id="tw-group-invite-form" hidden>
+                  <div class="tw-section-break"></div>
+                  <div class="tw-field"><label for="tw-group-invite-steam">Invite player by Steam ID</label><input id="tw-group-invite-steam" inputmode="numeric" maxlength="17" placeholder="17-digit Steam ID" required></div>
+                  <div class="tw-actions"><button class="tw-button" type="submit">Send Group Invite</button></div>
+                  <div class="tw-inline-message" id="tw-group-invite-message" aria-live="polite"></div>
+                </form>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <section class="tw-card" id="tw-event-entry-card">
+          <div class="tw-card-head">
+            <div><div class="tw-kicker">Current Event</div><h2>Group Registration &amp; Lineup</h2></div>
+            <span class="tw-status" id="tw-event-entry-status">Waiting</span>
+          </div>
+          <div class="tw-card-body">
+            <div id="tw-event-entry-empty" class="tw-empty">Create or join a permanent Group to enter a Territory War.</div>
+
+            <div id="tw-event-entry-state" hidden>
+              <div class="tw-event-entry-heading">
+                <div>
+                  <strong id="tw-entry-event-name">Territory War</strong>
+                  <span id="tw-entry-event-detail">South Plains</span>
+                </div>
+                <button class="tw-button primary" id="tw-event-register-group" type="button" hidden>Register Group for Event</button>
+              </div>
+              <div class="tw-inline-message" id="tw-event-entry-message" aria-live="polite"></div>
+
+              <div id="tw-lineup-state" hidden>
+                <div class="tw-section-break"></div>
+                <div class="tw-lineup-heading">
+                  <div>
+                    <div class="tw-kicker">Event Lineup</div>
+                    <h3>Select up to 6 fighters</h3>
+                    <p class="tw-muted" id="tw-lineup-help">Only selected lineup members contribute presence, kills, deaths, or territory control.</p>
+                  </div>
+                  <span class="tw-status" id="tw-lineup-count">0 / 6</span>
+                </div>
+                <div class="tw-lineup-list" id="tw-lineup-list"></div>
+                <div class="tw-actions" id="tw-lineup-actions" hidden>
+                  <button class="tw-button primary" id="tw-save-lineup" type="button">Save Event Lineup</button>
+                </div>
+                <div class="tw-inline-message" id="tw-lineup-message" aria-live="polite"></div>
+              </div>
+
+              <div id="tw-attack-state" hidden>
+                <div class="tw-section-break"></div>
+                <div class="tw-event-entry-heading">
+                  <div>
+                    <div class="tw-kicker">Territory Attack</div>
+                    <strong id="tw-attack-title">No active attack</strong>
+                    <span id="tw-attack-detail">A Leader or Officer can declare an attack while the event is live.</span>
+                  </div>
+                  <button class="tw-button warn" id="tw-declare-attack" type="button" hidden>Declare Attack</button>
+                </div>
+                <div class="tw-inline-message" id="tw-attack-message" aria-live="polite"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="tw-grid">
+          <section class="tw-card">
+            <div class="tw-card-head"><div><div class="tw-kicker">War Feed</div><h3>Recent Territory Activity</h3></div><span class="tw-muted">Newest first</span></div>
+            <div class="tw-card-body"><div class="tw-list" id="tw-event-log"><div class="tw-empty">No Territory War activity yet.</div></div></div>
+          </section>
+
+          <section class="tw-card">
+            <div class="tw-card-head"><div><div class="tw-kicker">Standings</div><h3>Group Leaderboard</h3></div></div>
+            <div class="tw-card-body"><div class="tw-list" id="tw-leaderboard"><div class="tw-empty">No group results recorded yet.</div></div></div>
+          </section>
+        </div>
+
+        <p class="tw-note">Permanent Groups are the Territory Wars identity. Event lineups are capped at six fighters; only those selected fighters contribute to the war. Attacks have a five-minute warning, then require at least two eligible attackers inside continuously for two minutes before territory control starts moving.</p>
+      </section>
+    </main>
+  </div>
+  <script src="/assets/common.js?v=20"></script>
+  <script src="/assets/territory-wars.js?v=4"></script>
+</body>
+</html>
