@@ -339,6 +339,11 @@ function startServer() {
       if (process.env.TERRITORY_WARS_COMBAT_SYNC_ENABLED === "1") {
         require("./services/territoryCombatSync").start();
       }
+      // The Discord feed uses existing website-to-automation credentials.
+      // Opt-in: never replay or announce old TW tests during deployment.
+      if (process.env.TERRITORY_WARS_DISCORD_FEED_ENABLED === "1") {
+        require("./services/territoryDiscordFeed").start();
+      }
     }
     syncSkinSharePolicy();
     const skinSharePolicyTimer = setInterval(syncSkinSharePolicy, 5 * 60 * 1000);
