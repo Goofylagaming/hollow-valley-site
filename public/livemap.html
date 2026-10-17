@@ -5,10 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Gateway map with live Hollow Valley positions when available and verified activity history during downtime.">
   <title>Live map | Hollow Valley</title>
-  <link rel="stylesheet" href="assets/styles.css?v=20">
-  <link rel="stylesheet" href="assets/livemap-trail.css?v=2">
+  <link rel="stylesheet" href="assets/styles.css?v=38">
   <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=4">
+  <link rel="stylesheet" href="assets/livemap-trail.css?v=3">
+  <link rel="stylesheet" href="assets/territory-map-overlay.css?v=5">
+  <link rel="stylesheet" href="assets/livemap-precision.css?v=3">
+  <link rel="stylesheet" href="assets/livemap-navigation.css?v=1">
+  <link rel="stylesheet" href="assets/livemap-routes.css?v=1">
+  <link rel="stylesheet" href="assets/livemap-wildlife.css?v=1">
+  <link rel="stylesheet" href="assets/livemap-pins.css?v=1">
 </head>
 <body>
   <div class="app-shell">
@@ -40,14 +46,31 @@
                 <button type="button" class="map-control" id="zoom-reset" title="Reset view" aria-label="Reset view">⌂</button>
               </div>
               <div class="zoom-label" id="zoom-label">100%</div>
+              <div class="map-navigator" aria-label="Gateway map navigator">
+                <form class="map-navigator-form" id="map-nav-form">
+                  <input id="map-nav-query" type="search" inputmode="text" autocomplete="off" spellcheck="false" placeholder="Grid A12 or Lat, Long" aria-label="Grid or coordinates">
+                  <button type="submit">FIND</button>
+                  <button type="button" id="map-nav-me">MY DINO</button>
+                </form>
+                <span class="map-nav-status" id="map-nav-status">Loading Gateway grid data…</span>
+              </div>
+              <div id="territory-war-overlay-slot" class="tw-map-hud" hidden></div>
               <div class="map-world" id="map-world">
                 <div class="map-plane gateway-live-plane">
                   <img class="gateway-live-base" src="assets/gateway-map.webp?v=1" alt="Gateway island map" draggable="false">
+                  <svg class="map-layer" id="tracker-grid" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
+                  <svg class="map-layer" id="tracker-heatmap" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
+                  <svg class="map-layer" id="tracker-wildlife-density" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
                   <svg class="map-layer map-shapes" id="tracker-shapes" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
+                  <svg class="map-layer" id="tracker-roads" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
+                  <svg class="map-layer map-shapes" id="territory-war-shapes" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
                   <div class="map-layer" id="tracker-pois"></div>
+                  <div class="map-layer" id="tracker-wildlife"></div>
                   <div class="map-layer" id="tracker-labels"></div>
                   <svg class="map-layer" id="tracker-trails" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
                   <div class="map-layer" id="tracker-markers"></div>
+                  <div class="map-layer" id="tracker-target-pins"></div>
+                  <div class="map-layer" id="map-navigation-layer" aria-hidden="true"></div>
                 </div>
               </div>
             </div>
@@ -58,6 +81,35 @@
             <p class="overline green">MAP LAYERS</p>
             <label class="layer-toggle"><input type="checkbox" id="layer-players" checked><span class="layer-swatch player"></span>Player tracking</label>
             <label class="layer-toggle"><input type="checkbox" id="layer-trails" checked><span class="layer-swatch trail"></span>My dino trail</label>
+            <div class="trail-tools" id="trail-tools">
+              <div class="trail-tools-head"><span>FOOTSTEP HISTORY</span><button type="button" id="trail-clear">CLEAR</button></div>
+              <div class="trail-tools-grid">
+                <label for="trail-window"><span>WINDOW</span><select id="trail-window"><option value="10">10 min</option><option value="30" selected>30 min</option><option value="60">60 min</option></select></label>
+                <label for="trail-mode"><span>DISPLAY</span><select id="trail-mode"><option value="both" selected>Both</option><option value="breadcrumb">Breadcrumb</option><option value="footprints">Footprints</option></select></label>
+              </div>
+              <small id="trail-stats">Waiting for movement samples…</small>
+            </div>
+            <label class="layer-toggle"><input type="checkbox" id="layer-heatmap"><span class="layer-swatch heatmap"></span>My 24h heatmap</label>
+            <small class="map-private-note">Private to this browser. It stores only your own recent map samples.</small>
+            <label class="layer-toggle"><input type="checkbox" id="layer-grid"><span class="layer-swatch grid"></span>Gateway grid</label>
+            <label class="layer-toggle" id="territory-layer-row"><input type="checkbox" id="layer-territoryWars" checked><span class="layer-swatch territory"></span>Territory Wars boundaries</label>
+            <div class="territory-layer-tools" id="territory-layer-tools" hidden>
+              <label class="territory-preview-switch" for="territory-admin-preview"><input type="checkbox" id="territory-admin-preview"><span>ADMIN PREVIEW</span></label>
+              <label class="territory-preview-select" for="territory-preview-territory"><span>TERRITORY</span><select id="territory-preview-territory" aria-label="Territory boundary preview"></select></label>
+              <div class="territory-preview-legend" aria-label="Territory boundary legend"><span><i class="battlefield"></i>Battlefield · 600m</span><span><i class="claim"></i>Claim · 200m</span></div>
+              <small id="territory-preview-note">Read-only boundary preview. Choose ALL TERRITORIES for the full Battlefield + Claim layout.</small>
+            </div>
+            <div class="target-pin-tools">
+              <div class="target-pin-tools-head"><span>PRIVATE TARGET PINS</span><button type="button" class="target-pin-clear" id="clear-target-pins">CLEAR</button></div>
+              <small id="target-pin-status">Shift + click anywhere on the map to drop a private target pin.</small>
+            </div>
+            <label class="layer-toggle"><input type="checkbox" id="layer-roads"><span class="layer-swatch routes"></span>Roads &amp; trails</label>
+            <label class="layer-toggle"><input type="checkbox" id="layer-wildlife"><span class="layer-swatch wildlife"></span>Wildlife / AI points</label>
+            <div class="wildlife-filter" id="wildlife-filter" hidden>
+              <label for="wildlife-species"><span>SPECIES</span><select id="wildlife-species" aria-label="Wildlife species"></select></label>
+              <label for="wildlife-display-mode"><span>DISPLAY</span><select id="wildlife-display-mode" aria-label="Wildlife display mode"><option value="points">Points</option><option value="density">Density</option><option value="both">Both</option></select></label>
+              <small id="wildlife-note">Community-observed points; density areas are approximate, not game spawn boundaries.</small>
+            </div>
             <label class="layer-toggle"><input type="checkbox" id="layer-areas" checked><span class="layer-swatch area"></span>Region names</label>
             <label class="layer-toggle"><input type="checkbox" id="layer-landmarks"><span class="layer-swatch landmark"></span>Landmarks</label>
             <label class="layer-toggle"><input type="checkbox" id="layer-saltLicks" checked><span class="layer-swatch salt"></span>Salt licks</label>
@@ -67,6 +119,18 @@
             <label class="layer-toggle"><input type="checkbox" id="layer-migrations" checked><span class="layer-swatch migration"></span>Migration zones</label>
             <label class="layer-toggle"><input type="checkbox" id="layer-patrolZones" checked><span class="layer-swatch patrol"></span>Patrol zones</label>
             <label class="layer-toggle"><input type="checkbox" id="layer-sanctuaries" checked><span class="layer-swatch sanctuary"></span>Sanctuaries</label>
+            <div class="map-layer-precision">
+              <span>ZONE DISPLAY</span>
+              <label class="precision-row" for="zone-border-width"><b>Border</b><input type="range" id="zone-border-width" min="55" max="180" value="90" step="5"><i class="precision-value" id="zone-border-value">0.90</i></label>
+              <label class="precision-row" for="zone-fill-strength"><b>Fill</b><input type="range" id="zone-fill-strength" min="0" max="28" value="12" step="1"><i class="precision-value" id="zone-fill-value">12%</i></label>
+              <small class="map-source-status">Thin borders are the default so zone geometry follows the terrain without covering it.</small>
+            </div>
+            <div class="map-source-card" id="map-source-card" data-state="loading">
+              <div class="map-source-card-head"><span>CARTOGRAPHY SOURCE</span><b id="map-source-badge">CHECKING</b></div>
+              <strong id="map-source-version">Gateway cartography</strong>
+              <small id="map-source-detail">Verifying the current Gateway source&hellip;</small>
+              <small id="map-source-audit">Geometry audit pending&hellip;</small>
+            </div>
             <p class="layer-note" id="layer-note">Loading Gateway map data&hellip;</p>
           </aside>
         </div>
@@ -74,11 +138,16 @@
         <div id="tracker-contacts" class="activity-list"><div class="empty-roster"><strong>Loading survivors&hellip;</strong></div></div>
       </section>
     </main>
-    <footer><span>&copy; 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
+    <footer><span>&copy; 2026 Hollow Valley</span><span>ISLE SERVER</span><a href="/">Back to top ↑</a></footer>
   </div>
-  <script src="assets/common.js?v=21"></script>
-  <script src="assets/livemap.js?v=14"></script>
+  <script src="assets/common.js?v=20"></script>
+  <script src="assets/livemap.js?v=17"></script>
+  <script src="assets/territory-map-overlay.js?v=5"></script>
+  <script src="assets/livemap-precision.js?v=1"></script>
+  <script src="assets/livemap-navigation.js?v=1"></script>
+  <script src="assets/livemap-pins.js?v=1"></script>
+  <script src="assets/livemap-heatmap.js?v=1"></script>
   <script src="assets/livemap-prime-summary.js?v=1"></script>
-  <script src="assets/livemap-trail.js?v=1"></script>
+  <script src="assets/livemap-trail.js?v=2"></script>
 </body>
 </html>

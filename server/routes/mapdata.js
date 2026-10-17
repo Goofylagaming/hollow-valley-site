@@ -9,17 +9,33 @@
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
-const { BOUNDS } = require("../evrimaMap");
+const { BOUNDS, GRID } = require("../evrimaMap");
 
 const router = express.Router();
 
-const VULNONA_DATA1_URL =
-  process.env.VULNONA_DATA1_URL ||
-  "https://vulnona.com/game/map/map/Gateway_v0.21.7/data_1.txt";
+const VULNONA_MAP_BASE_URL =
+  process.env.VULNONA_MAP_BASE_URL ||
+  "https://vulnona.com/game/map/map";
 
-const VULNONA_DATA2_URL =
-  process.env.VULNONA_DATA2_URL ||
-  "https://vulnona.com/game/map/map/Gateway_v0.21.7/data_2.txt";
+// Prefer the latest verified Gateway cartography first. Fall back through the
+// previous 0.21.7 builds so a community-map folder rename never takes the Live
+// Map down. Explicit DATA URLs still win when an operator pins a source.
+const VULNONA_GATEWAY_VERSIONS = [
+  process.env.VULNONA_GATEWAY_VERSION,
+  // Vulnona keeps the current Gateway data under a stable alias even when
+  // its UI/update notes refer to a more specific game build (for example
+  // v0.21.772). The build-number folders themselves currently return 404.
+  "Gateway_v0.21",
+  "Gateway_v0.21.7",
+].map((value) => String(value || "").trim()).filter(Boolean);
+
+const PINNED_DATA_URLS = process.env.VULNONA_DATA1_URL && process.env.VULNONA_DATA2_URL
+  ? {
+      data1: process.env.VULNONA_DATA1_URL,
+      data2: process.env.VULNONA_DATA2_URL,
+      version: process.env.VULNONA_GATEWAY_VERSION || "operator-pinned",
+    }
+  : null;
 
 const LOCAL_DATA1_PATH = path.join(__dirname, "../data/vulnona_data_1.txt");
 const LOCAL_DATA2_PATH = path.join(__dirname, "../data/vulnona_data_2.txt");
@@ -34,11 +50,30 @@ let cache = null;
 let cachedAt = 0;
 let inflight = null;
 
-function projectLatLong(lat, long) {
-  const left = (long * 1000 - BOUNDS.minY) / WIDTH_UNITS;
-  const top = (lat * 1000 - BOUNDS.minX) / HEIGHT_UNITS;
-  const clamp = (n) => Math.min(1, Math.max(0, n));
-  return { left: clamp(left), top: clamp(top) };
+function projectLatLong(lat, long, audit = null) {
+  const numericLat = Number(lat);
+  const numericLong = Number(long);
+  const minLat = BOUNDS.minX / 1000;
+  const maxLat = BOUNDS.maxX / 1000;
+  const minLong = BOUNDS.minY / 1000;
+  const maxLong = BOUNDS.maxY / 1000;
+
+  if (
+    !Number.isFinite(numericLat) ||
+    !Number.isFinite(numericLong) ||
+    numericLat < minLat ||
+    numericLat > maxLat ||
+    numericLong < minLong ||
+    numericLong > maxLong
+  ) {
+    if (audit) audit.rejectedCoordinates += 1;
+    return null;
+  }
+
+  return {
+    left: (numericLong * 1000 - BOUNDS.minY) / WIDTH_UNITS,
+    top: (numericLat * 1000 - BOUNDS.minX) / HEIGHT_UNITS,
+  };
 }
 
 function parseVulnonaFile(text) {
@@ -80,7 +115,7 @@ function parseVulnonaFile(text) {
   return sections;
 }
 
-function parsePoints(items) {
+function parsePoints(items, audit = null) {
   const pts = [];
   for (const { item, coords } of items || []) {
     const rawName = item[2] || item[1] || "Location";
@@ -90,7 +125,8 @@ function parsePoints(items) {
       if (parts.length >= 2 && !isNaN(parseFloat(parts[0])) && !isNaN(parseFloat(parts[1]))) {
         const lat = parseFloat(parts[0]);
         const long = parseFloat(parts[1]);
-        const pos = projectLatLong(lat, long);
+        const pos = projectLatLong(lat, long, audit);
+        if (!pos) continue;
         pts.push({ name: cleanName, left: pos.left, top: pos.top });
         break;
       }
@@ -99,7 +135,7 @@ function parsePoints(items) {
   return pts;
 }
 
-function parsePaths(items) {
+function parsePaths(items, audit = null) {
   const paths = [];
   for (const { item, coords } of items || []) {
     const rawName = item[2] || item[1] || "Path";
@@ -110,7 +146,8 @@ function parsePaths(items) {
       if (parts.length >= 2 && !isNaN(parseFloat(parts[0])) && !isNaN(parseFloat(parts[1]))) {
         const lat = parseFloat(parts[0]);
         const long = parseFloat(parts[1]);
-        const pos = projectLatLong(lat, long);
+        const pos = projectLatLong(lat, long, audit);
+        if (!pos) continue;
         points.push([pos.left, pos.top]);
       }
     }
@@ -121,7 +158,83 @@ function parsePaths(items) {
   return paths;
 }
 
-function parseZones(items) {
+function parseRoads(items, audit = null) {
+  const roads = [];
+  for (const { item, coords } of items || []) {
+    const rawName = item[2] || item[1] || "Road";
+    const cleanName = rawName.split(":")[0].replace(/<s>.*?<\/s>/gi, "").replace(/<br\s*\/?>/gi, " ").trim();
+    const trail = /(?:^|\s)trail(?:\s|$)/i.test(String(item[3] || ""));
+    let points = [];
+
+    const flush = () => {
+      if (points.length >= 2) roads.push({ name: cleanName, trail, points });
+      points = [];
+    };
+
+    for (const coord of coords) {
+      const parts = coord.split(",").map((s) => s.trim());
+      const lat = parseFloat(parts[0]);
+      const long = parseFloat(parts[1]);
+      if (!Number.isFinite(lat) || !Number.isFinite(long)) continue;
+
+      // Vulnona uses M to begin a new path segment. Respecting it avoids
+      // drawing artificial straight connectors between forks or split roads.
+      if (parts.slice(2).some((part) => part.toUpperCase() === "M") && points.length) {
+        flush();
+      }
+
+      const pos = projectLatLong(lat, long, audit);
+        if (!pos) continue;
+      points.push([pos.left, pos.top]);
+    }
+    flush();
+  }
+  return roads;
+}
+
+const WILDLIFE_SECTIONS = Object.freeze([
+  ["Boar", "Boar", "terrestrial"],
+  ["Chicken", "Chicken", "terrestrial"],
+  ["Deer", "Deer", "terrestrial"],
+  ["Goat", "Goat", "terrestrial"],
+  ["Rabbit", "Rabbit", "terrestrial"],
+  ["Taco", "Taco", "terrestrial"],
+  ["GalliAI", "Galli AI", "terrestrial"],
+  ["DeinoAI", "Deino AI", "terrestrial"],
+  ["Fish", "Fish", "aquatic"],
+  ["Crab", "Crab", "aquatic"],
+  ["Frog", "Frog", "aquatic"],
+  ["Turtle", "Turtle", "aquatic"],
+]);
+
+function parseWildlifePoints(sections, audit = null) {
+  const points = [];
+  for (const [section, species, category] of WILDLIFE_SECTIONS) {
+    for (const { coords } of sections[section] || []) {
+      for (const coord of coords) {
+        const parts = coord.split(",").map((value) => value.trim());
+        const lat = parseFloat(parts[0]);
+        const long = parseFloat(parts[1]);
+        if (!Number.isFinite(lat) || !Number.isFinite(long)) continue;
+
+        const observedMatch = coord.match(/\bup(\d{4}\/\d{2}\/\d{2})\b/i);
+        const pos = projectLatLong(lat, long, audit);
+        if (!pos) continue;
+        points.push({
+          species,
+          sourceSection: section,
+          category,
+          left: pos.left,
+          top: pos.top,
+          observedOn: observedMatch ? observedMatch[1].replaceAll("/", "-") : null,
+        });
+      }
+    }
+  }
+  return points;
+}
+
+function parseZones(items, audit = null) {
   const shapes = [];
   for (const { item, coords } of items || []) {
     const kind = item[0];
@@ -137,7 +250,8 @@ function parseZones(items) {
           const rx = parseFloat(nums[2]) || 15;
           const ry = parseFloat(nums[3]) || rx;
           const rot = parseFloat(nums[4]) || 0;
-          const pos = projectLatLong(lat, long);
+          const pos = projectLatLong(lat, long, audit);
+        if (!pos) continue;
           shapes.push({
             name: cleanName,
             shape: "ellipse",
@@ -167,7 +281,8 @@ function parseZones(items) {
         const rx = parseFloat(rMatch[1]) || 15;
         const ry = parseFloat(rMatch[2]) || rx;
         const rot = parseFloat(rMatch[3]) || 0;
-        const pos = projectLatLong(lat, long);
+        const pos = projectLatLong(lat, long, audit);
+        if (!pos) continue;
         shapes.push({
           name: cleanName,
           shape: "ellipse",
@@ -186,7 +301,8 @@ function parseZones(items) {
           }
           const lat = parseFloat(parts[0]);
           const long = parseFloat(parts[1]);
-          const pos = projectLatLong(lat, long);
+          const pos = projectLatLong(lat, long, audit);
+        if (!pos) continue;
           currentPoly.push([pos.left, pos.top]);
         }
       }
@@ -199,60 +315,145 @@ function parseZones(items) {
   return shapes;
 }
 
-function buildPayload(sec1, sec2) {
-  return {
-    mapVersion: "Gateway_v0.21.7",
-    fetchedAt: new Date().toISOString(),
-    layers: {
-      areas: parsePoints(sec1["Area"]),
-      landmarks: [...parsePoints(sec1["Landmarks"]), ...parsePoints(sec1["Site (Human Base)"])],
-      saltLicks: parsePoints(sec2["SaltRock"]),
-      water: parsePoints(sec1["Water"]),
-      wallows: parsePoints(sec1["Mud"]),
-      caves: parsePaths(sec1["Cave"]),
-      migrations: parseZones(sec1["Migration"]),
-      patrolZones: parseZones(sec1["PatrolZone"]),
-      sanctuaries: parseZones(sec1["Sanctuary"]),
+function buildPayload(sec1, sec2, sourceVersion = "Gateway_v0.21.7", sourceMeta = {}) {
+  const fetchedAt = sourceMeta.fetchedAt || new Date().toISOString();
+  const audit = { rejectedCoordinates: 0 };
+  const layers = {
+    areas: parsePoints(sec1["Area"], audit),
+    landmarks: [...parsePoints(sec1["Landmarks"], audit), ...parsePoints(sec1["Site (Human Base)"], audit)],
+    saltLicks: parsePoints(sec2["SaltRock"], audit),
+    water: parsePoints(sec1["Water"], audit),
+    wallows: parsePoints(sec1["Mud"], audit),
+    caves: parsePaths(sec1["Cave"], audit),
+    roads: parseRoads(sec2["_Road_"], audit),
+    wildlife: parseWildlifePoints(sec2, audit),
+    migrations: parseZones(sec1["Migration"], audit),
+    patrolZones: parseZones(sec1["PatrolZone"], audit),
+    sanctuaries: parseZones(sec1["Sanctuary"], audit),
+  };
+
+  const geometryAudit = {
+    status: audit.rejectedCoordinates === 0 ? "bounds-checked" : "review",
+    rejectedCoordinates: audit.rejectedCoordinates,
+    zoneShapes: {
+      migrations: layers.migrations.length,
+      patrolZones: layers.patrolZones.length,
+      sanctuaries: layers.sanctuaries.length,
     },
+    routes: layers.roads.length,
+    wildlifePoints: layers.wildlife.length,
+  };
+
+  return {
+    mapVersion: sourceVersion,
+    source: "Vulnona community cartography",
+    fetchedAt,
+    sourceStatus: {
+      mode: sourceMeta.mode || "network",
+      version: sourceVersion,
+      validated: true,
+      fetchedAt,
+      savedAt: sourceMeta.savedAt || null,
+      currentAlias: sourceVersion === "Gateway_v0.21",
+      geometryAudit,
+    },
+    bounds: BOUNDS,
+    grid: GRID,
+    layers,
   };
 }
 
-async function fetchFromNetwork() {
+function validateGatewayData(txt1, txt2) {
+  const requiredSections = ["dir\tMigration", "dir\tPatrolZone", "dir\tSanctuary"];
+  if (!requiredSections.every((needle) => String(txt1 || "").includes(needle))) {
+    throw new Error("Vulnona Gateway layer data is missing required zone sections");
+  }
+  if (!String(txt2 || "").includes("dir\t_Road_")) {
+    throw new Error("Vulnona Gateway resource data is missing the roads/trails section");
+  }
+  if (!String(txt2 || "").includes("dir\tBoar") || !String(txt2 || "").includes("dir\tFish")) {
+    throw new Error("Vulnona Gateway resource data is missing wildlife sections");
+  }
+}
+
+async function fetchPair({ data1, data2, version }) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
     const [res1, res2] = await Promise.all([
-      fetch(VULNONA_DATA1_URL, {
+      fetch(data1, {
         headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
         signal: controller.signal,
       }),
-      fetch(VULNONA_DATA2_URL, {
+      fetch(data2, {
         headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
         signal: controller.signal,
       }),
     ]);
     if (!res1.ok || !res2.ok) {
-      throw new Error(`Vulnona fetch failed: data1=${res1.status}, data2=${res2.status}`);
+      throw new Error(`Vulnona ${version} fetch failed: data1=${res1.status}, data2=${res2.status}`);
     }
     const [txt1, txt2] = await Promise.all([res1.text(), res2.text()]);
-
-    // Save fallback copies locally if possible
-    try {
-      fs.writeFileSync(LOCAL_DATA1_PATH, txt1, "utf8");
-      fs.writeFileSync(LOCAL_DATA2_PATH, txt2, "utf8");
-    } catch (_) {}
-
-    return buildPayload(parseVulnonaFile(txt1), parseVulnonaFile(txt2));
+    validateGatewayData(txt1, txt2);
+    return { txt1, txt2, version };
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function fetchFromNetwork() {
+  const candidates = PINNED_DATA_URLS
+    ? [PINNED_DATA_URLS]
+    : VULNONA_GATEWAY_VERSIONS.map((version) => ({
+        version,
+        data1: `${VULNONA_MAP_BASE_URL}/${version}/data_1.txt`,
+        data2: `${VULNONA_MAP_BASE_URL}/${version}/data_2.txt`,
+      }));
+
+  let lastError = null;
+  for (const candidate of candidates) {
+    try {
+      const { txt1, txt2, version } = await fetchPair(candidate);
+
+      // Save the newest successfully validated pair as the local fallback.
+      try {
+        fs.writeFileSync(LOCAL_DATA1_PATH, txt1, "utf8");
+        fs.writeFileSync(LOCAL_DATA2_PATH, txt2, "utf8");
+        fs.writeFileSync(
+          path.join(__dirname, "../data/vulnona_data_meta.json"),
+          JSON.stringify({ version, savedAt: new Date().toISOString() }, null, 2),
+          "utf8"
+        );
+      } catch (_) {}
+
+      console.info(`[mapdata] loaded ${version} from Vulnona current Gateway data`);
+      return buildPayload(parseVulnonaFile(txt1), parseVulnonaFile(txt2), version, { mode: "network" });
+    } catch (error) {
+      lastError = error;
+      console.warn(`[mapdata] ${candidate.version} unavailable:`, error.message);
+    }
+  }
+
+  throw lastError || new Error("No Vulnona Gateway data source was available");
 }
 
 function loadLocalFallback() {
   if (fs.existsSync(LOCAL_DATA1_PATH) && fs.existsSync(LOCAL_DATA2_PATH)) {
     const txt1 = fs.readFileSync(LOCAL_DATA1_PATH, "utf8");
     const txt2 = fs.readFileSync(LOCAL_DATA2_PATH, "utf8");
-    return buildPayload(parseVulnonaFile(txt1), parseVulnonaFile(txt2));
+    let version = "Gateway_v0.21.7-local-fallback";
+    let savedAt = null;
+    try {
+      const meta = JSON.parse(
+        fs.readFileSync(path.join(__dirname, "../data/vulnona_data_meta.json"), "utf8")
+      );
+      if (meta?.version) version = `${meta.version}-local-fallback`;
+      if (meta?.savedAt) savedAt = meta.savedAt;
+    } catch (_) {}
+    return buildPayload(parseVulnonaFile(txt1), parseVulnonaFile(txt2), version, {
+      mode: "local-fallback",
+      savedAt,
+    });
   }
   return null;
 }

@@ -114,7 +114,10 @@ const LABEL_LAYERS = ["areas", "landmarks"];
 // Zones are filled areas (ellipses or polygons); caves stay open outlines.
 const ZONE_LAYERS = ["migrations", "patrolZones", "sanctuaries"];
 const PATH_LAYERS = ["caves"];
-const ALL_LAYERS = [...POINT_LAYERS, ...LABEL_LAYERS, ...PATH_LAYERS, ...ZONE_LAYERS, "players"];
+const ALL_LAYERS = [...POINT_LAYERS, ...LABEL_LAYERS, ...PATH_LAYERS, ...ZONE_LAYERS, "roads", "wildlife", "players"];
+const WILDLIFE_ENABLED_KEY = "hollow-valley-map-wildlife-enabled";
+const WILDLIFE_SPECIES_KEY = "hollow-valley-map-wildlife-species";
+const WILDLIFE_MODE_KEY = "hollow-valley-map-wildlife-mode";
 
 function pct(n) {
   return `${(n * 100).toFixed(2)}%`;
@@ -185,6 +188,233 @@ function renderShapes() {
   }
 
   svg.innerHTML = parts.join("");
+}
+
+function renderRoads() {
+  const svg = document.getElementById("tracker-roads");
+  if (!svg) return;
+  if (!mapData || !isLayerOn("roads")) {
+    svg.innerHTML = "";
+    return;
+  }
+
+  svg.innerHTML = (mapData.layers.roads || []).map((road) => {
+    if (!Array.isArray(road.points) || road.points.length < 2) return "";
+    const points = road.points.map(([left, top]) => `${svgUnits(left)},${svgUnits(top)}`).join(" ");
+    const kind = road.trail ? "trail-path" : "road-path";
+    return `<polyline class="gateway-route ${kind}" points="${points}"><title>${escapeHtml(road.name)}</title></polyline>`;
+  }).join("");
+}
+
+function wildlifeStorageGet(key, fallback = "") {
+  try {
+    const value = localStorage.getItem(key);
+    return value === null ? fallback : value;
+  } catch {
+    return fallback;
+  }
+}
+
+function wildlifeStorageSet(key, value) {
+  try { localStorage.setItem(key, value); } catch {}
+}
+
+function populateWildlifeSpecies() {
+  const select = document.getElementById("wildlife-species");
+  const panel = document.getElementById("wildlife-filter");
+  const toggle = document.getElementById("layer-wildlife");
+  if (!select || !panel || !toggle || !mapData) return;
+
+  const species = [...new Set((mapData.layers.wildlife || []).map((point) => point.species).filter(Boolean))]
+    .sort((left, right) => left.localeCompare(right));
+
+  const stored = wildlifeStorageGet(WILDLIFE_SPECIES_KEY, "Boar");
+  const selected = species.includes(stored) ? stored : (species.includes("Boar") ? "Boar" : species[0] || "");
+  select.innerHTML = species.map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("");
+  select.value = selected;
+  panel.hidden = !toggle.checked;
+}
+
+function wildlifeDistance(a, b) {
+  return Math.hypot(a.left - b.left, a.top - b.top);
+}
+
+function wildlifeClusterRadius(points) {
+  if (points.length < 2) return 0.045;
+  const nearest = points.map((point, index) => {
+    let best = Infinity;
+    for (let other = 0; other < points.length; other += 1) {
+      if (other === index) continue;
+      best = Math.min(best, wildlifeDistance(point, points[other]));
+    }
+    return best;
+  }).filter(Number.isFinite).sort((a, b) => a - b);
+  const median = nearest[Math.floor(nearest.length / 2)] || 0.035;
+  return Math.max(0.025, Math.min(0.085, median * 2.25));
+}
+
+function clusterWildlifePoints(points) {
+  if (!points.length) return { clusters: [], outliers: [], radius: 0.045 };
+  if (points.length === 1) return { clusters: [], outliers: [points[0]], radius: 0.045 };
+
+  const radius = wildlifeClusterRadius(points);
+  const minPts = points.length < 6 ? 2 : 3;
+  const visited = new Set();
+  const assigned = new Set();
+  const clusters = [];
+
+  const neighbours = (index) => {
+    const nearby = [];
+    for (let other = 0; other < points.length; other += 1) {
+      if (wildlifeDistance(points[index], points[other]) <= radius) nearby.push(other);
+    }
+    return nearby;
+  };
+
+  for (let index = 0; index < points.length; index += 1) {
+    if (visited.has(index)) continue;
+    visited.add(index);
+    const nearby = neighbours(index);
+    if (nearby.length < minPts) continue;
+
+    const queue = [...nearby];
+    const queued = new Set(queue);
+    const cluster = [];
+    while (queue.length) {
+      const current = queue.shift();
+      if (!visited.has(current)) {
+        visited.add(current);
+        const currentNearby = neighbours(current);
+        if (currentNearby.length >= minPts) {
+          for (const candidate of currentNearby) {
+            if (!queued.has(candidate)) {
+              queued.add(candidate);
+              queue.push(candidate);
+            }
+          }
+        }
+      }
+      if (!assigned.has(current)) {
+        assigned.add(current);
+        cluster.push(points[current]);
+      }
+    }
+    if (cluster.length) clusters.push(cluster);
+  }
+
+  const outliers = points.filter((_point, index) => !assigned.has(index));
+  return { clusters, outliers, radius };
+}
+
+function wildlifeHull(points) {
+  const unique = [...new Map(points.map((point) => [`${point.left.toFixed(6)}:${point.top.toFixed(6)}`, point])).values()]
+    .sort((a, b) => a.left - b.left || a.top - b.top);
+  if (unique.length <= 2) return unique;
+
+  const cross = (o, a, b) => (a.left - o.left) * (b.top - o.top) - (a.top - o.top) * (b.left - o.left);
+  const lower = [];
+  for (const point of unique) {
+    while (lower.length >= 2 && cross(lower.at(-2), lower.at(-1), point) <= 0) lower.pop();
+    lower.push(point);
+  }
+  const upper = [];
+  for (let index = unique.length - 1; index >= 0; index -= 1) {
+    const point = unique[index];
+    while (upper.length >= 2 && cross(upper.at(-2), upper.at(-1), point) <= 0) upper.pop();
+    upper.push(point);
+  }
+  lower.pop();
+  upper.pop();
+  return [...lower, ...upper];
+}
+
+function expandedWildlifeHull(points, radius) {
+  const hull = wildlifeHull(points);
+  if (hull.length < 3) return hull;
+  const center = hull.reduce((acc, point) => ({ left: acc.left + point.left, top: acc.top + point.top }), { left: 0, top: 0 });
+  center.left /= hull.length;
+  center.top /= hull.length;
+  const padding = Math.max(0.006, radius * 0.18);
+  return hull.map((point) => {
+    const dx = point.left - center.left;
+    const dy = point.top - center.top;
+    const length = Math.hypot(dx, dy) || 1;
+    return {
+      left: Math.max(0, Math.min(1, point.left + dx / length * padding)),
+      top: Math.max(0, Math.min(1, point.top + dy / length * padding)),
+    };
+  });
+}
+
+function renderWildlifeDensity(points, species, mode) {
+  const svg = document.getElementById("tracker-wildlife-density");
+  if (!svg) return 0;
+  if (mode !== "density" && mode !== "both") {
+    svg.innerHTML = "";
+    return { areas: 0, isolated: 0 };
+  }
+
+  const { clusters, outliers, radius } = clusterWildlifePoints(points);
+  const maxCluster = Math.max(1, ...clusters.map((cluster) => cluster.length));
+  const parts = [];
+  for (const cluster of clusters) {
+    const category = cluster[0]?.category === "aquatic" ? "aquatic" : "terrestrial";
+    const opacity = Math.min(0.28, 0.09 + 0.18 * Math.sqrt(cluster.length / maxCluster));
+    const hull = expandedWildlifeHull(cluster, radius);
+    if (hull.length >= 3) {
+      const polygon = hull.map((point) => `${svgUnits(point.left)},${svgUnits(point.top)}`).join(" ");
+      parts.push(`<polygon class="wildlife-density ${category}" points="${polygon}" style="--wildlife-density-opacity:${opacity.toFixed(3)}"><title>${escapeHtml(species)} density · ${cluster.length} observations</title></polygon>`);
+    } else {
+      const center = cluster.reduce((acc, point) => ({ left: acc.left + point.left, top: acc.top + point.top }), { left: 0, top: 0 });
+      center.left /= cluster.length;
+      center.top /= cluster.length;
+      const r = Math.max(8, radius * 1000 * 0.48);
+      parts.push(`<circle class="wildlife-density ${category}" cx="${svgUnits(center.left)}" cy="${svgUnits(center.top)}" r="${r.toFixed(1)}" style="--wildlife-density-opacity:${opacity.toFixed(3)}"><title>${escapeHtml(species)} density · ${cluster.length} observations</title></circle>`);
+    }
+  }
+
+  for (const point of outliers) {
+    const category = point.category === "aquatic" ? "aquatic" : "terrestrial";
+    parts.push(`<circle class="wildlife-density-outlier ${category}" cx="${svgUnits(point.left)}" cy="${svgUnits(point.top)}" r="7"><title>${escapeHtml(species)} isolated observation</title></circle>`);
+  }
+
+  svg.innerHTML = parts.join("");
+  return { areas: clusters.length, isolated: outliers.length };
+}
+
+function renderWildlife() {
+  const layer = document.getElementById("tracker-wildlife");
+  const densityLayer = document.getElementById("tracker-wildlife-density");
+  const select = document.getElementById("wildlife-species");
+  const modeSelect = document.getElementById("wildlife-display-mode");
+  const note = document.getElementById("wildlife-note");
+  if (!layer) return;
+
+  if (!mapData || !isLayerOn("wildlife") || !select?.value) {
+    layer.innerHTML = "";
+    if (densityLayer) densityLayer.innerHTML = "";
+    if (note && mapData) note.textContent = "Community-observed points; density areas are approximate, not game spawn boundaries.";
+    return;
+  }
+
+  const selected = select.value;
+  const mode = ["points", "density", "both"].includes(modeSelect?.value) ? modeSelect.value : "points";
+  const points = (mapData.layers.wildlife || []).filter((point) => point.species === selected);
+  const showPoints = mode === "points" || mode === "both";
+
+  layer.innerHTML = showPoints ? points.map((point) => {
+    const observed = point.observedOn ? ` · observed ${escapeHtml(point.observedOn)}` : "";
+    const category = point.category === "aquatic" ? "aquatic" : "terrestrial";
+    return `<span class="wildlife-point ${category}" style="left:${pct(point.left)};top:${pct(point.top)}"><span class="wildlife-label">${escapeHtml(point.species)}${observed}</span></span>`;
+  }).join("") : "";
+
+  const density = renderWildlifeDensity(points, selected, mode);
+  if (note) {
+    const densityText = mode === "points"
+      ? ""
+      : ` · ${density.areas} density area${density.areas === 1 ? "" : "s"} · ${density.isolated} isolated`;
+    note.textContent = `${points.length} dated community ${selected} observations${densityText} · approximate only, not game spawn boundaries.`;
+  }
 }
 
 function renderPois() {
@@ -384,18 +614,90 @@ async function loadActivityHistory() {
   }
 }
 
+function renderMapSourceStatus(data, error = null) {
+  const card = document.getElementById("map-source-card");
+  const badge = document.getElementById("map-source-badge");
+  const version = document.getElementById("map-source-version");
+  const detail = document.getElementById("map-source-detail");
+  const auditNode = document.getElementById("map-source-audit");
+  if (!card || !badge || !version || !detail) return;
+
+  if (error || !data) {
+    card.dataset.state = "error";
+    badge.textContent = "UNAVAILABLE";
+    version.textContent = "Gateway cartography";
+    detail.textContent = "Source verification failed. Existing map layers may still be available from cache.";
+    if (auditNode) auditNode.textContent = "Geometry audit unavailable.";
+    return;
+  }
+
+  const sourceStatus = data.sourceStatus || {};
+  const mode = sourceStatus.mode || (String(data.mapVersion || "").includes("local-fallback") ? "local-fallback" : "network");
+  const mapVersion = sourceStatus.version || data.mapVersion || "Unknown Gateway source";
+  const isCurrentLive = mode === "network" && sourceStatus.validated !== false && sourceStatus.currentAlias === true;
+  const when = (value) => {
+    if (!value) return null;
+    const date = new Date(value);
+    return Number.isFinite(date.getTime()) ? date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : null;
+  };
+
+  version.textContent = mapVersion;
+  if (mode === "local-fallback") {
+    card.dataset.state = "fallback";
+    badge.textContent = "FALLBACK";
+    const saved = when(sourceStatus.savedAt);
+    detail.textContent = saved
+      ? `Live source unavailable · using last validated copy saved ${saved}.`
+      : "Live source unavailable · using the last validated local copy.";
+  } else if (isCurrentLive) {
+    card.dataset.state = "current";
+    badge.textContent = "VERIFIED CURRENT";
+    const fetched = when(sourceStatus.fetchedAt || data.fetchedAt);
+    detail.textContent = fetched
+      ? `Validated from the current Gateway_v0.21 source · refreshed ${fetched}.`
+      : "Validated from the current Gateway_v0.21 source.";
+  } else {
+    card.dataset.state = "network";
+    badge.textContent = sourceStatus.validated === false ? "UNVERIFIED" : "LIVE SOURCE";
+    const fetched = when(sourceStatus.fetchedAt || data.fetchedAt);
+    detail.textContent = fetched
+      ? `Operator-selected Gateway source · refreshed ${fetched}.`
+      : "Operator-selected Gateway source.";
+  }
+
+  if (auditNode) {
+    const audit = sourceStatus.geometryAudit;
+    if (audit) {
+      const zones = audit.zoneShapes || {};
+      const rejected = Number(audit.rejectedCoordinates || 0);
+      auditNode.textContent = `Geometry audit · ${zones.migrations ?? "—"} migration · ${zones.patrolZones ?? "—"} patrol · ${zones.sanctuaries ?? "—"} sanctuary shapes · ${rejected} rejected coords.`;
+      card.dataset.geometry = rejected === 0 ? "checked" : "review";
+    } else {
+      auditNode.textContent = "Geometry audit unavailable for this source.";
+      card.dataset.geometry = "unknown";
+    }
+  }
+}
+
 async function loadLayers() {
   const note = document.getElementById("layer-note");
   try {
     const data = await api("/api/mapdata");
     mapData = data;
+    window.HVLiveMapData = data;
+    window.dispatchEvent(new CustomEvent("hv:mapdata", { detail: data }));
     renderShapes();
+    renderRoads();
+    populateWildlifeSpecies();
+    renderWildlife();
     renderPois();
+    renderMapSourceStatus(data);
     if (note) {
       const counts = data.layers;
-      note.textContent = `${counts.saltLicks.length} salt licks, ${counts.migrations.length} migration zones, ${counts.patrolZones.length} patrol zones, ${counts.sanctuaries.length} sanctuaries (${data.mapVersion}).`;
+      note.textContent = `${counts.saltLicks.length} salt licks, ${counts.roads?.length || 0} road/trail segments, ${counts.wildlife?.length || 0} wildlife points, ${counts.migrations.length} migration zones, ${counts.patrolZones.length} patrol zones, ${counts.sanctuaries.length} sanctuaries (${data.mapVersion}).`;
     }
   } catch (err) {
+    renderMapSourceStatus(null, err);
     if (note) note.textContent = "Map layer data is unavailable right now. Live player tracking still works.";
     console.error(err);
   }
@@ -408,6 +710,8 @@ async function loadMap() {
   try {
     const data = await api("/api/map/positions");
     lastMapState = data;
+    window.HVLiveMapState = data;
+    window.dispatchEvent(new CustomEvent("hv:map-state", { detail: data }));
 
     if (!data.connected) {
       // An offline response is not a live snapshot. Explicitly clear all live markers.
@@ -423,6 +727,7 @@ async function loadMap() {
     // Never leave an earlier successful snapshot painted as live after a failed refresh.
     renderMarkers(null);
     lastMapState = null;
+    window.HVLiveMapState = null;
 
     if (err && err.status === 401) {
       if (status) status.textContent = "Sign in to see your character · no player positions are shown";
@@ -469,10 +774,40 @@ for (const key of ALL_LAYERS) {
   input.addEventListener("change", () => {
     if (key === "players") {
       loadMap();
+    } else if (key === "roads") {
+      renderRoads();
+    } else if (key === "wildlife") {
+      const panel = document.getElementById("wildlife-filter");
+      if (panel) panel.hidden = !input.checked;
+      wildlifeStorageSet(WILDLIFE_ENABLED_KEY, input.checked ? "1" : "0");
+      renderWildlife();
     } else {
       renderShapes();
       renderPois();
     }
+  });
+}
+
+const wildlifeToggle = document.getElementById("layer-wildlife");
+const wildlifeSelect = document.getElementById("wildlife-species");
+const wildlifeMode = document.getElementById("wildlife-display-mode");
+if (wildlifeToggle) {
+  wildlifeToggle.checked = wildlifeStorageGet(WILDLIFE_ENABLED_KEY, "0") === "1";
+  const panel = document.getElementById("wildlife-filter");
+  if (panel) panel.hidden = !wildlifeToggle.checked;
+}
+if (wildlifeSelect) {
+  wildlifeSelect.addEventListener("change", () => {
+    wildlifeStorageSet(WILDLIFE_SPECIES_KEY, wildlifeSelect.value);
+    renderWildlife();
+  });
+}
+if (wildlifeMode) {
+  const storedMode = wildlifeStorageGet(WILDLIFE_MODE_KEY, "points");
+  wildlifeMode.value = ["points", "density", "both"].includes(storedMode) ? storedMode : "points";
+  wildlifeMode.addEventListener("change", () => {
+    wildlifeStorageSet(WILDLIFE_MODE_KEY, wildlifeMode.value);
+    renderWildlife();
   });
 }
 
@@ -552,6 +887,24 @@ function initMapZoom() {
     render();
   }
 
+  function focus(left, top, targetScale = 4) {
+    const safeLeft = clamp(Number(left), 0, 1);
+    const safeTop = clamp(Number(top), 0, 1);
+    const requestedScale = Number(targetScale);
+    scale = clamp(Number.isFinite(requestedScale) ? requestedScale : 4, MIN_ZOOM, MAX_ZOOM);
+    const vw = viewport.clientWidth;
+    const vh = viewport.clientHeight;
+    offsetX = vw / 2 - safeLeft * vw * scale;
+    offsetY = vh / 2 - safeTop * vh * scale;
+    render();
+  }
+
+  window.HVLiveMapView = {
+    focus,
+    reset: resetMap,
+    getState: () => ({ scale, offsetX, offsetY }),
+  };
+
   if (zoomInBtn) {
     zoomInBtn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -582,13 +935,13 @@ function initMapZoom() {
   }, { passive: false });
 
   viewport.addEventListener("dblclick", (e) => {
-    if (e.target.closest(".map-controls")) return;
+    if (e.shiftKey || e.target.closest(".map-controls, .map-navigator, .target-pin-button")) return;
     e.preventDefault();
     zoomAt(e.clientX, e.clientY, STEP);
   });
 
   viewport.addEventListener("pointerdown", (e) => {
-    if (e.target.closest(".map-controls")) return;
+    if (e.shiftKey || e.target.closest(".map-controls, .map-navigator, .target-pin-button")) return;
     dragging = true;
     viewport.classList.add("is-dragging");
     try { viewport.setPointerCapture(e.pointerId); } catch (_) {}
