@@ -34,7 +34,7 @@ test("defender pings use only Steam-linked owner-group members (leader/lineup), 
   db.prepare("INSERT INTO territory_group_members (group_id,user_id,role) VALUES (?,?,'leader')").run(defenderGroup, defender);
   db.prepare("INSERT INTO territory_group_members (group_id,user_id,role) VALUES (?,?,'leader')").run(attackerGroup, attacker);
   const eventId = Number(db.prepare("SELECT id FROM territory_events ORDER BY id DESC LIMIT 1").get().id);
-  db.prepare("INSERT INTO territory_attacks (event_id, attacker_group_id, defender_group_id, starts_at, status) VALUES (?,?,?,?, 'warning')").run(eventId, attackerGroup, defenderGroup, new Date(Date.now() + 5 * 60 * 1000).toISOString());
+  db.prepare("INSERT INTO territory_attacks (event_id, attacker_group_id, defender_group_id, declared_by_user_id, starts_at, status) VALUES (?,?,?,?,?, 'warning')").run(eventId, attackerGroup, defenderGroup, attacker, new Date(Date.now() + 5 * 60 * 1000).toISOString());
   const ping = feed._test.linkedDefenders(eventId);
   assert.deepEqual(ping.ids, ["123456789012345678"]);
   assert.ok(Date.parse(ping.startsAt) > Date.now());
