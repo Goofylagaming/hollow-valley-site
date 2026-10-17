@@ -78,6 +78,25 @@
                 <div class="tw-empty">No Groups are approved for controlled live testing.</div>
               </div>
 
+              <div style="height:22px"></div>
+              <div class="tw-card-head" style="padding:0 0 10px;border:0">
+                <div><div class="tw-kicker">Player Invitations</div><h3>Approved non-admin testers</h3></div>
+                <span class="tw-status" id="tw-admin-tester-count">0 approved</span>
+              </div>
+              <p class="tw-note" style="margin-top:0">Only the four Territory Wars admins can approve testers. Players use their normal Steam login and <a href="/groups/territory-wars/" target="_blank" rel="noopener noreferrer">this player link</a>; they receive no admin permissions. Approved Groups still need to be entered above for live battles.</p>
+              <form id="tw-admin-tester-form">
+                <div class="tw-form-grid">
+                  <div class="tw-field full"><label for="tw-admin-tester-steam">Add player by Steam ID</label><input id="tw-admin-tester-steam" inputmode="numeric" maxlength="17" pattern="[0-9]{17}" placeholder="17-digit Steam ID" autocomplete="off" required></div>
+                </div>
+                <div class="tw-actions"><button class="tw-button primary" type="submit">Approve Tester</button></div>
+              </form>
+              <div class="tw-form-grid" style="margin-top:12px">
+                <div class="tw-field full"><label for="tw-admin-tester-search">Find existing website player</label><input id="tw-admin-tester-search" maxlength="80" placeholder="Player name or Steam ID" autocomplete="off"></div>
+              </div>
+              <div class="tw-actions" style="margin-top:8px"><button class="tw-button" type="button" id="tw-admin-tester-find">Find Player</button></div>
+              <div class="tw-list" id="tw-admin-tester-results"><div class="tw-empty">Find players by name or Steam ID, or enter a Steam ID directly.</div></div>
+              <div class="tw-inline-message" id="tw-admin-tester-message" aria-live="polite"></div>
+              <div class="tw-list" id="tw-admin-testers"><div class="tw-empty">No non-admin testers have been approved yet.</div></div>
               <div style="height:14px"></div>
               <div class="tw-control-editor">
                 <div class="tw-control-labels"><span>Owner control</span><strong id="tw-admin-control-value">100%</strong></div>
@@ -144,6 +163,6 @@
     </main>
   </div>
   <script src="/assets/common.js?v=20"></script>
-  <script src="/assets/admin-territory-wars.js?v=5"></script>
+  <script src="/assets/admin-territory-wars.js?v=6"></script>
 </body>
 </html>
