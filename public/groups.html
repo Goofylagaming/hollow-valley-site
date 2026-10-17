@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="/assets/styles.css?v=22">
   <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=4">
-  <link rel="stylesheet" href="/assets/groups.css?v=1">
+  <link rel="stylesheet" href="/assets/groups.css?v=2">
 </head>
 <body class="has-my-stuff-rail">
   <div class="app-shell">
@@ -28,6 +28,18 @@
           <div class="summary-tile"><small>MEMBERS</small><b id="groups-member-count">0</b><span>Up to 12 members</span></div>
           <div class="summary-tile"><small>INVITES</small><b id="groups-invite-count">0</b><span>Invitations for you</span></div>
           <div class="summary-tile"><small>PREVIOUS GROUPS</small><b id="groups-history-count">0</b><span>Your completed group memberships</span></div>
+        </section>
+        <section id="groups-progress-panel" class="panel groups-card" hidden>
+          <div class="groups-panel-head">
+            <div><p class="overline green">GROUP PROGRESSION</p><h2>Achievements &amp; Quests</h2><p class="section-intro">Build your group together. Progress and badges are shared across the whole roster.</p></div>
+            <div class="groups-xp"><small>GROUP XP</small><strong id="groups-xp-value">0</strong><span>Non-spendable group score</span></div>
+          </div>
+          <div class="groups-progress-heading"><div class="list-heading"><span>PERMANENT ACHIEVEMENTS</span><span id="groups-achievements-count">0 / 0 earned</span></div></div>
+          <div id="groups-achievements" class="groups-milestones" aria-live="polite"></div>
+          <div class="groups-progress-heading"><div class="list-heading"><span>WEEKLY GROUP QUESTS</span><span id="groups-quests-count">0 / 0 complete</span></div>
+            <p class="section-intro" id="groups-quests-reset">Resets each Monday at midnight Brisbane time.</p></div>
+          <div id="groups-quests" class="groups-milestones" aria-live="polite"></div>
+          <p class="groups-note">Group milestones are based on accepted Steam invitations and membership. They do not track in-game parties yet. Group XP does not award Valley Coins.</p>
         </section>
         <section id="groups-create-panel" class="panel groups-card" hidden>
           <p class="overline green">CREATE A GROUP</p>
@@ -75,6 +87,6 @@
     <footer><span>© 2026 Hollow Valley</span><span>AUSTRALIAN ISLE SERVER</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="/assets/common.js?v=21"></script>
-  <script src="/assets/groups.js?v=2"></script>
+  <script src="/assets/groups.js?v=3"></script>
 </body>
 </html>
