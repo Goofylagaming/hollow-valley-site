@@ -160,10 +160,14 @@ router.post('/dinostorage/prime/grant', async (req, res) => {
 router.post('/admin-actions/slay', async (req, res) => {
   try {
     const steamId = adminActions.validateSteamId(req.body?.steamId);
+    // The website passes actor data from its authenticated Steam-linked admin session.
+    // This endpoint is protected by the private automation admin bearer token.
+    const actorSteamId = adminActions.validateSteamId(req.body?.actorSteamId);
+    const actorName = String(req.body?.actorName || '').trim().slice(0, 100) || actorSteamId;
     const result = await audit.run(
       'game_admin',
       'slay_player',
-      { steamId },
+      { steamId, actorSteamId, actorName },
       () => adminActions.slayPlayer({ steamId }),
       (value) => ({
         steamId,
@@ -462,7 +466,9 @@ router.post('/events/bonus', async (req, res) => {
 router.get('/audit', (req, res) => {
   const limit = Math.max(1, Math.min(500, Number(req.query.limit) || 100));
   const category = String(req.query.category || '').trim() || null;
-  res.json({ audit: store.listAudit({ category, limit }) });
+  const action = String(req.query.action || '').trim() || null;
+  res.set('Cache-Control', 'private, no-store');
+  res.json({ audit: store.listAudit({ category, action, limit }) });
 });
 
 router.get('/presence', (req, res) => {
