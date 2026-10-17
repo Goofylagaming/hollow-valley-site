@@ -112,3 +112,14 @@ test("no Territory Wars dependency exists in website Groups",()=>{
  assert.doesNotMatch(source+routes,/api\/territory-wars|\/routes\/territoryWars|\/territory-wars\//);
  assert.doesNotMatch(page,/href=["']\/groups\/territory-wars/);
 });
+test("live Groups page searches verified website players, not test-site users",()=>{
+ const html=fs.readFileSync(path.join(__dirname,"../public/groups.html"),"utf8");
+ const js=fs.readFileSync(path.join(__dirname,"../public/assets/groups.js"),"utf8");
+ assert.match(html,/Find a player already registered on Hollow Valley/);
+ assert.match(html,/accounts from the live hollowvalleyisle\.com website/);
+ assert.doesNotMatch(html,/signed into this test website/i);
+ assert.match(html,/id="groups-player-search-results"/);
+ assert.match(js,/api\/friends\/search\?q=/);
+ assert.match(js,/data-action="invite-found"/);
+ assert.match(js,/action\("\/invites",\{steamId:target\.dataset\.steam\}\)/);
+});
