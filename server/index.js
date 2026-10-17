@@ -191,7 +191,7 @@ function createApp() {
     // Keep event state, rosters, and every admin/group management endpoint
     // private. A player may only fetch their own invitations or accept one.
     const endpoint = req.path.replace(/\\/+$/, "") || "/";
-    const readInvites = req.method === "GET" && endpoint === "/me";
+    const readInvites = req.method === "GET" && endpoint === "/invites";
     const acceptInvite = req.method === "POST" && endpoint === "/group/invite/accept";
     if (isTerritoryApi && (readInvites || acceptInvite)) return next();
 
