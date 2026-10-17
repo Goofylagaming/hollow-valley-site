@@ -52,12 +52,14 @@ jobs:
           node --check public/assets/territory-map-overlay.js
           node --check server/services/territoryGeometry.js
           node --check server/services/territoryCombatSync.js
+          node --check server/services/territoryDiscordFeed.js
+          node --check automation-platform/src/routes/websiteTerritoryFeedRoutes.js
           node --check public/assets/admin-territory-wars.js
           node --check public/assets/territory-wars.js
           node --check public/assets/territory-invites.js
           node --check test/territoryAdminRelease.test.js
       - name: Test four-person security gate, geometry, control and momentum
-        run: node --test test/liveMapTerritoryIntegration.test.js test/territoryAdminRelease.test.js test/territoryAdminHttp.test.js test/territoryInviteAccess.test.js test/territoryGeometry.test.js test/territoryControl.test.js test/territoryMomentum.test.js
+        run: node --test test/liveMapTerritoryIntegration.test.js test/territoryAdminRelease.test.js test/territoryAdminHttp.test.js test/territoryInviteAccess.test.js test/territoryGeometry.test.js test/territoryControl.test.js test/territoryMomentum.test.js test/territoryDiscordFeed.test.js
       - name: Production identity, Groups and UI regression gates
         run: node --test test/groups.test.js test/groupProgress.test.js test/productionUiRelease.test.js
       - name: Diagnostic only - full legacy suite (known unrelated fixture failures)
