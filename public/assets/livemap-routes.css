@@ -1,0 +1,42 @@
+/* Current Gateway roads and trails from the same cartography source as zones. */
+#tracker-roads{
+  pointer-events:none;
+}
+#tracker-roads .gateway-route{
+  fill:none;
+  vector-effect:non-scaling-stroke;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+#tracker-roads .road-path{
+  stroke:rgba(226,190,111,.72);
+  stroke-width:.82;
+  filter:drop-shadow(0 0 .7px rgba(20,14,6,.78));
+}
+#tracker-roads .trail-path{
+  stroke:rgba(166,202,144,.65);
+  stroke-width:.68;
+  stroke-dasharray:3.3 2.6;
+  filter:drop-shadow(0 0 .6px rgba(8,16,8,.78));
+}
+.layer-swatch.routes{
+  position:relative;
+  background:transparent;
+}
+.layer-swatch.routes::before,
+.layer-swatch.routes::after{
+  content:"";
+  position:absolute;
+  left:1px;
+  right:1px;
+  top:5px;
+  height:1px;
+  background:rgba(226,190,111,.9);
+  transform:rotate(-18deg);
+  transform-origin:center;
+}
+.layer-swatch.routes::after{
+  top:9px;
+  background:repeating-linear-gradient(90deg,rgba(166,202,144,.9) 0 3px,transparent 3px 5px);
+  transform:rotate(16deg);
+}

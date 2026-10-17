@@ -254,6 +254,9 @@ function createApp() {
   if (TERRITORY_WARS_ADMIN_TEST_ENABLED) {
     // Loading the module creates isolated territory_* tables: never load while disabled.
     app.use("/api/territory-wars", require("./routes/territoryWars"));
+    // Live map preview mirrors the preview UI, but uses a separate signed-in
+    // endpoint so non-admin visitors retain their invite-only TW API access.
+    app.use("/api/live-map/territory-overlay", require("./routes/territoryOverlay"));
   }
   app.use("/api/admin-restore", adminRestoreRouter);
   app.use("/api/admin-operations", adminOperationsRouter);
