@@ -34,11 +34,12 @@ test("production backend retains existing routes while Territory Wars stays isol
     "/api/skins", "/api/quests", "/api/bodydrop", "/api/admin-operations"]) {
     assert.ok(index.includes(route), "Missing existing route " + route);
   }
-  assert.match(index, /TERRITORY_WARS_ADMIN_TEST_ENABLED = process\\.env\\.TERRITORY_WARS_ADMIN_TEST_ENABLED === "1"/);
-  assert.match(index, /requireTerritoryAdmin/);
-  assert.doesNotMatch(index, /routes\\/territoryWarsInternal/);
-  assert.match(read("server/middleware/requireTerritoryAdmin.js"), /ALLOWED_STEAM_IDS/);
-  assert.match(read("server/routes/territoryWars.js"), /router\\.tickRuntime/);
+  assert.ok(index.includes('TERRITORY_WARS_ADMIN_TEST_ENABLED = process.env.TERRITORY_WARS_ADMIN_TEST_ENABLED === "1"'));
+  assert.ok(index.includes('requireTerritoryAdmin'));
+  assert.ok(!index.includes('routes/territoryWarsInternal'));
+  assert.ok(read("server/middleware/requireTerritoryAdmin.js").includes('ALLOWED_STEAM_IDS'));
+  assert.ok(read("server/routes/territoryWars.js").includes('router.tickRuntime'));
+
 });
 test("all production wallet, marketplace, storage, admin and other page scripts survive", () => {
   for (const page of keyPages) {
