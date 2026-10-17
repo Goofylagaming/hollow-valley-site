@@ -154,7 +154,9 @@ function createApp() {
     return res.redirect(308, destination.toString());
   });
 
-  // Gated ahead of static files AND API mounts: knowing the URL is not access.
+  // Production remains opt-in. Keep the four-admin control surface separate
+  // from invite-only player access, including direct URLs and all API routes.
+  const territoryTestAccess = require("./services/territoryTestAccess");
   app.use([
     "/api/territory-wars",
     "/adminterritorywars",
@@ -164,7 +166,26 @@ function createApp() {
     if (!TERRITORY_WARS_ADMIN_TEST_ENABLED) {
       return res.status(404).json({ error: "Territory Wars admin test is not enabled" });
     }
-    return requireTerritoryAdmin(req, res, next);
+
+    const pathname = req.path.toLowerCase();
+    const adminSurface = req.baseUrl === "/adminterritorywars"
+      || req.baseUrl === "/adminterritorywars.html"
+      || (req.baseUrl === "/api/territory-wars"
+        && (pathname === "/admin" || pathname.startsWith("/admin/")));
+
+    if (adminSurface) return requireTerritoryAdmin(req, res, next);
+    if (!req.user) {
+      if (req.baseUrl === "/groups/territory-wars") {
+        return res.redirect(302, "/auth/steam");
+      }
+      return res.status(401).json({ error: "Sign in with Steam to access this Territory Wars test" });
+    }
+    if (isTerritoryAdmin(req.user) || territoryTestAccess.isApproved(req.user.steam_id)) return next();
+
+    if (req.baseUrl === "/groups/territory-wars") {
+      return res.status(403).type("html").send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Territory Wars Test Access | Hollow Valley</title></head><body style="font:16px system-ui;background:#0b1b14;color:#e5f7eb;margin:8vh auto;max-width:580px;padding:24px"><h1>Territory Wars test access</h1><p>You're signed in, but your Steam account has not been added to this test yet.</p><p>Ask a Hollow Valley admin to approve your Steam ID, then refresh this page.</p><p><a href="/groups/" style="color:#8dffd2">Back to Groups</a></p></body></html>`);
+    }
+    return res.status(403).json({ error: "Your Steam account is not on the Territory Wars test participant list" });
   });
 
   app.get("/api/me", (req, res) => {
@@ -222,6 +243,7 @@ function createApp() {
   app.use("/api/groups", groupsRouter);
   if (TERRITORY_WARS_ADMIN_TEST_ENABLED) {
     // Loading the module creates isolated territory_* tables: never load while disabled.
+    app.use("/api/territory-wars/admin/testers", requireTerritoryAdmin, require("./routes/territoryTestAdmin"));
     app.use("/api/territory-wars", require("./routes/territoryWars"));
   }
   app.use("/api/admin-restore", adminRestoreRouter);
