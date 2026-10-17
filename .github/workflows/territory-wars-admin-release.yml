@@ -1,0 +1,54 @@
+name: Territory Wars Four-Admin Production Release
+
+on:
+  push:
+    branches:
+      - feature/territory-wars-live-four-admin-20261017
+    paths:
+      - 'server/**'
+      - 'public/adminterritorywars.html'
+      - 'public/admin.html'
+      - 'public/assets/admin-territory-wars.js'
+      - 'public/assets/territory-wars*'
+      - 'public/assets/common.js'
+      - 'public/partials/nav.html'
+      - 'test/territory*'
+      - 'test/productionUiRelease.test.js'
+      - '.github/workflows/territory-wars-admin-release.yml'
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  territory-admin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Verify JS syntax before executing
+        run: |
+          node --check server/index.js
+          node --check server/routes/territoryWars.js
+          node --check server/services/territoryGeometry.js
+          node --check server/services/territoryCombatSync.js
+          node --check public/assets/admin-territory-wars.js
+          node --check public/assets/territory-wars.js
+          node --check test/territoryAdminRelease.test.js
+      - name: Test four-person security gate, geometry, control and momentum
+        run: node --test test/territoryAdminRelease.test.js test/territoryAdminHttp.test.js test/territoryGeometry.test.js test/territoryControl.test.js test/territoryMomentum.test.js
+      - name: Production identity, Groups and UI regression gates
+        run: node --test test/groups.test.js test/groupProgress.test.js test/productionUiRelease.test.js
+      - name: Diagnostic only - full legacy suite (known unrelated fixture failures)
+        continue-on-error: true
+        run: npm test

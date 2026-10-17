@@ -343,7 +343,7 @@ window.HDS = (function () {
     const adminNavLink = document.getElementById("admin-nav-link");
     const territoryAdminNavLink = document.getElementById("territory-admin-nav-link");
     if (adminNavLink) adminNavLink.hidden = !isAdmin;
-    if (territoryAdminNavLink) territoryAdminNavLink.hidden = !isAdmin;
+    if (territoryAdminNavLink) territoryAdminNavLink.hidden = !Boolean(me?.territoryWarsAdminAccess);
     await claimDailyLoginBonus(me);
 
     document.getElementById("auth-area")?.addEventListener("click", (event) => {

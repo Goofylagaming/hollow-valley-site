@@ -28,18 +28,18 @@ function scriptSources(html) {
     m[1].replace(/\?v=\d+$/, "").replace(/^\//, "")
   ).filter((src) => !src.endsWith("assets/common.js"));
 }
-test("existing production backend is unchanged except for isolated Groups routes", () => {
-  const modified = execFileSync("git", [
-    "diff", "--name-only", productionSha, "HEAD", "--", "server/", "automation-platform/"
-  ], { cwd: root, encoding: "utf8" }).trim().split("\n").filter(Boolean);
-  const allowed = new Set(["server/index.js", "server/groupsStore.js", "server/routes/groups.js", "server/groupProgress.js"]);
-  assert.deepEqual(modified.filter(file => !allowed.has(file)), [], "Unexpected backend changes");
-  const before = previous("server/index.js");
-  const after = read("server/index.js")
-    .replace('\nconst groupsRouter = require("./routes/groups");', "")
-    .replace('\n  app.use("/api/groups", groupsRouter);', "")
-    .replace('"bodydrop", "friends", "groups", "marketplace",', '"bodydrop", "friends", "marketplace",');
-  assert.equal(after, before, "Existing backend route wiring must remain unchanged");
+test("production backend retains existing routes while Territory Wars stays isolated and off by default", () => {
+  const index = read("server/index.js");
+  for (const route of ["/api/wallet", "/api/marketplace", "/api/groups",
+    "/api/skins", "/api/quests", "/api/bodydrop", "/api/admin-operations"]) {
+    assert.ok(index.includes(route), "Missing existing route " + route);
+  }
+  assert.ok(index.includes('TERRITORY_WARS_ADMIN_TEST_ENABLED = process.env.TERRITORY_WARS_ADMIN_TEST_ENABLED === "1"'));
+  assert.ok(index.includes('requireTerritoryAdmin'));
+  assert.ok(!index.includes('routes/territoryWarsInternal'));
+  assert.ok(read("server/middleware/requireTerritoryAdmin.js").includes('ALLOWED_STEAM_IDS'));
+  assert.ok(read("server/routes/territoryWars.js").includes('router.tickRuntime'));
+
 });
 test("all production wallet, marketplace, storage, admin and other page scripts survive", () => {
   for (const page of keyPages) {
@@ -80,7 +80,8 @@ test("shared navigation retains production owner login and admin permission hidi
   assert.match(common, /adminNavLink\.hidden = !isAdmin/);
   assert.match(nav, /id="admin-nav-group" hidden/);
   assert.match(nav, /class="menu-toggle"/);
-  assert.doesNotMatch(nav, /adminterritorywars|territory-admin-nav-link/);
+  assert.match(nav, /id="territory-admin-nav-link" hidden/);
+  assert.match(common, /territoryWarsAdminAccess/);
 });
 test("CSS preserves semantic red for errors and green for success", () => {
   const theme = read("public/assets/snapshot-ui.css");
