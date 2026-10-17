@@ -102,6 +102,17 @@ router.get("/", async (req, res) => {
   }
 });
 
+router.get("/slay-audit", async (_req, res) => {
+  res.set("Cache-Control", "private, no-store");
+  try {
+    const result = await automation.getAdminAudit({ category: "game_admin", action: "slay_player", limit: 100 });
+    return res.json({ audit: Array.isArray(result?.audit) ? result.audit : [] });
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not load Slay audit history.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
 router.get("/players", async (_req, res) => {
   try {
     const snapshot = await automation.getServerSnapshot();
@@ -221,7 +232,14 @@ router.post("/slay", async (req, res) => {
   }
 
   try {
-    return res.json(await automation.slayAdminPlayer(steamId));
+    // Identity comes exclusively from the authenticated server-side website session.
+    // Never use an actor supplied in the request body.
+    const actorSteamId = String(req.user?.steam_id || "").trim();
+    if (!/^\d{17}$/.test(actorSteamId)) {
+      return res.status(403).json({ error: "A Steam-linked admin account is required to Slay players." });
+    }
+    const actorName = String(req.user.username || "").trim().slice(0, 100) || actorSteamId;
+    return res.json(await automation.slayAdminPlayer({ steamId, actorSteamId, actorName }));
   } catch (error) {
     const mapped = mapAutomationError(error, "Could not slay the selected player.");
     return res.status(mapped.status).json(mapped.body);
