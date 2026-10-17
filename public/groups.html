@@ -47,10 +47,16 @@
           <div id="groups-members" class="groups-rows"></div>
           <section id="groups-owner-panel" class="groups-owner" hidden>
             <div class="list-heading"><span>GROUP MANAGEMENT</span><span>Owner only</span></div>
+            <form id="groups-player-search-form" class="groups-form">
+              <label for="groups-player-search">Find a player already registered on Hollow Valley</label>
+              <div class="groups-inline"><input id="groups-player-search" minlength="2" maxlength="80" placeholder="Search Steam username or Steam ID" autocomplete="off"><button type="submit" class="primary-button green">Find player</button></div>
+              <small>Search uses accounts from the live hollowvalleyisle.com website, just like Friends.</small>
+            </form>
+            <div id="groups-player-search-results" class="groups-rows" aria-live="polite"></div>
             <form id="groups-invite-form" class="groups-form">
-              <label for="groups-steam-id">Invite a player using their Steam ID</label>
+              <label for="groups-steam-id">Or invite directly using a Steam ID</label>
               <div class="groups-inline"><input id="groups-steam-id" required pattern="[0-9]{17}" minlength="17" maxlength="17" inputmode="numeric" placeholder="17-digit Steam ID" autocomplete="off"><button type="submit" class="primary-button green">Send invite</button></div>
-              <small>Players must have signed into this test website with Steam at least once.</small>
+              <small>The invited player must have linked Steam to their normal Hollow Valley account. A Discord-only login cannot receive a Steam invitation yet.</small>
             </form>
             <div id="groups-sent" class="groups-rows"></div>
             <button id="groups-disband" type="button" class="small-button groups-danger">Disband group</button>
@@ -69,6 +75,6 @@
     <footer><span>© 2026 Hollow Valley</span><span>AUSTRALIAN ISLE SERVER</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="/assets/common.js?v=21"></script>
-  <script src="/assets/groups.js?v=1"></script>
+  <script src="/assets/groups.js?v=2"></script>
 </body>
 </html>
