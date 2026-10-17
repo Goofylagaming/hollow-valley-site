@@ -106,6 +106,10 @@ async function call(path, { method = 'GET', body, timeoutMs: requestTimeoutMs } 
   }
 }
 
+function publishTerritoryWarFeedEvent(event) {
+  return call('/territory-wars/feed', { method: 'POST', body: event });
+}
+
 function getServerSnapshot() {
   return call('/server-snapshot');
 }
@@ -770,6 +774,7 @@ function uploadAdminRestore({ steamId, slot, restore, fullNutrients = false }) {
 }
 
 module.exports = {
+  publishTerritoryWarFeedEvent,
   getAdminChat: () => callAdmin('/chat'),
   getServerSnapshot,
   getActiveCharacter,
