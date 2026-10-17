@@ -89,7 +89,7 @@ async function checkPage(browser, origin, route, size, name, opts = {}) {
       assert.equal(await page.locator(".main-nav").evaluate((el) => el.classList.contains("open")), false, name + " Escape does not close menu");
     }
     if (route === "/groups") {
-      assert.equal(await page.locator(".groups-note").isVisible(), true, "Groups must be website-only");
+      assert.equal(await page.locator(".groups-note").first().isVisible(), true, "Groups must be website-only");
       assert.equal(await page.locator("#groups-signin").isVisible(), true, "Guest should be prompted to sign in");
       assert.equal(await page.locator('a[href="/groups/territory-wars/"]').count(), 0, "Territory Wars not enabled");
     }
