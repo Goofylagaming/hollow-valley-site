@@ -738,10 +738,15 @@ function grantAdminPrime(steamId) {
   });
 }
 
-function slayAdminPlayer(steamId) {
+function slayAdminPlayer({ steamId, actorSteamId, actorName }) {
+  const verifiedActorSteamId = validateSteamId(actorSteamId);
   return callAdmin('/admin-actions/slay', {
     method: 'POST',
-    body: { steamId: validateSteamId(steamId) },
+    body: {
+      steamId: validateSteamId(steamId),
+      actorSteamId: verifiedActorSteamId,
+      actorName: String(actorName || '').trim().slice(0, 100) || verifiedActorSteamId,
+    },
   });
 }
 
