@@ -13,6 +13,8 @@ on:
       - 'public/assets/common.js'
       - 'public/partials/nav.html'
       - 'test/territory*'
+      - 'server/pages/territoryInvites.html'
+      - 'public/assets/territory-invites.js'
       - 'test/productionUiRelease.test.js'
       - '.github/workflows/territory-wars-admin-release.yml'
   pull_request:
@@ -44,9 +46,10 @@ jobs:
           node --check server/services/territoryCombatSync.js
           node --check public/assets/admin-territory-wars.js
           node --check public/assets/territory-wars.js
+          node --check public/assets/territory-invites.js
           node --check test/territoryAdminRelease.test.js
       - name: Test four-person security gate, geometry, control and momentum
-        run: node --test test/territoryAdminRelease.test.js test/territoryAdminHttp.test.js test/territoryGeometry.test.js test/territoryControl.test.js test/territoryMomentum.test.js
+        run: node --test test/territoryAdminRelease.test.js test/territoryAdminHttp.test.js test/territoryInviteAccess.test.js test/territoryGeometry.test.js test/territoryControl.test.js test/territoryMomentum.test.js
       - name: Production identity, Groups and UI regression gates
         run: node --test test/groups.test.js test/groupProgress.test.js test/productionUiRelease.test.js
       - name: Diagnostic only - full legacy suite (known unrelated fixture failures)

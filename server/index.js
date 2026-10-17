@@ -155,6 +155,8 @@ function createApp() {
   });
 
   // Gated ahead of static files AND API mounts: knowing the URL is not access.
+  // Only the four designated Steam admins get battle controls. Non-admins
+  // can view/accept invitations addressed to their authenticated Steam ID.
   app.use([
     "/api/territory-wars",
     "/adminterritorywars",
@@ -164,7 +166,36 @@ function createApp() {
     if (!TERRITORY_WARS_ADMIN_TEST_ENABLED) {
       return res.status(404).json({ error: "Territory Wars admin test is not enabled" });
     }
-    return requireTerritoryAdmin(req, res, next);
+    const admin = isTerritoryAdmin(req.user);
+    const isAdminPage = req.baseUrl === "/adminterritorywars"
+      || req.baseUrl === "/adminterritorywars.html";
+    const isPlayerPage = req.baseUrl === "/groups/territory-wars";
+    const isTerritoryApi = req.baseUrl === "/api/territory-wars";
+
+    if (isAdminPage) return requireTerritoryAdmin(req, res, next);
+
+    if (!req.user?.steam_id || !/^\d{17}$/.test(String(req.user.steam_id))) {
+      if (isPlayerPage) {
+        return res.redirect(302, "/auth/steam?returnTo=%2Fgroups%2Fterritory-wars%2F");
+      }
+      return res.status(401).json({ error: "Steam sign-in required" });
+    }
+
+    if (admin) return next();
+
+    if (isPlayerPage) {
+      res.set("Cache-Control", "no-store, private");
+      return res.sendFile(path.join(__dirname, "pages", "territoryInvites.html"));
+    }
+
+    // Keep event state, rosters, and every admin/group management endpoint
+    // private. A player may only fetch their own invitations or accept one.
+    const endpoint = req.path.replace(/\/+$/, "") || "/";
+    const readInvites = req.method === "GET" && endpoint === "/invites";
+    const acceptInvite = req.method === "POST" && endpoint === "/group/invite/accept";
+    if (isTerritoryApi && (readInvites || acceptInvite)) return next();
+
+    return res.status(403).json({ error: "Territory Wars admin access required" });
   });
 
   app.get("/api/me", (req, res) => {

@@ -1046,6 +1046,20 @@ router.get("/state", (_req, res) => {
   res.json({ ok: true, ...publicState() });
 });
 
+// Invite-only view for non-admin players; never exposes event, roster or state.
+router.get("/invites", requireAuth, (req, res) => {
+  if (!/^\d{17}$/.test(String(req.user?.steam_id || ""))) {
+    return res.status(403).json({ error: "A Steam-linked account is required" });
+  }
+  const group = groupForUser(req.user.id);
+  res.set("Cache-Control", "no-store, private");
+  res.json({
+    ok: true,
+    group: group ? { name: group.name, tag: group.tag } : null,
+    invites: group ? [] : pendingInvitesForSteam(req.user.steam_id),
+  });
+});
+
 router.get("/me", requireAuth, (req, res) => {
   const group = groupForUser(req.user.id);
   const eventRaw = processEventRuntime(latestEventRaw());
