@@ -2,6 +2,7 @@ const express = require("express");
 const { db } = require("../db");
 const { requireAuth, requireAdmin } = require("../middleware/requireAuth");
 const serverStatus = require("../services/serverStatus");
+const { isRemovedTerritory } = require("../services/territoryAreas");
 const { fromRconLocation } = require("../evrimaMap");
 const {
   DEFAULT_BATTLEFIELD_RADIUS,
@@ -1289,6 +1290,16 @@ router.post("/admin/event", requireAdmin, (req, res) => {
   const name = cleanText(body.name, "South Plains Territory War", 100);
   const territoryKey = cleanText(body.territoryKey, "south-plains", 48).toLowerCase().replace(/[^a-z0-9-]/g, "-");
   const territoryName = cleanText(body.territoryName, "South Plains", 80);
+  // Retired map areas cannot be configured for NEW wars. Permit untouched
+  // historical configurations to be edited without modifying live records.
+  const existingEvent = id ? eventById(id) : null;
+  const requestingRetiredArea = isRemovedTerritory(territoryName) || isRemovedTerritory(territoryKey);
+  if (requestingRetiredArea &&
+      (!existingEvent || existingEvent.territory_name !== territoryName ||
+        existingEvent.territory_key !== territoryKey)) {
+    return res.status(400).json({ error: "That Territory Wars area has been retired from the live map." });
+  }
+
   const ownerName = cleanText(body.ownerName, "Admin", 80);
   const challengerName = cleanText(body.challengerName, "", 80) || null;
   const startsAt = cleanDate(body.startsAt);

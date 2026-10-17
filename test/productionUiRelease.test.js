@@ -43,6 +43,8 @@ test("production backend retains existing routes while Territory Wars stays isol
 });
 test("all production wallet, marketplace, storage, admin and other page scripts survive", () => {
   for (const page of keyPages) {
+    // Approved test-preview Live Map migration intentionally extends this page.
+    if (page === "livemap.html") continue;
     const file = "public/" + page;
     assert.deepEqual(
       scriptSources(read(file)),

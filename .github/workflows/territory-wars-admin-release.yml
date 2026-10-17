@@ -14,6 +14,7 @@ on:
       - 'public/partials/nav.html'
       - 'test/territory*'
       - 'server/pages/territoryInvites.html'
+      - 'public/livemap.html'
       - 'public/assets/territory-invites.js'
       - 'test/productionUiRelease.test.js'
       - '.github/workflows/territory-wars-admin-release.yml'
@@ -42,6 +43,13 @@ jobs:
         run: |
           node --check server/index.js
           node --check server/routes/territoryWars.js
+          node --check server/routes/mapdata.js
+          node --check server/routes/territoryOverlay.js
+          node --check server/services/territoryOverlayState.js
+          node --check server/services/territoryOverlayMath.js
+          node --check server/services/territoryAreas.js
+          node --check public/assets/livemap.js
+          node --check public/assets/territory-map-overlay.js
           node --check server/services/territoryGeometry.js
           node --check server/services/territoryCombatSync.js
           node --check public/assets/admin-territory-wars.js
@@ -49,7 +57,7 @@ jobs:
           node --check public/assets/territory-invites.js
           node --check test/territoryAdminRelease.test.js
       - name: Test four-person security gate, geometry, control and momentum
-        run: node --test test/territoryAdminRelease.test.js test/territoryAdminHttp.test.js test/territoryInviteAccess.test.js test/territoryGeometry.test.js test/territoryControl.test.js test/territoryMomentum.test.js
+        run: node --test test/liveMapTerritoryIntegration.test.js test/territoryAdminRelease.test.js test/territoryAdminHttp.test.js test/territoryInviteAccess.test.js test/territoryGeometry.test.js test/territoryControl.test.js test/territoryMomentum.test.js
       - name: Production identity, Groups and UI regression gates
         run: node --test test/groups.test.js test/groupProgress.test.js test/productionUiRelease.test.js
       - name: Diagnostic only - full legacy suite (known unrelated fixture failures)
