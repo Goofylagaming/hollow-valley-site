@@ -18,7 +18,46 @@
     const username=safe(user.username||"Steam player");
     return '<div class="groups-person"><span class="groups-avatar">'+safe((user.username||"H")[0].toUpperCase())+'</span><span><strong>'+username+'</strong><small>Joined '+safe(date(user.joinedAt))+' · '+(owner?"Owner":"Member")+'</small></span></div>';
   }
-  function render(){
+  let progressRequest=0;
+  function progressCard(item,kind){
+    const target=Math.max(1,Number(item.target)||1);
+    const progress=Math.max(0,Math.min(target,Number(item.progress)||0));
+    const done=item.completed===true;
+    const pct=Math.round(progress/target*100);
+    const label=kind==="achievement"?"BADGE":"WEEKLY QUEST";
+    return '<article class="groups-milestone'+(done?' is-complete':'')+'">'+
+      '<div class="groups-milestone-head"><span class="groups-milestone-icon">'+(done?'★':kind==="achievement"?'◇':'✓')+'</span>'+
+      '<div><small>'+label+'</small><h3>'+safe(item.title)+'</h3></div>'+
+      '<span class="groups-milestone-xp">'+(done?'✓ EARNED':'+'+Number(item.xp||0)+' XP')+'</span></div>'+
+      '<p>'+safe(item.description)+'</p>'+
+      '<div class="groups-milestone-count"><strong>'+progress+' / '+target+'</strong><span>'+pct+'%</span></div>'+
+      '<div class="groups-milestone-track"><i style="width:'+pct+'%"></i></div>'+
+      '</article>';
+  }
+  async function refreshProgress(){
+    const currentId=state?.current?.id;
+    const n=++progressRequest;
+    show("groups-progress-panel",Boolean(currentId));
+    if(!currentId)return;
+    try{
+      const progress=await api("/api/groups/progress");
+      if(n!==progressRequest||state?.current?.id!==currentId)return;
+      if(progress.group?.id!==currentId)throw new Error("Your group membership changed. Refresh to reload achievements.");
+      text("groups-xp-value",Number(progress.groupXp||0).toLocaleString("en-AU"));
+      text("groups-achievements-count",progress.achievements.filter(x=>x.completed).length+" / "+progress.achievements.length+" earned");
+      text("groups-quests-count",progress.quests.filter(x=>x.completed).length+" / "+progress.quests.length+" complete");
+      const next=new Date(progress.resetAt);
+      text("groups-quests-reset",Number.isFinite(next.getTime())?
+        "Weekly reset: "+next.toLocaleString("en-AU",{timeZone:"Australia/Brisbane",weekday:"long",hour:"numeric",minute:"2-digit",hour12:true})+" (Brisbane)":
+        "Weekly reset: Monday midnight (Brisbane)");
+      $("groups-achievements").innerHTML=progress.achievements.map(a=>progressCard(a,"achievement")).join("");
+      $("groups-quests").innerHTML=progress.quests.map(a=>progressCard(a,"quest")).join("");
+    }catch(error){
+      if(n===progressRequest){
+        $("groups-quests").innerHTML=empty("Unable to refresh quest progress: "+(error.message||"Try again later."));
+      }
+    }
+  }  function render(){
     if(!state)return;
     const g=state.current,history=state.previous||[],invites=state.incoming||[];
     text("groups-total",g?"1":"0");text("groups-current-label",g?g.name:"Not in a group");
@@ -48,6 +87,7 @@
     $("groups-history").innerHTML=history.length?history.map(entry=>
       '<article class="groups-history-card"><div><strong>'+safe(entry.groupName)+'</strong><small>'+safe(date(entry.joinedAt))+' – '+safe(date(entry.leftAt))+'</small></div><span class="groups-outcome">'+safe(outcomes[entry.outcome]||entry.outcome)+'</span><small class="groups-past-members">Previous members: '+safe((entry.members||[]).join(", ")||"Unavailable")+'</small></article>'
     ).join(""):empty("Your previous groups will appear here once you leave or a group disbands.");
+    void refreshProgress();
   }
   async function refresh(){
     state=await api("/api/groups");

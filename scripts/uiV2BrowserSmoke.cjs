@@ -89,7 +89,7 @@ async function checkPage(browser, origin, route, size, name, opts = {}) {
       assert.equal(await page.locator(".main-nav").evaluate((el) => el.classList.contains("open")), false, name + " Escape does not close menu");
     }
     if (route === "/groups") {
-      assert.equal(await page.locator(".groups-note").isVisible(), true, "Groups must be website-only");
+      assert.equal(await page.locator(".groups-note").first().isVisible(), true, "Groups must be website-only");
       assert.equal(await page.locator("#groups-signin").isVisible(), true, "Guest should be prompted to sign in");
       assert.equal(await page.locator('a[href="/groups/territory-wars/"]').count(), 0, "Territory Wars not enabled");
     }
@@ -106,6 +106,52 @@ async function checkPage(browser, origin, route, size, name, opts = {}) {
   }
 }
 
+async function checkAuthenticatedGroupProgress(browser, origin){
+  const context=await browser.newContext({viewport:{width:390,height:844}});
+  const page=await context.newPage();
+  const issues=collect(page);
+  const steam="76561198000000101";
+  const group={
+    current:{id:42,name:"Valley Pack",ownerSteamId:steam,role:"owner",
+      createdAt:"2026-10-16 00:00:00",capacity:12,
+      members:[{steamId:steam,username:"Alpha",role:"owner",joinedAt:"2026-10-16 00:00:00"}],
+      sentInvites:[]},
+    incoming:[],previous:[]
+  };
+  const progress={
+    group:{id:42,name:"Valley Pack",activeMembers:1},groupXp:175,weeklyXp:75,
+    resetAt:"2026-10-18T14:00:00.000Z",
+    achievements:[{id:"founding-pack",title:"Founding Pack",description:"Start a Hollow Valley group.",
+      target:1,progress:1,xp:100,completed:true}],
+    quests:[{id:"welcome-one",title:"A New Face",description:"Welcome a player this week.",
+      target:1,progress:1,xp:75,completed:true}],
+  };
+  try{
+    await page.route("**/api/**",route=>{
+      const p=new URL(route.request().url()).pathname;
+      const fixture=p==="/api/me"?{loggedIn:true,user:{steam_id:steam,username:"Alpha"}}:
+        p==="/api/groups"?group:p==="/api/groups/progress"?progress:
+        p==="/api/server-status"?serverStatus:null;
+      if(fixture)return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(fixture)});
+      if(route.request().method()!=="GET")
+        return route.fulfill({status:200,contentType:"application/json",body:"{}"});
+      return route.continue();
+    });
+    await page.route(/https?:\/\/(?!127\.0\.0\.1)[^/]+\//,route=>route.abort());
+    const resp=await page.goto(origin+"/groups",{waitUntil:"domcontentloaded"});
+    assert.equal(resp.status(),200);
+    await page.locator("#groups-xp-value").getByText("175").waitFor({timeout:15000});
+    assert.equal(await page.locator(".groups-milestone").count(),2);
+    assert.equal(await page.locator(".groups-milestone.is-complete").count(),2);
+    assert.equal(await page.locator("#groups-achievements-count").textContent(),"1 / 1 earned");
+    assert.equal(await page.locator("#groups-quests-count").textContent(),"1 / 1 complete");
+    assert.equal(await page.locator("#groups-progress-panel").isVisible(),true);
+    assert.deepEqual(issues.errors,[],"No JavaScript errors in authenticated Group Progress");
+    assert.deepEqual(issues.missing,[],"No missing Groups assets");
+    await page.screenshot({path:path.join(screenshots,"groups-achievements-phone.png"),fullPage:true});
+    console.log("PASS authenticated Groups Achievements & Quests mobile");
+  }finally{await context.close();}
+}
 async function main() {
   assert.ok(process.env.DB_PATH, "Must set DB_PATH to isolated staging SQLite file");
   assert.ok(!process.env.DB_PATH.startsWith("/app/data"), "Never use Render persistent disk");
@@ -136,6 +182,7 @@ async function main() {
       await checkPage(browser, origin, route, tablet, label + "-tablet");
       await checkPage(browser, origin, route, phone, label + "-phone", { capture: true });
     }
+    await checkAuthenticatedGroupProgress(browser, origin);
     const page = await browser.newPage();
     const response = await page.goto(origin + "/admin");
     assert.ok([401, 403, 302].includes(response.status()), "Admin page should block unauthenticated requests; got " + response.status());

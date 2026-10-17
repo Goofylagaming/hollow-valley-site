@@ -1,5 +1,6 @@
 // Website-only Groups v1. Steam-linked identities; no game commands or Territory Wars.
 const { db } = require("./db");
+const groupProgress = require("./groupProgress");
 db.exec(`
  CREATE TABLE IF NOT EXISTS hv_groups (
    id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL COLLATE NOCASE,
@@ -82,6 +83,7 @@ function createGroup(rawSteam,rawName){
    if(db.prepare("SELECT id FROM hv_groups WHERE status='active' AND name=? COLLATE NOCASE").get(name))fail("An active group already uses that name.",409);
    const gid=db.prepare("INSERT INTO hv_groups(name,owner_steam_id) VALUES(?,?)").run(name,s).lastInsertRowid;
    db.prepare("INSERT INTO hv_group_members(group_id,steam_id,role) VALUES(?,?,'owner')").run(gid,s);
+   groupProgress.observeGroup(Number(gid));
    return getState(s);
  });
 }
@@ -109,6 +111,7 @@ function actOnInvite(rawSteam,rawId,action){
      if(current(s))fail("Leave your current group before accepting.",409);
      if(membersOf(invitation.group_id).length>=CAPACITY)fail("This group is full.",409);
      db.prepare("INSERT INTO hv_group_members(group_id,steam_id,role) VALUES(?,?,'member')").run(invitation.group_id,s);
+     groupProgress.observeGroup(invitation.group_id);
      db.prepare("UPDATE hv_group_invites SET status='expired',resolved_at=datetime('now') WHERE invitee_steam_id=? AND status='pending' AND id!=?").run(s,id);
    }
    db.prepare("UPDATE hv_group_invites SET status=?,resolved_at=datetime('now') WHERE id=?").run(action==="accept"?"accepted":"declined",id);
@@ -133,6 +136,7 @@ function exitGroup(rawSteam,rawTarget){
    if(target!==s&&g.ownerSteamId!==s)fail("Only the owner can remove other members.",403);
    const snapshot=membersOf(g.id),member=snapshot.find(m=>m.steamId===target);
    if(!member)fail("Player does not belong to your group.",404);
+   groupProgress.observeGroup(g.id);
    recordExit(member,g,target===s?"left":"removed",snapshot);
    db.prepare("DELETE FROM hv_group_members WHERE group_id=? AND steam_id=?").run(g.id,target);
    const remaining=membersOf(g.id);
@@ -151,6 +155,7 @@ function disband(rawSteam){
  const s=steamId(rawSteam);
  return atomic(()=>{
    const g=ownerGroup(s),snapshot=membersOf(g.id);
+   groupProgress.observeGroup(g.id);
    for(const m of snapshot)recordExit(m,g,"disbanded",snapshot);
    db.prepare("DELETE FROM hv_group_members WHERE group_id=?").run(g.id);
    db.prepare("UPDATE hv_groups SET status='closed',closed_at=datetime('now') WHERE id=?").run(g.id);

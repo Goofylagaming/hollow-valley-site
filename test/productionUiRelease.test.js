@@ -32,7 +32,7 @@ test("existing production backend is unchanged except for isolated Groups routes
   const modified = execFileSync("git", [
     "diff", "--name-only", productionSha, "HEAD", "--", "server/", "automation-platform/"
   ], { cwd: root, encoding: "utf8" }).trim().split("\n").filter(Boolean);
-  const allowed = new Set(["server/index.js", "server/groupsStore.js", "server/routes/groups.js"]);
+  const allowed = new Set(["server/index.js", "server/groupsStore.js", "server/routes/groups.js", "server/groupProgress.js"]);
   assert.deepEqual(modified.filter(file => !allowed.has(file)), [], "Unexpected backend changes");
   const before = previous("server/index.js");
   const after = read("server/index.js")
