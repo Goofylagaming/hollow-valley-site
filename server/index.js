@@ -174,7 +174,7 @@ function createApp() {
 
     if (isAdminPage) return requireTerritoryAdmin(req, res, next);
 
-    if (!req.user?.steam_id || !/^\\d{17}$/.test(String(req.user.steam_id))) {
+    if (!req.user?.steam_id || !/^\d{17}$/.test(String(req.user.steam_id))) {
       if (isPlayerPage) {
         return res.redirect(302, "/auth/steam?returnTo=%2Fgroups%2Fterritory-wars%2F");
       }
@@ -190,7 +190,7 @@ function createApp() {
 
     // Keep event state, rosters, and every admin/group management endpoint
     // private. A player may only fetch their own invitations or accept one.
-    const endpoint = req.path.replace(/\\/+$/, "") || "/";
+    const endpoint = req.path.replace(/\/+$/, "") || "/";
     const readInvites = req.method === "GET" && endpoint === "/invites";
     const acceptInvite = req.method === "POST" && endpoint === "/group/invite/accept";
     if (isTerritoryApi && (readInvites || acceptInvite)) return next();
