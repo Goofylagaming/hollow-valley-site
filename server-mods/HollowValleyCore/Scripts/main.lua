@@ -105,7 +105,7 @@ local function registerWatcher(classPath, bucketName, label)
 end
 
 log(string.format("Boot; version=%s readOnly=true", MOD_VERSION))
-log("Player/dino/account detection enabled (object observations only; account resolution NOT implemented).")
+log("PlayerController/Pawn object watchers enabled; account/Steam ID lookup NOT implemented.")
 
 local controllerRegistered = registerWatcher(
     "/Script/Engine.PlayerController", "controller", "NEW PLAYER CONTROLLER"
