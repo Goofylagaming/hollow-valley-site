@@ -10,7 +10,8 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
-    "test": "node --test"
+    "test": "node --test",
+    "test:primalbound-cloud": "node --disable-warning=ExperimentalWarning --test server/primalbound/tests/*.test.mjs"
   },
   "dependencies": {
     "basic-ftp": "^6.2.1",
@@ -19,6 +20,8 @@
     "express": "^4.19.2",
     "express-session": "^1.18.0",
     "rcon": "^1.1.0",
-    "ssh2-sftp-client": "^11.0.0"
+    "ssh2-sftp-client": "^11.0.0",
+    "pg": "^8.16.0",
+    "@aws-sdk/client-s3": "^3.900.0"
   }
 }
