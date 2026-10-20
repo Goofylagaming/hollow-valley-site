@@ -1,0 +1,35 @@
+name: Primalbound Shared Paid Preview
+
+on:
+  push:
+    branches:
+      - feature/primalbound-shared-paid-preview-20261020
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preserve-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install paid-preview dependencies
+        run: npm install --omit=dev --no-audit --no-fund
+      - name: Ensure Hollow Valley preview can still start with PB mode disabled
+        run: |
+          node --check server/index.js
+          node --check server/primalbound/index.mjs
+          node --check server/primalbound/sqlite-migration.mjs
+      - name: SQLite disk safety, backups, migration, and API setup
+        run: node --disable-warning=ExperimentalWarning --test server/primalbound/tests/*.test.mjs
+      - name: Preserve original Hollow Valley preview application
+        run: |
+          test -f public/index.html
+          test -f server/db.js
+          test -f server/sessionStore.js
+          grep -q 'PRIMALBOUND_PAID_CLOUD === "1"' server/index.js
