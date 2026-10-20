@@ -8,6 +8,17 @@ if (process.env.PRIMALBOUND_PAID_CLOUD === "1") {
   });
 } else {
 require("dotenv").config();
+// Explicitly enabled on the existing paid preview only. Does not modify original
+// Hollow Valley databases, migrate cloud accounts or change site routing.
+if (process.env.PRIMALBOUND_BACKUP_PREFLIGHT === "1") {
+  import("./primalbound/backup-preflight.mjs")
+    .then(({performBackupPreflight})=>performBackupPreflight())
+    .catch(error=>{
+      const reason=error?.code||error?.name||"Error";
+      console.error("[PB R2 preflight] NOT VERIFIED; cloud cutover must remain disabled ("+reason+")");
+      console.error("[PB R2 preflight] Check bucket permissions, endpoint and all backup environment variables in Render.");
+    });
+}
 const path = require("node:path");
 const express = require("express");
 const session = require("express-session");
