@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/primalbound-shared-paid-preview-20261020
+      - feature/primalbound-r2-backup-preflight-20261020
   workflow_dispatch:
 
 permissions:
@@ -25,6 +26,7 @@ jobs:
           node --check server/index.js
           node --check server/primalbound/index.mjs
           node --check server/primalbound/sqlite-migration.mjs
+          node --check server/primalbound/backup-preflight.mjs
       - name: SQLite disk safety, backups, migration, and API setup
         run: node --disable-warning=ExperimentalWarning --test server/primalbound/tests/*.test.mjs
       - name: Preserve original Hollow Valley preview application
