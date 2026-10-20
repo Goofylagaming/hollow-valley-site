@@ -5,6 +5,7 @@ on:
     branches:
       - feature/primalbound-shared-paid-preview-20261020
       - feature/primalbound-r2-backup-preflight-20261020
+      - feature/primalbound-one-time-sqlite-import-20261020
   workflow_dispatch:
 
 permissions:
@@ -35,3 +36,4 @@ jobs:
           test -f server/db.js
           test -f server/sessionStore.js
           grep -q 'PRIMALBOUND_PAID_CLOUD === "1"' server/index.js
+          grep -q 'PRIMALBOUND_MIGRATE_ON_BOOT === "1"' server/index.js
