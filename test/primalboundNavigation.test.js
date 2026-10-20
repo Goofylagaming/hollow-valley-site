@@ -10,7 +10,7 @@ test("Hollow Valley primary navigation exposes the Primalbound browser game for 
   const match = nav.match(/<a\b[^>]*\bid="primalbound-nav-link"[^>]*>[^<]*<\/a>/i);
   assert.ok(match, "Expected a public Primalbound entry in shared navigation");
   const anchor = match[0];
-  assert.match(anchor, /href="\\/primalbound\\/"/i);
+  assert.ok(anchor.includes('href="/primalbound/"'));
   assert.match(anchor, /target="_blank"/);
   assert.match(anchor, /rel="[^"]*noopener[^"]*"/);
   assert.match(anchor, /rel="[^"]*noreferrer[^"]*"/);
