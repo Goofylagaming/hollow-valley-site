@@ -14,9 +14,14 @@ if (process.env.PRIMALBOUND_BACKUP_PREFLIGHT === "1") {
   import("./primalbound/backup-preflight.mjs")
     .then(({performBackupPreflight})=>performBackupPreflight())
     .catch(error=>{
-      const reason=error?.code||error?.name||"Error";
-      console.error("[PB R2 preflight] NOT VERIFIED; cloud cutover must remain disabled ("+reason+")");
-      console.error("[PB R2 preflight] Check bucket permissions, endpoint and all backup environment variables in Render.");
+      // Never print secret values or full credential-bearing URLs to logs.
+      const secrets=["PRIMALBOUND_BACKUP_ACCESS_KEY","PRIMALBOUND_BACKUP_SECRET_KEY","PRIMALBOUND_BACKUP_KEY","DATABASE_URL"]
+        .map(name=>process.env[name]).filter(Boolean);
+      let diagnostic=String(error?.message||error?.code||"Unspecified R2 verification error");
+      for(const secret of secrets)diagnostic=diagnostic.split(secret).join("[REDACTED]");
+      diagnostic=diagnostic.replace(/postgres(?:ql)?:\\/\\/[^\\s]+/gi,"[REDACTED_DATABASE_URL]").slice(0,300);
+      console.error("[PB R2 preflight] NOT VERIFIED; cloud cutover remains disabled. Reason:",diagnostic);
+      console.error("[PB R2 preflight] Check restricted bucket permissions, R2 S3 endpoint and backup environment variables.");
     });
 }
 const path = require("node:path");
