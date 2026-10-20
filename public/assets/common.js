@@ -328,8 +328,12 @@ window.HDS = (function () {
     const slot = document.getElementById("nav-slot");
     if (!slot) return;
     try {
-      const response = await fetch("/partials/nav.html?v=4", { cache: "no-store" });
+      const response = await fetch("/partials/nav.html?v=primalbound6", { cache: "no-store", credentials: "same-origin" });
+      if (!response.ok) throw new Error(`Navigation returned HTTP ${response.status}`);
       slot.innerHTML = await response.text();
+      // Correct old PRIMALBOUND links even if a stale partial escapes an intermediary cache.
+      const primalboundLink = slot.querySelector("#primalbound-nav-link");
+      if (primalboundLink) primalboundLink.setAttribute("href", "/primalbound/");
     } catch (err) {
       console.error("Failed to load nav partial", err);
       return;
