@@ -10,7 +10,26 @@ if (process.env.PRIMALBOUND_PAID_CLOUD === "1") {
 require("dotenv").config();
 // Explicitly enabled on the existing paid preview only. Does not modify original
 // Hollow Valley databases, migrate cloud accounts or change site routing.
-if (process.env.PRIMALBOUND_BACKUP_PREFLIGHT === "1") {
+if (process.env.PRIMALBOUND_MIGRATE_ON_BOOT === "1") {
+  // Explicitly opted-in once. Original Hollow Valley database stays open and
+  // untouched; imported accounts go to a NEW Primalbound-only SQLite file.
+  // Existing target files are never overwritten by the migration.
+  import("./primalbound/sqlite-migration.mjs")
+    .then(({runMigration})=>runMigration())
+    .then(result=>{
+      console.log("[PB SQLite import] VERIFIED. Users:",result.users,"Cloud saves:",result.saves,
+        "History revisions:",result.history);
+      console.log("[PB SQLite import] Original Hollow Valley disk and source PostgreSQL remain unchanged. Cloud cutover still disabled.");
+    })
+    .catch(error=>{
+      const known=["DATABASE_URL","PRIMALBOUND_BACKUP_ACCESS_KEY","PRIMALBOUND_BACKUP_SECRET_KEY","PRIMALBOUND_BACKUP_KEY"]
+        .map(name=>process.env[name]).filter(Boolean);
+      let reason=String(error?.message||error?.code||"Migration failed");
+      for(const secret of known)reason=reason.split(secret).join("[REDACTED]");
+      if(reason.toLowerCase().includes("postgres"))reason="PostgreSQL source connection or schema failed";
+      console.error("[PB SQLite import] NOT VERIFIED; migration blocked:",reason.slice(0,180));
+    });
+} else if (process.env.PRIMALBOUND_BACKUP_PREFLIGHT === "1") {
   import("./primalbound/backup-preflight.mjs")
     .then(({performBackupPreflight})=>performBackupPreflight())
     .catch(error=>{
