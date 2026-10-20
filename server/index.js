@@ -44,6 +44,7 @@ const serverStatusService = require("./services/serverStatus");
 const automationWebsiteClient = require("./services/automationWebsiteClient");
 const skinSharePolicyClient = require("./services/skinSharePolicyClient");
 const { syncSteamProfiles } = require("./services/steamProfile");
+const { createPrimalboundRouter } = require("./middleware/primalboundGateway");
 
 const PORT = process.env.PORT || 3000;
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
@@ -99,6 +100,9 @@ function legacyDirectGameApiRetired(_req, res) {
 function createApp() {
   const app = express();
   app.set("trust proxy", 1);
+  // Serve the independent browser game under the Hollow Valley domain before
+  // Hollow Valley JSON parsing/session middleware. Never forward Steam cookies.
+  app.use("/primalbound", createPrimalboundRouter());
   app.use("/api/stripe/webhook", stripeWebhookRouter);
   app.use(express.json());
 
