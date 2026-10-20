@@ -434,12 +434,13 @@ footer:not(.hv-home-footer) span:nth-child(2) { display:none !important; }
   border-radius:9px;
   background:#02100d;
 }
-/* Preserve the uploaded PNG; crop its white top/bottom margins in the viewport. */
+/* Homepage-only Hollow Valley artwork: display the complete logo without cropping. */
 .snapshot-home-hero::before {
   content:'';
   display:block;
-  aspect-ratio:2048 / 470;
-  background:url('/assets/images/hollow-valley-banner.png') center / 100% auto no-repeat;
+  width:100%;
+  height:clamp(260px, 49vw, 620px);
+  background:#e9dfcf url('/assets/images/hollow-valley-home-art.webp') center / contain no-repeat;
 }
 .snapshot-server-bar {
   position:relative;
