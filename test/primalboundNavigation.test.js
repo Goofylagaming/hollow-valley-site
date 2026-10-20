@@ -27,3 +27,15 @@ test("Home page loads the shared navigation and mobile menu retains external lin
   assert.match(common, /fetch\("\/partials\/nav\.html\?v=/);
   assert.match(mobileStyles, /\.snapshot-topbar \.main-nav\.open > a:not\(\[hidden\]\)/);
 });
+
+
+test("shared navigation always loads fresh Primalbound URL even if old partial is cached", () => {
+  const common = fs.readFileSync(path.join(publicRoot, "assets/common.js"), "utf8");
+  const home = fs.readFileSync(path.join(publicRoot, "index.html"), "utf8");
+  const server = fs.readFileSync(path.resolve(__dirname, "../server/index.js"), "utf8");
+  assert.match(common, /\/partials\/nav\.html\?v=primalbound6/);
+  assert.match(common, /primalboundLink\.setAttribute\("href", "\/primalbound\/"\)/);
+  assert.match(home, /\/assets\/common\.js\?v=22/);
+  assert.match(server, /app\.get\("\/partials\/nav\.html"/);
+  assert.match(server, /no-store, max-age=0, must-revalidate/);
+});
