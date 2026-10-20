@@ -1,0 +1,27 @@
+name: Primalbound Nested Route
+
+on:
+  pull_request:
+    paths:
+      - "server/middleware/primalboundGateway.js"
+      - "server/index.js"
+      - "public/partials/nav.html"
+      - "test/primalboundGateway.test.js"
+      - "test/primalboundNavigation.test.js"
+      - ".github/workflows/primalbound-nested-route.yml"
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Verify Primalbound gateway and public nav
+        run: node --test test/primalboundGateway.test.js test/primalboundNavigation.test.js
