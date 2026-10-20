@@ -317,6 +317,12 @@ function createApp() {
   });
 
   app.use("/mydinos", express.static(path.join(__dirname, "..", "mydinos"), { index: false }));
+  // Never let edge/browser caches retain an older shared nav with the retired Render link.
+  app.get("/partials/nav.html", (_req, res) => {
+    res.set("Cache-Control", "no-store, max-age=0, must-revalidate");
+    res.set("Pragma", "no-cache");
+    res.sendFile(path.join(__dirname, "..", "public", "partials", "nav.html"));
+  });
   app.use(express.static(path.join(__dirname, "..", "public")));
 
   app.get("*", (req, res) => {
