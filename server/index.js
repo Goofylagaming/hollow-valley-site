@@ -1,3 +1,12 @@
+// The paid UI-v2 preview can host the isolated Primalbound cloud API without
+// modifying Hollow Valley production. Default behaviour remains unchanged.
+// Cloud registration is separately blocked until encrypted backups verify.
+if (process.env.PRIMALBOUND_PAID_CLOUD === "1") {
+  import("./primalbound/index.mjs").catch((error) => {
+    console.error("Primalbound cloud preview failed to start:", error.message);
+    process.exitCode = 1;
+  });
+} else {
 require("dotenv").config();
 const path = require("node:path");
 const express = require("express");
@@ -332,3 +341,5 @@ if (require.main === module) {
 }
 
 module.exports = { createApp, startServer, HOLLOW_VALLEY_HOSTNAME };
+
+}
