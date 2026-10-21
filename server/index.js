@@ -8,6 +8,7 @@ const { SqliteSessionStore } = require("./sessionStore");
 const { requireAdmin } = require("./middleware/requireAuth");
 const { isAuthorized: isTerritoryAdmin, requireTerritoryAdmin } = require("./middleware/requireTerritoryAdmin");
 const { skinShareCodeRedaction } = require("./middleware/skinShareCodeRedaction");
+const { getSkinStudioSafety, startSkinSharePolicySync } = require("./middleware/skinStudioSafety");
 const authRouter = require("./auth");
 const authSteamRouter = require("./authSteam");
 const authOwnerRouter = require("./authOwner");
@@ -82,6 +83,7 @@ function currentAdminSteamIds() {
 }
 
 async function syncSkinSharePolicy() {
+  if (getSkinStudioSafety().readOnly) return;
   try {
     const result = await skinSharePolicyClient.reconcile(currentAdminSteamIds());
     console.log(`[skin-share-policy] admins=${result.adminCount ?? 0} removed=${result.removedShareCodes ?? 0}`);
@@ -203,7 +205,7 @@ function createApp() {
   });
 
   app.get("/api/me", (req, res) => {
-    if (req.user?.steam_id && req.user?.discord_id) {
+    if (!getSkinStudioSafety().readOnly && req.user?.steam_id && req.user?.discord_id) {
       automationWebsiteClient.linkProgressionIdentity({
         steamId: String(req.user.steam_id),
         discordId: String(req.user.discord_id),
@@ -355,9 +357,7 @@ function startServer() {
         require("./services/territoryDiscordFeed").start();
       }
     }
-    syncSkinSharePolicy();
-    const skinSharePolicyTimer = setInterval(syncSkinSharePolicy, 5 * 60 * 1000);
-    skinSharePolicyTimer.unref?.();
+    startSkinSharePolicySync(syncSkinSharePolicy);
     syncSteamProfiles(db).then((res) => {
       if (res.updated > 0) {
         console.log(`[Steam Profile Sync] Successfully synchronized ${res.updated}/${res.total} Steam user profiles.`);
