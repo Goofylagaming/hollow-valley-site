@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Create, refine and wear your Hollow Valley dinosaur skins. Your existing collection, in a new creative workspace.">
+  <meta name="theme-color" content="#111714">
+  <title>Skin Studio | Hollow Valley</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=45">
+  <link rel="stylesheet" href="/assets/snapshot-ui.css?v=4">
+  <link rel="stylesheet" href="/assets/skin-studio.css?v=1">
+</head>
+<body class="hv-studio-page" data-suppress-daily-claim="true">
+  <a href="#hv-studio-main" class="hv-skip-link">Skip to Skin Studio</a>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main id="hv-studio-main" class="hv-studio">
+      <div class="hv-breadcrumb"><a href="/">Hollow Valley</a><span>/</span><span>Customisation</span></div>
+      <header class="hv-studio-heading">
+        <div>
+          <p class="hv-eyebrow">MAKE IT YOUR OWN</p>
+          <h1>Skin Studio<span class="hv-heading-dot">.</span></h1>
+          <p class="hv-heading-description">A new look starts here. Create a palette, refine your favourite, make it yours.</p>
+        </div>
+        <button type="button" class="hv-button hv-button-primary" id="hv-new-design"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> New design</button>
+      </header>
+
+      <nav class="hv-studio-tabs" aria-label="Studio sections" role="tablist">
+        <button type="button" class="active" data-studio-tab="editor" id="hv-tab-editor" role="tab" aria-selected="true" aria-controls="hv-panel-editor"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 4 6 6M4 20l4-1 12-12a2.8 2.8 0 0 0-4-4L4 15z"/></svg>Design studio</button>
+        <button type="button" data-studio-tab="collection" id="hv-tab-collection" role="tab" aria-selected="false" aria-controls="hv-panel-collection"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>My skins <span class="hv-count" id="hv-collection-count">—</span></button>
+        <button type="button" data-studio-tab="shop" id="hv-tab-shop" role="tab" aria-selected="false" aria-controls="hv-panel-shop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16l-1 13H5L4 8ZM8 8V6a4 4 0 0 1 8 0v2"/></svg>Skin shop</button>
+        <button type="button" data-studio-tab="import" id="hv-tab-import" role="tab" aria-selected="false" aria-controls="hv-panel-import"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 15v6h16v-6"/></svg>Import a skin</button>
+        <span class="hv-tab-caption">HOLLOW VALLEY · ISLE SERVER</span>
+      </nav>
+
+      <div id="hv-preview-banner" class="hv-notice hv-notice-preview" role="status" hidden></div>
+      <div id="hv-studio-alert" class="hv-notice" role="status" aria-live="polite" hidden></div>
+      <div id="hv-draft-banner" class="hv-notice hv-draft-notice" hidden>
+        <div><strong>You have an unfinished design.</strong><span>Restore the draft saved on this device, or start fresh.</span></div>
+        <div class="hv-action-group"><button id="hv-draft-restore" type="button" class="hv-button">Restore draft</button><button id="hv-draft-discard" type="button" class="hv-button hv-button-quiet">Discard</button></div>
+      </div>
+
+            <section id="hv-wear-card" class="hv-wear-panel" aria-live="polite" hidden>
+              <div class="hv-wear-symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m4 12 5 5L20 6"/></svg></div>
+              <div class="hv-wear-copy"><span class="hv-eyebrow">IN-GAME APPLICATION</span><h2 id="hv-wear-title">No request yet</h2><p id="hv-wear-detail">Choose a saved skin in My Skins to wear it on your dinosaur.</p></div>
+              <div class="hv-action-group"><button type="button" id="hv-wear-refresh" class="hv-button hv-button-quiet">Check status</button><button type="button" id="hv-wear-retry" class="hv-button" hidden>Retry</button><button type="button" id="hv-wear-reset" class="hv-button hv-button-quiet" hidden>Dismiss failed request</button></div>
+            </section>
+
+      <section data-studio-panel="editor" id="hv-panel-editor" role="tabpanel" aria-labelledby="hv-tab-editor">
+        <div class="hv-workspace">
+          <div class="hv-visual-column">
+            <section class="hv-preview-panel" aria-label="Dinosaur preview">
+              <div class="hv-preview-heading"><span class="hv-eyebrow">THE LOOK</span><span class="hv-capability" id="hv-viewer-status">Preparing preview</span></div>
+              <div class="hv-preview-selectors">
+                <label for="hv-editor-preview-species">Preview dinosaur<select id="hv-editor-preview-species" aria-label="Dinosaur shown in preview"><option value="tyrannosaurus">Tyrannosaurus rex</option></select></label>
+                <label for="hv-editor-sex">Display<select id="hv-editor-sex"><option value="male">Male</option><option value="female">Female</option></select></label>
+              </div>
+              <div class="hv-viewer-stage">
+                <div class="hv-stage-cross hv-stage-cross-top" aria-hidden="true">+</div>
+                <div class="hv-stage-cross hv-stage-cross-bottom" aria-hidden="true">+</div>
+                <canvas id="hv-viewer-canvas" aria-label="Interactive species reference. Drag to rotate and scroll to zoom." tabindex="0"></canvas>
+                <div id="hv-viewer-empty" class="hv-viewer-empty" role="status"><span class="hv-loading-ring" aria-hidden="true"></span><strong>Preparing your canvas</strong><span>You can start editing your colours below.</span></div>
+                <div class="hv-stage-caption"><span id="hv-current-species">Universal palette</span><strong id="hv-current-name">Untitled skin</strong></div>
+                <div class="hv-stage-instructions">DRAG TO ROTATE <span>·</span> SCROLL TO ZOOM</div>
+              </div>
+              <div class="hv-viewer-controls">
+                <div class="hv-action-group"><button type="button" class="hv-button hv-button-quiet" id="hv-viewer-reset"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10a9 9 0 1 1 2 8M3 4v6h6"/></svg>Reset view</button><button type="button" class="hv-button hv-button-quiet" id="hv-viewer-rotate" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 4 7 8-7 8Z"/></svg>Auto rotate</button></div>
+                <label class="hv-light-control" for="hv-viewer-light"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg><span>Light</span><input id="hv-viewer-light" type="range" min="35" max="180" value="105" aria-label="Preview light brightness"></label>
+              </div>
+              <div class="hv-preview-disclosure"><span class="hv-info-icon" aria-hidden="true">i</span><div><strong id="hv-viewer-title">Species reference</strong><p id="hv-viewer-detail">The preview is a visual guide. In-game lighting, patterns and materials can change how colours appear.</p><a id="hv-viewer-credit" href="#" target="_blank" rel="noopener noreferrer" hidden>Model credits ↗</a></div></div>
+            </section>
+
+            <section class="hv-palette-panel" aria-labelledby="hv-palette-label">
+              <div class="hv-section-heading"><h2 id="hv-palette-label">Your palette</h2><span>Exact HEX values</span></div>
+              <div id="hv-editor-palette" class="hv-palette-strip" aria-label="Current skin colour palette"></div>
+              <p class="hv-help">The colour codes are your design. The model is a guide to its shape.</p>
+            </section>
+
+
+          </div>
+
+          <section class="hv-editor-panel" aria-label="Skin design controls">
+            <div class="hv-editor-topline"><span class="hv-eyebrow">YOUR DESIGN</span><span id="hv-editor-mode" class="hv-tag">New design</span></div>
+            <div class="hv-design-fields">
+              <label class="hv-field" for="hv-editor-name">Skin name<input type="text" id="hv-editor-name" placeholder="Give your skin a name" maxlength="60" autocomplete="off"></label>
+              <label class="hv-field" for="hv-editor-species">Compatible with<select id="hv-editor-species"><option value="universal">Universal · all species</option></select></label>
+              <details class="hv-description-disclosure"><summary>Add a description <span>Optional</span></summary><label class="hv-field" for="hv-editor-description"><span class="hv-visually-hidden">Skin description</span><textarea id="hv-editor-description" rows="2" maxlength="240" placeholder="The story behind this skin…"></textarea></label></details>
+            </div>
+            <div class="hv-colour-heading"><h2>Colour palette</h2><div class="hv-history-actions"><button type="button" id="hv-undo" class="hv-icon-button" title="Undo (Ctrl+Z)" aria-label="Undo last edit" disabled>↶</button><button type="button" id="hv-redo" class="hv-icon-button" title="Redo (Ctrl+Shift+Z)" aria-label="Redo last edit" disabled>↷</button></div></div>
+            <div id="hv-editor-colors" class="hv-colour-list"></div>
+            <details class="hv-native-settings">
+              <summary>Native skin values<span>Advanced</span></summary>
+              <p class="hv-help">Imported values are preserved. These controls do not change the preview pattern. The game keeps unverified pattern and theme values unchanged.</p>
+              <div class="hv-native-grid"><label class="hv-field" for="hv-editor-pattern">Pattern<input type="number" id="hv-editor-pattern" min="0" max="65535" step="1" value="0"></label><label class="hv-field" for="hv-editor-theme">Theme<input type="number" id="hv-editor-theme" min="0" max="65535" step="1" value="0"></label><label class="hv-field" for="hv-editor-variation">Variation<input type="number" id="hv-editor-variation" min="0" max="65535" step="1" value="0"></label></div>
+            </details>
+            <div class="hv-save-area">
+              <div class="hv-editor-status" id="hv-editor-status" role="status">Create a design to get started.</div>
+              <p id="hv-editor-cost" class="hv-help" style="margin-bottom:10px">Creating and editing studio designs is free.</p>
+              <button type="button" id="hv-save-design" class="hv-button hv-button-primary hv-save-main">Save new skin <span aria-hidden="true">↗</span></button>
+              <div class="hv-save-secondary"><button type="button" id="hv-save-copy" class="hv-button hv-button-quiet" disabled>Save a copy</button><button type="button" id="hv-revert" class="hv-button hv-button-quiet" disabled>Revert changes</button></div>
+              <div id="hv-editor-share" class="hv-editor-share" hidden></div>
+            </div>
+          </section>
+        </div>
+        <div class="hv-workspace-footnote"><span><span class="hv-small-dot" aria-hidden="true"></span> Saved skins stay in your existing Hollow Valley collection.</span><a href="/mydinos">Capture a parked dinosaur’s skin <span aria-hidden="true">↗</span></a></div>
+      </section>
+
+      <section data-studio-panel="collection" id="hv-panel-collection" role="tabpanel" aria-labelledby="hv-tab-collection" hidden>
+        <div class="hv-library-heading"><div><p class="hv-eyebrow">YOUR COLLECTION</p><h2>Every skin. Still yours.</h2><p>Your saved designs, purchased skins and exclusive rewards, together in one place.</p></div><button type="button" class="hv-button" id="hv-collection-refresh">Refresh collection</button></div>
+        <div class="hv-filter-bar"><label class="hv-search-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><span class="hv-visually-hidden">Search your skins</span><input type="search" id="hv-collection-search" placeholder="Search skins by name…"></label><label><span class="hv-visually-hidden">Filter by species</span><select id="hv-collection-species"><option value="">All species</option></select></label><label><span class="hv-visually-hidden">Filter by type</span><select id="hv-collection-type"><option value="">All skins</option><option value="owned">My designs</option><option value="exclusive">Exclusive rewards</option><option value="universal">Universal</option><option value="purchased">Unlocked skins</option></select></label></div>
+        <div class="hv-parked-select"><label for="hv-parked-slot">Apply a skin to a parked dinosaur<select id="hv-parked-slot"><option value="">Choose a parked dinosaur…</option></select></label><span>Pick a slot here, then choose “Apply to parked” on a compatible skin.</span></div>
+        <div id="hv-collection-grid" class="hv-skin-grid"><div class="hv-empty-state"><strong>Loading your collection</strong><p>Your existing skins will appear here when you sign in with Steam.</p></div></div>
+      </section>
+
+      <section data-studio-panel="shop" id="hv-panel-shop" role="tabpanel" aria-labelledby="hv-tab-shop" hidden>
+        <div class="hv-library-heading"><div><p class="hv-eyebrow">THE SKIN SHOP</p><h2>Find your next look.</h2><p>Browse the Hollow Valley collection and unlock published skins with Valley Coin.</p></div><div class="hv-action-group"><label><span class="hv-visually-hidden">Filter shop by species</span><select id="hv-shop-species"><option value="">All species</option></select></label><button type="button" class="hv-button" id="hv-shop-refresh">Refresh</button></div></div>
+        <div id="hv-shop-grid" class="hv-skin-grid"><div class="hv-empty-state"><strong>Loading the skin shop</strong><p>Published skins will appear here.</p></div></div>
+      </section>
+
+      <section data-studio-panel="import" id="hv-panel-import" role="tabpanel" aria-labelledby="hv-tab-import" hidden>
+        <div class="hv-library-heading"><div><p class="hv-eyebrow">BRING YOUR COLOURS</p><h2>A familiar skin. A fresh canvas.</h2><p>Preview a shared skin or load an external palette into a new design.</p></div></div>
+        <div class="hv-import-layout"><section class="hv-import-panel"><label class="hv-field" for="hv-import-code">Skin code or JSON<textarea id="hv-import-code" rows="9" maxlength="12000" spellcheck="false" placeholder="Paste an HV share code, a Fangs &amp; Ferns code, or Dino Den JSON…"></textarea></label><div class="hv-action-group"><button type="button" id="hv-import-preview" class="hv-button hv-button-primary">Preview code <span aria-hidden="true">→</span></button><button type="button" id="hv-import-load" class="hv-button" disabled>Open as new design</button><button type="button" id="hv-import-claim" class="hv-button" disabled>Import to My Skins</button></div><div id="hv-import-summary" class="hv-import-summary" role="status">Nothing imported yet. Your saved skins will stay as they are.</div></section><aside class="hv-import-guide"><span class="hv-guide-number">01 / 03</span><h3>Paste. Preview. Make it yours.</h3><ol><li><strong>Hollow Valley</strong><span>Preview an available HV code and import a copy into your collection.</span></li><li><strong>Fangs &amp; Ferns</strong><span>The seven original colour zones load in their original order, including pure black.</span></li><li><strong>Dino Den / JSON</strong><span>Load supported native colours and values. Missing colour channels keep their current values.</span></li></ol><p class="hv-help">Exclusive skins remain private. Imported palettes always start a new design.</p></aside></div>
+      </section>
+
+      <noscript><div class="hv-notice">Skin Studio needs JavaScript to edit and preview skins. Your saved skins remain in your account.</div></noscript>
+      <footer class="hv-studio-footer"><span>HOLLOW VALLEY <span class="hv-footer-divider">/</span> SKIN STUDIO</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/skins?tab=library" id="hv-admin-tools" hidden>Admin skin tools ↗</a></footer>
+    </main>
+  </div>
+  <script src="/assets/common.js?v=skin-studio1"></script>
+  <script src="/assets/skin-studio-model-registry.js?v=6"></script>
+  <script src="/assets/skin-studio-rex-mask-rle.js?v=1"></script>
+  <script src="/assets/skin-studio-core.js?v=1"></script>
+  <script src="/assets/skin-studio-app.js?v=1"></script>
+  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
+  <script type="module" src="/assets/skin-studio-viewer.js?v=1"></script>
+</body>
+</html>

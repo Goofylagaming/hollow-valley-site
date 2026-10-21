@@ -146,6 +146,8 @@ window.HDS = (function () {
 
   async function claimDailyLoginBonus(me) {
     if (!me?.loggedIn) return null;
+    // A design/review workspace should not make account writes on page load.
+    if (document.body.dataset.suppressDailyClaim === "true") return null;
     try {
       const result = await api("/api/wallet/daily-login/claim", { method: "POST" });
       if (!result?.duplicate && Number(result?.amount) > 0) {
