@@ -1,0 +1,14 @@
+/* Loaded by the uncached nav partial so returning visitors also receive the
+   three-column layout when an older snapshot stylesheet remains cached. */
+@media (min-width:1051px) {
+  :root { --snap-topbar:80px; }
+  .topbar.snapshot-topbar {
+    grid-template-columns:120px minmax(0,1fr) max-content;
+    height:auto;
+    min-height:80px;
+    padding-top:8px;
+    padding-bottom:8px;
+  }
+  .snapshot-topbar .main-nav { flex-wrap:wrap; margin:0; }
+  .snapshot-topbar .main-nav > a { display:flex; align-items:center; white-space:nowrap; }
+}
