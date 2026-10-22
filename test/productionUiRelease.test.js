@@ -58,18 +58,19 @@ test("every public page preloads the upgraded UI without losing its base CSS", (
     const html = read("public/" + page);
     const base = html.search(/styles\.css\?v=\d+/);
     const modern = html.indexOf("/assets/ui-v2.css?v=3");
-    const theme = html.indexOf("/assets/snapshot-ui.css?v=4");
+    const theme = html.search(/\/assets\/snapshot-ui\.css\?v=\d+/);
     assert.ok(base >= 0 && modern > base && theme > modern, page);
     if (page === "index.html" || railPages.has(page)) {
       assert.match(html, /<body class="has-my-stuff-rail">/, page);
     }
   }
 });
-test("v2 homepage retains production's species dialog and existing script", () => {
+test("homepage removes species UI only and preserves existing summary scripts", () => {
   const html = read("public/index.html");
   assert.match(html, /class="[^"]*snapshot-home/);
-  assert.match(html, /id="species"/);
-  assert.match(html, /class="dino-dialog"/);
+  assert.doesNotMatch(html, /id="species"/);
+  assert.doesNotMatch(html, /class="dino-dialog"/);
+  assert.match(html, /home-roadmap\.js/);
   assert.match(html, /assets\/site\.js\?v=8/);
   assert.match(html, /assets\/home-v2\.js\?v=2/);
   assert.ok(fs.statSync(path.join(root, "public/assets/images/hollow-valley-banner.png")).size > 10000);
@@ -82,6 +83,7 @@ test("shared navigation retains production owner login and admin permission hidi
   assert.match(common, /adminNavLink\.hidden = !isAdmin/);
   assert.match(nav, /id="admin-nav-group" hidden/);
   assert.match(nav, /class="menu-toggle"/);
+  assert.doesNotMatch(nav, /global-player-search/);
   assert.match(nav, /id="territory-admin-nav-link" hidden/);
   assert.match(common, /territoryWarsAdminAccess/);
 });

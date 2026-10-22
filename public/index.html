@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/assets/styles.css?v=38">
   <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=5">
+  <link rel="stylesheet" href="/assets/home-redesign.css?v=1">
 </head>
 <body class="has-my-stuff-rail">
   <div class="app-shell">
@@ -21,8 +22,18 @@
         </div>
       </section>
 
+      <div class="home-overview">
+      <section class="home-roadmap" aria-labelledby="roadmap-heading">
+        <p class="roadmap-eyebrow">THE ROAD AHEAD</p>
+        <div class="roadmap-heading-row"><h2 id="roadmap-heading">The future of<br><em>Hollow Valley.</em></h2><span class="roadmap-count">31<span>FEATURE IDEAS</span></span></div>
+        <p class="roadmap-intro">Explore what’s ahead. Open a stage, then choose an idea to see the full details.</p>
+        <p class="roadmap-note">Proposed stages, not release dates. Features and availability may evolve.</p>
+        <div class="roadmap-actions"><button type="button" id="roadmap-expand-all">View full roadmap</button><button type="button" id="roadmap-collapse-all">Collapse all</button></div>
+        <div id="home-roadmap-stages"></div>
+        <noscript>Enable JavaScript to explore the interactive roadmap.</noscript>
+      </section>
       <section class="snapshot-home-hero" aria-label="Hollow Valley">
-
+        <img class="home-brand-art" src="/assets/images/hollow-valley-home-art.webp" alt="Hollow Valley — dinosaur community" width="1298" height="851" fetchpriority="high">
         <div class="snapshot-server-bar">
           <a class="snapshot-server-card" href="/profile">
             <i>♟</i>
@@ -40,56 +51,42 @@
         </div>
       </section>
 
+      </div>
+
       <section class="snapshot-quick-grid" aria-label="Quick links">
         <a class="snapshot-quick-card" href="/wallet">
-          <span class="snapshot-quick-art"></span>
+          <span class="snapshot-quick-art card-art-wallet" aria-hidden="true"></span>
           <span class="snapshot-quick-copy"><b>Wallet</b><span>Check your balance and history.</span><span><strong id="home-wallet-balance">—</strong> Valley Coin</span></span>
           <span class="snapshot-quick-arrow">→</span>
         </a>
         <a class="snapshot-quick-card" href="/quests">
-          <span class="snapshot-quick-art"></span>
+          <span class="snapshot-quick-art card-art-quests" aria-hidden="true"></span>
           <span class="snapshot-quick-copy"><b>Quests</b><span>Complete quests and earn coins.</span></span>
           <span class="snapshot-quick-arrow">→</span>
         </a>
         <a class="snapshot-quick-card" href="/skins">
-          <span class="snapshot-quick-art"></span>
+          <span class="snapshot-quick-art card-art-skins" aria-hidden="true"></span>
           <span class="snapshot-quick-copy"><b>Skin Studio</b><span>Create and manage your skins.</span></span>
           <span class="snapshot-quick-arrow">→</span>
         </a>
         <a class="snapshot-quick-card" href="/marketplace-official.html">
-          <span class="snapshot-quick-art"></span>
+          <span class="snapshot-quick-art card-art-marketplace" aria-hidden="true"></span>
           <span class="snapshot-quick-copy"><b>Marketplace</b><span>Browse and purchase items.</span><span id="home-dino-count">Open dinosaur listings</span></span>
           <span class="snapshot-quick-arrow">→</span>
         </a>
       </section>
-      <details class="panel home-species-disclosure"><summary>Explore playable dinosaur species</summary>
-      <section class="roster-section" id="species">
-        <div class="section-top"><div><p class="overline green">SPECIES DATABASE</p><h2>Playable<br><em>dinosaurs.</em></h2></div><p class="section-intro">Every dinosaur currently playable in Isle Evrima.</p></div>
-        <div class="filter-row" role="group" aria-label="Filter species"><button class="filter active" data-filter="all">All species</button><button class="filter" data-filter="herbivore">Herbivores</button><button class="filter" data-filter="carnivore">Carnivores</button><button class="filter" data-filter="omnivore">Omnivores</button><button class="filter" data-filter="flying">Flying</button><span class="roster-count" id="roster-count">.. / LIVE EVRIMA ROSTER</span></div>
-        <div class="dino-grid" id="dino-grid"><p class="section-intro">Loading species database…</p></div>
+
+      <section class="home-explore-links" aria-label="Explore the Valley">
+        <a href="/livemap"><span aria-hidden="true">⌖</span><div><b>Live Map</b><small>Explore Gateway and follow the Valley.</small></div><span aria-hidden="true">↗</span></a>
+        <a href="/events"><span aria-hidden="true">✦</span><div><b>Events</b><small>See what’s on and join the community.</small></div><span aria-hidden="true">↗</span></a>
       </section>
-      </details>
     </main>
   </div>
 
-  <dialog class="dino-dialog" aria-labelledby="dialog-title">
-    <button class="dialog-close" aria-label="Close species details">×</button>
-    <p class="overline green">SPECIES PROFILE</p>
-    <h2 id="dialog-title">Species name</h2>
-    <p class="dialog-role"></p>
-    <p class="dialog-description"></p>
-    <p class="dialog-status" hidden>⏳ Not yet playable in Evrima — stats will be added once this species is officially added to the branch.</p>
-    <div class="dialog-stats">
-      <div class="stat-item"><span>Pack Limit</span><strong class="stat-pack"></strong></div>
-      <div class="stat-item"><span>Peak Prime Weight</span><strong class="stat-weight"></strong></div>
-      <div class="stat-item"><span>Bite Force (Peak)</span><strong class="stat-bite"></strong></div>
-      <div class="stat-item"><span>Growth Time</span><strong class="stat-growth"></strong></div>
-    </div>
-    <p class="dialog-note">In-game Evrima gameplay stat values (not real-world physics units) &mdash; approximate and subject to patch changes.</p>
-    <div class="dialog-social"><span>Best played as</span><strong></strong></div>
-  </dialog>
+
   <script src="/assets/common.js?v=22"></script>
   <script src="/assets/home-v2.js?v=2"></script>
   <script src="/assets/site.js?v=8"></script>
+  <script src="/assets/home-roadmap.js?v=1"></script>
 </body>
 </html>
