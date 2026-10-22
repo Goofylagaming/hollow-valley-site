@@ -11,4 +11,5 @@
   }
   .snapshot-topbar .main-nav { flex-wrap:wrap; margin:0; }
   .snapshot-topbar .main-nav > a { display:flex; align-items:center; white-space:nowrap; }
+  .snapshot-topbar .nav-group .mega-menu { left:0; right:auto; transform:none; }
 }
