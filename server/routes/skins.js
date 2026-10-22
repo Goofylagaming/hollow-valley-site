@@ -3,8 +3,15 @@ const { randomUUID } = require("node:crypto");
 const { requireAuth, requireAdmin } = require("../middleware/requireAuth");
 const automation = require("../services/automationWebsiteClient");
 const externalSkinImport = require("../../public/assets/external-skin-import.js");
+const { getSkinStudioContext, skinMutationGuard } = require("../middleware/skinStudioSafety");
 
 const router = express.Router();
+router.use(skinMutationGuard);
+
+router.get("/studio-context", (req, res) => {
+  res.set("Cache-Control", "no-store, private");
+  return res.json(getSkinStudioContext(req.user));
+});
 
 function mapAutomationError(error, fallback) {
   if (Number.isInteger(error?.status)) {
