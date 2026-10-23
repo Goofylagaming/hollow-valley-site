@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Review community roadmap suggestions for Hollow Valley.">
+  <title>Community Roadmap Moderation | Hollow Valley</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=38">
+  <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
+  <link rel="stylesheet" href="/assets/snapshot-ui.css?v=5">
+  <link rel="stylesheet" href="/assets/admin-roadmap.css?v=1">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main class="roadmap-admin-page">
+      <section class="page-header">
+        <p class="overline green">HOLLOW VALLEY · ADMIN</p>
+        <h1>Community roadmap.</h1>
+        <p class="section-intro">Review player feature suggestions. Approved ideas appear beneath the homepage roadmap, without changing its official 31-feature list or altering game systems.</p>
+        <p><a href="/">← View public roadmap</a></p>
+      </section>
+      <section class="roadmap-admin-shell" aria-labelledby="roadmap-review-title">
+        <div class="roadmap-admin-heading">
+          <div>
+            <h2 id="roadmap-review-title">Suggestions awaiting review</h2>
+            <p id="roadmap-admin-status" role="status" aria-live="polite">Loading suggestions…</p>
+          </div>
+          <button id="roadmap-admin-refresh" type="button">Refresh</button>
+        </div>
+        <div id="roadmap-admin-list"></div>
+      </section>
+    </main>
+  </div>
+  <script src="/assets/common.js?v=22"></script>
+  <script src="/assets/admin-roadmap.js?v=1"></script>
+</body>
+</html>
