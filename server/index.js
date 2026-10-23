@@ -30,6 +30,7 @@ const bodydropRouter = require("./routes/bodydrop");
 const serverStatusRouter = require("./routes/serverStatus");
 const eventsRouter = require("./routes/events");
 const friendsRouter = require("./routes/friends");
+const roadmapCommunityRouter = require("./routes/roadmapCommunity");
 const groupsRouter = require("./routes/groups");
 const mapdataRouter = require("./routes/mapdata");
 const supporterInternalRouter = require("./routes/supporterInternal");
@@ -256,6 +257,7 @@ function createApp() {
   app.use("/api/server-status", serverStatusRouter);
   app.use("/api/events", eventsRouter);
   app.use("/api/friends", friendsRouter);
+  app.use("/api/roadmap", roadmapCommunityRouter);
   app.use("/api/groups", groupsRouter);
   if (TERRITORY_WARS_ADMIN_TEST_ENABLED) {
     // Loading the module creates isolated territory_* tables: never load while disabled.
@@ -295,6 +297,7 @@ function createApp() {
     admincomms: "admincomms.html",
     adminrestore: "adminrestore.html",
     adminsupporters: "adminsupporters.html",
+    adminroadmap: "adminroadmap.html",
   };
   for (const [route, file] of Object.entries(ADMIN_PAGE_ROUTES)) {
     app.get([`/${route}`, `/${route}.html`], requireAdmin, (_req, res) => {
