@@ -201,6 +201,8 @@ app.use('/api/admin', (_req, res, next) => {
   next();
 }, adminRoutes);
 
+app.use('/api/website/legacy', require('./routes/valleyLegacyRoutes'));
+
 app.use('/api/website/admin-wallet', (_req, res, next) => {
   res.set('Cache-Control', 'no-store');
   next();
@@ -283,6 +285,7 @@ if (require.main === module) {
   playerPresence.startPlayerPresence();
   serverHealthHistory.startServerHealthHistory();
   backupService.startBackups();
+  require("./services/valleyLegacyService").start();
   app.listen(port, () => {
     console.log(`Hollow Valley automation platform listening on port ${port}`);
     console.log(`[storage] persistent=${storageHealth.databasePersistent} initializedAt=${storageHealth.initializedAt}`);

@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Valley Legacy | Hollow Valley</title>
+    <meta
+      name="description"
+      content="Server records, species mastery, dinosaur lineages and community nests in Hollow Valley."
+    />
+    <link rel="stylesheet" href="/assets/styles.css?v=15" />
+    <link rel="stylesheet" href="/assets/ui-v2.css?v=3" />
+    <link rel="stylesheet" href="/assets/snapshot-ui.css?v=4" />
+    <link rel="stylesheet" href="/assets/legacy.css?v=1" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <div id="nav-slot"></div>
+      <main class="legacy-page">
+        <header class="page-header">
+          <p class="overline green">MAKE YOUR MARK</p>
+          <h1>Valley Legacy.</h1>
+          <p class="section-intro">
+            Every journey leaves a story. Build your species mastery, find a
+            nest, and discover the dinosaurs that shaped Hollow Valley.
+          </p>
+        </header>
+        <p id="legacy-status" role="status" aria-live="polite">
+          Loading Valley Legacy…
+        </p>
+        <nav class="legacy-tabs" aria-label="Valley Legacy sections">
+          <a href="#records">Server records</a><a href="#mastery">My mastery</a
+          ><a href="#lineage">My family trees</a
+          ><a href="#nests">Find a nest</a>
+        </nav>
+        <section id="records">
+          <div class="legacy-heading">
+            <h2>Server records</h2>
+            <label
+              >View
+              <select id="record-scope">
+                <option value="season">Current season</option>
+                <option value="all">All time</option>
+              </select></label
+            >
+          </div>
+          <p id="tracking-note" class="legacy-note"></p>
+          <div id="record-cards" class="legacy-grid"></div>
+          <details>
+            <summary>Hall of Fame · previous seasons</summary>
+            <div id="hall"></div>
+          </details>
+        </section>
+        <section id="mastery">
+          <h2>My species mastery</h2>
+          <p>
+            10 XP per five verified minutes. Mastery stays with your Steam
+            account. Milestone titles unlock at levels 5, 10, 20, 25, 35 and 50,
+            with no gameplay advantage.
+          </p>
+          <div id="mastery-cards" class="legacy-grid">
+            <a href="/auth/steam">Sign in with Steam to see your mastery.</a>
+          </div>
+        </section>
+        <section id="lineage">
+          <h2>My dinosaur family trees</h2>
+          <p>
+            Observed dinosaur lives and verified parent–child links. Gaps in
+            tracking start a new observed life; these are not claims of a
+            dinosaur’s exact age. Mutations are observed traits, not proof of
+            inheritance.
+          </p>
+          <div id="life-cards" class="legacy-grid"></div>
+        </section>
+        <section id="nests">
+          <h2>Find your next beginning.</h2>
+          <p>
+            Player-managed egg listings. An accepted request reserves a listed
+            egg; arrange the hatch in game. Only verified hatch evidence creates
+            a family link.
+          </p>
+          <div id="nest-cards" class="legacy-grid"></div>
+          <div id="nest-tools" hidden>
+            <h3>Register a nest</h3>
+            <form id="nest-form" class="legacy-form">
+              <label
+                >Nest name
+                <input
+                  name="name"
+                  maxlength="80"
+                  required
+                  placeholder="A new generation" /></label
+              ><label
+                >Your current dinosaur
+                <select name="parent" id="nest-parent" required></select></label
+              ><label
+                >Available eggs
+                <input
+                  name="eggs"
+                  type="number"
+                  min="1"
+                  max="12"
+                  value="6"
+                  required /></label
+              ><button type="submit">Open nest listing</button>
+            </form>
+            <p class="legacy-note">
+              Listings close when all eggs are reserved, when you close them, or
+              after 24 hours.
+            </p>
+            <h3>My nests and requests</h3>
+            <div id="my-nests" class="legacy-grid"></div>
+            <div id="my-requests"></div>
+          </div>
+        </section>
+      </main>
+      <footer>
+        <span>Hollow Valley · Your story lives here.</span
+        ><a href="/">Back to Hollow Valley</a>
+      </footer>
+    </div>
+    <script src="/assets/common.js?v=21"></script>
+    <script src="/assets/legacy.js?v=1"></script>
+  </body>
+</html>

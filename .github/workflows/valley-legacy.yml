@@ -1,0 +1,17 @@
+name: Valley Legacy release checks
+on:
+  pull_request:
+    paths: ['automation-platform/**', 'server/**', 'public/legacy.html', 'public/assets/legacy*', 'test/valleyLegacy*', '.github/workflows/valley-legacy.yml']
+  push:
+    branches: ['feature/valley-legacy-systems']
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: node --test test/valleyLegacy*.test.js test/ownerEmailAuth.test.js test/restartTelemetry.test.js automation-platform/test/migrationReadiness.test.js automation-platform/test/websiteAuth.test.js automation-platform/test/playerPresence.test.js automation-platform/test/presenceFeedEndpoint.test.js

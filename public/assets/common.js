@@ -120,6 +120,8 @@ window.HDS = (function () {
   }
 
   function applyAuthUi(me) {
+    const legacyLink = document.getElementById("valley-legacy-nav");
+    if (legacyLink) legacyLink.hidden = !me.valleyLegacyEnabled;
     const authArea = document.getElementById("auth-area");
     if (!authArea) return;
 

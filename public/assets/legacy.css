@@ -1,0 +1,117 @@
+.legacy-page {
+  max-width: 1200px;
+  margin: auto;
+  padding: 24px;
+}
+.legacy-page section {
+  margin: 44px 0;
+  scroll-margin-top: 100px;
+}
+.legacy-tabs {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 24px 0;
+}
+.legacy-tabs a,
+.legacy-page button {
+  border: 1px solid #637c55;
+  border-radius: 8px;
+  padding: 10px 16px;
+  color: #e9f2df;
+  background: #213d2b;
+  cursor: pointer;
+}
+.legacy-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.legacy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+.legacy-card {
+  padding: 22px;
+  border: 1px solid #40543c;
+  border-radius: 12px;
+  background: #14251c;
+  overflow-wrap: anywhere;
+}
+.legacy-card h3 {
+  font-size: 1.1rem;
+  margin: 0 0 14px;
+}
+.legacy-card strong {
+  font-size: 1.4rem;
+  display: block;
+  color: #c4e998;
+}
+.legacy-card p,
+.legacy-note {
+  color: #b6c4b0;
+  font-size: 0.94rem;
+}
+.legacy-card button {
+  margin: 6px 8px 0 0;
+}
+.legacy-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: end;
+}
+.legacy-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-width: 170px;
+}
+.legacy-page input,
+.legacy-page select {
+  background: #14251c;
+  color: #eff5e8;
+  border: 1px solid #718468;
+  border-radius: 6px;
+  padding: 10px;
+  max-width: 100%;
+}
+.legacy-page details {
+  padding: 16px;
+  border: 1px solid #40543c;
+  border-radius: 8px;
+}
+.legacy-page summary {
+  cursor: pointer;
+}
+.legacy-page button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+.legacy-page a:focus-visible,
+.legacy-page button:focus-visible,
+.legacy-page select:focus-visible,
+.legacy-page input:focus-visible {
+  outline: 3px solid #d5eb8d;
+  outline-offset: 3px;
+}
+#legacy-status {
+  min-height: 24px;
+}
+#legacy-status[data-error="true"] {
+  color: #ffb9a7;
+}
+@media (max-width: 600px) {
+  .legacy-page {
+    padding: 16px;
+  }
+  .legacy-tabs a {
+    flex: 1 1 40%;
+    text-align: center;
+  }
+}
