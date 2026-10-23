@@ -375,7 +375,9 @@ window.HDS = (function () {
     try {
       const status = await api("/api/server-status");
       const dot = el.querySelector(".status-dot");
-      if (status.configured && status.online) {
+      if (status.configured && status.stale) {
+        el.innerHTML = `<span class="status-dot offline"></span> Server name: <b>Hollow Valley</b> <span class="status-note">— live status temporarily unavailable (last update ${escapeHtml(status.lastChecked || 'unknown')})</span>`;
+      } else if (status.configured && status.online) {
         dot?.classList.remove("offline");
         el.querySelector(".status-count")?.remove();
         el.innerHTML = `<span class="status-dot"></span> Server name: <b>Hollow Valley</b> <span class="status-count">— ${status.playerCount}/${status.maxPlayers} online now</span>`;

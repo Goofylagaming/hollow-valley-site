@@ -76,6 +76,8 @@ test('server monitor queues one outage alert and one recovery alert through Herb
   assert.equal(alerts.length, 1);
 
   online = true;
+  const firstSuccess = await monitor.checkServerMonitor({ force: true });
+  assert.equal(firstSuccess.transition, null);
   const recovered = await monitor.checkServerMonitor({ force: true });
   assert.equal(recovered.transition, 'recovered');
   assert.equal(recovered.alerted, true);

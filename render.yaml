@@ -11,7 +11,7 @@ services:
     dockerfilePath: ./Dockerfile
     plan: starter
     autoDeploy: true
-    healthCheckPath: /
+    healthCheckPath: /readyz
     disk:
       name: hollowvalley-data
       mountPath: /app/data

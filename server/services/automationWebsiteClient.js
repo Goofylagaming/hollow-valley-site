@@ -1,3 +1,4 @@
+const readServerSnapshot = require('./resilientRead').createResilientRead();
 function requireConfig() {
   const baseUrl = String(process.env.AUTOMATION_SERVICE_URL || '').trim().replace(/\/$/, '');
   const token = String(process.env.HOLLOW_VALLEY_API_TOKEN || '').trim();
@@ -75,6 +76,7 @@ async function call(path, { method = 'GET', body, timeoutMs: requestTimeoutMs } 
   const timer = setTimeout(() => controller.abort(), effectiveTimeoutMs);
   timer.unref?.();
   try {
+    const request = async () => {
     const response = await fetch(`${baseUrl}/api/website${path}`, {
       method,
       headers: {
@@ -94,6 +96,9 @@ async function call(path, { method = 'GET', body, timeoutMs: requestTimeoutMs } 
       throw error;
     }
     return payload;
+    };
+    return await (method === 'GET' && path === '/server-snapshot'
+      ? readServerSnapshot(request, controller.signal) : request());
   } catch (error) {
     if (error?.name === 'AbortError') {
       const timeoutError = new Error('Automation service request timed out');

@@ -1,10 +1,10 @@
 const express = require("express");
-const { getState } = require("../services/serverStatus");
+const { getDisplayState } = require("../services/serverStatus");
 
 const router = express.Router();
 
 router.get("/", (req, res) => {
-  const state = getState();
+  const state = getDisplayState();
   res.json({
     configured: state.configured,
     online: state.online,
@@ -13,6 +13,7 @@ router.get("/", (req, res) => {
     // Names only - never expose SteamIDs/EOS IDs to the public site.
     players: state.players.map((p) => p.name),
     lastChecked: state.lastChecked,
+    stale: state.stale,
   });
 });
 

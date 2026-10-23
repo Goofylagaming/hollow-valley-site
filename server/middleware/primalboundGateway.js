@@ -65,6 +65,8 @@ function createPrimalboundRouter(options = {}) {
   const router = express.Router();
   const apiOrigin = options.apiOrigin === undefined ? cleanApiOrigin(process.env.PRIMALBOUND_CLOUD_API_URL) : cleanApiOrigin(options.apiOrigin);
   const staticOrigin = STATIC_ORIGIN;
+  let capabilitiesPending = null;
+  const readCapabilities = require('../services/resilientRead').createResilientRead();
 
   router.use(async (req, res) => {
     // A relative asset base must resolve from /primalbound/, not /primalbound.
@@ -88,6 +90,35 @@ function createPrimalboundRouter(options = {}) {
     }
     if (target.type === "api" && (req.method === "POST" || req.method === "PUT") && !sameOriginRequest(req)) {
       return respondJson(res, 403, { error: "Invalid request origin." });
+    }
+
+    if (target.type === 'api' && req.method === 'GET' && new URL(target.url).pathname === '/api/capabilities') {
+      try {
+        // This public endpoint contains no account state. Coalesce cold-start
+        // requests; never share authenticated responses or replay save writes.
+        if (!capabilitiesPending) {
+          const signal = AbortSignal.timeout(60000);
+          capabilitiesPending = readCapabilities(async () => {
+            const response = await fetch(apiOrigin + '/api/capabilities', {
+              headers: { Accept: 'application/json' }, redirect: 'manual', signal,
+            });
+            if (!response.ok) {
+              await response.body?.cancel();
+              throw Object.assign(new Error('Capabilities unavailable'), { status: response.status });
+            }
+            const body = await response.json();
+            if (typeof body.accounts !== 'boolean' || typeof body.cloudSaves !== 'boolean') {
+              throw Object.assign(new Error('Invalid capabilities'), { status: 502 });
+            }
+            return body;
+          }, signal).finally(() => { capabilitiesPending = null; });
+        }
+        return respondJson(res, 200, await capabilitiesPending);
+      } catch {
+        res.set('Retry-After', '15');
+        return respondJson(res, 503, { accounts: false, cloudSaves: false,
+          temporarilyUnavailable: true, error: 'Primalbound cloud service is starting or temporarily unavailable. Please retry shortly.' });
+      }
     }
 
     try {

@@ -19,6 +19,8 @@ function normalizeState(value = {}) {
   return {
     confirmed: ['online', 'offline'].includes(value.confirmed) ? value.confirmed : null,
     consecutiveFailures: Math.max(0, Number(value.consecutiveFailures) || 0),
+    consecutiveSuccesses: Math.max(0, Number(value.consecutiveSuccesses) || 0),
+    incidentId: value.incidentId || null,
     lastCheckedAt: value.lastCheckedAt || null,
     lastChangedAt: value.lastChangedAt || null,
     lastAlertAt: value.lastAlertAt || null,
@@ -29,13 +31,16 @@ function normalizeState(value = {}) {
 function nextMonitorState(previousValue, online, threshold = 3, nowIso = new Date().toISOString()) {
   const previous = normalizeState(previousValue);
   if (online) {
-    const transition = previous.confirmed === 'offline' ? 'recovered' : null;
+    const consecutiveSuccesses = previous.consecutiveSuccesses + 1;
+    const transition = previous.confirmed === 'offline' && consecutiveSuccesses >= 2 ? 'recovered' : null;
     return {
       transition,
       state: {
         ...previous,
-        confirmed: 'online',
+        confirmed: previous.confirmed === 'offline' && !transition ? 'offline' : 'online',
         consecutiveFailures: 0,
+        consecutiveSuccesses,
+        incidentId: transition || previous.confirmed !== 'offline' ? null : previous.incidentId,
         lastCheckedAt: nowIso,
         lastChangedAt: transition ? nowIso : previous.lastChangedAt,
         lastError: null,
@@ -51,6 +56,8 @@ function nextMonitorState(previousValue, online, threshold = 3, nowIso = new Dat
       ...previous,
       confirmed: transition ? 'offline' : previous.confirmed,
       consecutiveFailures,
+      consecutiveSuccesses: 0,
+      incidentId: previous.incidentId || nowIso,
       lastCheckedAt: nowIso,
       lastChangedAt: transition ? nowIso : previous.lastChangedAt,
     },
@@ -104,8 +111,8 @@ async function checkServerMonitor({ force = false } = {}) {
         consecutiveFailures: next.state.consecutiveFailures,
       }, () => {
         const transitionNonce = next.transition === 'offline'
-          ? `hollow-valley-server:offline:${next.state.consecutiveFailures}`
-          : `hollow-valley-server:recovered:${previous.lastChangedAt ? Date.parse(previous.lastChangedAt) : 'offline'}`;
+          ? `hollow-valley-server:offline:${Date.parse(next.state.incidentId)}`
+          : `hollow-valley-server:recovered:${Date.parse(previous.incidentId || previous.lastChangedAt)}`;
         return discord.sendAlert(
           alertText(next.transition, snapshot, next.state.consecutiveFailures),
           { nonce: transitionNonce }
@@ -118,6 +125,7 @@ async function checkServerMonitor({ force = false } = {}) {
       const retryState = {
         ...next.state,
         confirmed: previous.confirmed,
+        incidentId: next.transition === 'recovered' ? previous.incidentId : next.state.incidentId,
         lastChangedAt: previous.lastChangedAt,
         lastError: `Alert queueing failed: ${error.message}`,
       };

@@ -217,6 +217,12 @@ async function init() {
     const profile = progressionResult.value?.profile || {};
     renderIdentity(me, profile);
     renderProgression(profile);
+    if (progressionResult.value?.stale) {
+      const notice = document.createElement('p');
+      notice.className = 'profile-empty';
+      notice.textContent = `Showing saved progression from ${progressionResult.value.capturedAt || 'the last successful update'}. Live updates are temporarily unavailable.`;
+      document.querySelector('.profile-progression-panel')?.prepend(notice);
+    }
   } else {
     document.querySelector(".profile-progression-panel").innerHTML =
       `<div class="empty-roster"><strong>Progression unavailable</strong><span>${escapeHtml(progressionResult.reason?.message || "Could not load progression.")}</span></div>`;

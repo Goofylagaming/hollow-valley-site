@@ -121,5 +121,6 @@ function start() {
     }
   }, 15000);
   timer.unref();
+  return timer;
 }
 module.exports = { enabled, get, reconcile, recordSnapshot, start };
