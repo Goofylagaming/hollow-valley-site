@@ -1,12 +1,23 @@
 name: Sync Automation Branch
 
+# Avoid restarting the authoritative automation service on website-only changes.
+# Render auto-deploys the automation-platform branch and its persistent disk
+# cannot use Render's normal zero-downtime deploy mechanism.
 on:
   push:
     branches:
       - master
+    paths:
+      - 'automation-platform/**'
+  # Allow a deliberately scheduled full sync for cross-directory dependencies.
+  workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: sync-automation-branch
+  cancel-in-progress: false
 
 jobs:
   mirror:
@@ -19,5 +30,6 @@ jobs:
           fetch-depth: 0
           ref: master
       - name: Mirror automation-platform to master
+        # Fast-forward only. Never rewrite the automation branch unexpectedly.
         run: |
-          git push origin HEAD:refs/heads/automation-platform --force
+          git push origin HEAD:refs/heads/automation-platform
