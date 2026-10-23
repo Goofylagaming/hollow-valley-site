@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="/assets/styles.css?v=38">
   <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=5">
-  <link rel="stylesheet" href="/assets/home-redesign.css?v=1">
+  <link rel="stylesheet" href="/assets/home-redesign.css?v=2">
 </head>
 <body class="has-my-stuff-rail">
   <div class="app-shell">
@@ -30,6 +30,30 @@
         <p class="roadmap-note">Proposed stages, not release dates. Features and availability may evolve.</p>
         <div class="roadmap-actions"><button type="button" id="roadmap-expand-all">View full roadmap</button><button type="button" id="roadmap-collapse-all">Collapse all</button></div>
         <div id="home-roadmap-stages"></div>
+        <section class="roadmap-community" aria-labelledby="roadmap-community-heading">
+          <div class="roadmap-community-heading">
+            <h3 id="roadmap-community-heading">Choose what comes next</h3>
+            <span class="roadmap-ballot-total" id="roadmap-ballot-total">0 / 3 votes used</span>
+          </div>
+          <p id="roadmap-vote-status" role="status" aria-live="polite">Loading community votes…</p>
+          <ol class="roadmap-leaders" id="roadmap-vote-leaders" aria-label="Community favourites"></ol>
+          <details class="roadmap-suggest">
+            <summary>Suggest a new Hollow Valley feature <span aria-hidden="true">+</span></summary>
+            <p>Steam-linked players can suggest an idea. Admins review submissions before they're shown publicly.</p>
+            <form id="roadmap-suggestion-form">
+              <label for="roadmap-suggestion-title">Feature name</label>
+              <input id="roadmap-suggestion-title" name="title" required minlength="6" maxlength="90" placeholder="e.g. Dinosaur photo challenges">
+              <label for="roadmap-suggestion-description">How should it work?</label>
+              <textarea id="roadmap-suggestion-description" name="description" required minlength="20" maxlength="500" rows="3" placeholder="Explain what players could do and why it would be fun."></textarea>
+              <button type="submit" id="roadmap-suggestion-send">Send suggestion</button>
+            </form>
+            <p id="roadmap-suggestion-status" role="status" aria-live="polite"></p>
+          </details>
+          <details class="roadmap-suggest">
+            <summary>Approved community suggestions <span aria-hidden="true">+</span></summary>
+            <div id="roadmap-approved-suggestions">Loading suggestions…</div>
+          </details>
+        </section>
         <noscript>Enable JavaScript to explore the interactive roadmap.</noscript>
       </section>
       <section class="snapshot-home-hero" aria-label="Hollow Valley">
@@ -88,5 +112,6 @@
   <script src="/assets/home-v2.js?v=2"></script>
   <script src="/assets/site.js?v=8"></script>
   <script src="/assets/home-roadmap.js?v=1"></script>
+  <script src="/assets/roadmap-voting.js?v=1"></script>
 </body>
 </html>

@@ -1,0 +1,16 @@
+.roadmap-admin-page { max-width:1050px; margin:0 auto; padding:28px 18px 60px; }
+.roadmap-admin-page a { color:#e6c98d; }
+.roadmap-admin-shell { padding:24px; border:1px solid #375643; border-radius:12px; background:#0b2119; }
+.roadmap-admin-heading { display:flex; align-items:center; justify-content:space-between; gap:14px; }
+.roadmap-admin-heading h2 { margin:0; color:#f3e8cc; font:600 25px Georgia,serif; }
+.roadmap-admin-heading p { color:#b2c7b9; font-size:12px; }
+.roadmap-admin-item { border-top:1px solid #365842; padding:17px 0; }
+.roadmap-admin-item h3 { margin:0 0 7px; color:#e6cc96; font:600 19px Georgia,serif; }
+.roadmap-admin-item p { margin:7px 0; color:#c9d8c8; white-space:pre-wrap; line-height:1.55; }
+.roadmap-admin-item small { color:#97ac9d; }
+.roadmap-admin-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; color:#a9c1b2; }
+.roadmap-admin-actions button,.roadmap-admin-heading button {
+  border:1px solid #ae915a; border-radius:6px; background:#23533a; color:#f5e8c9; cursor:pointer; padding:9px 14px;
+}
+.roadmap-admin-actions button:disabled,.roadmap-admin-heading button:disabled { opacity:.5; cursor:not-allowed; }
+@media(max-width:520px) { .roadmap-admin-heading { align-items:flex-start; flex-direction:column; } }
