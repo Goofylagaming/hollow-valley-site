@@ -65,8 +65,9 @@ test("player ideas require moderation, are rate limited and never publish Steam 
   assert.equal(JSON.stringify(approved).includes(steam1), false);
   assert.equal(voting.adminSuggestions()[0].steamId, steam1);
   voting.submitSuggestion(steam1, "Night mode for maps", "Offer a darker live-map palette for evening use.");
+  voting.submitSuggestion(steam1, "Improved galleries", "Give profiles a screenshot gallery for their dinosaurs.");
   assert.throws(
-    () => voting.submitSuggestion(steam1, "Improved galleries", "Give profiles a screenshot gallery for their dinosaurs."),
+    () => voting.submitSuggestion(steam1, "Nesting improvements", "Add more detail to the existing nesting roadmap concept."),
     { code: "SUGGESTION_LIMIT" }
   );
 });
