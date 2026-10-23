@@ -1,5 +1,14 @@
 /* Public planning content only. This does not enable or modify game features. */
 (function () {
+  // Update this release register whenever a roadmap item ships. Dates are the
+  // verified production release date in Brisbane, never the date of a draft.
+  const releases = {
+    7: { status: 'complete', added: '2026-10-23', note: 'Live: species XP, 50 mastery levels, statistics and milestone titles. Additional skins and profile cosmetics remain future extensions.' },
+    9: { status: 'complete', added: '2026-10-23', note: 'Live: nest listings, egg availability, requests, host approval and automatic closure. An accepted request reserves an advertised egg; it does not verify an in-game hatch.' },
+    8: { status: 'partial', note: 'Available in Valley Legacy: verified parent/child links and lineage display. Automatic hatch detection and inherited-mutation verification are still pending.' },
+    13: { status: 'partial', note: 'Available: seasonal and all-time records, Hall of Fame, presence, combat and gameplay-coin connections. Territory capture and group-battle connections are still pending.' },
+    31: { status: 'building', note: 'Building / Testing. Completion has not yet been verified.' }
+  };
   const stages = [
     { title: 'Progression & identity', subtitle: 'Build a lasting place in the Valley', features: [
       [1, 'Player Reputation + Titles', 'Persistent reputation for completing quests, Territory Wars participation, events, helping new players, winning fights and surviving long periods. Unlock titles such as Valley Veteran, Apex Hunter, Warden, Nomad and Prime Survivor. Titles could appear on profiles, leaderboards, Discord and eventually the overlay.'],
@@ -58,7 +67,7 @@
     const summary = element('summary');
     summary.append(element('span', 'roadmap-stage-number', String(index + 1).padStart(2, '0')));
     const label = element('span', 'roadmap-stage-label');
-    label.append(element('strong', '', stage.title), element('small', '', `${stage.subtitle} · ${stage.features.length} ideas`));
+      label.append(element('strong', '', stage.title), element('small', '', `${stage.subtitle} · ${stage.features.length} features`));
     summary.append(label, element('span', 'roadmap-chevron', '+'));
     const list = element('div', 'roadmap-feature-list');
     stage.features.forEach(([id, title, description]) => {
@@ -66,7 +75,23 @@
       feature.id = `roadmap-feature-${id}`;
       const featureSummary = element('summary');
       featureSummary.append(element('span', 'roadmap-feature-number', `#${id}`), element('span', '', title));
+      const release = releases[id];
+      feature.dataset.roadmapStatus = release ? release.status : 'idea';
+      let statusText = 'Idea Stage';
+      if (release?.status === 'complete') statusText = '✓ Complete, added ' + release.added.split('-').reverse().join('/');
+      if (release?.status === 'partial') statusText = 'Partially available';
+      if (release?.status === 'building') statusText = 'Building / Testing';
+      featureSummary.append(element('span', 'roadmap-feature-status is-' + feature.dataset.roadmapStatus, statusText));
       feature.append(featureSummary, element('p', '', description));
+      if (release) {
+        const note = element('p', 'roadmap-release-note', release.note);
+        if (id !== 31) {
+          const link = element('a', '', 'Open Valley Legacy →');
+          link.href = '/legacy';
+          note.append(' ', link);
+        }
+        feature.append(note);
+      }
       list.append(feature);
     });
     section.append(summary, list);
