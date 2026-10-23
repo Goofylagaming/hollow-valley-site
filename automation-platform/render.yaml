@@ -17,7 +17,7 @@ services:
     autoDeploy: false
     buildCommand: npm install --omit=dev --no-audit --no-fund
     startCommand: mkdir -p /var/data /var/data/backups && npm start
-    healthCheckPath: /health
+    healthCheckPath: /readyz
     disk:
       name: hollow-valley-automation-data
       mountPath: /var/data

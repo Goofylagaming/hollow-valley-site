@@ -44,6 +44,8 @@ const playerPresence = require('./services/playerPresenceService');
 const serverHealthHistory = require('./services/serverHealthHistoryService');
 
 const app = express();
+const readiness = require('./services/readiness').installReadiness(
+  app, () => store.getState('health:persistence-probe', null), 'hollow-valley-automation');
 const port = Number(process.env.PORT || 3100);
 const publicDir = path.join(__dirname, '..', 'public');
 
@@ -273,25 +275,33 @@ if (require.main === module) {
   if (recoveredDinoStorage) {
     console.warn(`[dinostorage-recover] marked ${recoveredDinoStorage} interrupted request(s) unknown; none were replayed`);
   }
-  startBodyDropReconciler();
-  startDinoStorageReconciler();
-  startDinoStorageStaleSweeper();
-  startDinoMarketplaceReconciler();
-  startOfficialMarketplaceFulfillment();
-  startDiscordAutomation();
-  startScheduler();
-  startSafeLogRestartWarnings();
-  startServerMonitor();
-  playerPresence.startPlayerPresence();
-  serverHealthHistory.startServerHealthHistory();
-  backupService.startBackups();
-  require("./services/valleyLegacyService").start();
-  app.listen(port, () => {
+  const backgroundTimers = [];
+  backgroundTimers.push(startBodyDropReconciler());
+  backgroundTimers.push(startDinoStorageReconciler());
+  backgroundTimers.push(startDinoStorageStaleSweeper());
+  backgroundTimers.push(startDinoMarketplaceReconciler());
+  backgroundTimers.push(startOfficialMarketplaceFulfillment());
+  backgroundTimers.push(startDiscordAutomation());
+  backgroundTimers.push(startScheduler());
+  backgroundTimers.push(startSafeLogRestartWarnings());
+  backgroundTimers.push(startServerMonitor());
+  backgroundTimers.push(playerPresence.startPlayerPresence());
+  backgroundTimers.push(serverHealthHistory.startServerHealthHistory());
+  backgroundTimers.push(backupService.startBackups());
+  backgroundTimers.push(require("./services/valleyLegacyService").start());
+  const server = app.listen(port, () => {
     console.log(`Hollow Valley automation platform listening on port ${port}`);
     console.log(`[storage] persistent=${storageHealth.databasePersistent} initializedAt=${storageHealth.initializedAt}`);
     runStartupReadOnlyDiagnostics().catch(() => {
       console.log('[startup-check] diagnostics failed');
     });
+  });
+  process.once('SIGTERM', () => {
+    readiness.drain();
+    for (const timer of backgroundTimers) if (timer) clearInterval(timer);
+    server.close();
+    // Allow in-flight background work to settle within the disk-service drain window.
+    setTimeout(() => process.exit(0), 25000);
   });
 }
 

@@ -1,6 +1,7 @@
 const express = require("express");
 const { requireAuth } = require("../middleware/requireAuth");
 const automation = require("../services/automationWebsiteClient");
+const snapshots = require('../services/readSnapshots');
 
 const router = express.Router();
 
@@ -30,8 +31,17 @@ router.get("/", requireAuth, async (req, res) => {
         console.warn("[progression] Discord identity sync failed:", error.message);
       }
     }
-    return res.json(await automation.getProgression(String(req.user.steam_id)));
+    const result = await automation.getProgression(String(req.user.steam_id));
+    try { snapshots.save(`progression:${req.user.steam_id}`, result); } catch { console.warn('[progression] snapshot persistence failed'); }
+    return res.json(result);
   } catch (error) {
+    // Only transient availability failures may use this user's display snapshot.
+    if (!error.status || [502, 503, 504].includes(error.status)) {
+      try {
+        const saved = snapshots.load(`progression:${req.user.steam_id}`, 24 * 60 * 60 * 1000);
+        if (saved) return res.json({ ...saved.value, stale: true, capturedAt: saved.capturedAt });
+      } catch { /* Preserve the original availability error. */ }
+    }
     const mapped = mapAutomationError(error, "Could not read Hollow Valley progression.");
     return res.status(mapped.status).json(mapped.body);
   }

@@ -102,6 +102,8 @@ function legacyDirectGameApiRetired(_req, res) {
 
 function createApp() {
   const app = express();
+  app.locals.readiness = require('./services/readiness').installReadiness(
+    app, () => db.prepare('SELECT 1').get(), 'hollow-valley-site');
   app.set("trust proxy", 1);
   // Serve the independent browser game under the Hollow Valley domain before
   // Hollow Valley JSON parsing/session middleware. Never forward Steam cookies.
@@ -341,7 +343,7 @@ function createApp() {
 
 function startServer() {
   const app = createApp();
-  return app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`Herby Death Squad portal running on port ${PORT}`);
     console.log("[legacy-api] direct game execution paths retired");
     serverStatusService.start();
@@ -371,6 +373,12 @@ function startServer() {
       console.warn("[Steam Profile Sync] Background sync warning:", err.message);
     });
   });
+  process.once('SIGTERM', () => {
+    app.locals.readiness.drain();
+    server.close(() => process.exit(0));
+    setTimeout(() => process.exit(1), 25000).unref();
+  });
+  return server;
 }
 
 if (require.main === module) {

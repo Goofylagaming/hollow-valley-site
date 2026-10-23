@@ -21,6 +21,7 @@ concurrency:
 
 jobs:
   mirror:
+    timeout-minutes: 40
     if: github.repository == 'Goofylagaming/hollow-valley-site'
     runs-on: ubuntu-latest
     steps:
@@ -28,8 +29,19 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: master
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install test dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Verify stability and authoritative automation behavior
+        run: node --test test/productionStability.test.js automation-platform/test/economyWallet.test.js automation-platform/test/progressionService.test.js automation-platform/test/commandBridge.test.js automation-platform/test/dinoStorageCompatibility.test.js
+      - name: Wait for this website revision before interrupting automation
+        run: node scripts/verify-readiness.cjs https://hollow-valley-site.onrender.com "${{ github.sha }}"
       - name: Mirror automation-platform to master
         # Fast-forward only. Never rewrite the automation branch unexpectedly.
         run: |
           git push origin HEAD:refs/heads/automation-platform
+      - name: Verify automation recovery before completing release
+        run: node scripts/verify-readiness.cjs https://hollow-valley-automation.onrender.com "${{ github.sha }}"

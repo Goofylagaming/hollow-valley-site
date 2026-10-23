@@ -6,6 +6,29 @@ const {
  createPrimalboundRouter, cleanApiOrigin, destinationFor, primalboundCookie
 } = require("../server/middleware/primalboundGateway");
 
+test('capability checks share cold-start work without forwarding cookies', async () => {
+ await withGateway(async (_url, opts) => {
+  assert.equal(opts.headers.Cookie, undefined);
+  await new Promise(resolve => setTimeout(resolve, 30));
+  return Response.json({accounts:true,cloudSaves:true});
+ }, async (port, calls) => {
+  const results = await Promise.all([request(port, '/primalbound/api/capabilities'),
+   request(port, '/primalbound/api/capabilities', {headers:{Cookie:'connect.sid=secret'}})]);
+  assert.equal(calls.length, 1);
+  assert.ok(results.every(result => result.status === 200));
+ }, 'https://primalbound-cloud-preview.onrender.com');
+});
+
+test('capability outage returns honest unavailable response and bounded attempts', async () => {
+ await withGateway(async () => new Response('{}', {status:503}), async (port, calls) => {
+  const result = await request(port, '/primalbound/api/capabilities');
+  assert.equal(result.status, 503);
+  assert.equal(JSON.parse(result.body).temporarilyUnavailable, true);
+  assert.equal(result.headers['retry-after'], '15');
+  assert.equal(calls.length, 2);
+ }, 'https://primalbound-cloud-preview.onrender.com');
+});
+
 function request(port, uri, { method="GET", headers={}, body }={}) {
  return new Promise((resolve,reject)=>{
   const req=http.request({hostname:"127.0.0.1",port,path:uri,method,headers},res=>{
