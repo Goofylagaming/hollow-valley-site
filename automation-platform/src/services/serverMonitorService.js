@@ -125,6 +125,7 @@ async function checkServerMonitor({ force = false } = {}) {
       const retryState = {
         ...next.state,
         confirmed: previous.confirmed,
+        incidentId: next.transition === 'recovered' ? previous.incidentId : next.state.incidentId,
         lastChangedAt: previous.lastChangedAt,
         lastError: `Alert queueing failed: ${error.message}`,
       };

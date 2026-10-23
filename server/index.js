@@ -103,7 +103,7 @@ function legacyDirectGameApiRetired(_req, res) {
 function createApp() {
   const app = express();
   app.locals.readiness = require('./services/readiness').installReadiness(
-    app, () => db.prepare('SELECT 1').get(), 'hollow-valley-site');
+    app, () => db.prepare('SELECT id FROM users LIMIT 1').get(), 'hollow-valley-site');
   app.set("trust proxy", 1);
   // Serve the independent browser game under the Hollow Valley domain before
   // Hollow Valley JSON parsing/session middleware. Never forward Steam cookies.
