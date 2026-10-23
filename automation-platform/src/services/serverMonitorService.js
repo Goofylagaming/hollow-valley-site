@@ -111,8 +111,8 @@ async function checkServerMonitor({ force = false } = {}) {
         consecutiveFailures: next.state.consecutiveFailures,
       }, () => {
         const transitionNonce = next.transition === 'offline'
-          ? `hollow-valley-server:offline:${next.state.incidentId}`
-          : `hollow-valley-server:recovered:${previous.incidentId || previous.lastChangedAt}`;
+          ? `hollow-valley-server:offline:${Date.parse(next.state.incidentId)}`
+          : `hollow-valley-server:recovered:${Date.parse(previous.incidentId || previous.lastChangedAt)}`;
         return discord.sendAlert(
           alertText(next.transition, snapshot, next.state.consecutiveFailures),
           { nonce: transitionNonce }
