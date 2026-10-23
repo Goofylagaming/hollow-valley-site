@@ -70,6 +70,10 @@
   display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;
   gap:8px; margin:0 12px 13px; padding-top:11px; border-top:1px solid #2a4738;
 }
+.roadmap-feature-status.is-complete { color:#c7f9d6; background:#164b2c; border-color:#66bd83; }
+.roadmap-feature-status.is-partial { color:#ffe0a0; background:#44351a; border-color:#b09050; }
+.roadmap-release-note { border-left:2px solid #66bd83; padding-left:10px; }
+.roadmap-release-note a { color:#a4e7bc; text-decoration:underline; }
 .roadmap-vote-count,.roadmap-vote-closed { color:#a6c0ae; font-size:11px; }
 .roadmap-vote-button {
   border:1px solid #c1a45c; border-radius:5px; padding:8px 12px;

@@ -36,16 +36,13 @@
     const match = /^roadmap-feature-(\d+)$/.exec(detail.id);
     if (!match) return;
     const id = Number(match[1]);
-    const name = detail.querySelector("summary")?.textContent?.replace(/^#\d+\s*/, "").trim() || "Idea " + id;
-    const statusLabel = id === 31 ? "Building / Testing" : [7, 8, 9, 13].includes(id) ? "Design Stage" : "Idea Stage";
-    const summary = detail.querySelector("summary");
-    const stageTag = el("span", "roadmap-feature-status", statusLabel);
-    summary.append(stageTag);
+    const name = detail.querySelector("summary > span:nth-child(2)")?.textContent?.trim() || "Idea " + id;
+    const statusLabel = detail.dataset.roadmapStatus;
     const controls = el("div", "roadmap-feature-voting");
     const counter = el("span", "roadmap-vote-count", "Loading votes…");
     controls.append(counter);
     let button = null;
-    if (statusLabel === "Idea Stage") {
+    if (statusLabel === "idea") {
       button = el("button", "roadmap-vote-button", "Vote");
       button.type = "button";
       button.disabled = true;
