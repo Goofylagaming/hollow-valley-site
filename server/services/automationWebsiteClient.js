@@ -864,3 +864,5 @@ module.exports = {
   buildAdminRestoreJson,
   uploadAdminRestore,
 };
+
+module.exports.legacyRequest = (path, options) => call(`/legacy${path}`, options);

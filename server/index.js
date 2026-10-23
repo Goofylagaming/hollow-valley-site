@@ -216,6 +216,7 @@ function createApp() {
     }
     res.json({
       loggedIn: Boolean(req.user),
+      valleyLegacyEnabled: process.env.VALLEY_LEGACY_ENABLED === "1",
       user: req.user || null,
       territoryWarsAdminAccess: TERRITORY_WARS_ADMIN_TEST_ENABLED && isTerritoryAdmin(req.user),
       discordLoginConfigured: authRouter.isConfigured,
@@ -243,6 +244,7 @@ function createApp() {
   app.use("/api/wallet", walletRouter);
   app.use("/api/quests", questsRouter);
   app.use("/api/progression", progressionRouter);
+  app.use("/api/legacy", require("./routes/valleyLegacy"));
   app.use("/api/roster", rosterRouter);
   app.use("/api/leaderboards", leaderboardsRouter);
   app.use("/api/map", mapRouter);
@@ -279,7 +281,7 @@ function createApp() {
   app.use("/api/dinostorage", legacyDirectGameApiRetired);
   app.all(["/api/park", "/api/playerdata", "/api/redeem", "/api/parked", "/api/admin"], legacyDirectGameApiRetired);
 
-  const PAGE_ROUTES = ["dashboard", "wallet", "quests", "profile", "mydinos", "bodydrop", "friends", "groups", "marketplace", "livemap", "leaderboard", "supporter", "events"];
+  const PAGE_ROUTES = ["legacy", "dashboard", "wallet", "quests", "profile", "mydinos", "bodydrop", "friends", "groups", "marketplace", "livemap", "leaderboard", "supporter", "events"];
   for (const page of PAGE_ROUTES) {
     app.get(`/${page}`, (req, res) => {
       res.sendFile(path.join(__dirname, "..", "public", `${page}.html`));
