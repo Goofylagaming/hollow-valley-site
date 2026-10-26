@@ -2,6 +2,22 @@
   "schema": 1,
   "web": [
     {
+      "version": "W32.0",
+      "title": "Challenge Expeditions — W32.0",
+      "notes": [
+        "The Operations Challenge Board adds five permanent contracts: solo, herbivore, no Prime, no set equipment, and a full Prime crew.",
+        "Clear every node and extract to earn cosmetic medals. Attempts and best progress are saved, with no weekly expiry.",
+        "Challenge routes use your latest unlocked regional tier and stay fixed for the same contract, region and stage. Bring appropriate tier gear.",
+        "Operation battles now preserve the crew formation chosen at dispatch. Existing saves migrate with empty challenge records.",
+        "Operation nodes no longer become interrupted during a live battle. Reloading during combat still protects cleared cargo for extraction.",
+        "Operation victories show the actual secured Bones and fossil cargo, with a reminder to extract before collecting.",
+        "W32.0 migrates existing Web campaign saves from format 13 to format 14, adding empty Challenge Expedition records without changing existing campaign, Prime, Frontier or Operations progress. Older Web builds must not open format-14 saves; Web and World/Desktop saves remain separate."
+      ],
+      "published": "2026-10-26",
+      "commit": "7308a0e27f4d4d4651fe7d40b5815bdf28e04704",
+      "source": "https://github.com/Goofylagaming/primalbound/blob/7308a0e27f4d4d4651fe7d40b5815bdf28e04704/web/update-notes.json"
+    },
+    {
       "version": "W31.2",
       "title": "30 Ancient Dungeons, Lower Stamina Costs — W31.2",
       "notes": [
