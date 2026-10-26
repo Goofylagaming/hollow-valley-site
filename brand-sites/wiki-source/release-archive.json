@@ -2,6 +2,31 @@
   "schema": 1,
   "web": [
     {
+      "version": "W31.2",
+      "title": "30 Ancient Dungeons, Lower Stamina Costs — W31.2",
+      "notes": [
+        "Dungeon stamina costs are lower: the six original routes now cost 5–18 stamina, and the 24 new routes cost 18–25.",
+        "The dungeon roster grows from 6 to 30 five-floor expeditions, unlocked from stage 800 through the Tier 10 finale at stage 10,000.",
+        "New routes are grouped by Expedition Tier and scale their threats and rewards with campaign progress.",
+        "W31.2 does not announce a new save format after W31's format 13. Continue using current builds and export saves before changing versions."
+      ],
+      "published": "2026-10-26",
+      "commit": "3a3ca37a91c8f69dfc2b2fb7d3435a9e07b0fdd6",
+      "source": "https://github.com/Goofylagaming/primalbound/blob/3a3ca37a91c8f69dfc2b2fb7d3435a9e07b0fdd6/web/update-notes.json"
+    },
+    {
+      "version": "W31.1",
+      "title": "Endgame Boss Balance — W31.1",
+      "notes": [
+        "Prime Trial and Frontier Guardians are rebalanced for their already-scaled Tier 10 encounters, making the Trial ladder beatable as Prime Growth unlocks.",
+        "The five Frontier Hunts remain clearable with the existing 200% total Growth cap; no extra Growth tier is needed.",
+        "W31.1 does not announce a new save format after W31's format 13."
+      ],
+      "published": "2026-10-26",
+      "commit": "3aed8e8b6479894aad58fc546326991376281071",
+      "source": "https://github.com/Goofylagaming/primalbound/blob/3aed8e8b6479894aad58fc546326991376281071/web/update-notes.json"
+    },
+    {
       "version": "W31",
       "title": "Prime Frontier Hunts — W31",
       "notes": [
