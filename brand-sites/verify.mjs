@@ -15,3 +15,22 @@ const web=await readFile(new URL('primalbound/web/index.html',root),'utf8');asse
 const world=await readFile(new URL('primalbound/world/index.html',root),'utf8');assert.match(world,/primalbound-downloads\/releases\/latest/);
 console.log(`PASS: ${count} pages; internal links, anchors, noindex, static isolation, live-game destination and release link.`);
 
+
+const studioBase=new URL('hollow-valley/',root);
+for(const route of ['our-games/','hollow-valley/','primalbound/','merch/','news/','support/']) {
+ const html=await readFile(new URL(route+'index.html',studioBase),'utf8');
+ assert.match(html,/HOLLOW VALLEY/);
+ assert.match(html,/PRIMALBOUND/i);
+ assert.match(html,/href="\/merch\/"/);
+}
+const studioHome=await readFile(new URL('index.html',studioBase),'utf8');
+assert.match(studioHome,/Two worlds\. One creative home/);
+assert.match(studioHome,/href="\/hollow-valley\/"/);
+assert.match(studioHome,/href="\/primalbound\/"/);
+const merchPage=await readFile(new URL('merch/index.html',studioBase),'utf8');
+assert.match(merchPage,/No orders/);
+assert.match(merchPage,/mailto:/);
+assert.match(merchPage,/Colouring Book Collection/);
+assert.equal((merchPage.match(/class="merch-item"/g)||[]).length,6);
+assert.doesNotMatch(merchPage,/checkout|<form|<script|<iframe/i);
+console.log('PASS: Studios routes, Hollow Valley/Primalbound cards and six merch concepts; no checkout or live integrations.');
