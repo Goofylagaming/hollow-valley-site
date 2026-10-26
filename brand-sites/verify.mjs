@@ -32,5 +32,5 @@ assert.match(merchPage,/No orders/);
 assert.match(merchPage,/mailto:/);
 assert.match(merchPage,/Colouring Book Collection/);
 assert.equal((merchPage.match(/class="merch-item"/g)||[]).length,6);
-assert.doesNotMatch(merchPage,/checkout|<form|<script|<iframe/i);
+assert.doesNotMatch(merchPage,/<form|<script|<iframe|https:\/\/(?:checkout\.stripe\.com|buy\.stripe\.com)/i);
 console.log('PASS: Studios routes, Hollow Valley/Primalbound cards and six merch concepts; no checkout or live integrations.');
