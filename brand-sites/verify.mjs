@@ -60,7 +60,7 @@ const intro=await readFile(join(base,'web/index.html'),'utf8');
 assert.ok(intro.includes('href="https://hollowvalleyisle.com/primalbound/"'), 'Web entry must retain the existing game URL until /web is a verified playable mount');
 for (const site of ['primalbound','hollow-valley']) {
   const robots = await readFile(join(root,site,'robots.txt'),'utf8');
-  assert.equal(robots, production?'User-agent: *\\nAllow: /\\n':'User-agent: *\\nDisallow: /\\n');
+  assert.equal(robots, production?'User-agent: *\nAllow: /\n':'User-agent: *\nDisallow: /\n');
 }
 const worldIntro=await readFile(join(base,'world/index.html'),'utf8');
 assert.match(worldIntro,/primalbound-downloads\/releases\/latest/);
