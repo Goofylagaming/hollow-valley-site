@@ -20,3 +20,6 @@ for(const site of ['primalbound','hollow-valley']){await writeFile(root+site+'/s
 console.log('Built two isolated static sites; no dependencies, secrets or game services.');
 
 
+
+// Extend only the generated Studios static website; Primalbound builds remain unchanged.
+await import('./studio-expand.mjs');
