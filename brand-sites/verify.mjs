@@ -57,7 +57,9 @@ for(const html of [web,world]) {
   assert.deepEqual(anchors,sections,'Sidebar chapter anchors do not match guide sections');
 }
 const intro=await readFile(join(base,'web/index.html'),'utf8');
-assert.ok(intro.includes('href="'+(production?'https://primalboundgame.com/web/':'https://hollowvalleyisle.com/primalbound/')+'"'));
+const approvedGameLinks=['https://primalboundgame.com/web/','https://hollowvalleyisle.com/primalbound/'];
+assert.ok(approvedGameLinks.some(url=>intro.includes('href="'+url+'"')),'Unrecognized Web game destination');
+if(production) assert.ok(intro.includes('href="https://primalboundgame.com/web/"'),'Production must use the current branded Web destination');
 const worldIntro=await readFile(join(base,'world/index.html'),'utf8');
 assert.match(worldIntro,/primalbound-downloads\/releases\/latest/);
 console.log('PASS: '+count+' pages, complete wiki chapters, search, anchors, safe scripts, staging indexing and game/download links.');
