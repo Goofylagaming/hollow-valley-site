@@ -20,9 +20,13 @@ for (const site of ['primalbound','hollow-valley']) {
       assert.doesNotMatch(html,/<form\b|<iframe\b|DATABASE_URL|SESSION_SECRET/i);
       const scripts=[...html.matchAll(/<script\b[^>]*>/gi)];
       if(scripts.length){
-        assert.ok(file.endsWith(join('wiki','index.html')),'Scripts are only allowed on guide pages: '+file);
-        assert.equal(scripts.length,1,'A wiki page must have only the approved external search script');
-        assert.equal(scripts[0][0],'<script src="../../assets/wiki.js" defer>');
+        const wiki=file.endsWith(join('wiki','index.html'));
+        const notes=file.endsWith(join('patch-notes','index.html'));
+        assert.ok(wiki||notes,'Unapproved script on marketing page: '+file);
+        const expected=wiki
+          ?['<script src="../../assets/wiki.js" defer>','<script src="../../assets/release-notes.js" defer>']
+          :['<script src="../../assets/release-notes.js" defer>'];
+        assert.deepEqual(scripts.map(x=>x[0]).sort(),expected.sort(),'Only approved same-origin wiki/release scripts are allowed');
       }
       for(const [,url] of html.matchAll(/href="([^"]+)"/g)) {
         if(url.startsWith('#')){assert.ok(html.includes('id="'+url.slice(1)+'"'),file+': '+url);continue;}
@@ -62,4 +66,21 @@ assert.ok(approvedGameLinks.some(url=>intro.includes('href="'+url+'"')),'Unrecog
 if(production) assert.ok(intro.includes('href="https://primalboundgame.com/web/"'),'Production must use the current branded Web destination');
 const worldIntro=await readFile(join(base,'world/index.html'),'utf8');
 assert.match(worldIntro,/primalbound-downloads\/releases\/latest/);
-console.log('PASS: '+count+' pages, complete wiki chapters, search, anchors, safe scripts, staging indexing and game/download links.');
+const notesHome=await readFile(join(base,'patch-notes/index.html'),'utf8');
+const webNotes=await readFile(join(base,'web/patch-notes/index.html'),'utf8');
+const worldNotes=await readFile(join(base,'world/patch-notes/index.html'),'utf8');
+const notesJs=await readFile(join(base,'assets/release-notes.js'),'utf8');
+const notesCss=await readFile(join(base,'assets/release-notes.css'),'utf8');
+for(const [notes,label,expectedVersion] of [[webNotes,'web','W31'],[worldNotes,'world','M36.4']]){
+ assert.match(notes,new RegExp(expectedVersion.replace('.','\\.')),'Missing release '+expectedVersion);
+ assert.ok(notes.includes('data-release-list="'+label+'"'));
+ assert.ok(notes.includes('href="/'+label+'/wiki/"'),'Missing guide cross-link');
+}
+for(const [guide,label] of [[web,'web'],[world,'world']]){
+ assert.ok(guide.includes('data-release-list="'+label+'"'),'Guide release updates missing');
+ assert.ok(guide.includes('href="/'+label+'/patch-notes/"'),'Patch notes cross-link missing');
+}
+assert.ok(notesHome.includes('href="/web/patch-notes/"')&&notesHome.includes('href="/world/patch-notes/"'));
+assert.ok(notesJs.includes('normalizeWeb')&&notesJs.includes('normalizeWorld'),'Live release listeners missing');
+assert.ok(notesCss.includes('.release-card'),'Patch note styles missing');
+console.log('PASS: '+count+' pages, guide updates, versioned Web/World patch notes, same-origin scripts, anchors, indexing and game links.');
