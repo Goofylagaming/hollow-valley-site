@@ -1,0 +1,257 @@
+{
+  "schema": 1,
+  "web": [
+    {
+      "version": "W31",
+      "title": "Prime Frontier Hunts — W31",
+      "notes": [
+        "Prime Frontier opens after stage 10,000 and all five Prime Trial ranks, adding five finite advanced Guardian Hunts.",
+        "Entry proofs cover Prime team roles, 125% Prime Growth, a complete three-piece set, any hybrid, and a cleared Prime Territory Ancient Trail.",
+        "First clears award fixed Bones, Prime Essence and Mutation Shards. Replays cost stamina and cannot award repeat rewards, set gear or DNA.",
+        "Save format 13 records Frontier trophies and Prime Territory mastery. Format 12 campaign and Prime Trial progress carries forward."
+      ],
+      "published": "2026-10-26",
+      "commit": "1b48c38f20ac0f5016cc45b84d84373966c5e54b",
+      "source": "https://primalbound-web-preview.onrender.com/release-info.json"
+    },
+    {
+      "version": "W30",
+      "title": "Prime Growth & the Five Prime Tiers — W30",
+      "notes": [
+        "Fully grown, awakened Prime companions can continue from 100% to 200% total growth through four post-campaign tiers.",
+        "Prime Trial Ranks I–IV unlock the next 25% Prime Growth tier in order. Rank V remains the final trial.",
+        "Each Prime Growth tier adds +5% Attack and Health, up to +20% at 200% total growth.",
+        "Prime Growth costs Bones. The +1% and +10% buttons preview the exact price and never make partial purchases.",
+        "Prime Growth requires 100% natural Growth and an awakened Prime. Missions, breeding and hatchling Growth bonuses keep their natural 100% cap.",
+        "Format 11 saves retain campaign, natural Growth and Prime Trial progress; Prime Growth begins at 0% and unlocks from cleared trials."
+      ],
+      "published": "2026-10-26",
+      "commit": "848e373ed2e9057899401f45d2f34f969b92beac",
+      "source": "https://primalbound-web-preview.onrender.com/release-info.json"
+    },
+    {
+      "version": "W29",
+      "title": "Pack Formations & Role Tactics — W29",
+      "notes": [
+        "Set Frontline, Centre and Rear. Saved order shapes campaign battles, Prime Trials, training and operation crews.",
+        "Tanks and Guardians intercept up front; Brawlers open strong, Support heals in Centre, and Hunters or Ambushers strike from Rear.",
+        "Centre Defenders guard adjacent positions. Scouts in Centre or Rear see guardian warnings earlier; one role-based formation synergy can activate.",
+        "Saved packs retain their member order. Switching or rearranging companions never moves gear or changes growth.",
+        "Format 10 saves migrate to format 11 with the existing companion order and campaign progress preserved."
+      ],
+      "published": "2026-10-26",
+      "commit": "8bf39832",
+      "source": "https://primalbound-web-preview.onrender.com/release-info.json"
+    },
+    {
+      "version": "W28",
+      "title": "Expedition Operations & Fossil Research — W28",
+      "notes": [
+        "Survey, Hunt, Recover, Escort and Explore cleared regions. Logistics unlocks five-node Deep Routes; Ancient Studies opens named-Guardian Ancient Trails.",
+        "Dispatch locks the route, reward preview and crew loadout. Choose route conditions and kits, fight each node, then extract cargo or press on.",
+        "Four fossil types per species. Unique finds build milestones; duplicates grant Insight for Biology, Logistics, Craftsmanship, Guardian and Ancient research.",
+        "Extraction credits Bones, fossils and Insight once. An interrupted node cannot be replayed; cleared cargo stays safe and companions or gear are never lost.",
+        "Format 9 saves migrate to 10 with campaign, Trial and weekly records intact. Operations leave campaign battle rewards and the 100% Growth cap unchanged."
+      ],
+      "published": "2026-10-26",
+      "commit": "112d268f22b1ae142804af1c7b95453e24edfb55",
+      "source": "https://primalbound-web-preview.onrender.com/release-info.json"
+    },
+    {
+      "version": "W27.2",
+      "title": "Prime Trial Ascension — W27.2",
+      "notes": [
+        "Two optional endgame fights add Rank IV’s Veilstalker and Rank V’s Frosthowl, each with a distinct warning and signature mutation attack.",
+        "Ranks IV–V unlock Veilbreaker and The Unbroken Crown, trial-only masteries. Campaign battles and the 100% Growth cap stay unchanged.",
+        "Format 8 saves migrate to 9 while preserving campaign progress, Trial clears, mastery and weekly claims. Older builds cannot overwrite format 9."
+      ],
+      "published": "2026-10-26",
+      "commit": "d4d70889d1b8332db88d4bc677022a15b251f54c",
+      "source": "https://primalbound-web-preview.onrender.com/release-info.json"
+    },
+    {
+      "version": "W27.1",
+      "title": "Prime Trials and protected saves — W27.1",
+      "notes": [
+        "Clear campaign stage 10,000 to unlock three optional Prime Trial ranks with distinct guardian attacks and custom mutation attacks at later ranks.",
+        "First clears grant fixed rewards; each rank pays repeat rewards up to three times per week. Capped ranks remain playable without rewards.",
+        "Clearing ranks unlocks Prime Masteries. Choose one active bonus that applies in Prime Trials only; campaign battles and Growth remain unchanged.",
+        "Preview campaign encounters and Prime Trials in the Tactical Grounds. Practice costs no stamina and never changes your save.",
+        "Existing campaigns gain a separate Prime Trial record when loaded. Older game versions recognize the updated save format and will not overwrite it.",
+        "If another tab saves first, this tab pauses saving and offers download or reload. Previous-save recovery rechecks that the reviewed copy is still current.",
+        "Battle calculations now load when you enter a fight instead of during the opening page load."
+      ],
+      "published": "2026-10-26",
+      "commit": "12c7eff4d7f5459702c88d103a00bed36070e75d",
+      "source": "https://primalbound-web-preview.onrender.com/release-info.json"
+    }
+  ],
+  "world": [
+    {
+      "version": "M36.4",
+      "title": "Primalbound World M36.4 — Windows playtest",
+      "notes": [
+        "Discover three more optional regional events across the visited World map: Rare Nest / Track Chain, Severe Storm and Rare Bestiary Sighting. Events remain deterministic, non-expiring and claimable once per map.",
+        "New rewards use the existing Bones and physical-material economy. Nest and Bestiary events add the matching sighting or track evidence to the Living Bestiary; no event grants DNA, Prime Essence or Mutation Shards.",
+        "Fixed regional event completion IDs after JSON reload so already resolved events stay resolved after restarting the game.",
+        "The pause panel stays within the visible screen, with scrolling for its lower options on small or portrait windows.",
+        "Existing event claims and campaign saves remain valid. M36.4 adds no campaign save-schema change."
+      ],
+      "published": "2026-10-25",
+      "tag": "m36-4-build-40183013083",
+      "source": "https://github.com/Goofylagaming/primalbound-downloads/releases/tag/m36-4-build-40183013083"
+    },
+    {
+      "version": "M36.3",
+      "title": "Primalbound World M36.3 — Windows playtest",
+      "notes": [
+        "Melee, ranged and magic impacts now each have a distinct sound cue. Raising shield guard, releasing a ranged shot and casting a spell also have their own cues.",
+        "The cues use the existing Effects volume and mute settings. Sound captions identify each hit and ability, including when audio is muted.",
+        "M36.3 keeps schema-330 campaign progress, local profiles, recovery points, M35 preferences, offline play and gated cloud sync. It does not migrate or reset existing saves."
+      ],
+      "published": "2026-10-25",
+      "tag": "m36-3-build-40176102545",
+      "source": "https://github.com/Goofylagaming/primalbound-downloads/releases/tag/m36-3-build-40176102545"
+    },
+    {
+      "version": "M36.2",
+      "title": "Primalbound World M36.2 — Windows playtest",
+      "notes": [
+        "The Low graphics startup check now applies the actual Low preset before Mosswatch loads.",
+        "Exported Windows verification samples the running game's process working set while the world is loaded. An unavailable or zero memory reading can no longer pass the 512 MiB check.",
+        "M36.2 changes no campaign progress or player settings; existing schema-330 saves and recovery data stay intact."
+      ],
+      "published": "2026-10-25",
+      "tag": "m36-2-build-40172644628",
+      "source": "https://github.com/Goofylagaming/primalbound-downloads/releases/tag/m36-2-build-40172644628"
+    },
+    {
+      "version": "M36.1",
+      "title": "Primalbound World M36.1 — Windows playtest",
+      "notes": [
+        "The Explorer Field Guide now lists each owned companion’s current growth, next growth milestone, Prime eligibility or awakening, and training XP. A species page filters that list to the matching creature.",
+        "The Mosswatch Lodge now displays route trophies only after mastery is earned, with visible Rank I, II or III crests. Collecting the mission that reaches a rank updates the Lodge display immediately.",
+        "M36.1 keeps the existing schema-330 campaign, local profiles, recovery points, offline play and gated cloud sync. No existing save is migrated or reset by this update."
+      ],
+      "published": "2026-10-25",
+      "tag": "m36-1-build-40167782425",
+      "source": "https://github.com/Goofylagaming/primalbound-downloads/releases/tag/m36-1-build-40167782425"
+    },
+    {
+      "version": "M36",
+      "title": "Primalbound World M36 — Windows playtest",
+      "notes": [
+        "Keep up to eight separate local profiles with individual campaign saves. M36 wraps the existing schema-330 campaign in a verified profile envelope and imports older progress without changing its source save.",
+        "Recover damaged local progress from the verified backup or one of the ten retained save points. Export a standalone JSON backup, or validate an imported backup into a new profile so an existing profile stays intact.",
+        "Keep playing offline without an account. Cloud sync stays gated because the configured account service does not yet advertise M36 World-save support; local saves remain on this device.",
+        "Open and manage local profiles without replacing another profile. Earlier schema-330 progress can be imported as a separate local profile, and JSON backups can be exported or imported safely.",
+        "M36 adds no campaign gameplay schema. Existing schema-330 progress, M35 settings, the optional updater and all earlier World content remain available."
+      ],
+      "published": "2026-10-25",
+      "tag": "m36-build-40164659532",
+      "source": "https://github.com/Goofylagaming/primalbound-downloads/releases/tag/m36-build-40164659532"
+    },
+    {
+      "version": "M35",
+      "title": "Primalbound World M35 — Windows playtest",
+      "notes": [
+        "Set Low, Balanced or High graphics, choose display size and window mode, and set a frame cap. Shadow, effect and model quality can be tuned separately for slower or faster Windows PCs.",
+        "Adjust HUD and text size, sound cue captions, camera shake, damage flash and screen effect intensity. M35 settings live in their own local preferences file and do not modify campaign saves.",
+        "Open the Explorer Journal to reach Creatures, Regions, Guardians, Fossils, Expeditions, Lineages, Research and Trophies. New optional returns and rewards produce a quiet review notice; nothing is claimed automatically.",
+        "Load imported raptor and tyrannosaur models in the background while procedural fallbacks remain visible. Build larger management screens and creature previews only when opened; generate region layouts only for visited maps.",
+        "Reuse common magic and ranged projectiles and floating combat text through bounded pools; Low effects reduces nonessential projectile visuals.",
+        "Play Current Version now opens the current milestone scene. M35 keeps campaign progress at schema 330 and retains M34 audio, M33 models and fossil collections, and all earlier World content."
+      ],
+      "published": "2026-10-25",
+      "tag": "m35-build-40157680693",
+      "source": "https://github.com/Goofylagaming/primalbound-downloads/releases/tag/m35-build-40157680693"
+    },
+    {
+      "version": "M34",
+      "title": "Primalbound World M34 — Windows playtest",
+      "notes": [
+        "Keep the original Sanctuary, exploration and combat music, now layered with eight generated ambience loops for settlements and biome families: forest, wetland, coast, volcanic, ice/crystal, ruins/bones and rift.",
+        "Adjust Master, Music, Ambience, Effects and Interface volume and mute independently. Existing M24 music and SFX preferences migrate automatically; audio settings stay separate from campaign progress.",
+        "Hear original offline cues for Workshop completions, egg hatches, expedition returns, Prime awakenings, Guardian telegraphs, special attacks and mutant phases. Visual Guardian warnings remain available when sound is muted.",
+        "M34 adds no campaign save schema. Existing schema-330 progress, species models, palaeontology collection, and all inherited world content remain intact."
+      ],
+      "published": "2026-10-25",
+      "tag": "m34-build-40155072845",
+      "source": "https://github.com/Goofylagaming/primalbound-downloads/releases/tag/m34-build-40155072845"
+    },
+    {
+      "version": "M33",
+      "title": "Primalbound World M33 — Windows playtest",
+      "notes": [
+        "See species-specific 3D models for the Field Guide roster, six hybrids and six Mutant Guardians. Deinosuchus keeps a crocodilian silhouette and Triceratops keeps its ceratopsian frill and horns; stable species IDs still drive every saved creature.",
+        "Excavate named fossil sites to add deterministic, species-linked specimens to the permanent collection. Build the physical Mosswatch Fossil Archive, then study two duplicate specimens to add a palaeontology record while keeping one specimen for display.",
+        "Open the Palaeontology Index anywhere to review collection progress, research and trophy milestones. The Archive displays collected creature models and trophies; research actions require the physical Archive and do not spend Bones or add combat power.",
+        "Inspect 3D creature models from the Field Guide atlas and Sanctuary roster. Visual profiles include preferred model, fallback family, scale, collision and mount-anchor data; unavailable optional models use their registered fallback while saves keep species IDs.",
+        "M33 stores collection records in schema 330 at `user://m33_progress.json`. It safely imports verified M32 progress without changing the source save and keeps palaeontology progress when starting a new campaign.",
+        "M32 regional events and Expedition Operations, M31 explorer identity and controls, M30 facilities and shared stockpile, and all earlier content remain available. The verified launcher and self-updater remain in place."
+      ],
+      "published": "2026-10-25",
+      "tag": "m33-build-40152406523",
+      "source": "https://github.com/Goofylagaming/primalbound-downloads/releases/tag/m33-build-40152406523"
+    },
+    {
+      "version": "M32",
+      "title": "Primalbound World M32 — Windows playtest",
+      "notes": [
+        "Discover optional, biome- and tier-shaped regional events across visited maps. Rare herd sightings connect stable species IDs and track evidence to the Living Bestiary; event rewards are deterministic, claims are atomic and permanent, and events never expire or rotate with the calendar.",
+        "The Lodge and Sanctuary now explain the first Bones route and reserve-crew setup: make one starter a reserve at the Companion Armoury, then collect 40 Bones from Fernwood Foraging after 15 minutes.",
+        "Dispatch active-play Expedition Operations at Mosswatch’s physical Expedition Board. Choose a visited map, objective, saved companion pack and reviewed supplies; operation seeds, costs and base/deep rewards are saved at dispatch.",
+        "Travel to the marked field objectives, resolve local encounters and choose to extract after three steps or continue for two more. Retreat gives no reward, while the optional five-step Trailblazer route awards a permanent clear/depth record and no currency.",
+        "Open the Field Events & Readiness index from the Journal or pause menu anywhere. It quietly counts event opportunities, Lodge returns, ready eggs, completed Workbench orders, claimable Field Contracts and Journey rewards.",
+        "M32 stores progress in schema 320 at `user://m32_progress.json`. It imports valid M31 progress without changing the source save; event claims, active operation snapshots and challenge records persist through reloads and a new campaign.",
+        "M31 explorer identity, owned-item class loadouts, remappable controls, companion roster, M30 facilities and shared stockpile, and the existing verified launcher/self-updater remain available."
+      ],
+      "published": "2026-10-25",
+      "tag": "m32-build-40148616542",
+      "source": "https://github.com/Goofylagaming/primalbound-downloads/releases/tag/m32-build-40148616542"
+    },
+    {
+      "version": "M31",
+      "title": "Primalbound World M31 — Windows playtest",
+      "notes": [
+        "Edit a saved explorer profile with visible body, head, hair and color choices.",
+        "Save Melee, Ranged and Magic equipment-ID presets. Applying a preset uses only equipment already owned; missing pieces stay missing and stale reviews are rejected.",
+        "Remap movement, interaction, equipment, journal, companion commands and shield guard. Escape remains the pause key, duplicate bindings are refused, settings reload correctly, and the Squad screen uses the mapped Assist/Passive control.",
+        "Search the Sanctuary companion roster by name or species and filter Active, Reserve and Away/Ready records. Review growth, health and equipment, with missing-member warnings for saved packs.",
+        "Stop soundtrack playback before a saved quit or window close; release music streams during shutdown.",
+        "M31 stores new profile and class-preset data in schema 310 at `user://m31_progress.json`. It safely migrates M30.1 progress, leaves that source save unchanged, and keeps the verified launcher and self-updater."
+      ],
+      "published": "2026-10-25",
+      "tag": "m31-build-40144512527",
+      "source": "https://github.com/Goofylagaming/primalbound-downloads/releases/tag/m31-build-40144512527"
+    },
+    {
+      "version": "M30.1",
+      "title": "Primalbound World M30.1 — Windows playtest",
+      "notes": [
+        "Research local plants at the Herbalist Hut to unlock Refined and Prime Tonics. Craft batches of 1, 5 or 10; advanced tonics restore more explorer and companion health, but cannot revive a downed companion.",
+        "Upgrade the Fossil Archive, Genetics Wing, Nursery, Lodge, Herbalist and Training Yard to reveal new physical details: researched fossils and plants, specimen racks, incubator spaces, Lodge trophies, practice dummies and the Prime dais.",
+        "M30.1 stores its new research and tonic stock in schema 301 at `user://m30_1_progress.json`. It imports a valid M30 save into the new file and leaves the M30 save untouched; M30 and earlier progression remains available."
+      ],
+      "published": "2026-10-24",
+      "tag": "m30-1-build-40139225024",
+      "source": "https://github.com/Goofylagaming/primalbound-downloads/releases/tag/m30-1-build-40139225024"
+    },
+    {
+      "version": "M30",
+      "title": "Primalbound World M30 — Windows playtest",
+      "notes": [
+        "Upgrade six global Mosswatch facilities at their physical stations: Expedition Lodge, Nursery Shelter, Training Yard, Fossil Archive, Herbalist Hut and Genetics Research Wing. Facility levels and costs use existing Expedition Coins and materials; no construction currency is added.",
+        "The Lodge facility guide now shows the quick Bones routes: Fernwood Foraging (40 Bones / 15 minutes) and Fossil Recovery (120 Bones / 30 minutes), plus their frontier gates and collection point.",
+        "Nursery Level II and III add third and fourth incubator spaces. Nursery levels speed up only newly created eggs; saved hatch times do not change after an upgrade.",
+        "Research recovered Ancient Fragments at the Fossil Archive for up to +15% Fossil Excavation yield. Craft 1, 5 or 10 Herbal Tonics at a time from River Reed and Mosswood Fibre; tonics heal the explorer and living active companions but cannot revive a downed companion.",
+        "Run a paid Training Yard Growth Drill for the current active party. Practice sessions and Prime awakening remain available; facility levels change future actions only.",
+        "Existing Lodge route durations and mission slot thresholds remain unchanged. Mission rewards, crew and finish times stay frozen after dispatch.",
+        "M30 uses schema 300 in `user://m30_progress.json`, imports validated M29 progress into its own save and leaves the source file unchanged. Starting a new expedition preserves M29 Journey records and M30 facility progress."
+      ],
+      "published": "2026-10-24",
+      "tag": "m30-build-40135515150",
+      "source": "https://github.com/Goofylagaming/primalbound-downloads/releases/tag/m30-build-40135515150"
+    }
+  ]
+}
