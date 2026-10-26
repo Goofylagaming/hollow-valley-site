@@ -37,6 +37,11 @@ for (const site of ['primalbound','hollow-valley']) {
   }
   await walk(base);
 }
+const studio=await readFile(join(root,'hollow-valley/index.html'),'utf8');
+assert.match(studio,/id="community"/);
+assert.match(studio,/hollowvalleyisle\.com/);
+assert.match(studio,/id="publishing"/);
+assert.match(studio,/primalboundgame\.com\/|primalbound-site-staging\.onrender\.com\//);
 const base=resolve(root,'primalbound');
 const web=await readFile(join(base,'web/wiki/index.html'),'utf8');
 const world=await readFile(join(base,'world/wiki/index.html'),'utf8');
