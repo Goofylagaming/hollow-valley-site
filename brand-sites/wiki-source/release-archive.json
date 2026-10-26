@@ -2,6 +2,22 @@
   "schema": 1,
   "web": [
     {
+      "version": "W34.0",
+      "title": "Dungeon Practice & Pack Comparisons — W34.0",
+      "notes": [
+        "Open Training Grounds → Dungeon Runs, or Practice on one of 30 dungeon cards, for free full-route rehearsals. Locked routes may be previewed but are not unlocked.",
+        "Compare the current Frontline/Centre/Rear formation with up to five saved packs; each uses its own currently equipped gear, Growth, genes, talents, Prime and other current combat bonuses.",
+        "Each pack attempts 20 deterministic five-floor samples with real encounter, carried Health, 20% survivor healing, downed-member and 120-round cap rules; a cap counts as unresolved.",
+        "Review full clears, defeats, unresolved samples, average floors, most common stopping floor, per-floor reach and clear counts, Health before rest, recovered HP and the first sample's floor-by-floor replay.",
+        "Practice gives no stamina costs, rewards, XP, gear, progression or real dungeon records, and never changes equipment, active runs or pending cargo. Simulation results are not calibrated live win odds.",
+        "Companions away on Sanctuary Missions can be rehearsed, but must return to join real dungeon runs. Formation and mission changes invalidate reports that are no longer current.",
+        "Save compatibility: W34.0 keeps Web campaign format 15 without a new migration; W33.0 dungeon checkpoints, campaign, cloud/device saves and previously earned rewards remain unchanged. Never load a format-15 Web save in an older Web client; World/Desktop local saves are separate."
+      ],
+      "published": "2026-10-26",
+      "commit": "f9af13a2c7851a8554009761d3cf4a2ea71b84e2",
+      "source": "https://github.com/Goofylagaming/primalbound/blob/f9af13a2c7851a8554009761d3cf4a2ea71b84e2/web/update-notes.json"
+    },
+    {
       "version": "W33.0",
       "title": "Playable Dungeon Expeditions — W33.0",
       "notes": [
