@@ -11,7 +11,7 @@ for(const site of ['primalbound','hollow-valley']){
  count++;
  }}await walk(base);
 }
-const web=await readFile(new URL('primalbound/web/index.html',root),'utf8');assert.match(web,/https:\/\/primalbound-game\.floot\.app/);
+const web=await readFile(new URL('primalbound/web/index.html',root),'utf8');assert.ok(web.includes('href="https://hollowvalleyisle.com/primalbound/"'));
 const world=await readFile(new URL('primalbound/world/index.html',root),'utf8');assert.match(world,/primalbound-downloads\/releases\/latest/);
 console.log(`PASS: ${count} pages; internal links, anchors, noindex, static isolation, live-game destination and release link.`);
 
