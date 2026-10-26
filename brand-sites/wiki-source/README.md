@@ -4,7 +4,7 @@ The live Primalbound Render static service builds `brand-sites/dist/primalbound`
 The existing homepage, `/web/` and `/world/` are preserved.
 
 The last build step in `brand-sites/build.mjs` imports `publish-wikis.mjs`, which replaces only:
-- `/web/wiki/index.html` (W26.28 Preview baseline)
+- `/web/wiki/index.html` (Web Preview W31.2 verified how-to and W27–W31.2 migration instructions)
 - `/world/wiki/index.html` (M36.4 Windows playtest)
 - `/assets/wiki.css`
 - `/assets/wiki.js`
