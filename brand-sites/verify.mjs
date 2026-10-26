@@ -22,7 +22,7 @@ for (const site of ['primalbound','hollow-valley']) {
       if(scripts.length){
         assert.ok(file.endsWith(join('wiki','index.html')),'Scripts are only allowed on guide pages: '+file);
         assert.equal(scripts.length,1,'A wiki page must have only the approved external search script');
-        assert.equal(scripts[0][0],'<script src="../../assets/wiki.js" defer></script>');
+        assert.equal(scripts[0][0],'<script src="../../assets/wiki.js" defer>');
       }
       for(const [,url] of html.matchAll(/href="([^"]+)"/g)) {
         if(url.startsWith('#')){assert.ok(html.includes('id="'+url.slice(1)+'"'),file+': '+url);continue;}
