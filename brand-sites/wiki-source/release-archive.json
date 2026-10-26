@@ -2,6 +2,23 @@
   "schema": 1,
   "web": [
     {
+      "version": "W33.0",
+      "title": "Playable Dungeon Expeditions — W33.0",
+      "notes": [
+        "All 30 dungeons now contain five playable battles, including an elite sentinel and a final Guardian, instead of an instant power check.",
+        "Pay the existing 5–25 stamina entry cost once. Your party, equipment, route and reward roll are fixed when the expedition begins.",
+        "Health carries between floors. Survivors recover 20% maximum Health after a clear; downed companions remain down for the run.",
+        "Pause between floors and resume after loading. Reloading during a fight ends the attempt safely, keeping cleared-floor consolation Bones.",
+        "Full clears award the existing Bones, Prime Essence and Shards, plus gear. Tier 2–10 routes now give one Legendary item from their tier.",
+        "Rewards collect atomically; full storage keeps cargo pending. Retreat grants cleared-floor Bones only, with no stamina refund.",
+        "Previous dungeon clears and best-floor records are preserved. The dungeon catalog now loads on demand to keep the Outpost quick.",
+        "Companions on Sanctuary Missions must return before entering or continuing a dungeon.",
+        "W33.0 migrates valid Web campaign saves from format 14 to format 15, adding a persistent five-floor dungeon run, run serial and last report; previous clears, attempts and best-floor records remain intact without retroactive rewards. A reload during battle interrupts the run, allowing retreat only; completed cargo stays pending if safe collection fails. Never open format-15 saves in older Web builds; World/Desktop saves remain separate."
+      ],
+      "published": "2026-10-26",
+      "source": "https://github.com/Goofylagaming/primalbound/blob/13ac62b3f70f9e28bc0a42e336935c2b0cdad0f8/web/update-notes.json"
+    },
+    {
       "version": "W32.0",
       "title": "Challenge Expeditions — W32.0",
       "notes": [
