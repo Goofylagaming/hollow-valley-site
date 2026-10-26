@@ -227,19 +227,19 @@
 <ul>
 <li>Living Bestiary specimens roam on outdoor maps. Seeing, fighting and defeating one can add research without advancing a campaign encounter.
 </li>
-<li>At marked fossil sites, Fossil Excavation adds Ancient Fragments and corresponding species specimens.
+<li><strong>M33 fossils:</strong> At named fossil sites, Fossil Excavation adds Ancient Fragments and species-linked specimens. Collection and research records persist when starting a new campaign.
 </li>
 <li>Build the <strong>Fossil Archive</strong> in Mosswatch and study a species when you hold at least three matching specimens. Research consumes two duplicates, leaving one specimen for display; it does not directly grant combat power.
 </li>
 <li>Open the <strong>Palaeontology Index</strong> anywhere to track samples, research, regions and trophies. Performing new studies requires returning to the physical Archive.
 </li>
-<li>3D creature inspection uses species-specific models where available, with safe registered fallback models.
+<li><strong>M33 3D inspection:</strong> The Field Guide roster, six hybrids and six Mutant Guardians have species-specific models where available. Optional assets may use safe registered fallback models; the saved creature&#39;s species ID stays unchanged.
 </li>
 <li><strong>M36.1:</strong> owned-companion Field Guide records expose current Growth, the <strong>next milestone</strong>, Prime eligibility/awakening and training progress. Lodge Rank I/II/III trophy crests appear only once the corresponding mastery is earned.
 </li></ul>
 </section>
 <section class="wiki-topic" id="16-regional-events-and-active-expedition-operations"><h2>16. Regional events and active Expedition Operations <a class="heading-anchor" href="#16-regional-events-and-active-expedition-operations" aria-label="Copy section link">#</a></h2>
-<p>The physical World map supports optional regional events: migrating herds, predator threats, caravan trouble, rare material blooms, fossil finds, nest/track chains, storms, rift anomalies, settlement warnings and rare Bestiary sightings. In <strong>M36.4</strong>, all ten event families are represented in the event catalog.</p>
+<p>The physical World map supports optional regional events: migrating herds, predator threats, caravan trouble, rare material blooms, fossil finds, nest/track chains, storms, rift anomalies, settlement warnings and rare Bestiary sightings. <strong>M32 introduced these regional events and active Expedition Operations.</strong> In <strong>M36.4</strong>, all ten event families are represented in the event catalog.</p>
 <ul>
 <li>Review the event marker and its reward before resolving it. Events are <strong>deterministic, non-expiring and one-time per map</strong>, not a daily FOMO timer.
 </li>
@@ -247,7 +247,7 @@
 </li>
 <li><strong>M36.4:</strong> Rare Nest / Track Chain, Severe Storm and Rare Bestiary Sighting complete the ten event families. Resolved event IDs persist through JSON reload; an already completed event is not a new claim after restart.
 </li>
-<li>At Mosswatch&#39;s <strong>Expedition Board</strong>, choose a visited destination, operation type, pack, and optional Field Kit. Review supplies and potential rewards before dispatch.
+<li><strong>M32 active operations:</strong> At Mosswatch&#39;s <strong>Expedition Board</strong>, choose a visited destination, operation type, saved companion pack, and optional Field Kit. Review supplies and base/deep rewards before dispatch. The operation&#39;s seed, costs and reward snapshot are fixed at dispatch.
 </li>
 <li>Travel to the marked location and complete three objectives. <strong>Extract</strong> for the base reward, <strong>Continue</strong> for two more objectives and the reviewed deeper reward, or <strong>Retreat</strong> for no reward.
 </li>
@@ -265,11 +265,13 @@
 </li>
 <li><strong>Journey Journal</strong> achievements span several chapters and remain earned once completed. You can pin a goal for easy reference.
 </li>
-<li>The <strong>Explorer Journal</strong> now organises Creatures, Regions, Guardians, Fossils, Expeditions, Lineages, Research and Trophies. Opening the Journal checks status; it does not automatically claim or spend resources.
+<li><strong>M35 Explorer Journal:</strong> Open Creatures, Regions, Guardians, Fossils, Expeditions, Lineages, Research and Trophies from one index. Optional ready returns produce a review notice; opening the Journal never automatically claims or spends resources.
 </li></ul>
 </section>
 <section class="wiki-topic" id="18-settings-sound-and-performance"><h2>18. Settings, sound and performance <a class="heading-anchor" href="#18-settings-sound-and-performance" aria-label="Copy section link">#</a></h2>
 <p>Open <strong>Esc → Graphics &amp; Accessibility</strong> for Low, Balanced or High graphics, frame cap, window mode, resolution, shadow/effect/model quality, HUD/text size, captions, camera shake and effect intensity. <strong>Esc → Music &amp; Sound Settings</strong> separates Master, Music, Ambience, Effects and Interface volume/mute.</p>
+<p><strong>M34 audio and ambience:</strong> Eight additional offline ambience loops cover settlements and biome families (forest, wetland, coast, volcanic, ice/crystal, ruins/bones and rift). Adjust Master, Music, Ambience, Effects and Interface volume/mute independently. Existing M24 music/SFX preferences migrate without changing campaign progress. Visual Guardian telegraphs remain available when muted.</p>
+<p><strong>M35 graphics and performance:</strong> Use Low, Balanced or High with independent frame, resolution, shadow, model, effects and accessibility controls. These preferences are kept in a separate local settings file, not the campaign save. Raptor/tyrannosaur models can load in the background with fallbacks; large management screens and unvisited maps are deferred. Low effects trims optional visuals, not game rules.</p>
 <p><strong>M36.3:</strong> Melee, Ranged and Magic impacts have distinct cues, alongside shield-raise, ranged-release and spell-cast sounds. All follow the existing <strong>Effects</strong> volume/mute options. Combat sound captions can explain attack/guard/cast cues even when Effects sound is muted. Visual warning indicators remain available without sound. Preferences are saved separately from campaign progression. If the game runs slowly, try <strong>Low</strong> or <strong>Balanced</strong>, lower effects, and reduce model/shadow quality. <strong>M36.2</strong> applies the actual Low graphics preset before loading Mosswatch, rather than only displaying Low on the settings screen.</p>
 </section>
 <section class="wiki-topic" id="19-local-profiles-saves-and-safe-recovery"><h2>19. Local profiles, saves and safe recovery <a class="heading-anchor" href="#19-local-profiles-saves-and-safe-recovery" aria-label="Copy section link">#</a></h2>
@@ -290,6 +292,23 @@
 <li>Older milestone imports are <strong>copies</strong> into the newer profile/save format, not an invitation to rename files between versions. Keep the original checkpoint and export a JSON before upgrading.
 </li></ul>
 <p>Local profile data is stored under the Primalbound World application-data area on Windows (typically <strong>%APPDATA%\\PrimalboundWorldPrototype</strong>), separate from the installed game folder. Updating a ZIP/launcher should not require deleting this data.</p>
+<h3>Published World milestone save compatibility (M30–M36.4)</h3>
+<p>These entries apply only to the <strong>World/Desktop Windows playtest</strong>, not Web save formats or cloud accounts. Back up the current profile as JSON before updating. Let the newer game import a <em>copy</em> of an older verified save; do not rename <code>user://</code> files or overwrite the originals manually.</p>
+<ul>
+<li><strong>M30 — schema 300</strong> (<code>user://m30_progress.json</code>): imports validated M29 progress into a new file; the M29 source remains unchanged. Journey records and facility progress carry forward.</li>
+<li><strong>M30.1 — schema 301</strong> (<code>user://m30_1_progress.json</code>): imports valid M30 progress without editing that source file; adds plant research and tonic stock.</li>
+<li><strong>M31 — schema 310</strong> (<code>user://m31_progress.json</code>): migrates valid M30.1 progress, retaining its source save; stores explorer appearance and class loadouts.</li>
+<li><strong>M32 — schema 320</strong> (<code>user://m32_progress.json</code>): imports valid M31 progress without overwriting M31. Regional event claims, active Expedition Operations and Trailblazer records persist through reloads and new campaigns.</li>
+<li><strong>M33 — schema 330</strong> (<code>user://m33_progress.json</code>): imports verified M32 progress, leaves M32 intact and retains palaeontology specimens and research when starting a new campaign.</li>
+<li><strong>M34 — schema 330 unchanged</strong>: adds separate audio preferences and migrates prior M24 music/SFX settings; does not introduce a new campaign save format.</li>
+<li><strong>M35 — schema 330 unchanged</strong>: Graphics &amp; Accessibility preferences are kept separately from campaign progress. Earlier M34 audio and M33 fossil/model content remain available.</li>
+<li><strong>M36 — schema 330 in verified profile envelopes</strong>: no new campaign gameplay schema. Supports eight local profiles, import-as-new-profile from earlier valid progress, and up to ten recovery points without overwriting the source save.</li>
+<li><strong>M36.1 — schema 330 unchanged</strong>: Field Guide and Lodge presentation additions do not migrate or reset the campaign, profiles or recovery points.</li>
+<li><strong>M36.2 — schema 330 unchanged</strong>: Low graphics startup behavior changes without changing saved campaign progress, preferences or recovery data.</li>
+<li><strong>M36.3 — schema 330 unchanged</strong>: expanded combat audio keeps M35 preferences, existing profiles and recovery points; no save migration or reset.</li>
+<li><strong>M36.4 — no new campaign schema</strong>: event-claim persistence and pause-menu refinements preserve existing campaign saves and claims.</li>
+</ul>
+<p>The <a href="https://github.com/Goofylagaming/primalbound-downloads/releases">published Windows release archive</a> supplies the corresponding versioned ZIP, notes and checksums. None of these milestones establishes Web–World cloud or save sharing.</p>
 </section>
 <section class="wiki-topic" id="20-common-problems"><h2>20. Common problems <a class="heading-anchor" href="#20-common-problems" aria-label="Copy section link">#</a></h2>
 <ul>
