@@ -24,7 +24,7 @@ if(!navHeader||!footer)throw Error('Wiki header/footer unavailable');
 const ordered=mode=>archive[mode].slice().sort((a,b)=>rank(b.version)-rank(a.version));
 function card(entry,hidden=false){
  const source=String(entry.source||'');
- const safe=/^https:\/\/(?:github\.com\/Goofylagaming\/primalbound-downloads\/releases\/tag\/|primalbound-web-preview\.onrender\.com\/release-info\.json)/.test(source);
+ const safe=/^https:\/\/github\.com\/Goofylagaming\/primalbound-downloads\/releases\/tag\//.test(source);
  return '<article '+(hidden?'hidden ':'')+'class="release-card" id="release-'+slug(entry.version)+'" data-release-key="'+esc(entry.version)+'" data-release-rank="'+rank(entry.version)+'"><p class="release-meta"><strong>'+esc(entry.version)+'</strong>'+(entry.published?' · <time datetime="'+esc(entry.published)+'">'+esc(entry.published)+'</time>':'')+'</p><h3>'+esc(plain(entry.title))+'</h3><ul>'+entry.notes.map(note=>'<li>'+esc(plain(note))+'</li>').join('')+'</ul>'+(safe?'<a class="release-source" href="'+esc(source)+'" rel="noopener noreferrer">Release source</a>':'')+'</article>';
 }
 function list(mode,limit=0){return '<div class="notes-list" data-release-list="'+mode+'"'+(limit?' data-limit="'+limit+'"':'')+'>'+ordered(mode).map((entry,i)=>card(entry,limit>0&&i>=limit)).join('\n')+'</div>';}
