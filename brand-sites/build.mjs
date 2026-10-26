@@ -18,5 +18,5 @@ await rm(root,{recursive:true,force:true});
 for(const [path,html] of Object.entries(pages)){await mkdir(root+path.slice(0,path.lastIndexOf('/')),{recursive:true});await writeFile(root+path,html);}
 for(const site of ['primalbound','hollow-valley']){await writeFile(root+site+'/style.css',css);await writeFile(root+site+'/robots.txt','User-agent: *\nDisallow: /\n');await writeFile(root+site+'/404.html',shell('Page not found','<section class="hero"><h1>That trail ends here.</h1><p>We could not find this page.</p><a href="/">Return home →</a></section>',site==='hollow-valley'));}
 console.log('Built two isolated static sites; no dependencies, secrets or game services.');
-
-
+// Overlay the two complete player handbooks after the brand landing pages are built.
+await import('./publish-wikis.mjs');
