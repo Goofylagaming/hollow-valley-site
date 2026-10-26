@@ -1,0 +1,25 @@
+name: Primalbound brand wiki checks
+on:
+  pull_request:
+    branches:
+      - production/brand-websites-20261026
+    paths:
+      - 'brand-sites/**'
+      - '.github/workflows/primalbound-brand-wiki-checks.yml'
+  workflow_dispatch:
+jobs:
+  static-wikis:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Production build and wiki validation
+        run: |
+          node brand-sites/build.mjs --production
+          node brand-sites/verify.mjs --production
+      - name: Staging no-index build and wiki validation
+        run: |
+          node brand-sites/build.mjs
+          node brand-sites/verify.mjs
