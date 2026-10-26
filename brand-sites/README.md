@@ -37,3 +37,11 @@ Keep Floot published and serving accounts and progression. Marketing staging is 
 6. Obtain explicit approval for production deploy/DNS cutover and a separate decision about Floot retirement only after verified migration, rollback and monitoring. Never delete or unpublish the source game as part of marketing deployment.
 
 No migration, backup or restore rehearsal has been performed by this task. All remain release blockers.
+
+## Studios expansion — separate staging release
+
+- `studio-expand.mjs` adds Hollow Valley and Primalbound as top-level studio projects, with dedicated project landing pages, a news foundation, and project-specific support links.
+- `/merch/` is an **interest-only** catalogue (three Hollow Valley and three Primalbound concepts). Its email links are not orders, subscriptions, payments, a marketing database, or a live store.
+- Merch artwork is conceptual CSS-only branding. Any future sellable products need original art, IP review, Australian GST/shipping/returns checks, print-on-demand samples, and profitability testing before approval.
+- The existing Hollow Valley portal keeps player logins, Wallet, Valley Coins, dinos, Marketplace, Live Map, server bridge, Stripe, and Discord; no gameplay or account code is changed.
+- `node brand-sites/build.mjs && node brand-sites/verify.mjs` tests the staging build. The planned production release is subject to separate approval; no production DNS or services are changed.
