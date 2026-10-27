@@ -16,12 +16,19 @@
     MaleDisplayColor: "maleDisplay",
   });
 
-  function clamp01(value) {
+  // External JSON uses either normalized RGB (0-1) or byte RGB (0-255).
+  // Detect the RGB tuple's scale together: in byte mode, the value 1 is 1/255,
+  // not full brightness. Alpha may independently use 0-1 or 0-255.
+  function numericChannel(value, label) {
+    if (value === undefined || value === null || typeof value === "boolean"
+        || (typeof value === "string" && !value.trim())) {
+      throw new Error(`Skin colour ${label} channel is missing or invalid.`);
+    }
     const number = Number(value);
-    if (!Number.isFinite(number)) throw new Error("Skin colour contains a non-numeric channel.");
-    const normalized = number > 1 ? number / 255 : number;
-    if (normalized < 0 || normalized > 1) throw new Error("Skin colour channels must be between 0-1 or 0-255.");
-    return normalized;
+    if (!Number.isFinite(number) || number < 0) {
+      throw new Error(`Skin colour ${label} channel must be a non-negative number.`);
+    }
+    return number;
   }
 
   function colorStruct(value) {
@@ -33,11 +40,26 @@
       if (Object.hasOwn(value, upper)) return value[upper];
       return fallback;
     };
+    const rgb = {
+      r: numericChannel(read("r", "R", undefined), "R"),
+      g: numericChannel(read("g", "G", undefined), "G"),
+      b: numericChannel(read("b", "B", undefined), "B"),
+    };
+    const alpha = numericChannel(read("a", "A", 1), "A");
+    const values = Object.values(rgb);
+    // With all RGB values 0 or 1, a byte alpha is the only clue that
+    // the source is a byte-format palette; otherwise default to 0-1.
+    const byteRgb = values.some((number) => number > 1)
+      || (alpha > 1 && values.every(Number.isInteger));
+    const maxRgb = byteRgb ? 255 : 1;
+    if (values.some((number) => number > maxRgb) || alpha > 255) {
+      throw new Error("Skin colour channels must be between 0-1 or 0-255.");
+    }
     return {
-      r: clamp01(read("r", "R", 0)),
-      g: clamp01(read("g", "G", 0)),
-      b: clamp01(read("b", "B", 0)),
-      a: clamp01(read("a", "A", 1)),
+      r: rgb.r / maxRgb,
+      g: rgb.g / maxRgb,
+      b: rgb.b / maxRgb,
+      a: alpha > 1 ? alpha / 255 : alpha,
     };
   }
 
