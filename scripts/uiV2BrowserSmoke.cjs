@@ -125,6 +125,17 @@ async function checkPage(browser, origin, route, size, name, opts = {}) {
       await page.keyboard.press("Escape");
       assert.equal(await page.locator(".main-nav").evaluate((el) => el.classList.contains("open")), false, name + " Escape does not close menu");
     }
+    if (route === "/recruitment") {
+      await page.locator("#hv-group-search-status").getByText("0 recruiting group(s)",{exact:false}).waitFor({timeout:12000});
+      assert.equal(await page.locator("#hv-group-guest").isVisible(),true,
+        "Guest recruitment browsing cannot reveal owner management or private applicants");
+      assert.equal(await page.locator("#hv-group-membership").isVisible(),false);
+    }
+    if (route === "/community") {
+      await page.locator("#hv-community-group-status").getByText("0 group(s)",{exact:false}).waitFor({timeout:12000});
+      assert.equal(await page.locator("#hv-community-groups .hv-group-card").count(),0,
+        "Website group listing must be opt-in only");
+    }
     if (route === "/support") {
       await page.locator("#hv-support-guest").waitFor({state:"visible",timeout:12000});
       assert.equal(await page.locator("#hv-support-app").isVisible(),false,
@@ -250,8 +261,9 @@ async function main() {
       ["/dinostorage/", "dino-storage"], ["/groups", "groups"], ["/help", "help"], ["/events", "events"],
       ["/owner-login", "owner-login"], ["/livemap", "live-map"], ["/skins", "skin-studio"],
       ["/rules", "rules"], ["/packs", "packs"], ["/updates", "updates"], ["/support", "support"],
+      ["/community", "community"], ["/recruitment", "recruitment"],
     ]) {
-      await checkPage(browser, origin, route, desktop, label + "-desktop", { capture: ["home", "wallet", "marketplace", "dino-storage", "help", "rules", "packs", "updates", "support"].includes(label) });
+      await checkPage(browser, origin, route, desktop, label + "-desktop", { capture: ["home", "wallet", "marketplace", "dino-storage", "help", "rules", "packs", "updates", "support", "community", "recruitment"].includes(label) });
     }
     for (const [route, label] of [
       ["/", "home"], ["/wallet", "wallet"], ["/marketplace", "marketplace"],
