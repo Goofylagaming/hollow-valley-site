@@ -2,6 +2,27 @@
   "schema": 1,
   "web": [
     {
+      "version": "W38.0",
+      "title": "Living Regions: Regional Outlooks — W38.0",
+      "notes": [
+        "Twenty regions now have four named outlooks each, with a three-return forecast that waits while you are offline.",
+        "Choose Regional outlook in Operations to trade encounter threat, Bones and rare specimen chances. Normal route conditions remain available.",
+        "Wet, dry and rough outlooks show their extra Herb or Stone entry costs. Rare specimens keep their existing 42% chance ceiling.",
+        "Extract a regional-weather run after clearing at least one node to move that region’s forecast. Empty retreats and elapsed time do not move it.",
+        "Partial returns move the outlook but earn no full-route honours or survey completion. Weather cannot stack with Challenges or Prime Territory.",
+        "Dispatched crews, conditions, encounters and cargo stay frozen. Active operations show their original outlook and specimen chance.",
+        "Region records in the Journal now link directly to their Regional Outlook board. Locked regions can be inspected before their routes unlock.",
+        "Dispatch rechecks complete current terms and rejects changed quotes. Battle loading rejects changed operations and old node results.",
+        "Invalid or overflowing cargo remains held without partial rewards or forecast changes. Duplicate extraction never advances conditions twice.",
+        "Save format 18 preserves older campaigns and held jobs, and starts regional outlook records without inventing past visits.",
+        "The same LIVE build also contains individual companion names and field records, three reviewed Talent Builds per creature, and the cosmetic 91-entry Trophy Hall with six saved showcases. These originated in a W37 development batch; no separately verified LIVE W37 release has been identified.",
+        "Save compatibility: W38.0 uses Web save format 18. Format-16 saves upgrade through format-17 companion/talent/showcase metadata without fabricating past deeds, then add bounded regional outlook counters without inventing old visits. Previous saves, progression, frozen operations and held rewards remain intact. Export confirmed Device/Cloud backups and never downgrade a format-18 save. World/Desktop local saves are unrelated."
+      ],
+      "published": "2026-10-27",
+      "commit": "cd879109f7be66d6d600a16d5ed01cecf16b1974",
+      "source": "https://github.com/Goofylagaming/primalbound/blob/cd879109f7be66d6d600a16d5ed01cecf16b1974/web/update-notes.json"
+    },
+    {
       "version": "W36.0",
       "title": "Unified Expedition Journal — W36.0",
       "notes": [
