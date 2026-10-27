@@ -7,6 +7,7 @@
     9: { status: 'complete', added: '2026-10-23', note: 'Live: nest listings, egg availability, requests, host approval and automatic closure. An accepted request reserves an advertised egg; it does not verify an in-game hatch.' },
     8: { status: 'partial', note: 'Available in Valley Legacy: verified parent/child links and lineage display. Automatic hatch detection and inherited-mutation verification are still pending.' },
     13: { status: 'partial', note: 'Available: seasonal and all-time records, Hall of Fame, presence, combat and gameplay-coin connections. Territory capture and group-battle connections are still pending.' },
+    26: { status: 'building', note: 'HV-W01.3: authenticated private reports, bounded media links and admin-only moderation are in development behind an opt-in runtime flag. Automated chat/combat evidence correlation remains planned.' },
     25: { status: 'building', note: 'HV-W01.2: protected incident timeline is in development, with recent operator audits and automation request outcomes. Game chat/combat correlation and long-term historical search remain planned.' },
     31: { status: 'building', note: 'Building / Testing. Completion has not yet been verified.' }
   };
@@ -89,6 +90,10 @@
         if ([7, 8, 9, 13].includes(id)) {
           const link = element('a', '', 'Open Valley Legacy →');
           link.href = '/legacy';
+          note.append(' ', link);
+        } else if (id === 26) {
+          const link = element('a', '', 'Player Reports →');
+          link.href = '/reports';
           note.append(' ', link);
         }
         feature.append(note);
