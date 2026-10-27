@@ -42,8 +42,11 @@ function validDiscordEventLink(value) {
 function verifiedServer(nowMs=Date.now()) {
   const state=status.getDisplayState();
   const checked=iso(state.lastChecked);
-  const fresh=Boolean(state.configured)&&state.stale!==true&&Boolean(checked)&&nowMs-Date.parse(checked)>=0&&
-    nowMs-Date.parse(checked)<=180000;
+  // Allow small clock skew and a snapshot updated during this async request.
+  // Otherwise a fresh check milliseconds after "nowMs" looks stale.
+  const ageMs=checked?nowMs-Date.parse(checked):Number.POSITIVE_INFINITY;
+  const fresh=Boolean(state.configured)&&state.stale!==true&&Boolean(checked)&&
+    ageMs>=-60000&&ageMs<=180000;
   return {
     state: !state.configured?"unconfigured":!fresh?"delayed":state.online?"online":"offline",
     checkedAt:checked,
