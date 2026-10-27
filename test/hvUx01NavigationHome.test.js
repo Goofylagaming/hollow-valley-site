@@ -74,7 +74,7 @@ test('homepage shows the server, player tools and community before the full 31-f
   assert.match(home, /id="home-profile-progress"/);
   assert.match(home, /\/assets\/home-hub\.css\?v=1/);
   assert.match(home, /\/assets\/home-v2\.js\?v=3/);
-  assert.match(home, /\/assets\/home-roadmap\.js\?v=2/);
+  assert.match(home, /\/assets\/home-roadmap\.js\?v=5/);
   assert.match(home, /\/assets\/roadmap-voting\.js\?v=2/);
   for (const id of ['home-dino-count','home-player-label','home-wallet-balance','home-roadmap-stages']) {
     assert.equal((home.match(new RegExp('id="' + id + '"','g')) || []).length,1, 'duplicate or missing #' + id);
