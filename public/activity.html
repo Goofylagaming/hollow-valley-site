@@ -1,0 +1,59 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Hollow Valley Isle server status, verified player activity, scheduled community events and staff-published results.">
+<title>Community Activity | Hollow Valley</title>
+<link rel="stylesheet" href="/assets/styles.css?v=38">
+<link rel="stylesheet" href="/assets/ui-v2.css?v=3">
+<link rel="stylesheet" href="/assets/snapshot-ui.css?v=5">
+<link rel="stylesheet" href="/assets/community-activity.css?v=1">
+</head><body><div class="app-shell"><div id="nav-slot"></div>
+<main class="hv-activity-main">
+<header class="hv-activity-hero">
+<p class="hv-activity-eyebrow">HOLLOW VALLEY · SERVER & COMMUNITY</p>
+<h1>Life in the Valley.</h1>
+<p>Read-only activity and event summaries from the Hollow Valley website and its automation platform. Figures are shown only when their sources have verified samples. Missing or stale data is never presented as live.</p>
+<div class="hv-activity-hero-links"><a href="/livemap">Live Map ↗</a><a href="/events">Events ↗</a><a href="/community">Community ↗</a></div>
+</header>
+<section class="hv-activity-panel" aria-labelledby="hv-live-state-label">
+<div class="hv-activity-heading"><div><p class="hv-activity-eyebrow">READ-ONLY STATUS</p><h2 id="hv-live-state-label">Website's latest game-server snapshot.</h2></div>
+<button type="button" id="hv-activity-refresh">Refresh</button></div>
+<p id="hv-activity-checked" aria-live="polite">Checking source timestamps…</p>
+<div class="hv-activity-stats">
+<div><small>GAME SERVER</small><strong id="hv-activity-state">Checking</strong></div>
+<div><small>ONLINE PLAYERS</small><strong id="hv-activity-online">—</strong></div>
+<div><small>LAST SERVER SNAPSHOT</small><strong id="hv-activity-last">—</strong></div>
+</div>
+<p class="hv-activity-note">A delayed response is not proof the Evrima game server is offline. Only the automation service's fresh, verified snapshot can establish website status.</p>
+</section>
+<section class="hv-activity-panel">
+<div class="hv-activity-heading"><div><p class="hv-activity-eyebrow">VERIFIED PRESENCE</p><h2>Player activity history.</h2></div>
+<label>Time window <select id="hv-activity-hours"><option value="24">24 hours</option><option value="72">3 days</option><option value="168">7 days</option></select></label></div>
+<p id="hv-activity-metrics-status" role="status" aria-live="polite">Loading verified activity history…</p>
+<div class="hv-activity-stats">
+<div><small>TRACKED PLAYERS</small><strong id="hv-activity-unique">—</strong></div>
+<div><small>AVERAGE ONLINE</small><strong id="hv-activity-average">—</strong></div>
+<div><small>PEAK CONCURRENCY</small><strong id="hv-activity-peak">—</strong></div>
+</div>
+<h3>Activity trend</h3><div id="hv-activity-trend" class="hv-activity-trend" aria-label="Verified player sample trend"></div>
+<h3>Most common observed species</h3><div id="hv-activity-species" class="hv-activity-species"></div>
+<p class="hv-activity-note">Presence history counts only samples captured by the server's verified tracker. Unknown gaps aren't backfilled; species totals count sampled observations, not unique individual dinosaurs.</p>
+</section>
+<section class="hv-activity-panel">
+<div class="hv-activity-heading"><div><p class="hv-activity-eyebrow">DISCORD EVENTS</p><h2>Upcoming events.</h2></div><a href="/events">Full events calendar ↗</a></div>
+<p id="hv-activity-events-status" aria-live="polite">Checking Discord schedule…</p>
+<div id="hv-activity-events" class="hv-activity-event-grid"></div>
+</section>
+<section class="hv-activity-panel">
+<div class="hv-activity-heading"><div><p class="hv-activity-eyebrow">COMMUNITY HISTORY</p><h2>Event results.</h2></div></div>
+<p>These are staff-published summaries for completed events, not automated proof of in-game kills, attendance, prizes or Valley Coin payments.</p>
+<div id="hv-activity-results" class="hv-activity-results"></div>
+</section>
+<section class="hv-activity-panel">
+<h2>Your group and pack verification</h2>
+<p>Hollow Valley's website Groups and in-game Evrima parties are separate. We can show your website group's member count and an approved single-species limit (when known), but we cannot confirm that everyone is playing those dinosaurs together.</p>
+<div id="hv-activity-pack" class="hv-activity-pack">Sign in with Steam to view your website group information.</div>
+<a href="/packs">Published pack policy guide ↗</a> · <a href="/groups">My Groups ↗</a>
+</section>
+</main><footer><span>© 2026 Hollow Valley</span><span>VERIFIED HISTORY · NO PLAYER LOCATIONS</span><a href="/community">Community ↑</a></footer></div>
+<script src="/assets/common.js?v=22"></script><script src="/assets/community-activity.js?v=1"></script>
+</body></html>
