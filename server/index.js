@@ -33,6 +33,7 @@ const friendsRouter = require("./routes/friends");
 const roadmapCommunityRouter = require("./routes/roadmapCommunity");
 const communityGuidesRouter = require("./routes/communityGuides");
 const siteUpdatesRouter = require("./routes/siteUpdates");
+const supportTicketsRouter = require("./routes/supportTickets");
 const groupsRouter = require("./routes/groups");
 const mapdataRouter = require("./routes/mapdata");
 const supporterInternalRouter = require("./routes/supporterInternal");
@@ -266,6 +267,7 @@ function createApp() {
   app.use("/api/roadmap", roadmapCommunityRouter);
   app.use("/api/community-guides", communityGuidesRouter);
   app.use("/api/site-updates", siteUpdatesRouter);
+  app.use("/api/support-tickets", supportTicketsRouter);
   app.use("/api/groups", groupsRouter);
   if (TERRITORY_WARS_ADMIN_TEST_ENABLED) {
     // Loading the module creates isolated territory_* tables: never load while disabled.
@@ -287,7 +289,7 @@ function createApp() {
   app.use("/api/dinostorage", legacyDirectGameApiRetired);
   app.all(["/api/park", "/api/playerdata", "/api/redeem", "/api/parked", "/api/admin"], legacyDirectGameApiRetired);
 
-  const PAGE_ROUTES = ["legacy", "dashboard", "wallet", "quests", "profile", "mydinos", "bodydrop", "friends", "groups", "marketplace", "livemap", "leaderboard", "supporter", "events", "help", "rules", "packs", "updates"];
+  const PAGE_ROUTES = ["legacy", "dashboard", "wallet", "quests", "profile", "mydinos", "bodydrop", "friends", "groups", "marketplace", "livemap", "leaderboard", "supporter", "events", "help", "rules", "packs", "updates", "support"];
   for (const page of PAGE_ROUTES) {
     app.get(`/${page}`, (req, res) => {
       res.sendFile(path.join(__dirname, "..", "public", `${page}.html`));
@@ -308,6 +310,7 @@ function createApp() {
     adminroadmap: "adminroadmap.html",
     adminrules: "adminrules.html",
     adminupdates: "adminupdates.html",
+    adminsupport: "adminsupport.html",
   };
   for (const [route, file] of Object.entries(ADMIN_PAGE_ROUTES)) {
     app.get([`/${route}`, `/${route}.html`], requireAdmin, (_req, res) => {
