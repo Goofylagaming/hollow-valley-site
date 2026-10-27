@@ -5,7 +5,7 @@ The existing homepage, `/web/` and `/world/` are preserved.
 
 The last build step in `brand-sites/build.mjs` imports `publish-wikis.mjs`, which replaces only:
 - `/web/wiki/index.html` (Web Preview W38.0 verified how-to, including W27.1–W38.0 save compatibility, Regional Outlooks, Companion Profiles, Talent Builds, Trophy Hall, Expedition Journal navigation/manual collection, Dungeon Practice and Ancient Hunts)
-- `/world/wiki/index.html` (M36.4 Windows playtest)
+- `/world/wiki/index.html` (M36.5 Windows playtest; Mini Rex stage rotation, graphics fix and unchanged schema 330)
 - `/assets/wiki.css`
 - `/assets/wiki.js`
 
