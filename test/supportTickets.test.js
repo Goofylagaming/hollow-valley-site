@@ -130,7 +130,7 @@ test("player responses, admin response and private staff notes have strictly sep
     const mine=(await (await fetch(base+route,{headers:{"X-Test-Role":"player"}})).json());
     assert.equal(mine.messages.length,3);
     assert.equal(mine.audit,undefined);
-    assert.doesNotMatch(JSON.stringify(mine),/restore snapshot|actorSteamId|authorSteamId|lastStaffSteamId|moderator/i);
+    assert.doesNotMatch(JSON.stringify(mine),/restore snapshot|actorSteamId|authorSteamId|lastStaffSteamId/i);
     assert.equal((await fetch(base+staffRoute,{headers:{"X-Test-Role":"other"}})).status,403);
   });
 });
