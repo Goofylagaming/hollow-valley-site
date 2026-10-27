@@ -44,8 +44,8 @@ function hub(){
  return frame('Primalbound Patch Notes','Web and World version history.','/patch-notes/','<main class="notes-page" id="main-content"><p class="eyebrow">Release history</p><h1>Primalbound Patch Notes</h1><p class="portal-intro">Choose your game to see verified updates and the current player guide.</p><div class="portal-grid">'+cards+'</div></main>',false);
 }
 function wiki(mode,source){
- let html=addNav(source),last=ordered(mode)[0],baseline=mode==='web'?'W34.1':'M36.4';
- if(mode==='web')html=html.replace('class="version-chip">Preview W34.1','class="version-chip">Web Preview W34.1 · full guide updated');
+ let html=addNav(source),last=ordered(mode)[0],baseline=mode==='web'?'W35.0':'M36.4';
+ if(mode==='web')html=html.replace('class="version-chip">Preview W35.0','class="version-chip">Web Preview W35.0 · full guide updated');
  const intro='<section class="release-area release-inline" data-release-area id="guide-release-updates"><div class="release-inline-heading"><p class="eyebrow">Updated gameplay instructions</p><h2>What changed in '+(mode==='web'?'Web':'World')+'</h2><p>Read these verified release changes alongside the detailed player guide. Release-specific instructions have been incorporated through '+baseline+' and should not be confused with newer gameplay updates.</p><p class="feed-status" data-release-status role="status">Archived through '+esc(last.version)+'; checking newer releases.</p></div>'+list(mode,3)+'<a class="btn secondary" href="/'+mode+'/patch-notes/">Read all '+(mode==='web'?'Web':'World')+' Patch Notes</a></section>';
  if(!html.includes('<div class="search-results"')||!html.includes('</body>'))throw Error('Unrecognized wiki HTML: '+mode);
  html=html.replace('<div class="search-results"',intro+'<div class="search-results"');
