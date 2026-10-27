@@ -21,6 +21,9 @@ const modelCreditEl = document.getElementById("skin-model-credit");
 const zoneHintEl = document.getElementById("skin-model-zone-hint");
 const speciesSelect = document.getElementById("skin-species");
 const calibrationPanel = document.getElementById("skin-calibration-panel");
+const localModelFileEl = document.getElementById("skin-local-model-file");
+const localModelResetEl = document.getElementById("skin-local-model-reset");
+const localModelStatusEl = document.getElementById("skin-local-model-status");
 const calibrationSpeciesEl = document.getElementById("skin-calibration-species");
 const calibrationZoneEl = document.getElementById("skin-calibration-zone");
 const calibrationBrushEl = document.getElementById("skin-calibration-brush");
@@ -45,6 +48,10 @@ const calibrationImportButtonEl = document.getElementById("skin-calibration-impo
 const calibrationClearImportEl = document.getElementById("skin-calibration-clear-import");
 const calibrationOutputEl = document.getElementById("skin-calibration-output");
 const MODEL_REGISTRY = window.HV_SKIN_MODELS || {};
+// Local file overrides exist only in the current admin browser session.
+// No downloaded mesh is uploaded or made available to website visitors.
+const localModelOverrides = new Map();
+const LOCAL_MODEL_LIMIT_BYTES = 30 * 1024 * 1024;
 
 if (!canvas || !stage) throw new Error("Skin Studio 3D stage is missing");
 
@@ -198,7 +205,7 @@ function resolveModelDefinition(value) {
   if (!wanted || wanted === "universal" || wanted.includes("any species")) return null;
   for (const def of Object.values(MODEL_REGISTRY)) {
     const aliases = Array.isArray(def?.aliases) ? def.aliases : [];
-    if (aliases.some((alias) => normalizedSpecies(alias) === wanted)) return def;
+    if (aliases.some((alias) => normalizedSpecies(alias) === wanted)) return localModelOverrides.get(def.key) || def;
   }
   return null;
 }
@@ -317,7 +324,13 @@ function setRail(def, label = "") {
     return;
   }
 
-  if (def.capability === "zones") {
+  if (def.localPreview) {
+    if (modelCapabilityEl) modelCapabilityEl.textContent = "PRIVATE LOCAL GLB";
+    if (modelSourceEl) modelSourceEl.textContent = "Loaded only in this browser · never uploaded";
+    if (modelHelpEl) {
+      modelHelpEl.textContent = "A locally selected model is previewed on this browser only. Its Body tint is provisional until you calibrate the EVRIMA colour zones. Saving a skin does not save or upload this mesh.";
+    }
+  } else if (def.capability === "zones") {
     if (modelCapabilityEl) modelCapabilityEl.textContent = "CALIBRATED 3D MODEL";
     if (modelSourceEl) modelSourceEl.textContent = "Species mesh + Hollow Valley colour-zone map";
     if (modelHelpEl) {
@@ -1129,7 +1142,12 @@ function paintCalibrationUv(uv) {
 }
 
 function calibrationStorageKey() {
-  return currentModelDef?.key ? `hv-skin-calibration:${currentModelDef.key}:v1` : null;
+  if (!currentModelDef?.key) return null;
+  // Never apply a mask from a different mesh to the new model, even when
+  // both are called "Deinosuchus": PSK-derived UV layouts can differ.
+  return currentModelDef.localPreview
+    ? `hv-skin-calibration:${currentModelDef.key}:local:${currentModelDef.calibrationFingerprint}:v1`
+    : `hv-skin-calibration:${currentModelDef.key}:v1`;
 }
 
 function maskPayloadFromLookup() {
@@ -1608,7 +1626,7 @@ async function loadChunkedGlb(def, token) {
 async function loadModelResource(def, token) {
   if (!def?.loader) throw new Error("No model loader configured");
   if (def.loader.type === "chunked-base64") return loadChunkedGlb(def, token);
-  if (def.loader.type === "url" && def.loader.url) {
+  if ((def.loader.type === "url" || def.loader.type === "local-blob") && def.loader.url) {
     if (loaderEl) loaderEl.textContent = `Loading ${def.displayName}…`;
     const gltfLoader = new GLTFLoader();
     gltfLoader.setMeshoptDecoder(MeshoptDecoder);
@@ -1652,7 +1670,7 @@ function showNoModel(label, def = null) {
 async function loadModelForSpecies(label) {
   const def = resolveModelDefinition(label);
   const normalized = normalizedSpecies(label);
-  const sameDefinition = currentModelDef?.key && def?.key === currentModelDef.key;
+  const sameDefinition = Boolean(def && def === currentModelDef);
 
   if (sameDefinition && (model || (def?.capability === "reference" && referenceFrame?.src))) {
     currentSpeciesLabel = label;
@@ -1738,6 +1756,105 @@ function selectedSpeciesLabel() {
   const option = speciesSelect?.selectedOptions?.[0];
   return option?.textContent || speciesSelect?.value || "";
 }
+
+function localModelMessage(message) {
+  if (localModelStatusEl) localModelStatusEl.textContent = message;
+}
+
+async function verifyLocalGlb(file) {
+  if (!file || !/\\.glb$/i.test(file.name || "")) throw new Error("Choose a converted .glb model file.");
+  if (file.size < 20 || file.size > LOCAL_MODEL_LIMIT_BYTES) {
+    throw new Error("This GLB is empty, incomplete or exceeds the 30 MB private preview limit.");
+  }
+  const header = new DataView(await file.slice(0, 20).arrayBuffer());
+  // glTF 2.0 binary header: 'glTF', version 2, total bytes, first JSON chunk.
+  if (header.getUint32(0, true) !== 0x46546c67 || header.getUint32(4, true) !== 2 ||
+      header.getUint32(8, true) !== file.size || header.getUint32(16, true) !== 0x4e4f534a) {
+    throw new Error("Unsupported GLB. Convert the source PSK using the v013 offline tool.");
+  }
+}
+
+async function useLocalModel() {
+  const file = localModelFileEl?.files?.[0];
+  if (!file) return;
+  if (calibrationPanel?.hidden) { localModelFileEl.value = ""; return; }
+  if (calibrationActive) {
+    localModelMessage("Stop zone mapping before switching meshes. Your current mask draft is retained.");
+    localModelFileEl.value = "";
+    return;
+  }
+  const label = selectedSpeciesLabel();
+  const original = resolveModelDefinition(label);
+  if (!original) {
+    localModelMessage("Select a specific dinosaur species before loading a local GLB.");
+    localModelFileEl.value = "";
+    return;
+  }
+
+  localModelFileEl.disabled = true;
+  try {
+    localModelMessage(`Validating ${file.name} locally…`);
+    await verifyLocalGlb(file);
+    // Content-address the mask draft so different local UV layouts never share it.
+    const hash = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+    const fingerprint = [...new Uint8Array(hash)].map((byte) => byte.toString(16).padStart(2, "0")).join("").slice(0, 24);
+    const blobUrl = URL.createObjectURL(file);
+    const previous = localModelOverrides.get(original.key);
+    const candidate = {
+      ...(MODEL_REGISTRY[original.key] || original),
+      capability: "shape",
+      loader: { type: "local-blob", url: blobUrl },
+      credit: null,
+      localPreview: true,
+      localFileName: file.name,
+      calibrationFingerprint: fingerprint,
+    };
+    localModelOverrides.set(original.key, candidate);
+    // Release the previous preview URL. Its loaded scene is separately disposed.
+    if (previous?.loader?.url) URL.revokeObjectURL(previous.loader.url);
+
+    await loadModelForSpecies(label);
+    if (currentModelDef !== candidate || !model) {
+      localModelOverrides.delete(original.key);
+      URL.revokeObjectURL(blobUrl);
+      await loadModelForSpecies(label);
+      throw new Error("The local model could not be rendered. The website model has been restored.");
+    }
+    localModelMessage(`${candidate.displayName}: ${file.name} loaded locally. Start zone mapping to calibrate UV colours; skins and player data are unchanged.`);
+  } catch (error) {
+    localModelMessage(`Local model rejected: ${error?.message || String(error)}`);
+  } finally {
+    localModelFileEl.value = "";
+    localModelFileEl.disabled = false;
+  }
+}
+
+async function resetLocalModel() {
+  if (calibrationPanel?.hidden) return;
+  if (calibrationActive) {
+    localModelMessage("Stop mapping before reverting the mesh. Your calibration draft is retained.");
+    return;
+  }
+  const label = selectedSpeciesLabel();
+  const def = resolveModelDefinition(label);
+  if (!def?.localPreview) {
+    localModelMessage("Already using the standard Hollow Valley model for this species.");
+    return;
+  }
+  localModelOverrides.delete(def.key);
+  URL.revokeObjectURL(def.loader.url);
+  await loadModelForSpecies(label);
+  localModelMessage("Restored the website model. Your local model and its saved UV draft remain private to this browser.");
+}
+
+localModelFileEl?.addEventListener("change", useLocalModel);
+localModelResetEl?.addEventListener("click", resetLocalModel);
+window.addEventListener("pagehide", () => {
+  for (const entry of localModelOverrides.values()) {
+    if (entry?.loader?.url) URL.revokeObjectURL(entry.loader.url);
+  }
+  localModelOverrides.clear();
+});
 
 const zoneRaycaster = new THREE.Raycaster();
 const zonePointer = new THREE.Vector2();
