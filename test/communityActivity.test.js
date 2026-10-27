@@ -178,6 +178,8 @@ test("manual event results validate date, winner names and explicit staff public
   assert.throws(()=>activity.validateEventResult({...resultPayload(),eventAt:"2099-01-01T00:00:00Z"}),{code:"INVALID_EVENT_RESULT"});
   assert.throws(()=>activity.validateEventResult({...resultPayload(),summary:"short"}),{code:"INVALID_EVENT_RESULT"});
   assert.throws(()=>activity.validateEventResult({...resultPayload(),winners:[A]}),{code:"INVALID_EVENT_RESULT"});
+  assert.throws(()=>activity.validateEventResult({...resultPayload(),
+    summary:"Hollow Valley staff reviewed a community event and player "+A+" won."}),{code:"INVALID_EVENT_RESULT"});
   await withServer(async base=>{
     assert.equal((await post(base,"/api/community-activity/admin/event-results",resultPayload(),{role:"player"})).status,403);
     assert.equal((await post(base,"/api/community-activity/admin/event-results",resultPayload(),{role:null})).status,401);
