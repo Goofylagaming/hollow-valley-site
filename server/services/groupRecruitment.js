@@ -61,6 +61,7 @@ function validateListing(input) {
   const style=String(input.style||"casual"),focus=String(input.focus||"any");
   const description=clean(input.description||"",500);
   if(!STYLES.includes(style)||!FOCUS.includes(focus)||description.length>500||
+      /\b\d{17}\b|https?:\/\//i.test(description) ||
       active && (description.length<20 || description.length>500)) {
     throw error("INVALID_LISTING","Select a playstyle, species focus and write a 20–500 character description before advertising.");
   }
