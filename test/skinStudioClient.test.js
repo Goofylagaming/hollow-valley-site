@@ -382,7 +382,7 @@ test("local model preview is admin-only, browser-local, GLB-validated and UV-iso
   assert.match(html, /<section class="skin-calibration-panel" id="skin-calibration-panel" hidden>/);
   assert.match(html, /id="skin-local-model-file" type="file" accept="\.glb/);
   assert.match(html, /id="skin-local-model-reset"/);
-  assert.match(html, /model is loaded only in your browser/i);
+  assert.match(html, /loaded only in your browser/i);
   assert.match(js, /if \(calibrationPanel\?\.hidden\)/);
   assert.match(js, /URL\.createObjectURL\(file\)/);
   assert.match(js, /URL\.revokeObjectURL\(/);
@@ -392,4 +392,7 @@ test("local model preview is admin-only, browser-local, GLB-validated and UV-iso
   assert.match(js, /LOCAL_MODEL_LIMIT_BYTES = 30 \* 1024 \* 1024/);
   assert.match(js, /header\.getUint32\(0, true\) !== 0x46546c67/);
   assert.match(js, /const sameDefinition = Boolean\(def && def === currentModelDef\)/);
+  assert.match(html, /accept="\.glb,model\/gltf-binary" multiple/);
+  assert.match(js, /const channel = .*?eyes\?/);
+  assert.match(js, /controller\.channel === "eyes" \? currentPalette\.eyes : hex/);
 });
