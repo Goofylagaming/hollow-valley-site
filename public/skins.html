@@ -89,6 +89,13 @@
                   <span id="skin-calibration-species">Select a shape model</span>
                 </div>
                 <p class="skin-calibration-help">Paint the website model's UV regions once, then export the compact mask used by Skin Studio. This is calibration tooling only; players never see these controls.</p>
+                <div class="skin-calibration-controls" role="group" aria-label="Private local model preview">
+                  <label for="skin-local-model-file">PRIVATE MODEL PREVIEW · GLB
+                    <input id="skin-local-model-file" type="file" accept=".glb,model/gltf-binary">
+                  </label>
+                  <button class="small-button" id="skin-local-model-reset" type="button">Use website model</button>
+                </div>
+                <p class="skin-calibration-help" id="skin-local-model-status" role="status">Select a dinosaur above, then choose a local GLB converted from its PSK. The model is loaded only in your browser; it is not uploaded, published, or saved with skins. Every local mesh gets a separate UV calibration draft.</p>
                 <div class="skin-calibration-controls">
                   <label>Zone
                     <select id="skin-calibration-zone">
@@ -330,6 +337,6 @@
   <script type="importmap">
     {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}
   </script>
-  <script type="module" src="/assets/skin-studio-3d.js?v=18"></script>
+  <script type="module" src="/assets/skin-studio-3d.js?v=19"></script>
 </body>
 </html>
