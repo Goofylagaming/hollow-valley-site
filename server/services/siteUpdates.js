@@ -243,14 +243,14 @@ function recordVerifiedRelease({sha,expectedRevision}={}) {
     " passed deployment readiness checks. This confirms the website revision is responding, not that every external game or Discord integration is healthy.";
   db.exec("BEGIN IMMEDIATE");
   try {
-    db.prepare(
+    const inserted=db.prepare(
       "INSERT INTO site_updates (id,category,stage,milestone,title,summary,reference_url,source,created_at,updated_at,published_at,release_sha) " +
       "VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(release_sha) DO NOTHING"
     ).run(id,"website","live","SITE-RELEASE",title,summary,
       "https://github.com/Goofylagaming/hollow-valley-site/commit/"+sourceSha,
-      "verified-release",at,at,at,sourceSha);
+      "verified-release",at,at,at,sourceSha).changes === 1;
     const entry=db.prepare("SELECT * FROM site_updates WHERE release_sha=?").get(sourceSha);
-    if (entry && entry.id===id && entry.created_at===at) recordEvent(entry,"verified_release",null,at);
+    if (inserted) recordEvent(entry,"verified_release",null,at);
     db.exec("COMMIT");
     return publicRow(entry);
   } catch(error) {
