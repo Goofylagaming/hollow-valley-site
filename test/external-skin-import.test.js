@@ -132,3 +132,22 @@ test("limits external skin batches to 50 entries", () => {
   ).join("\n");
   assert.throws(() => parseExternalSkinBatch(codes), /limited to 50 skins/);
 });
+
+
+test("interprets RGB value 1 as one byte when the colour uses 0-255 channels", () => {
+  const parsed = parseExternalSkinCode(JSON.stringify({
+    BodyColor: { R: 1, G: 2, B: 3, A: 255 },
+    UnderbellyColor: { R: 0, G: 1, B: 255, A: 255 },
+  }));
+  assert.equal(parsed.skinPatch.body.r, 1 / 255);
+  assert.equal(parsed.skinPatch.body.g, 2 / 255);
+  assert.equal(parsed.skinPatch.underbelly.g, 1 / 255);
+  assert.equal(parsed.skinPatch.underbelly.r, 0);
+  assert.equal(parsed.skinPatch.underbelly.b, 1);
+});
+
+test("rejects nonnumeric or incomplete RGB rather than silently importing black", () => {
+  for (const rgb of [{ R: 0.5, B: 0.5 }, { R: "", G: 0, B: 0 }, { R: true, G: 0, B: 0 }]) {
+    assert.throws(() => parseExternalSkinCode(JSON.stringify({ BodyColor: rgb })), /missing or invalid/);
+  }
+});
