@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Hollow Valley release notes, development milestones, fixes and verified updates. Follow progress without confusing planned work with live releases.">
+  <title>News & Updates | Hollow Valley</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=38">
+  <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
+  <link rel="stylesheet" href="/assets/snapshot-ui.css?v=5">
+  <link rel="stylesheet" href="/assets/site-updates.css?v=1">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main class="hv-updates-main">
+      <header class="hv-updates-hero">
+        <p class="hv-updates-eyebrow">HOLLOW VALLEY · SERVER PROGRESS & UPDATES</p>
+        <h1>News from the Valley.</h1>
+        <p>Follow what we're building, testing, preparing or releasing. Every update has a development stage and a linked GitHub reference, so upcoming features are never mistaken for live ones.</p>
+        <div class="hv-updates-hero-links">
+          <a href="/#roadmap">Explore the roadmap →</a>
+          <a href="https://discord.gg/herbydeathsquadgames" target="_blank" rel="noopener noreferrer">Hollow Valley Discord ↗</a>
+        </div>
+      </header>
+
+      <section class="hv-updates-guide" aria-labelledby="updates-status-guide">
+        <h2 id="updates-status-guide">What do the update statuses mean?</h2>
+        <div class="hv-update-status-guide">
+          <div><span>In Development</span><small>Code or planning underway. Not live.</small></div>
+          <div><span>Testing</span><small>Verification underway. Not live.</small></div>
+          <div><span>Blocked</span><small>Waiting on a fix or dependency.</small></div>
+          <div><span>Ready to Deploy</span><small>Prepared for release, not deployed.</small></div>
+          <div><span>Live</span><small>A verified deployed website revision.</small></div>
+          <div><span>Fix Released</span><small>A fix verified after deployment.</small></div>
+        </div>
+      </section>
+
+      <section class="hv-updates-board" aria-labelledby="updates-list-heading">
+        <div class="hv-updates-heading">
+          <div>
+            <p class="hv-updates-eyebrow">LATEST MILESTONES</p>
+            <h2 id="updates-list-heading">Development changelog.</h2>
+          </div>
+        </div>
+        <form id="hv-updates-filters" class="hv-updates-filters" role="search">
+          <label>Search updates
+            <input type="search" id="hv-updates-search" maxlength="120" placeholder="Milestone, feature or change">
+          </label>
+          <label>Area
+            <select id="hv-updates-category">
+              <option value="">All areas</option>
+              <option value="website">Website</option>
+              <option value="game">Game server</option>
+              <option value="automation">Automation</option>
+              <option value="community">Community</option>
+            </select>
+          </label>
+          <label>Release stage
+            <select id="hv-updates-stage">
+              <option value="">All stages</option>
+              <option value="building">In Development</option>
+              <option value="testing">Testing</option>
+              <option value="blocked">Blocked</option>
+              <option value="ready">Ready to Deploy</option>
+              <option value="live">Live</option>
+              <option value="fixed">Fix Released</option>
+            </select>
+          </label>
+          <button type="submit">Filter updates</button>
+        </form>
+        <p id="hv-updates-feedback" aria-live="polite">Loading published updates…</p>
+        <div id="hv-updates-list" class="hv-updates-list">
+          <p class="hv-update-empty">Loading…</p>
+        </div>
+        <button type="button" id="hv-updates-more" hidden>Load more updates</button>
+        <p class="hv-updates-footnote">Development and test updates are not promises of release dates. “Live” confirms a deployed website revision, but does not guarantee that the game server, Discord bot or other external services are online.</p>
+      </section>
+    </main>
+    <footer><span>© 2026 Hollow Valley</span><span>HOME OF THE HERBY DEATH SQUAD</span><a href="/help">Help Centre ↑</a></footer>
+  </div>
+  <script src="/assets/common.js?v=22"></script>
+  <script src="/assets/site-updates.js?v=1"></script>
+</body>
+</html>
