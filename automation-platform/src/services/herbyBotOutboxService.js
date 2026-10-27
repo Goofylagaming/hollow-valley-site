@@ -1,7 +1,7 @@
 const { randomUUID } = require('node:crypto');
 const store = require('./automationStore');
 
-const DESTINATIONS = new Set(['announcement', 'alert', 'territory-war']);
+const DESTINATIONS = new Set(['announcement', 'alert', 'territory-war', 'progress']);
 
 function configured() {
   return Boolean(String(process.env.HERBYBOT_AUTOMATION_TOKEN || '').trim());
@@ -54,6 +54,10 @@ function queueTerritoryWar(message, { nonce } = {}) {
   return queueMessage({ destination: 'territory-war', message, nonce });
 }
 
+function queueProgress(message, { nonce } = {}) {
+  return queueMessage({ destination: 'progress', message, nonce });
+}
+
 function claimMessages({ limit = 10, leaseSeconds = 60 } = {}) {
   const events = store.claimOutboxEvents({ limit, leaseSeconds });
   // Old chat entries must never be handed to a bot that still has the former
@@ -95,6 +99,7 @@ module.exports = {
   queueAnnouncement,
   queueAlert,
   queueTerritoryWar,
+  queueProgress,
   claimMessages,
   acknowledgeMessage,
   failMessage,
