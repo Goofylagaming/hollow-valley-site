@@ -35,6 +35,9 @@ async function setReadOnlyApiMocks(page, me = guest) {
       return route.fulfill({ status: 200, contentType: "application/json",
         body: JSON.stringify({ officialWritesEnabled: false, p2pWritesEnabled: false, p2pBuyEnabled: false }) });
     }
+    // The pack checker is a read-only query even though it uses POST. Only
+    // allow it through to this isolated staging database, never production.
+    if (pathname === "/api/community-guides/check") return route.continue();
     // Avoid accidental writes even if a page auto-submits a login bonus request.
     if (route.request().method() !== "GET") {
       return route.fulfill({ status: 200, contentType: "application/json",
@@ -122,6 +125,25 @@ async function checkPage(browser, origin, route, size, name, opts = {}) {
       await page.keyboard.press("Escape");
       assert.equal(await page.locator(".main-nav").evaluate((el) => el.classList.contains("open")), false, name + " Escape does not close menu");
     }
+    if (route === "/rules") {
+      await page.locator("#hv-rules-status").getByText("No approved Hollow Valley rules", { exact:false })
+        .waitFor({ timeout:12000 });
+      assert.equal(await page.locator("#hv-rules-list .hv-rule-item").count(),0,
+        "An isolated staging database must not invent official server rules");
+    }
+    if (route === "/packs") {
+      await page.locator("#hv-species-list .hv-species-card").first()
+        .waitFor({ timeout:12000 });
+      assert.equal(await page.locator("#hv-species-list .hv-species-card").count(),21,
+        "Pack directory must reuse Hollow Valley's existing species list");
+      await page.locator("#hv-pack-species-a").selectOption("tyrannosaurus");
+      await page.locator("#hv-pack-count").fill("3");
+      await page.locator("#hv-pack-checker button[type=submit]").click();
+      await page.locator("#hv-pack-result").getByText("No staff-published group-size limit", { exact:false })
+        .waitFor({ timeout:12000 });
+      assert.equal(await page.locator("#hv-pack-result").getAttribute("data-status"), "unverified",
+        "Reference pack sizes must not become rules automatically");
+    }
     if (route === "/groups") {
       assert.equal(await page.locator(".groups-note").first().isVisible(), true, "Groups must be website-only");
       assert.equal(await page.locator("#groups-signin").isVisible(), true, "Guest should be prompted to sign in");
@@ -205,13 +227,15 @@ async function main() {
       ["/", "home"], ["/wallet", "wallet"], ["/marketplace", "marketplace"],
       ["/marketplace-official.html", "market-official"], ["/marketplace-players.html", "market-player"],
       ["/dinostorage/", "dino-storage"], ["/groups", "groups"], ["/help", "help"], ["/events", "events"],
-      ["/owner-login", "owner-login"], ["/livemap", "live-map"], ["/skins", "skin-studio"], ["/help", "help"],
+      ["/owner-login", "owner-login"], ["/livemap", "live-map"], ["/skins", "skin-studio"],
+      ["/rules", "rules"], ["/packs", "packs"],
     ]) {
-      await checkPage(browser, origin, route, desktop, label + "-desktop", { capture: ["home", "wallet", "marketplace", "dino-storage", "help"].includes(label) });
+      await checkPage(browser, origin, route, desktop, label + "-desktop", { capture: ["home", "wallet", "marketplace", "dino-storage", "help", "rules", "packs"].includes(label) });
     }
     for (const [route, label] of [
       ["/", "home"], ["/wallet", "wallet"], ["/marketplace", "marketplace"],
-      ["/dinostorage/", "dino-storage"], ["/groups", "groups"],
+      ["/dinostorage/", "dino-storage"], ["/groups", "groups"], ["/help", "help"],
+      ["/rules", "rules"], ["/packs", "packs"],
     ]) {
       await checkPage(browser, origin, route, tablet, label + "-tablet");
       await checkPage(browser, origin, route, phone, label + "-phone", { capture: true });
@@ -220,6 +244,11 @@ async function main() {
     const page = await browser.newPage();
     const response = await page.goto(origin + "/admin");
     assert.ok([401, 403, 302].includes(response.status()), "Admin page should block unauthenticated requests; got " + response.status());
+    for (const route of ["/adminrules", "/adminrules.html"]) {
+      const guarded = await page.goto(origin + route);
+      assert.ok([401, 403, 302].includes(guarded.status()),
+        "Rules editor must block unauthenticated requests at " + route + "; got " + guarded.status());
+    }
     console.log("PASS", "admin access denied without a valid production session");
     await page.close();
     console.log("STAGING UI BROWSER SMOKE PASSED");
