@@ -1775,60 +1775,90 @@ async function verifyLocalGlb(file) {
 }
 
 async function useLocalModel() {
-  const file = localModelFileEl?.files?.[0];
-  if (!file) return;
+  const files = Array.from(localModelFileEl?.files || []);
+  if (!files.length) return;
   if (calibrationPanel?.hidden) { localModelFileEl.value = ""; return; }
   if (calibrationActive) {
     localModelMessage("Stop zone mapping before switching meshes. Your current mask draft is retained.");
     localModelFileEl.value = "";
     return;
   }
-  const label = selectedSpeciesLabel();
-  const original = resolveModelDefinition(label);
-  if (!original) {
-    localModelMessage("Select a specific dinosaur species before loading a local GLB.");
+  if (files.length > 25) {
+    localModelMessage("Import at most 25 species models at once.");
     localModelFileEl.value = "";
     return;
   }
+  const label = selectedSpeciesLabel();
+  const selected = resolveModelDefinition(label);
+  const staged = [];
 
   localModelFileEl.disabled = true;
   try {
-    localModelMessage(`Validating ${file.name} locally…`);
-    await verifyLocalGlb(file);
-    // Content-address the mask draft so different local UV layouts never share it.
-    const hash = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
-    const fingerprint = [...new Uint8Array(hash)].map((byte) => byte.toString(16).padStart(2, "0")).join("").slice(0, 24);
-    const blobUrl = URL.createObjectURL(file);
-    const previous = localModelOverrides.get(original.key);
-    const candidate = {
-      ...(MODEL_REGISTRY[original.key] || original),
-      capability: "shape",
-      loader: { type: "local-blob", url: blobUrl },
-      credit: null,
-      localPreview: true,
-      localFileName: file.name,
-      calibrationFingerprint: fingerprint,
-    };
-    localModelOverrides.set(original.key, candidate);
-    // Release the previous preview URL. Its loaded scene is separately disposed.
-    if (previous?.loader?.url) URL.revokeObjectURL(previous.loader.url);
-
-    await loadModelForSpecies(label);
-    if (currentModelDef !== candidate || !model) {
-      localModelOverrides.delete(original.key);
-      URL.revokeObjectURL(blobUrl);
-      await loadModelForSpecies(label);
-      throw new Error("The local model could not be rendered. The website model has been restored.");
+    const keys = new Set();
+    for (const file of files) {
+      // The offline v013 converter names files <species>.glb. Match the
+      // species explicitly before assigning a mesh to an editor palette.
+      const stem = String(file.name || "").replace(/\.glb$/i, "").replace(/^SK[_-]/i, "").replace(/\s*\(\d+\)$/, "");
+      const normalized = normalizedSpecies(stem);
+      const source = Object.values(MODEL_REGISTRY).find((entry) =>
+        entry.key === normalized || (entry.aliases || []).some((alias) => normalizedSpecies(alias) === normalized));
+      const match = source || (files.length === 1 ? selected : null);
+      if (!match) throw new Error(`Unknown species filename "${file.name}". Use the converter's <species>.glb naming.`);
+      if (files.length === 1 && source && selected && match.key !== selected.key) {
+        throw new Error(`This is ${match.displayName}, but ${selected.displayName} is selected. Choose the matching species first.`);
+      }
+      if (keys.has(match.key)) throw new Error(`More than one model was supplied for ${match.displayName}.`);
+      keys.add(match.key);
+      localModelMessage(`Validating ${file.name} (${staged.length + 1}/${files.length}) locally…`);
+      await verifyLocalGlb(file);
+      // Content-address each UV draft to prevent accidentally painting a
+      // different species mesh with an older mask of the same species.
+      const hash = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+      const fingerprint = [...new Uint8Array(hash)].map((byte) => byte.toString(16).padStart(2, "0")).join("").slice(0, 24);
+      const blobUrl = URL.createObjectURL(file);
+      staged.push({
+        key: match.key,
+        candidate: {
+          ...match,
+          capability: "shape",
+          loader: { type: "local-blob", url: blobUrl },
+          credit: null,
+          localPreview: true,
+          localFileName: file.name,
+          calibrationFingerprint: fingerprint,
+        },
+      });
     }
-    localModelMessage(`${candidate.displayName}: ${file.name} loaded locally. Start zone mapping to calibrate UV colours; skins and player data are unchanged.`);
+
+    // Atomically install a validated batch in this browser session only.
+    for (const entry of staged) {
+      const previous = localModelOverrides.get(entry.key);
+      localModelOverrides.set(entry.key, entry.candidate);
+      if (previous?.loader?.url) URL.revokeObjectURL(previous.loader.url);
+    }
+    const active = resolveModelDefinition(label);
+    if (active?.localPreview && staged.some((entry) => entry.key === active.key)) {
+      await loadModelForSpecies(label);
+      if (currentModelDef !== active || !model) {
+        localModelOverrides.delete(active.key);
+        URL.revokeObjectURL(active.loader.url);
+        await loadModelForSpecies(label);
+        throw new Error(`Cannot render ${active.displayName}; its website model has been restored. Other validated local species remain available.`);
+      }
+    }
+    const list = staged.map((entry) => entry.candidate.displayName).join(", ");
+    localModelMessage(`Loaded ${staged.length} model${staged.length === 1 ? "" : "s"} privately: ${list}. Select a species, then Start mapping to calibrate UV colours. Skins and player data are unchanged.`);
   } catch (error) {
+    // If no override owns a staged blob, free it after a validation error.
+    for (const entry of staged) {
+      if (localModelOverrides.get(entry.key) !== entry.candidate) URL.revokeObjectURL(entry.candidate.loader.url);
+    }
     localModelMessage(`Local model rejected: ${error?.message || String(error)}`);
   } finally {
     localModelFileEl.value = "";
     localModelFileEl.disabled = false;
   }
 }
-
 async function resetLocalModel() {
   if (calibrationPanel?.hidden) return;
   if (calibrationActive) {
