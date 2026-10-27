@@ -1,0 +1,87 @@
+name: Hollow Valley Discord Progress Updates
+
+# Send one progress post per VERIFIED production revision, not per test run.
+# Manual workflow_dispatch is available for meaningful build/test/blocker milestones.
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'public/**'
+      - 'server/**'
+      - 'automation-platform/**'
+      - 'scripts/**'
+      - 'render.yaml'
+      - 'Dockerfile'
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: 'Current milestone stage'
+        required: true
+        type: choice
+        options: [building, testing, blocked, ready, live, fixed]
+        default: building
+      milestone:
+        description: 'Milestone, for example HV-W01.1'
+        required: true
+        type: string
+      summary:
+        description: 'Short public, non-sensitive summary of changes'
+        required: true
+        type: string
+      reference:
+        description: 'Optional Hollow Valley PR, commit or workflow URL'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hollow-valley-discord-progress
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    if: github.repository == 'Goofylagaming/hollow-valley-site' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout exact source revision
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify website readiness for the actual production revision
+        if: github.event_name == 'push'
+        run: node scripts/verify-readiness.cjs https://hollow-valley-site.onrender.com "$GITHUB_SHA"
+
+      - name: Determine if the automation service changed
+        if: github.event_name == 'push'
+        env:
+          PREVIOUS_SHA: ${{ github.event.before }}
+        shell: bash
+        run: |
+          if [[ ! "$PREVIOUS_SHA" =~ ^[0-9a-f]{40}$ ]] || [[ "$PREVIOUS_SHA" =~ ^0+$ ]]; then
+            echo 'AUTOMATION_CHANGED=true' >> "$GITHUB_ENV"
+          elif git diff --name-only "$PREVIOUS_SHA" "$GITHUB_SHA" | grep -q '^automation-platform/'; then
+            echo 'AUTOMATION_CHANGED=true' >> "$GITHUB_ENV"
+          else
+            echo 'AUTOMATION_CHANGED=false' >> "$GITHUB_ENV"
+          fi
+
+      - name: Verify automation recovery for a changed automation revision
+        if: github.event_name == 'push' && env.AUTOMATION_CHANGED == 'true'
+        run: node scripts/verify-readiness.cjs https://hollow-valley-automation.onrender.com "$GITHUB_SHA"
+
+      - name: Queue Hollow Valley progress update for HerbyBot
+        env:
+          HV_DISCORD_PROGRESS_TOKEN: ${{ secrets.HV_DISCORD_PROGRESS_TOKEN }}
+          HV_PROGRESS_STAGE: ${{ inputs.stage }}
+          HV_PROGRESS_MILESTONE: ${{ inputs.milestone }}
+          HV_PROGRESS_SUMMARY: ${{ inputs.summary }}
+          HV_PROGRESS_REFERENCE: ${{ inputs.reference }}
+        run: node scripts/post-hv-discord-progress.cjs
