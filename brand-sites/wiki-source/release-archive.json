@@ -2,6 +2,25 @@
   "schema": 1,
   "web": [
     {
+      "version": "W36.0",
+      "title": "Unified Expedition Journal — W36.0",
+      "notes": [
+        "The Expedition Journal connects creatures, regions, Guardians, fossils, expeditions, Ancient Hunts, lineages, research and trophies.",
+        "Search records, filter by status and browse 24 per page. Guardian records also have campaign-tier filters.",
+        "Searches and filters in the nine record sections stay selected when you open an activity and return during the same visit.",
+        "See returned teams, hatch-ready eggs, finished orders and held expedition or Hunt rewards together. Collection stays manual.",
+        "Record links open the relevant Codex entry, fossil set, family record, research project or Hunt.",
+        "Search species and companion names. Fossil records show species names alongside their familiar names.",
+        "Guardian links preview the encounter while keeping its locks, entry rules and your campaign frontier intact.",
+        "Journey milestones keep their chapters, pins and claim controls inside the Journal. The Outpost shortcut opens them directly.",
+        "Existing saves, companions, orders, eggs, cargo and rewards are preserved. Viewing the Journal grants no rewards or progress.",
+        "Save compatibility: W36.0 retains Web save format 16 without migration. The Journal reads existing campaign records without collecting cargo, granting milestones, unlocking Guardians, altering accounts or changing economy. Existing companions, egg/hatchery work, family records, research, crafting, expeditions, dungeon checkpoints, trophies and held Hunt rewards remain preserved; export Device and confirmed Cloud backups before switching builds. Never open format-16 saves in older Web clients; World/Desktop uses unrelated local profiles."
+      ],
+      "published": "2026-10-27",
+      "commit": "eaceb4689e372b7078c9124219aeb3e152998897",
+      "source": "https://github.com/Goofylagaming/primalbound/blob/eaceb4689e372b7078c9124219aeb3e152998897/web/update-notes.json"
+    },
+    {
       "version": "W35.0",
       "title": "Ancient Hunts & Relic Blueprints — W35.0",
       "notes": [

@@ -51,6 +51,10 @@ assert.ok((world.match(/class="wiki-topic"/g)||[]).length>=22,'Missing World cha
 assert.match(web,/W26\.28/);
 assert.match(web,/W34\.1/);
 assert.match(web,/W35\.0/);
+assert.match(web,/W36\.0/);
+assert.match(web,/Unified Expedition Journal/);
+assert.match(web,/format 16 unchanged/);
+assert.match(web,/manual collection|collect manually/);
 assert.match(web,/15 → 16/);
 assert.match(web,/Moss-Crowned Colossus/);
 assert.match(web,/9–13 stamina/);
