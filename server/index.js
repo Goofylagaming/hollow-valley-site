@@ -1,4 +1,6 @@
 require("dotenv").config();
+// Protect the attached production SQLite disk before feature modules migrate schema.
+require("./predeployBackup").beforeDatabaseInitialization();
 const path = require("node:path");
 const express = require("express");
 const session = require("express-session");
