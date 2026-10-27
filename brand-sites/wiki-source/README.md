@@ -4,7 +4,7 @@ The live Primalbound Render static service builds `brand-sites/dist/primalbound`
 The existing homepage, `/web/` and `/world/` are preserved.
 
 The last build step in `brand-sites/build.mjs` imports `publish-wikis.mjs`, which replaces only:
-- `/web/wiki/index.html` (Web Preview W35.0 verified how-to, including W27.1–W35.0 save migrations, Dungeon Practice, reduced dungeon-entry stamina, Ancient Hunts and relic crafting instructions)
+- `/web/wiki/index.html` (Web Preview W36.0 verified how-to, including W27.1–W36.0 save compatibility, Expedition Journal navigation/manual collection, Dungeon Practice and Ancient Hunts)
 - `/world/wiki/index.html` (M36.4 Windows playtest)
 - `/assets/wiki.css`
 - `/assets/wiki.js`
