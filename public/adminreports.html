@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Player Reports | Hollow Valley Admin</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=38">
+  <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
+  <link rel="stylesheet" href="/assets/snapshot-ui.css?v=5">
+  <link rel="stylesheet" href="/assets/player-reports.css?v=1">
+</head>
+<body class="has-my-stuff-rail">
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main class="hv-reports-main">
+      <header class="hv-reports-intro">
+        <p class="hv-reports-kicker">ADMIN · COMMUNITY SAFETY</p>
+        <h1>Player reports.</h1>
+        <p>Review private submissions, follow evidence links carefully and record an admin status decision. No automated Slay, restoration, compensation or coin changes happen here.</p>
+        <a href="/adminincidents">Open incident timeline</a>
+      </header>
+      <div id="admin-report-guard" class="hv-reports-panel" hidden>Admin access is required.</div>
+      <section id="admin-report-content" hidden>
+        <form id="admin-report-filters" class="hv-reports-panel hv-reports-filters">
+          <label>Report status
+            <select id="admin-report-status">
+              <option value="">All statuses</option>
+              <option value="open">Open</option>
+              <option value="reviewing">Reviewing</option>
+              <option value="resolved">Resolved</option>
+              <option value="dismissed">Dismissed</option>
+            </select>
+          </label>
+          <label>Steam ID / account name / report ID
+            <input id="admin-report-search" type="search" maxlength="90" placeholder="Search reports">
+          </label>
+          <button type="submit">Load reports</button>
+        </form>
+        <p id="admin-report-feedback" aria-live="polite">Loading reports…</p>
+        <div id="admin-report-list" class="hv-reports-list">Loading…</div>
+        <p class="hv-reports-footnote">Evidence links are submitted by players and are not independently verified. Do not assume accusations are true without investigation; review notes are visible only to admins.</p>
+      </section>
+    </main>
+    <footer><span>© 2026 Hollow Valley</span><span>ADMIN ONLY · PLAYER REPORTS</span><a href="/adminincidents">Incident Timeline</a></footer>
+  </div>
+  <script src="/assets/common.js?v=22"></script>
+  <script src="/assets/admin-reports.js?v=1"></script>
+</body>
+</html>
