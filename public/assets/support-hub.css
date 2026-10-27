@@ -1,0 +1,58 @@
+/* Hollow Valley private support portal */
+.hv-support-main{min-height:80vh;padding:clamp(20px,4vw,62px);color:#f2ebd5;background:#07160e;}
+.hv-support-hero{border:1px solid #436948;border-radius:14px;padding:clamp(23px,4vw,46px);background:linear-gradient(110deg,#092419ef,#153724d8),url('/assets/images/hollow-valley-banner.png') center/cover;}
+.hv-support-eyebrow{color:#a9ddb5;letter-spacing:.16em;font:800 10px Manrope,Arial,sans-serif;margin:0 0 12px;}
+.hv-support-hero h1{margin:0 0 16px;font:600 clamp(30px,4.5vw,55px)/1.15 Georgia,serif;color:#f3e1b5;}
+.hv-support-hero p{max-width:860px;color:#cad8ca;line-height:1.7;font-size:14px;}
+.hv-support-top-links{display:flex;gap:18px;margin-top:21px;flex-wrap:wrap;}
+.hv-support-hero a,.hv-support-panel a{color:#f1d094;text-decoration:underline;text-underline-offset:3px;font-size:13px;}
+.hv-support-quick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin:20px 0;}
+.hv-support-quick a{display:flex;flex-direction:column;gap:8px;border:1px solid #476948;border-radius:11px;padding:19px;min-height:148px;background:#0a2a1b;}
+.hv-support-quick strong{color:#f3e6c4;font:600 20px Georgia,serif;}
+.hv-support-quick span{color:#e6c880;font-size:24px;}
+.hv-support-quick small{color:#bccebd;font-size:11px;line-height:1.45;}
+.hv-support-panel{border:1px solid #3e684a;border-radius:11px;padding:clamp(17px,3vw,30px);background:linear-gradient(140deg,#0d2b1d,#071b12);margin:17px 0;}
+.hv-support-panel h2{color:#efdcb3;margin:0 0 13px;font:600 clamp(23px,2.6vw,32px) Georgia,serif;}
+.hv-support-panel h3{color:#f1dcaa;font:600 20px Georgia,serif;}
+.hv-support-panel p{color:#c0d5c4;line-height:1.7;font-size:13px;}
+.hv-support-form{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0;}
+.hv-support-wide,.hv-support-form button{grid-column:1/-1;}
+.hv-support-form label,.hv-support-filter label{display:grid;gap:7px;font-size:12px;font-weight:800;color:#d6e5cf;min-width:0;}
+.hv-support-form input,.hv-support-form textarea,.hv-support-form select,.hv-support-filter input,.hv-support-filter select{width:100%;color:#f1e9d8;min-height:43px;padding:10px;border:1px solid #6c846c;border-radius:6px;background:#0b2417;font:500 13px Manrope,Arial,sans-serif;}
+.hv-support-form textarea{min-height:112px;resize:vertical;line-height:1.55;}
+.hv-support-main button{min-height:43px;padding:10px 17px;border-radius:7px;background:#286343;border:1px solid #cfb071;color:#f7e8c4;font-size:12px;font-weight:800;cursor:pointer;}
+.hv-support-main button:disabled{opacity:.55;cursor:wait;}
+.hv-support-main :focus-visible{outline:3px solid #f3d894;outline-offset:3px;}
+.hv-support-heading{display:flex;gap:15px;justify-content:space-between;align-items:center;flex-wrap:wrap;}
+.hv-support-heading h2{margin:0;}
+.hv-support-ticket-list{display:grid;gap:12px;margin-top:13px;}
+.hv-support-ticket{border:1px solid #3a6045;border-radius:9px;background:#0c1c15;padding:18px;min-width:0;}
+.hv-support-ticket-top{display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap;}
+.hv-support-ticket strong{color:#f4e4be;font-size:15px;overflow-wrap:anywhere;}
+.hv-support-ticket small{color:#a4c4b0;font-size:11px;overflow-wrap:anywhere;}
+.hv-support-ticket p{margin:10px 0;white-space:pre-wrap;}
+.hv-support-status{display:inline-block;padding:5px 10px;border-radius:50px;background:#59401b;color:#ffdb99;font-size:11px;font-weight:800;}
+.hv-support-status[data-status="resolved"]{background:#1c5735;color:#aef2c7;}
+.hv-support-status[data-status="closed"]{background:#414d4b;color:#d7e5de;}
+.hv-support-status[data-status="awaiting-player"]{background:#244b59;color:#b5e1f6;}
+.hv-support-messages{display:grid;gap:11px;max-height:550px;overflow:auto;margin:19px 0;}
+.hv-support-message{border:1px solid #41694b;border-radius:8px;padding:15px;background:#102c1c;}
+.hv-support-message[data-author="staff"]{background:#1c3529;}
+.hv-support-message[data-private="true"]{border-color:#b49b65;background:#453720;}
+.hv-support-message p{margin:9px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;}
+.hv-support-message .hv-support-message-head{display:flex;gap:12px;flex-wrap:wrap;justify-content:space-between;color:#e6d7b5;font-size:11px;}
+.hv-support-evidence{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;}
+.hv-support-evidence a{color:#eac885;font-size:12px;}
+.hv-support-filter{display:flex;gap:15px;align-items:end;flex-wrap:wrap;}
+.hv-support-filter label{flex:1 1 220px;}
+.hv-support-admin-actions{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+.hv-support-admin-actions .hv-support-form{display:block;border:1px solid #3f6848;border-radius:8px;padding:16px;}
+.hv-support-admin-actions .hv-support-form label{margin:12px 0;}
+.hv-support-status-form{display:flex;align-items:end;gap:12px;}
+.hv-support-status-form label{flex:1;}
+.hv-support-status-form button{grid-column:auto;}
+.hv-support-audit{display:grid;gap:8px;color:#b9d2bc;font-size:12px;}
+.hv-support-audit > p{margin:0;padding:9px;border-bottom:1px solid #344739;}
+#hv-support-list-status,#hv-ticket-create-status,#hv-support-thread-status,#hv-admin-support-feedback,#hv-admin-support-detail-feedback{min-height:20px;font-size:12px;color:#e5d39e;}
+@media(max-width:950px){.hv-support-quick{grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media(max-width:650px){.hv-support-main{padding:16px 12px 40px;}.hv-support-quick,.hv-support-form,.hv-support-admin-actions{grid-template-columns:1fr;}.hv-support-status-form{display:grid;grid-template-columns:1fr;}.hv-support-quick a{min-height:105px;}.hv-support-ticket{padding:14px;}}
