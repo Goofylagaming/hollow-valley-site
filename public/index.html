@@ -9,21 +9,139 @@
   <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=5">
   <link rel="stylesheet" href="/assets/home-redesign.css?v=3">
+  <link rel="stylesheet" href="/assets/home-hub.css?v=1">
+  <link rel="stylesheet" href="/assets/home-updates.css?v=1">
 </head>
 <body class="has-my-stuff-rail">
   <div class="app-shell">
     <div id="nav-slot"></div>
 
     <main class="home-main snapshot-home">
-      <section class="snapshot-welcome">
+      <section class="snapshot-welcome home-hub-welcome">
         <div>
-          <h1>Welcome back, <span id="snapshot-welcome-name">Survivor</span></h1>
-          <p>Track your progress, manage your dinos and explore Hollow Valley.</p>
+          <p class="home-hub-eyebrow">AUSTRALIAN ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</p>
+          <h1>Welcome to Hollow Valley, <span id="snapshot-welcome-name">Survivor</span></h1>
+          <p>Your dinosaurs, Valley Coins, friends and server community — in one place.</p>
         </div>
       </section>
 
+
       <div class="home-overview">
-      <section class="home-roadmap" aria-labelledby="roadmap-heading">
+        <section class="snapshot-home-hero" aria-label="Hollow Valley">
+        <img class="home-brand-art" src="/assets/images/hollow-valley-home-art.webp" alt="Hollow Valley — dinosaur community" width="1298" height="851" fetchpriority="high">
+        <div class="snapshot-server-bar">
+          <a class="snapshot-server-card" href="/profile">
+            <i>♟</i>
+            <div><small>Players Online</small><b id="home-player-count">— / —</b></div>
+          </a>
+          <a class="snapshot-server-card" href="/livemap">
+            <i>⌖</i>
+            <div><small>Server Map</small><b>Gateway</b></div>
+          </a>
+          <div class="snapshot-server-card">
+            <i>◉</i>
+            <div><small>Server Status</small><b class="online" id="home-server-state">CHECKING</b></div>
+          </div>
+          <a class="snapshot-play-now" href="/livemap">Play Now</a>
+        </div>
+      </section>
+        <aside class="home-hub-intro" aria-labelledby="home-hub-intro-heading">
+  <p class="home-hub-eyebrow">EVERYTHING IN ONE PLACE</p>
+  <h2 id="home-hub-intro-heading">Your home in the Valley.</h2>
+  <p>Use your Steam-linked profile to track your dinosaurs, Valley Coin rewards and progression, or explore our player community.</p>
+  <div class="home-hub-intro-links">
+    <a href="/profile"><span aria-hidden="true">♟</span> My profile <span aria-hidden="true">↗</span></a>
+    <a href="/dinostorage/"><span aria-hidden="true">▣</span> Dino Storage <span aria-hidden="true">↗</span></a>
+    <a href="/events"><span aria-hidden="true">✦</span> Upcoming events <span aria-hidden="true">↗</span></a>
+  </div>
+  <p class="home-hub-intro-footnote">New to Hollow Valley? <a href="/help">Find our community rules, Discord and help links.</a></p>
+</aside>
+      </div>
+
+      <section class="home-hub-player" aria-labelledby="home-player-heading">
+  <div class="home-hub-section-heading">
+    <div><p class="home-hub-eyebrow">MY VALLEY</p><h2 id="home-player-heading">Pick up where you left off.</h2></div>
+    <a href="/profile">Open My Stuff <span aria-hidden="true">↗</span></a>
+  </div>
+  <div class="home-hub-player-grid">
+    <a href="/profile">
+      <small>MY PROFILE</small>
+      <strong id="home-player-label">Your survivor profile</strong>
+      <span id="home-player-sub">Sign in with Steam to see your progress</span>
+      <em id="home-profile-progress">Ranks · Achievements · Mastery</em>
+    </a>
+    <a href="/mydinos">
+      <small>DINOSAUR HISTORY</small>
+      <strong id="home-dino-count">My dinosaurs</strong>
+      <span>Active, stored and remembered dinos</span>
+      <em>View Dino History →</em>
+    </a>
+    <a href="/groups">
+      <small>YOUR COMMUNITY</small><strong>Find your people</strong>
+      <span>Groups, friendships and invitations</span>
+      <em>Explore Groups →</em>
+    </a>
+  </div>
+</section>
+
+      <section class="home-hub-tools" aria-labelledby="home-tools-heading">
+        <div class="home-hub-section-heading">
+          <div><p class="home-hub-eyebrow">PLAYER TOOLS</p><h2 id="home-tools-heading">Everything you use most.</h2></div>
+        </div>
+        <section class="snapshot-quick-grid" aria-label="Quick links">
+        <a class="snapshot-quick-card" href="/wallet">
+          <span class="snapshot-quick-art card-art-wallet" aria-hidden="true"></span>
+          <span class="snapshot-quick-copy"><b>Wallet</b><span>Check your balance and history.</span><span><strong id="home-wallet-balance">—</strong> Valley Coin</span></span>
+          <span class="snapshot-quick-arrow">→</span>
+        </a>
+        <a class="snapshot-quick-card" href="/quests">
+          <span class="snapshot-quick-art card-art-quests" aria-hidden="true"></span>
+          <span class="snapshot-quick-copy"><b>Quests</b><span>Complete quests and earn coins.</span></span>
+          <span class="snapshot-quick-arrow">→</span>
+        </a>
+        <a class="snapshot-quick-card" href="/skins">
+          <span class="snapshot-quick-art card-art-skins" aria-hidden="true"></span>
+          <span class="snapshot-quick-copy"><b>Skin Studio</b><span>Create and manage your skins.</span></span>
+          <span class="snapshot-quick-arrow">→</span>
+        </a>
+        <a class="snapshot-quick-card" href="/marketplace-official.html">
+          <span class="snapshot-quick-art card-art-marketplace" aria-hidden="true"></span>
+          <span class="snapshot-quick-copy"><b>Marketplace</b><span>Browse and purchase items.</span><span>Open dinosaur listings</span></span>
+          <span class="snapshot-quick-arrow">→</span>
+        </a>
+      </section>
+      </section>
+
+      <section class="home-hub-community" aria-labelledby="home-community-heading">
+        <div class="home-hub-section-heading">
+          <div><p class="home-hub-eyebrow">EXPLORE & CONNECT</p><h2 id="home-community-heading">Find your next adventure.</h2></div>
+        </div>
+        <section class="home-explore-links" aria-label="Explore the Valley">
+        <a href="/livemap"><span aria-hidden="true">⌖</span><div><b>Live Map</b><small>Explore Gateway and follow the Valley.</small></div><span aria-hidden="true">↗</span></a>
+        <a href="/events"><span aria-hidden="true">✦</span><div><b>Events</b><small>See what’s on and join the community.</small></div><span aria-hidden="true">↗</span></a>
+      </section>
+        <div class="home-hub-community-grid" aria-label="More places to explore">
+  <a href="/community"><span aria-hidden="true">♣</span><b>Community</b><small>Groups, nesting and recruitment</small></a>
+  <a href="/leaderboard?tab=levels"><span aria-hidden="true">★</span><b>Leaderboards</b><small>Community records and rankings</small></a>
+  <a href="/supporter"><span aria-hidden="true">◆</span><b>Supporter</b><small>Explore Valley membership</small></a>
+  <a href="/rules"><span aria-hidden="true">?</span><b>Server Rules</b><small>Search approved rules and grouping limits</small></a>
+</div>
+      </section>
+
+      <section class="home-hub-updates" aria-labelledby="home-updates-heading">
+        <div class="home-hub-section-heading">
+          <div>
+            <p class="home-hub-eyebrow">NEWS FROM THE VALLEY</p>
+            <h2 id="home-updates-heading">Latest development updates.</h2>
+          </div>
+          <a href="/updates">All updates <span aria-hidden="true">↗</span></a>
+        </div>
+        <div id="home-updates-list" class="hv-home-updates-list" aria-live="polite">
+          <p class="hv-home-update-empty">Loading approved development updates…</p>
+        </div>
+      </section>
+
+      <section class="home-roadmap" id="roadmap" aria-labelledby="roadmap-heading">
         <p class="roadmap-eyebrow">THE ROAD AHEAD</p>
         <div class="roadmap-heading-row"><h2 id="roadmap-heading">The future of<br><em>Hollow Valley.</em></h2><span class="roadmap-count">31<span>FEATURES</span></span></div>
         <p class="roadmap-intro">Explore what’s ahead. Open a stage, then choose an idea to see the full details.</p>
@@ -56,60 +174,13 @@
         </section>
         <noscript>Enable JavaScript to explore the interactive roadmap.</noscript>
       </section>
-      <section class="snapshot-home-hero" aria-label="Hollow Valley">
-        <img class="home-brand-art" src="/assets/images/hollow-valley-home-art.webp" alt="Hollow Valley — dinosaur community" width="1298" height="851" fetchpriority="high">
-        <div class="snapshot-server-bar">
-          <a class="snapshot-server-card" href="/profile">
-            <i>♟</i>
-            <div><small>Players Online</small><b id="home-player-count">— / —</b></div>
-          </a>
-          <a class="snapshot-server-card" href="/livemap">
-            <i>⌖</i>
-            <div><small>Server Map</small><b>Gateway</b></div>
-          </a>
-          <div class="snapshot-server-card">
-            <i>◉</i>
-            <div><small>Server Status</small><b class="online" id="home-server-state">CHECKING</b></div>
-          </div>
-          <a class="snapshot-play-now" href="/livemap">Play Now</a>
-        </div>
-      </section>
-
-      </div>
-
-      <section class="snapshot-quick-grid" aria-label="Quick links">
-        <a class="snapshot-quick-card" href="/wallet">
-          <span class="snapshot-quick-art card-art-wallet" aria-hidden="true"></span>
-          <span class="snapshot-quick-copy"><b>Wallet</b><span>Check your balance and history.</span><span><strong id="home-wallet-balance">—</strong> Valley Coin</span></span>
-          <span class="snapshot-quick-arrow">→</span>
-        </a>
-        <a class="snapshot-quick-card" href="/quests">
-          <span class="snapshot-quick-art card-art-quests" aria-hidden="true"></span>
-          <span class="snapshot-quick-copy"><b>Quests</b><span>Complete quests and earn coins.</span></span>
-          <span class="snapshot-quick-arrow">→</span>
-        </a>
-        <a class="snapshot-quick-card" href="/skins">
-          <span class="snapshot-quick-art card-art-skins" aria-hidden="true"></span>
-          <span class="snapshot-quick-copy"><b>Skin Studio</b><span>Create and manage your skins.</span></span>
-          <span class="snapshot-quick-arrow">→</span>
-        </a>
-        <a class="snapshot-quick-card" href="/marketplace-official.html">
-          <span class="snapshot-quick-art card-art-marketplace" aria-hidden="true"></span>
-          <span class="snapshot-quick-copy"><b>Marketplace</b><span>Browse and purchase items.</span><span id="home-dino-count">Open dinosaur listings</span></span>
-          <span class="snapshot-quick-arrow">→</span>
-        </a>
-      </section>
-
-      <section class="home-explore-links" aria-label="Explore the Valley">
-        <a href="/livemap"><span aria-hidden="true">⌖</span><div><b>Live Map</b><small>Explore Gateway and follow the Valley.</small></div><span aria-hidden="true">↗</span></a>
-        <a href="/events"><span aria-hidden="true">✦</span><div><b>Events</b><small>See what’s on and join the community.</small></div><span aria-hidden="true">↗</span></a>
-      </section>
     </main>
   </div>
 
 
   <script src="/assets/common.js?v=22"></script>
-  <script src="/assets/home-v2.js?v=2"></script>
+  <script src="/assets/home-v2.js?v=3"></script>
+  <script src="/assets/home-updates.js?v=1"></script>
   <script src="/assets/site.js?v=8"></script>
   <script src="/assets/home-roadmap.js?v=2"></script>
   <script src="/assets/roadmap-voting.js?v=2"></script>

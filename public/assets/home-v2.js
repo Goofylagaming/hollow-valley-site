@@ -40,6 +40,24 @@
         } catch (err) {
           console.warn("[home-v2] wallet unavailable", err);
         }
+
+        // Read-only progression: the Profile page remains authoritative. This
+        // preview label never awards XP, Valley Coins or achievements.
+        try {
+          const data = await window.HDS.api("/api/progression");
+          const profile = data?.profile || {};
+          const level = Number(profile.level);
+          const rank = String(profile.rank?.name || "").trim();
+          if (Number.isSafeInteger(level) && level > 0 && rank) {
+            setText("home-profile-progress",
+              `Level ${level} · ${rank}${data.stale ? " · Saved progress" : ""}`);
+          } else if (data?.stale) {
+            setText("home-profile-progress", "Progression is temporarily unavailable");
+          }
+        } catch (err) {
+          console.warn("[home-v2] progression summary unavailable", err);
+          setText("home-profile-progress", "See your latest progression in My Profile");
+        }
       }
     } catch (err) {
       console.warn("[home-v2] player summary unavailable", err);

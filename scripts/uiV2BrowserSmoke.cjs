@@ -35,6 +35,9 @@ async function setReadOnlyApiMocks(page, me = guest) {
       return route.fulfill({ status: 200, contentType: "application/json",
         body: JSON.stringify({ officialWritesEnabled: false, p2pWritesEnabled: false, p2pBuyEnabled: false }) });
     }
+    // The pack checker is a read-only query even though it uses POST. Only
+    // allow it through to this isolated staging database, never production.
+    if (pathname === "/api/community-guides/check") return route.continue();
     // Avoid accidental writes even if a page auto-submits a login bonus request.
     if (route.request().method() !== "GET") {
       return route.fulfill({ status: 200, contentType: "application/json",
@@ -79,14 +82,99 @@ async function checkPage(browser, origin, route, size, name, opts = {}) {
       assert.ok(await page.locator('.main-nav a[href="' + href + '"]').count(), name + " link missing " + href);
     }
 
+    if (route === "/") {
+      assert.equal(await page.locator("#home-roadmap-stages > .roadmap-stage").count(), 6,
+        "Homepage must preserve all roadmap stages");
+      assert.equal(await page.locator(".roadmap-feature").count(), 31,
+        "Homepage must retain all 31 community roadmap features");
+      assert.ok(await page.locator("#roadmap-suggestion-form").count(),
+        "The roadmap suggestion form must remain reachable");
+    }
+
+    if (size.width > 1050 && route === "/") {
+      const myStuff = page.locator("#my-stuff-nav-group > button");
+      await myStuff.click();
+      assert.equal(await myStuff.getAttribute("aria-expanded"), "true",
+        "Desktop My Stuff dropdown must open");
+      assert.equal(await page.locator('#my-stuff-submenu a[href="/dinostorage/"]').isVisible(), true,
+        "Dino Storage must be visible in the desktop submenu");
+      await page.locator(".home-hub-intro").click();
+      assert.equal(await myStuff.getAttribute("aria-expanded"), "false",
+        "Clicking outside desktop dropdown must close it");
+    }
+
     if (size.width <= 1050) {
       const menu = page.locator(".menu-toggle");
       assert.equal(await menu.isVisible(), true, name + " mobile navigation toggle hidden");
       await menu.click();
       assert.equal(await page.locator(".main-nav").evaluate((el) => el.classList.contains("open")), true, name + " mobile nav not opened");
       assert.equal(await page.locator('.main-nav a[href="/wallet"]').isVisible(), true, name + " Wallet hidden in mobile menu");
+      if (route === "/") {
+        const communityButton = page.locator("#community-nav-group > button");
+        await communityButton.click();
+        assert.equal(await communityButton.getAttribute("aria-expanded"), "true",
+          "Community mobile submenu must open");
+        assert.equal(await page.locator('#community-submenu a[href="/groups"]').isVisible(), true,
+          "Groups must be accessible in the mobile submenu");
+        await page.keyboard.press("Escape");
+        assert.equal(await communityButton.getAttribute("aria-expanded"), "false",
+          "Escape must close the open mobile submenu");
+        assert.equal(await page.locator(".main-nav").evaluate((el) => el.classList.contains("open")), true,
+          "Closing a submenu should leave the mobile navigation available");
+      }
       await page.keyboard.press("Escape");
       assert.equal(await page.locator(".main-nav").evaluate((el) => el.classList.contains("open")), false, name + " Escape does not close menu");
+    }
+    if (route === "/recruitment") {
+      await page.locator("#hv-group-search-status").getByText("0 recruiting group(s)",{exact:false}).waitFor({timeout:12000});
+      assert.equal(await page.locator("#hv-group-guest").isVisible(),true,
+        "Guest recruitment browsing cannot reveal owner management or private applicants");
+      assert.equal(await page.locator("#hv-group-membership").isVisible(),false);
+    }
+    if (route === "/community") {
+      await page.locator("#hv-community-group-status").getByText("0 group(s)",{exact:false}).waitFor({timeout:12000});
+      assert.equal(await page.locator("#hv-community-groups .hv-group-card").count(),0,
+        "Website group listing must be opt-in only");
+    }
+    if (route === "/support") {
+      await page.locator("#hv-support-guest").waitFor({state:"visible",timeout:12000});
+      assert.equal(await page.locator("#hv-support-app").isVisible(),false,
+        "Support creation and private ticket list must not be visible to guests");
+      assert.ok(await page.locator('a[href="/auth/steam?returnTo=/support"]').count(),
+        "Guest must be able to sign in with Steam");
+    }
+    if (route === "/updates") {
+      await page.locator("#hv-updates-feedback").getByText("0 published update(s)", {exact:false})
+        .waitFor({timeout:12000});
+      assert.equal(await page.locator("#hv-updates-list .hv-update-card").count(), 0,
+        "Unpublished development changes must never appear as a live release");
+      assert.ok(await page.locator('a[href="/#roadmap"]').count(),
+        "Roadmap remains reachable from Updates");
+    }
+    if (route === "/") {
+      await page.locator("#home-updates-list").getByText("first approved development", {exact:false})
+        .waitFor({timeout:12000});
+      assert.equal(await page.locator("#home-updates-list .hv-home-update").count(),0,
+        "Homepage may not invent news items before staff publishes any");
+    }
+    if (route === "/rules") {
+      await page.locator("#hv-rules-status").getByText("No approved Hollow Valley rules", { exact:false })
+        .waitFor({ timeout:12000 });
+      assert.equal(await page.locator("#hv-rules-list .hv-rule-item").count(),0,
+        "An isolated staging database must not invent official server rules");
+    }
+    if (route === "/packs") {
+      await page.locator("#hv-species-list .hv-species-card").first()
+        .waitFor({ timeout:12000 });
+      assert.equal(await page.locator("#hv-species-list .hv-species-card").count(),21,
+        "Pack directory must reuse Hollow Valley's existing species list");
+      await page.locator("#hv-pack-species-a").selectOption("tyrannosaurus");
+      await page.locator("#hv-pack-count").fill("3");
+      await page.locator("#hv-pack-checker button[type=submit]").click();
+      await page.locator("#hv-pack-result").getByText("No staff-published group-size limit", { exact:false })
+        .waitFor({ timeout:12000 });
+      assert.equal(await page.locator("#hv-pack-result").getAttribute("data-status"), "unverified",
+        "Reference pack sizes must not become rules automatically");
     }
     if (route === "/groups") {
       assert.equal(await page.locator(".groups-note").first().isVisible(), true, "Groups must be website-only");
@@ -170,14 +258,17 @@ async function main() {
     for (const [route, label] of [
       ["/", "home"], ["/wallet", "wallet"], ["/marketplace", "marketplace"],
       ["/marketplace-official.html", "market-official"], ["/marketplace-players.html", "market-player"],
-      ["/dinostorage/", "dino-storage"], ["/groups", "groups"], ["/events", "events"],
+      ["/dinostorage/", "dino-storage"], ["/groups", "groups"], ["/help", "help"], ["/events", "events"],
       ["/owner-login", "owner-login"], ["/livemap", "live-map"], ["/skins", "skin-studio"],
+      ["/rules", "rules"], ["/packs", "packs"], ["/updates", "updates"], ["/support", "support"],
+      ["/community", "community"], ["/recruitment", "recruitment"],
     ]) {
-      await checkPage(browser, origin, route, desktop, label + "-desktop", { capture: ["home", "wallet", "marketplace", "dino-storage"].includes(label) });
+      await checkPage(browser, origin, route, desktop, label + "-desktop", { capture: ["home", "wallet", "marketplace", "dino-storage", "help", "rules", "packs", "updates", "support", "community", "recruitment"].includes(label) });
     }
     for (const [route, label] of [
       ["/", "home"], ["/wallet", "wallet"], ["/marketplace", "marketplace"],
-      ["/dinostorage/", "dino-storage"], ["/groups", "groups"],
+      ["/dinostorage/", "dino-storage"], ["/groups", "groups"], ["/help", "help"],
+      ["/rules", "rules"], ["/packs", "packs"],
     ]) {
       await checkPage(browser, origin, route, tablet, label + "-tablet");
       await checkPage(browser, origin, route, phone, label + "-phone", { capture: true });
@@ -186,6 +277,11 @@ async function main() {
     const page = await browser.newPage();
     const response = await page.goto(origin + "/admin");
     assert.ok([401, 403, 302].includes(response.status()), "Admin page should block unauthenticated requests; got " + response.status());
+    for (const route of ["/adminrules", "/adminrules.html", "/adminupdates", "/adminupdates.html", "/adminsupport", "/adminsupport.html"]) {
+      const guarded = await page.goto(origin + route);
+      assert.ok([401, 403, 302].includes(guarded.status()),
+        "Rules editor must block unauthenticated requests at " + route + "; got " + guarded.status());
+    }
     console.log("PASS", "admin access denied without a valid production session");
     await page.close();
     console.log("STAGING UI BROWSER SMOKE PASSED");
