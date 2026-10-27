@@ -42,7 +42,8 @@ concurrency:
 
 jobs:
   notify:
-    if: github.repository == 'Goofylagaming/hollow-valley-site' && github.ref == 'refs/heads/master'
+    # Do not post until Discord bridge, automation branch and channel are approved.
+    if: vars.HV_DISCORD_PROGRESS_ENABLED == 'true' && github.repository == 'Goofylagaming/hollow-valley-site' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
