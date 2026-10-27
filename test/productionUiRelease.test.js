@@ -72,7 +72,7 @@ test("homepage removes species UI only and preserves existing summary scripts", 
   assert.doesNotMatch(html, /class="dino-dialog"/);
   assert.match(html, /home-roadmap\.js/);
   assert.match(html, /assets\/site\.js\?v=8/);
-  assert.match(html, /assets\/home-v2\.js\?v=2/);
+  assert.match(html, /assets\/home-v2\.js\?v=3/);
   assert.ok(fs.statSync(path.join(root, "public/assets/images/hollow-valley-banner.png")).size > 10000);
 });
 test("shared navigation retains production owner login and admin permission hiding", () => {

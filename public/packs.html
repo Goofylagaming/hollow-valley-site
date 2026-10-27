@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Hollow Valley pack sizes and species compatibility — distinguish informational references from published server rules.">
+  <title>Pack Limits | Hollow Valley</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=38">
+  <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
+  <link rel="stylesheet" href="/assets/snapshot-ui.css?v=5">
+  <link rel="stylesheet" href="/assets/community-guides.css?v=1">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main class="hv-guide-main">
+      <section class="hv-guide-hero">
+        <p class="hv-guide-eyebrow">HOLLOW VALLEY · SPECIES GUIDE</p>
+        <h1>Pack limits & grouping.</h1>
+        <p>Review the species reference list and check group sizes against <strong>published</strong> Hollow Valley policies. Reference pack numbers are educational data, not official restrictions unless an admin explicitly publishes them.</p>
+        <div class="hv-guide-hero-links">
+          <a href="/rules">Read published rules →</a>
+          <a href="https://discord.gg/herbydeathsquadgames" target="_blank" rel="noopener noreferrer">Ask staff about grouping ↗</a>
+        </div>
+      </section>
+      <section class="hv-guide-status" id="hv-packs-status" role="status" aria-live="polite">Loading species information…</section>
+      <section class="hv-guide-panel">
+        <div class="hv-guide-section-header">
+          <div><p class="hv-guide-eyebrow">INTERACTIVE GUIDE</p><h2>Check a group.</h2></div>
+          <span id="hv-packs-version" class="hv-guide-version">No verified policy yet</span>
+        </div>
+        <p>Single-species groups are checked against an approved maximum, if available. For mixed species, the checker only verifies an explicit compatibility decision; a permitted pair does <strong>not</strong> establish a mixed-group size allowance.</p>
+        <form id="hv-pack-checker" class="hv-guide-filters">
+          <label>First species
+            <select id="hv-pack-species-a" required><option value="">Choose a playable species</option></select>
+          </label>
+          <label>Second species
+            <select id="hv-pack-species-b"><option value="">Same as first species</option></select>
+          </label>
+          <label>Group size (players)
+            <input id="hv-pack-count" inputmode="numeric" type="number" min="1" max="100" value="2" required>
+          </label>
+          <button type="submit">Check published policy</button>
+        </form>
+        <div id="hv-pack-result" class="hv-pack-result" data-status="unverified" role="status" aria-live="polite">
+          Choose a species and group size to check published Hollow Valley rules.
+        </div>
+      </section>
+      <section class="hv-guide-panel">
+        <div class="hv-guide-section-header">
+          <div><p class="hv-guide-eyebrow">SPECIES DIRECTORY</p><h2>Browse all species.</h2></div>
+        </div>
+        <div class="hv-guide-filters">
+          <label>Search species
+            <input id="hv-species-search" type="search" autocomplete="off" maxlength="120" placeholder="e.g. Triceratops">
+          </label>
+          <label>Type
+            <select id="hv-species-category">
+              <option value="">All categories</option>
+              <option value="carnivore">Carnivores</option>
+              <option value="herbivore">Herbivores</option>
+              <option value="omnivore">Omnivores</option>
+              <option value="flying">Flying</option>
+            </select>
+          </label>
+        </div>
+        <p id="hv-species-count" class="hv-guide-count" aria-live="polite">Loading species…</p>
+        <div id="hv-species-list" class="hv-species-grid"></div>
+        <p class="hv-guide-disclaimer"><strong>Important:</strong> numbers labelled “Reference” come from the site's informational species dataset and are not enforced server rules. Only “Published limit” is an admin-approved policy. The official game roster and restrictions can change independently of this guide.</p>
+      </section>
+    </main>
+    <footer><span>© 2026 Hollow Valley</span><span>HOME OF THE HERBY DEATH SQUAD</span><a href="/rules">Server rules ↗</a></footer>
+  </div>
+  <script src="/assets/common.js?v=22"></script>
+  <script src="/assets/community-packs.js?v=1"></script>
+</body>
+</html>
