@@ -56,6 +56,15 @@ const LOCAL_MODEL_LIMIT_BYTES = 30 * 1024 * 1024;
 
 if (!canvas || !stage) throw new Error("Skin Studio 3D stage is missing");
 
+// Untextured PSK-derived GLBs still need Three.js's UV varyings for the
+// calibrated shader. A shared, solid-white 1px map enables vMapUv without
+// altering the palette colours or requiring proprietary game textures.
+const MASK_WHITE_MAP = new THREE.DataTexture(
+  new Uint8Array([255, 255, 255, 255]), 1, 1, THREE.RGBAFormat, THREE.UnsignedByteType
+);
+MASK_WHITE_MAP.colorSpace = THREE.SRGBColorSpace;
+MASK_WHITE_MAP.needsUpdate = true;
+
 const FALLBACKS = Object.freeze({
   body: "#6f7652",
   markings: "#232713",
@@ -526,6 +535,8 @@ function maskedMaterial(source, accurate) {
     setEyes(currentPalette);
     return { material, controller: { setPalette: setEyes, setSex() {} } };
   }
+  // The mask fragment samples vMapUv. Ensure it exists on geometry-only GLBs.
+  if (!material.map) material.map = MASK_WHITE_MAP;
   const uniforms = {
     hvMask0: { value: maskAtlases[0] },
     hvMask1: { value: maskAtlases[1] },
