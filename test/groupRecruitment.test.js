@@ -139,7 +139,7 @@ test("community and recruitment pages preserve privacy and never claim in-game g
   assert.match(nav,/href="\/recruitment"/);
   assert.match(nav,/href="\/community"/);
   assert.match(read("public/community.html"),/WEBSITE-ONLY|website community features/i);
-  assert.match(read("public/recruitment.html"),/doesn't send an invitation/i);
+  assert.match(read("public/recruitment.html"),/don't send an invitation/i);
   for(const f of ["public/assets/group-recruitment.js","public/assets/community-hub.js"]){
     const c=read(f);assert.doesNotThrow(()=>new Function(c));
     assert.match(c,/textContent/);
