@@ -112,7 +112,7 @@ The automation bridge adds durable announcement and alert delivery on top.
 
 ## Delivery destinations
 
-Outbox events currently use two logical destinations:
+The existing HerbyBot bridge now has these dedicated logical destinations:
 
 - `announcement` → `DISCORD_ANNOUNCEMENT_CHANNEL_ID`
 - `alert` → `DISCORD_ALERT_CHANNEL_ID`
