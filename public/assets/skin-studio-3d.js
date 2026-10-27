@@ -502,6 +502,8 @@ diffuseColor.rgb = mix(diffuseColor.rgb, hvMaleDisplay * hvShade, clamp(hvM2.g *
 
 function basicMaterialFrom(source) {
   return new THREE.MeshBasicMaterial({
+    // Keep PSK Body/Eye slot names across calibration mode toggles.
+    name: source.name || "",
     color: 0xffffff,
     map: source.map || null,
     alphaMap: source.alphaMap || null,
