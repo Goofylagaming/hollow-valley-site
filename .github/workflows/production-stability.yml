@@ -14,4 +14,4 @@ jobs:
         with:
           node-version: '22'
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: node --test test/productionStability.test.js test/primalboundGateway.test.js test/serverStatusAutomationOnly.test.js test/automationBranchSyncConfig.test.js automation-platform/test/economyWallet.test.js automation-platform/test/progressionService.test.js automation-platform/test/commandBridge.test.js automation-platform/test/dinoStorageCompatibility.test.js automation-platform/test/serverMonitor.test.js
+      - run: node --test test/incidentTimeline.test.js test/roadmapCommunity.test.js test/productionStability.test.js test/primalboundGateway.test.js test/serverStatusAutomationOnly.test.js test/automationBranchSyncConfig.test.js automation-platform/test/economyWallet.test.js automation-platform/test/progressionService.test.js automation-platform/test/commandBridge.test.js automation-platform/test/dinoStorageCompatibility.test.js automation-platform/test/serverMonitor.test.js

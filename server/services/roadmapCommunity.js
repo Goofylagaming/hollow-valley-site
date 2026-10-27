@@ -7,7 +7,7 @@ const { db } = require("../db");
 const MAX_VOTES = 3;
 const VOTABLE_FEATURE_IDS = Object.freeze([
   1, 2, 3, 4, 5, 6, 10, 11, 12, 14, 15, 16, 17,
-  18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+  18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 29, 30,
 ]);
 const eligible = new Set(VOTABLE_FEATURE_IDS);
 
@@ -52,8 +52,11 @@ function voteSummary(steamId = null) {
     "SELECT feature_id, COUNT(*) AS total FROM roadmap_votes GROUP BY feature_id"
   ).all();
   const counts = Object.fromEntries(rows.map(row => [row.feature_id, Number(row.total)]));
+  // Retired-feature votes remain recorded for historical tallies but stop
+  // occupying the player's three active ballot slots.
   const myVotes = validSteamId(steamId)
-    ? db.prepare("SELECT feature_id FROM roadmap_votes WHERE steam_id = ? ORDER BY feature_id").all(steamId).map(row => row.feature_id)
+    ? db.prepare("SELECT feature_id FROM roadmap_votes WHERE steam_id = ? ORDER BY feature_id").all(steamId)
+      .map(row => row.feature_id).filter(id => eligible.has(id))
     : [];
   return {
     counts,
@@ -77,9 +80,11 @@ function setVote(steamId, featureId, selected) {
       "SELECT 1 AS found FROM roadmap_votes WHERE steam_id = ? AND feature_id = ?"
     ).get(steamId, featureId);
     if (selected && !exists) {
+      // Only currently votable items consume ballot slots; keep older votes
+      // in the database so community history is not rewritten.
       const count = db.prepare(
-        "SELECT COUNT(*) AS total FROM roadmap_votes WHERE steam_id = ?"
-      ).get(steamId).total;
+        `SELECT COUNT(*) AS total FROM roadmap_votes WHERE steam_id = ? AND feature_id IN (${VOTABLE_FEATURE_IDS.map(() => "?").join(",")})`
+      ).get(steamId, ...VOTABLE_FEATURE_IDS).total;
       if (count >= MAX_VOTES) {
         throw failure("VOTE_LIMIT", "You've used your three votes. Remove an existing vote to choose another idea.");
       }

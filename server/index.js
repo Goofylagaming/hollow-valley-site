@@ -36,6 +36,7 @@ const mapdataRouter = require("./routes/mapdata");
 const supporterInternalRouter = require("./routes/supporterInternal");
 const adminRestoreRouter = require("./routes/adminRestore");
 const adminOperationsRouter = require("./routes/adminOperations");
+const adminIncidentsRouter = require("./routes/incidentTimeline");
 const adminCombatRouter = require("./routes/adminCombat");
 const adminPlayerDirectoryRouter = require("./routes/adminPlayerDirectory");
 const adminSafeLogRecoveryRouter = require("./routes/adminSafeLogRecovery");
@@ -272,6 +273,7 @@ function createApp() {
   }
   app.use("/api/admin-restore", adminRestoreRouter);
   app.use("/api/admin-operations", adminOperationsRouter);
+  app.use("/api/admin-incidents", adminIncidentsRouter);
   app.use("/api/admin-combat", adminCombatRouter);
   app.use("/api/admin-player-directory", adminPlayerDirectoryRouter);
   app.use("/api/admin-safelog-recovery", adminSafeLogRecoveryRouter);
@@ -298,6 +300,7 @@ function createApp() {
   const ADMIN_PAGE_ROUTES = {
     admin: "admin.html",
     adminoperations: "adminoperations.html",
+    adminincidents: "adminincidents.html",
     admincomms: "admincomms.html",
     adminrestore: "adminrestore.html",
     adminsupporters: "adminsupporters.html",
