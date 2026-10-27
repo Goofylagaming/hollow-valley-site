@@ -3,8 +3,10 @@
 The live Primalbound Render static service builds `brand-sites/dist/primalbound`.
 The existing homepage, `/web/` and `/world/` are preserved.
 
+The Web wiki snapshot, historical release archive and verified notes now include the 28 October 2026 W40.4 LIVE release (commit `58d490df606de617a52736fc41a1be250693b887`).
+
 The last build step in `brand-sites/build.mjs` imports `publish-wikis.mjs`, which replaces only:
-- `/web/wiki/index.html` (Web Preview W38.0 verified how-to, including W27.1–W38.0 save compatibility, Regional Outlooks, Companion Profiles, Talent Builds, Trophy Hall, Expedition Journal navigation/manual collection, Dungeon Practice and Ancient Hunts)
+- `/web/wiki/index.html` (Web Preview W40.4 verified how-to, including W27.1–W40.4 save compatibility, Field opportunities, regional standing/research, exact-item equipment loadouts, targeted Fossil Archive recovery and format-23 backups; all W38.0 and earlier chapters retained)
 - `/world/wiki/index.html` (M36.5 Windows playtest; Mini Rex stage rotation, graphics fix and unchanged schema 330)
 - `/assets/wiki.css`
 - `/assets/wiki.js`
