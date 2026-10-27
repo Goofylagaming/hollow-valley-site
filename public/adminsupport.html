@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en"><head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Support Queue | Hollow Valley Admin</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=38">
+  <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
+  <link rel="stylesheet" href="/assets/snapshot-ui.css?v=5">
+  <link rel="stylesheet" href="/assets/support-hub.css?v=1">
+</head><body>
+  <div class="app-shell"><div id="nav-slot"></div>
+    <main class="hv-support-main hv-support-admin">
+      <header class="hv-support-hero">
+        <p class="hv-support-eyebrow">HOLLOW VALLEY · ADMIN SUPPORT</p>
+        <h1>Support ticket queue.</h1>
+        <p>Review website support requests, answer players and record internal staff notes. No buttons here can restore dinosaurs, change wallets or run server commands.</p>
+        <a href="/admin">Admin Hub ↗</a>
+      </header>
+      <section class="hv-support-panel" id="hv-admin-support-guard" hidden>Admin access is required.</section>
+      <div id="hv-admin-support-app" hidden>
+        <section class="hv-support-panel">
+          <form id="hv-admin-filter" class="hv-support-filter">
+            <label>Ticket status
+              <select id="hv-admin-support-status">
+                <option value="">All statuses</option>
+                <option value="open">Open</option>
+                <option value="awaiting-staff">Awaiting staff</option>
+                <option value="awaiting-player">Awaiting player</option>
+                <option value="resolved">Resolved</option>
+                <option value="closed">Closed</option>
+              </select>
+            </label>
+            <label>Find ticket or player
+              <input id="hv-admin-support-search" type="search" maxlength="100" placeholder="Steam ID, name, ticket subject">
+            </label>
+            <button type="submit">Search queue</button>
+          </form>
+          <p id="hv-admin-support-feedback" aria-live="polite">Loading support queue…</p>
+          <div id="hv-admin-support-list" class="hv-support-ticket-list"></div>
+        </section>
+        <section class="hv-support-panel" id="hv-admin-support-detail" hidden>
+          <h2 id="hv-admin-support-detail-heading">Selected ticket</h2>
+          <p id="hv-admin-support-detail-meta"></p>
+          <div id="hv-admin-support-messages" class="hv-support-messages"></div>
+          <div class="hv-support-admin-actions">
+            <form id="hv-admin-support-reply-form" class="hv-support-form">
+              <h3>Respond to player</h3>
+              <label>Response
+                <textarea id="hv-admin-support-reply" rows="4" minlength="2" maxlength="3500" required></textarea>
+              </label>
+              <label>Evidence URL (optional)
+                <input id="hv-admin-support-evidence" maxlength="400" type="url" placeholder="https://">
+              </label>
+              <button type="submit">Send reply</button>
+            </form>
+            <form id="hv-admin-support-note-form" class="hv-support-form">
+              <h3>Staff-only note</h3>
+              <p>Internal notes remain visible only to admins, even if players view their ticket.</p>
+              <label>Private note
+                <textarea id="hv-admin-support-note" rows="4" minlength="2" maxlength="3500" required></textarea>
+              </label>
+              <button type="submit">Save internal note</button>
+            </form>
+          </div>
+          <form id="hv-admin-support-status-form" class="hv-support-form hv-support-status-form">
+            <label>Ticket status
+              <select id="hv-admin-ticket-next-status">
+                <option value="open">Open</option>
+                <option value="awaiting-staff">Awaiting staff</option>
+                <option value="awaiting-player">Awaiting player</option>
+                <option value="resolved">Resolved</option>
+                <option value="closed">Closed</option>
+              </select>
+            </label>
+            <button type="submit">Save status</button>
+          </form>
+          <p id="hv-admin-support-detail-feedback" aria-live="polite"></p>
+          <h3>Internal action history</h3>
+          <div id="hv-admin-support-audit" class="hv-support-audit"></div>
+        </section>
+      </div>
+    </main>
+    <footer><span>© 2026 Hollow Valley</span><span>ADMIN ONLY · SUPPORT QUEUE</span><a href="/admin">Admin Hub ↑</a></footer>
+  </div>
+  <script src="/assets/common.js?v=22"></script>
+  <script src="/assets/admin-support-hub.js?v=1"></script>
+</body></html>

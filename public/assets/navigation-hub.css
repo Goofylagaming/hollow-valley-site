@@ -1,0 +1,55 @@
+/* HV-UX01: grouped navigation, layered over existing snapshot/mobile styles. */
+.snapshot-topbar .main-nav { gap:5px; }
+.snapshot-topbar .main-nav > .nav-group > button {
+  display:flex; align-items:center; justify-content:space-between; gap:5px;
+  white-space:nowrap; min-height:36px; padding:5px 9px;
+  letter-spacing:.03em;
+}
+.snapshot-topbar .main-nav > .nav-group > button span {
+  font-size:10px; color:#b8dfc5; transition:transform .15s ease;
+}
+.snapshot-topbar .main-nav > .nav-group.open > button span { transform:rotate(180deg); }
+.snapshot-topbar .main-nav > a { min-height:36px; padding:5px 9px; white-space:nowrap; }
+.snapshot-topbar .main-nav > .nav-group.has-current > button,
+.snapshot-topbar .main-nav > .nav-group > button.is-active {
+  color:#fff; background:rgba(44,223,149,.12);
+}
+.snapshot-topbar .nav-group .mega-menu {
+  left:0; right:auto; width:270px; min-width:220px; max-width:min(330px,94vw);
+  padding:9px; border:1px solid rgba(83,164,117,.40);
+  border-radius:11px;
+}
+.snapshot-topbar #community-nav-group .mega-menu,
+.snapshot-topbar #help-nav-group .mega-menu,
+.snapshot-topbar #admin-nav-group .mega-menu { left:auto; right:0; }
+.snapshot-topbar .nav-group .mega-menu a {
+  display:block; white-space:normal; line-height:1.35;
+  padding:11px 12px; min-height:42px; font-weight:750;
+}
+.snapshot-topbar .nav-group .mega-menu a small {
+  display:block; color:#b2c4b9; margin-top:4px;
+  font:400 10px/1.4 Manrope,Arial,sans-serif;
+  letter-spacing:0; text-transform:none;
+}
+.snapshot-topbar .nav-group .mega-menu a.is-active { background:rgba(53,176,112,.16); color:#fcf7e8; }
+.snapshot-topbar .nav-group .mega-menu [hidden],
+.snapshot-topbar .main-nav [hidden] { display:none !important; }
+.snapshot-topbar .nav-group > button:focus-visible,
+.snapshot-topbar .mega-menu a:focus-visible {
+  outline:2px solid #f6d891; outline-offset:2px;
+}
+@media (min-width:1051px) {
+  .snapshot-topbar .main-nav { flex-wrap:nowrap; overflow:visible; }
+}
+@media (max-width:1050px) {
+  .snapshot-topbar .main-nav.open > .nav-group > button { display:flex; font-size:12px; min-height:44px; }
+  .snapshot-topbar .nav-group .mega-menu {
+    position:static; left:auto; right:auto; width:100%; max-width:none;
+    border-radius:7px; margin:0 0 5px; border-color:rgba(83,164,117,.24);
+    box-shadow:none;
+  }
+  .snapshot-topbar .main-nav.open > a { white-space:normal; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .snapshot-topbar .nav-group > button span { transition:none; }
+}

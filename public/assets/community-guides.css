@@ -1,0 +1,84 @@
+/* Hollow Valley first-party rules and pack guide. */
+.hv-guide-main {
+  min-height:75vh;
+  padding:clamp(28px,4.5vw,68px);
+  color:#eff5e9;
+  background:radial-gradient(ellipse at 80% 0%,rgba(27,102,73,.20),transparent 50%),#071510;
+}
+.hv-guide-hero {
+  padding:clamp(24px,4vw,48px);
+  background:linear-gradient(115deg,rgba(3,27,19,.96),rgba(20,61,43,.88)),url('/assets/images/hollow-valley-banner.png') center/cover;
+  border:1px solid rgba(121,172,115,.45);border-radius:14px;
+}
+.hv-guide-eyebrow {margin:0 0 12px;color:#9de4b2;font-size:10px;font-weight:800;letter-spacing:.17em;}
+.hv-guide-hero h1 {margin:0 0 17px;font:600 clamp(30px,4.5vw,57px)/1.1 Georgia,serif;color:#f5e3bb;}
+.hv-guide-hero p {max-width:800px;color:#c6d9ca;line-height:1.75;font-size:14px;}
+.hv-guide-hero strong,.hv-guide-panel strong {color:#f6e1b8;}
+.hv-guide-hero-links {display:flex;gap:16px;flex-wrap:wrap;margin-top:20px;}
+.hv-guide-hero-links a,.hv-guide-panel a {color:#efd194;text-decoration:underline;text-underline-offset:4px;font-size:13px;}
+.hv-guide-status {margin:18px 0;border-left:3px solid #75bd87;padding:13px 18px;color:#cde4d2;background:rgba(17,51,34,.65);font-size:13px;line-height:1.6;}
+.hv-guide-status[data-status="attention"] {border-left-color:#e8b965;color:#f5d8a0;}
+.hv-guide-panel {margin:18px 0;padding:clamp(17px,3vw,30px);border:1px solid #3a674a;border-radius:12px;background:linear-gradient(150deg,#0b2519,#061a12);}
+.hv-guide-section-header {display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;}
+.hv-guide-section-header h2 {font:600 clamp(24px,3vw,35px)/1.2 Georgia,serif;color:#f3e7c8;margin:0;}
+.hv-guide-version {font-size:11px;color:#c7d7bd;}
+.hv-guide-panel > p {color:#c0d0be;font-size:13px;line-height:1.7;}
+.hv-guide-filters {display:flex;align-items:end;flex-wrap:wrap;gap:14px;margin:14px 0 18px;}
+.hv-guide-filters label {display:grid;gap:8px;flex:1 1 190px;color:#d1e1d0;font-size:12px;font-weight:700;}
+.hv-guide-filters input,.hv-guide-filters select {
+  width:100%;min-height:45px;padding:10px 12px;border:1px solid #607960;border-radius:7px;
+  background:#0e2c1e;color:#f6f3e2;font:500 13px Manrope,Arial,sans-serif;
+}
+.hv-guide-filters button,.hv-admin-rule-actions button,.hv-admin-rules-main button {
+  cursor:pointer;min-height:44px;padding:10px 16px;border:1px solid #c8b778;border-radius:7px;
+  background:#2e6647;color:#f6f1da;font-weight:750;
+}
+.hv-guide-filters button:disabled,.hv-admin-rules-main button:disabled {opacity:.55;cursor:wait;}
+.hv-guide-main :focus-visible,.hv-admin-rules-main :focus-visible {outline:3px solid #f1d78b;outline-offset:3px;}
+.hv-guide-count {font-size:12px;color:#c0d6bd;}
+.hv-guide-list {display:grid;gap:13px;}
+.hv-rule-item,.hv-species-card {min-width:0;padding:19px;border:1px solid #335940;border-radius:9px;background:#0b1e15;}
+.hv-rule-item small,.hv-species-card small {color:#9dcfaf;font-size:11px;text-transform:uppercase;letter-spacing:.07em;}
+.hv-rule-item h3,.hv-species-card h3 {margin:8px 0 10px;color:#f2e4c2;font:600 22px/1.2 Georgia,serif;}
+.hv-rule-item p {margin:0;white-space:pre-wrap;overflow-wrap:anywhere;color:#d3e0d2;font-size:13px;line-height:1.7;}
+.hv-guide-history {display:grid;gap:9px;color:#d2decf;font-size:13px;}
+.hv-guide-history article {display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;border-bottom:1px solid #2f4c38;padding:10px 0;}
+.hv-guide-empty {padding:21px;border:1px dashed #57725b;border-radius:8px;color:#d9d8c3;}
+.hv-species-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;}
+.hv-species-card p {color:#c6d3c6;font-size:12px;line-height:1.55;}
+.hv-species-card .hv-species-reference {font-size:12px;color:#ead196;}
+.hv-species-card .hv-species-policy {display:block;padding:8px 10px;background:#234936;border-radius:6px;color:#dbf5df;font-size:12px;}
+.hv-species-card .hv-species-policy.missing {color:#c6d0c3;background:#27332a;}
+.hv-guide-disclaimer {margin-top:20px;border-left:3px solid #edc67a;padding:10px 14px;background:rgba(65,54,27,.24);}
+.hv-pack-result {padding:20px;border:1px solid #6e7654;border-radius:8px;background:#252f20;color:#f1dfbd;line-height:1.7;font-size:14px;white-space:pre-wrap;}
+.hv-pack-result[data-status="within-limit"] {border-color:#60bc82;background:#123e26;color:#ccf8d7;}
+.hv-pack-result[data-status="over-limit"],.hv-pack-result[data-status="prohibited"] {border-color:#ed7776;background:#502b2a;color:#ffe1d3;}
+.hv-pack-result[data-status="compatibility-only"] {border-color:#c6bd6c;background:#3c3921;}
+.hv-admin-rules-main {padding:clamp(22px,4vw,60px);min-height:80vh;background:#071510;color:#f1e9d6;}
+.hv-admin-rules-main h1 {font:600 clamp(30px,4vw,50px) Georgia,serif;margin:0 0 15px;}
+.hv-admin-rules-main p {color:#c2d1c3;font-size:13px;line-height:1.75;}
+.hv-admin-rules-panel {padding:23px;margin:18px 0;border:1px solid #46634b;border-radius:11px;background:#101f16;}
+.hv-admin-rules-panel h2 {font:600 25px Georgia,serif;color:#f1dfb2;}
+.hv-admin-rules-list {display:grid;gap:13px;margin:15px 0;}
+.hv-admin-rule-row {display:grid;gap:12px;padding:17px;border:1px solid #395641;border-radius:8px;background:#0a281a;}
+.hv-admin-rule-fields {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}
+.hv-admin-rule-row label {display:grid;gap:5px;color:#d0dfcd;font-size:12px;font-weight:700;min-width:0;}
+.hv-admin-rule-row input,.hv-admin-rule-row textarea,.hv-admin-rule-row select,.hv-admin-rules-panel input {
+  width:100%;padding:10px;min-height:41px;color:#f1ebd6;background:#163622;border:1px solid #61765c;border-radius:6px;font:inherit;
+}
+.hv-admin-rule-row textarea {min-height:95px;resize:vertical;}
+.hv-admin-rule-actions {display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:18px;}
+.hv-admin-rule-row .hv-admin-remove {justify-self:end;background:#4c3028;border-color:#ac7260;}
+.hv-admin-rules-review {display:grid;grid-template-columns:minmax(180px,1fr) auto;gap:16px;align-items:end;margin-top:15px;}
+.hv-admin-rules-notice {color:#e7cb95!important;}
+@media(max-width:980px) {
+ .hv-species-grid {grid-template-columns:repeat(2,minmax(0,1fr));}
+ .hv-admin-rule-fields {grid-template-columns:1fr 1fr;}
+}
+@media(max-width:650px) {
+ .hv-guide-main,.hv-admin-rules-main {padding:20px 13px 45px;}
+ .hv-species-grid,.hv-admin-rule-fields,.hv-admin-rules-review {grid-template-columns:1fr;}
+ .hv-guide-hero {padding:23px 17px;}
+ .hv-guide-panel {padding:18px;}
+ .hv-guide-section-header {align-items:start;flex-direction:column;}
+}
