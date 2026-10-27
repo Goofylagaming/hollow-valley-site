@@ -62,7 +62,7 @@
     if (kind === "rule") {
       const slug = data.id || "rule-" + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
       grid.append(
-        field("Rule ID (immutable key)", "id", slug, { maxLength:40 }),
+        field("Stable rule ID", "id", slug, { maxLength:40 }),
         field("Category", "category", data.category || "general", { options:CATEGORIES }),
         field("Title", "title", data.title || "", { maxLength:100 })
       );
