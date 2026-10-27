@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=5">
   <link rel="stylesheet" href="/assets/home-redesign.css?v=3">
   <link rel="stylesheet" href="/assets/home-hub.css?v=1">
+  <link rel="stylesheet" href="/assets/home-updates.css?v=1">
 </head>
 <body class="has-my-stuff-rail">
   <div class="app-shell">
@@ -127,6 +128,19 @@
 </div>
       </section>
 
+      <section class="home-hub-updates" aria-labelledby="home-updates-heading">
+        <div class="home-hub-section-heading">
+          <div>
+            <p class="home-hub-eyebrow">NEWS FROM THE VALLEY</p>
+            <h2 id="home-updates-heading">Latest development updates.</h2>
+          </div>
+          <a href="/updates">All updates <span aria-hidden="true">↗</span></a>
+        </div>
+        <div id="home-updates-list" class="hv-home-updates-list" aria-live="polite">
+          <p class="hv-home-update-empty">Loading approved development updates…</p>
+        </div>
+      </section>
+
       <section class="home-roadmap" id="roadmap" aria-labelledby="roadmap-heading">
         <p class="roadmap-eyebrow">THE ROAD AHEAD</p>
         <div class="roadmap-heading-row"><h2 id="roadmap-heading">The future of<br><em>Hollow Valley.</em></h2><span class="roadmap-count">31<span>FEATURES</span></span></div>
@@ -166,6 +180,7 @@
 
   <script src="/assets/common.js?v=22"></script>
   <script src="/assets/home-v2.js?v=3"></script>
+  <script src="/assets/home-updates.js?v=1"></script>
   <script src="/assets/site.js?v=8"></script>
   <script src="/assets/home-roadmap.js?v=2"></script>
   <script src="/assets/roadmap-voting.js?v=2"></script>
