@@ -24,7 +24,7 @@ test("roadmap ballot limits voting to three idea-stage features per Steam identi
   const initial = voting.voteSummary(steam1);
   assert.equal(initial.maxVotes, 3);
   assert.equal(initial.myVotes.length, 0);
-  assert.equal(initial.eligibleFeatureIds.length, 25);
+  assert.equal(initial.eligibleFeatureIds.length, 24);
 
   for (const id of [1, 2, 3]) voting.setVote(steam1, id, true);
   voting.setVote(steam1, 3, true); // idempotent repeated request
@@ -50,15 +50,19 @@ test("roadmap ballot limits voting to three idea-stage features per Steam identi
 test("retired #25 votes remain in historical totals but free all three active ballot slots", () => {
   const steam3 = "76561198000000003";
   db.prepare("INSERT INTO roadmap_votes (steam_id, feature_id) VALUES (?, 25)").run(steam3);
+  db.prepare("INSERT INTO roadmap_votes (steam_id, feature_id) VALUES (?, 26)").run(steam3);
   const summary = voting.voteSummary(steam3);
   assert.equal(summary.counts[25], 1);
+  assert.equal(summary.counts[26], 1);
+  assert.equal(summary.eligibleFeatureIds.includes(26), false);
   assert.deepEqual(summary.myVotes, []);
   assert.equal(summary.eligibleFeatureIds.includes(25), false);
   for (const feature of [1, 2, 3]) voting.setVote(steam3, feature, true);
   assert.deepEqual(voting.voteSummary(steam3).myVotes, [1, 2, 3]);
   assert.throws(() => voting.setVote(steam3, 4, true), { code: "VOTE_LIMIT" });
   assert.throws(() => voting.setVote(steam3, 25, true), { code: "FEATURE_NOT_VOTABLE" });
-  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM roadmap_votes WHERE steam_id = ? AND feature_id = 25").get(steam3).n, 1);
+  assert.throws(() => voting.setVote(steam3, 26, true), { code: "FEATURE_NOT_VOTABLE" });
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM roadmap_votes WHERE steam_id = ? AND feature_id IN (25, 26)").get(steam3).n, 2);
 });
 
 test("player ideas require moderation, are rate limited and never publish Steam identities", () => {
