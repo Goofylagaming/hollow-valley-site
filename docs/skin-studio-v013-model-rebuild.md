@@ -1,7 +1,7 @@
 # Skin Studio v013 — PSK model rebuild
 
 Date: 2026-10-27  
-Status: **development experiment; not deployed**
+Status: **v013 development branch; admin-only local model import implemented; public models withheld**
 
 ## Objective
 
@@ -28,6 +28,29 @@ Newly available mesh geometry for previously pending species includes Deinosuchu
 `public/skin-studio/model-lab.html` is a read-only browser mesh inspector. It loads chosen `.glb` files from the user's device via the File API, renders body and eye material groups, allows orbit/zoom/wireframe/tint, and never calls the website skin APIs. It attempts local model paths only for private HTTP-served test bundles. It does not contain models or licensed game assets.
 
 **Do not automatically enable new models on production.** Source meshes were obtained through a third-party website; public accessibility does not establish permission to republish them or derivatives. The binaries and their locally converted GLBs have not been committed here. Establish provenance and rights before public hosting.
+
+## Integrated admin model preview (v013)
+
+The live `/skins` page's existing **Admin · Zone Calibration** panel now includes a **Private model preview** file picker. It accepts one or up to 25 local glTF 2.0 `.glb` files (the private bundle contains 20), validates their binary headers, identifies the destination species from the canonical filename, and loads them through the existing lazy Three.js GLTFLoader. The website model remains available through **Use website model**.
+
+- Choose all 20 files from the owner's extracted `models/` folder to register all 20 previews for this browser session; switch the regular **Compatibility** species selector to compare them.
+- Models are **browser-local** and never sent to the server, linked to a player skin, or shipped in this public repository. A reload clears the model selections.
+- Converted PSK meshes preserve separate Unreal Body/Eye material names; shape-only preview now renders the native `eyes` colour on eye meshes and `body` on other meshes.
+- Per-model SHA-256 fingerprints scope calibration drafts so a skin zone mask cannot cross between two different model geometries with the same species ID.
+- Painting and mask export use the existing admin tools. Even with the new geometry, previews remain **shape-only until the EVRIMA UV zones are calibrated and verified in game**.
+- A local model can be changed or reverted only when painting is stopped; existing public mesh/skin paths and Wear Live are untouched.
+- The 30 MB per-file limit and 25-species batch bound protect browser performance; no third-party binary is added to Git or Render.
+- Legacy site has no automatic access to locally loaded meshes; normal players continue seeing the licensed/current site models.
+
+## How to try on the deployed website
+
+1. Extract the private `hollow-valley-skin-studio-v013-private-model-lab.zip` bundle from the prior chat (not GitHub).
+2. Sign in as an admin at `https://hollowvalleyisle.com/skins`, open **Skin Studio**, and find **Admin · Zone Calibration**.
+3. Under **Private model preview**, click **Choose files** and select all `models/*.glb` from the extracted bundle.
+4. Use the existing species selector; select Deinosuchus to begin. Click **Start mapping**, select a UV zone, paint the model, then **Copy mask** to export its JSON. Compare each mapping to an actual in-game screenshot / SkinInspector capture before declaring it accurate.
+5. To return to the standard model, stop mapping and click **Use website model**. A page reload also clears all local meshes; it does not erase the separate local UV drafts.
+
+This is the most we can safely deploy without publishing third-party model binaries or claiming unverified colour accuracy.
 
 ## Build stages
 
