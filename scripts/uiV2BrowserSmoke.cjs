@@ -125,6 +125,20 @@ async function checkPage(browser, origin, route, size, name, opts = {}) {
       await page.keyboard.press("Escape");
       assert.equal(await page.locator(".main-nav").evaluate((el) => el.classList.contains("open")), false, name + " Escape does not close menu");
     }
+    if (route === "/updates") {
+      await page.locator("#hv-updates-feedback").getByText("0 published update(s)", {exact:false})
+        .waitFor({timeout:12000});
+      assert.equal(await page.locator("#hv-updates-list .hv-update-card").count(), 0,
+        "Unpublished development changes must never appear as a live release");
+      assert.ok(await page.locator('a[href="/#roadmap"]').count(),
+        "Roadmap remains reachable from Updates");
+    }
+    if (route === "/") {
+      await page.locator("#home-updates-list").getByText("first approved development", {exact:false})
+        .waitFor({timeout:12000});
+      assert.equal(await page.locator("#home-updates-list .hv-home-update").count(),0,
+        "Homepage may not invent news items before staff publishes any");
+    }
     if (route === "/rules") {
       await page.locator("#hv-rules-status").getByText("No approved Hollow Valley rules", { exact:false })
         .waitFor({ timeout:12000 });
@@ -228,9 +242,9 @@ async function main() {
       ["/marketplace-official.html", "market-official"], ["/marketplace-players.html", "market-player"],
       ["/dinostorage/", "dino-storage"], ["/groups", "groups"], ["/help", "help"], ["/events", "events"],
       ["/owner-login", "owner-login"], ["/livemap", "live-map"], ["/skins", "skin-studio"],
-      ["/rules", "rules"], ["/packs", "packs"],
+      ["/rules", "rules"], ["/packs", "packs"], ["/updates", "updates"],
     ]) {
-      await checkPage(browser, origin, route, desktop, label + "-desktop", { capture: ["home", "wallet", "marketplace", "dino-storage", "help", "rules", "packs"].includes(label) });
+      await checkPage(browser, origin, route, desktop, label + "-desktop", { capture: ["home", "wallet", "marketplace", "dino-storage", "help", "rules", "packs", "updates"].includes(label) });
     }
     for (const [route, label] of [
       ["/", "home"], ["/wallet", "wallet"], ["/marketplace", "marketplace"],
@@ -244,7 +258,7 @@ async function main() {
     const page = await browser.newPage();
     const response = await page.goto(origin + "/admin");
     assert.ok([401, 403, 302].includes(response.status()), "Admin page should block unauthenticated requests; got " + response.status());
-    for (const route of ["/adminrules", "/adminrules.html"]) {
+    for (const route of ["/adminrules", "/adminrules.html", "/adminupdates", "/adminupdates.html"]) {
       const guarded = await page.goto(origin + route);
       assert.ok([401, 403, 302].includes(guarded.status()),
         "Rules editor must block unauthenticated requests at " + route + "; got " + guarded.status());
