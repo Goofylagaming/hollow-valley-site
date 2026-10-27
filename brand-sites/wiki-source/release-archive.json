@@ -235,6 +235,19 @@
   ],
   "world": [
     {
+      "version": "M36.5",
+      "title": "Primalbound World M36.5 — Windows playtest",
+      "notes": [
+        "Mini Rex now replaces the fifth non-Guardian encounter in each ten-stage expedition route (stages 5, 15, 25, ...), starting with Mosswatch stage 5. Use the route marker and Begin Encounter to find its smaller animated T. rex.",
+        "Mini Rex has a smaller collider and nameplate but keeps ordinary stage health, damage, Coins/Bones, progress, and companion stagger/hamstring effects. Every tenth-stage Guardian and the other ordinary encounters are unchanged.",
+        "Fixed graphics-quality callback errors when short-lived enemy models were removed in combat or between stages.",
+        "Save schema 330, M36.4 campaign progress, local profiles, JSON recovery points, game settings and cloud-sync restrictions are unchanged. Keep a backup, and use the optional launcher update or PLAY CURRENT VERSION."
+      ],
+      "published": "2026-10-27",
+      "tag": "m36-5-build-40506051466",
+      "source": "https://github.com/Goofylagaming/primalbound-downloads/releases/tag/m36-5-build-40506051466"
+    },
+    {
       "version": "M36.4",
       "title": "Primalbound World M36.4 — Windows playtest",
       "notes": [
