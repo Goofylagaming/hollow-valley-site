@@ -50,6 +50,9 @@ assert.ok((web.match(/class="wiki-topic"/g)||[]).length>=44,'Missing Web chapter
 assert.ok((world.match(/class="wiki-topic"/g)||[]).length>=22,'Missing World chapters');
 assert.match(web,/W26\.28/);
 assert.match(web,/W34\.1/);
+assert.match(web,/W35\.0/);
+assert.match(web,/15 → 16/);
+assert.match(web,/Moss-Crowned Colossus/);
 assert.match(web,/9–13 stamina/);
 assert.match(world,/M36\.4/);
 assert.match(web,/Hatchling Growth Attack bonus/);
