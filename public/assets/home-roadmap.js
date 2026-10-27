@@ -7,6 +7,7 @@
     9: { status: 'complete', added: '2026-10-23', note: 'Live: nest listings, egg availability, requests, host approval and automatic closure. An accepted request reserves an advertised egg; it does not verify an in-game hatch.' },
     8: { status: 'partial', note: 'Available in Valley Legacy: verified parent/child links and lineage display. Automatic hatch detection and inherited-mutation verification are still pending.' },
     13: { status: 'partial', note: 'Available: seasonal and all-time records, Hall of Fame, presence, combat and gameplay-coin connections. Territory capture and group-battle connections are still pending.' },
+    29: { status: 'building', note: 'HV-W01.1: public read-only status page in development. Independent RCON, Discord, Marketplace, Steam and Live Map monitors, plus incident history, are not yet available.' },
     31: { status: 'building', note: 'Building / Testing. Completion has not yet been verified.' }
   };
   const stages = [
@@ -85,9 +86,13 @@
       feature.append(featureSummary, element('p', '', description));
       if (release) {
         const note = element('p', 'roadmap-release-note', release.note);
-        if (id !== 31) {
+        if ([7, 8, 9, 13].includes(id)) {
           const link = element('a', '', 'Open Valley Legacy →');
           link.href = '/legacy';
+          note.append(' ', link);
+        } else if (id === 29) {
+          const link = element('a', '', 'View status page →');
+          link.href = '/status';
           note.append(' ', link);
         }
         feature.append(note);

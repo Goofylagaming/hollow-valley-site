@@ -1,0 +1,48 @@
+.hv-status-main {
+  min-height: 75vh;
+  padding: 122px clamp(20px, 6vw, 92px) 72px;
+  background: radial-gradient(ellipse at 80% 6%, rgba(45, 93, 65, .23), transparent 40%), #090d0c;
+}
+.hv-status-intro { max-width: 850px; margin-bottom: 28px; }
+.hv-status-kicker { color: #b3e1b9; letter-spacing: .22em; font-size: .72rem; font-weight: 800; }
+.hv-status-intro h1 { margin: 16px 0; font-size: clamp(2rem, 4vw, 3.6rem); line-height: 1.12; }
+.hv-status-intro > p:last-child { max-width: 700px; color: #c6d0c8; line-height: 1.7; }
+.hv-status-summary, .hv-status-card, .hv-status-notes {
+  border: 1px solid rgba(198, 165, 93, .3);
+  border-radius: 14px;
+  background: linear-gradient(140deg, rgba(23, 35, 29, .92), rgba(9, 15, 13, .96));
+}
+.hv-status-summary { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 24px; }
+.hv-status-summary small, .hv-status-card small { color: #a8b8a9; font-size: .74rem; letter-spacing: .08em; }
+.hv-status-summary h2 { margin: 10px 0; color: #f0ead5; font-size: clamp(1.25rem, 2vw, 1.8rem); }
+.hv-status-summary p { margin: 0; color: #afb8ae; font-size: .85rem; }
+.hv-status-summary button {
+  cursor: pointer; padding: 12px 18px; border: 1px solid #bfa26a; border-radius: 7px;
+  color: #f8e9b9; background: #263629; font: 700 .85rem Manrope, sans-serif;
+}
+.hv-status-summary button:hover { background: #354a34; }
+.hv-status-summary button:disabled { cursor: wait; opacity: .6; }
+.hv-status-summary button:focus-visible, .hv-status-notes a:focus-visible { outline: 3px solid #d8a928; outline-offset: 4px; }
+.hv-status-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 18px; }
+.hv-status-card { padding: 22px; min-height: 170px; }
+.hv-status-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.hv-status-card h3 { margin: 0; font-size: 1rem; color: #f3ebd4; }
+.hv-status-card p { margin: 22px 0 12px; color: #b8c6b9; line-height: 1.6; font-size: .9rem; }
+.hv-status-pill { font-size: .72rem; font-weight: 800; border-radius: 20px; padding: 6px 10px; white-space: nowrap; color: #dedcd1; background: #45463e; }
+.hv-status-card[data-state="ok"] .hv-status-pill { background: rgba(48, 230, 154, .14); color: #69f4b2; }
+.hv-status-card[data-state="attention"] .hv-status-pill { background: rgba(239, 92, 101, .15); color: #ff9298; }
+.hv-status-card[data-state="delayed"] .hv-status-pill { background: rgba(238, 177, 71, .15); color: #f7c77d; }
+.hv-status-notes { margin-top: 20px; padding: 26px; }
+.hv-status-notes h2 { margin-top: 0; font-size: 1.2rem; }
+.hv-status-notes p { color: #bcc8bd; line-height: 1.7; font-size: .9rem; }
+.hv-status-notes strong { color: #e6decb; }
+.hv-status-notes a { display: inline-block; margin-top: 8px; color: #f3cb80; text-decoration: underline; text-underline-offset: 4px; }
+@media (max-width: 1050px) {
+  .hv-status-grid { grid-template-columns: 1fr; }
+  .hv-status-card { min-height: 130px; }
+}
+@media (max-width: 580px) {
+  .hv-status-main { padding: 105px 16px 48px; }
+  .hv-status-summary { flex-direction: column; align-items: stretch; }
+  .hv-status-card-header { flex-wrap: wrap; }
+}
