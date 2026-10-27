@@ -43,6 +43,12 @@ for (const site of ['primalbound','hollow-valley']) {
 }
 const base=resolve(root,'primalbound');
 const web=await readFile(join(base,'web/wiki/index.html'),'utf8');
+const webSource=await readFile(new URL('./wiki-source/web/wiki/index.html',import.meta.url),'utf8');
+const verifiedWebVersion=webSource.match(/Latest verified Web Preview:\s*(W\d+(?:\.\d+)?)/)?.[1];
+assert.ok(verifiedWebVersion,'Missing independently verified Web guide version');
+assert.ok(web.includes('class="version-chip">Web Preview '+verifiedWebVersion+' · full guide updated'),'Web wiki badge does not match detailed player guide');
+assert.ok(web.includes('guide documents the verified Web Preview through '+verifiedWebVersion),'Web wiki introduction is stale');
+assert.ok(web.includes('Release-specific instructions have been incorporated through '+verifiedWebVersion),'Published Web guide coverage is stale');
 const world=await readFile(join(base,'world/wiki/index.html'),'utf8');
 const css=await readFile(join(base,'assets/wiki.css'),'utf8');
 const js=await readFile(join(base,'assets/wiki.js'),'utf8');
