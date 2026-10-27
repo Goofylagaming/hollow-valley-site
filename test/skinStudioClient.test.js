@@ -257,7 +257,7 @@ test("Skin Studio 3D preview uses species-specific models and refuses fake unive
   assert.match(html, /EVRIMA SkinInspector capture/);
   assert.match(html, /Load diagnostic colours/);
   assert.match(html, /Import \/ resume a mask/);
-  assert.match(html, /skin-studio-3d\.js\?v=18/);
+  assert.match(html, /skin-studio-3d\.js\?v=19/);
 });
 
 
@@ -312,7 +312,7 @@ test("Skin Studio keeps FNF-compatible core zone order and simple pattern contro
   assert.match(browser, /function selectedSpeciesProfile\(\)/);
   assert.match(browser, /Number\.isInteger\(profile\?\.patternMax\)/);
   assert.match(browser, /Wear Live will preserve its current in-game pattern/);
-  assert.match(html, /skin-studio-3d\.js\?v=18/);
+  assert.match(html, /skin-studio-3d\.js\?v=19/);
   assert.match(html, /id="skin-pattern-presets"/);
   assert.match(html, /id="skin-pattern-safety"/);
   assert.match(html, /id="skin-sex-preview"/);
@@ -370,4 +370,26 @@ test("CommandBridge forwards unsolicited SkinStudio lifecycle result lines", () 
   assert.match(forwarder, /postResultLine\(line\)/);
   assert.equal(forwarder.includes("getRequest"), false);
   assert.equal(forwarder.includes("known"), false);
+});
+
+
+test("local model preview is admin-only, browser-local, GLB-validated and UV-isolated", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const html = fs.readFileSync(path.join(__dirname, "..", "public", "skins.html"), "utf8");
+  const js = fs.readFileSync(path.join(__dirname, "..", "public", "assets", "skin-studio-3d.js"), "utf8");
+
+  assert.match(html, /<section class="skin-calibration-panel" id="skin-calibration-panel" hidden>/);
+  assert.match(html, /id="skin-local-model-file" type="file" accept="\.glb/);
+  assert.match(html, /id="skin-local-model-reset"/);
+  assert.match(html, /model is loaded only in your browser/i);
+  assert.match(js, /if \(calibrationPanel\?\.hidden\)/);
+  assert.match(js, /URL\.createObjectURL\(file\)/);
+  assert.match(js, /URL\.revokeObjectURL\(/);
+  assert.match(js, /loader\.type === "local-blob"/);
+  assert.match(js, /crypto\.subtle\.digest\("SHA-256"/);
+  assert.match(js, /currentModelDef\.calibrationFingerprint/);
+  assert.match(js, /LOCAL_MODEL_LIMIT_BYTES = 30 \* 1024 \* 1024/);
+  assert.match(js, /header\.getUint32\(0, true\) !== 0x46546c67/);
+  assert.match(js, /const sameDefinition = Boolean\(def && def === currentModelDef\)/);
 });
