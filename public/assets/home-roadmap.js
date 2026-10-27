@@ -92,10 +92,6 @@
           const link = element('a', '', 'Open Valley Legacy →');
           link.href = '/legacy';
           note.append(' ', link);
-        } else if (id === 25) {
-          const link = element('a', '', 'Incident Timeline →');
-          link.href = '/adminincidents';
-          note.append(' ', link);
         } else if (id === 26) {
           const link = element('a', '', 'Player Reports →');
           link.href = '/reports';
