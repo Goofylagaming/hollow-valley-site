@@ -204,10 +204,10 @@ async function main() {
     for (const [route, label] of [
       ["/", "home"], ["/wallet", "wallet"], ["/marketplace", "marketplace"],
       ["/marketplace-official.html", "market-official"], ["/marketplace-players.html", "market-player"],
-      ["/dinostorage/", "dino-storage"], ["/groups", "groups"], ["/events", "events"],
-      ["/owner-login", "owner-login"], ["/livemap", "live-map"], ["/skins", "skin-studio"],
+      ["/dinostorage/", "dino-storage"], ["/groups", "groups"], ["/help", "help"], ["/events", "events"],
+      ["/owner-login", "owner-login"], ["/livemap", "live-map"], ["/skins", "skin-studio"], ["/help", "help"],
     ]) {
-      await checkPage(browser, origin, route, desktop, label + "-desktop", { capture: ["home", "wallet", "marketplace", "dino-storage"].includes(label) });
+      await checkPage(browser, origin, route, desktop, label + "-desktop", { capture: ["home", "wallet", "marketplace", "dino-storage", "help"].includes(label) });
     }
     for (const [route, label] of [
       ["/", "home"], ["/wallet", "wallet"], ["/marketplace", "marketplace"],
