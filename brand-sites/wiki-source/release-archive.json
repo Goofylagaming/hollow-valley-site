@@ -2,6 +2,20 @@
   "schema": 1,
   "web": [
     {
+      "version": "W34.1",
+      "title": "More Dungeon Runs, Less Stamina — W34.1",
+      "notes": [
+        "All 30 Ancient Dungeon entry costs are halved and rounded up. Check the cost shown on a route card before entering; stamina is paid once per complete five-floor run.",
+        "The six original dungeons (Fangwood Depths, Sunken Catacombs, Obsidian Trials, Crystal Labyrinth, Stormscar Gauntlet and Eternal Prime Trial) now cost 3, 4, 5, 6, 8 and 9 stamina respectively.",
+        "The 24 later tier-scaled routes cost 9–13 stamina. All existing stage unlocks, route groups and full-clear rewards stay the same.",
+        "Training Grounds → Dungeon Runs practice remains free and rewardless. Real runs retain five-floor combat, progress checkpoints, survivor Health carryover and reward-collection rules.",
+        "Save compatibility: W34.1 keeps Web save format 15 without a migration. Existing dungeon checkpoints, pending cargo and earned clears are preserved. Export Device/Cloud recovery copies before changing builds; do not load format-15 Web campaigns into an older Web client. World/Desktop local saves remain separate."
+      ],
+      "published": "2026-10-26",
+      "commit": "484f8984eaa870483493b1516111b5cabac27173",
+      "source": "https://github.com/Goofylagaming/primalbound/blob/484f8984eaa870483493b1516111b5cabac27173/web/update-notes.json"
+    },
+    {
       "version": "W34.0",
       "title": "Dungeon Practice & Pack Comparisons — W34.0",
       "notes": [
