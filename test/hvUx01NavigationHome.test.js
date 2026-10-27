@@ -101,7 +101,9 @@ test('Help page is a real page and links only to available tools or verified Dis
   assert.match(html, /href="\/dinostorage\/"/);
   assert.match(html, /href="\/wallet"/);
   assert.match(html, /href="\/quests"/);
-  assert.doesNotMatch(html, /href="\/rules"|href="\/packs"|href="\/tickets"|href="\/reports"/);
+  assert.match(html, /href="\/rules"/);
+  assert.match(html, /href="\/packs"/);
+  assert.doesNotMatch(html, /href="\/tickets"|href="\/reports"/);
   assert.match(html, /\/assets\/help-hub\.css\?v=1/);
 });
 
