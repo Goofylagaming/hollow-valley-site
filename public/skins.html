@@ -91,11 +91,11 @@
                 <p class="skin-calibration-help">Paint the website model's UV regions once, then export the compact mask used by Skin Studio. This is calibration tooling only; players never see these controls.</p>
                 <div class="skin-calibration-controls" role="group" aria-label="Private local model preview">
                   <label for="skin-local-model-file">PRIVATE MODEL PREVIEW · GLB
-                    <input id="skin-local-model-file" type="file" accept=".glb,model/gltf-binary">
+                    <input id="skin-local-model-file" type="file" accept=".glb,model/gltf-binary" multiple>
                   </label>
                   <button class="small-button" id="skin-local-model-reset" type="button">Use website model</button>
                 </div>
-                <p class="skin-calibration-help" id="skin-local-model-status" role="status">Select a dinosaur above, then choose a local GLB converted from its PSK. The model is loaded only in your browser; it is not uploaded, published, or saved with skins. Every local mesh gets a separate UV calibration draft.</p>
+                <p class="skin-calibration-help" id="skin-local-model-status" role="status">Select one or all 20 converted GLB files from your private model bundle. Files are matched by species name, loaded only in your browser, never uploaded or included in saved skins. Each unique mesh has its own UV calibration draft.</p>
                 <div class="skin-calibration-controls">
                   <label>Zone
                     <select id="skin-calibration-zone">
