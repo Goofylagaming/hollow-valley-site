@@ -95,7 +95,7 @@ async function checkPage(browser, origin, route, size, name, opts = {}) {
         "Desktop My Stuff dropdown must open");
       assert.equal(await page.locator('#my-stuff-submenu a[href="/dinostorage/"]').isVisible(), true,
         "Dino Storage must be visible in the desktop submenu");
-      await page.locator(".snapshot-welcome").click();
+      await page.locator(".home-hub-intro").click();
       assert.equal(await myStuff.getAttribute("aria-expanded"), "false",
         "Clicking outside desktop dropdown must close it");
     }
