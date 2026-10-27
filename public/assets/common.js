@@ -171,44 +171,47 @@ window.HDS = (function () {
 
   function applyActiveNavState() {
     const currentPath = normalizePath(window.location.pathname);
-    const links = Array.from(document.querySelectorAll(".main-nav a"));
-    let activeLink = null;
+    const nav = document.querySelector(".main-nav");
+    if (!nav) return;
 
-    const sectionAliases = [
-      ["/marketplace", "/marketplace"],
-      ["/leaderboard", "/leaderboard"],
-      ["/mydinos", "/profile"],
-      ["/dinostorage", "/profile"],
-      ["/wallet", "/profile"],
-      ["/friends", "/profile"],
-      ["/groups", "/profile"],
-      ["/bodydrop", "/profile"],
-      ["/adminoperations", "/admin"],
-      ["/admincomms", "/admin"],
-      ["/adminrestore", "/admin"],
+    // Only highlight the destination representing the current route. In the
+    // grouped layout, Wallet/Quests remain independent, not aliases of Profile.
+    const aliases = [
+      ["/dashboard", "/wallet"],
+      ["/mydinos/", "/mydinos"],
+      ["/dinostorage/", "/dinostorage"],
+      ["/groups/", "/groups"],
+      ["/marketplace/", "/marketplace"],
     ];
+    const candidateLinks = Array.from(nav.querySelectorAll("a"));
+    let selected = null;
+    let selectedPriority = 0;
 
-    links.forEach((link) => {
-      const href = link.getAttribute("href");
-      if (!href || href.startsWith("#") || /^https?:/i.test(href)) return;
+    for (const link of candidateLinks) {
+      const href = link.getAttribute("href") || "";
+      if (!href || href.startsWith("#") || href.startsWith("/#") || /^https?:/i.test(href)) continue;
       let linkPath;
-      try {
-        linkPath = normalizePath(new URL(href, window.location.origin).pathname);
-      } catch {
-        return;
-      }
-
-      const exactMatch = linkPath === currentPath;
-      const aliasMatch = sectionAliases.some(([currentPrefix, navPrefix]) =>
-        currentPath.startsWith(currentPrefix) && linkPath.startsWith(navPrefix)
+      try { linkPath = normalizePath(new URL(href, window.location.origin).pathname); }
+      catch { continue; }
+      const exactMatch = currentPath === linkPath;
+      const aliasMatch = aliases.some(([prefix, destination]) =>
+        currentPath.startsWith(prefix) && linkPath === destination
       );
-
-      if (exactMatch || aliasMatch) {
-        link.classList.add("is-active");
-        link.setAttribute("aria-current", "page");
-        if (!activeLink || exactMatch) activeLink = link;
+      const priority = exactMatch ? 2 : aliasMatch ? 1 : 0;
+      if (priority > selectedPriority) {
+        selected = link;
+        selectedPriority = priority;
       }
-    });
+    }
+
+    if (!selected) return;
+    selected.classList.add("is-active");
+    selected.setAttribute("aria-current", "page");
+    const group = selected.closest(".nav-group");
+    if (group) {
+      group.classList.add("has-current");
+      group.querySelector(":scope > button")?.classList.add("is-active");
+    }
   }
 
   const RAIL_ITEMS = [
@@ -253,7 +256,7 @@ window.HDS = (function () {
       const active = railItemMatches(href, path) ? " is-active" : "";
       return `<a class="${active.trim()}" href="${href}"><span class="rail-icon">${icon}</span><span>${label}</span></a>`;
     }).join("");
-    aside.innerHTML = `<h3>My Stuff</h3><nav class="my-stuff-nav">${items}<div class="rail-divider"></div><a href="/quests"><span class="rail-icon">▤</span><span>My Reports</span></a><a href="/profile#account-links"><span class="rail-icon">⚙</span><span>Settings</span></a></nav>`;
+    aside.innerHTML = `<h3>My Stuff</h3><nav class="my-stuff-nav">${items}<div class="rail-divider"></div><a href="/quests"><span class="rail-icon">▤</span><span>My Quests</span></a><a href="/profile#account-links"><span class="rail-icon">⚙</span><span>Settings</span></a></nav>`;
     navSlot.insertAdjacentElement("afterend", aside);
     document.body.classList.add("has-my-stuff-rail");
   }
@@ -275,10 +278,17 @@ window.HDS = (function () {
     const menuButton = document.querySelector(".menu-toggle");
     const navLinks = document.querySelector(".main-nav");
 
+    const closeGroups = () => {
+      navLinks?.querySelectorAll(".nav-group").forEach((group) => {
+        group.classList.remove("open");
+        group.querySelector(":scope > button")?.setAttribute("aria-expanded", "false");
+      });
+    };
     const setMenuOpen = (open) => {
       navLinks?.classList.toggle("open", open);
       menuButton?.setAttribute("aria-expanded", String(open));
       menuButton?.setAttribute("aria-label", open ? "Close navigation menu" : "Open navigation menu");
+      if (!open) closeGroups();
     };
 
     menuButton?.addEventListener("click", () => {
@@ -289,33 +299,39 @@ window.HDS = (function () {
       link.addEventListener("click", () => setMenuOpen(false));
     });
 
-    document.addEventListener("click", (event) => {
-      if (!navLinks?.classList.contains("open")) return;
-      if (!navLinks.contains(event.target) && !menuButton?.contains(event.target)) {
-        setMenuOpen(false);
-      }
-    });
-
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && navLinks?.classList.contains("open")) {
-        setMenuOpen(false);
-        menuButton?.focus();
-      }
-    });
-
     navLinks?.querySelectorAll(".nav-group > button").forEach((button) => {
       button.addEventListener("click", () => {
         const group = button.closest(".nav-group");
         const open = !group?.classList.contains("open");
-        navLinks.querySelectorAll(".nav-group").forEach((item) => {
-          item.classList.remove("open");
-          item.querySelector("button")?.setAttribute("aria-expanded", "false");
-        });
+        closeGroups();
         if (open && group && !group.hidden) {
           group.classList.add("open");
           button.setAttribute("aria-expanded", "true");
         }
       });
+    });
+
+    // Desktop dropdowns should also close when clicking outside them.
+    document.addEventListener("click", (event) => {
+      if (!event.target.closest(".nav-group")) closeGroups();
+      if (navLinks?.classList.contains("open") &&
+          !navLinks.contains(event.target) && !menuButton?.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      const openGroup = navLinks?.querySelector(".nav-group.open");
+      if (openGroup) {
+        const button = openGroup.querySelector(":scope > button");
+        closeGroups();
+        button?.focus();
+        event.preventDefault();
+      } else if (navLinks?.classList.contains("open")) {
+        setMenuOpen(false);
+        menuButton?.focus();
+        event.preventDefault();
+      }
     });
 
     wireGlobalSearch();
