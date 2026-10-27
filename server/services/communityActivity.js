@@ -160,6 +160,7 @@ function validateEventResult(value,nowMs=Date.now()){
   const time=iso(value.eventAt);
   if(!/^[a-zA-Z0-9][a-zA-Z0-9_-]{5,59}$/.test(key)||
     title.length<8 || title.length>120 || summary.length<40 || summary.length>1000 ||
+    /\b\d{17}\b/.test(title) || /\b\d{17}\b/.test(summary) ||
     !time || Date.parse(time)>nowMs+60000 || Date.parse(time)<nowMs-366*86400000) {
     throw problem("INVALID_EVENT_RESULT","Enter a unique event key, title, 40–1,000 character summary and a completed event date within the past year.");
   }
