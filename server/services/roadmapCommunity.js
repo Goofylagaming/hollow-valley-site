@@ -7,7 +7,7 @@ const { db } = require("../db");
 const MAX_VOTES = 3;
 const VOTABLE_FEATURE_IDS = Object.freeze([
   1, 2, 3, 4, 5, 6, 10, 11, 12, 14, 15, 16, 17,
-  18, 19, 20, 21, 22, 23, 24, 27, 28, 29, 30,
+  18, 19, 20, 21, 22, 23, 24, 27, 28, 30,
 ]);
 const eligible = new Set(VOTABLE_FEATURE_IDS);
 
