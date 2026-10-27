@@ -1766,7 +1766,12 @@ function localModelMessage(message) {
 }
 
 async function verifyLocalGlb(file) {
-  if (!file || !/\\.glb$/i.test(file.name || "")) throw new Error("Choose a converted .glb model file.");
+  const fileName = String(file?.name || "");
+  // File.name contains a basename, not a URL. Avoid double-escaped regexes
+  // here: v013 accidentally rejected *every* legitimate .glb upload.
+  if (!fileName.toLowerCase().endsWith(".glb")) {
+    throw new Error(`Choose a .glb file from the extracted models folder, not a .psk or ZIP. Selected: ${fileName || "none"}.`);
+  }
   if (file.size < 20 || file.size > LOCAL_MODEL_LIMIT_BYTES) {
     throw new Error("This GLB is empty, incomplete or exceeds the 30 MB private preview limit.");
   }
