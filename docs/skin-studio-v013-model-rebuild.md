@@ -32,7 +32,7 @@ Newly available mesh geometry for previously pending species includes Deinosuchu
 ## Build stages
 
 1. **Model pipeline (offline proof: complete)** — PSK parse, transform Unreal Z-up/cm to Three.js Y-up/metres, preserve UV seams, material slots, and geometry. Verify 20 species. Keep the owner's private model bundle outside source control.
-2. **Source-controlled conversion / validation (next)** — review and vendor an original offline converter script with synthetic tests; enforce per-species SHA-256 fingerprints, missing file detection, and storage limits.
+2. **Source-controlled conversion / validation (initial complete)** — original offline converter is in `scripts/skin_studio_psk_to_glb.py` with five synthetic tests in `scripts/test_skin_studio_psk_to_glb.py`. Next hardening: automation around missing-source detection and site-specific model budget limits.
 3. **Accurate colour mapping** — use real validated skin screenshots and SkinInspector captures to map each species's native colour regions to the correct UV islands. Support `underbelly`, `body`, `markings`, `flank`, `maleDisplay`, `detail1`, `eyes`, plus extended channels. Keep `shape` status until actual EVRIMA verification passes; do not label shape-only tints as accurate.
 4. **Model registry integration** — add a gated variant to `public/assets/skin-studio-model-registry.js`, loading only one species at a time and keeping a known-safe fallback when model or mask fails. Avoid breaking `/skins`.
 5. **Native palette fidelity** — test import/export RGB byte-normalization, six-decimal wear-token precision, zero-valued `underbelly`, and species pattern safety. Never overwrite native index fields without verified species limits.
@@ -45,7 +45,7 @@ Newly available mesh geometry for previously pending species includes Deinosuchu
 - All 20 local GLBs were reloaded with a separate GLB parser; mesh triangle counts agree with the PSK inputs, material grouping and vertex UV are present.
 - Five synthetic offline converter unit tests passed (GLB signature, material/UV preservation, invalid mesh rejection, malformed data rejection and winding handling).
 - Model lab browser module passed `node --check`.
-- No live site, database, Steam data, shop data, production Git branch, or game server mod was modified.
+- No live site, database, Steam data, shop data, production Git branch, or game server mod was modified. The feature branch includes a gated local-only viewer and CI checks; model binaries are not committed.
 
 ## Remaining blocker
 
