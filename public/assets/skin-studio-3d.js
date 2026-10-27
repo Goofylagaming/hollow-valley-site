@@ -30,6 +30,7 @@ const calibrationBrushEl = document.getElementById("skin-calibration-brush");
 const calibrationBrushValueEl = document.getElementById("skin-calibration-brush-value");
 const calibrationFlipVEl = document.getElementById("skin-calibration-flip-v");
 const calibrationToggleEl = document.getElementById("skin-calibration-toggle");
+const calibrationAutoEl = document.getElementById("skin-calibration-auto");
 const calibrationIslandFillEl = document.getElementById("skin-calibration-island-fill");
 const calibrationUndoEl = document.getElementById("skin-calibration-undo");
 const calibrationRedoEl = document.getElementById("skin-calibration-redo");
@@ -514,6 +515,15 @@ function basicMaterialFrom(source) {
 
 function maskedMaterial(source, accurate) {
   const material = accurate ? basicMaterialFrom(source) : source.clone();
+  // PSK eye materials often share the body UV atlas. Tint them independently
+  // instead of using an eye UV mask that might recolour the entire body.
+  if (/(^|[^a-z])eyes?([^a-z]|$)/i.test(String(source?.name || ""))) {
+    const setEyes = (palette) => {
+      if (material.color?.isColor) engineColorFromHex(palette.eyes, material.color);
+    };
+    setEyes(currentPalette);
+    return { material, controller: { setPalette: setEyes, setSex() {} } };
+  }
   const uniforms = {
     hvMask0: { value: maskAtlases[0] },
     hvMask1: { value: maskAtlases[1] },
@@ -1567,6 +1577,7 @@ function showReferenceModel(def, label) {
 
   setLocalModelControlsEnabled(false);
   if (calibrationToggleEl) calibrationToggleEl.disabled = true;
+  if (calibrationAutoEl) calibrationAutoEl.disabled = true;
   if (calibrationClearZoneEl) calibrationClearZoneEl.disabled = true;
   if (calibrationClearAllEl) calibrationClearAllEl.disabled = true;
   if (calibrationCopyEl) calibrationCopyEl.disabled = true;
@@ -1648,6 +1659,7 @@ function showNoModel(label, def = null) {
 
   if (accurateButton) accurateButton.disabled = true;
   if (gameButton) gameButton.disabled = true;
+  if (calibrationAutoEl) calibrationAutoEl.disabled = true;
   syncZoneStrip();
   syncZoneHint();
 
@@ -1739,6 +1751,7 @@ async function loadModelForSpecies(label) {
       ? `${def.displayName} is inside Hollow Valley's renderer. Body colour now uses a hue-neutral texture preview; map the EVRIMA UV zones to unlock accurate per-region colour painting.`
       : `${def.displayName} already has a calibrated zone map.`);
     if (calibrationToggleEl) calibrationToggleEl.disabled = def.capability !== "shape";
+    if (calibrationAutoEl) calibrationAutoEl.disabled = def.capability !== "shape";
     document.dispatchEvent(new CustomEvent("hds:skin-model-ready", {
       detail: { species: def.key, capability: def.capability },
     }));
@@ -1748,6 +1761,7 @@ async function loadModelForSpecies(label) {
     disposeModel();
     currentModelDef = def;
     setRail(def, label);
+    if (calibrationAutoEl) calibrationAutoEl.disabled = true;
     setStatus(false, `${def.displayName} · model load failed`);
     if (loaderEl) {
       loaderEl.hidden = false;
