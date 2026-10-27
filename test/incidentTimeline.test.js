@@ -128,5 +128,7 @@ test("admin incident page is routed behind an admin gate with escaped data rende
   assert.match(js, /incident-records/);
   assert.doesNotThrow(()=>new Function(js));
   assert.match(roadmap, /25: \{ status: 'building'/);
-  assert.match(read("server/services/roadmapCommunity.js"), /18, 19, 20, 21, 22, 23, 24, 26/);
+  const voting = read("server/services/roadmapCommunity.js");
+  assert.match(voting, /18, 19, 20, 21, 22, 23, 24, 27/);
+  assert.doesNotMatch(voting, /24, 25, 26/);
 });
