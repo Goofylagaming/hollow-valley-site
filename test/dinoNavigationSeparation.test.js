@@ -6,15 +6,14 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
 
-test("Dino Storage is a top-level tab beside My Stuff and My Dinos is renamed Dino History", () => {
+test("Dino Storage and Dino History stay accessible inside My Stuff while Wallet remains separate", () => {
   const nav = read("public/partials/nav.html");
-  assert.match(nav, /href="\/mydinos"[^>]*>.*Dino History/s);
-  assert.match(nav, /href="\/dinostorage\/">DINO STORAGE<\/a>/);
-
-  const myStuff = nav.indexOf("MY STUFF");
-  const storage = nav.indexOf("DINO STORAGE");
-  const wallet = nav.indexOf("WALLET");
-  assert.ok(myStuff >= 0 && storage > myStuff && wallet > storage);
+  const group = nav.match(/id="my-stuff-nav-group"[\s\S]*?<\/div>\s*<\/div>/)?.[0] || "";
+  assert.match(group, /href="\/mydinos"[^>]*>Dino History/);
+  assert.match(group, /href="\/dinostorage\/"[^>]*>DINO STORAGE/);
+  assert.match(group, /href="\/profile"/);
+  assert.match(nav, /href="\/wallet">WALLET<\/a>/);
+  assert.match(nav, /href="\/quests">QUESTS<\/a>/);
 });
 
 test("Dino Storage page contains storage only, without Prime or survivor-listing panels", () => {

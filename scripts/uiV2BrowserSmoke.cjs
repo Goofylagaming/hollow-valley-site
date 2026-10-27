@@ -79,12 +79,46 @@ async function checkPage(browser, origin, route, size, name, opts = {}) {
       assert.ok(await page.locator('.main-nav a[href="' + href + '"]').count(), name + " link missing " + href);
     }
 
+    if (route === "/") {
+      assert.equal(await page.locator("#home-roadmap-stages > .roadmap-stage").count(), 6,
+        "Homepage must preserve all roadmap stages");
+      assert.equal(await page.locator(".roadmap-feature").count(), 31,
+        "Homepage must retain all 31 community roadmap features");
+      assert.ok(await page.locator("#roadmap-suggestion-form").count(),
+        "The roadmap suggestion form must remain reachable");
+    }
+
+    if (size.width > 1050 && route === "/") {
+      const myStuff = page.locator("#my-stuff-nav-group > button");
+      await myStuff.click();
+      assert.equal(await myStuff.getAttribute("aria-expanded"), "true",
+        "Desktop My Stuff dropdown must open");
+      assert.equal(await page.locator('#my-stuff-submenu a[href="/dinostorage/"]').isVisible(), true,
+        "Dino Storage must be visible in the desktop submenu");
+      await page.locator(".home-hub-intro").click();
+      assert.equal(await myStuff.getAttribute("aria-expanded"), "false",
+        "Clicking outside desktop dropdown must close it");
+    }
+
     if (size.width <= 1050) {
       const menu = page.locator(".menu-toggle");
       assert.equal(await menu.isVisible(), true, name + " mobile navigation toggle hidden");
       await menu.click();
       assert.equal(await page.locator(".main-nav").evaluate((el) => el.classList.contains("open")), true, name + " mobile nav not opened");
       assert.equal(await page.locator('.main-nav a[href="/wallet"]').isVisible(), true, name + " Wallet hidden in mobile menu");
+      if (route === "/") {
+        const communityButton = page.locator("#community-nav-group > button");
+        await communityButton.click();
+        assert.equal(await communityButton.getAttribute("aria-expanded"), "true",
+          "Community mobile submenu must open");
+        assert.equal(await page.locator('#community-submenu a[href="/groups"]').isVisible(), true,
+          "Groups must be accessible in the mobile submenu");
+        await page.keyboard.press("Escape");
+        assert.equal(await communityButton.getAttribute("aria-expanded"), "false",
+          "Escape must close the open mobile submenu");
+        assert.equal(await page.locator(".main-nav").evaluate((el) => el.classList.contains("open")), true,
+          "Closing a submenu should leave the mobile navigation available");
+      }
       await page.keyboard.press("Escape");
       assert.equal(await page.locator(".main-nav").evaluate((el) => el.classList.contains("open")), false, name + " Escape does not close menu");
     }
@@ -170,10 +204,10 @@ async function main() {
     for (const [route, label] of [
       ["/", "home"], ["/wallet", "wallet"], ["/marketplace", "marketplace"],
       ["/marketplace-official.html", "market-official"], ["/marketplace-players.html", "market-player"],
-      ["/dinostorage/", "dino-storage"], ["/groups", "groups"], ["/events", "events"],
-      ["/owner-login", "owner-login"], ["/livemap", "live-map"], ["/skins", "skin-studio"],
+      ["/dinostorage/", "dino-storage"], ["/groups", "groups"], ["/help", "help"], ["/events", "events"],
+      ["/owner-login", "owner-login"], ["/livemap", "live-map"], ["/skins", "skin-studio"], ["/help", "help"],
     ]) {
-      await checkPage(browser, origin, route, desktop, label + "-desktop", { capture: ["home", "wallet", "marketplace", "dino-storage"].includes(label) });
+      await checkPage(browser, origin, route, desktop, label + "-desktop", { capture: ["home", "wallet", "marketplace", "dino-storage", "help"].includes(label) });
     }
     for (const [route, label] of [
       ["/", "home"], ["/wallet", "wallet"], ["/marketplace", "marketplace"],
