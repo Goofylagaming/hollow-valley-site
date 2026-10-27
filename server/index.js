@@ -283,7 +283,7 @@ function createApp() {
   app.use("/api/dinostorage", legacyDirectGameApiRetired);
   app.all(["/api/park", "/api/playerdata", "/api/redeem", "/api/parked", "/api/admin"], legacyDirectGameApiRetired);
 
-  const PAGE_ROUTES = ["legacy", "dashboard", "wallet", "quests", "profile", "mydinos", "bodydrop", "friends", "groups", "marketplace", "livemap", "leaderboard", "supporter", "events"];
+  const PAGE_ROUTES = ["legacy", "dashboard", "wallet", "quests", "profile", "mydinos", "bodydrop", "friends", "groups", "marketplace", "livemap", "leaderboard", "supporter", "events", "help"];
   for (const page of PAGE_ROUTES) {
     app.get(`/${page}`, (req, res) => {
       res.sendFile(path.join(__dirname, "..", "public", `${page}.html`));
