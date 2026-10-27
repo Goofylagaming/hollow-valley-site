@@ -36,6 +36,44 @@ test("parses Dino Den-style JSON customizer values", () => {
   assert.equal(Math.round(parsed.skinPatch.body.r * 255), 12);
 });
 
+test("decodes every RGB channel consistently in 8-bit Dino Den-style JSON", () => {
+  const parsed = parseExternalSkinCode(JSON.stringify({
+    BodyColor: { R: 255, G: 1, B: 0, A: 255 },
+    FlankColor: { R: 12, G: 1, B: 0, A: 1 },
+  }));
+  assert.equal(parsed.skinPatch.body.r, 1);
+  assert.equal(parsed.skinPatch.body.g, 1 / 255);
+  assert.equal(parsed.skinPatch.body.b, 0);
+  assert.equal(parsed.skinPatch.body.a, 1);
+  assert.equal(parsed.skinPatch.flank.r, 12 / 255);
+  assert.equal(parsed.skinPatch.flank.g, 1 / 255);
+  assert.equal(parsed.skinPatch.flank.a, 1);
+});
+
+test("retains normalized colour channels and intentionally black colours", () => {
+  const parsed = parseExternalSkinCode(JSON.stringify({
+    BodyColor: { R: 1, G: 0, B: 0, A: 1 },
+    UnderbellyColor: { R: 0, G: 0, B: 0, A: 1 },
+    EyesColor: { R: 0.5, G: 0.25, B: 0.125 },
+  }));
+  assert.deepEqual(parsed.skinPatch.body, { r: 1, g: 0, b: 0, a: 1 });
+  assert.deepEqual(parsed.skinPatch.underbelly, { r: 0, g: 0, b: 0, a: 1 });
+  assert.deepEqual(parsed.skinPatch.eyes, { r: 0.5, g: 0.25, b: 0.125, a: 1 });
+});
+
+test("rejects incomplete or invalid JSON channels instead of silently turning them black", () => {
+  for (const BodyColor of [
+    { R: 0.5, G: 0.25 },
+    { R: null, G: 0.5, B: 0.25 },
+    { R: "", G: 0.5, B: 0.25 },
+    { R: -1, G: 0.5, B: 0.25 },
+    { R: 300, G: 25, B: 20 },
+    { R: 0.5, G: 0.25, B: 0.1, A: 300 },
+  ]) {
+    assert.throws(() => parseExternalSkinCode(JSON.stringify({ BodyColor })), /Skin colour/);
+  }
+});
+
 test("external imports preserve unsupported current editor fields", () => {
   const base = {
     teeth: { r: 1, g: 1, b: 1, a: 1 },
