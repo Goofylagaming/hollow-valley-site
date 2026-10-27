@@ -66,8 +66,10 @@
       const result = await api("/api/reports/admin/" + encodeURIComponent(id) + "/review", {
         method: "POST", body: JSON.stringify({ status, note }),
       });
-      feedback.textContent = result.changed ? "Review saved to admin history." : "No change required.";
       await load();
+      get("admin-report-feedback").textContent = result.changed
+        ? "Review saved to admin history."
+        : "No change required.";
     } catch (error) {
       feedback.textContent = error.message || "Could not save the review.";
     } finally { button.disabled = false; }
