@@ -257,7 +257,7 @@ test("Skin Studio 3D preview uses species-specific models and refuses fake unive
   assert.match(html, /EVRIMA SkinInspector capture/);
   assert.match(html, /Load diagnostic colours/);
   assert.match(html, /Import \/ resume a mask/);
-  assert.match(html, /skin-studio-3d\.js\?v=19/);
+  assert.match(html, /skin-studio-3d\.js\?v=20/);
 });
 
 
@@ -312,7 +312,7 @@ test("Skin Studio keeps FNF-compatible core zone order and simple pattern contro
   assert.match(browser, /function selectedSpeciesProfile\(\)/);
   assert.match(browser, /Number\.isInteger\(profile\?\.patternMax\)/);
   assert.match(browser, /Wear Live will preserve its current in-game pattern/);
-  assert.match(html, /skin-studio-3d\.js\?v=19/);
+  assert.match(html, /skin-studio-3d\.js\?v=20/);
   assert.match(html, /id="skin-pattern-presets"/);
   assert.match(html, /id="skin-pattern-safety"/);
   assert.match(html, /id="skin-sex-preview"/);
@@ -395,4 +395,50 @@ test("local model preview is admin-only, browser-local, GLB-validated and UV-iso
   assert.match(html, /accept="\.glb,model\/gltf-binary" multiple/);
   assert.match(js, /const channel = .*?eyes\?/);
   assert.match(js, /controller\.channel === "eyes" \? currentPalette\.eyes : hex/);
+});
+
+
+test("real GLB validator accepts extracted models, rejects PSK/ZIP, and rejects corrupt GLB", async () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const vm = require("node:vm");
+  const script = fs.readFileSync(path.join(__dirname, "..", "public", "assets", "skin-studio-3d.js"), "utf8");
+  const start = script.indexOf("async function verifyLocalGlb(file) {");
+  const end = script.indexOf("\nasync function useLocalModel()", start);
+  assert.ok(start >= 0 && end > start, "Cannot find the real deployed GLB validator");
+
+  // Execute the actual browser validator in a minimal test context.
+  const verifyLocalGlb = vm.runInNewContext(
+    "const LOCAL_MODEL_LIMIT_BYTES = 30 * 1024 * 1024;\n" +
+      script.slice(start, end) + "\nverifyLocalGlb"
+  );
+  function makeFile(name, { corruptMagic = false, corruptLength = false } = {}) {
+    const buf = Buffer.alloc(20);
+    buf.writeUInt32LE(corruptMagic ? 0 : 0x46546c67, 0);
+    buf.writeUInt32LE(2, 4);
+    buf.writeUInt32LE(corruptLength ? 123 : 20, 8);
+    buf.writeUInt32LE(0, 12);
+    buf.writeUInt32LE(0x4e4f534a, 16);
+    return {
+      name,
+      size: buf.length,
+      slice(startOffset, endOffset) {
+        const part = buf.subarray(startOffset, endOffset);
+        return {
+          async arrayBuffer() {
+            return part.buffer.slice(part.byteOffset, part.byteOffset + part.byteLength);
+          },
+        };
+      },
+    };
+  }
+
+  for (const name of ["deinosuchus.glb", "tyrannosaurus.glb", "TRICERATOPS.GLB"]) {
+    await assert.doesNotReject(verifyLocalGlb(makeFile(name)), name + " must be accepted");
+  }
+  for (const name of ["SK_Deinosuchus.psk", "models.zip", "manifest.json", "deinosuchus.glb.txt"]) {
+    await assert.rejects(verifyLocalGlb(makeFile(name)), /Choose a \.glb file/, name + " must be rejected");
+  }
+  await assert.rejects(verifyLocalGlb(makeFile("deinosuchus.glb", { corruptMagic: true })), /Unsupported GLB/);
+  await assert.rejects(verifyLocalGlb(makeFile("deinosuchus.glb", { corruptLength: true })), /Unsupported GLB/);
 });
