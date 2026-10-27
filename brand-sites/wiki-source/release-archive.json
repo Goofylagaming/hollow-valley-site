@@ -2,6 +2,25 @@
   "schema": 1,
   "web": [
     {
+      "version": "W35.0",
+      "title": "Ancient Hunts & Relic Blueprints — W35.0",
+      "notes": [
+        "Operations → Ancient Hunts adds five natural Ancient boss encounters: Moss-Crowned Colossus, Ashmaw, Drowned Monarch, Pale Thunderer and Riftback Sovereign. These are separate from Mutant Guardians and Ancient Dungeon routes.",
+        "Unlock each Hunt through extracted regional Survey or Recover evidence, the matching Ancient Trail, unique fossil-fragment research, Ancient Studies rank, a cleared stage gate and a one-time Research Insight weakness analysis. Check the in-game requirements before paying.",
+        "Stage gates are 1,000 / 2,500 / 4,500 / 6,500 / 9,000, and entry stamina is 25 / 30 / 35 / 40 / 45 in the same boss order. Hunts freeze your formation, equipment, enemies and rewards after you confirm; companions away on missions are ineligible.",
+        "Fight five distinct signature patterns: Colossus root cover, Ashmaw eruption/exhaustion, Monarch land/water phases, Thunderer's interceptable charge and Riftback's pulses and Centre-anchor counterplay.",
+        "First collected victories grant Bones, Prime Essence, Research Insight, permanent trophy crests, Ancient Codex records and earned Legendary relic blueprints; repeats grant reduced Bones and a limited Insight bonus. Hunts do not grant Mutant DNA, Shards, set gear or campaign progress.",
+        "Craft Mossguard Sigil, Ashen Heart, Monarch Pearl, Stormcall Charm and Riftback Compass in the Workshop after earning their first-clear blueprints. Recipes require Crafting 20/25/30/35/40, cleared stages, existing resources and Research Insight; relics use the existing relic slot and do not auto-equip.",
+        "Archive Field Tonic is a separate Workshop recipe at Crafting 5 and Biology I. It costs 250 Bones, four Herbs and two Insight, uses existing tonic storage/cooldowns, and does not replace the previous tonic recipe.",
+        "Crafting reviews remain open when time passes, but confirmation revalidates the live queue and resources. New orders reserve Insight alongside materials; saved legacy orders keep their identity and finish time.",
+        "Prepared Hunts can resume after reload. Reloading during combat interrupts the attempt without payout; won rewards remain pending if any currency/Insight capacity check fails, preventing partial collection or duplicate trophies. Existing operations and Ancient Trails keep their saved encounters and rewards.",
+        "Save compatibility: W35.0 migrates Web saves from format 15 → 16. Existing campaigns, companions, dungeon checkpoints, pending cargo, operations, research and queued crafting are preserved; migration creates no retroactive first-clear trophies or blueprints. Export Device and confirmed Cloud backups and never load a format-16 Web save in an older client. World/Desktop local saves remain separate."
+      ],
+      "published": "2026-10-27",
+      "commit": "4f41a8d0d9bc251a6700ccd18a0dde4ad2f47fa9",
+      "source": "https://github.com/Goofylagaming/primalbound/blob/4f41a8d0d9bc251a6700ccd18a0dde4ad2f47fa9/web/update-notes.json"
+    },
+    {
       "version": "W34.1",
       "title": "More Dungeon Runs, Less Stamina — W34.1",
       "notes": [
