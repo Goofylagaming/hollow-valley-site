@@ -578,12 +578,15 @@ function applyCalibratedMaterials(root) {
 }
 
 function provisionalShapeMaterial(source) {
+  // Converted Unreal skeletal meshes carry distinct Body/Eye materials.
+  // Eye materials can show the chosen eye colour even before full UV calibration.
+  const channel = /(?:^|[_\s-])eyes?(?:[_\s-]|$)/i.test(String(source?.name || "")) ? "eyes" : "body";
   const material = source?.clone ? source.clone() : source;
   if (!material) return { material, controller: null };
 
   if (material.color?.isColor) material.color.setRGB(1, 1, 1, THREE.LinearSRGBColorSpace);
 
-  const hvShapeBody = { value: engineColorFromHex(currentPalette.body) };
+  const hvShapeBody = { value: engineColorFromHex(currentPalette[channel] || currentPalette.body) };
   material.onBeforeCompile = (shader) => {
     shader.uniforms.hvShapeBody = hvShapeBody;
     shader.fragmentShader = shader.fragmentShader.replace(
@@ -605,7 +608,8 @@ diffuseColor.rgb = hvShapeBody * hvShapeShade;`
   return {
     material,
     controller: {
-      setBody(hex) {
+      channel,
+      setColor(hex) {
         engineColorFromHex(hex, hvShapeBody.value);
       },
     },
@@ -639,7 +643,7 @@ function applyShapeMaterials(root) {
 
 function updateShapeBodyTint(hex) {
   if (currentModelDef?.capability !== "shape" || calibrationActive) return;
-  for (const controller of shapeTintControllers) controller.setBody(hex);
+  for (const controller of shapeTintControllers) controller.setColor(controller.channel === "eyes" ? currentPalette.eyes : hex);
 }
 
 function calibrated() {
