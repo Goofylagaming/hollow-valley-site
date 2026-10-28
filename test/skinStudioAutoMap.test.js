@@ -96,7 +96,7 @@ test("live Skin Studio loads automapper before its viewer and keeps suggestions 
   assert.match(html, /<section class="skin-calibration-panel" id="skin-calibration-panel" hidden>/);
   assert.match(html, /id="skin-calibration-auto" type="button" disabled/);
   assert.match(html, /not<\/em> verified EVRIMA patterns/);
-  assert.ok(html.indexOf("/assets/skin-studio-auto-map.js?v=2") < html.indexOf("/assets/skin-studio-3d.js?v=23"));
+  assert.ok(html.indexOf("/assets/skin-studio-auto-map.js?v=2") < html.indexOf("/assets/skin-studio-3d.js?v=24"));
   assert.match(viewer, /function collectAutoMapMeshes\(root\)/);
   assert.match(viewer, /if \(!material\.map\) material\.map = MASK_WHITE_MAP/);
   assert.match(viewer, /name: source\.name \|\| ""/);
