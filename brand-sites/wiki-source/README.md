@@ -3,11 +3,11 @@
 The live Primalbound Render static service builds `brand-sites/dist/primalbound`.
 The existing homepage, `/web/` and `/world/` are preserved.
 
-The Web wiki snapshot, historical release archive and verified notes now include the 28 October 2026 W40.4 LIVE release (commit `58d490df606de617a52736fc41a1be250693b887`).
+The Web wiki snapshot, historical release archive and verified notes include the 28 October 2026 W40.4 LIVE release (commit `58d490df606de617a52736fc41a1be250693b887`). The World wiki snapshot and release archive also include the verified M36.6 Windows release published on 28 October 2026 (tag `m36-6-build-40615216698`), preserving earlier notes and separate saves.
 
 The last build step in `brand-sites/build.mjs` imports `publish-wikis.mjs`, which replaces only:
 - `/web/wiki/index.html` (Web Preview W40.4 verified how-to, including W27.1–W40.4 save compatibility, Field opportunities, regional standing/research, exact-item equipment loadouts, targeted Fossil Archive recovery and format-23 backups; all W38.0 and earlier chapters retained)
-- `/world/wiki/index.html` (M36.5 Windows playtest; Mini Rex stage rotation, graphics fix and unchanged schema 330)
+- `/world/wiki/index.html` (M36.6 Windows playtest; 19 original procedural wild species, retained Mini Rex/Guardians, JSON checksum recovery fix and unchanged schema 330)
 - `/assets/wiki.css`
 - `/assets/wiki.js`
 
