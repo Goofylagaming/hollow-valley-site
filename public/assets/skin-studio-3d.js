@@ -31,6 +31,10 @@ const calibrationBrushValueEl = document.getElementById("skin-calibration-brush-
 const calibrationFlipVEl = document.getElementById("skin-calibration-flip-v");
 const calibrationToggleEl = document.getElementById("skin-calibration-toggle");
 const calibrationAutoEl = document.getElementById("skin-calibration-auto");
+const calibrationBatchEl = document.getElementById("skin-calibration-batch");
+const calibrationBatchDownloadEl = document.getElementById("skin-calibration-batch-download");
+const calibrationBatchStatusEl = document.getElementById("skin-calibration-batch-status");
+const calibrationAutoOnUploadEl = document.getElementById("skin-auto-on-upload");
 const calibrationIslandFillEl = document.getElementById("skin-calibration-island-fill");
 const calibrationUndoEl = document.getElementById("skin-calibration-undo");
 const calibrationRedoEl = document.getElementById("skin-calibration-redo");
@@ -158,6 +162,8 @@ let spinInput = null;
 let ultraEnabled = false;
 let calibrationActive = false;
 let autoMapBusy = false;
+let batchMapBusy = false;
+let batchMapCancel = false;
 let calibrationPointerDown = false;
 let calibrationSaveTimer = null;
 let calibrationCoverageTimer = null;
@@ -1278,9 +1284,13 @@ function saveCalibrationDraftNow() {
   const key = calibrationStorageKey();
   if (!key || !zoneLookup?.length) return false;
   try {
-    localStorage.setItem(key, JSON.stringify({ ...maskPayloadFromLookup(),
-      calibration: { version: 1, owners: Array.from(calibrationOwners || [], String).join(''), flipV: Boolean(calibrationFlipVEl?.checked) }
-    }));
+    const draft = window.HVSkinBatchMap?.serialize
+      ? window.HVSkinBatchMap.serialize(zoneLookup, calibrationOwners,
+        Boolean(calibrationFlipVEl?.checked), { modelFingerprint: currentModelDef?.calibrationFingerprint || "" })
+      : { ...maskPayloadFromLookup(), calibration: { version: 1,
+          owners: Array.from(calibrationOwners || [], String).join(""),
+          flipV: Boolean(calibrationFlipVEl?.checked) } };
+    localStorage.setItem(key, JSON.stringify(draft));
     return true;
   } catch {
     return false;
@@ -1414,13 +1424,14 @@ function loadCalibrationDraft() {
     maskAtlases = buildMaskAtlases();
     const metadata = JSON.parse(raw).calibration;
     calibrationOwners = Uint8Array.from(zoneLookup, zone => zone ? 2 : 0);
-    if (metadata?.version === 1 && typeof metadata.owners === 'string' &&
+    if (window.HVSkinBatchMap?.ownersFromDraft && (metadata?.version === 1 || metadata?.version === 2)) {
+      calibrationOwners = window.HVSkinBatchMap.ownersFromDraft(zoneLookup, metadata);
+    } else if (metadata?.version === 1 && typeof metadata.owners === "string" &&
         metadata.owners.length === zoneLookup.length && /^[012]+$/.test(metadata.owners)) {
       calibrationOwners = Uint8Array.from(metadata.owners, Number);
-      // Never let malformed metadata unlock an assigned pixel.
       zoneLookup.forEach((zone, i) => { if (zone && !calibrationOwners[i]) calibrationOwners[i] = 2; });
-      if (typeof metadata.flipV === 'boolean' && calibrationFlipVEl) calibrationFlipVEl.checked = metadata.flipV;
     }
+    if (typeof metadata?.flipV === "boolean" && calibrationFlipVEl) calibrationFlipVEl.checked = metadata.flipV;
     return true;
   } catch (error) {
     try { localStorage.removeItem(key); } catch {}
