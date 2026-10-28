@@ -2105,6 +2105,7 @@ async function useLocalModel() {
     }
     const list = staged.map((entry) => entry.candidate.displayName).join(", ");
     localModelMessage(`Loaded ${staged.length} model${staged.length === 1 ? "" : "s"} privately: ${list}. Select a species, then Start mapping to calibrate UV colours. Skins and player data are unchanged.`);
+    if (calibrationAutoOnUploadEl?.checked) await batchMapAllLocalModels();
   } catch (error) {
     // If no override owns a staged blob, free it after a validation error.
     for (const entry of staged) {
@@ -2116,6 +2117,150 @@ async function useLocalModel() {
     localModelFileEl.disabled = false;
   }
 }
+function batchStatus(message) {
+  if (calibrationBatchStatusEl) calibrationBatchStatusEl.textContent = message;
+  localModelMessage(message);
+}
+
+function localCalibrationKey(def) {
+  return def?.localPreview && def?.calibrationFingerprint
+    ? "hv-skin-calibration:" + def.key + ":local:" + def.calibrationFingerprint + ":v1"
+    : null;
+}
+
+async function batchMapAllLocalModels() {
+  if (batchMapBusy) {
+    batchMapCancel = true;
+    batchStatus("Stopping the automatic batch after the current species. Completed drafts remain saved.");
+    return;
+  }
+  if (calibrationPanel?.hidden || calibrationActive) {
+    batchStatus("Stop individual zone mapping before running a batch; your current manual draft remains saved.");
+    return;
+  }
+  if (!window.HVSkinAutoMap?.generate || !window.HVSkinBatchMap?.merge) {
+    batchStatus("Auto-map files are missing. Hard-refresh Skin Studio to load the latest viewer.");
+    return;
+  }
+  const entries = [...localModelOverrides.values()].filter(def => def.localPreview && def.loader?.type === "local-blob");
+  if (!entries.length) {
+    batchStatus("Load your converted GLB models first; you can select all 20 at once.");
+    return;
+  }
+
+  batchMapBusy = true;
+  batchMapCancel = false;
+  if (calibrationBatchEl) calibrationBatchEl.textContent = "Cancel batch";
+  if (localModelFileEl) localModelFileEl.disabled = true;
+  if (calibrationBatchDownloadEl) calibrationBatchDownloadEl.disabled = true;
+  const gltfLoader = new GLTFLoader();
+  gltfLoader.setMeshoptDecoder(MeshoptDecoder);
+  const failures = [];
+  let processed = 0, changed = 0;
+  try {
+    for (let index = 0; index < entries.length; index++) {
+      if (batchMapCancel) break;
+      const def = entries[index];
+      const key = localCalibrationKey(def);
+      if (!key) { failures.push(def.displayName + ": missing model fingerprint"); continue; }
+      batchStatus("Auto-mapping " + (index + 1) + "/" + entries.length + ": " + def.displayName + "…");
+      // Yield between species so the browser can repaint progress and accept Cancel.
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      let gltf = null;
+      try {
+        const raw = localStorage.getItem(key);
+        const existing = raw ? JSON.parse(raw) : null;
+        const flipV = typeof existing?.calibration?.flipV === "boolean"
+          ? existing.calibration.flipV : Boolean(calibrationFlipVEl?.checked);
+        gltf = await gltfLoader.loadAsync(def.loader.url);
+        if (batchMapCancel) break;
+        const proposal = window.HVSkinAutoMap.generate({
+          meshes: collectAutoMapMeshes(gltf.scene),
+          size: CALIBRATION_SIZE,
+          flipV,
+        });
+        if (!proposal.coveredPixels) throw new Error("No usable UV geometry");
+        // Eye materials may share and extend the body UV atlas. Use a neutral
+        // body fallback for these non-body texels; NEVER label them Eyes.
+        const footprint = buildModelUvCoverage(gltf.scene);
+        const lookup = new Uint8Array(proposal.lookup);
+        for (let pixel = 0; pixel < footprint.length; pixel++) {
+          if (!footprint[pixel]) continue;
+          const x = pixel % CALIBRATION_SIZE;
+          const y = Math.floor(pixel / CALIBRATION_SIZE);
+          const mapped = (flipV ? CALIBRATION_SIZE - 1 - y : y) * CALIBRATION_SIZE + x;
+          if (!lookup[mapped]) lookup[mapped] = 1;
+        }
+        const result = window.HVSkinBatchMap.merge(raw, lookup, {
+          flipV, modelFingerprint: def.calibrationFingerprint, rebuildAll: false,
+        });
+        // A failed write leaves the previous mask untouched, and never alters
+        // Steam identities, player skins, shop data, server storage, or RCON.
+        localStorage.setItem(key, JSON.stringify(result.payload));
+        processed++;
+        changed += result.changed;
+      } catch (error) {
+        failures.push(def.displayName + ": " + (error?.message || String(error)));
+      } finally {
+        if (gltf?.scene) {
+          gltf.scene.traverse(child => {
+            if (!child.isMesh) return;
+            child.geometry?.dispose?.();
+            const materials = Array.isArray(child.material) ? child.material : [child.material];
+            for (const material of materials) material?.dispose?.();
+          });
+        }
+      }
+    }
+    if (calibrationBatchDownloadEl) calibrationBatchDownloadEl.disabled = processed === 0;
+    const stopped = batchMapCancel ? " (cancelled)" : "";
+    batchStatus("Auto-mapped " + processed + "/" + entries.length + " species" + stopped +
+      " · " + changed.toLocaleString() + " UV assignments updated" +
+      (failures.length ? " · " + failures.length + " errors: " + failures.slice(0, 3).join("; ") : "") +
+      ". All results are provisional and browser-local. Select a species and Start mapping to inspect; no hand-painting required.");
+  } finally {
+    batchMapBusy = false;
+    batchMapCancel = false;
+    if (calibrationBatchEl) calibrationBatchEl.textContent = "Auto-map all loaded models";
+    if (localModelFileEl) localModelFileEl.disabled = false;
+  }
+}
+
+function downloadBatchMasks() {
+  if (calibrationPanel?.hidden || batchMapBusy) return;
+  const models = [];
+  for (const def of localModelOverrides.values()) {
+    const key = localCalibrationKey(def);
+    if (!key) continue;
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const draft = JSON.parse(raw);
+      if (draft.size !== CALIBRATION_SIZE || !draft.zones) continue;
+      models.push({
+        species: def.key,
+        modelFingerprint: def.calibrationFingerprint,
+        mask: draft,
+        verified: false,
+      });
+    } catch { /* Other valid masks can still be exported. */ }
+  }
+  if (!models.length) { batchStatus("No generated masks to export. Run Auto-map all loaded models first."); return; }
+  const pack = { format: "hollow-valley-skin-studio-local-masks/v1", verified: false, models };
+  const blobUrl = URL.createObjectURL(new Blob([JSON.stringify(pack)], { type: "application/json" }));
+  const link = document.createElement("a");
+  link.href = blobUrl;
+  link.download = "hollow-valley-unverified-auto-masks-" + models.length + "-species.json";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+  batchStatus("Exported " + models.length + " browser-local masks. They are provisional, not in-game verified.");
+}
+
+calibrationBatchEl?.addEventListener("click", batchMapAllLocalModels);
+calibrationBatchDownloadEl?.addEventListener("click", downloadBatchMasks);
+
 async function resetLocalModel() {
   if (calibrationPanel?.hidden) return;
   if (calibrationActive) {
