@@ -142,6 +142,8 @@ let shapeTintControllers = [];
 let maskAtlases = [];
 let currentMaskData = null;
 let zoneLookup = null;
+// 0: untouched, 1: automatic, 2: manual (including erasures).
+let calibrationOwners = null;
 let currentPalette = { ...FALLBACKS };
 let currentSex = "male";
 let previewMode = "accurate";
@@ -153,6 +155,7 @@ let ultraButton = null;
 let spinInput = null;
 let ultraEnabled = false;
 let calibrationActive = false;
+let autoMapBusy = false;
 let calibrationPointerDown = false;
 let calibrationSaveTimer = null;
 let calibrationCoverageTimer = null;
@@ -687,9 +690,13 @@ function updateCalibrationHistoryButtons() {
   if (calibrationRedoEl) calibrationRedoEl.disabled = !calibrationActive || calibrationRedoStack.length === 0;
 }
 
+function calibrationSnapshot() {
+  return { lookup: new Uint8Array(zoneLookup), owners: new Uint8Array(calibrationOwners || zoneLookup.length) };
+}
+
 function pushCalibrationHistory() {
   if (!calibrationActive || !zoneLookup?.length) return;
-  calibrationUndoStack.push(new Uint8Array(zoneLookup));
+  calibrationUndoStack.push(calibrationSnapshot());
   if (calibrationUndoStack.length > CALIBRATION_HISTORY_LIMIT) calibrationUndoStack.shift();
   calibrationRedoStack = [];
   updateCalibrationHistoryButtons();
@@ -716,8 +723,9 @@ function rebuildMaskAtlasesFromLookup() {
 }
 
 function restoreCalibrationSnapshot(snapshot) {
-  if (!snapshot || !zoneLookup || snapshot.length !== zoneLookup.length) return;
-  zoneLookup.set(snapshot);
+  if (!snapshot || !zoneLookup || snapshot.lookup.length !== zoneLookup.length) return;
+  zoneLookup.set(snapshot.lookup);
+  calibrationOwners = new Uint8Array(snapshot.owners);
   rebuildMaskAtlasesFromLookup();
   saveCalibrationDraftNow();
   scheduleCalibrationCoverage();
@@ -725,7 +733,7 @@ function restoreCalibrationSnapshot(snapshot) {
 
 function undoCalibration() {
   if (!calibrationUndoStack.length || !zoneLookup?.length) return;
-  calibrationRedoStack.push(new Uint8Array(zoneLookup));
+  calibrationRedoStack.push(calibrationSnapshot());
   const previous = calibrationUndoStack.pop();
   restoreCalibrationSnapshot(previous);
   updateCalibrationHistoryButtons();
@@ -734,7 +742,7 @@ function undoCalibration() {
 
 function redoCalibration() {
   if (!calibrationRedoStack.length || !zoneLookup?.length) return;
-  calibrationUndoStack.push(new Uint8Array(zoneLookup));
+  calibrationUndoStack.push(calibrationSnapshot());
   const next = calibrationRedoStack.pop();
   restoreCalibrationSnapshot(next);
   updateCalibrationHistoryButtons();
@@ -747,6 +755,7 @@ function normalizedUv(value) {
 }
 
 function unwrapTriangleAxis(values) {
+  if (values.every(value => value >= 0 && value <= 1) && values.includes(0) && values.includes(1)) return values.slice();
   const out = values.map(normalizedUv);
   const min = Math.min(...out);
   const max = Math.max(...out);
@@ -1119,9 +1128,11 @@ function createBlankCalibrationMask() {
   currentMaskData = { size: CALIBRATION_SIZE, zones: {} };
   maskAtlases = buildMaskAtlases();
   zoneLookup = new Uint8Array(CALIBRATION_SIZE * CALIBRATION_SIZE);
+  calibrationOwners = new Uint8Array(zoneLookup.length);
 }
 
 function setAtlasPixel(pixel, zoneName) {
+  if (calibrationOwners) calibrationOwners[pixel] = 2;
   for (const texture of maskAtlases) {
     const data = texture.image?.data;
     if (!data) continue;
@@ -1190,7 +1201,9 @@ function saveCalibrationDraftNow() {
   const key = calibrationStorageKey();
   if (!key || !zoneLookup?.length) return false;
   try {
-    localStorage.setItem(key, JSON.stringify(maskPayloadFromLookup()));
+    localStorage.setItem(key, JSON.stringify({ ...maskPayloadFromLookup(),
+      calibration: { version: 1, owners: Array.from(calibrationOwners || [], String).join(''), flipV: Boolean(calibrationFlipVEl?.checked) }
+    }));
     return true;
   } catch {
     return false;
@@ -1285,11 +1298,12 @@ function replaceCalibrationMask(value) {
     throw new Error("Start mapping on a shape-only species before importing a mask.");
   }
 
-  pushCalibrationHistory();
   const parsed = normalizeCalibrationMaskPayload(value);
+  pushCalibrationHistory();
   disposeMaskAtlases();
   currentMaskData = parsed;
   maskAtlases = buildMaskAtlases();
+  calibrationOwners = Uint8Array.from(zoneLookup, zone => zone ? 2 : 0);
   applyCalibratedMaterials(model);
   applyPreviewMode("accurate");
   updatePalette(paletteFromEditor());
@@ -1321,6 +1335,15 @@ function loadCalibrationDraft() {
     if (!raw) return false;
     currentMaskData = normalizeCalibrationMaskPayload(raw);
     maskAtlases = buildMaskAtlases();
+    const metadata = JSON.parse(raw).calibration;
+    calibrationOwners = Uint8Array.from(zoneLookup, zone => zone ? 2 : 0);
+    if (metadata?.version === 1 && typeof metadata.owners === 'string' &&
+        metadata.owners.length === zoneLookup.length && /^[012]+$/.test(metadata.owners)) {
+      calibrationOwners = Uint8Array.from(metadata.owners, Number);
+      // Never let malformed metadata unlock an assigned pixel.
+      zoneLookup.forEach((zone, i) => { if (zone && !calibrationOwners[i]) calibrationOwners[i] = 2; });
+      if (typeof metadata.flipV === 'boolean' && calibrationFlipVEl) calibrationFlipVEl.checked = metadata.flipV;
+    }
     return true;
   } catch (error) {
     try { localStorage.removeItem(key); } catch {}
@@ -1405,7 +1428,8 @@ function collectAutoMapMeshes(root) {
   return result;
 }
 
-async function autoMapCalibration() {
+async function autoMapCalibration(rebuildAll = false) {
+  if (autoMapBusy) return;
   if (calibrationPanel?.hidden || !model || currentModelDef?.capability !== "shape") {
     setCalibrationStatus("Select a loaded shape-only dinosaur model to auto-map.");
     return;
@@ -1419,6 +1443,7 @@ async function autoMapCalibration() {
 
   const token = currentLoadToken;
   const sourceModel = model;
+  autoMapBusy = true;
   if (calibrationAutoEl) calibrationAutoEl.disabled = true;
   setCalibrationStatus("Auto-map: analysing this model's UV layout, surfaces and material slots…");
   try {
@@ -1436,32 +1461,22 @@ async function autoMapCalibration() {
     if (!proposal.coveredPixels) {
       throw new Error("No usable UV surfaces found. Keep the existing mask and inspect this mesh.");
     }
-    const oldMapped = zoneLookup.reduce((sum, value) => sum + Number(Boolean(value)), 0);
-    let applied = 0;
-    // Fill unmapped areas only; hand-painted Deinosuchus patches and resumed
-    // masks take precedence. A single Undo restores the entire previous mask.
-    const patch = new Uint8Array(zoneLookup.length);
-    for (let pixel = 0; pixel < zoneLookup.length; pixel++) {
-      if (zoneLookup[pixel] || !maskPixelCovered(pixel % CALIBRATION_SIZE, Math.floor(pixel / CALIBRATION_SIZE))) continue;
-      patch[pixel] = proposal.lookup[pixel] || 1; // UV not uniquely assigned? Body fallback.
-      applied++;
-    }
-    if (!applied) {
-      setCalibrationStatus("No unmapped UV area remains. Existing manual and auto assignments are unchanged.");
+    const next = window.HVSkinAutoMap.mergeProposal(zoneLookup, calibrationOwners, proposal.lookup, rebuildAll);
+    if (!next.changed) {
+      setCalibrationStatus("Automatic zones are up to date. Manual edits are preserved; use Rebuild all zones to replace a legacy mask.");
       return;
     }
     pushCalibrationHistory();
-    for (let pixel = 0; pixel < patch.length; pixel++) {
-      if (patch[pixel]) zoneLookup[pixel] = patch[pixel];
-    }
+    zoneLookup.set(next.lookup);
+    calibrationOwners = next.owners;
     rebuildMaskAtlasesFromLookup();
     applyPreviewMode("game");
     updatePalette(paletteFromEditor());
     const saved = saveCalibrationDraftNow();
     scheduleCalibrationCoverage();
     setCalibrationStatus(
-      String(currentModelDef.displayName) + " · auto-mapped " + applied.toLocaleString() +
-      " UV pixels; " + oldMapped.toLocaleString() + " existing pixels preserved." +
+      String(currentModelDef.displayName) + " · updated " + next.changed.toLocaleString() +
+      " UV pixels; " + next.preserved.toLocaleString() + " manual pixels preserved." +
       " Suggested Body, Flank, Underbelly and dorsal Markings. Eyes use their own mesh material." +
       " Not verified against EVRIMA: use Undo to revert." +
       (saved ? " Draft saved locally." : " Export with Copy mask; local draft could not be saved.")
@@ -1469,6 +1484,7 @@ async function autoMapCalibration() {
   } catch (error) {
     setCalibrationStatus("Auto-map could not complete: " + error.message + ". Existing mapping is unchanged.");
   } finally {
+    autoMapBusy = false;
     if (calibrationAutoEl) calibrationAutoEl.disabled = !model || currentModelDef?.capability !== "shape";
   }
 }
@@ -1678,6 +1694,7 @@ function disposeModel() {
   disposeMaskAtlases();
   currentMaskData = null;
   zoneLookup = null;
+  calibrationOwners = null;
   uvCoverage = null;
   calibrationUndoStack = [];
   calibrationRedoStack = [];
@@ -2048,15 +2065,9 @@ function hitUvAt(clientX, clientY) {
 
 function lookupZoneFromUv(uv) {
   if (!calibrated() || !zoneLookup || !currentMaskData?.size || !uv) return null;
-  const size = currentMaskData.size;
-  const x = Math.max(0, Math.min(size - 1, Math.floor(uv.x * size)));
-  const yDirect = Math.max(0, Math.min(size - 1, Math.floor(uv.y * size)));
-  const yFlipped = Math.max(0, Math.min(size - 1, Math.floor((1 - uv.y) * size)));
-  const zoneKeys = ["body", "markings", "flank", "underbelly", "detail1", "eyes", "teeth", "mouth", "claws", "maleDisplay"];
-  const direct = zoneLookup[yDirect * size + x];
-  const flipped = zoneLookup[yFlipped * size + x];
-  const index = direct || flipped;
-  return index ? zoneKeys[index - 1] : null;
+  // Match the rendered atlas (flipY=false, ClampToEdge), never probe the opposite row.
+  const index = window.HVSkinAutoMap.lookupUv(zoneLookup, currentMaskData.size, uv);
+  return index ? ZONE_KEYS[index - 1] : null;
 }
 
 function selectPaintZoneAt(clientX, clientY) {
@@ -2131,7 +2142,8 @@ canvas.addEventListener("pointercancel", () => {
 });
 
 calibrationDiagnosticEl?.addEventListener("click", loadDiagnosticPalette);
-calibrationAutoEl?.addEventListener("click", autoMapCalibration);
+calibrationAutoEl?.addEventListener("click", () => autoMapCalibration());
+document.getElementById("skin-calibration-rebuild")?.addEventListener("click", () => autoMapCalibration(true));
 
 inspectorFileEl?.addEventListener("change", () => {
   loadInspectorCaptureFile(inspectorFileEl.files?.[0] || null);
@@ -2179,6 +2191,7 @@ calibrationClearAllEl?.addEventListener("click", () => {
   if (!calibrationActive) return;
   pushCalibrationHistory();
   zoneLookup.fill(0);
+  calibrationOwners?.fill(0);
   for (const texture of maskAtlases) {
     texture.image.data.fill(0);
     texture.needsUpdate = true;

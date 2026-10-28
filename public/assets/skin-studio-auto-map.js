@@ -20,6 +20,9 @@
   }
 
   function unwrapTriangle(values) {
+    // An atlas edge at exactly 1 is not the same vertex as 0. Collapsing it
+    // makes ordinary full-atlas triangles degenerate (for example a GLB box).
+    if (values.every(value => value >= 0 && value <= 1) && values.includes(0) && values.includes(1)) return values.slice();
     const out = values.map(wrap);
     const lo = Math.min(...out), hi = Math.max(...out);
     return hi - lo > 0.5 ? out.map(value => value < 0.5 ? value + 1 : value) : out;
@@ -123,10 +126,10 @@
           if (![...u, ...v].every(Number.isFinite)) { rejected++; continue; }
           const signedArea = edge(u[0], v[0], u[1], v[1], u[2], v[2]);
           if (Math.abs(signedArea) < 1e-12) { rejected++; continue; }
-          const minPx = Math.max(0, Math.floor(Math.min(...u) * size) - 1);
-          const maxPx = Math.min(size * 2, Math.ceil(Math.max(...u) * size) + 1);
-          const minPy = Math.max(0, Math.floor(Math.min(...v) * size) - 1);
-          const maxPy = Math.min(size * 2, Math.ceil(Math.max(...v) * size) + 1);
+          const minPx = Math.max(0, Math.floor(Math.min(...u) * size));
+          const maxPx = Math.min(size * 2 - 1, Math.ceil(Math.max(...u) * size) - 1);
+          const minPy = Math.max(0, Math.floor(Math.min(...v) * size));
+          const maxPy = Math.min(size * 2 - 1, Math.ceil(Math.max(...v) * size) - 1);
           if ((maxPx - minPx + 1) * (maxPy - minPy + 1) > MAX_RASTER_BOX) { rejected++; continue; }
           faces++;
           for (let py = minPy; py <= maxPy; py++) {
@@ -166,13 +169,39 @@
         all += score;
       }
       if (high <= 0) continue;
-      lookup[pixel] = winner;
-      counts[ZONES[winner - 1]]++;
+      // Conflicting surfaces sharing a UV texel should not receive a strong accent on a tied vote.
+      lookup[pixel] = high / all >= 0.6 ? winner : 1;
+      counts[ZONES[lookup[pixel] - 1]]++;
       if (all - high > 0) ambiguousPixels++;
       coveredPixels++;
     }
     return { lookup, size, counts, coveredPixels, ambiguousPixels, faces, rejected, samples, verified: false };
   }
 
-  return Object.freeze({ ZONES, generate, materialZone, geometryZone });
+  function mergeProposal(current, owners, proposal, rebuildAll = false) {
+    if (!current || !proposal || current.length !== proposal.length || (owners && owners.length !== current.length)) {
+      throw new Error('Mask and proposal sizes must match.');
+    }
+    const lookup = new Uint8Array(current);
+    const nextOwners = owners ? new Uint8Array(owners) : Uint8Array.from(current, zone => zone ? 2 : 0);
+    let changed = 0, preserved = 0;
+    for (let i = 0; i < current.length; i++) {
+      if (!rebuildAll && nextOwners[i] === 2) { preserved++; continue; }
+      const next = proposal[i];
+      const owner = next ? 1 : 0;
+      if (lookup[i] !== next || nextOwners[i] !== owner) changed++;
+      lookup[i] = next;
+      nextOwners[i] = owner;
+    }
+    return { lookup, owners: nextOwners, changed, preserved };
+  }
+
+  function lookupUv(lookup, size, uv) {
+    if (!uv || !Number.isFinite(uv.x) || !Number.isFinite(uv.y)) return 0;
+    const x = Math.max(0, Math.min(size - 1, Math.floor(uv.x * size)));
+    const y = Math.max(0, Math.min(size - 1, Math.floor(uv.y * size)));
+    return lookup[y * size + x] || 0;
+  }
+
+  return Object.freeze({ ZONES, generate, materialZone, geometryZone, mergeProposal, lookupUv });
 });
