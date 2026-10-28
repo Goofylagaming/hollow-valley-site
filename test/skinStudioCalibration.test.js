@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const Auto = require('../public/assets/skin-studio-auto-map.js');
+const Batch = require('../public/assets/skin-studio-batch-map.js');
 const viewer = fs.readFileSync(require.resolve('../public/assets/skin-studio-3d.js'), 'utf8');
 function functionSource(name) {
   const start = viewer.indexOf(`function ${name}(`);
@@ -42,7 +43,7 @@ test('UV picking matches clamp-to-edge atlas sampling and never falls back to th
 });
 
 function harness() {
-  const context = vm.createContext({ Uint8Array, console, setTimeout, clearTimeout });
+  const context = vm.createContext({ Uint8Array, console, setTimeout, clearTimeout, window: { HVSkinBatchMap: Batch } });
   vm.runInContext(`
     const CALIBRATION_SIZE=256;
     const ZONE_KEYS=${JSON.stringify(Auto.ZONES)};

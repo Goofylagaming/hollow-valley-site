@@ -257,7 +257,7 @@ test("Skin Studio 3D preview uses species-specific models and refuses fake unive
   assert.match(html, /EVRIMA SkinInspector capture/);
   assert.match(html, /Load diagnostic colours/);
   assert.match(html, /Import \/ resume a mask/);
-  assert.match(html, /skin-studio-3d\.js\?v=23/);
+  assert.match(html, /skin-studio-3d\.js\?v=24/);
 });
 
 
@@ -312,7 +312,7 @@ test("Skin Studio keeps FNF-compatible core zone order and simple pattern contro
   assert.match(browser, /function selectedSpeciesProfile\(\)/);
   assert.match(browser, /Number\.isInteger\(profile\?\.patternMax\)/);
   assert.match(browser, /Wear Live will preserve its current in-game pattern/);
-  assert.match(html, /skin-studio-3d\.js\?v=23/);
+  assert.match(html, /skin-studio-3d\.js\?v=24/);
   assert.match(html, /id="skin-pattern-presets"/);
   assert.match(html, /id="skin-pattern-safety"/);
   assert.match(html, /id="skin-sex-preview"/);

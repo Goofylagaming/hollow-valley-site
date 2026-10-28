@@ -95,7 +95,18 @@
                   </label>
                   <button class="small-button" id="skin-local-model-reset" type="button">Use website model</button>
                 </div>
-                <p class="skin-calibration-help" id="skin-local-model-status" role="status">Select one or all 20 converted GLB files from your private model bundle. Files are matched by species name, loaded only in your browser, never uploaded or included in saved skins. Each unique mesh has its own UV calibration draft.</p>
+                <p class="skin-calibration-help" id="skin-local-model-status" role="status">Models are loaded only in your browser. Select all 20 converted GLBs at once. Auto-map will create a separate provisional colour-zone mask for every model in your browser, preserving any hand-painted areas. Nothing is sent to the website or saved with player skins.</p>
+                <div class="skin-calibration-controls">
+                  <label class="skin-calibration-check">
+                    <input id="skin-auto-on-upload" type="checkbox" checked>
+                    Auto-map every selected model immediately
+                  </label>
+                </div>
+                <div class="skin-calibration-actions">
+                  <button class="small-button green" id="skin-calibration-batch" type="button">Auto-map all loaded models</button>
+                  <button class="small-button" id="skin-calibration-batch-download" type="button" disabled>Export all masks</button>
+                </div>
+                <p class="skin-calibration-help" id="skin-calibration-batch-status" role="status">Model and UV masks stay on this device. Auto-mapping creates approximate Body, Flank, Underbelly and dorsal Markings zones; pattern textures still need in-game verification.</p>
                 <div class="skin-calibration-controls">
                   <label>Zone
                     <select id="skin-calibration-zone">
@@ -340,6 +351,7 @@
     {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}
   </script>
   <script src="/assets/skin-studio-auto-map.js?v=2"></script>
-  <script type="module" src="/assets/skin-studio-3d.js?v=23"></script>
+  <script src="/assets/skin-studio-batch-map.js?v=1"></script>
+  <script type="module" src="/assets/skin-studio-3d.js?v=24"></script>
 </body>
 </html>
