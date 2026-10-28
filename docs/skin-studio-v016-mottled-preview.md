@@ -1,0 +1,9 @@
+# Skin Studio v016 — automatic Deinosuchus preview mottling
+
+Game preview now layers deterministic object-space pigment variation over calibrated Deinosuchus Body, Markings, Flank and Underbelly regions. Coarse patches and fine flecks blend the chosen colours; a five-tap mask sample softens adjacent zone boundaries. The pattern stays attached to the model during camera movement. No painting is required once a mask exists.
+
+Mottling defaults on and has a visible toggle. EVRIMA colour mode retains the unmodified flat-zone pipeline. Eye, tooth, mouth, tongue and claw material slots are excluded, and explicit extended-zone masks apply after the effect. Other species retain their existing shaders. Toggling changes only shader uniforms: exported masks, ownership, saved skin values and backend data are unchanged.
+
+This is an approximate visual treatment, not a verified EVRIMA pattern or a replacement for the game's scale normal maps. The status label says so. Compared with the supplied diagnostic screenshot, the new treatment reduces uninterrupted blue panels and blends green/cyan flecks across the flanks; fine scale relief, lighting and exact patch placement still differ.
+
+Validation: 45 targeted tests passed, including new shader eligibility/pipeline checks and existing mask, import and production UI tests. An isolated Edge/WebGL run loaded the user's private Deinosuchus GLB locally, compiled/rendered both shaders, toggled the effect, checked exact-colour isolation and confirmed byte-identical exported masks. No shader/page errors were recorded; a 60-frame sample had a 16.7 ms median on the test machine (not a cross-device performance guarantee). Matched diagnostic-colour before/after screenshots were inspected. Private model and screenshot assets are not included in the repository.
