@@ -77,7 +77,7 @@ test("Skin Studio v012 restores life-scoped skins without using transient pawn s
   const fs = require("node:fs");
   const path = require("node:path");
   const lua = fs.readFileSync(path.join(__dirname, "..", "server-mods", "SkinStudio", "Scripts", "main.lua"), "utf8");
-  const browser = fs.readFileSync(path.join(__dirname, "..", "public", "assets", "skins.js"), "utf8");
+  const browser = fs.readFileSync(path.join(__dirname, "..", "public", "assets", "skins.js"), "utf8").replace(/\r\n/g, "\n");
   const serverIndex = fs.readFileSync(path.join(__dirname, "..", "server", "index.js"), "utf8");
 
   assert.match(lua, /SkinStudio v012/);
@@ -257,7 +257,7 @@ test("Skin Studio 3D preview uses species-specific models and refuses fake unive
   assert.match(html, /EVRIMA SkinInspector capture/);
   assert.match(html, /Load diagnostic colours/);
   assert.match(html, /Import \/ resume a mask/);
-  assert.match(html, /skin-studio-3d\.js\?v=21/);
+  assert.match(html, /skin-studio-3d\.js\?v=22/);
 });
 
 
@@ -291,7 +291,7 @@ test("Vendored Skin Studio model binaries match their approved source blobs", ()
 test("Skin Studio keeps FNF-compatible core zone order and simple pattern controls", () => {
   const fs = require("node:fs");
   const path = require("node:path");
-  const browser = fs.readFileSync(path.join(__dirname, "..", "public", "assets", "skins.js"), "utf8");
+  const browser = fs.readFileSync(path.join(__dirname, "..", "public", "assets", "skins.js"), "utf8").replace(/\r\n/g, "\n");
   const html = fs.readFileSync(path.join(__dirname, "..", "public", "skins.html"), "utf8");
 
   const ordered = [
@@ -312,7 +312,7 @@ test("Skin Studio keeps FNF-compatible core zone order and simple pattern contro
   assert.match(browser, /function selectedSpeciesProfile\(\)/);
   assert.match(browser, /Number\.isInteger\(profile\?\.patternMax\)/);
   assert.match(browser, /Wear Live will preserve its current in-game pattern/);
-  assert.match(html, /skin-studio-3d\.js\?v=21/);
+  assert.match(html, /skin-studio-3d\.js\?v=22/);
   assert.match(html, /id="skin-pattern-presets"/);
   assert.match(html, /id="skin-pattern-safety"/);
   assert.match(html, /id="skin-sex-preview"/);
@@ -339,7 +339,7 @@ test("Skin Studio colour-zone groups stack cleanly without nested desktop grid o
 test("Skin Shop published cards hide raw colour swatches but editing views keep them", () => {
   const fs = require("node:fs");
   const path = require("node:path");
-  const browser = fs.readFileSync(path.join(__dirname, "..", "public", "assets", "skins.js"), "utf8");
+  const browser = fs.readFileSync(path.join(__dirname, "..", "public", "assets", "skins.js"), "utf8").replace(/\r\n/g, "\n");
 
   assert.equal(browser.includes('const swatchMarkup = mode === "store"'), true);
   assert.equal(browser.includes('? ""\n    : \`<div class="skin-swatch-row">\${swatches(preset.skin)}</div>\`;'), true);

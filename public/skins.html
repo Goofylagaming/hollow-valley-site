@@ -88,7 +88,7 @@
                   <span>ADMIN · ZONE CALIBRATION</span>
                   <span id="skin-calibration-species">Select a shape model</span>
                 </div>
-                <p class="skin-calibration-help">Use <strong>Auto-map zones</strong> to fill unpainted UV regions from the 3D model without hand-painting. Your existing work is preserved, and one Undo reverses the suggestion. Body, flank, underside and dorsal markings are approximate geometry-based proposals, <em>not</em> verified EVRIMA patterns. Eye materials are coloured separately. Players never see these admin tools.</p>
+                <p class="skin-calibration-help">Use <strong>Auto-map zones</strong> to refresh automatic UV regions from the 3D model. Brush edits and erasures are preserved across reloads. Older or imported masks are protected; Rebuild all zones replaces them with fresh suggestions and can be undone. Body, flank, underside and dorsal markings are approximate geometry-based proposals, <em>not</em> verified EVRIMA patterns. Eye materials are coloured separately. Players never see these admin tools.</p>
                 <div class="skin-calibration-controls" role="group" aria-label="Private local model preview">
                   <label for="skin-local-model-file">PRIVATE MODEL PREVIEW · GLB
                     <input id="skin-local-model-file" type="file" accept=".glb,model/gltf-binary" multiple>
@@ -123,6 +123,7 @@
                 </div>
                 <div class="skin-calibration-actions">
                   <button class="small-button" id="skin-calibration-auto" type="button" disabled>Auto-map zones</button>
+                  <button class="small-button" id="skin-calibration-rebuild" type="button">Rebuild all zones</button>
                   <button class="small-button" id="skin-calibration-toggle" type="button">Start mapping</button>
                   <button class="small-button" id="skin-calibration-island-fill" type="button" disabled>Island fill: off</button>
                   <button class="small-button" id="skin-calibration-undo" type="button" disabled>Undo</button>
@@ -338,7 +339,7 @@
   <script type="importmap">
     {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}
   </script>
-  <script src="/assets/skin-studio-auto-map.js?v=1"></script>
-  <script type="module" src="/assets/skin-studio-3d.js?v=21"></script>
+  <script src="/assets/skin-studio-auto-map.js?v=2"></script>
+  <script type="module" src="/assets/skin-studio-3d.js?v=22"></script>
 </body>
 </html>

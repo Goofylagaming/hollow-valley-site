@@ -75,21 +75,36 @@ test("invalid and excessive input fails closed", () => {
   assert.ok(result.rejected > 0);
 });
 
+test("full-atlas UV triangles retain their 0/1 edges instead of collapsing", () => {
+  const mesh = face(0.1);
+  mesh.uvs = new Float32Array([0, 0, 1, 0, 0, 1]);
+  const result = Auto.generate({ meshes: [mesh], size: 32 });
+  assert.equal(result.faces, 1);
+  assert.equal(result.coveredPixels, 528);
+  assert.equal(Auto.generate({ meshes: [mesh], size: 256 }).coveredPixels, 32896);
+});
+
+test("tied overlapping geometry falls back to Body instead of a strong accent", () => {
+  const result = Auto.generate({ meshes: [face(0.1, 'down'), face(0.1, 'side')], size: 32 });
+  assert.ok(result.ambiguousPixels > 0);
+  assert.equal(result.counts.body, result.coveredPixels);
+});
+
 test("live Skin Studio loads automapper before its viewer and keeps suggestions admin-only", () => {
   const html = fs.readFileSync(path.join(__dirname, "..", "public", "skins.html"), "utf8");
   const viewer = fs.readFileSync(path.join(__dirname, "..", "public", "assets", "skin-studio-3d.js"), "utf8");
   assert.match(html, /<section class="skin-calibration-panel" id="skin-calibration-panel" hidden>/);
   assert.match(html, /id="skin-calibration-auto" type="button" disabled/);
   assert.match(html, /not<\/em> verified EVRIMA patterns/);
-  assert.ok(html.indexOf("/assets/skin-studio-auto-map.js?v=1") < html.indexOf("/assets/skin-studio-3d.js?v=21"));
+  assert.ok(html.indexOf("/assets/skin-studio-auto-map.js?v=2") < html.indexOf("/assets/skin-studio-3d.js?v=22"));
   assert.match(viewer, /function collectAutoMapMeshes\(root\)/);
   assert.match(viewer, /if \(!material\.map\) material\.map = MASK_WHITE_MAP/);
   assert.match(viewer, /name: source\.name \|\| ""/);
-  assert.match(viewer, /async function autoMapCalibration\(\)/);
+  assert.match(viewer, /async function autoMapCalibration\(rebuildAll = false\)/);
   assert.match(viewer, /const rootInverse = new THREE.Matrix4/);
-  assert.match(viewer, /if \(zoneLookup\[pixel\] \|\| !maskPixelCovered/);
+  assert.match(viewer, /HVSkinAutoMap\.mergeProposal/);
   assert.match(viewer, /pushCalibrationHistory\(\)/);
   assert.match(viewer, /rebuildMaskAtlasesFromLookup\(\)/);
-  assert.match(viewer, /calibrationAutoEl\?\.addEventListener\("click", autoMapCalibration\)/);
+  assert.match(viewer, /calibrationAutoEl\?\.addEventListener\("click", \(\) => autoMapCalibration\(\)\)/);
   assert.match(viewer, /if \(\/\(\^\|\[\^a-z\]\)eyes\?\(\[\^a-z\]\|\$\)\/i\.test/);
 });
