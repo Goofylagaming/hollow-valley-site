@@ -46,11 +46,19 @@ test("all production wallet, marketplace, storage, admin and other page scripts 
     // Approved test-preview Live Map migration intentionally extends this page.
     if (page === "livemap.html") continue;
     const file = "public/" + page;
-    assert.deepEqual(
-      scriptSources(read(file)),
-      scriptSources(previous(file)),
-      page + ": feature scripts were dropped or reordered"
-    );
+    const actual = scriptSources(read(file));
+    const baseline = scriptSources(previous(file));
+    if (page === "skins.html") {
+      // v014 intentionally inserts one original, browser-only auto-map helper
+      // immediately before the existing 3D viewer. Every prior script remains.
+      const autoMap = "assets/skin-studio-auto-map.js";
+      const reader = "assets/skin-studio-3d.js";
+      assert.equal(actual.indexOf(autoMap), actual.indexOf(reader) - 1, "Auto-map must load before the viewer");
+      assert.equal(actual.filter((src) => src === autoMap).length, 1, "Only one auto-map helper is expected");
+      assert.deepEqual(actual.filter((src) => src !== autoMap), baseline, page + ": existing feature scripts must be preserved");
+    } else {
+      assert.deepEqual(actual, baseline, page + ": feature scripts were dropped or reordered");
+    }
   }
 });
 test("every public page preloads the upgraded UI without losing its base CSS", () => {

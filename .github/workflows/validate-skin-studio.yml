@@ -8,6 +8,8 @@ on:
       - "public/skins.html"
       - "public/assets/skins.js"
       - "public/assets/skin-studio-3d.js"
+      - "public/assets/skin-studio-auto-map.js"
+      - "test/skinStudioAutoMap.test.js"
       - "public/assets/external-skin-import.js"
       - "public/skin-studio/model-lab.html"
       - "scripts/skin_studio_psk_to_glb.py"
@@ -38,7 +40,8 @@ jobs:
       - run: npm ci
       - name: Validate Skin Studio browser module syntax
         run: node --input-type=module --check < public/assets/skin-studio-3d.js
-      - run: node --test test/skinStudioClient.test.js test/external-skin-import.test.js
+      - run: node --check public/assets/skin-studio-auto-map.js
+      - run: node --test test/skinStudioClient.test.js test/external-skin-import.test.js test/skinStudioAutoMap.test.js
 
   lua:
     runs-on: ubuntu-latest

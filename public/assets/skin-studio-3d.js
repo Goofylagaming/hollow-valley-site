@@ -30,6 +30,7 @@ const calibrationBrushEl = document.getElementById("skin-calibration-brush");
 const calibrationBrushValueEl = document.getElementById("skin-calibration-brush-value");
 const calibrationFlipVEl = document.getElementById("skin-calibration-flip-v");
 const calibrationToggleEl = document.getElementById("skin-calibration-toggle");
+const calibrationAutoEl = document.getElementById("skin-calibration-auto");
 const calibrationIslandFillEl = document.getElementById("skin-calibration-island-fill");
 const calibrationUndoEl = document.getElementById("skin-calibration-undo");
 const calibrationRedoEl = document.getElementById("skin-calibration-redo");
@@ -54,6 +55,15 @@ const localModelOverrides = new Map();
 const LOCAL_MODEL_LIMIT_BYTES = 30 * 1024 * 1024;
 
 if (!canvas || !stage) throw new Error("Skin Studio 3D stage is missing");
+
+// Untextured PSK-derived GLBs still need Three.js's UV varyings for the
+// calibrated shader. A shared, solid-white 1px map enables vMapUv without
+// altering the palette colours or requiring proprietary game textures.
+const MASK_WHITE_MAP = new THREE.DataTexture(
+  new Uint8Array([255, 255, 255, 255]), 1, 1, THREE.RGBAFormat, THREE.UnsignedByteType
+);
+MASK_WHITE_MAP.colorSpace = THREE.SRGBColorSpace;
+MASK_WHITE_MAP.needsUpdate = true;
 
 const FALLBACKS = Object.freeze({
   body: "#6f7652",
@@ -501,6 +511,8 @@ diffuseColor.rgb = mix(diffuseColor.rgb, hvMaleDisplay * hvShade, clamp(hvM2.g *
 
 function basicMaterialFrom(source) {
   return new THREE.MeshBasicMaterial({
+    // Keep PSK Body/Eye slot names across calibration mode toggles.
+    name: source.name || "",
     color: 0xffffff,
     map: source.map || null,
     alphaMap: source.alphaMap || null,
@@ -514,6 +526,17 @@ function basicMaterialFrom(source) {
 
 function maskedMaterial(source, accurate) {
   const material = accurate ? basicMaterialFrom(source) : source.clone();
+  // PSK eye materials often share the body UV atlas. Tint them independently
+  // instead of using an eye UV mask that might recolour the entire body.
+  if (/(^|[^a-z])eyes?([^a-z]|$)/i.test(String(source?.name || ""))) {
+    const setEyes = (palette) => {
+      if (material.color?.isColor) engineColorFromHex(palette.eyes, material.color);
+    };
+    setEyes(currentPalette);
+    return { material, controller: { setPalette: setEyes, setSex() {} } };
+  }
+  // The mask fragment samples vMapUv. Ensure it exists on geometry-only GLBs.
+  if (!material.map) material.map = MASK_WHITE_MAP;
   const uniforms = {
     hvMask0: { value: maskAtlases[0] },
     hvMask1: { value: maskAtlases[1] },
@@ -1340,6 +1363,116 @@ function startCalibration() {
     : `${currentModelDef.displayName} · calibration active · ${uvPixels.toLocaleString()} UV pixels detected. Brush or enable Island fill.`);
 }
 
+function collectAutoMapMeshes(root) {
+  root.updateMatrixWorld(true);
+  const rootInverse = new THREE.Matrix4().copy(root.matrixWorld).invert();
+  const result = [];
+  const transform = new THREE.Vector3();
+
+  root.traverse((child) => {
+    if (!child.isMesh) return;
+    const geometry = child.geometry;
+    const position = geometry?.attributes?.position;
+    const uv = geometry?.attributes?.uv;
+    if (!position || !uv || position.count !== uv.count) return;
+
+    // Use the dinosaur's local coordinates. Orbit and manual spin must not
+    // turn "underbelly" into "flank" on a subsequent auto-map pass.
+    const relative = new THREE.Matrix4().multiplyMatrices(rootInverse, child.matrixWorld);
+    const positions = new Float32Array(position.count * 3);
+    const uvs = new Float32Array(position.count * 2);
+    for (let vertex = 0; vertex < position.count; vertex++) {
+      transform.set(position.getX(vertex), position.getY(vertex), position.getZ(vertex)).applyMatrix4(relative);
+      positions[vertex * 3] = transform.x;
+      positions[vertex * 3 + 1] = transform.y;
+      positions[vertex * 3 + 2] = transform.z;
+      uvs[vertex * 2] = uv.getX(vertex);
+      uvs[vertex * 2 + 1] = uv.getY(vertex);
+    }
+    const mats = Array.isArray(child.material) ? child.material : [child.material];
+    const groups = geometry.groups?.length ? geometry.groups.map(group => ({
+      start: group.start,
+      count: group.count,
+      materialName: mats[group.materialIndex || 0]?.name || "",
+    })) : [];
+    result.push({
+      positions, uvs,
+      indices: geometry.index?.array || null,
+      materialName: mats[0]?.name || "",
+      groups,
+    });
+  });
+  return result;
+}
+
+async function autoMapCalibration() {
+  if (calibrationPanel?.hidden || !model || currentModelDef?.capability !== "shape") {
+    setCalibrationStatus("Select a loaded shape-only dinosaur model to auto-map.");
+    return;
+  }
+  if (!window.HVSkinAutoMap?.generate) {
+    setCalibrationStatus("Auto-map engine unavailable. Refresh the page before trying again.");
+    return;
+  }
+  if (!calibrationActive) startCalibration();
+  if (!calibrationActive || !zoneLookup?.length) return;
+
+  const token = currentLoadToken;
+  const sourceModel = model;
+  if (calibrationAutoEl) calibrationAutoEl.disabled = true;
+  setCalibrationStatus("Auto-map: analysing this model's UV layout, surfaces and material slots…");
+  try {
+    // Paint the status text before processing the geometry locally.
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    const proposal = window.HVSkinAutoMap.generate({
+      meshes: collectAutoMapMeshes(sourceModel),
+      size: CALIBRATION_SIZE,
+      flipV: Boolean(calibrationFlipVEl?.checked),
+    });
+    if (token !== currentLoadToken || model !== sourceModel || !calibrationActive) {
+      setCalibrationStatus("The model changed while auto-mapping. Nothing was applied.");
+      return;
+    }
+    if (!proposal.coveredPixels) {
+      throw new Error("No usable UV surfaces found. Keep the existing mask and inspect this mesh.");
+    }
+    const oldMapped = zoneLookup.reduce((sum, value) => sum + Number(Boolean(value)), 0);
+    let applied = 0;
+    // Fill unmapped areas only; hand-painted Deinosuchus patches and resumed
+    // masks take precedence. A single Undo restores the entire previous mask.
+    const patch = new Uint8Array(zoneLookup.length);
+    for (let pixel = 0; pixel < zoneLookup.length; pixel++) {
+      if (zoneLookup[pixel] || !maskPixelCovered(pixel % CALIBRATION_SIZE, Math.floor(pixel / CALIBRATION_SIZE))) continue;
+      patch[pixel] = proposal.lookup[pixel] || 1; // UV not uniquely assigned? Body fallback.
+      applied++;
+    }
+    if (!applied) {
+      setCalibrationStatus("No unmapped UV area remains. Existing manual and auto assignments are unchanged.");
+      return;
+    }
+    pushCalibrationHistory();
+    for (let pixel = 0; pixel < patch.length; pixel++) {
+      if (patch[pixel]) zoneLookup[pixel] = patch[pixel];
+    }
+    rebuildMaskAtlasesFromLookup();
+    applyPreviewMode("game");
+    updatePalette(paletteFromEditor());
+    const saved = saveCalibrationDraftNow();
+    scheduleCalibrationCoverage();
+    setCalibrationStatus(
+      String(currentModelDef.displayName) + " · auto-mapped " + applied.toLocaleString() +
+      " UV pixels; " + oldMapped.toLocaleString() + " existing pixels preserved." +
+      " Suggested Body, Flank, Underbelly and dorsal Markings. Eyes use their own mesh material." +
+      " Not verified against EVRIMA: use Undo to revert." +
+      (saved ? " Draft saved locally." : " Export with Copy mask; local draft could not be saved.")
+    );
+  } catch (error) {
+    setCalibrationStatus("Auto-map could not complete: " + error.message + ". Existing mapping is unchanged.");
+  } finally {
+    if (calibrationAutoEl) calibrationAutoEl.disabled = !model || currentModelDef?.capability !== "shape";
+  }
+}
+
 function stopCalibration() {
   clearTimeout(calibrationSaveTimer);
   saveCalibrationDraftNow();
@@ -1567,6 +1700,7 @@ function showReferenceModel(def, label) {
 
   setLocalModelControlsEnabled(false);
   if (calibrationToggleEl) calibrationToggleEl.disabled = true;
+  if (calibrationAutoEl) calibrationAutoEl.disabled = true;
   if (calibrationClearZoneEl) calibrationClearZoneEl.disabled = true;
   if (calibrationClearAllEl) calibrationClearAllEl.disabled = true;
   if (calibrationCopyEl) calibrationCopyEl.disabled = true;
@@ -1648,6 +1782,7 @@ function showNoModel(label, def = null) {
 
   if (accurateButton) accurateButton.disabled = true;
   if (gameButton) gameButton.disabled = true;
+  if (calibrationAutoEl) calibrationAutoEl.disabled = true;
   syncZoneStrip();
   syncZoneHint();
 
@@ -1739,6 +1874,7 @@ async function loadModelForSpecies(label) {
       ? `${def.displayName} is inside Hollow Valley's renderer. Body colour now uses a hue-neutral texture preview; map the EVRIMA UV zones to unlock accurate per-region colour painting.`
       : `${def.displayName} already has a calibrated zone map.`);
     if (calibrationToggleEl) calibrationToggleEl.disabled = def.capability !== "shape";
+    if (calibrationAutoEl) calibrationAutoEl.disabled = def.capability !== "shape";
     document.dispatchEvent(new CustomEvent("hds:skin-model-ready", {
       detail: { species: def.key, capability: def.capability },
     }));
@@ -1748,6 +1884,7 @@ async function loadModelForSpecies(label) {
     disposeModel();
     currentModelDef = def;
     setRail(def, label);
+    if (calibrationAutoEl) calibrationAutoEl.disabled = true;
     setStatus(false, `${def.displayName} · model load failed`);
     if (loaderEl) {
       loaderEl.hidden = false;
@@ -1994,6 +2131,7 @@ canvas.addEventListener("pointercancel", () => {
 });
 
 calibrationDiagnosticEl?.addEventListener("click", loadDiagnosticPalette);
+calibrationAutoEl?.addEventListener("click", autoMapCalibration);
 
 inspectorFileEl?.addEventListener("change", () => {
   loadInspectorCaptureFile(inspectorFileEl.files?.[0] || null);
