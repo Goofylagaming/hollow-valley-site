@@ -276,6 +276,21 @@
   ],
   "world": [
     {
+      "version": "M36.6",
+      "title": "Primalbound World M36.6 — Windows playtest",
+      "notes": [
+        "Meet 19 smaller dinosaur species in ordinary World expedition encounters: Allosaurus, Carnotaurus, Ceratosaurus, Dilophosaurus, Herrerasaurus, Omniraptor, Austroraptor, Deinosuchus, Pteranodon, Diabloceratops, Dryosaurus, Tenontosaurus, Maiasaura, Pachycephalosaurus, Stegosaurus, Triceratops, Gallimimus, Hypsilophodon and Beipiaosaurus. The species are original procedural visuals, not extracted The Isle meshes; Pteranodon currently fights on the ground.",
+        "Use R to approach ordinary route markers and Begin Encounter. Wild species use smaller silhouettes and matching names. The animated Mini Rex still appears at stages 5, 15, 25, and so on; existing Guardians remain at stages 10, 20, 30, and so on.",
+        "Ordinary stage health, damage, Coins/Bones, companion effects, first-clear/replay rewards and progression are unchanged. These wild enemy visuals do not add new ownable dinosaurs or unlocks.",
+        "Fixed World local-save checksum verification after JSON serialization. New checksums cover the re-readable payload; existing valid profile envelopes, previously verified recovery backups and cloud checksum formats remain supported. Invalid or tampered saves remain rejected.",
+        "Load checkpoint and Keyboard Controls text stay inside the scrollable pause menu rather than wrapping vertically; lower Account & Save Recovery controls remain reachable on smaller windows.",
+        "M36.6 retains World campaign schema 330 with no reset or migration of local profiles, inventory, companions, homesteads, currencies, equipment, settings or updater behavior. Back up your JSON before an optional update; World and Web saves stay separate."
+      ],
+      "published": "2026-10-28",
+      "tag": "m36-6-build-40615216698",
+      "source": "https://github.com/Goofylagaming/primalbound-downloads/releases/tag/m36-6-build-40615216698"
+    },
+    {
       "version": "M36.5",
       "title": "Primalbound World M36.5 — Windows playtest",
       "notes": [
