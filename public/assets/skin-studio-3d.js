@@ -149,6 +149,8 @@ let currentSex = "male";
 let previewMode = "accurate";
 let accurateButton = null;
 let gameButton = null;
+let mottlingButton = null;
+let deinoMottling = true;
 let autoRotateButton = null;
 let cleanViewButton = null;
 let ultraButton = null;
@@ -273,6 +275,20 @@ function installModeControls() {
   spinInput.value = "0";
   spinInput.setAttribute("aria-label", "Rotate species model");
   spinLabel.append(spinInput);
+
+  mottlingButton = document.createElement("button");
+  mottlingButton.className = "small-button";
+  mottlingButton.id = "skin-model-mottling";
+  mottlingButton.type = "button";
+  mottlingButton.textContent = "Mottling: on";
+  mottlingButton.title = "Approximate procedural mottling for Deinosuchus Game preview only. Not a verified EVRIMA pattern; saved skins and masks are unchanged.";
+  mottlingButton.hidden = true;
+  modelTools.prepend(mottlingButton);
+  mottlingButton.addEventListener("click", () => {
+    deinoMottling = !deinoMottling;
+    updatePalette(currentPalette);
+    applyPreviewMode(previewMode);
+  });
 
   modelTools.prepend(cleanViewButton);
   modelTools.prepend(ultraButton);
@@ -464,7 +480,12 @@ function buildMaskAtlases() {
   return [makeTexture(atlas0), makeTexture(atlas1), makeTexture(atlas2)];
 }
 
-function injectMaskShader(shader, uniforms, accurate) {
+function deinosuchusMottlingEligible(def, accurate, materialName = "") {
+  return !accurate && def?.key === "deinosuchus" &&
+    !/(^|[^a-z])(eyes?|teeth|tooth|fangs?|mouth|tongue|claws?|nails?)([^a-z]|$)/i.test(materialName);
+}
+
+function injectMaskShader(shader, uniforms, accurate, mottled = false) {
   Object.assign(shader.uniforms, uniforms);
   shader.fragmentShader = shader.fragmentShader.replace(
     "#include <common>",
@@ -485,6 +506,53 @@ uniform vec3 hvMaleDisplay;
 uniform float hvMaleVisible;`
   );
 
+  if (mottled) {
+    shader.vertexShader = shader.vertexShader.replace("#include <common>",
+      "#include <common>\nuniform float hvSurfaceScale;\nvarying vec3 hvSurfacePosition;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\nhvSurfacePosition = position * hvSurfaceScale;");
+    shader.fragmentShader = shader.fragmentShader.replace("#include <common>", `#include <common>
+uniform float hvMottleStrength;
+uniform float hvMaskTexel;
+varying vec3 hvSurfacePosition;
+float hvHash(vec3 p) {
+  p = fract(p * 0.1031); p += dot(p, p.yzx + 33.33);
+  return fract((p.x + p.y) * p.z);
+}
+float hvNoise(vec3 p) {
+  vec3 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f);
+  return mix(mix(mix(hvHash(i), hvHash(i+vec3(1,0,0)), f.x),
+                 mix(hvHash(i+vec3(0,1,0)), hvHash(i+vec3(1,1,0)), f.x), f.y),
+             mix(mix(hvHash(i+vec3(0,0,1)), hvHash(i+vec3(1,0,1)), f.x),
+                 mix(hvHash(i+vec3(0,1,1)), hvHash(i+vec3(1,1,1)), f.x), f.y), f.z);
+}`);
+  }
+
+  const mottlingBlock = mottled ? `
+// Spatial pigment variation follows the mesh, not screen pixels or a moving timer.
+if (hvMottleStrength > 0.0) {
+  float core = dot(hvM0, vec4(1.0));
+  vec2 d = vec2(hvMaskTexel, 0.0);
+  vec4 w = hvM0 * 0.5 + 0.125 * (
+    texture2D(hvMask0, vMapUv+d.xy) + texture2D(hvMask0, vMapUv-d.xy) +
+    texture2D(hvMask0, vMapUv+d.yx) + texture2D(hvMask0, vMapUv-d.yx));
+  w /= max(dot(w, vec4(1.0)), 0.0001);
+  vec3 p = hvSurfacePosition;
+  float coarse = hvNoise(p * 24.0);
+  float fine = hvNoise(p * 115.0 + vec3(7.1));
+  float grain = hvNoise(p * 310.0 + vec3(19.7));
+  float flecks = smoothstep(0.48, 0.73, fine * 0.7 + coarse * 0.3);
+  float islands = smoothstep(0.30, 0.68, coarse * 0.65 + fine * 0.35);
+  vec3 back = mix(hvBody, hvMarkings, 0.48 + 0.38 * islands);
+  vec3 dorsal = mix(hvMarkings, hvDetail, flecks * 0.68);
+  vec3 sides = mix(hvFlank, hvMarkings, islands * 0.78);
+  sides = mix(sides, hvDetail, flecks * 0.45);
+  vec3 belly = mix(hvUnderbelly, hvBody, smoothstep(0.65, 0.88, fine) * 0.10);
+  vec3 pigment = back*w.r + dorsal*w.g + sides*w.b + belly*w.a;
+  float microShade = 0.76 + 0.24 * smoothstep(0.18, 0.72, grain);
+  diffuseColor.rgb = mix(diffuseColor.rgb, pigment * hvShade * microShade,
+    clamp(core, 0.0, 1.0) * hvMottleStrength);
+}` : "";
+
   const shadeBlock = accurate
     ? "float hvShade = 1.0;"
     : "float hvLuma = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));\nfloat hvShade = clamp(0.34 + hvLuma * 1.06, 0.28, 1.22);";
@@ -503,6 +571,7 @@ diffuseColor.rgb = mix(diffuseColor.rgb, hvBody * hvShade, clamp(hvM0.r * ${stre
 diffuseColor.rgb = mix(diffuseColor.rgb, hvMarkings * hvShade, clamp(hvM0.g * ${strength.markings}, 0.0, 1.0));
 diffuseColor.rgb = mix(diffuseColor.rgb, hvFlank * hvShade, clamp(hvM0.b * ${strength.flank}, 0.0, 1.0));
 diffuseColor.rgb = mix(diffuseColor.rgb, hvUnderbelly * hvShade, clamp(hvM0.a * ${strength.underbelly}, 0.0, 1.0));
+${mottlingBlock}
 diffuseColor.rgb = mix(diffuseColor.rgb, hvDetail * hvShade, clamp(hvM1.r * ${strength.detail}, 0.0, 1.0));
 diffuseColor.rgb = mix(diffuseColor.rgb, hvEyes * ${accurate ? "1.0" : "max(hvShade, 0.72)"}, clamp(hvM1.g, 0.0, 1.0));
 diffuseColor.rgb = mix(diffuseColor.rgb, hvTeeth * ${accurate ? "1.0" : "max(hvShade, 0.72)"}, clamp(hvM1.b, 0.0, 1.0));
@@ -527,7 +596,8 @@ function basicMaterialFrom(source) {
   });
 }
 
-function maskedMaterial(source, accurate) {
+function maskedMaterial(source, accurate, surfaceScale = 1) {
+  const mottled = deinosuchusMottlingEligible(currentModelDef, accurate, source?.name || "");
   const material = accurate ? basicMaterialFrom(source) : source.clone();
   // PSK eye materials often share the body UV atlas. Tint them independently
   // instead of using an eye UV mask that might recolour the entire body.
@@ -541,6 +611,9 @@ function maskedMaterial(source, accurate) {
   // The mask fragment samples vMapUv. Ensure it exists on geometry-only GLBs.
   if (!material.map) material.map = MASK_WHITE_MAP;
   const uniforms = {
+    hvSurfaceScale: { value: surfaceScale },
+    hvMaskTexel: { value: 1 / (currentMaskData?.size || CALIBRATION_SIZE) },
+    hvMottleStrength: { value: deinoMottling ? 1 : 0 },
     hvMask0: { value: maskAtlases[0] },
     hvMask1: { value: maskAtlases[1] },
     hvMask2: { value: maskAtlases[2] },
@@ -557,12 +630,13 @@ function maskedMaterial(source, accurate) {
     hvMaleVisible: { value: currentSex === "female" ? 0 : 1 },
   };
 
-  material.onBeforeCompile = (shader) => injectMaskShader(shader, uniforms, accurate);
-  material.customProgramCacheKey = () => `hollow-valley-${currentModelDef?.key || "species"}-zones-v4-${accurate ? "accurate" : "game"}`;
+  material.onBeforeCompile = (shader) => injectMaskShader(shader, uniforms, accurate, mottled);
+  material.customProgramCacheKey = () => `hollow-valley-${currentModelDef?.key || "species"}-zones-v5-${accurate ? "accurate" : "game"}-${mottled ? "mottled" : "plain"}`;
   material.needsUpdate = true;
 
   const controller = {
     setPalette(palette) {
+      uniforms.hvMottleStrength.value = deinoMottling ? 1 : 0;
       engineColorFromHex(palette.body, uniforms.hvBody.value);
       engineColorFromHex(palette.markings, uniforms.hvMarkings.value);
       engineColorFromHex(palette.flank, uniforms.hvFlank.value);
@@ -591,9 +665,12 @@ function applyCalibratedMaterials(root) {
     child.castShadow = true;
     child.receiveShadow = true;
     const sourceMaterials = Array.isArray(child.material) ? child.material : [child.material];
+    child.geometry.computeBoundingBox();
+    const extent = child.geometry.boundingBox.getSize(new THREE.Vector3());
+    const surfaceScale = 1 / Math.max(extent.x, extent.y, extent.z, 0.0001);
     const pairs = sourceMaterials.map((source) => {
       const accurate = maskedMaterial(source, true);
-      const game = maskedMaterial(source, false);
+      const game = maskedMaterial(source, false, surfaceScale);
       shaderControllers.push(accurate.controller, game.controller);
       return { accurate: accurate.material, game: game.material };
     });
@@ -1579,6 +1656,12 @@ function applyPreviewMode(mode) {
     gameButton.setAttribute("aria-pressed", accurate ? "false" : calibrated() ? "true" : "false");
     gameButton.classList.toggle("green", calibrated() && !accurate);
   }
+  if (mottlingButton) {
+    mottlingButton.hidden = currentModelDef?.key !== "deinosuchus";
+    mottlingButton.disabled = !calibrated() || accurate;
+    mottlingButton.textContent = deinoMottling ? "Mottling: on" : "Mottling: off";
+    mottlingButton.setAttribute("aria-pressed", String(deinoMottling));
+  }
   if (lightInput) lightInput.disabled = accurate;
 
   syncZoneHint();
@@ -1587,7 +1670,7 @@ function applyPreviewMode(mode) {
     if (currentModelDef.capability === "zones") {
       statusEl.textContent = `${currentModelDef.displayName} · ${accurate ? "EVRIMA linear colour" : "calibrated game preview"}`;
     } else {
-      statusEl.textContent = `${currentModelDef.displayName} · neutral Body preview · zones pending`;
+      statusEl.textContent = `${currentModelDef.displayName} · ${calibrated() ? (!accurate && currentModelDef.key === "deinosuchus" && deinoMottling ? "approximate mottled preview · not verified EVRIMA pattern" : "provisional zone preview") : "neutral Body preview · zones pending"}`;
     }
   }
 }
