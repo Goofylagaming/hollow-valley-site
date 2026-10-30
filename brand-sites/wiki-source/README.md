@@ -3,10 +3,10 @@
 The live Primalbound Render static service builds `brand-sites/dist/primalbound`.
 The existing homepage, `/web/` and `/world/` are preserved.
 
-The Web wiki snapshot, historical release archive and verified notes include the 30 October 2026 W40.5 LIVE release (commit `2dbeb7d21ab88e4c254c108f7c8cf709ddce1be4`, unchanged Web format 23). Previous W40.4 and older patch notes are retained. The World wiki snapshot and release archive also include the verified M36.6 Windows release published on 28 October 2026 (tag `m36-6-build-40615216698`), preserving earlier notes and separate saves.
+The Web wiki snapshot, historical release archive and verified notes include the 30 October 2026 W42 LIVE release (commit `b4254da2a8fc229523c60751a60d05fc60c4ba74`, Web format 29; 995 passing tests and matching gameplay notes manifest). W40.5 and older notes remain preserved. Previous W40.4 and older patch notes are retained. The World wiki snapshot and release archive also include the verified M36.6 Windows release published on 28 October 2026 (tag `m36-6-build-40615216698`), preserving earlier notes and separate saves.
 
 The last build step in `brand-sites/build.mjs` imports `publish-wikis.mjs`, which replaces only:
-- `/web/wiki/index.html` (Web Preview W40.5 verified how-to, including W27.1–W40.5 save compatibility, independent device/account recovery, Field opportunities, regional standing/research, exact-item equipment loadouts, targeted Fossil Archive recovery and format-23 backups; all W38.0 and earlier chapters retained)
+- `/web/wiki/index.html` (Web Preview W42 verified how-to, including W27.1–W42 save compatibility, workspace navigation, Pack Bonds, behaviour specialisations, field focuses, companion retirement, breeding pair plans, Prime Forge preparation, format-29 backups, and older W40.5 device/account recovery, Field opportunities, regional research, loadouts and targeted fossil recovery; all W38.0 and earlier chapters retained)
 - `/world/wiki/index.html` (M36.6 Windows playtest; 19 original procedural wild species, retained Mini Rex/Guardians, JSON checksum recovery fix and unchanged schema 330)
 - `/assets/wiki.css`
 - `/assets/wiki.js`
