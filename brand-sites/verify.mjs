@@ -22,10 +22,13 @@ for (const site of ['primalbound','hollow-valley']) {
       if(scripts.length){
         const wiki=file.endsWith(join('wiki','index.html'));
         const notes=file.endsWith(join('patch-notes','index.html'));
-        assert.ok(wiki||notes,'Unapproved script on marketing page: '+file);
+        const merch=file.endsWith(join('merch','index.html'))&&site==='hollow-valley';
+        assert.ok(wiki||notes||merch,'Unapproved script on marketing page: '+file);
         const expected=wiki
           ?['<script src="../../assets/wiki.js" defer>','<script src="../../assets/release-notes.js" defer>']
-          :['<script src="../../assets/release-notes.js" defer>'];
+          :merch
+            ?['<script defer src="/merch/app.js">']
+            :['<script src="../../assets/release-notes.js" defer>'];
         assert.deepEqual(scripts.map(x=>x[0]).sort(),expected.sort(),'Only approved same-origin wiki/release scripts are allowed');
       }
       for(const [,url] of html.matchAll(/href="([^"]+)"/g)) {
@@ -117,4 +120,19 @@ for(const [guide,label] of [[web,'web'],[world,'world']]){
 assert.ok(notesHome.includes('href="/web/patch-notes/"')&&notesHome.includes('href="/world/patch-notes/"'));
 assert.ok(notesJs.includes('normalizeWeb')&&notesJs.includes('normalizeWorld'),'Live release listeners missing');
 assert.ok(notesCss.includes('.release-card'),'Patch note styles missing');
-console.log('PASS: '+count+' pages, guide updates, versioned Web/World patch notes, same-origin scripts, anchors, indexing and game links.');
+const merchHome=await readFile(join(root,'hollow-valley','index.html'),'utf8');
+assert.match(merchHome,/href="\\/merch\\/"/,'Studios navigation must link to /merch/');
+const merchHtml=await readFile(join(root,'hollow-valley','merch','index.html'),'utf8');
+assert.match(merchHtml,/HOLLOW VALLEY/);
+assert.match(merchHtml,/Primalbound/i);
+assert.match(merchHtml,/Fourthwall shop/i);
+assert.match(merchHtml,/Colouring Book/i);
+assert.equal((merchHtml.match(/class="product-card"/g)||[]).length,6,'Exactly six preview concepts');
+assert.equal((merchHtml.match(/class="preview-only">Preview only/g)||[]).length,6,'No cards are purchasable yet');
+assert.match(merchHtml,/https:\\/\\/hvs-e-commerce-shop\\.fourthwall\\.com\\//);
+assert.doesNotMatch(merchHtml,/<form\\b|<iframe\\b|checkout\\.stripe\\.com|buy\\.stripe\\.com/i);
+const merchJS=await readFile(join(root,'hollow-valley','merch','app.js'),'utf8');
+const merchCSS=await readFile(join(root,'hollow-valley','merch','styles.css'),'utf8');
+assert.match(merchJS,/applyFilters/);
+assert.match(merchCSS,/@media\\(max-width:530px\\)/);
+console.log('PASS: '+count+' pages, wiki/patch notes, safe merch previews, navigation and local product filter scripts.');
