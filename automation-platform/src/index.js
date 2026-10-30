@@ -23,6 +23,7 @@ const websiteAdminWalletRoutes = require('./routes/websiteAdminWalletRoutes');
 const websiteDailyLoginRoutes = require('./routes/websiteDailyLoginRoutes');
 const skinSharePolicyRoutes = require('./routes/skinSharePolicyRoutes');
 const herbyBotRoutes = require('./routes/herbyBotRoutes');
+const progressUpdateRoutes = require('./routes/progressUpdateRoutes');
 const bodyDropRoutes = require('./routes/bodyDropRoutes');
 const dinoStorageRoutes = require('./routes/dinoStorageRoutes');
 const combatRoutes = require('./routes/combatRoutes');
@@ -234,6 +235,11 @@ app.use('/api/website', (_req, res, next) => {
   res.set('Cache-Control', 'no-store');
   next();
 }, websiteRoutes);
+
+app.use('/api/progress-updates', (_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+}, progressUpdateRoutes);
 
 app.use('/api/herbybot', (_req, res, next) => {
   res.set('Cache-Control', 'no-store');

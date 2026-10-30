@@ -46,11 +46,33 @@ test("all production wallet, marketplace, storage, admin and other page scripts 
     // Approved test-preview Live Map migration intentionally extends this page.
     if (page === "livemap.html") continue;
     const file = "public/" + page;
-    assert.deepEqual(
-      scriptSources(read(file)),
-      scriptSources(previous(file)),
-      page + ": feature scripts were dropped or reordered"
-    );
+    const actual = scriptSources(read(file));
+    const baseline = scriptSources(previous(file));
+    if (page === "skins.html") {
+      // v015 intentionally inserts the auto-map and batch-mask helpers before
+      // the original viewer. The entire pre-existing script order is preserved.
+      const autoMap = "assets/skin-studio-auto-map.js";
+      const batchMap = "assets/skin-studio-batch-map.js";
+      const reader = "assets/skin-studio-3d.js";
+      assert.equal(actual.indexOf(autoMap), actual.indexOf(batchMap) - 1, "Batch helper follows auto-map");
+      assert.equal(actual.indexOf(batchMap), actual.indexOf(reader) - 1, "Batch helper precedes the viewer");
+      assert.equal(actual.filter(src => src === autoMap).length, 1);
+      assert.equal(actual.filter(src => src === batchMap).length, 1);
+      assert.deepEqual(actual.filter(src => src !== autoMap && src !== batchMap), baseline,
+        page + ": existing feature scripts must be preserved");
+    } else if (page === "dinostorage/index.html") {
+      // Prime zone reset is the only additive DinoStorage script. Existing
+      // storage/marketplace scripts must retain their exact order.
+      const reset = "assets/prime-zone-reset.js";
+      assert.equal(actual.filter(src => src === reset).length, 1,
+        "Prime reset script appears once");
+      assert.equal(actual.indexOf(reset), actual.indexOf("assets/mydinos.js") + 1,
+        "Reset handler must load after the existing Prime tracker");
+      assert.deepEqual(actual.filter(src => src !== reset), baseline,
+        "DinoStorage's existing production scripts must remain in order");
+    } else {
+      assert.deepEqual(actual, baseline, page + ": feature scripts were dropped or reordered");
+    }
   }
 });
 test("every public page preloads the upgraded UI without losing its base CSS", () => {

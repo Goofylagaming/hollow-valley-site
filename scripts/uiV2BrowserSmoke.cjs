@@ -131,6 +131,16 @@ async function checkPage(browser, origin, route, size, name, opts = {}) {
         "Guest recruitment browsing cannot reveal owner management or private applicants");
       assert.equal(await page.locator("#hv-group-membership").isVisible(),false);
     }
+    if (route === "/status") {
+      await page.locator("#status-overall").waitFor({state:"visible",timeout:12000});
+      assert.ok(await page.locator("#status-website-card").count());
+      assert.ok(await page.locator("#status-game-card").count());
+    }
+    if (route === "/reports") {
+      await page.locator("#report-signin").waitFor({state:"visible",timeout:12000});
+      assert.equal(await page.locator("#report-content").isVisible(),false,
+        "Private report content should be hidden to unauthenticated visitors");
+    }
     if (route === "/activity") {
       await page.locator("#hv-activity-state").getByText("Not configured",{exact:false})
         .waitFor({timeout:16000});
@@ -271,8 +281,9 @@ async function main() {
       ["/owner-login", "owner-login"], ["/livemap", "live-map"], ["/skins", "skin-studio"],
       ["/rules", "rules"], ["/packs", "packs"], ["/updates", "updates"], ["/support", "support"],
       ["/community", "community"], ["/recruitment", "recruitment"], ["/activity", "activity"],
+      ["/status", "status"], ["/reports", "reports"],
     ]) {
-      await checkPage(browser, origin, route, desktop, label + "-desktop", { capture: ["home", "wallet", "marketplace", "dino-storage", "help", "rules", "packs", "updates", "support", "community", "recruitment", "activity"].includes(label) });
+      await checkPage(browser, origin, route, desktop, label + "-desktop", { capture: ["home", "wallet", "marketplace", "dino-storage", "help", "rules", "packs", "updates", "support", "community", "recruitment", "activity", "status", "reports"].includes(label) });
     }
     for (const [route, label] of [
       ["/", "home"], ["/wallet", "wallet"], ["/marketplace", "marketplace"],
@@ -286,7 +297,7 @@ async function main() {
     const page = await browser.newPage();
     const response = await page.goto(origin + "/admin");
     assert.ok([401, 403, 302].includes(response.status()), "Admin page should block unauthenticated requests; got " + response.status());
-    for (const route of ["/adminrules", "/adminrules.html", "/adminupdates", "/adminupdates.html", "/adminsupport", "/adminsupport.html", "/adminactivity", "/adminactivity.html"]) {
+    for (const route of ["/adminrules", "/adminrules.html", "/adminupdates", "/adminupdates.html", "/adminsupport", "/adminsupport.html", "/adminactivity", "/adminactivity.html", "/adminincidents", "/adminincidents.html", "/adminreports", "/adminreports.html"]) {
       const guarded = await page.goto(origin + route);
       assert.ok([401, 403, 302].includes(guarded.status()),
         "Rules editor must block unauthenticated requests at " + route + "; got " + guarded.status());

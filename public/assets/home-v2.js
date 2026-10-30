@@ -66,14 +66,14 @@
     try {
       const status = await window.HDS.api("/api/server-status");
       const dot = $("home-server-dot");
-      if (status?.configured && status?.online) {
+      if (status?.configured && status?.online && !status?.stale) {
         dot?.classList.remove("offline");
         setText("home-server-state", "ONLINE");
         setText("home-player-count", `${Number(status.playerCount || 0)} / ${Number(status.maxPlayers || 0) || "—"}`);
         setText("home-map-players", `${Number(status.playerCount || 0)} online`);
       } else {
         dot?.classList.add("offline");
-        setText("home-server-state", status?.configured ? "OFFLINE" : "STATUS UNAVAILABLE");
+        setText("home-server-state", status?.stale ? "STATUS DELAYED" : status?.configured ? "OFFLINE" : "STATUS UNAVAILABLE");
         setText("home-player-count", "— / —");
         setText("home-map-players", "Server status unavailable");
       }

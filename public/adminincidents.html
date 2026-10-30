@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Incident Timeline | Hollow Valley Admin</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=38">
+  <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
+  <link rel="stylesheet" href="/assets/snapshot-ui.css?v=5">
+  <link rel="stylesheet" href="/assets/admin-incidents.css?v=1">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main class="hv-incidents">
+      <header>
+        <p class="hv-incidents-eyebrow">ADMIN · OPERATIONS</p>
+        <h1>Incident timeline.</h1>
+        <p>Search recent automation audit entries and request outcomes. This read-only view does not issue server commands or change player accounts.</p>
+      </header>
+      <section id="incident-guard" class="hv-incidents-panel" hidden>Admin sign-in is required to inspect incident history.</section>
+      <section id="incident-content" hidden>
+        <form class="hv-incidents-filters" id="incident-filters">
+          <label>Search by Steam ID, action or reference
+            <input id="incident-search" type="search" maxlength="120" placeholder="e.g. slay_player or 17-digit Steam ID" autocomplete="off">
+          </label>
+          <label>Source
+            <select id="incident-source">
+              <option value="">All sources</option>
+              <option value="audit">Operator audit</option>
+              <option value="request">Automation requests</option>
+            </select>
+          </label>
+          <label>Status
+            <select id="incident-status">
+              <option value="">Any status</option>
+              <option value="succeeded">Succeeded</option>
+              <option value="failed">Failed</option>
+              <option value="pending">Pending</option>
+              <option value="started">Started</option>
+              <option value="completed">Completed</option>
+              <option value="unknown">Unknown</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </label>
+          <button type="submit" id="incident-refresh">Search records</button>
+        </form>
+        <p id="incident-feedback" aria-live="polite">Loading recent activity…</p>
+        <div class="hv-incidents-table-wrap">
+          <table>
+            <thead><tr><th>Time (AEST)</th><th>Source</th><th>Category · Action</th><th>Operator</th><th>Player</th><th>Status</th><th>Reference</th></tr></thead>
+            <tbody id="incident-records"><tr><td colspan="7">Loading records…</td></tr></tbody>
+          </table>
+        </div>
+        <p class="hv-incidents-disclaimer">This is a recent activity window, not a complete forensic record. Old records and unconnected game logs may be unavailable. Status and actor identities are shown only when the source recorded them. Automatic chat/combat correlation is still planned.</p>
+        <section class="hv-incidents-panel" aria-labelledby="incident-next-title">
+          <h2 id="incident-next-title">Next: Player Reports</h2>
+          <p>HV-W01.3 provides private reports, evidence links, a review queue and admin decision history when enabled.</p><a href="/adminreports">Open admin reports →</a>
+        </section>
+      </section>
+    </main>
+    <footer><span>© 2026 Hollow Valley</span><span>ADMIN ONLY · INCIDENT LOGS</span><a href="/adminoperations">Operations</a></footer>
+  </div>
+  <script src="/assets/common.js?v=22"></script>
+  <script src="/assets/admin-incidents.js?v=1"></script>
+</body>
+</html>

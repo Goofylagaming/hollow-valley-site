@@ -122,6 +122,26 @@ router.get('/quests/:steamId', (req, res) => {
   }
 });
 
+router.post('/prime/:steamId/reset-zones', (req, res) => {
+  res.set('Cache-Control', 'private, no-store');
+  try {
+    const steamId = validateSteamId(req.params.steamId);
+    const result = primeTracker.resetZoneVisits({
+      steamId,
+      lifeId: req.body?.lifeId,
+      requestId: req.body?.requestId,
+      confirm: req.body?.confirm,
+    });
+    return res.json(result);
+  } catch (error) {
+    const status = Number.isInteger(error.status) ? error.status : 500;
+    return res.status(status).json({
+      error: status >= 500 ? 'Prime Tracker reset is temporarily unavailable.' : error.message,
+      code: error.code || 'RESET_UNAVAILABLE',
+    });
+  }
+});
+
 router.get('/prime/:steamId', (req, res) => {
   try {
     const steamId = validateSteamId(req.params.steamId);

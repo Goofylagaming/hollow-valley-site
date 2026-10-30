@@ -36,6 +36,44 @@ test("parses Dino Den-style JSON customizer values", () => {
   assert.equal(Math.round(parsed.skinPatch.body.r * 255), 12);
 });
 
+test("decodes every RGB channel consistently in 8-bit Dino Den-style JSON", () => {
+  const parsed = parseExternalSkinCode(JSON.stringify({
+    BodyColor: { R: 255, G: 1, B: 0, A: 255 },
+    FlankColor: { R: 12, G: 1, B: 0, A: 1 },
+  }));
+  assert.equal(parsed.skinPatch.body.r, 1);
+  assert.equal(parsed.skinPatch.body.g, 1 / 255);
+  assert.equal(parsed.skinPatch.body.b, 0);
+  assert.equal(parsed.skinPatch.body.a, 1);
+  assert.equal(parsed.skinPatch.flank.r, 12 / 255);
+  assert.equal(parsed.skinPatch.flank.g, 1 / 255);
+  assert.equal(parsed.skinPatch.flank.a, 1);
+});
+
+test("retains normalized colour channels and intentionally black colours", () => {
+  const parsed = parseExternalSkinCode(JSON.stringify({
+    BodyColor: { R: 1, G: 0, B: 0, A: 1 },
+    UnderbellyColor: { R: 0, G: 0, B: 0, A: 1 },
+    EyesColor: { R: 0.5, G: 0.25, B: 0.125 },
+  }));
+  assert.deepEqual(parsed.skinPatch.body, { r: 1, g: 0, b: 0, a: 1 });
+  assert.deepEqual(parsed.skinPatch.underbelly, { r: 0, g: 0, b: 0, a: 1 });
+  assert.deepEqual(parsed.skinPatch.eyes, { r: 0.5, g: 0.25, b: 0.125, a: 1 });
+});
+
+test("rejects incomplete or invalid JSON channels instead of silently turning them black", () => {
+  for (const BodyColor of [
+    { R: 0.5, G: 0.25 },
+    { R: null, G: 0.5, B: 0.25 },
+    { R: "", G: 0.5, B: 0.25 },
+    { R: -1, G: 0.5, B: 0.25 },
+    { R: 300, G: 25, B: 20 },
+    { R: 0.5, G: 0.25, B: 0.1, A: 300 },
+  ]) {
+    assert.throws(() => parseExternalSkinCode(JSON.stringify({ BodyColor })), /Skin colour/);
+  }
+});
+
 test("external imports preserve unsupported current editor fields", () => {
   const base = {
     teeth: { r: 1, g: 1, b: 1, a: 1 },
@@ -93,4 +131,23 @@ test("limits external skin batches to 50 entries", () => {
     "FNF-TYRA-AB09E · C42021-2A3A4F-B09E7E-9A5A2C-E6DAB8-FFB347-FF6A1F"
   ).join("\n");
   assert.throws(() => parseExternalSkinBatch(codes), /limited to 50 skins/);
+});
+
+
+test("interprets RGB value 1 as one byte when the colour uses 0-255 channels", () => {
+  const parsed = parseExternalSkinCode(JSON.stringify({
+    BodyColor: { R: 1, G: 2, B: 3, A: 255 },
+    UnderbellyColor: { R: 0, G: 1, B: 255, A: 255 },
+  }));
+  assert.equal(parsed.skinPatch.body.r, 1 / 255);
+  assert.equal(parsed.skinPatch.body.g, 2 / 255);
+  assert.equal(parsed.skinPatch.underbelly.g, 1 / 255);
+  assert.equal(parsed.skinPatch.underbelly.r, 0);
+  assert.equal(parsed.skinPatch.underbelly.b, 1);
+});
+
+test("rejects nonnumeric or incomplete RGB rather than silently importing black", () => {
+  for (const rgb of [{ R: 0.5, B: 0.5 }, { R: "", G: 0, B: 0 }, { R: true, G: 0, B: 0 }]) {
+    assert.throws(() => parseExternalSkinCode(JSON.stringify({ BodyColor: rgb })), /missing or invalid/);
+  }
 });

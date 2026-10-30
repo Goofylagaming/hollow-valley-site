@@ -1,4 +1,6 @@
 require("dotenv").config();
+// Protect the attached production SQLite disk before feature modules migrate schema.
+require("./predeployBackup").beforeDatabaseInitialization();
 const path = require("node:path");
 const express = require("express");
 const session = require("express-session");
@@ -41,6 +43,8 @@ const mapdataRouter = require("./routes/mapdata");
 const supporterInternalRouter = require("./routes/supporterInternal");
 const adminRestoreRouter = require("./routes/adminRestore");
 const adminOperationsRouter = require("./routes/adminOperations");
+const adminIncidentsRouter = require("./routes/incidentTimeline");
+const playerReportsRouter = require("./routes/playerReports");
 const adminCombatRouter = require("./routes/adminCombat");
 const adminPlayerDirectoryRouter = require("./routes/adminPlayerDirectory");
 const adminSafeLogRecoveryRouter = require("./routes/adminSafeLogRecovery");
@@ -282,6 +286,8 @@ function createApp() {
   }
   app.use("/api/admin-restore", adminRestoreRouter);
   app.use("/api/admin-operations", adminOperationsRouter);
+  app.use("/api/admin-incidents", adminIncidentsRouter);
+  app.use("/api/reports", playerReportsRouter);
   app.use("/api/admin-combat", adminCombatRouter);
   app.use("/api/admin-player-directory", adminPlayerDirectoryRouter);
   app.use("/api/admin-safelog-recovery", adminSafeLogRecoveryRouter);
@@ -293,7 +299,7 @@ function createApp() {
   app.use("/api/dinostorage", legacyDirectGameApiRetired);
   app.all(["/api/park", "/api/playerdata", "/api/redeem", "/api/parked", "/api/admin"], legacyDirectGameApiRetired);
 
-  const PAGE_ROUTES = ["legacy", "dashboard", "wallet", "quests", "profile", "mydinos", "bodydrop", "friends", "groups", "marketplace", "livemap", "leaderboard", "supporter", "events", "help", "rules", "packs", "updates", "support", "community", "recruitment", "activity"];
+  const PAGE_ROUTES = ["legacy", "dashboard", "wallet", "quests", "profile", "mydinos", "bodydrop", "friends", "groups", "marketplace", "livemap", "leaderboard", "supporter", "events", "help", "rules", "packs", "updates", "support", "community", "recruitment", "activity", "status", "reports"];
   for (const page of PAGE_ROUTES) {
     app.get(`/${page}`, (req, res) => {
       res.sendFile(path.join(__dirname, "..", "public", `${page}.html`));
@@ -308,6 +314,8 @@ function createApp() {
   const ADMIN_PAGE_ROUTES = {
     admin: "admin.html",
     adminoperations: "adminoperations.html",
+    adminincidents: "adminincidents.html",
+    adminreports: "adminreports.html",
     admincomms: "admincomms.html",
     adminrestore: "adminrestore.html",
     adminsupporters: "adminsupporters.html",

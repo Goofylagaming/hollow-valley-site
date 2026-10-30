@@ -21,12 +21,20 @@ const modelCreditEl = document.getElementById("skin-model-credit");
 const zoneHintEl = document.getElementById("skin-model-zone-hint");
 const speciesSelect = document.getElementById("skin-species");
 const calibrationPanel = document.getElementById("skin-calibration-panel");
+const localModelFileEl = document.getElementById("skin-local-model-file");
+const localModelResetEl = document.getElementById("skin-local-model-reset");
+const localModelStatusEl = document.getElementById("skin-local-model-status");
 const calibrationSpeciesEl = document.getElementById("skin-calibration-species");
 const calibrationZoneEl = document.getElementById("skin-calibration-zone");
 const calibrationBrushEl = document.getElementById("skin-calibration-brush");
 const calibrationBrushValueEl = document.getElementById("skin-calibration-brush-value");
 const calibrationFlipVEl = document.getElementById("skin-calibration-flip-v");
 const calibrationToggleEl = document.getElementById("skin-calibration-toggle");
+const calibrationAutoEl = document.getElementById("skin-calibration-auto");
+const calibrationBatchEl = document.getElementById("skin-calibration-batch");
+const calibrationBatchDownloadEl = document.getElementById("skin-calibration-batch-download");
+const calibrationBatchStatusEl = document.getElementById("skin-calibration-batch-status");
+const calibrationAutoOnUploadEl = document.getElementById("skin-auto-on-upload");
 const calibrationIslandFillEl = document.getElementById("skin-calibration-island-fill");
 const calibrationUndoEl = document.getElementById("skin-calibration-undo");
 const calibrationRedoEl = document.getElementById("skin-calibration-redo");
@@ -45,8 +53,21 @@ const calibrationImportButtonEl = document.getElementById("skin-calibration-impo
 const calibrationClearImportEl = document.getElementById("skin-calibration-clear-import");
 const calibrationOutputEl = document.getElementById("skin-calibration-output");
 const MODEL_REGISTRY = window.HV_SKIN_MODELS || {};
+// Local file overrides exist only in the current admin browser session.
+// No downloaded mesh is uploaded or made available to website visitors.
+const localModelOverrides = new Map();
+const LOCAL_MODEL_LIMIT_BYTES = 30 * 1024 * 1024;
 
 if (!canvas || !stage) throw new Error("Skin Studio 3D stage is missing");
+
+// Untextured PSK-derived GLBs still need Three.js's UV varyings for the
+// calibrated shader. A shared, solid-white 1px map enables vMapUv without
+// altering the palette colours or requiring proprietary game textures.
+const MASK_WHITE_MAP = new THREE.DataTexture(
+  new Uint8Array([255, 255, 255, 255]), 1, 1, THREE.RGBAFormat, THREE.UnsignedByteType
+);
+MASK_WHITE_MAP.colorSpace = THREE.SRGBColorSpace;
+MASK_WHITE_MAP.needsUpdate = true;
 
 const FALLBACKS = Object.freeze({
   body: "#6f7652",
@@ -125,17 +146,24 @@ let shapeTintControllers = [];
 let maskAtlases = [];
 let currentMaskData = null;
 let zoneLookup = null;
+// 0: untouched, 1: automatic, 2: manual (including erasures).
+let calibrationOwners = null;
 let currentPalette = { ...FALLBACKS };
 let currentSex = "male";
 let previewMode = "accurate";
 let accurateButton = null;
 let gameButton = null;
+let mottlingButton = null;
+let deinoMottling = true;
 let autoRotateButton = null;
 let cleanViewButton = null;
 let ultraButton = null;
 let spinInput = null;
 let ultraEnabled = false;
 let calibrationActive = false;
+let autoMapBusy = false;
+let batchMapBusy = false;
+let batchMapCancel = false;
 let calibrationPointerDown = false;
 let calibrationSaveTimer = null;
 let calibrationCoverageTimer = null;
@@ -198,7 +226,7 @@ function resolveModelDefinition(value) {
   if (!wanted || wanted === "universal" || wanted.includes("any species")) return null;
   for (const def of Object.values(MODEL_REGISTRY)) {
     const aliases = Array.isArray(def?.aliases) ? def.aliases : [];
-    if (aliases.some((alias) => normalizedSpecies(alias) === wanted)) return def;
+    if (aliases.some((alias) => normalizedSpecies(alias) === wanted)) return localModelOverrides.get(def.key) || def;
   }
   return null;
 }
@@ -253,6 +281,20 @@ function installModeControls() {
   spinInput.value = "0";
   spinInput.setAttribute("aria-label", "Rotate species model");
   spinLabel.append(spinInput);
+
+  mottlingButton = document.createElement("button");
+  mottlingButton.className = "small-button";
+  mottlingButton.id = "skin-model-mottling";
+  mottlingButton.type = "button";
+  mottlingButton.textContent = "Mottling: on";
+  mottlingButton.title = "Approximate procedural mottling for Deinosuchus Game preview only. Not a verified EVRIMA pattern; saved skins and masks are unchanged.";
+  mottlingButton.hidden = true;
+  modelTools.prepend(mottlingButton);
+  mottlingButton.addEventListener("click", () => {
+    deinoMottling = !deinoMottling;
+    updatePalette(currentPalette);
+    applyPreviewMode(previewMode);
+  });
 
   modelTools.prepend(cleanViewButton);
   modelTools.prepend(ultraButton);
@@ -317,7 +359,13 @@ function setRail(def, label = "") {
     return;
   }
 
-  if (def.capability === "zones") {
+  if (def.localPreview) {
+    if (modelCapabilityEl) modelCapabilityEl.textContent = "PRIVATE LOCAL GLB";
+    if (modelSourceEl) modelSourceEl.textContent = "Loaded only in this browser · never uploaded";
+    if (modelHelpEl) {
+      modelHelpEl.textContent = "A locally selected model is previewed on this browser only. Its Body tint is provisional until you calibrate the EVRIMA colour zones. Saving a skin does not save or upload this mesh.";
+    }
+  } else if (def.capability === "zones") {
     if (modelCapabilityEl) modelCapabilityEl.textContent = "CALIBRATED 3D MODEL";
     if (modelSourceEl) modelSourceEl.textContent = "Species mesh + Hollow Valley colour-zone map";
     if (modelHelpEl) {
@@ -438,7 +486,12 @@ function buildMaskAtlases() {
   return [makeTexture(atlas0), makeTexture(atlas1), makeTexture(atlas2)];
 }
 
-function injectMaskShader(shader, uniforms, accurate) {
+function deinosuchusMottlingEligible(def, accurate, materialName = "") {
+  return !accurate && def?.key === "deinosuchus" &&
+    !/(^|[^a-z])(eyes?|teeth|tooth|fangs?|mouth|tongue|claws?|nails?)([^a-z]|$)/i.test(materialName);
+}
+
+function injectMaskShader(shader, uniforms, accurate, mottled = false) {
   Object.assign(shader.uniforms, uniforms);
   shader.fragmentShader = shader.fragmentShader.replace(
     "#include <common>",
@@ -459,6 +512,53 @@ uniform vec3 hvMaleDisplay;
 uniform float hvMaleVisible;`
   );
 
+  if (mottled) {
+    shader.vertexShader = shader.vertexShader.replace("#include <common>",
+      "#include <common>\nuniform float hvSurfaceScale;\nvarying vec3 hvSurfacePosition;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\nhvSurfacePosition = position * hvSurfaceScale;");
+    shader.fragmentShader = shader.fragmentShader.replace("#include <common>", `#include <common>
+uniform float hvMottleStrength;
+uniform float hvMaskTexel;
+varying vec3 hvSurfacePosition;
+float hvHash(vec3 p) {
+  p = fract(p * 0.1031); p += dot(p, p.yzx + 33.33);
+  return fract((p.x + p.y) * p.z);
+}
+float hvNoise(vec3 p) {
+  vec3 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f);
+  return mix(mix(mix(hvHash(i), hvHash(i+vec3(1,0,0)), f.x),
+                 mix(hvHash(i+vec3(0,1,0)), hvHash(i+vec3(1,1,0)), f.x), f.y),
+             mix(mix(hvHash(i+vec3(0,0,1)), hvHash(i+vec3(1,0,1)), f.x),
+                 mix(hvHash(i+vec3(0,1,1)), hvHash(i+vec3(1,1,1)), f.x), f.y), f.z);
+}`);
+  }
+
+  const mottlingBlock = mottled ? `
+// Spatial pigment variation follows the mesh, not screen pixels or a moving timer.
+if (hvMottleStrength > 0.0) {
+  float core = dot(hvM0, vec4(1.0));
+  vec2 d = vec2(hvMaskTexel, 0.0);
+  vec4 w = hvM0 * 0.5 + 0.125 * (
+    texture2D(hvMask0, vMapUv+d.xy) + texture2D(hvMask0, vMapUv-d.xy) +
+    texture2D(hvMask0, vMapUv+d.yx) + texture2D(hvMask0, vMapUv-d.yx));
+  w /= max(dot(w, vec4(1.0)), 0.0001);
+  vec3 p = hvSurfacePosition;
+  float coarse = hvNoise(p * 24.0);
+  float fine = hvNoise(p * 115.0 + vec3(7.1));
+  float grain = hvNoise(p * 310.0 + vec3(19.7));
+  float flecks = smoothstep(0.48, 0.73, fine * 0.7 + coarse * 0.3);
+  float islands = smoothstep(0.30, 0.68, coarse * 0.65 + fine * 0.35);
+  vec3 back = mix(hvBody, hvMarkings, 0.48 + 0.38 * islands);
+  vec3 dorsal = mix(hvMarkings, hvDetail, flecks * 0.68);
+  vec3 sides = mix(hvFlank, hvMarkings, islands * 0.78);
+  sides = mix(sides, hvDetail, flecks * 0.45);
+  vec3 belly = mix(hvUnderbelly, hvBody, smoothstep(0.65, 0.88, fine) * 0.10);
+  vec3 pigment = back*w.r + dorsal*w.g + sides*w.b + belly*w.a;
+  float microShade = 0.76 + 0.24 * smoothstep(0.18, 0.72, grain);
+  diffuseColor.rgb = mix(diffuseColor.rgb, pigment * hvShade * microShade,
+    clamp(core, 0.0, 1.0) * hvMottleStrength);
+}` : "";
+
   const shadeBlock = accurate
     ? "float hvShade = 1.0;"
     : "float hvLuma = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));\nfloat hvShade = clamp(0.34 + hvLuma * 1.06, 0.28, 1.22);";
@@ -477,6 +577,7 @@ diffuseColor.rgb = mix(diffuseColor.rgb, hvBody * hvShade, clamp(hvM0.r * ${stre
 diffuseColor.rgb = mix(diffuseColor.rgb, hvMarkings * hvShade, clamp(hvM0.g * ${strength.markings}, 0.0, 1.0));
 diffuseColor.rgb = mix(diffuseColor.rgb, hvFlank * hvShade, clamp(hvM0.b * ${strength.flank}, 0.0, 1.0));
 diffuseColor.rgb = mix(diffuseColor.rgb, hvUnderbelly * hvShade, clamp(hvM0.a * ${strength.underbelly}, 0.0, 1.0));
+${mottlingBlock}
 diffuseColor.rgb = mix(diffuseColor.rgb, hvDetail * hvShade, clamp(hvM1.r * ${strength.detail}, 0.0, 1.0));
 diffuseColor.rgb = mix(diffuseColor.rgb, hvEyes * ${accurate ? "1.0" : "max(hvShade, 0.72)"}, clamp(hvM1.g, 0.0, 1.0));
 diffuseColor.rgb = mix(diffuseColor.rgb, hvTeeth * ${accurate ? "1.0" : "max(hvShade, 0.72)"}, clamp(hvM1.b, 0.0, 1.0));
@@ -488,6 +589,8 @@ diffuseColor.rgb = mix(diffuseColor.rgb, hvMaleDisplay * hvShade, clamp(hvM2.g *
 
 function basicMaterialFrom(source) {
   return new THREE.MeshBasicMaterial({
+    // Keep PSK Body/Eye slot names across calibration mode toggles.
+    name: source.name || "",
     color: 0xffffff,
     map: source.map || null,
     alphaMap: source.alphaMap || null,
@@ -499,9 +602,24 @@ function basicMaterialFrom(source) {
   });
 }
 
-function maskedMaterial(source, accurate) {
+function maskedMaterial(source, accurate, surfaceScale = 1) {
+  const mottled = deinosuchusMottlingEligible(currentModelDef, accurate, source?.name || "");
   const material = accurate ? basicMaterialFrom(source) : source.clone();
+  // PSK eye materials often share the body UV atlas. Tint them independently
+  // instead of using an eye UV mask that might recolour the entire body.
+  if (/(^|[^a-z])eyes?([^a-z]|$)/i.test(String(source?.name || ""))) {
+    const setEyes = (palette) => {
+      if (material.color?.isColor) engineColorFromHex(palette.eyes, material.color);
+    };
+    setEyes(currentPalette);
+    return { material, controller: { setPalette: setEyes, setSex() {} } };
+  }
+  // The mask fragment samples vMapUv. Ensure it exists on geometry-only GLBs.
+  if (!material.map) material.map = MASK_WHITE_MAP;
   const uniforms = {
+    hvSurfaceScale: { value: surfaceScale },
+    hvMaskTexel: { value: 1 / (currentMaskData?.size || CALIBRATION_SIZE) },
+    hvMottleStrength: { value: deinoMottling ? 1 : 0 },
     hvMask0: { value: maskAtlases[0] },
     hvMask1: { value: maskAtlases[1] },
     hvMask2: { value: maskAtlases[2] },
@@ -518,12 +636,13 @@ function maskedMaterial(source, accurate) {
     hvMaleVisible: { value: currentSex === "female" ? 0 : 1 },
   };
 
-  material.onBeforeCompile = (shader) => injectMaskShader(shader, uniforms, accurate);
-  material.customProgramCacheKey = () => `hollow-valley-${currentModelDef?.key || "species"}-zones-v4-${accurate ? "accurate" : "game"}`;
+  material.onBeforeCompile = (shader) => injectMaskShader(shader, uniforms, accurate, mottled);
+  material.customProgramCacheKey = () => `hollow-valley-${currentModelDef?.key || "species"}-zones-v5-${accurate ? "accurate" : "game"}-${mottled ? "mottled" : "plain"}`;
   material.needsUpdate = true;
 
   const controller = {
     setPalette(palette) {
+      uniforms.hvMottleStrength.value = deinoMottling ? 1 : 0;
       engineColorFromHex(palette.body, uniforms.hvBody.value);
       engineColorFromHex(palette.markings, uniforms.hvMarkings.value);
       engineColorFromHex(palette.flank, uniforms.hvFlank.value);
@@ -552,9 +671,12 @@ function applyCalibratedMaterials(root) {
     child.castShadow = true;
     child.receiveShadow = true;
     const sourceMaterials = Array.isArray(child.material) ? child.material : [child.material];
+    child.geometry.computeBoundingBox();
+    const extent = child.geometry.boundingBox.getSize(new THREE.Vector3());
+    const surfaceScale = 1 / Math.max(extent.x, extent.y, extent.z, 0.0001);
     const pairs = sourceMaterials.map((source) => {
       const accurate = maskedMaterial(source, true);
-      const game = maskedMaterial(source, false);
+      const game = maskedMaterial(source, false, surfaceScale);
       shaderControllers.push(accurate.controller, game.controller);
       return { accurate: accurate.material, game: game.material };
     });
@@ -565,12 +687,15 @@ function applyCalibratedMaterials(root) {
 }
 
 function provisionalShapeMaterial(source) {
+  // Converted Unreal skeletal meshes carry distinct Body/Eye materials.
+  // Eye materials can show the chosen eye colour even before full UV calibration.
+  const channel = /(?:^|[_\s-])eyes?(?:[_\s-]|$)/i.test(String(source?.name || "")) ? "eyes" : "body";
   const material = source?.clone ? source.clone() : source;
   if (!material) return { material, controller: null };
 
   if (material.color?.isColor) material.color.setRGB(1, 1, 1, THREE.LinearSRGBColorSpace);
 
-  const hvShapeBody = { value: engineColorFromHex(currentPalette.body) };
+  const hvShapeBody = { value: engineColorFromHex(currentPalette[channel] || currentPalette.body) };
   material.onBeforeCompile = (shader) => {
     shader.uniforms.hvShapeBody = hvShapeBody;
     shader.fragmentShader = shader.fragmentShader.replace(
@@ -592,7 +717,8 @@ diffuseColor.rgb = hvShapeBody * hvShapeShade;`
   return {
     material,
     controller: {
-      setBody(hex) {
+      channel,
+      setColor(hex) {
         engineColorFromHex(hex, hvShapeBody.value);
       },
     },
@@ -626,7 +752,7 @@ function applyShapeMaterials(root) {
 
 function updateShapeBodyTint(hex) {
   if (currentModelDef?.capability !== "shape" || calibrationActive) return;
-  for (const controller of shapeTintControllers) controller.setBody(hex);
+  for (const controller of shapeTintControllers) controller.setColor(controller.channel === "eyes" ? currentPalette.eyes : hex);
 }
 
 function calibrated() {
@@ -647,9 +773,13 @@ function updateCalibrationHistoryButtons() {
   if (calibrationRedoEl) calibrationRedoEl.disabled = !calibrationActive || calibrationRedoStack.length === 0;
 }
 
+function calibrationSnapshot() {
+  return { lookup: new Uint8Array(zoneLookup), owners: new Uint8Array(calibrationOwners || zoneLookup.length) };
+}
+
 function pushCalibrationHistory() {
   if (!calibrationActive || !zoneLookup?.length) return;
-  calibrationUndoStack.push(new Uint8Array(zoneLookup));
+  calibrationUndoStack.push(calibrationSnapshot());
   if (calibrationUndoStack.length > CALIBRATION_HISTORY_LIMIT) calibrationUndoStack.shift();
   calibrationRedoStack = [];
   updateCalibrationHistoryButtons();
@@ -676,8 +806,9 @@ function rebuildMaskAtlasesFromLookup() {
 }
 
 function restoreCalibrationSnapshot(snapshot) {
-  if (!snapshot || !zoneLookup || snapshot.length !== zoneLookup.length) return;
-  zoneLookup.set(snapshot);
+  if (!snapshot || !zoneLookup || snapshot.lookup.length !== zoneLookup.length) return;
+  zoneLookup.set(snapshot.lookup);
+  calibrationOwners = new Uint8Array(snapshot.owners);
   rebuildMaskAtlasesFromLookup();
   saveCalibrationDraftNow();
   scheduleCalibrationCoverage();
@@ -685,7 +816,7 @@ function restoreCalibrationSnapshot(snapshot) {
 
 function undoCalibration() {
   if (!calibrationUndoStack.length || !zoneLookup?.length) return;
-  calibrationRedoStack.push(new Uint8Array(zoneLookup));
+  calibrationRedoStack.push(calibrationSnapshot());
   const previous = calibrationUndoStack.pop();
   restoreCalibrationSnapshot(previous);
   updateCalibrationHistoryButtons();
@@ -694,7 +825,7 @@ function undoCalibration() {
 
 function redoCalibration() {
   if (!calibrationRedoStack.length || !zoneLookup?.length) return;
-  calibrationUndoStack.push(new Uint8Array(zoneLookup));
+  calibrationUndoStack.push(calibrationSnapshot());
   const next = calibrationRedoStack.pop();
   restoreCalibrationSnapshot(next);
   updateCalibrationHistoryButtons();
@@ -707,6 +838,7 @@ function normalizedUv(value) {
 }
 
 function unwrapTriangleAxis(values) {
+  if (values.every(value => value >= 0 && value <= 1) && values.includes(0) && values.includes(1)) return values.slice();
   const out = values.map(normalizedUv);
   const min = Math.min(...out);
   const max = Math.max(...out);
@@ -1079,9 +1211,11 @@ function createBlankCalibrationMask() {
   currentMaskData = { size: CALIBRATION_SIZE, zones: {} };
   maskAtlases = buildMaskAtlases();
   zoneLookup = new Uint8Array(CALIBRATION_SIZE * CALIBRATION_SIZE);
+  calibrationOwners = new Uint8Array(zoneLookup.length);
 }
 
 function setAtlasPixel(pixel, zoneName) {
+  if (calibrationOwners) calibrationOwners[pixel] = 2;
   for (const texture of maskAtlases) {
     const data = texture.image?.data;
     if (!data) continue;
@@ -1129,7 +1263,12 @@ function paintCalibrationUv(uv) {
 }
 
 function calibrationStorageKey() {
-  return currentModelDef?.key ? `hv-skin-calibration:${currentModelDef.key}:v1` : null;
+  if (!currentModelDef?.key) return null;
+  // Never apply a mask from a different mesh to the new model, even when
+  // both are called "Deinosuchus": PSK-derived UV layouts can differ.
+  return currentModelDef.localPreview
+    ? `hv-skin-calibration:${currentModelDef.key}:local:${currentModelDef.calibrationFingerprint}:v1`
+    : `hv-skin-calibration:${currentModelDef.key}:v1`;
 }
 
 function maskPayloadFromLookup() {
@@ -1145,7 +1284,13 @@ function saveCalibrationDraftNow() {
   const key = calibrationStorageKey();
   if (!key || !zoneLookup?.length) return false;
   try {
-    localStorage.setItem(key, JSON.stringify(maskPayloadFromLookup()));
+    const draft = window.HVSkinBatchMap?.serialize
+      ? window.HVSkinBatchMap.serialize(zoneLookup, calibrationOwners,
+        Boolean(calibrationFlipVEl?.checked), { modelFingerprint: currentModelDef?.calibrationFingerprint || "" })
+      : { ...maskPayloadFromLookup(), calibration: { version: 1,
+          owners: Array.from(calibrationOwners || [], String).join(""),
+          flipV: Boolean(calibrationFlipVEl?.checked) } };
+    localStorage.setItem(key, JSON.stringify(draft));
     return true;
   } catch {
     return false;
@@ -1240,11 +1385,12 @@ function replaceCalibrationMask(value) {
     throw new Error("Start mapping on a shape-only species before importing a mask.");
   }
 
-  pushCalibrationHistory();
   const parsed = normalizeCalibrationMaskPayload(value);
+  pushCalibrationHistory();
   disposeMaskAtlases();
   currentMaskData = parsed;
   maskAtlases = buildMaskAtlases();
+  calibrationOwners = Uint8Array.from(zoneLookup, zone => zone ? 2 : 0);
   applyCalibratedMaterials(model);
   applyPreviewMode("accurate");
   updatePalette(paletteFromEditor());
@@ -1276,6 +1422,16 @@ function loadCalibrationDraft() {
     if (!raw) return false;
     currentMaskData = normalizeCalibrationMaskPayload(raw);
     maskAtlases = buildMaskAtlases();
+    const metadata = JSON.parse(raw).calibration;
+    calibrationOwners = Uint8Array.from(zoneLookup, zone => zone ? 2 : 0);
+    if (window.HVSkinBatchMap?.ownersFromDraft && (metadata?.version === 1 || metadata?.version === 2)) {
+      calibrationOwners = window.HVSkinBatchMap.ownersFromDraft(zoneLookup, metadata);
+    } else if (metadata?.version === 1 && typeof metadata.owners === "string" &&
+        metadata.owners.length === zoneLookup.length && /^[012]+$/.test(metadata.owners)) {
+      calibrationOwners = Uint8Array.from(metadata.owners, Number);
+      zoneLookup.forEach((zone, i) => { if (zone && !calibrationOwners[i]) calibrationOwners[i] = 2; });
+    }
+    if (typeof metadata?.flipV === "boolean" && calibrationFlipVEl) calibrationFlipVEl.checked = metadata.flipV;
     return true;
   } catch (error) {
     try { localStorage.removeItem(key); } catch {}
@@ -1316,6 +1472,109 @@ function startCalibration() {
   setCalibrationStatus(restoredDraft
     ? `${currentModelDef.displayName} · restored saved calibration draft · ${uvPixels.toLocaleString()} UV pixels detected.`
     : `${currentModelDef.displayName} · calibration active · ${uvPixels.toLocaleString()} UV pixels detected. Brush or enable Island fill.`);
+}
+
+function collectAutoMapMeshes(root) {
+  root.updateMatrixWorld(true);
+  const rootInverse = new THREE.Matrix4().copy(root.matrixWorld).invert();
+  const result = [];
+  const transform = new THREE.Vector3();
+
+  root.traverse((child) => {
+    if (!child.isMesh) return;
+    const geometry = child.geometry;
+    const position = geometry?.attributes?.position;
+    const uv = geometry?.attributes?.uv;
+    if (!position || !uv || position.count !== uv.count) return;
+
+    // Use the dinosaur's local coordinates. Orbit and manual spin must not
+    // turn "underbelly" into "flank" on a subsequent auto-map pass.
+    const relative = new THREE.Matrix4().multiplyMatrices(rootInverse, child.matrixWorld);
+    const positions = new Float32Array(position.count * 3);
+    const uvs = new Float32Array(position.count * 2);
+    for (let vertex = 0; vertex < position.count; vertex++) {
+      transform.set(position.getX(vertex), position.getY(vertex), position.getZ(vertex)).applyMatrix4(relative);
+      positions[vertex * 3] = transform.x;
+      positions[vertex * 3 + 1] = transform.y;
+      positions[vertex * 3 + 2] = transform.z;
+      uvs[vertex * 2] = uv.getX(vertex);
+      uvs[vertex * 2 + 1] = uv.getY(vertex);
+    }
+    const mats = Array.isArray(child.material) ? child.material : [child.material];
+    const groups = geometry.groups?.length ? geometry.groups.map(group => ({
+      start: group.start,
+      count: group.count,
+      materialName: mats[group.materialIndex || 0]?.name || "",
+    })) : [];
+    result.push({
+      positions, uvs,
+      indices: geometry.index?.array || null,
+      materialName: mats[0]?.name || "",
+      groups,
+    });
+  });
+  return result;
+}
+
+async function autoMapCalibration(rebuildAll = false) {
+  if (autoMapBusy) return;
+  if (calibrationPanel?.hidden || !model || currentModelDef?.capability !== "shape") {
+    setCalibrationStatus("Select a loaded shape-only dinosaur model to auto-map.");
+    return;
+  }
+  if (!window.HVSkinAutoMap?.generate) {
+    setCalibrationStatus("Auto-map engine unavailable. Refresh the page before trying again.");
+    return;
+  }
+  if (!calibrationActive) startCalibration();
+  if (!calibrationActive || !zoneLookup?.length) return;
+
+  const token = currentLoadToken;
+  const sourceModel = model;
+  autoMapBusy = true;
+  if (calibrationAutoEl) calibrationAutoEl.disabled = true;
+  setCalibrationStatus("Auto-map: analysing this model's UV layout, surfaces and material slots…");
+  try {
+    // Paint the status text before processing the geometry locally.
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    const proposal = window.HVSkinAutoMap.generate({
+      meshes: collectAutoMapMeshes(sourceModel),
+      size: CALIBRATION_SIZE,
+      flipV: Boolean(calibrationFlipVEl?.checked),
+    });
+    if (token !== currentLoadToken || model !== sourceModel || !calibrationActive) {
+      setCalibrationStatus("The model changed while auto-mapping. Nothing was applied.");
+      return;
+    }
+    if (!proposal.coveredPixels) {
+      throw new Error("No usable UV surfaces found. Keep the existing mask and inspect this mesh.");
+    }
+    const next = window.HVSkinAutoMap.mergeProposal(zoneLookup, calibrationOwners, proposal.lookup, rebuildAll);
+    if (!next.changed) {
+      setCalibrationStatus("Automatic zones are up to date. Manual edits are preserved; use Rebuild all zones to replace a legacy mask.");
+      return;
+    }
+    pushCalibrationHistory();
+    zoneLookup.set(next.lookup);
+    calibrationOwners = next.owners;
+    rebuildMaskAtlasesFromLookup();
+    applyPreviewMode("game");
+    updatePalette(paletteFromEditor());
+    const saved = saveCalibrationDraftNow();
+    scheduleCalibrationCoverage();
+    setCalibrationStatus(
+      String(currentModelDef.displayName) + " · updated " + next.changed.toLocaleString() +
+      " UV pixels; " + next.preserved.toLocaleString() + " manual pixels preserved." +
+      " Suggested Body, Flank, Underbelly and dorsal Markings. Eyes use their own mesh material." +
+      " Not verified against EVRIMA: use Undo to revert." +
+      (saved ? " Draft saved locally." : " Export with Copy mask; local draft could not be saved.")
+    );
+  } catch (error) {
+    setCalibrationStatus("Auto-map could not complete: " + error.message + ". Existing mapping is unchanged.");
+  } finally {
+    autoMapBusy = false;
+    if (calibrationAutoEl) calibrationAutoEl.disabled = !model || currentModelDef?.capability !== "shape";
+  }
 }
 
 function stopCalibration() {
@@ -1408,6 +1667,12 @@ function applyPreviewMode(mode) {
     gameButton.setAttribute("aria-pressed", accurate ? "false" : calibrated() ? "true" : "false");
     gameButton.classList.toggle("green", calibrated() && !accurate);
   }
+  if (mottlingButton) {
+    mottlingButton.hidden = currentModelDef?.key !== "deinosuchus";
+    mottlingButton.disabled = !calibrated() || accurate;
+    mottlingButton.textContent = deinoMottling ? "Mottling: on" : "Mottling: off";
+    mottlingButton.setAttribute("aria-pressed", String(deinoMottling));
+  }
   if (lightInput) lightInput.disabled = accurate;
 
   syncZoneHint();
@@ -1416,7 +1681,7 @@ function applyPreviewMode(mode) {
     if (currentModelDef.capability === "zones") {
       statusEl.textContent = `${currentModelDef.displayName} · ${accurate ? "EVRIMA linear colour" : "calibrated game preview"}`;
     } else {
-      statusEl.textContent = `${currentModelDef.displayName} · neutral Body preview · zones pending`;
+      statusEl.textContent = `${currentModelDef.displayName} · ${calibrated() ? (!accurate && currentModelDef.key === "deinosuchus" && deinoMottling ? "approximate mottled preview · not verified EVRIMA pattern" : "provisional zone preview") : "neutral Body preview · zones pending"}`;
     }
   }
 }
@@ -1523,6 +1788,7 @@ function disposeModel() {
   disposeMaskAtlases();
   currentMaskData = null;
   zoneLookup = null;
+  calibrationOwners = null;
   uvCoverage = null;
   calibrationUndoStack = [];
   calibrationRedoStack = [];
@@ -1545,6 +1811,7 @@ function showReferenceModel(def, label) {
 
   setLocalModelControlsEnabled(false);
   if (calibrationToggleEl) calibrationToggleEl.disabled = true;
+  if (calibrationAutoEl) calibrationAutoEl.disabled = true;
   if (calibrationClearZoneEl) calibrationClearZoneEl.disabled = true;
   if (calibrationClearAllEl) calibrationClearAllEl.disabled = true;
   if (calibrationCopyEl) calibrationCopyEl.disabled = true;
@@ -1608,7 +1875,7 @@ async function loadChunkedGlb(def, token) {
 async function loadModelResource(def, token) {
   if (!def?.loader) throw new Error("No model loader configured");
   if (def.loader.type === "chunked-base64") return loadChunkedGlb(def, token);
-  if (def.loader.type === "url" && def.loader.url) {
+  if ((def.loader.type === "url" || def.loader.type === "local-blob") && def.loader.url) {
     if (loaderEl) loaderEl.textContent = `Loading ${def.displayName}…`;
     const gltfLoader = new GLTFLoader();
     gltfLoader.setMeshoptDecoder(MeshoptDecoder);
@@ -1626,6 +1893,7 @@ function showNoModel(label, def = null) {
 
   if (accurateButton) accurateButton.disabled = true;
   if (gameButton) gameButton.disabled = true;
+  if (calibrationAutoEl) calibrationAutoEl.disabled = true;
   syncZoneStrip();
   syncZoneHint();
 
@@ -1652,7 +1920,7 @@ function showNoModel(label, def = null) {
 async function loadModelForSpecies(label) {
   const def = resolveModelDefinition(label);
   const normalized = normalizedSpecies(label);
-  const sameDefinition = currentModelDef?.key && def?.key === currentModelDef.key;
+  const sameDefinition = Boolean(def && def === currentModelDef);
 
   if (sameDefinition && (model || (def?.capability === "reference" && referenceFrame?.src))) {
     currentSpeciesLabel = label;
@@ -1717,6 +1985,7 @@ async function loadModelForSpecies(label) {
       ? `${def.displayName} is inside Hollow Valley's renderer. Body colour now uses a hue-neutral texture preview; map the EVRIMA UV zones to unlock accurate per-region colour painting.`
       : `${def.displayName} already has a calibrated zone map.`);
     if (calibrationToggleEl) calibrationToggleEl.disabled = def.capability !== "shape";
+    if (calibrationAutoEl) calibrationAutoEl.disabled = def.capability !== "shape";
     document.dispatchEvent(new CustomEvent("hds:skin-model-ready", {
       detail: { species: def.key, capability: def.capability },
     }));
@@ -1726,6 +1995,7 @@ async function loadModelForSpecies(label) {
     disposeModel();
     currentModelDef = def;
     setRail(def, label);
+    if (calibrationAutoEl) calibrationAutoEl.disabled = true;
     setStatus(false, `${def.displayName} · model load failed`);
     if (loaderEl) {
       loaderEl.hidden = false;
@@ -1738,6 +2008,285 @@ function selectedSpeciesLabel() {
   const option = speciesSelect?.selectedOptions?.[0];
   return option?.textContent || speciesSelect?.value || "";
 }
+
+function localModelMessage(message) {
+  if (localModelStatusEl) localModelStatusEl.textContent = message;
+}
+
+async function verifyLocalGlb(file) {
+  const fileName = String(file?.name || "");
+  // File.name contains a basename, not a URL. Avoid double-escaped regexes
+  // here: v013 accidentally rejected *every* legitimate .glb upload.
+  if (!fileName.toLowerCase().endsWith(".glb")) {
+    throw new Error(`Choose a .glb file from the extracted models folder, not a .psk or ZIP. Selected: ${fileName || "none"}.`);
+  }
+  if (file.size < 20 || file.size > LOCAL_MODEL_LIMIT_BYTES) {
+    throw new Error("This GLB is empty, incomplete or exceeds the 30 MB private preview limit.");
+  }
+  const header = new DataView(await file.slice(0, 20).arrayBuffer());
+  // glTF 2.0 binary header: 'glTF', version 2, total bytes, first JSON chunk.
+  if (header.getUint32(0, true) !== 0x46546c67 || header.getUint32(4, true) !== 2 ||
+      header.getUint32(8, true) !== file.size || header.getUint32(16, true) !== 0x4e4f534a) {
+    throw new Error("Unsupported GLB. Convert the source PSK using the v013 offline tool.");
+  }
+}
+
+async function useLocalModel() {
+  const files = Array.from(localModelFileEl?.files || []);
+  if (!files.length) return;
+  if (calibrationPanel?.hidden) { localModelFileEl.value = ""; return; }
+  if (calibrationActive) {
+    localModelMessage("Stop zone mapping before switching meshes. Your current mask draft is retained.");
+    localModelFileEl.value = "";
+    return;
+  }
+  if (files.length > 25) {
+    localModelMessage("Import at most 25 species models at once.");
+    localModelFileEl.value = "";
+    return;
+  }
+  const label = selectedSpeciesLabel();
+  const selected = resolveModelDefinition(label);
+  const staged = [];
+
+  localModelFileEl.disabled = true;
+  try {
+    const keys = new Set();
+    for (const file of files) {
+      // The offline v013 converter names files <species>.glb. Match the
+      // species explicitly before assigning a mesh to an editor palette.
+      const stem = String(file.name || "").replace(/\.glb$/i, "").replace(/^SK[_-]/i, "").replace(/\s*\(\d+\)$/, "");
+      const normalized = normalizedSpecies(stem);
+      const source = Object.values(MODEL_REGISTRY).find((entry) =>
+        entry.key === normalized || (entry.aliases || []).some((alias) => normalizedSpecies(alias) === normalized));
+      const match = source || (files.length === 1 ? selected : null);
+      if (!match) throw new Error(`Unknown species filename "${file.name}". Use the converter's <species>.glb naming.`);
+      if (files.length === 1 && source && selected && match.key !== selected.key) {
+        throw new Error(`This is ${match.displayName}, but ${selected.displayName} is selected. Choose the matching species first.`);
+      }
+      if (keys.has(match.key)) throw new Error(`More than one model was supplied for ${match.displayName}.`);
+      keys.add(match.key);
+      localModelMessage(`Validating ${file.name} (${staged.length + 1}/${files.length}) locally…`);
+      await verifyLocalGlb(file);
+      // Content-address each UV draft to prevent accidentally painting a
+      // different species mesh with an older mask of the same species.
+      const hash = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+      const fingerprint = [...new Uint8Array(hash)].map((byte) => byte.toString(16).padStart(2, "0")).join("").slice(0, 24);
+      const blobUrl = URL.createObjectURL(file);
+      staged.push({
+        key: match.key,
+        candidate: {
+          ...match,
+          capability: "shape",
+          loader: { type: "local-blob", url: blobUrl },
+          credit: null,
+          localPreview: true,
+          localFileName: file.name,
+          calibrationFingerprint: fingerprint,
+        },
+      });
+    }
+
+    // Atomically install a validated batch in this browser session only.
+    for (const entry of staged) {
+      const previous = localModelOverrides.get(entry.key);
+      localModelOverrides.set(entry.key, entry.candidate);
+      if (previous?.loader?.url) URL.revokeObjectURL(previous.loader.url);
+    }
+    const active = resolveModelDefinition(label);
+    if (active?.localPreview && staged.some((entry) => entry.key === active.key)) {
+      await loadModelForSpecies(label);
+      if (currentModelDef !== active || !model) {
+        localModelOverrides.delete(active.key);
+        URL.revokeObjectURL(active.loader.url);
+        await loadModelForSpecies(label);
+        throw new Error(`Cannot render ${active.displayName}; its website model has been restored. Other validated local species remain available.`);
+      }
+    }
+    const list = staged.map((entry) => entry.candidate.displayName).join(", ");
+    localModelMessage(`Loaded ${staged.length} model${staged.length === 1 ? "" : "s"} privately: ${list}. Select a species, then Start mapping to calibrate UV colours. Skins and player data are unchanged.`);
+    if (calibrationAutoOnUploadEl?.checked) await batchMapAllLocalModels();
+  } catch (error) {
+    // If no override owns a staged blob, free it after a validation error.
+    for (const entry of staged) {
+      if (localModelOverrides.get(entry.key) !== entry.candidate) URL.revokeObjectURL(entry.candidate.loader.url);
+    }
+    localModelMessage(`Local model rejected: ${error?.message || String(error)}`);
+  } finally {
+    localModelFileEl.value = "";
+    localModelFileEl.disabled = false;
+  }
+}
+function batchStatus(message) {
+  if (calibrationBatchStatusEl) calibrationBatchStatusEl.textContent = message;
+  localModelMessage(message);
+}
+
+function localCalibrationKey(def) {
+  return def?.localPreview && def?.calibrationFingerprint
+    ? "hv-skin-calibration:" + def.key + ":local:" + def.calibrationFingerprint + ":v1"
+    : null;
+}
+
+async function batchMapAllLocalModels() {
+  if (batchMapBusy) {
+    batchMapCancel = true;
+    batchStatus("Stopping the automatic batch after the current species. Completed drafts remain saved.");
+    return;
+  }
+  if (calibrationPanel?.hidden || calibrationActive) {
+    batchStatus("Stop individual zone mapping before running a batch; your current manual draft remains saved.");
+    return;
+  }
+  if (!window.HVSkinAutoMap?.generate || !window.HVSkinBatchMap?.merge) {
+    batchStatus("Auto-map files are missing. Hard-refresh Skin Studio to load the latest viewer.");
+    return;
+  }
+  const entries = [...localModelOverrides.values()].filter(def => def.localPreview && def.loader?.type === "local-blob");
+  if (!entries.length) {
+    batchStatus("Load your converted GLB models first; you can select all 20 at once.");
+    return;
+  }
+
+  batchMapBusy = true;
+  batchMapCancel = false;
+  if (calibrationBatchEl) calibrationBatchEl.textContent = "Cancel batch";
+  if (localModelFileEl) localModelFileEl.disabled = true;
+  if (calibrationBatchDownloadEl) calibrationBatchDownloadEl.disabled = true;
+  const gltfLoader = new GLTFLoader();
+  gltfLoader.setMeshoptDecoder(MeshoptDecoder);
+  const failures = [];
+  let processed = 0, changed = 0;
+  try {
+    for (let index = 0; index < entries.length; index++) {
+      if (batchMapCancel) break;
+      const def = entries[index];
+      const key = localCalibrationKey(def);
+      if (!key) { failures.push(def.displayName + ": missing model fingerprint"); continue; }
+      batchStatus("Auto-mapping " + (index + 1) + "/" + entries.length + ": " + def.displayName + "…");
+      // Yield between species so the browser can repaint progress and accept Cancel.
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      let gltf = null;
+      try {
+        const raw = localStorage.getItem(key);
+        const existing = raw ? JSON.parse(raw) : null;
+        const flipV = typeof existing?.calibration?.flipV === "boolean"
+          ? existing.calibration.flipV : Boolean(calibrationFlipVEl?.checked);
+        gltf = await gltfLoader.loadAsync(def.loader.url);
+        if (batchMapCancel) break;
+        const proposal = window.HVSkinAutoMap.generate({
+          meshes: collectAutoMapMeshes(gltf.scene),
+          size: CALIBRATION_SIZE,
+          flipV,
+        });
+        if (!proposal.coveredPixels) throw new Error("No usable UV geometry");
+        // Eye materials may share and extend the body UV atlas. Use a neutral
+        // body fallback for these non-body texels; NEVER label them Eyes.
+        const footprint = buildModelUvCoverage(gltf.scene);
+        const lookup = new Uint8Array(proposal.lookup);
+        for (let pixel = 0; pixel < footprint.length; pixel++) {
+          if (!footprint[pixel]) continue;
+          const x = pixel % CALIBRATION_SIZE;
+          const y = Math.floor(pixel / CALIBRATION_SIZE);
+          const mapped = (flipV ? CALIBRATION_SIZE - 1 - y : y) * CALIBRATION_SIZE + x;
+          if (!lookup[mapped]) lookup[mapped] = 1;
+        }
+        const result = window.HVSkinBatchMap.merge(raw, lookup, {
+          flipV, modelFingerprint: def.calibrationFingerprint, rebuildAll: false,
+        });
+        // A failed write leaves the previous mask untouched, and never alters
+        // Steam identities, player skins, shop data, server storage, or RCON.
+        localStorage.setItem(key, JSON.stringify(result.payload));
+        processed++;
+        changed += result.changed;
+      } catch (error) {
+        failures.push(def.displayName + ": " + (error?.message || String(error)));
+      } finally {
+        if (gltf?.scene) {
+          gltf.scene.traverse(child => {
+            if (!child.isMesh) return;
+            child.geometry?.dispose?.();
+            const materials = Array.isArray(child.material) ? child.material : [child.material];
+            for (const material of materials) material?.dispose?.();
+          });
+        }
+      }
+    }
+    if (calibrationBatchDownloadEl) calibrationBatchDownloadEl.disabled = processed === 0;
+    const stopped = batchMapCancel ? " (cancelled)" : "";
+    batchStatus("Auto-mapped " + processed + "/" + entries.length + " species" + stopped +
+      " · " + changed.toLocaleString() + " UV assignments updated" +
+      (failures.length ? " · " + failures.length + " errors: " + failures.slice(0, 3).join("; ") : "") +
+      ". All results are provisional and browser-local. Select a species and Start mapping to inspect; no hand-painting required.");
+  } finally {
+    batchMapBusy = false;
+    batchMapCancel = false;
+    if (calibrationBatchEl) calibrationBatchEl.textContent = "Auto-map all loaded models";
+    if (localModelFileEl) localModelFileEl.disabled = false;
+  }
+}
+
+function downloadBatchMasks() {
+  if (calibrationPanel?.hidden || batchMapBusy) return;
+  const models = [];
+  for (const def of localModelOverrides.values()) {
+    const key = localCalibrationKey(def);
+    if (!key) continue;
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const draft = JSON.parse(raw);
+      if (draft.size !== CALIBRATION_SIZE || !draft.zones) continue;
+      models.push({
+        species: def.key,
+        modelFingerprint: def.calibrationFingerprint,
+        mask: draft,
+        verified: false,
+      });
+    } catch { /* Other valid masks can still be exported. */ }
+  }
+  if (!models.length) { batchStatus("No generated masks to export. Run Auto-map all loaded models first."); return; }
+  const pack = { format: "hollow-valley-skin-studio-local-masks/v1", verified: false, models };
+  const blobUrl = URL.createObjectURL(new Blob([JSON.stringify(pack)], { type: "application/json" }));
+  const link = document.createElement("a");
+  link.href = blobUrl;
+  link.download = "hollow-valley-unverified-auto-masks-" + models.length + "-species.json";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+  batchStatus("Exported " + models.length + " browser-local masks. They are provisional, not in-game verified.");
+}
+
+calibrationBatchEl?.addEventListener("click", batchMapAllLocalModels);
+calibrationBatchDownloadEl?.addEventListener("click", downloadBatchMasks);
+
+async function resetLocalModel() {
+  if (calibrationPanel?.hidden) return;
+  if (calibrationActive) {
+    localModelMessage("Stop mapping before reverting the mesh. Your calibration draft is retained.");
+    return;
+  }
+  const label = selectedSpeciesLabel();
+  const def = resolveModelDefinition(label);
+  if (!def?.localPreview) {
+    localModelMessage("Already using the standard Hollow Valley model for this species.");
+    return;
+  }
+  localModelOverrides.delete(def.key);
+  URL.revokeObjectURL(def.loader.url);
+  await loadModelForSpecies(label);
+  localModelMessage("Restored the website model. Your local model and its saved UV draft remain private to this browser.");
+}
+
+localModelFileEl?.addEventListener("change", useLocalModel);
+localModelResetEl?.addEventListener("click", resetLocalModel);
+window.addEventListener("pagehide", () => {
+  for (const entry of localModelOverrides.values()) {
+    if (entry?.loader?.url) URL.revokeObjectURL(entry.loader.url);
+  }
+  localModelOverrides.clear();
+});
 
 const zoneRaycaster = new THREE.Raycaster();
 const zonePointer = new THREE.Vector2();
@@ -1755,15 +2304,9 @@ function hitUvAt(clientX, clientY) {
 
 function lookupZoneFromUv(uv) {
   if (!calibrated() || !zoneLookup || !currentMaskData?.size || !uv) return null;
-  const size = currentMaskData.size;
-  const x = Math.max(0, Math.min(size - 1, Math.floor(uv.x * size)));
-  const yDirect = Math.max(0, Math.min(size - 1, Math.floor(uv.y * size)));
-  const yFlipped = Math.max(0, Math.min(size - 1, Math.floor((1 - uv.y) * size)));
-  const zoneKeys = ["body", "markings", "flank", "underbelly", "detail1", "eyes", "teeth", "mouth", "claws", "maleDisplay"];
-  const direct = zoneLookup[yDirect * size + x];
-  const flipped = zoneLookup[yFlipped * size + x];
-  const index = direct || flipped;
-  return index ? zoneKeys[index - 1] : null;
+  // Match the rendered atlas (flipY=false, ClampToEdge), never probe the opposite row.
+  const index = window.HVSkinAutoMap.lookupUv(zoneLookup, currentMaskData.size, uv);
+  return index ? ZONE_KEYS[index - 1] : null;
 }
 
 function selectPaintZoneAt(clientX, clientY) {
@@ -1838,6 +2381,8 @@ canvas.addEventListener("pointercancel", () => {
 });
 
 calibrationDiagnosticEl?.addEventListener("click", loadDiagnosticPalette);
+calibrationAutoEl?.addEventListener("click", () => autoMapCalibration());
+document.getElementById("skin-calibration-rebuild")?.addEventListener("click", () => autoMapCalibration(true));
 
 inspectorFileEl?.addEventListener("change", () => {
   loadInspectorCaptureFile(inspectorFileEl.files?.[0] || null);
@@ -1885,6 +2430,7 @@ calibrationClearAllEl?.addEventListener("click", () => {
   if (!calibrationActive) return;
   pushCalibrationHistory();
   zoneLookup.fill(0);
+  calibrationOwners?.fill(0);
   for (const texture of maskAtlases) {
     texture.image.data.fill(0);
     texture.needsUpdate = true;

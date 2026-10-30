@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Hollow Valley website and Isle server status, based on verified health checks and game-server snapshots.">
+  <title>Server Status | Hollow Valley</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=38">
+  <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
+  <link rel="stylesheet" href="/assets/snapshot-ui.css?v=5">
+  <link rel="stylesheet" href="/assets/status-page.css?v=1">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main class="hv-status-main">
+      <header class="hv-status-intro">
+        <p class="hv-status-kicker">HOLLOW VALLEY · SERVICE STATUS</p>
+        <h1>How's the Valley running?</h1>
+        <p>Live website checks and the most recent verified Isle server snapshot. A delayed check is not the same as an offline game server.</p>
+      </header>
+      <section class="hv-status-summary" aria-live="polite" aria-atomic="true">
+        <div>
+          <small>CURRENT SUMMARY</small>
+          <h2 id="status-overall">Checking service signals…</h2>
+          <p id="status-refreshed">Waiting for first refresh</p>
+        </div>
+        <button type="button" id="status-refresh">Refresh status</button>
+      </section>
+      <section class="hv-status-grid" aria-label="Verified component status">
+        <article class="hv-status-card" id="status-website-card" data-state="unknown">
+          <div class="hv-status-card-header"><h3>Website process</h3><span class="hv-status-pill" id="status-website-state">Checking</span></div>
+          <p id="status-website-detail">Checking the website's liveness endpoint.</p>
+        </article>
+        <article class="hv-status-card" id="status-storage-card" data-state="unknown">
+          <div class="hv-status-card-header"><h3>Website readiness</h3><span class="hv-status-pill" id="status-storage-state">Checking</span></div>
+          <p id="status-storage-detail">Checking local data access and whether the website can serve requests.</p>
+        </article>
+        <article class="hv-status-card" id="status-game-card" data-state="unknown">
+          <div class="hv-status-card-header"><h3>The Isle game server</h3><span class="hv-status-pill" id="status-game-state">Checking</span></div>
+          <p id="status-game-detail">Reading the last server snapshot from Hollow Valley automation.</p>
+          <small id="status-snapshot-time">No verified snapshot loaded yet</small>
+        </article>
+      </section>
+      <section class="hv-status-notes" aria-labelledby="status-notes-heading">
+        <h2 id="status-notes-heading">What this page can verify</h2>
+        <p><strong>Website process</strong> means the website answered its liveness check. <strong>Website readiness</strong> checks local storage and draining state. <strong>Game server</strong> uses a server snapshot; its last update is shown so delayed data is never mistaken for live player presence.</p>
+        <p>RCON / Command Bridge, Discord bot, Steam sign-in, Marketplace operations and Live Map data are <strong>not independently monitored on this page yet</strong>. An online website does not prove those services work. Component checks and verified incident history are planned in later HV-W01 releases.</p>
+        <a href="/">← Back to Hollow Valley</a>
+      </section>
+    </main>
+    <footer><span>© 2026 Hollow Valley</span><span>HOLLOW VALLEY · AUSTRALIAN ISLE SERVER</span><a href="/">Home ↑</a></footer>
+  </div>
+  <script src="/assets/common.js?v=22"></script>
+  <script src="/assets/status-page.js?v=1"></script>
+</body>
+</html>

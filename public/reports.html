@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Private incident reporting for Steam-linked Hollow Valley players.">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Player Reports | Hollow Valley</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=38">
+  <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
+  <link rel="stylesheet" href="/assets/snapshot-ui.css?v=5">
+  <link rel="stylesheet" href="/assets/player-reports.css?v=1">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main class="hv-reports-main">
+      <header class="hv-reports-intro">
+        <p class="hv-reports-kicker">HOLLOW VALLEY · COMMUNITY SAFETY</p>
+        <h1>Report an incident.</h1>
+        <p>Send a private report to Hollow Valley admins. Include what happened, when it happened and supporting screenshots or video links. A report does not automatically punish another player.</p>
+      </header>
+      <section id="report-signin" class="hv-reports-panel" hidden>
+        <h2>Steam sign-in required</h2>
+        <p>Sign in with your linked Steam account to submit or view your reports.</p>
+        <a href="/auth/steam?returnTo=/reports">Sign in with Steam</a>
+      </section>
+      <section id="report-disabled" class="hv-reports-panel" hidden>
+        <h2>New reports not open yet</h2>
+        <p>Hollow Valley is preparing private player reports. Existing report statuses remain available to signed-in players.</p>
+      </section>
+      <section id="report-content" hidden>
+        <form id="report-form" class="hv-reports-panel" hidden>
+          <h2>New player report</h2>
+          <div class="hv-reports-fields">
+            <label>Category
+              <select id="report-category" required>
+                <option value="">Choose category</option>
+                <option value="harassment">Harassment</option>
+                <option value="cheating">Cheating / unfair play</option>
+                <option value="exploit">Exploit / abuse</option>
+                <option value="combat">Combat dispute</option>
+                <option value="storage">Dino storage / technical issue</option>
+                <option value="other">Other issue</option>
+              </select>
+            </label>
+            <label>Reported player's Steam ID (optional)
+              <input id="report-target" type="text" maxlength="17" inputmode="numeric" pattern="[0-9]{17}" placeholder="17-digit Steam ID">
+            </label>
+            <label>Approximate incident time (optional)
+              <input id="report-occurred" type="datetime-local">
+            </label>
+            <label class="hv-reports-wide">What happened?
+              <textarea id="report-description" required rows="7" minlength="30" maxlength="2500" placeholder="Explain where, when and what happened. Please give enough detail for the admin team to investigate."></textarea>
+            </label>
+            <div class="hv-reports-wide hv-reports-evidence">
+              <h3>Evidence links (optional, up to three)</h3>
+              <p>Use HTTPS links hosted on Discord, Steam, YouTube, Medal, Streamable, Twitch, Google Drive or Imgur. Links are shown only to authorised admins.</p>
+              <label>Evidence 1 <input class="report-evidence-link" type="url" maxlength="500" placeholder="https://"></label>
+              <label>Evidence 2 <input class="report-evidence-link" type="url" maxlength="500" placeholder="https://"></label>
+              <label>Evidence 3 <input class="report-evidence-link" type="url" maxlength="500" placeholder="https://"></label>
+            </div>
+          </div>
+          <button id="report-submit" type="submit">Submit private report</button>
+          <p id="report-submit-feedback" role="status" aria-live="polite"></p>
+        </form>
+        <section class="hv-reports-panel">
+          <h2>Your report history</h2>
+          <p>Only you and authorised Hollow Valley administrators can see your submissions. Internal admin review notes are not shown here.</p>
+          <div id="report-mine" class="hv-reports-list">Loading your reports…</div>
+        </section>
+      </section>
+    </main>
+    <footer><span>© 2026 Hollow Valley</span><span>PRIVATE PLAYER REPORTING</span><a href="/profile">My Profile</a></footer>
+  </div>
+  <script src="/assets/common.js?v=22"></script>
+  <script src="/assets/player-reports.js?v=1"></script>
+</body>
+</html>
