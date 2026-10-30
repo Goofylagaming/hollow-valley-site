@@ -137,7 +137,7 @@ assert.match(merchJS,/getElementById\("year"\)/);
 assert.match(merchCSS,/@media\(max-width:530px\)/);
 assert.match(merchHtml,/Books 2–5, new hoodies/);
 assert.match(merchHtml,/Hollow Valley Chromie Hoodie/);
-assert.match(merchHtml,/src="\\/merch\\/assets\\/chromie-hoodie-front-back\\.webp"/);
+assert.ok(merchHtml.includes('src="/merch/assets/chromie-hoodie-front-back.webp"'));
 const chromieImage=await readFile(join(root,'hollow-valley','merch','assets','chromie-hoodie-front-back.webp'));
 assert.equal(chromieImage.subarray(0,4).toString('ascii'),'RIFF');
 assert.equal(chromieImage.subarray(8,12).toString('ascii'),'WEBP');
