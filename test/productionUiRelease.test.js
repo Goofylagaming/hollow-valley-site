@@ -60,6 +60,16 @@ test("all production wallet, marketplace, storage, admin and other page scripts 
       assert.equal(actual.filter(src => src === batchMap).length, 1);
       assert.deepEqual(actual.filter(src => src !== autoMap && src !== batchMap), baseline,
         page + ": existing feature scripts must be preserved");
+    } else if (page === "dinostorage/index.html") {
+      // Prime zone reset is the only additive DinoStorage script. Existing
+      // storage/marketplace scripts must retain their exact order.
+      const reset = "assets/prime-zone-reset.js";
+      assert.equal(actual.filter(src => src === reset).length, 1,
+        "Prime reset script appears once");
+      assert.equal(actual.indexOf(reset), actual.indexOf("assets/mydinos.js") + 1,
+        "Reset handler must load after the existing Prime tracker");
+      assert.deepEqual(actual.filter(src => src !== reset), baseline,
+        "DinoStorage's existing production scripts must remain in order");
     } else {
       assert.deepEqual(actual, baseline, page + ": feature scripts were dropped or reordered");
     }
