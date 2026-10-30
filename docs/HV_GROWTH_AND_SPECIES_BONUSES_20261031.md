@@ -89,3 +89,49 @@ Acceptance: one species can earn the extra coins exactly once per
 eligible interval; other species remain at baseline; existing wallets,
 quest rewards, subscriptions, Prime and parked dinosaurs remain intact;
 event expiry returns to baseline without requiring user action.
+
+## Release communications (Admin Hub)
+
+The Admin Operations page includes a **Feature Announcements** composer:
+
+1. After confirming the feature is actually active on the game server,
+   choose the growth rate or enter another real, verified event message.
+2. Choose Community Announcements (HerbyBot `announcement`) and/or
+   Server Progress & Updates (HerbyBot `progress`).
+3. Tick "I verified this change is active" and confirm the exact preview.
+4. The website enqueues a single idempotent request, secured by Steam-linked
+   admin login and the private automation admin token.
+5. The automation service persists the pending message in its SQLite-backed
+   HerbyBot outbox and the bot delivers asynchronously. The UI says "queued",
+   never "posted", until independent delivery evidence exists.
+
+Existing HerbyBot channel mapping:
+- Community `announcement` → `DISCORD_ANNOUNCEMENT_CHANNEL_ID`.
+- Server progress `progress` → `DISCORD_PROGRESS_CHANNEL_ID`
+  (previously nominated channel 1550133934871023679).
+
+`HERBYBOT_AUTOMATION_TOKEN` is required. The bot must be running with the
+corresponding destination IDs configured; a queued receipt does not guarantee
+the bot will post, and failures appear in the existing outbox state.
+Never send announcement credentials or Discord token to the browser.
+
+This action is **not automatically invoked** on an RCON send because that
+would imply that an unverified gameplay change is live. For future
+species event enable/disable handlers, call the same server-side verified
+queue only after durable state commit and downstream acknowledgement. Reuse
+an event-version-bound request ID to avoid duplicate announcements.
+
+For in-game notices, the `0x10` Announce command must execute on the
+Windows game host's private RCON listener. The current Render web/automation
+pipeline does not open an RCON connection to that localhost address. Do not
+open its port publicly. The UI offers a copy button; a secure command-poll
+extension on BinaryLane is needed for website-triggered in-game delivery.
+
+### Validation and rollback
+
+Tests cover: unauthenticated users, destination allowlist, confirmation,
+bounded multipliers, stable request ID dedupe and conflict protection,
+and separate Discord vs in-game claims. A feature announcement makes no
+changes to `Game.ini`, players, wallet, or active dinosaurs.
+If the bot bridge is unavailable, the action refuses the request instead
+of claiming success.
