@@ -53,7 +53,7 @@ test('custom event announcements are bounded and refuse missing HerbyBot bridge'
   const event = announcements.queueVerifiedAnnouncement(payload);
   assert.equal(event.message, payload.message);
   assert.deepEqual(event.receipts.map((r) => r.destination), ['progress']);
-  assert.throws(() => announcements.validate({ ...payload, message: '\\x00' }), /announcement must/);
+  assert.throws(() => announcements.validate({ ...payload, message: String.fromCharCode(0) }), /announcement must/);
   const prior = process.env.HERBYBOT_AUTOMATION_TOKEN;
   delete process.env.HERBYBOT_AUTOMATION_TOKEN;
   try {
