@@ -1,5 +1,7 @@
 const { api, escapeHtml } = window.HDS;
 
+let featureAnnouncementReady = false;
+let featureAnnouncementRequestId = null;
 let globalBodyDropState = null;
 let globalBodyDropRefreshTimer = null;
 let chatMessages = [];
@@ -177,6 +179,15 @@ function render(data) {
       : (rcon.configured ? "Corpse wipe is present but the backend safety gate is OFF." : "Automation RCON is not currently available.");
   }
 
+  const discordReady = Boolean(status.discordAutomation?.announcementConfigured);
+  featureAnnouncementReady = discordReady;
+  const featureState = document.getElementById("ops-feature-state");
+  if (featureState) {
+    featureState.textContent = discordReady ? "HERBYBOT READY" : "HERBYBOT UNAVAILABLE";
+    featureState.className = `ops-status-label ${discordReady ? "ready" : "attention"}`;
+  }
+  updateFeatureAnnouncementPreview();
+
   const growthReady = Boolean(rcon.configured && rcon.actionGates?.growthMultiplier);
   const growthState = document.getElementById("ops-growth-state");
   const growthButton = document.getElementById("ops-growth-apply");
@@ -336,6 +347,101 @@ document.getElementById("ops-global-bodydrop-activate")?.addEventListener("click
     await loadGlobalBodyDrop();
   } finally {
     button.textContent = "Activate Global Drop →";
+  }
+});
+
+function featureAnnouncementPayload() {
+  const kind = document.getElementById("ops-feature-type")?.value || "growth";
+  return {
+    kind,
+    multiplier: Number(document.getElementById("ops-feature-growth")?.value),
+    message: document.getElementById("ops-feature-custom")?.value.trim() || "",
+    channels: [
+      ...(document.getElementById("ops-feature-community")?.checked ? ["announcement"] : []),
+      ...(document.getElementById("ops-feature-progress")?.checked ? ["progress"] : []),
+    ],
+  };
+}
+
+function featureAnnouncementText(payload) {
+  if (payload.kind === "growth") {
+    return `🦖 Hollow Valley update: Server growth is now ${payload.multiplier}×! Enjoy the faster growth and happy surviving!`;
+  }
+  return payload.message || "Enter your verified event announcement above.";
+}
+
+function updateFeatureAnnouncementPreview() {
+  const payload = featureAnnouncementPayload();
+  const growthVisible = payload.kind === "growth";
+  const growth = document.getElementById("ops-feature-growth");
+  const growthLabel = document.getElementById("ops-feature-growth-label");
+  const custom = document.getElementById("ops-feature-custom-wrap");
+  if (growth) growth.hidden = !growthVisible;
+  if (growthLabel) growthLabel.hidden = !growthVisible;
+  if (custom) custom.hidden = growthVisible;
+  text("ops-feature-preview", featureAnnouncementText(payload));
+  const ready = featureAnnouncementReady &&
+    document.getElementById("ops-feature-verified")?.checked &&
+    payload.channels.length > 0 && (growthVisible || Boolean(payload.message));
+  const button = document.getElementById("ops-feature-publish");
+  if (button && !button.dataset.busy) button.disabled = !ready;
+}
+
+["ops-feature-type", "ops-feature-growth", "ops-feature-custom",
+ "ops-feature-community", "ops-feature-progress", "ops-feature-verified"]
+  .forEach((id) => document.getElementById(id)?.addEventListener("input", () => {
+    // An edited payload must never reuse an earlier idempotency key.
+    featureAnnouncementRequestId = null;
+    const message = document.getElementById("ops-feature-message");
+    if (message) delete message.dataset.queued;
+    updateFeatureAnnouncementPreview();
+  }));
+
+document.getElementById("ops-feature-copy")?.addEventListener("click", async () => {
+  const payload = featureAnnouncementPayload();
+  const message = featureAnnouncementText(payload);
+  try {
+    await navigator.clipboard.writeText(message);
+    text("ops-feature-message", "Copied. In-game posting requires the private Windows RCON host.");
+  } catch {
+    text("ops-feature-message", "Clipboard unavailable; copy the preview manually.");
+  }
+});
+
+document.getElementById("ops-feature-publish")?.addEventListener("click", async (event) => {
+  const payload = featureAnnouncementPayload();
+  if (!featureAnnouncementReady || !document.getElementById("ops-feature-verified")?.checked ||
+      !payload.channels.length || (payload.kind === "custom" && !payload.message)) return;
+  if (!window.confirm(
+    `Confirm this change is already active and queue this message to Discord?\n\n${featureAnnouncementText(payload)}\n\nQueued messages are not necessarily delivered immediately.`
+  )) return;
+
+  const button = event.currentTarget;
+  const message = document.getElementById("ops-feature-message");
+  button.dataset.busy = "1";
+  button.disabled = true;
+  if (message) message.textContent = "Queueing verified announcement…";
+  try {
+    if (!featureAnnouncementRequestId) featureAnnouncementRequestId = crypto.randomUUID();
+    const response = await api("/api/admin-operations/feature-announcement", {
+      method: "POST",
+      body: JSON.stringify({
+        ...payload, requestId: featureAnnouncementRequestId,
+        verified: true, confirm: "ANNOUNCE VERIFIED",
+      }),
+    });
+    const receipt = response.announcement || {};
+    if (message) {
+      message.dataset.queued = "1";
+      message.textContent = `Queued to ${(receipt.receipts || []).map((r) => r.destination).join(" and ") || "HerbyBot"}. Check Discord for delivery. No in-game broadcast was sent.`;
+    }
+    featureAnnouncementRequestId = null;
+    document.getElementById("ops-feature-verified").checked = false;
+  } catch (error) {
+    if (message) message.textContent = error.message || "Announcement was not queued; check the outbox before retrying.";
+  } finally {
+    delete button.dataset.busy;
+    updateFeatureAnnouncementPreview();
   }
 });
 
