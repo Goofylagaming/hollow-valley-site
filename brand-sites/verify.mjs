@@ -48,7 +48,7 @@ assert.match(merchCss,/@media\(max-width:530px\)/);
 assert.match(merchPage,/All other product development is paused/);
 assert.match(merchPage,/Books 2–5, new hoodies/);
 assert.match(merchPage,/Hollow Valley Chromie Hoodie/);
-assert.match(merchPage,/src="\/merch\/assets\/chromie-hoodie-front-back\.webp"/);
+assert.ok(merchPage.includes('src="/merch/assets/chromie-hoodie-front-back.webp"'));
 const chromieAsset=await readFile(new URL('merch/assets/chromie-hoodie-front-back.webp',studioBase));
 assert.equal(chromieAsset.subarray(0,4).toString('ascii'),'RIFF');
 assert.equal(chromieAsset.subarray(8,12).toString('ascii'),'WEBP');
