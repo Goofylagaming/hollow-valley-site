@@ -259,6 +259,85 @@ async function checkAuthenticatedGroupProgress(browser, origin){
     console.log("PASS authenticated Groups Achievements & Quests mobile");
   }finally{await context.close();}
 }
+
+async function checkAuthenticatedPrimeZoneReset(browser, origin) {
+  const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:1});
+  const page=await context.newPage();
+  const issues=collect(page);
+  const steam="76561198000000101";
+  const lifeId="d110944e-0f52-483e-9c77-e77b44e26b6e";
+  let resetCalls=0;
+  const state={
+    enabled:true,activeLife:{
+      id:lifeId,steamId:steam,species:"Tyrannosaurus",growth:1,isPrime:true,
+      startedAt:"2026-10-20T03:00:00.000Z",
+      lastSeenAt:new Date().toISOString(),zoneResetAt:null,
+    },progress:{
+      migrationZonesVisited:1,patrolZonesVisited:1,sanctuariesVisited:1,
+      primeSeconds:3600,isPrime:true,primePreexisting:true,zoneResetAt:null,
+    },zoneVisits:[{kind:"migration",name:"Staging Migration",firstSeenAt:"2026-10-20T03:00:00.000Z",secondsInside:600}],
+    currentZones:{migrations:["Staging Migration"],patrolZones:[],sanctuaries:[]},
+    activeStateNote:"Activity state unknown from game feed",
+    history:[],
+  };
+  try {
+    await page.route("**/api/**",route=>{
+      const p=new URL(route.request().url()).pathname;
+      if(p==="/api/mydinos/prime-tracker/reset-zones"){
+        const body=route.request().postDataJSON();
+        assert.equal(body.lifeId,lifeId);
+        assert.equal(body.confirm,"RESET ZONES");
+        assert.match(body.requestId,/^[0-9a-f-]{36}$/);
+        resetCalls++;
+        state.progress.migrationZonesVisited=0;
+        state.progress.patrolZonesVisited=0;
+        state.progress.sanctuariesVisited=0;
+        state.progress.zoneResetAt=new Date().toISOString();
+        state.activeLife.zoneResetAt=state.progress.zoneResetAt;
+        state.zoneVisits=[];
+        return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({
+          ok:true,lifeId,resetAt:state.progress.zoneResetAt,clearedZones:3,
+        })});
+      }
+      const fixture=p==="/api/me"?{loggedIn:true,user:{steam_id:steam,username:"Prime Tester"}}:
+        p==="/api/mydinos/prime-tracker"?state:
+        p==="/api/mydinos/active-character"?{active:false,reason:"not_in_game"}:
+        p==="/api/mydinos"?[]:
+        p==="/api/species"?[]:
+        p==="/api/marketplace/state"?{p2pWritesEnabled:false}:
+        p==="/api/marketplace/listings/mine"?{listings:[]}:
+        p==="/api/server-status"?serverStatus:null;
+      if(fixture!==null)return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(fixture)});
+      if(route.request().method()!=="GET")
+        return route.fulfill({status:200,contentType:"application/json",body:"{}"});
+      return route.continue();
+    });
+    await page.route(/https?:\/\/(?!127\.0\.0\.1)[^/]+\//,route=>route.abort());
+    const resp=await page.goto(origin+"/dinostorage/",{waitUntil:"domcontentloaded"});
+    assert.equal(resp.status(),200);
+    const btn=page.locator("#prime-tracker-card [data-prime-zone-reset]");
+    await btn.waitFor({state:"visible",timeout:12000});
+    const primeStats=page.locator("#prime-tracker-card .prime-tracker-stats > div");
+    assert.equal(await primeStats.nth(1).locator("b").textContent(),"1");
+    assert.equal(await primeStats.nth(0).locator("b").textContent(),"1h");
+    await page.screenshot({path:path.join(screenshots,"prime-zone-reset-before-phone.png"),fullPage:true});
+    page.on("dialog",dialog=>dialog.accept());
+    await btn.click();
+    await page.locator("#prime-tracker-card [data-prime-reset-feedback]").getByText("Last reset:",{exact:false})
+      .waitFor({timeout:12000});
+    assert.equal(resetCalls,1);
+    assert.equal(await primeStats.nth(1).locator("b").textContent(),"0");
+    assert.equal(await primeStats.nth(2).locator("b").textContent(),"0");
+    assert.equal(await primeStats.nth(3).locator("b").textContent(),"0");
+    assert.equal(await primeStats.nth(0).locator("b").textContent(),"1h");
+    assert.match(await page.locator("#prime-tracker-card").textContent(),/● PRIME/);
+    assert.deepEqual(issues.errors,[],"No browser errors in Prime zone reset");
+    assert.deepEqual(issues.missing,[],"No missing Prime reset script or styles");
+    await page.screenshot({path:path.join(screenshots,"prime-zone-reset-after-phone.png"),fullPage:true});
+    console.log("PASS authenticated Prime zone reset phone");
+  }finally{await context.close();}
+}
+
 async function main() {
   assert.ok(process.env.DB_PATH, "Must set DB_PATH to isolated staging SQLite file");
   assert.ok(!process.env.DB_PATH.startsWith("/app/data"), "Never use Render persistent disk");
@@ -294,6 +373,7 @@ async function main() {
       await checkPage(browser, origin, route, phone, label + "-phone", { capture: true });
     }
     await checkAuthenticatedGroupProgress(browser, origin);
+    await checkAuthenticatedPrimeZoneReset(browser, origin);
     const page = await browser.newPage();
     const response = await page.goto(origin + "/admin");
     assert.ok([401, 403, 302].includes(response.status()), "Admin page should block unauthenticated requests; got " + response.status());
