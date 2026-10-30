@@ -535,12 +535,22 @@ function updateLife(player, sampledAt, env = process.env) {
   if (!/^\d{17}$/.test(steamId)) return null;
 
   let life = activeLife(steamId);
+  const sampledMs = Date.parse(sampledAt);
+  // Old or duplicate samples must not resurrect visits cleared by a reset.
+  // This also stops a delayed pre-entomb sample rolling back a newer life.
+  if (life) {
+    const lastSampleMs = Date.parse(life.last_seen_at);
+    const resetMs = Date.parse(life.zone_reset_at || '');
+    if ((Number.isFinite(lastSampleMs) && sampledMs <= lastSampleMs) ||
+        (Number.isFinite(resetMs) && sampledMs <= resetMs)) {
+      return getLife(life.id);
+    }
+  }
   if (needsNewLife(life, player)) {
     if (life) closeLife(life, sampledAt, 'species-or-growth-reset');
     life = createLife(player, sampledAt);
   }
 
-  const sampledMs = Date.parse(sampledAt);
   const previousMs = Date.parse(life.last_seen_at);
   const gapMs = Number.isFinite(sampledMs) && Number.isFinite(previousMs)
     ? Math.max(0, sampledMs - previousMs)
@@ -556,9 +566,20 @@ function updateLife(player, sampledAt, env = process.env) {
   const projected = projectLocation(player.location);
   const membership = zoneMembership(player.location);
 
-  for (const name of membership.migrations) upsertZoneVisit(life, 'migration', name, sampledAt, deltaSeconds);
-  for (const name of membership.patrolZones) upsertZoneVisit(life, 'patrol', name, sampledAt, deltaSeconds);
-  for (const name of membership.sanctuaries) upsertZoneVisit(life, 'sanctuary', name, sampledAt, deltaSeconds);
+  // A currently occupied zone must be exited before it counts as a fresh
+  // visit after reset. Visits to new zones start counting immediately.
+  const blocked = parseBlockedZones(life.zone_reset_blocked_json);
+  const nextBlocked = emptyBlockedZones();
+  for (const [kind, names] of [
+    ['migration', membership.migrations], ['patrol', membership.patrolZones],
+    ['sanctuary', membership.sanctuaries],
+  ]) {
+    const currentBlocked = new Set(blocked[kind]);
+    nextBlocked[kind] = names.filter(name => currentBlocked.has(name));
+    for (const name of names) {
+      if (!currentBlocked.has(name)) upsertZoneVisit(life, kind, name, sampledAt, deltaSeconds);
+    }
+  }
 
   db.prepare(`
     UPDATE prime_tracker_lives
@@ -569,6 +590,7 @@ function updateLife(player, sampledAt, env = process.env) {
         prime_started_at = ?,
         prime_seconds = prime_seconds + ?,
         last_location_json = ?,
+        zone_reset_blocked_json = ?,
         updated_at = datetime('now')
     WHERE id = ?
   `).run(
@@ -579,6 +601,7 @@ function updateLife(player, sampledAt, env = process.env) {
     primeStartedAt,
     addPrimeSeconds,
     projected ? JSON.stringify(projected) : life.last_location_json,
+    JSON.stringify(nextBlocked),
     life.id
   );
 
@@ -624,6 +647,7 @@ function mapLife(row) {
     lastLocation: parseLocationJson(row.last_location_json),
     endedAt: row.ended_at,
     endReason: row.end_reason,
+    zoneResetAt: row.zone_reset_at || null,
   };
 }
 
@@ -695,6 +719,7 @@ function trackerState(steamId, env = process.env) {
       isPrime: active.is_prime === 1,
       primeStartedAt: active.prime_started_at,
       primePreexisting: active.prime_preexisting === 1,
+      zoneResetAt: active.zone_reset_at || null,
     } : null,
     zoneVisits: activeVisits,
     history: historyRows.map(mapLife),
