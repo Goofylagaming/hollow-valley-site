@@ -37,6 +37,11 @@ for (const site of ['primalbound','hollow-valley']) {
   }
   await walk(base);
 }
+const studio=await readFile(join(root,'hollow-valley/index.html'),'utf8');
+assert.match(studio,/id="community"/);
+assert.match(studio,/hollowvalleyisle\.com/);
+assert.match(studio,/id="publishing"/);
+assert.match(studio,/primalboundgame\.com\/|primalbound-site-staging\.onrender\.com\//);
 const base=resolve(root,'primalbound');
 const web=await readFile(join(base,'web/wiki/index.html'),'utf8');
 const world=await readFile(join(base,'world/wiki/index.html'),'utf8');
@@ -57,7 +62,11 @@ for(const html of [web,world]) {
   assert.deepEqual(anchors,sections,'Sidebar chapter anchors do not match guide sections');
 }
 const intro=await readFile(join(base,'web/index.html'),'utf8');
-assert.ok(intro.includes('href="'+(production?'https://primalboundgame.com/web/':'https://hollowvalleyisle.com/primalbound/')+'"'));
+assert.ok(intro.includes('href="https://hollowvalleyisle.com/primalbound/"'), 'Web entry must retain the existing game URL until /web is a verified playable mount');
+for (const site of ['primalbound','hollow-valley']) {
+  const robots = await readFile(join(root,site,'robots.txt'),'utf8');
+  assert.equal(robots, production?'User-agent: *\nAllow: /\n':'User-agent: *\nDisallow: /\n');
+}
 const worldIntro=await readFile(join(base,'world/index.html'),'utf8');
 assert.match(worldIntro,/primalbound-downloads\/releases\/latest/);
 console.log('PASS: '+count+' pages, complete wiki chapters, search, anchors, safe scripts, staging indexing and game/download links.');

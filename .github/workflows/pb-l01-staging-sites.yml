@@ -1,0 +1,39 @@
+name: PB-L01 staging website verification
+
+on:
+  push:
+    branches:
+      - feature/pb-l01-staging-validation-20261026
+    paths:
+      - "brand-sites/**"
+      - ".github/workflows/pb-l01-staging-sites.yml"
+  pull_request:
+    branches:
+      - staging/primalbound-site-20261026
+    paths:
+      - "brand-sites/**"
+      - ".github/workflows/pb-l01-staging-sites.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-static-sites:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out staging website source
+        uses: actions/checkout@v4
+      - name: Configure Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Build staging websites and full guides
+        run: node brand-sites/build.mjs
+      - name: Verify staging routes, links and wiki content
+        run: node brand-sites/verify.mjs
+      - name: Build simulated production outputs (no deployment)
+        run: node brand-sites/build.mjs --production
+      - name: Verify simulated production routes and links
+        run: node brand-sites/verify.mjs --production
