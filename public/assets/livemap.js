@@ -95,6 +95,8 @@ async function loadPrimeChecklist() {
   }
 }
 
+window.addEventListener("hv-prime-zones-reset", () => { loadPrimeChecklist(); });
+
 document.getElementById("prime-map-checklist")?.addEventListener("change", (event) => {
   const checkbox = event.target.closest("[data-prime-check]");
   const lifeId = primeMapState?.activeLife?.id;

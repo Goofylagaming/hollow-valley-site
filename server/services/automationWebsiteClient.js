@@ -199,7 +199,13 @@ function getProgressionLeaderboard() {
 }
 
 function getPrimeTracker(steamId) {
-  return call(`/prime/${encodeURIComponent(validateSteamId(steamId))}`);
+  return call(`/prime/\${encodeURIComponent(validateSteamId(steamId))}`);
+}
+function resetPrimeZones({ steamId, lifeId, requestId, confirm }) {
+  return call(`/prime/\${encodeURIComponent(validateSteamId(steamId))}/reset-zones`, {
+    method: 'POST',
+    body: { lifeId, requestId, confirm },
+  });
 }
 
 function getDailyLoginBonus(steamId) {
@@ -796,6 +802,7 @@ module.exports = {
   linkProgressionIdentity,
   getProgressionLeaderboard,
   getPrimeTracker,
+  resetPrimeZones,
   getDailyLoginBonus,
   claimDailyLoginBonus,
   getDiscordScheduledEvents,
