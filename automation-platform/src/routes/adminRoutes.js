@@ -606,6 +606,7 @@ function rconAuditDetails(action, payload = {}) {
   if (action === 'announce') return { messageLength: String(payload.message || '').trim().length };
   if (action === 'directMessage') return { hasTarget: Boolean(payload.steamId), messageLength: String(payload.message || '').trim().length };
   if (action === 'aiDensity') return { value: payload.value };
+  if (action === 'growthMultiplier') return { value: payload.value, liveOnly: true };
   if (action === 'wipeCorpses') return { confirmationProvided: payload.confirm === 'WIPE CORPSES' };
   return {};
 }
@@ -630,5 +631,11 @@ router.post('/rcon/direct-message', (req, res) => runRcon(res, 'directMessage', 
 router.post('/rcon/save', (_req, res) => runRcon(res, 'save'));
 router.post('/rcon/wipe-corpses', (req, res) => runRcon(res, 'wipeCorpses', req.body || {}));
 router.post('/rcon/ai-density', (req, res) => runRcon(res, 'aiDensity', req.body || {}));
+router.post('/rcon/growth-multiplier', (req, res) => {
+  if (req.body?.confirm !== 'SET GROWTH') {
+    return res.status(400).json({ error: 'Type SET GROWTH exactly to confirm the live server-wide change.' });
+  }
+  return runRcon(res, 'growthMultiplier', req.body || {});
+});
 
 module.exports = router;
