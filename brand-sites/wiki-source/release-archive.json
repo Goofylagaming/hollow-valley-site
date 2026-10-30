@@ -2,6 +2,21 @@
   "schema": 1,
   "web": [
     {
+      "version": "W40.5",
+      "title": "Keep Device & Account Campaigns Separate — W40.5",
+      "notes": [
+        "Expired sign-in and sync conflicts no longer replace a separate device campaign with loaded account progress.",
+        "Disconnected account progress stays saved under its original account. Signing into another account keeps both local campaigns.",
+        "The sign-in panel can load a saved local account copy without signing in or uploading it. Your device campaign is retained as a recovery copy.",
+        "Cloud switches, imports and local recovery keep account and device recovery copies. Cancelling local recovery leaves stored campaigns unchanged.",
+        "Signing out verifies the latest device campaign before switching back. Newer or unreadable device saves stay protected.",
+        "Existing save format 23, gameplay, rewards and progression are unchanged."
+      ],
+      "published": "2026-10-30",
+      "commit": "2dbeb7d21ab88e4c254c108f7c8cf709ddce1be4",
+      "source": "https://github.com/Goofylagaming/primalbound/blob/2dbeb7d21ab88e4c254c108f7c8cf709ddce1be4/web/update-notes.json"
+    },
+    {
       "version": "W40.4",
       "title": "Fieldwork, Loadouts & Save Reliability — W40.4",
       "notes": [
