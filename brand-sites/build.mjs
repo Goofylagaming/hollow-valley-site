@@ -23,3 +23,5 @@ console.log('Built two isolated static sites; no dependencies, secrets or game s
 
 // Extend only the generated Studios static website; Primalbound builds remain unchanged.
 await import('./studio-expand.mjs');
+// Overlay the separately reviewed customer-facing catalogue after the studio expansion.
+await import('./publish-merch.mjs');
