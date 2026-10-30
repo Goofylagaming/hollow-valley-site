@@ -1,0 +1,29 @@
+/* Prime Tracker reset control — never hides preservation notice. */
+.prime-reset-controls{
+  display:flex; align-items:center; flex-wrap:wrap; gap:10px;
+  margin:16px 0 6px; padding:13px 15px;
+  border:1px solid rgba(197,156,88,.45); border-radius:8px;
+  background:linear-gradient(110deg,rgba(46,37,17,.65),rgba(11,32,23,.8));
+}
+.prime-reset-controls button.prime-zone-reset-button{
+  appearance:none; border:1px solid #c0a06b; border-radius:6px;
+  padding:10px 15px; min-height:40px; cursor:pointer;
+  background:#305b42; color:#f6e5c7;
+  font:700 12px Manrope,Arial,sans-serif;
+}
+.prime-reset-controls button.prime-zone-reset-button:hover{background:#396e4c;}
+.prime-reset-controls button.prime-zone-reset-button:focus-visible{
+  outline:3px solid #f1d78e;outline-offset:3px;
+}
+.prime-reset-controls button.prime-zone-reset-button:disabled{opacity:.55;cursor:wait;}
+.prime-reset-controls .prime-reset-hint{
+  flex:1 1 260px;margin:0;color:#d5c5a2;font-size:11px;line-height:1.6;
+}
+.prime-reset-controls [data-prime-reset-feedback]{
+  flex-basis:100%;min-height:14px;color:#b9dfbf;font-size:12px;line-height:1.6;
+}
+.prime-reset-timestamp{margin:10px 0;color:#c6caad;font-size:11px;}
+@media(max-width:590px){
+ .prime-reset-controls{align-items:stretch;flex-direction:column;}
+ .prime-reset-controls button.prime-zone-reset-button{width:100%;}
+}
