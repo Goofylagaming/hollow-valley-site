@@ -8,6 +8,7 @@ const adminRestore = require('../services/adminRestoreService');
 const discordAutomation = require('../services/discordAutomationService');
 const scheduler = require('../services/schedulerService');
 const rconControl = require('../services/rconControlService');
+const featureAnnouncements = require('../services/featureAnnouncementService');
 const serverMonitor = require('../services/serverMonitorService');
 const playerPresence = require('../services/playerPresenceService');
 const audit = require('../services/auditService');
@@ -540,6 +541,31 @@ router.post('/discord/announce', async (req, res) => {
     res.status(202).json({ ok: true, announcement });
   } catch (error) {
     res.status(400).json({ error: error.message || 'Unable to queue HerbyBot announcement.' });
+  }
+});
+
+// A reusable, manually verified publication step for growth and later
+// feature toggles. No automatic message is sent merely because RCON accepted
+// a packet; an operator must first confirm the feature actually changed.
+router.post('/feature-announcements', async (req, res) => {
+  try {
+    const payload = req.body || {};
+    const result = await audit.run('feature_announcement', 'queue_verified', {
+      kind: String(payload.kind || ''),
+      channels: Array.isArray(payload.channels) ? payload.channels : [],
+      requestId: String(payload.requestId || ''),
+      actorSteamId: String(payload.actorSteamId || '').trim().slice(0, 17) || null,
+    }, () => featureAnnouncements.queueVerifiedAnnouncement(payload),
+    (value) => ({
+      requestId: value.requestId,
+      receipts: value.receipts.map(({ destination, eventId, state }) => ({ destination, eventId, state })),
+      delivered: false,
+    }));
+    return res.status(202).json({ ok: true, announcement: result });
+  } catch (error) {
+    const status = error.code === 'FEATURE_ANNOUNCEMENT_UNAVAILABLE' ? 503
+      : error.code === 'FEATURE_ANNOUNCEMENT_CONFLICT' ? 409 : 400;
+    return res.status(status).json({ error: error.message || 'Cannot publish feature announcement.', code: error.code || null });
   }
 });
 
