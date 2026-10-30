@@ -6,6 +6,7 @@ const COMMANDS = Object.freeze({
   wipeCorpses: 0x13,
   save: 0x50,
   aiDensity: 0x92,
+  growthMultiplier: 0x22,
 });
 
 const ACTION_GATES = Object.freeze({
@@ -14,6 +15,7 @@ const ACTION_GATES = Object.freeze({
   wipeCorpses: 'RCON_CORPSE_WIPE_WRITE_ENABLED',
   save: 'RCON_SAVE_WRITE_ENABLED',
   aiDensity: 'RCON_AI_DENSITY_WRITE_ENABLED',
+  growthMultiplier: 'RCON_GROWTH_MULTIPLIER_WRITE_ENABLED',
 });
 
 function envEnabled(name) {
@@ -36,6 +38,10 @@ function writeEnabled(action = null) {
 
   const gate = ACTION_GATES[action];
   if (!gate) return false;
+
+  // A global growth change must be explicitly armed. Never inherit the broad
+  // legacy RCON_WRITE_ENABLED switch for this sensitive action.
+  if (action === 'growthMultiplier') return envEnabled(gate);
 
   // Explicit per-action gates override the legacy global gate. If a specific
   // gate is not present, keep backward compatibility with RCON_WRITE_ENABLED.
@@ -89,6 +95,18 @@ function validateDensity(value) {
   return density;
 }
 
+// Deliberately bounded to known, low-risk presets. Extend only after game-side
+// confirmation; extreme growth rates can destabilise progression.
+const GROWTH_PRESETS = Object.freeze([1, 2, 3, 4, 5, 10]);
+
+function validateGrowthMultiplier(value) {
+  const multiplier = Number(value);
+  if (!Number.isFinite(multiplier) || !GROWTH_PRESETS.includes(multiplier)) {
+    throw new Error('Growth multiplier must be one of 1, 2, 3, 4, 5, or 10');
+  }
+  return multiplier;
+}
+
 function buildAction(action, payload = {}) {
   switch (action) {
     case 'announce':
@@ -107,6 +125,8 @@ function buildAction(action, payload = {}) {
       return { action, code: COMMANDS.wipeCorpses, params: '' };
     case 'aiDensity':
       return { action, code: COMMANDS.aiDensity, params: String(validateDensity(payload.value)) };
+    case 'growthMultiplier':
+      return { action, code: COMMANDS.growthMultiplier, params: String(validateGrowthMultiplier(payload.value)) };
     default:
       throw new Error('Unsupported RCON control action');
   }
@@ -153,6 +173,8 @@ module.exports = {
   validateMessage,
   validateSteamId,
   validateDensity,
+  validateGrowthMultiplier,
+  GROWTH_PRESETS,
   buildAction,
   execute,
   getState,
