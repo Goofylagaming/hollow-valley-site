@@ -212,3 +212,8 @@ h1,h2{letter-spacing:-.055em;line-height:1.11}
 .product-external:focus-visible{outline:3px solid #799f3d;outline-offset:3px}
 @media(max-width:760px){.product-grid-single{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){.product-grid-single{grid-template-columns:1fr}}
+
+/* Chromie hoodie: supplied front-and-back product mockup, no cropping on mobile. */
+.visual-chromie{background:#f6f7f5}
+.chromie-product-image{display:block;width:100%;height:100%;object-fit:contain;object-position:center;background:#f6f7f5}
+.chromie-view-label{color:#39524b;background:rgba(255,255,255,.86);border-radius:4px;padding:3px 7px;letter-spacing:.12em}

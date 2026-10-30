@@ -21,7 +21,13 @@ test("Book 1 stays the only upcoming product while an existing Chromie Hoodie is
   assert.equal(cards.length, 2, "Exactly Book 1 and the existing Chromie Hoodie are displayed");
   assert.match(html, /Hollow Valley Chromie Hoodie/);
   assert.match(html, /Price and availability on Fourthwall/);
-  assert.match(html, /EXISTING FOURTHWALL LISTING/);
+  assert.ok(html.includes('chromie-hoodie-front-back.webp'));
+  assert.match(html, /Hollow Valley Chromie black hoodie shown from the front and back/);
+  assert.doesNotMatch(html, /class="chromie-graphic"/);
+  const asset = fs.readFileSync(path.join(root,"assets","chromie-hoodie-front-back.webp"));
+  assert.equal(asset.subarray(0,4).toString("ascii"),"RIFF");
+  assert.equal(asset.subarray(8,12).toString("ascii"),"WEBP");
+  assert.ok(asset.length>4000);
   assert.ok(html.includes('href="https://hvs-e-commerce-shop.fourthwall.com/en-aud/products/hollow-valley-chromie-hoodie"'), "Direct hoodie link must be exact");
   assert.equal((html.match(/class="preview-only">Preview only/g) || []).length, 1);
   assert.doesNotMatch(html, /class="catalogue-tools"/);

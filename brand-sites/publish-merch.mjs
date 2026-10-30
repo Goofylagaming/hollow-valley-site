@@ -15,4 +15,6 @@ if (!production) {
 await writeFile(new URL('index.html', output), html, 'utf8');
 await copyFile(new URL('styles.css', source), new URL('styles.css', output));
 await copyFile(new URL('app.js', source), new URL('app.js', output));
+await mkdir(new URL('assets/', output),{recursive:true});
+await copyFile(new URL('assets/chromie-hoodie-front-back.webp',source),new URL('assets/chromie-hoodie-front-back.webp',output));
 console.log('Published '+(production ? 'production-ready' : 'noindex staging')+' merch preview assets.');

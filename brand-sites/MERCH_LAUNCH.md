@@ -56,3 +56,6 @@ For the first Primalbound book, complete the printable/digital PDF and cover, ch
 Only real fully paid orders with a positive contribution after direct costs count towards **10 genuinely profitable orders**. Never fabricate product availability, customers, sales counters or profit. No customer details belong in GitHub or frontend JS.
 
 The existing HVS E-Commerce Windows helper is a separate **local-only drafting app**, not the customer storefront or a connected payment processor.
+
+## Chromie hoodie image update — 31 October 2026
+The user-approved supplied front/back composite now appears in the existing Chromie Hoodie product card. Source: `brand-sites/merch/assets/chromie-hoodie-front-back.webp`, published at `/merch/assets/chromie-hoodie-front-back.webp`. This is a combined product mockup, not a claim of current in-stock options or an independently verified Fourthwall image. The product links directly to the original Fourthwall listing, without creating another SKU. Book 1 stays unpublished and the 10-order validation gate is unchanged.
