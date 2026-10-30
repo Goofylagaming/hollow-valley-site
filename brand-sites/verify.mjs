@@ -6,7 +6,14 @@ let count=0;
 for(const site of ['primalbound','hollow-valley']){
  const base=resolve(root.pathname.replace(/^\/([A-Za-z]:)/,'$1'),site);
  async function walk(dir){for(const file of await readdir(dir)){const path=resolve(dir,file);if((await stat(path)).isDirectory()){await walk(path);continue;}if(!file.endsWith('.html'))continue;
- const html=await readFile(path,'utf8');assert.match(html,/noindex,nofollow/);assert.match(html,/<h1>/);assert.match(html,/id="main"/);assert.doesNotMatch(html,/<form|<script|iframe|DATABASE_URL|SESSION_SECRET/i);
+ const html=await readFile(path,'utf8');assert.match(html,/noindex,nofollow/);assert.match(html,/<h1>/);assert.match(html,/id="main(?:-content)?"/);
+ assert.doesNotMatch(html,/<form\\b|<iframe\\b|DATABASE_URL|SESSION_SECRET/i);
+ const scripts=[...html.matchAll(/<script\\b[^>]*>/gi)].map(x=>x[0]);
+ if(path.endsWith('/merch/index.html')) {
+   assert.deepEqual(scripts,['<script defer src="/merch/app.js">'],'Only the local merch filter script is allowed');
+ }else{
+   assert.equal(scripts.length,0,'Unexpected script in static site: '+path);
+ }
  for(const [,url]of html.matchAll(/href="([^"]+)"/g)){if(url.startsWith('#')){assert.ok(html.includes(`id="${url.slice(1)}"`),url);continue;}if(!url.startsWith('/'))continue;if(url.startsWith('/#')){const home=await readFile(resolve(base,'index.html'),'utf8');assert.ok(home.includes('id='+String.fromCharCode(34)+url.slice(2)+String.fromCharCode(34)));continue;}const target=resolve(base,'.'+url+(url.endsWith('/')?'index.html':''));assert.ok(target.startsWith(base));await stat(target);}
  count++;
  }}await walk(base);
@@ -28,9 +35,14 @@ assert.match(studioHome,/Two worlds\. One creative home/);
 assert.match(studioHome,/href="\/hollow-valley\/"/);
 assert.match(studioHome,/href="\/primalbound\/"/);
 const merchPage=await readFile(new URL('merch/index.html',studioBase),'utf8');
-assert.match(merchPage,/No orders/);
-assert.match(merchPage,/mailto:/);
-assert.match(merchPage,/Colouring Book Collection/);
-assert.equal((merchPage.match(/class="merch-item"/g)||[]).length,6);
-assert.doesNotMatch(merchPage,/<form|<script|<iframe|https:\/\/(?:checkout\.stripe\.com|buy\.stripe\.com)/i);
-console.log('PASS: Studios routes, Hollow Valley/Primalbound cards and six merch concepts; no checkout or live integrations.');
+assert.match(merchPage,/Fourthwall shop/i);
+assert.match(merchPage,/Colouring Book/i);
+assert.equal((merchPage.match(/class="product-card"/g)||[]).length,6);
+assert.equal((merchPage.match(/class="preview-only">Preview only/g)||[]).length,6);
+assert.match(merchPage,/href="https:\/\/hvs-e-commerce-shop\.fourthwall\.com\//);
+assert.doesNotMatch(merchPage,/<form\\b|<iframe\\b|https:\/\/(?:checkout\.stripe\.com|buy\.stripe\.com)/i);
+const merchJs=await readFile(new URL('merch/app.js',studioBase),'utf8');
+const merchCss=await readFile(new URL('merch/styles.css',studioBase),'utf8');
+assert.match(merchJs,/applyFilters/);
+assert.match(merchCss,/@media\\(max-width:530px\\)/);
+console.log('PASS: Studios routes, six merch preview products, safe external shop link, local filters and isolated assets.');
