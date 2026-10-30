@@ -8,6 +8,9 @@ on:
       - 'server/routes/adminOperations.js'
       - 'server/services/automationWebsiteClient.js'
       - 'test/adminGrowthControl.test.js'
+      - 'test/adminFeatureAnnouncements.test.js'
+      - 'automation-platform/src/services/featureAnnouncementService.js'
+      - 'automation-platform/test/featureAnnouncements.test.js'
       - 'automation-platform/src/services/rconControlService.js'
       - 'automation-platform/src/routes/adminRoutes.js'
       - 'automation-platform/test/adminGrowthMultiplierEndpoint.test.js'
@@ -25,4 +28,4 @@ jobs:
         with:
           node-version: '22'
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: node --test test/adminGrowthControl.test.js test/adminCorpseWipe.test.js test/adminOperationsRoute.test.js
+      - run: node --test test/adminGrowthControl.test.js test/adminFeatureAnnouncements.test.js test/adminCorpseWipe.test.js test/adminCommsRoute.test.js test/adminOperationsRoute.test.js
