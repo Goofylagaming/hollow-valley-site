@@ -692,6 +692,22 @@ function activateAdminGlobalBodyDrop() {
   });
 }
 
+function setAdminGrowthMultiplier(value, confirm) {
+  if (confirm !== 'SET GROWTH') throw new Error('Growth change requires SET GROWTH confirmation');
+  if (![1, 2, 3, 4, 5, 10].includes(Number(value))) throw new Error('Invalid growth multiplier');
+  return callAdmin('/rcon/growth-multiplier', {
+    method: 'POST',
+    body: { value: Number(value), confirm },
+  });
+}
+
+function queueAdminFeatureAnnouncement(payload) {
+  return callAdmin('/feature-announcements', {
+    method: 'POST',
+    body: payload,
+  });
+}
+
 function wipeAdminCorpses(confirm) {
   if (String(confirm || '') !== 'WIPE CORPSES') {
     throw new Error('Corpse wipe requires the exact confirmation WIPE CORPSES');
@@ -862,6 +878,8 @@ module.exports = {
   setAdminGlobalBodyDropEnabled,
   activateAdminGlobalBodyDrop,
   wipeAdminCorpses,
+  setAdminGrowthMultiplier,
+  queueAdminFeatureAnnouncement,
   createAdminBackup,
   getAdminServerHealth,
   getAdminDiscordState,

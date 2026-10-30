@@ -8,6 +8,7 @@ const adminRestore = require('../services/adminRestoreService');
 const discordAutomation = require('../services/discordAutomationService');
 const scheduler = require('../services/schedulerService');
 const rconControl = require('../services/rconControlService');
+const featureAnnouncements = require('../services/featureAnnouncementService');
 const serverMonitor = require('../services/serverMonitorService');
 const playerPresence = require('../services/playerPresenceService');
 const audit = require('../services/auditService');
@@ -543,6 +544,31 @@ router.post('/discord/announce', async (req, res) => {
   }
 });
 
+// A reusable, manually verified publication step for growth and later
+// feature toggles. No automatic message is sent merely because RCON accepted
+// a packet; an operator must first confirm the feature actually changed.
+router.post('/feature-announcements', async (req, res) => {
+  try {
+    const payload = req.body || {};
+    const result = await audit.run('feature_announcement', 'queue_verified', {
+      kind: String(payload.kind || ''),
+      channels: Array.isArray(payload.channels) ? payload.channels : [],
+      requestId: String(payload.requestId || ''),
+      actorSteamId: String(payload.actorSteamId || '').trim().slice(0, 17) || null,
+    }, () => featureAnnouncements.queueVerifiedAnnouncement(payload),
+    (value) => ({
+      requestId: value.requestId,
+      receipts: value.receipts.map(({ destination, eventId, state }) => ({ destination, eventId, state })),
+      delivered: false,
+    }));
+    return res.status(202).json({ ok: true, announcement: result });
+  } catch (error) {
+    const status = error.code === 'FEATURE_ANNOUNCEMENT_UNAVAILABLE' ? 503
+      : error.code === 'FEATURE_ANNOUNCEMENT_CONFLICT' ? 409 : 400;
+    return res.status(status).json({ error: error.message || 'Cannot publish feature announcement.', code: error.code || null });
+  }
+});
+
 router.get('/monitor', (_req, res) => {
   res.json(serverMonitor.getState());
 });
@@ -606,6 +632,7 @@ function rconAuditDetails(action, payload = {}) {
   if (action === 'announce') return { messageLength: String(payload.message || '').trim().length };
   if (action === 'directMessage') return { hasTarget: Boolean(payload.steamId), messageLength: String(payload.message || '').trim().length };
   if (action === 'aiDensity') return { value: payload.value };
+  if (action === 'growthMultiplier') return { value: payload.value, liveOnly: true };
   if (action === 'wipeCorpses') return { confirmationProvided: payload.confirm === 'WIPE CORPSES' };
   return {};
 }
@@ -630,5 +657,11 @@ router.post('/rcon/direct-message', (req, res) => runRcon(res, 'directMessage', 
 router.post('/rcon/save', (_req, res) => runRcon(res, 'save'));
 router.post('/rcon/wipe-corpses', (req, res) => runRcon(res, 'wipeCorpses', req.body || {}));
 router.post('/rcon/ai-density', (req, res) => runRcon(res, 'aiDensity', req.body || {}));
+router.post('/rcon/growth-multiplier', (req, res) => {
+  if (req.body?.confirm !== 'SET GROWTH') {
+    return res.status(400).json({ error: 'Type SET GROWTH exactly to confirm the live server-wide change.' });
+  }
+  return runRcon(res, 'growthMultiplier', req.body || {});
+});
 
 module.exports = router;

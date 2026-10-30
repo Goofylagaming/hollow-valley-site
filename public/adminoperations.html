@@ -69,6 +69,63 @@
           </section>
 
 
+          <section class="ops-panel" id="growth-controls">
+            <div class="list-heading"><span>SERVER GROWTH RATE</span><small>Admin only · guarded RCON</small></div>
+            <p class="section-intro">Apply a live growth multiplier. The game server must acknowledge this command before assuming it had any effect. A live RCON change does not update the Windows Game.ini; keep GrowthMultiplier there in sync for future restarts.</p>
+            <div class="page-toolbar ops-toolbar">
+              <label for="ops-growth-value">Growth speed</label>
+              <select id="ops-growth-value" aria-label="Growth multiplier" style="padding:10px;background:#0f172a;color:#fff;border:1px solid #334155">
+                <option value="1">1× — Vanilla</option>
+                <option value="2">2×</option>
+                <option value="3" selected>3×</option>
+                <option value="4">4×</option>
+                <option value="5">5×</option>
+                <option value="10">10×</option>
+              </select>
+              <span id="ops-growth-state" class="ops-status-label">Checking…</span>
+              <button class="small-button" id="ops-growth-apply" type="button" disabled>Request live growth update</button>
+              <span id="ops-growth-message" role="status" aria-live="polite">Loading growth control state…</span>
+            </div>
+            <p class="section-intro">This panel cannot confirm the server's existing effective multiplier or edit Game.ini remotely. Changes are disabled until the dedicated growth write gate and a supported game-host RCON path are verified.</p>
+          </section>
+
+          <section class="ops-panel" id="feature-announcements">
+            <div class="list-heading"><span>FEATURE ANNOUNCEMENTS</span><small>Admin only · HerbyBot</small></div>
+            <p class="section-intro">Announce verified growth changes or community events from the Admin Hub. Queue to Discord announcements and/or the server-progress updates channel. In-game broadcasting will require the private Windows RCON host bridge; it is not enabled here.</p>
+            <div class="page-toolbar ops-toolbar">
+              <label for="ops-feature-type">Type</label>
+              <select id="ops-feature-type" style="padding:10px;background:#0f172a;color:#fff;border:1px solid #334155">
+                <option value="growth">Global growth multiplier</option>
+                <option value="custom">Other confirmed event / feature</option>
+              </select>
+              <label for="ops-feature-growth" id="ops-feature-growth-label">Growth rate</label>
+              <select id="ops-feature-growth" style="padding:10px;background:#0f172a;color:#fff;border:1px solid #334155">
+                <option value="1">1×</option><option value="2">2×</option><option value="3" selected>3×</option>
+                <option value="4">4×</option><option value="5">5×</option><option value="10">10×</option>
+              </select>
+            </div>
+            <div id="ops-feature-custom-wrap" hidden style="margin:12px 0">
+              <label for="ops-feature-custom">Announcement text</label>
+              <textarea id="ops-feature-custom" rows="3" maxlength="1800" style="display:block;width:100%;margin-top:8px;padding:10px;background:#0f172a;color:#fff;border:1px solid #334155" placeholder="What changed, when it starts and who benefits?"></textarea>
+            </div>
+            <p class="section-intro" style="margin-top:10px">Message preview</p>
+            <p id="ops-feature-preview" style="white-space:pre-wrap;overflow-wrap:anywhere" aria-live="polite"></p>
+            <div class="page-toolbar ops-toolbar">
+              <label><input id="ops-feature-community" type="checkbox" checked> Community announcements (Discord)</label>
+              <label><input id="ops-feature-progress" type="checkbox"> Server progress &amp; updates (Discord)</label>
+              <label title="Requires a private Windows-host RCON command bridge"><input type="checkbox" disabled> In-game (not connected)</label>
+            </div>
+            <div class="page-toolbar ops-toolbar">
+              <label><input id="ops-feature-verified" type="checkbox"> I verified this change is active on the live server</label>
+            </div>
+            <div class="page-toolbar ops-toolbar">
+              <span id="ops-feature-state" class="ops-status-label">Checking HerbyBot…</span>
+              <button class="small-button" id="ops-feature-publish" type="button" disabled>Queue verified announcement</button>
+              <button class="small-button" id="ops-feature-copy" type="button">Copy in-game text</button>
+              <span id="ops-feature-message" role="status" aria-live="polite">Messages are queued, not guaranteed delivered.</span>
+            </div>
+          </section>
+
           <section class="ops-panel">
             <div class="list-heading"><span>CORPSE WIPE</span><small>admin-only · destructive RCON action</small></div>
             <p class="section-intro">Removes dead bodies from the live Evrima world. The action remains protected by the automation RCON corpse-wipe safety gate and requires an explicit confirmation before it is sent.</p>
@@ -117,6 +174,6 @@
     <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="/assets/common.js?v=21"></script>
-  <script src="/assets/adminoperations.js?v=10"></script>
+  <script src="/assets/adminoperations.js?v=12"></script>
 </body>
 </html>

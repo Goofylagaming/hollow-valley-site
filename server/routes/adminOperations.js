@@ -319,6 +319,69 @@ router.post("/bodydrop-global/activate", async (_req, res) => {
   }
 });
 
+router.post("/growth-multiplier", async (req, res) => {
+  const value = Number(req.body?.value);
+  if (![1, 2, 3, 4, 5, 10].includes(value)) {
+    return res.status(400).json({ error: "Growth multiplier must be 1, 2, 3, 4, 5, or 10." });
+  }
+  if (req.body?.confirm !== "SET GROWTH") {
+    return res.status(400).json({ error: 'Set growth requires the exact confirmation "SET GROWTH".' });
+  }
+  try {
+    res.set("Cache-Control", "no-store");
+    return res.json(await automation.setAdminGrowthMultiplier(value, "SET GROWTH"));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not request growth multiplier change.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.post("/feature-announcement", async (req, res) => {
+  const body = req.body || {};
+  const channels = body.channels;
+  if (body.verified !== true || body.confirm !== "ANNOUNCE VERIFIED") {
+    return res.status(400).json({ error: "Confirm that the change is active before announcing it." });
+  }
+  if (!Array.isArray(channels) || channels.length < 1 || channels.length > 2 ||
+      new Set(channels).size !== channels.length ||
+      channels.some((channel) => !["announcement", "progress"].includes(channel))) {
+    return res.status(400).json({ error: "Choose one or two supported Discord channels." });
+  }
+  const kind = String(body.kind || "");
+  if (kind === "growth") {
+    if (![1, 2, 3, 4, 5, 10].includes(Number(body.multiplier))) {
+      return res.status(400).json({ error: "Growth multiplier must be 1, 2, 3, 4, 5 or 10." });
+    }
+  } else if (kind === "custom") {
+    const message = String(body.message || "").trim();
+    if (!message || message.length > 1800 || /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(message)) {
+      return res.status(400).json({ error: "Provide a valid event announcement of 1–1,800 characters." });
+    }
+  } else {
+    return res.status(400).json({ error: "Unsupported feature announcement type." });
+  }
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(body.requestId || ""))) {
+    return res.status(400).json({ error: "A valid announcement request ID is required." });
+  }
+  try {
+    res.set("Cache-Control", "no-store");
+    return res.status(202).json(await automation.queueAdminFeatureAnnouncement({
+      kind,
+      multiplier: kind === "growth" ? Number(body.multiplier) : undefined,
+      message: kind === "custom" ? String(body.message).trim() : undefined,
+      channels,
+      requestId: String(body.requestId),
+      verified: true,
+      confirm: "ANNOUNCE VERIFIED",
+      // Trusted website session; never accept this identity from the browser.
+      actorSteamId: String(req.user?.steam_id || "").trim(),
+    }));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not queue feature announcement.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
 router.post("/corpse-wipe", async (req, res) => {
   if (String(req.body?.confirm || "") !== "WIPE CORPSES") {
     return res.status(400).json({ error: 'Type "WIPE CORPSES" exactly to confirm this action.' });
