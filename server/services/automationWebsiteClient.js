@@ -701,6 +701,13 @@ function setAdminGrowthMultiplier(value, confirm) {
   });
 }
 
+function queueAdminFeatureAnnouncement(payload) {
+  return callAdmin('/feature-announcements', {
+    method: 'POST',
+    body: payload,
+  });
+}
+
 function wipeAdminCorpses(confirm) {
   if (String(confirm || '') !== 'WIPE CORPSES') {
     throw new Error('Corpse wipe requires the exact confirmation WIPE CORPSES');
@@ -872,6 +879,7 @@ module.exports = {
   activateAdminGlobalBodyDrop,
   wipeAdminCorpses,
   setAdminGrowthMultiplier,
+  queueAdminFeatureAnnouncement,
   createAdminBackup,
   getAdminServerHealth,
   getAdminDiscordState,
