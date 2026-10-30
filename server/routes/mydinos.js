@@ -324,6 +324,49 @@ router.get("/active-character", requireAuth, async (req, res) => {
   }
 });
 
+// This is intentionally a manual website action, not an Entomb or RCON
+// command. Only the authenticated Steam player can reset their own active life.
+router.post("/prime-tracker/reset-zones", requireAuth, async (req, res) => {
+  res.set("Cache-Control", "private, no-store");
+  const steamId = requireSteam(req, res);
+  if (!steamId) return;
+  if (!/^\d{17}$/.test(steamId)) {
+    return res.status(403).json({ error: "Sign in with a linked Steam account to reset zones." });
+  }
+  let allowedOrigin;
+  try {
+    allowedOrigin = process.env.PUBLIC_SITE_URL
+      ? new URL(process.env.PUBLIC_SITE_URL).origin
+      : req.protocol + "://" + req.get("Host");
+  } catch {
+    return res.status(503).json({ error: "The website origin is not configured." });
+  }
+  if (!req.get("Origin") || req.get("Origin") !== allowedOrigin) {
+    return res.status(403).json({ error: "Reset zones through the Hollow Valley website only." });
+  }
+  if (!req.is("application/json")) {
+    return res.status(415).json({ error: "A JSON reset request is required." });
+  }
+  try {
+    const result = await automation.resetPrimeZones({
+      steamId,
+      lifeId: req.body?.lifeId,
+      requestId: req.body?.requestId,
+      confirm: req.body?.confirm,
+    });
+    return res.json({
+      ok: true,
+      duplicate: result.duplicate === true,
+      lifeId: result.lifeId,
+      resetAt: result.resetAt,
+      clearedZones: result.clearedZones,
+    });
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not reset Prime Tracker zones.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
 router.get("/prime-tracker", requireAuth, async (req, res) => {
   const steamId = requireSteam(req, res);
   if (!steamId) return;
