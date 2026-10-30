@@ -134,5 +134,8 @@ assert.doesNotMatch(merchHtml,/<form\b|<iframe\b|checkout\.stripe\.com|buy\.stri
 const merchJS=await readFile(join(root,'hollow-valley','merch','app.js'),'utf8');
 const merchCSS=await readFile(join(root,'hollow-valley','merch','styles.css'),'utf8');
 assert.match(merchJS,/getElementById\("year"\)/);
-assert.match(merchCSS,/@media\(max-width:530px\)/);\nassert.match(merchHtml,/Books 2–5, hoodies/);\nassert.match(merchHtml,/All other product development is paused/);\nassert.doesNotMatch(merchHtml,/class="catalogue-tools"/);
+assert.match(merchCSS,/@media\(max-width:530px\)/);
+assert.match(merchHtml,/Books 2–5, hoodies/);
+assert.match(merchHtml,/All other product development is paused/);
+assert.doesNotMatch(merchHtml,/class="catalogue-tools"/);
 console.log('PASS: '+count+' pages, wiki/patch notes, Book 1-only launch gate, navigation and safe static assets.');
