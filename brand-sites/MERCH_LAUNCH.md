@@ -17,15 +17,15 @@ The parent site is a static Render site. Do not deploy this route to `hollow-val
 
 ## What is implemented?
 
-- **Book 1 exclusively**: one product preview only. Books 2–5, hoodies, T-shirts, stickers, sourced products and all non-Book-1 merchandise are on hold until 10 verified profitable customer orders.
+- **Book 1 remains the sole upcoming product under active development.** The user-approved, already-existing Hollow Valley Chromie Hoodie is displayed with a direct link to its Fourthwall product listing. Books 2–5, **new** hoodie designs, T-shirts, stickers, sourced products and all other expansion remain on hold until 10 verified profitable Book 1 customer orders.
 - Original CSS-made sample illustrations; **not** finished designs, mockup proofs or photos of items.
 - Explicit draft/preparation statuses on all products; no implied stock, real prices, live product URLs or checkout on this site.
-- One public link to the existing Fourthwall storefront; the shop destination does not imply API or admin access.
+- One public link to the existing Fourthwall storefront **and** a direct link to the existing Chromie Hoodie listing: https://hvs-e-commerce-shop.fourthwall.com/en-aud/products/hollow-valley-chromie-hoodie . This user-provided product URL does not confer API or admin access, and price, stock, product images, size and shipping have **not** been independently verified.
 - A `/merch/` navigation link on the production parent homepage.
 - A source file publisher copies `brand-sites/merch/{index.html,styles.css,app.js}` into `brand-sites/dist/hollow-valley/merch/` after regular site generation. Only this output is modified.
 - Staging adds `noindex,nofollow` metadata; production does not.
 - JS is confined to a same-origin copyright year display. No cookies, forms, PII, payment handling, ecommerce SDK, external tracking or personal data collection.
-- `node --test brand-sites/test/merch.test.cjs` enforces one-product-only visibility, hold-state copy, static safety and script behavior.
+- `node --test brand-sites/test/merch.test.cjs` enforces Book 1-only *new-product* development plus one existing Chromie Hoodie listing, hold-state copy, link accuracy, static safety and script behavior.
 
 ## Build and verify
 
