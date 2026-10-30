@@ -197,5 +197,18 @@ h1,h2{letter-spacing:-.055em;line-height:1.11}
 .focus-goal span{font-size:10px;font-weight:800;line-height:1.45;color:#4b6c5a}
 .hold-note{margin:19px 0 0;color:#607067;font-size:12px;line-height:1.8;max-width:950px}
 .hold-note strong{color:#385a48}
-.product-grid-single{grid-template-columns:minmax(260px,390px);justify-content:start}
+.product-grid-single{grid-template-columns:repeat(2,minmax(0,390px));justify-content:start}
 @media(max-width:650px){.focus-panel{grid-template-columns:1fr;padding:25px;gap:18px}.focus-goal{min-width:0;text-align:left;border-left:0;border-top:1px solid #c2d1bf;padding:20px 0 0;align-items:center;flex-direction:row;gap:20px}.focus-goal strong{font-size:55px}.product-grid-single{grid-template-columns:1fr}}
+
+/* Existing community product link: illustrative card only, not a product photograph. */
+.visual-chromie{background:radial-gradient(circle at 42% 34%,#597869 0,#2b5048 51%,#132f2f 100%);color:#ecf2e3}
+.chromie-graphic{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;transform:rotate(-7deg);padding:14px;border:1px solid #9daf91;border-radius:12px;box-shadow:8px 12px 0 rgba(12,34,30,.25)}
+.chromie-graphic small{font-size:12px;font-weight:800;letter-spacing:.22em;color:#d3eab6}
+.chromie-graphic strong{font-weight:950;font-size:clamp(33px,3vw,47px);letter-spacing:-.055em;line-height:1.15}
+.chromie-graphic span{font-size:10px;font-weight:900;letter-spacing:.28em}
+.status-existing{background:#e3eee0;color:#2b6446}
+.product-external{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;margin-top:15px;padding:12px 13px;border-radius:8px;background:#284b3e;color:#fff;font-size:12px;font-weight:850;transition:background .15s}
+.product-external:hover{background:#396c53;color:#fff}
+.product-external:focus-visible{outline:3px solid #799f3d;outline-offset:3px}
+@media(max-width:760px){.product-grid-single{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){.product-grid-single{grid-template-columns:1fr}}
