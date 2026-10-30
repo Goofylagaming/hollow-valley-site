@@ -199,10 +199,10 @@ function getProgressionLeaderboard() {
 }
 
 function getPrimeTracker(steamId) {
-  return call(`/prime/\${encodeURIComponent(validateSteamId(steamId))}`);
+  return call(`/prime/${encodeURIComponent(validateSteamId(steamId))}`);
 }
 function resetPrimeZones({ steamId, lifeId, requestId, confirm }) {
-  return call(`/prime/\${encodeURIComponent(validateSteamId(steamId))}/reset-zones`, {
+  return call(`/prime/${encodeURIComponent(validateSteamId(steamId))}/reset-zones`, {
     method: 'POST',
     body: { lifeId, requestId, confirm },
   });
