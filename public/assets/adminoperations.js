@@ -177,6 +177,24 @@ function render(data) {
       : (rcon.configured ? "Corpse wipe is present but the backend safety gate is OFF." : "Automation RCON is not currently available.");
   }
 
+  const growthReady = Boolean(rcon.configured && rcon.actionGates?.growthMultiplier);
+  const growthState = document.getElementById("ops-growth-state");
+  const growthButton = document.getElementById("ops-growth-apply");
+  const growthMessage = document.getElementById("ops-growth-message");
+  if (growthState) {
+    growthState.textContent = growthReady ? "ARMED" : (rcon.configured ? "GATE OFF" : "RCON UNAVAILABLE");
+    growthState.className = `ops-status-label ${growthReady ? "ready" : "attention"}`;
+  }
+  if (growthButton) {
+    growthButton.disabled = !growthReady;
+    growthButton.title = growthReady ? "Live-only change, requires confirmation" : "Dedicated growth RCON write gate or host integration not available";
+  }
+  if (growthMessage && !growthMessage.dataset.busy) {
+    growthMessage.textContent = growthReady
+      ? "Ready for explicit live change. Game.ini must be edited separately for persistence."
+      : "Disabled until the game-host growth command is verified and explicitly enabled.";
+  }
+
   const integrations = status.integrations || {};
   document.getElementById("ops-integrations").innerHTML = [
     ["BinaryLane presence feed", integrations.externalPresence],
@@ -318,6 +336,38 @@ document.getElementById("ops-global-bodydrop-activate")?.addEventListener("click
     await loadGlobalBodyDrop();
   } finally {
     button.textContent = "Activate Global Drop →";
+  }
+});
+
+document.getElementById("ops-growth-apply")?.addEventListener("click", async (event) => {
+  const value = Number(document.getElementById("ops-growth-value")?.value);
+  if (![1, 2, 3, 4, 5, 10].includes(value)) return;
+  if (!window.confirm(
+    `Request ${value}× growth on the LIVE server?\n\nThis action requires working Evrima RCON and does NOT modify Game.ini.\n\nAfter sending, verify actual growth in game; RCON receipt does not prove the new rate is effective.`
+  )) return;
+  const button = event.currentTarget;
+  const message = document.getElementById("ops-growth-message");
+  button.disabled = true;
+  if (message) {
+    message.dataset.busy = "1";
+    message.textContent = `Requesting ${value}× growth through guarded RCON…`;
+  }
+  try {
+    const response = await api("/api/admin-operations/growth-multiplier", {
+      method: "POST",
+      body: JSON.stringify({ value, confirm: "SET GROWTH" }),
+    });
+    const result = response.result || response;
+    if (message) {
+      message.textContent = result.sent
+        ? `${value}× growth RCON request sent. Verify in-game; persist with GrowthMultiplier=${value} in Game.ini.`
+        : "Growth request completed without a confirmed RCON send.";
+    }
+  } catch (error) {
+    if (message) message.textContent = error.message || "Growth change failed.";
+  } finally {
+    if (message) delete message.dataset.busy;
+    await loadOperations({ force: true });
   }
 });
 
