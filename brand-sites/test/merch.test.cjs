@@ -21,7 +21,7 @@ test("Book 1 stays the only upcoming product while an existing Chromie Hoodie is
   assert.equal(cards.length, 2, "Exactly Book 1 and the existing Chromie Hoodie are displayed");
   assert.match(html, /Hollow Valley Chromie Hoodie/);
   assert.match(html, /Price and availability on Fourthwall/);
-  assert.match(html, /chromie-hoodie-front-back\\.webp/);
+  assert.ok(html.includes('chromie-hoodie-front-back.webp'));
   assert.match(html, /Hollow Valley Chromie black hoodie shown from the front and back/);
   assert.doesNotMatch(html, /class="chromie-graphic"/);
   const asset = fs.readFileSync(path.join(root,"assets","chromie-hoodie-front-back.webp"));
