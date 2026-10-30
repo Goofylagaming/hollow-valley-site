@@ -319,6 +319,23 @@ router.post("/bodydrop-global/activate", async (_req, res) => {
   }
 });
 
+router.post("/growth-multiplier", async (req, res) => {
+  const value = Number(req.body?.value);
+  if (![1, 2, 3, 4, 5, 10].includes(value)) {
+    return res.status(400).json({ error: "Growth multiplier must be 1, 2, 3, 4, 5, or 10." });
+  }
+  if (req.body?.confirm !== "SET GROWTH") {
+    return res.status(400).json({ error: 'Set growth requires the exact confirmation "SET GROWTH".' });
+  }
+  try {
+    res.set("Cache-Control", "no-store");
+    return res.json(await automation.setAdminGrowthMultiplier(value, "SET GROWTH"));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not request growth multiplier change.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
 router.post("/corpse-wipe", async (req, res) => {
   if (String(req.body?.confirm || "") !== "WIPE CORPSES") {
     return res.status(400).json({ error: 'Type "WIPE CORPSES" exactly to confirm this action.' });
