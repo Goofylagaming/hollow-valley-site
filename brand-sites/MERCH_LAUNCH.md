@@ -17,15 +17,15 @@ The parent site is a static Render site. Do not deploy this route to `hollow-val
 
 ## What is implemented?
 
-- Separate responsive shop catalogue with four collections, six concept products, in-page search and filtering.
+- **Book 1 exclusively**: one product preview only. Books 2–5, hoodies, T-shirts, stickers, sourced products and all non-Book-1 merchandise are on hold until 10 verified profitable customer orders.
 - Original CSS-made sample illustrations; **not** finished designs, mockup proofs or photos of items.
 - Explicit draft/preparation statuses on all products; no implied stock, real prices, live product URLs or checkout on this site.
 - One public link to the existing Fourthwall storefront; the shop destination does not imply API or admin access.
 - A `/merch/` navigation link on the production parent homepage.
 - A source file publisher copies `brand-sites/merch/{index.html,styles.css,app.js}` into `brand-sites/dist/hollow-valley/merch/` after regular site generation. Only this output is modified.
 - Staging adds `noindex,nofollow` metadata; production does not.
-- JS is confined to a same-origin catalogue filter. No cookies, forms, PII, payment handling, ecommerce SDK, external tracking or personal data collection.
-- `node --test brand-sites/test/merch.test.cjs` covers the static catalogue and filter behavior.
+- JS is confined to a same-origin copyright year display. No cookies, forms, PII, payment handling, ecommerce SDK, external tracking or personal data collection.
+- `node --test brand-sites/test/merch.test.cjs` enforces one-product-only visibility, hold-state copy, static safety and script behavior.
 
 ## Build and verify
 
@@ -42,7 +42,7 @@ The generated `dist/` output is ignored and must not be committed. The productio
 ## Deployment approval and rollback
 
 1. CI passes on the PR. Verify unchanged World and Web wikis, patch notes and parent homepage.
-2. Check `https://hollow-valley-studios-staging.onrender.com/merch/` on desktop/mobile for HTTP 200, style and JS assets, functional filters, keyboard navigation and genuine Fourthwall link. Render build status alone doesn't prove external browser verification.
+2. Check staging or a preview release on desktop/mobile for HTTP 200, style and JS assets, keyboard navigation and genuine Fourthwall link. Render build status alone doesn't prove external browser verification.
 3. Obtain explicit owner approval before merging/publishing to the existing production branch and triggering `hollow-valley-studios` deploy. No DNS edits should be needed for the route if the domain already maps to this service.
 4. Re-verify `https://hollowvalleystudios.com/merch/` after production deploy, using real browser testing.
 5. If release fails, roll back the **static studio site** to its previous successful Render deployment. Never roll back the live The Isle portal to change this page.
@@ -51,7 +51,7 @@ The generated `dist/` output is ignored and must not be committed. The productio
 
 Fourthwall administrative authorization is **not** configured; a public URL is not sufficient. The owner needs to authenticate directly to Fourthwall to create real listings, approve download assets/rights and pricing, and see platform-reported orders and costs.
 
-For the first Primalbound book, complete the printable/digital PDF and cover, check content ownership and age suitability, inspect real listing fees, tax/GST, download fulfilment, refunds, and final AUD price before adding a direct product checkout link.
+For the first Primalbound book, complete the printable/digital PDF and cover, check content ownership and age suitability, inspect real listing fees, tax/GST, download fulfilment, refunds, and final AUD price before adding a direct product checkout link. Book 1 remains NOT FOR SALE until these pass. Record verified order profit privately and keep customer identifiers out of GitHub. Do not lift the hold on any other product line until 10 paid, fulfilled and profitable real-customer orders are confirmed. Check that the earlier exposed Fourthwall Open API account was revoked/rotated before any store automation resumes.
 
 Only real fully paid orders with a positive contribution after direct costs count towards **10 genuinely profitable orders**. Never fabricate product availability, customers, sales counters or profit. No customer details belong in GitHub or frontend JS.
 
