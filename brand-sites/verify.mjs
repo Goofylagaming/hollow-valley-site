@@ -67,7 +67,7 @@ assert.match(web,/format 18/);
 assert.match(web,/Trophy Hall/);
 assert.match(web,/Unified Expedition Journal/);
 assert.match(web,/format 16 unchanged/);
-assert.match(web,/manual collection|collect manually/);
+assert.match(web,/manual collection|collect manually|manually collected/);
 assert.match(web,/15 → 16/);
 assert.match(web,/Moss-Crowned Colossus/);
 assert.match(web,/9–13 stamina/);
