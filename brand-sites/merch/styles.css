@@ -186,3 +186,16 @@ h1,h2{letter-spacing:-.055em;line-height:1.11}
   .purchase-points>div{padding:17px 0}
 }
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{transition-duration:.01ms!important;animation-duration:.01ms!important}}
+
+/* Book 1 validation release: other collections are intentionally paused. */
+.focus-panel{display:grid;grid-template-columns:1fr auto;gap:32px;align-items:center;border-radius:18px;background:#e6eadc;border:1px solid #cbd7c5;padding:34px 38px;margin:20px 0 22px}
+.focus-kicker{font-size:10px;font-weight:900;letter-spacing:.16em;color:#4f7963}
+.focus-panel h3{font-size:clamp(27px,3.1vw,41px);letter-spacing:-.05em;line-height:1.15;margin:12px 0}
+.focus-panel p{font-size:13px;color:#5d6c63;line-height:1.8;max-width:620px;margin:0}
+.focus-goal{min-width:145px;text-align:center;border-left:1px solid #c2d1bf;padding:16px 0 16px 28px;display:flex;flex-direction:column;gap:6px}
+.focus-goal strong{font-size:72px;line-height:1;font-weight:950;letter-spacing:-.08em;color:#254c39}
+.focus-goal span{font-size:10px;font-weight:800;line-height:1.45;color:#4b6c5a}
+.hold-note{margin:19px 0 0;color:#607067;font-size:12px;line-height:1.8;max-width:950px}
+.hold-note strong{color:#385a48}
+.product-grid-single{grid-template-columns:minmax(260px,390px);justify-content:start}
+@media(max-width:650px){.focus-panel{grid-template-columns:1fr;padding:25px;gap:18px}.focus-goal{min-width:0;text-align:left;border-left:0;border-top:1px solid #c2d1bf;padding:20px 0 0;align-items:center;flex-direction:row;gap:20px}.focus-goal strong{font-size:55px}.product-grid-single{grid-template-columns:1fr}}
