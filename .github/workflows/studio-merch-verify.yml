@@ -1,0 +1,44 @@
+name: Studios merch storefront verification
+on:
+  push:
+    branches:
+      - feature/studio-merch-storefront-20261030
+    paths:
+      - 'brand-sites/**'
+      - '.github/workflows/studio-merch-verify.yml'
+  pull_request:
+    branches:
+      - production/brand-websites-20261026
+    paths:
+      - 'brand-sites/**'
+      - '.github/workflows/studio-merch-verify.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify-static-sites:
+    name: Build and verify staging + production outputs
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check standalone catalogue behavior
+        run: node --test brand-sites/test/merch.test.cjs
+      - name: Build noindex staging sites
+        run: |
+          node brand-sites/build.mjs
+          node brand-sites/verify.mjs
+      - name: Build production sites without changing live hosting
+        run: |
+          node brand-sites/build.mjs --production
+          node brand-sites/verify.mjs --production
+      - name: Verify production only exposes preview products
+        run: |
+          grep -q 'Preview only' brand-sites/dist/hollow-valley/merch/index.html
+          grep -q 'hvs-e-commerce-shop.fourthwall.com' brand-sites/dist/hollow-valley/merch/index.html
+          test -f brand-sites/dist/hollow-valley/merch/styles.css
+          test -f brand-sites/dist/hollow-valley/merch/app.js
