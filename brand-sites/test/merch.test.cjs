@@ -15,7 +15,7 @@ test("Book 1 stays the only upcoming product while an existing Chromie Hoodie is
   assert.match(html, /All other product development is paused/);
   assert.match(html, /Books 2–5, new hoodies/);
   assert.match(html, /new merchandise development on hold/);
-  assert.match(html, /10 genuine customer orders/);
+  assert.match(html, /10 real Book 1 customer orders/);
   assert.match(html, /Book 1 is not yet for sale/);
   const cards = html.match(/<article class="product-card"/g) || [];
   assert.equal(cards.length, 2, "Exactly Book 1 and the existing Chromie Hoodie are displayed");
