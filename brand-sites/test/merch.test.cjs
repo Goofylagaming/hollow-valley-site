@@ -9,18 +9,25 @@ const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
 const js = fs.readFileSync(path.join(root, "app.js"), "utf8");
 
-test("Book 1 is the sole featured product and others are explicitly on hold", () => {
+test("Book 1 stays the only upcoming product while an existing Chromie Hoodie is linked", () => {
   assert.match(html, /<html lang="en-AU">/);
   assert.match(html, /Primalbound Adventures/);
   assert.match(html, /All other product development is paused/);
-  assert.match(html, /Books 2–5, hoodies/);
-  assert.match(html, /10 genuine customer orders/);
+  assert.match(html, /Books 2–5, new hoodies/);
+  assert.match(html, /new merchandise development on hold/);
+  assert.match(html, /10 real Book 1 customer orders/);
   assert.match(html, /Book 1 is not yet for sale/);
   const cards = html.match(/<article class="product-card"/g) || [];
-  assert.equal(cards.length, 1, "Only Book 1 is permitted in the product grid");
+  assert.equal(cards.length, 2, "Exactly Book 1 and the existing Chromie Hoodie are displayed");
+  assert.match(html, /Hollow Valley Chromie Hoodie/);
+  assert.match(html, /Price and availability on Fourthwall/);
+  assert.match(html, /EXISTING FOURTHWALL LISTING/);
+  assert.ok(html.includes('href="https://hvs-e-commerce-shop.fourthwall.com/en-aud/products/hollow-valley-chromie-hoodie"'), "Direct hoodie link must be exact");
   assert.equal((html.match(/class="preview-only">Preview only/g) || []).length, 1);
   assert.doesNotMatch(html, /class="catalogue-tools"/);
-  assert.doesNotMatch(html, /data-category="hollow"|data-category="studio"|data-category="everyday"/);
+  assert.equal((html.match(/data-category="hollow"/g) || []).length, 1, "Only the existing Chromie hoodie is included");
+  assert.doesNotMatch(html, /data-category="studio"|data-category="everyday"/);
+  assert.doesNotMatch(html, /Hollow Valley Isle Graphic Tee|Dinosaur Hoodie|Travel Organisation Accessories/);
 });
 
 test("Shop does not fake checkout, products, paid orders or customer details", () => {
@@ -36,6 +43,7 @@ test("Mobile accessibility, static safety and year script", () => {
   assert.match(css, /@media\(max-width:530px\)/);
   assert.match(css, /@media\(prefers-reduced-motion:reduce\)/);
   assert.match(css, /\.focus-panel/);
+  assert.match(css, /\.product-external/);
   assert.match(html, /<meta name="viewport"/);
   assert.match(html, /class="skip-link"/);
   assert.doesNotMatch(html, /<script[^>]+src="https?:/);
