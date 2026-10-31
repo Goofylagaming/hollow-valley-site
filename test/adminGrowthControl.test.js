@@ -74,7 +74,7 @@ test('Admin Operations UI labels growth as live-only and confirms before submit'
   assert.match(html, /id="ops-growth-value"/);
   assert.match(html, /id="ops-growth-apply"[^>]+disabled/);
   assert.match(html, /does not update the Windows Game.ini/);
-  assert.match(client, /actionGates\?\.growthMultiplier/);
+  assert.match(client, /const growthReady = false/);
   assert.match(client, /SET GROWTH/);
   assert.match(client, /\/api\/admin-operations\/growth-multiplier/);
 });

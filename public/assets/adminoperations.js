@@ -188,12 +188,12 @@ function render(data) {
   }
   updateFeatureAnnouncementPreview();
 
-  const growthReady = Boolean(rcon.configured && rcon.actionGates?.growthMultiplier);
+  const growthReady = false; // Current protocol and private transport are unverified.
   const growthState = document.getElementById("ops-growth-state");
   const growthButton = document.getElementById("ops-growth-apply");
   const growthMessage = document.getElementById("ops-growth-message");
   if (growthState) {
-    growthState.textContent = growthReady ? "ARMED" : (rcon.configured ? "GATE OFF" : "RCON UNAVAILABLE");
+    growthState.textContent = "INTEGRATION PENDING";
     growthState.className = `ops-status-label ${growthReady ? "ready" : "attention"}`;
   }
   if (growthButton) {
@@ -203,7 +203,7 @@ function render(data) {
   if (growthMessage && !growthMessage.dataset.busy) {
     growthMessage.textContent = growthReady
       ? "Ready for explicit live change. Game.ini must be edited separately for persistence."
-      : "Disabled until the game-host growth command is verified and explicitly enabled.";
+      : "Unavailable in this release; a verified private host implementation is required.";
   }
 
   const integrations = status.integrations || {};
@@ -390,8 +390,7 @@ function updateFeatureAnnouncementPreview() {
 ["ops-feature-type", "ops-feature-growth", "ops-feature-custom",
  "ops-feature-community", "ops-feature-progress", "ops-feature-verified"]
   .forEach((id) => document.getElementById(id)?.addEventListener("input", () => {
-    // An edited payload must never reuse an earlier idempotency key.
-    featureAnnouncementRequestId = null;
+    // The persisted content signature below controls request identity.
     const message = document.getElementById("ops-feature-message");
     if (message) delete message.dataset.queued;
     updateFeatureAnnouncementPreview();
@@ -422,7 +421,12 @@ document.getElementById("ops-feature-publish")?.addEventListener("click", async 
   button.disabled = true;
   if (message) message.textContent = "Queueing verified announcement…";
   try {
-    if (!featureAnnouncementRequestId) featureAnnouncementRequestId = crypto.randomUUID();
+    const signature = JSON.stringify(payload);
+    let saved = null;
+    try { saved = JSON.parse(sessionStorage.getItem('hv-feature-announcement') || 'null'); } catch {}
+    featureAnnouncementRequestId = saved?.signature === signature ? saved.requestId : crypto.randomUUID();
+    // Refuse publication if retry identity cannot survive a page reload.
+    sessionStorage.setItem('hv-feature-announcement', JSON.stringify({ signature, requestId: featureAnnouncementRequestId }));
     const response = await api("/api/admin-operations/feature-announcement", {
       method: "POST",
       body: JSON.stringify({
@@ -435,7 +439,6 @@ document.getElementById("ops-feature-publish")?.addEventListener("click", async 
       message.dataset.queued = "1";
       message.textContent = `Queued to ${(receipt.receipts || []).map((r) => r.destination).join(" and ") || "HerbyBot"}. Check Discord for delivery. No in-game broadcast was sent.`;
     }
-    featureAnnouncementRequestId = null;
     document.getElementById("ops-feature-verified").checked = false;
   } catch (error) {
     if (message) message.textContent = error.message || "Announcement was not queued; check the outbox before retrying.";

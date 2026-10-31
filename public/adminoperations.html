@@ -71,7 +71,7 @@
 
           <section class="ops-panel" id="growth-controls">
             <div class="list-heading"><span>SERVER GROWTH RATE</span><small>Admin only · guarded RCON</small></div>
-            <p class="section-intro">Apply a live growth multiplier. The game server must acknowledge this command before assuming it had any effect. A live RCON change does not update the Windows Game.ini; keep GrowthMultiplier there in sync for future restarts.</p>
+            <p class="section-intro">Growth writes are locked in this release because the current command and private host integration are unverified. A live RCON change does not update the Windows Game.ini; keep GrowthMultiplier there in sync for future restarts.</p>
             <div class="page-toolbar ops-toolbar">
               <label for="ops-growth-value">Growth speed</label>
               <select id="ops-growth-value" aria-label="Growth multiplier" style="padding:10px;background:#0f172a;color:#fff;border:1px solid #334155">
@@ -86,7 +86,7 @@
               <button class="small-button" id="ops-growth-apply" type="button" disabled>Request live growth update</button>
               <span id="ops-growth-message" role="status" aria-live="polite">Loading growth control state…</span>
             </div>
-            <p class="section-intro">This panel cannot confirm the server's existing effective multiplier or edit Game.ini remotely. Changes are disabled until the dedicated growth write gate and a supported game-host RCON path are verified.</p>
+            <p class="section-intro">This panel cannot confirm the server's existing effective multiplier or edit Game.ini remotely. Environment flags cannot unlock growth writes in this release.</p>
           </section>
 
           <section class="ops-panel" id="feature-announcements">
@@ -174,6 +174,6 @@
     <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="/assets/common.js?v=21"></script>
-  <script src="/assets/adminoperations.js?v=12"></script>
+  <script src="/assets/adminoperations.js?v=13"></script>
 </body>
 </html>

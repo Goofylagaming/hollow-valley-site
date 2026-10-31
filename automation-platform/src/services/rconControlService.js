@@ -6,7 +6,6 @@ const COMMANDS = Object.freeze({
   wipeCorpses: 0x13,
   save: 0x50,
   aiDensity: 0x92,
-  growthMultiplier: 0x22,
 });
 
 const ACTION_GATES = Object.freeze({
@@ -39,9 +38,9 @@ function writeEnabled(action = null) {
   const gate = ACTION_GATES[action];
   if (!gate) return false;
 
-  // A global growth change must be explicitly armed. Never inherit the broad
-  // legacy RCON_WRITE_ENABLED switch for this sensitive action.
-  if (action === 'growthMultiplier') return envEnabled(gate);
+  // Do not expose the disputed 0x22 command, even if an operator sets a flag.
+  // A verified host implementation is required before this can be enabled.
+  if (action === 'growthMultiplier') return false; // No verified protocol/host implementation yet.
 
   // Explicit per-action gates override the legacy global gate. If a specific
   // gate is not present, keep backward compatibility with RCON_WRITE_ENABLED.
@@ -100,7 +99,7 @@ function validateDensity(value) {
 const GROWTH_PRESETS = Object.freeze([1, 2, 3, 4, 5, 10]);
 
 function validateGrowthMultiplier(value) {
-  const multiplier = Number(value);
+  const multiplier = typeof value === 'number' ? value : NaN;
   if (!Number.isFinite(multiplier) || !GROWTH_PRESETS.includes(multiplier)) {
     throw new Error('Growth multiplier must be one of 1, 2, 3, 4, 5, or 10');
   }
@@ -126,7 +125,7 @@ function buildAction(action, payload = {}) {
     case 'aiDensity':
       return { action, code: COMMANDS.aiDensity, params: String(validateDensity(payload.value)) };
     case 'growthMultiplier':
-      return { action, code: COMMANDS.growthMultiplier, params: String(validateGrowthMultiplier(payload.value)) };
+      throw new Error('Growth control unavailable: current game parameters and private host transport are unverified.');
     default:
       throw new Error('Unsupported RCON control action');
   }
@@ -135,7 +134,9 @@ function buildAction(action, payload = {}) {
 async function execute(action, payload = {}) {
   if (!writeEnabled(action)) {
     const gate = ACTION_GATES[action] || 'RCON_WRITE_ENABLED';
-    const error = new Error(`RCON ${action} writes are disabled. Enable ${gate}=true only after operator review.`);
+    const error = new Error(action === 'growthMultiplier'
+      ? `Growth control is unavailable until a verified private host implementation ships. ${gate} cannot enable it in this release.`
+      : `RCON ${action} writes are disabled. Enable ${gate}=true only after operator review.`);
     error.code = 'RCON_WRITE_DISABLED';
     error.gate = gate;
     throw error;

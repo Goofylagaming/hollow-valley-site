@@ -2,8 +2,9 @@
 
 ## Scope (2026-10-31)
 
-This release adds an **admin-only live growth-rate request** UI under
-`/adminoperations`, with presets 1×, 2×, 3×, 4×, 5× and 10×.
+The growth selector under `/adminoperations` is unavailable in this release.
+The unverified executable command has been removed; environment flags cannot
+unlock it. Discord announcements remain separately available for verified changes.
 
 Security / behavior:
 
@@ -11,10 +12,9 @@ Security / behavior:
   `AUTOMATION_ADMIN_TOKEN`. Never place bearer tokens in the browser.
 - Automation `requireAdminToken` gate, `SET GROWTH` confirmation, validated
   allowlisted multiplier, and audit entry.
-- Dedicated `RCON_GROWTH_MULTIPLIER_WRITE_ENABLED=true` override required,
-  regardless of broad `RCON_WRITE_ENABLED`. OFF by default.
+- Growth writes are hard-disabled, even with `RCON_GROWTH_MULTIPLIER_WRITE_ENABLED=true`.
 - `RCON_DISABLED=true` remains the emergency kill switch.
-- Uses Evrima opcode `0x22`, reportedly `SetGrowthMultiplier`; **protocol
+- Removed the guessed payload for opcode `0x22`, reportedly `SetGrowthMultiplier`; **protocol
   references disagree on whether it takes a single multiplier or
   `SteamID,value`**. Do NOT enable in production until the current game build
   and BinaryLane-local host are verified using a non-production environment.
@@ -38,9 +38,8 @@ Security / behavior:
    do not turn on public RCON.
 3. Reconcile the in-game effective growth rate with `Game.ini`.
 4. Verify tests, code review, startup readiness, and rollback.
-5. Only after verification explicitly enable the action gate on the
-   automation service. If unsupported, keep it OFF and hide/disable the
-   action pending Windows-side config-bridge implementation.
+5. Implement and validate a narrowly allowlisted private host integration before
+   enabling this control. A flag alone cannot enable the current implementation.
 
 ## Future feature: Featured Species bonus weeks
 

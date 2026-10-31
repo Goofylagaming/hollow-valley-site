@@ -4,6 +4,8 @@ const assert = require('node:assert/strict');
 process.env.AUTOMATION_DB_PATH = ':memory:';
 process.env.HERBYBOT_AUTOMATION_TOKEN = 'test-only-herbybot-token';
 const announcements = require('../src/services/featureAnnouncementService');
+const store = require('../src/services/automationStore');
+const outbox = require('../src/services/herbyBotOutboxService');
 
 const requestId = '2fc953fe-2b8b-47bc-92eb-8f929d2998a3';
 
@@ -61,4 +63,26 @@ test('custom event announcements are bounded and refuse missing HerbyBot bridge'
   } finally {
     process.env.HERBYBOT_AUTOMATION_TOKEN = prior;
   }
+});
+
+test('changed channels/content are rejected before any new destination is queued', () => {
+  const id = '71111111-1111-4111-8111-111111111111';
+  const base = { kind: 'custom', message: 'Event activated.', channels: ['announcement'], requestId: id, verified: true, confirm: 'ANNOUNCE VERIFIED' };
+  announcements.queueVerifiedAnnouncement(base);
+  const before = store.listOutboxEvents({}).length;
+  assert.throws(() => announcements.queueVerifiedAnnouncement({ ...base, message: 'Event stopped.', channels: ['progress', 'announcement'] }), /different content/);
+  assert.equal(store.listOutboxEvents({}).length, before);
+  assert.throws(() => announcements.queueVerifiedAnnouncement({ ...base, channels: ['progress'] }), /different content/);
+  assert.equal(store.listOutboxEvents({}).length, before);
+});
+
+test('legacy receipts and interrupted queue operations are not blindly replayed', () => {
+  const id = '72222222-2222-4222-8222-222222222222';
+  const base = { kind: 'custom', message: 'Legacy notice.', channels: ['announcement'], requestId: id, verified: true, confirm: 'ANNOUNCE VERIFIED' };
+  outbox.queueMessage({ destination: 'announcement', message: base.message, nonce: 'hv-feature-' + id.replace(/-/g,'') + '-announcement' });
+  const before = store.listOutboxEvents({}).length;
+  assert.throws(() => announcements.queueVerifiedAnnouncement({ ...base, channels: ['progress', 'announcement'] }), /different content/);
+  assert.equal(store.listOutboxEvents({}).length, before);
+  assert.throws(() => announcements.queueVerifiedAnnouncement({ ...base, channels: ['progress', 'announcement'] }), /different content/);
+  assert.equal(store.listOutboxEvents({}).length, before);
 });
