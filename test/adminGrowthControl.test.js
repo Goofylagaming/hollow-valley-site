@@ -33,7 +33,7 @@ test('website growth control is restricted to logged-in admins', async (t) => {
     const result = await fetch(endpoint(server), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ value: 3, confirm: 'SET GROWTH' }),
+      body: JSON.stringify({ value: 3, confirm: 'TEST GROWTH', experimental: true }),
     });
     assert.equal(result.status, user ? 403 : 401);
   }
@@ -55,17 +55,17 @@ test('growth controls validate multiplier and confirmation before forwarding', a
     return fetch(endpoint(server), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ value, confirm }),
+      body: JSON.stringify({ value, confirm, experimental: true }),
     });
   }
 
-  assert.equal((await post(12, 'SET GROWTH')).status, 400);
+  assert.equal((await post(12, 'TEST GROWTH')).status, 400);
   assert.equal((await post(3, 'yes')).status, 400);
   assert.deepEqual(calls, []);
-  const response = await post(3, 'SET GROWTH');
+  const response = await post(3, 'TEST GROWTH');
   assert.equal(response.status, 200);
   assert.equal((await response.json()).result.confirmed, false);
-  assert.deepEqual(calls, [[3, 'SET GROWTH']]);
+  assert.deepEqual(calls, [[3, 'TEST GROWTH']]);
 });
 
 test('Admin Operations UI labels growth as live-only and confirms before submit', () => {
@@ -74,7 +74,7 @@ test('Admin Operations UI labels growth as live-only and confirms before submit'
   assert.match(html, /id="ops-growth-value"/);
   assert.match(html, /id="ops-growth-apply"[^>]+disabled/);
   assert.match(html, /does not update the Windows Game.ini/);
-  assert.match(client, /const growthReady = false/);
-  assert.match(client, /SET GROWTH/);
+  assert.match(client, /rcon\.actionGates\?\.growthMultiplier/);
+  assert.match(client, /TEST GROWTH/);
   assert.match(client, /\/api\/admin-operations\/growth-multiplier/);
 });

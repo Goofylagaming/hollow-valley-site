@@ -188,22 +188,22 @@ function render(data) {
   }
   updateFeatureAnnouncementPreview();
 
-  const growthReady = false; // Current protocol and private transport are unverified.
+  const growthReady = Boolean(rcon.configured && rcon.actionGates?.growthMultiplier);
   const growthState = document.getElementById("ops-growth-state");
   const growthButton = document.getElementById("ops-growth-apply");
   const growthMessage = document.getElementById("ops-growth-message");
   if (growthState) {
-    growthState.textContent = "INTEGRATION PENDING";
+    growthState.textContent = growthReady ? "EXPERIMENTAL TEST ENABLED" : "TEST GATE OFF";
     growthState.className = `ops-status-label ${growthReady ? "ready" : "attention"}`;
   }
   if (growthButton) {
-    growthButton.disabled = !growthReady;
-    growthButton.title = growthReady ? "Live-only change, requires confirmation" : "Dedicated growth RCON write gate or host integration not available";
+    growthButton.disabled = !growthReady || Boolean(growthMessage?.dataset.busy);
+    growthButton.title = growthReady ? "Experimental request; gameplay effect is unverified" : "Experimental growth gates are disabled";
   }
-  if (growthMessage && !growthMessage.dataset.busy) {
+  if (growthMessage && !growthMessage.dataset.busy && !growthMessage.dataset.result) {
     growthMessage.textContent = growthReady
-      ? "Ready for explicit live change. Game.ini must be edited separately for persistence."
-      : "Unavailable in this release; a verified private host implementation is required.";
+      ? "Experimental 2×/3× requests available. No automatic restoration or restart; verify gameplay separately."
+      : "Experimental growth testing is disabled by the backend.";
   }
 
   const integrations = status.integrations || {};
@@ -450,10 +450,10 @@ document.getElementById("ops-feature-publish")?.addEventListener("click", async 
 
 document.getElementById("ops-growth-apply")?.addEventListener("click", async (event) => {
   const value = Number(document.getElementById("ops-growth-value")?.value);
-  if (![1, 2, 3, 4, 5, 10].includes(value)) return;
-  if (!window.confirm(
-    `Request ${value}× growth on the LIVE server?\n\nThis action requires working Evrima RCON and does NOT modify Game.ini.\n\nAfter sending, verify actual growth in game; RCON receipt does not prove the new rate is effective.`
-  )) return;
+  if (![2, 3].includes(value)) return;
+  if (window.prompt(
+    `Send experimental ${value}× request to the LIVE server?\n\nEffect and scope are unverified and may affect all players. Game.ini stays unchanged. There is NO automatic restoration or restart. A 3× request is not proof of restoration.\n\nType TEST GROWTH to send:`, ""
+  ) !== "TEST GROWTH") return;
   const button = event.currentTarget;
   const message = document.getElementById("ops-growth-message");
   button.disabled = true;
@@ -464,18 +464,18 @@ document.getElementById("ops-growth-apply")?.addEventListener("click", async (ev
   try {
     const response = await api("/api/admin-operations/growth-multiplier", {
       method: "POST",
-      body: JSON.stringify({ value, confirm: "SET GROWTH" }),
+      body: JSON.stringify({ value, confirm: "TEST GROWTH", experimental: true }),
     });
     const result = response.result || response;
     if (message) {
       message.textContent = result.sent
-        ? `${value}× growth RCON request sent. Verify in-game; persist with GrowthMultiplier=${value} in Game.ini.`
+        ? `Experimental ${value}× request sent; effect NOT verified. Game.ini unchanged. No automatic restoration or restart.`
         : "Growth request completed without a confirmed RCON send.";
     }
   } catch (error) {
-    if (message) message.textContent = error.message || "Growth change failed.";
+    if (message) message.textContent = `${error.message || "Growth request failed."} Delivery may be uncertain; check the server and audit before retrying.`;
   } finally {
-    if (message) delete message.dataset.busy;
+    if (message) { delete message.dataset.busy; message.dataset.result = "1"; }
     await loadOperations({ force: true });
   }
 });

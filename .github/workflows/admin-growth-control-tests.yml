@@ -15,6 +15,7 @@ on:
       - 'automation-platform/src/routes/adminRoutes.js'
       - 'automation-platform/test/adminGrowthMultiplierEndpoint.test.js'
       - 'test/featureAnnouncementStaging.test.js'
+      - 'test/growthExperimentalStaging.test.js'
       - 'automation-platform/src/services/automationStore.js'
       - 'automation-platform/test/rconControl.test.js'
       - '.github/workflows/admin-growth-control-tests.yml'
@@ -31,4 +32,4 @@ jobs:
         with:
           node-version: '22'
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: node --test test/adminGrowthControl.test.js test/adminFeatureAnnouncements.test.js test/adminCorpseWipe.test.js test/adminCommsRoute.test.js test/adminOperationsRoute.test.js test/featureAnnouncementStaging.test.js test/roadmapCommunity.test.js automation-platform/test/featureAnnouncements.test.js automation-platform/test/rconControl.test.js automation-platform/test/adminGrowthMultiplierEndpoint.test.js
+      - run: node --test test/adminGrowthControl.test.js test/adminFeatureAnnouncements.test.js test/adminCorpseWipe.test.js test/adminCommsRoute.test.js test/adminOperationsRoute.test.js test/featureAnnouncementStaging.test.js test/growthExperimentalStaging.test.js test/roadmapCommunity.test.js automation-platform/test/featureAnnouncements.test.js automation-platform/test/rconControl.test.js automation-platform/test/adminGrowthMultiplierEndpoint.test.js

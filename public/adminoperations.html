@@ -70,23 +70,19 @@
 
 
           <section class="ops-panel" id="growth-controls">
-            <div class="list-heading"><span>SERVER GROWTH RATE</span><small>Admin only · guarded RCON</small></div>
-            <p class="section-intro">Growth writes are locked in this release because the current command and private host integration are unverified. A live RCON change does not update the Windows Game.ini; keep GrowthMultiplier there in sync for future restarts.</p>
+            <div class="list-heading"><span>EXPERIMENTAL GROWTH TEST</span><small>Admin only · effect unverified</small></div>
+            <p class="section-intro">Send the same bounded 2× or 3× candidate used in manual testing. Its effect and scope remain unverified and may affect all players. This does not update the Windows Game.ini.</p>
             <div class="page-toolbar ops-toolbar">
-              <label for="ops-growth-value">Growth speed</label>
+              <label for="ops-growth-value">Requested test value</label>
               <select id="ops-growth-value" aria-label="Growth multiplier" style="padding:10px;background:#0f172a;color:#fff;border:1px solid #334155">
-                <option value="1">1× — Vanilla</option>
                 <option value="2">2×</option>
                 <option value="3" selected>3×</option>
-                <option value="4">4×</option>
-                <option value="5">5×</option>
-                <option value="10">10×</option>
               </select>
               <span id="ops-growth-state" class="ops-status-label">Checking…</span>
-              <button class="small-button" id="ops-growth-apply" type="button" disabled>Request live growth update</button>
+              <button class="small-button" id="ops-growth-apply" type="button" disabled>Send experimental request</button>
               <span id="ops-growth-message" role="status" aria-live="polite">Loading growth control state…</span>
             </div>
-            <p class="section-intro">This panel cannot confirm the server's existing effective multiplier or edit Game.ini remotely. Environment flags cannot unlock growth writes in this release.</p>
+            <p class="section-intro">This panel does not display the current effective multiplier. It does not track a dinosaur, automatically restore 3×, save or restart the game. Requesting 3× is not verified recovery. Keep host access available for manual recovery; announce a change only after verifying it.</p>
           </section>
 
           <section class="ops-panel" id="feature-announcements">
@@ -174,6 +170,6 @@
     <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="/assets/common.js?v=21"></script>
-  <script src="/assets/adminoperations.js?v=13"></script>
+  <script src="/assets/adminoperations.js?v=14"></script>
 </body>
 </html>
