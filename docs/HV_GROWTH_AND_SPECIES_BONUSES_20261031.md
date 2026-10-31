@@ -134,3 +134,43 @@ and separate Discord vs in-game claims. A feature announcement makes no
 changes to `Game.ini`, players, wallet, or active dinosaurs.
 If the bot bridge is unavailable, the action refuses the request instead
 of claiming success.
+
+
+## Follow-up safety verification — 31 October 2026
+
+PR #267 merged during this review. The follow-up preserves its composer and both
+Discord destinations. Growth is hard-disabled and the guessed 0x22 payload is
+removed. The user confirmed no staging game server exists, so gameplay effect,
+installed build semantics and current effective 3x growth remain unverified.
+
+Protocol evidence: the RCON library at
+https://github.com/Theislemanager/evrima-rcon/blob/main/README.md identifies the
+opcode, while the live-probe report at
+https://github.com/diplomatic-tendencies/evrima-dev-knowledge/blob/main/EVRIMA_RCON_Protocol.md
+explicitly says full arguments and gameplay effect were not independently verified.
+Do not treat either as proof of a working per-player override.
+
+Live Render flags confirm http_pull and the command bridge enabled; website uses
+master with /app/data persistence, automation uses automation-platform with
+/var/data persistence. The repository has no growth or announcement bridge verb.
+The deployed Windows agent and Game.ini were not inspected; no host connection
+or production probe is introduced. HerbyBot's existing Python consumer supports
+announcement and progress destinations. Its acknowledgment failure can still
+cause at-least-once Discord delivery; request dedupe prevents duplicate enqueue,
+not that existing consumer ambiguity.
+
+The full request and channel set are reserved before queueing. Existing outbox
+receipts are checked before accepting a legacy retry. Browser session storage
+retains request identity across reloads. Interrupted requests require outbox
+review; they never blindly requeue. No schema migration is needed.
+
+Validation includes two-service HTTP staging with disposable SQLite databases,
+headless Edge staging (both destinations, reload retry, locked growth, no page
+errors), plus Linux CI. No real Discord announcement was sent for testing.
+Consistent backups were created before the follow-up release and integrity_check
+returned ok for both website and automation. Rollback must preserve databases,
+announcement reservations and outbox records; revert application code only.
+
+Automatic species-event activation/deactivation/expiry notices still require
+issue #268's authoritative transition records. In-game posting remains a copyable
+message for the operator until the private Windows route is implemented.

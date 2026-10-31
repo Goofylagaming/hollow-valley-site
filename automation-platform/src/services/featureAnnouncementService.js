@@ -56,6 +56,12 @@ function queueVerifiedAnnouncement(payload) {
   // channel set must not enqueue a new message before detecting a conflict.
   const key = 'feature-announcement:' + announcement.requestId;
   const signature = JSON.stringify({ ...announcement, channels: [...announcement.channels].sort() });
+  const existing = store.getState(key)?.value;
+  if (existing) {
+    if (existing.signature !== signature) invalid('This announcement ID was already used for different content.', 'FEATURE_ANNOUNCEMENT_CONFLICT');
+    if (!existing.result) invalid('This request has an uncertain queue result. Review the outbox before creating another notice.', 'FEATURE_ANNOUNCEMENT_UNAVAILABLE');
+    return existing.result;
+  }
   // Preserve dedupe for notices queued by the previous release, before the
   // complete-request reservation existed. Inspect every supported destination.
   const legacy = DESTINATIONS.map(destination => store.getOutboxEventByNonce(

@@ -86,3 +86,20 @@ test('legacy receipts and interrupted queue operations are not blindly replayed'
   assert.throws(() => announcements.queueVerifiedAnnouncement({ ...base, channels: ['progress', 'announcement'] }), /different content/);
   assert.equal(store.listOutboxEvents({}).length, before);
 });
+
+test('partial queue failure preserves its uncertain receipt and cannot replay', t => {
+  const original = outbox.queueMessage;
+  let calls = 0;
+  outbox.queueMessage = payload => {
+    calls++;
+    if (calls === 2) throw new Error('simulated database interruption');
+    return original(payload);
+  };
+  t.after(() => { outbox.queueMessage = original; });
+  const input = { kind: 'custom', message: 'Verified event stopped.', channels: ['announcement', 'progress'], requestId: '73333333-3333-4333-8333-333333333333', verified: true, confirm: 'ANNOUNCE VERIFIED' };
+  assert.throws(() => announcements.queueVerifiedAnnouncement(input), /interruption/);
+  const count = store.listOutboxEvents({}).length;
+  assert.throws(() => announcements.queueVerifiedAnnouncement(input), /uncertain queue result/);
+  assert.equal(store.listOutboxEvents({}).length, count);
+  assert.equal(calls, 2);
+});
