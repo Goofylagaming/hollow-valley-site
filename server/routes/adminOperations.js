@@ -320,16 +320,18 @@ router.post("/bodydrop-global/activate", async (_req, res) => {
 });
 
 router.post("/growth-multiplier", async (req, res) => {
+  if (!req.is("application/json")) return res.status(415).json({ error: "JSON is required." });
+  if (req.headers["sec-fetch-site"] === "cross-site") return res.status(403).json({ error: "Cross-site request rejected." });
   const value = req.body?.value;
-  if (![1, 2, 3, 4, 5, 10].includes(value)) {
-    return res.status(400).json({ error: "Growth multiplier must be 1, 2, 3, 4, 5, or 10." });
+  if (![2, 3].includes(value)) {
+    return res.status(400).json({ error: "Experimental growth requests are limited to 2 or 3." });
   }
-  if (req.body?.confirm !== "SET GROWTH") {
-    return res.status(400).json({ error: 'Set growth requires the exact confirmation "SET GROWTH".' });
+  if (req.body?.confirm !== "TEST GROWTH" || req.body?.experimental !== true) {
+    return res.status(400).json({ error: 'Confirm the experimental test with "TEST GROWTH" and experimental=true.' });
   }
   try {
     res.set("Cache-Control", "no-store");
-    return res.json(await automation.setAdminGrowthMultiplier(value, "SET GROWTH"));
+    return res.json(await automation.setAdminGrowthMultiplier(value, "TEST GROWTH"));
   } catch (error) {
     const mapped = mapAutomationError(error, "Could not request growth multiplier change.");
     return res.status(mapped.status).json(mapped.body);

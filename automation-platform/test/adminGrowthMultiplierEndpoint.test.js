@@ -36,17 +36,17 @@ test('automation growth endpoint authenticates and confirms before writing', asy
         'Content-Type': 'application/json',
         ...(authorized ? { Authorization: 'Bearer growth-test-private-token' } : {}),
       },
-      body: JSON.stringify({ value, confirm }),
+      body: JSON.stringify({ value, confirm, experimental: true }),
     });
   }
 
-  assert.equal((await post(3, 'SET GROWTH', false)).status, 401);
+  assert.equal((await post(3, 'TEST GROWTH', false)).status, 401);
   assert.equal((await post(3, 'invalid')).status, 400);
   assert.deepEqual(commands, []);
-  const response = await post(3, 'SET GROWTH');
+  const response = await post(3, 'TEST GROWTH');
   assert.equal(response.status, 200);
   const body = await response.json();
   assert.equal(body.result.sent, true);
   assert.equal(body.result.confirmed, false);
-  assert.deepEqual(commands, [{ action: 'growthMultiplier', payload: { value: 3, confirm: 'SET GROWTH' } }]);
+  assert.deepEqual(commands, [{ action: 'growthMultiplier', payload: { value: 3, confirm: 'TEST GROWTH', experimental: true } }]);
 });

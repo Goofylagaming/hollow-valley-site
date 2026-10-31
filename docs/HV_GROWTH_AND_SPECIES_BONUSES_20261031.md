@@ -1,5 +1,10 @@
 # Hollow Valley growth controls and species spotlight bonuses
 
+> Update: the owner subsequently authorised experimental live Admin Hub testing.
+> [Experimental release notes](HV_GROWTH_EXPERIMENTAL_20261031.md) supersede the
+> locked-control and transport assumptions below. The original review is retained
+> as history; gameplay semantics and effective rollback are still unverified.
+
 ## Scope (2026-10-31)
 
 The growth selector under `/adminoperations` is unavailable in this release.

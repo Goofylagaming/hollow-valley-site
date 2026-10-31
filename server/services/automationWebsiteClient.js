@@ -693,11 +693,11 @@ function activateAdminGlobalBodyDrop() {
 }
 
 function setAdminGrowthMultiplier(value, confirm) {
-  if (confirm !== 'SET GROWTH') throw new Error('Growth change requires SET GROWTH confirmation');
-  if (![1, 2, 3, 4, 5, 10].includes(Number(value))) throw new Error('Invalid growth multiplier');
+  if (confirm !== 'TEST GROWTH') throw new Error('Growth test requires TEST GROWTH confirmation');
+  if (![2, 3].includes(value)) throw new Error('Invalid experimental growth value');
   return callAdmin('/rcon/growth-multiplier', {
     method: 'POST',
-    body: { value: Number(value), confirm },
+    body: { value, confirm, experimental: true },
   });
 }
 

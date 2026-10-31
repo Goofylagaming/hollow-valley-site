@@ -8,6 +8,7 @@ process.env.AUTOMATION_ADMIN_TOKEN = randomUUID();
 process.env.HERBYBOT_AUTOMATION_TOKEN = 'isolated-no-consumer';
 process.env.RCON_GROWTH_MULTIPLIER_WRITE_ENABLED = 'true';
 process.env.RCON_WRITE_ENABLED = 'true';
+process.env.RCON_GROWTH_EXPERIMENTAL_ENABLED = 'false';
 const express = require('express');
 const backendRouter = require('../automation-platform/src/routes/adminRoutes');
 const siteRouter = require('../server/routes/adminOperations');
@@ -26,7 +27,7 @@ test('staged feature publication is authenticated, durable and does not enable g
   site.use('/api/admin-operations', siteRouter);
   const url = await listen(site);
   const post = (path, body) => fetch(url + '/api/admin-operations' + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  assert.equal((await post('/growth-multiplier', { value: 3, confirm: 'SET GROWTH' })).status, 503);
+  assert.equal((await post('/growth-multiplier', { value: 3, confirm: 'TEST GROWTH', experimental: true })).status, 503);
   assert.equal(store.listOutboxEvents({}).length, 0);
   const body = { kind: 'growth', multiplier: 3, channels: ['announcement', 'progress'], requestId: randomUUID(), verified: true, confirm: 'ANNOUNCE VERIFIED' };
   const first = await post('/feature-announcement', body);
