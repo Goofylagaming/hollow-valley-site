@@ -286,6 +286,10 @@ function createOutboxEvent({ id, destination, message, nonce }) {
   return parseOutbox(db.prepare('SELECT * FROM herbybot_outbox WHERE nonce = ?').get(nonce));
 }
 
+function getOutboxEventByNonce(nonce) {
+  return parseOutbox(db.prepare('SELECT * FROM herbybot_outbox WHERE nonce = ?').get(String(nonce)));
+}
+
 function getOutboxEvent(id) {
   return parseOutbox(db.prepare('SELECT * FROM herbybot_outbox WHERE id = ?').get(String(id)));
 }
@@ -412,6 +416,12 @@ function setState(key, value) {
   return getState(name);
 }
 
+function reserveState(key, value) {
+  const result = db.prepare('INSERT INTO automation_state (key, value_json) VALUES (?, ?) ON CONFLICT(key) DO NOTHING')
+    .run(key, JSON.stringify(value));
+  return { inserted: result.changes === 1, value: getState(key).value };
+}
+
 function deleteState(key) {
   return db.prepare('DELETE FROM automation_state WHERE key = ?').run(String(key)).changes;
 }
@@ -435,6 +445,7 @@ module.exports = {
   listAudit,
   createOutboxEvent,
   getOutboxEvent,
+  getOutboxEventByNonce,
   listOutboxEvents,
   claimOutboxEvents,
   acknowledgeOutboxEvent,
@@ -443,4 +454,5 @@ module.exports = {
   getState,
   setState,
   deleteState,
+  reserveState,
 };

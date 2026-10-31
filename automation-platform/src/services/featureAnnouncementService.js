@@ -1,6 +1,7 @@
 // Admin-published feature news. This queues messages for the existing HerbyBot;
 // it does not change game state or claim that a Discord message was delivered.
 const outbox = require('./herbyBotOutboxService');
+const store = require('./automationStore');
 
 const GROWTH_PRESETS = Object.freeze([1, 2, 3, 4, 5, 10]);
 const DESTINATIONS = Object.freeze(['announcement', 'progress']);
@@ -32,7 +33,7 @@ function validate(payload = {}) {
 
   let message;
   if (kind === 'growth') {
-    const multiplier = Number(payload.multiplier);
+    const multiplier = typeof payload.multiplier === 'number' ? payload.multiplier : NaN;
     if (!GROWTH_PRESETS.includes(multiplier)) invalid('Growth multiplier must be 1, 2, 3, 4, 5, or 10.');
     message = `🦖 Hollow Valley update: Server growth is now ${multiplier}×! Enjoy the faster growth and happy surviving!`;
   } else if (kind === 'custom') {
@@ -51,6 +52,30 @@ function queueVerifiedAnnouncement(payload) {
   // HerbyBot connection is configured. Queuing is not equivalent to delivery.
   if (!outbox.configured()) invalid('HerbyBot is not configured for announcements.', 'FEATURE_ANNOUNCEMENT_UNAVAILABLE');
   const announcement = validate(payload);
+  // Reserve the complete request before queuing any destination. A changed
+  // channel set must not enqueue a new message before detecting a conflict.
+  const key = 'feature-announcement:' + announcement.requestId;
+  const signature = JSON.stringify({ ...announcement, channels: [...announcement.channels].sort() });
+  const existing = store.getState(key)?.value;
+  if (existing) {
+    if (existing.signature !== signature) invalid('This announcement ID was already used for different content.', 'FEATURE_ANNOUNCEMENT_CONFLICT');
+    if (!existing.result) invalid('This request has an uncertain queue result. Review the outbox before creating another notice.', 'FEATURE_ANNOUNCEMENT_UNAVAILABLE');
+    return existing.result;
+  }
+  // Preserve dedupe for notices queued by the previous release, before the
+  // complete-request reservation existed. Inspect every supported destination.
+  const legacy = DESTINATIONS.map(destination => store.getOutboxEventByNonce(
+    'hv-feature-' + announcement.requestId.replace(/-/g, '') + '-' + destination)).filter(Boolean);
+  if (legacy.length && (legacy.length !== announcement.channels.length || legacy.some(event =>
+    !announcement.channels.includes(event.destination) || event.message !== announcement.message))) {
+    invalid('This announcement ID was already used for different content.', 'FEATURE_ANNOUNCEMENT_CONFLICT');
+  }
+  const reservation = store.reserveState(key, { signature, status: 'pending', result: null });
+  if (!reservation.inserted) {
+    if (reservation.value.signature !== signature) invalid('This announcement ID was already used for different content.', 'FEATURE_ANNOUNCEMENT_CONFLICT');
+    if (!reservation.value.result) invalid('This request has an uncertain queue result. Review the outbox before creating another notice.', 'FEATURE_ANNOUNCEMENT_UNAVAILABLE');
+    return reservation.value.result;
+  }
   const receipts = [];
   for (const destination of announcement.channels) {
     const nonce = `hv-feature-${announcement.requestId.replace(/-/g, '')}-${destination}`;
@@ -62,8 +87,10 @@ function queueVerifiedAnnouncement(payload) {
     }
     receipts.push({ destination, eventId: event.id, state: event.status });
   }
-  return { queued: true, kind: announcement.kind, message: announcement.message,
+  const result = { queued: true, kind: announcement.kind, message: announcement.message,
     requestId: announcement.requestId, receipts, deliveryConfirmed: false };
+  store.setState(key, { signature, status: 'queued', result });
+  return result;
 }
 
 module.exports = { GROWTH_PRESETS, DESTINATIONS, validate, queueVerifiedAnnouncement };

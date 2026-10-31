@@ -11,13 +11,9 @@ test('RCON control actions are allowlisted and validated', () => {
   });
   assert.deepEqual(rcon.buildAction('save'), { action: 'save', code: 0x50, params: '' });
   assert.deepEqual(rcon.buildAction('aiDensity', { value: 0.5 }), { action: 'aiDensity', code: 0x92, params: '0.5' });
-  assert.deepEqual(rcon.buildAction('growthMultiplier', { value: 3 }), {
-    action: 'growthMultiplier',
-    code: 0x22,
-    params: '3',
-  });
-  assert.throws(() => rcon.buildAction('growthMultiplier', { value: '3x' }), /Growth multiplier/);
-  assert.throws(() => rcon.buildAction('growthMultiplier', { value: 25 }), /Growth multiplier/);
+  assert.throws(() => rcon.buildAction('growthMultiplier', { value: 3 }), /unverified/);
+  assert.throws(() => rcon.validateGrowthMultiplier('3x'), /Growth multiplier/);
+  assert.throws(() => rcon.validateGrowthMultiplier(25), /Growth multiplier/);
   assert.throws(() => rcon.buildAction('unknown'), /Unsupported/);
   assert.throws(() => rcon.buildAction('aiDensity', { value: 1.1 }), /between 0 and 1/);
   assert.throws(() => rcon.buildAction('announce', { message: 'x'.repeat(241) }), /240/);
@@ -128,7 +124,7 @@ test('growth writes require their own gate even when legacy all-write is enabled
     assert.equal(rcon.writeEnabled('growthMultiplier'), false);
     await assert.rejects(() => rcon.execute('growthMultiplier', { value: 3 }), /RCON_GROWTH_MULTIPLIER_WRITE_ENABLED/);
     process.env.RCON_GROWTH_MULTIPLIER_WRITE_ENABLED = 'true';
-    assert.equal(rcon.writeEnabled('growthMultiplier'), true);
+    assert.equal(rcon.writeEnabled('growthMultiplier'), false);
     process.env.RCON_DISABLED = 'true';
     assert.equal(rcon.writeEnabled('growthMultiplier'), false);
   } finally {

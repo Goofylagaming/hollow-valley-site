@@ -320,7 +320,7 @@ router.post("/bodydrop-global/activate", async (_req, res) => {
 });
 
 router.post("/growth-multiplier", async (req, res) => {
-  const value = Number(req.body?.value);
+  const value = req.body?.value;
   if (![1, 2, 3, 4, 5, 10].includes(value)) {
     return res.status(400).json({ error: "Growth multiplier must be 1, 2, 3, 4, 5, or 10." });
   }
@@ -337,6 +337,8 @@ router.post("/growth-multiplier", async (req, res) => {
 });
 
 router.post("/feature-announcement", async (req, res) => {
+  if (!req.is("application/json")) return res.status(415).json({ error: "JSON is required." });
+  if (req.headers["sec-fetch-site"] === "cross-site") return res.status(403).json({ error: "Cross-site request rejected." });
   const body = req.body || {};
   const channels = body.channels;
   if (body.verified !== true || body.confirm !== "ANNOUNCE VERIFIED") {
@@ -349,7 +351,7 @@ router.post("/feature-announcement", async (req, res) => {
   }
   const kind = String(body.kind || "");
   if (kind === "growth") {
-    if (![1, 2, 3, 4, 5, 10].includes(Number(body.multiplier))) {
+    if (![1, 2, 3, 4, 5, 10].includes(body.multiplier)) {
       return res.status(400).json({ error: "Growth multiplier must be 1, 2, 3, 4, 5 or 10." });
     }
   } else if (kind === "custom") {

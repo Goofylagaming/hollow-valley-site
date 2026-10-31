@@ -3,6 +3,7 @@
   // Update this release register whenever a roadmap item ships. Dates are the
   // verified production release date in Brisbane, never the date of a draft.
   const releases = {
+    15: { status: 'partial', note: 'Admin-confirmed growth and event announcements are available through HerbyBot community/progress channels. Automatic event activation, species bonuses and private in-game delivery remain pending.' },
     7: { status: 'complete', added: '2026-10-23', note: 'Live: species XP, 50 mastery levels, statistics and milestone titles. Additional skins and profile cosmetics remain future extensions.' },
     9: { status: 'complete', added: '2026-10-23', note: 'Live: nest listings, egg availability, requests, host approval and automatic closure. An accepted request reserves an advertised egg; it does not verify an in-game hatch.' },
     8: { status: 'partial', note: 'Available in Valley Legacy: verified parent/child links and lineage display. Automatic hatch detection and inherited-mutation verification are still pending.' },
