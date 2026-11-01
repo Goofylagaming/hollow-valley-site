@@ -89,3 +89,20 @@ intended. In-game announcements still require a separate verified RCON path.
    reward isolation.
 
 Issue #268 tracks later, verified species-only growth acceleration.
+
+## Queensland time display
+
+Event windows are always stored and compared as absolute UTC instants. Automatic
+HerbyBot start/end notifications show the Queensland wall-clock date and time
+in the unambiguous format **DD-MM-YYYY HH:mm (QLD time)** using the IANA
+`Australia/Brisbane` time zone. Brisbane does not observe daylight saving,
+so Sydney/Render time zones cannot shift an event's displayed deadline.
+
+For example, `2026-11-01T02:01:00Z` appears as
+`01-11-2026 12:01 (QLD time)`. The public Events page and Admin Operations
+list use the same convention, and the timed payout/expiry comparisons continue
+to use the original UTC timestamps.
+
+Previously **queued or delivered** event messages retain their original
+contents. This format applies to announcements generated after deployment.
+Do not delete/re-enqueue old HerbyBot outbox records just to restyle them.
