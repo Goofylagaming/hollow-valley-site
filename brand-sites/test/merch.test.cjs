@@ -9,14 +9,16 @@ const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
 const js = fs.readFileSync(path.join(root, "app.js"), "utf8");
 
-test("Book 1 stays the only upcoming product while an existing Chromie Hoodie is linked", () => {
+test("Book 1 and existing Chromie Hoodie each link to their provided Fourthwall product listings", () => {
   assert.match(html, /<html lang="en-AU">/);
   assert.match(html, /Primalbound Adventures/);
   assert.match(html, /All other product development is paused/);
   assert.match(html, /Books 2–5, new hoodies/);
   assert.match(html, /new merchandise development on hold/);
   assert.match(html, /10 real Book 1 customer orders/);
-  assert.match(html, /Book 1 is not yet for sale/);
+  assert.match(html, /View Book 1 on Fourthwall/);
+  assert.match(html, /24-page digital edition/);
+  assert.ok(html.includes('href="https://hollowvalleystudios-shop.fourthwall.com/products/primalbound-characters-dinosaur-adventures-vol-1"'),"Book 1 product URL must be exact");
   const cards = html.match(/<article class="product-card"/g) || [];
   assert.equal(cards.length, 2, "Exactly Book 1 and the existing Chromie Hoodie are displayed");
   assert.match(html, /Hollow Valley Chromie Hoodie/);
@@ -29,7 +31,7 @@ test("Book 1 stays the only upcoming product while an existing Chromie Hoodie is
   assert.equal(asset.subarray(8,12).toString("ascii"),"WEBP");
   assert.ok(asset.length>4000);
   assert.ok(html.includes('href="https://hvs-e-commerce-shop.fourthwall.com/en-aud/products/hollow-valley-chromie-hoodie"'), "Direct hoodie link must be exact");
-  assert.equal((html.match(/class="preview-only">Preview only/g) || []).length, 1);
+  assert.equal((html.match(/class="preview-only">Preview only/g) || []).length, 0);
   assert.doesNotMatch(html, /class="catalogue-tools"/);
   assert.equal((html.match(/data-category="hollow"/g) || []).length, 1, "Only the existing Chromie hoodie is included");
   assert.doesNotMatch(html, /data-category="studio"|data-category="everyday"/);
@@ -41,7 +43,7 @@ test("Shop does not fake checkout, products, paid orders or customer details", (
   assert.doesNotMatch(html, /<form[^>]+action=|href="[^"]*checkout|buy now|add to cart/i);
   assert.doesNotMatch(html, /<input[^>]+type="password"|<iframe/i);
   const hosts = [...html.matchAll(/href="(https?:\/\/[^"]+)"/g)].map(x => new URL(x[1]).hostname);
-  const allowed = new Set(["hvs-e-commerce-shop.fourthwall.com", "primalboundgame.com", "hollowvalleyisle.com"]);
+  const allowed = new Set(["hvs-e-commerce-shop.fourthwall.com", "hollowvalleystudios-shop.fourthwall.com", "primalboundgame.com", "hollowvalleyisle.com"]);
   for (const hostname of hosts) assert.ok(allowed.has(hostname), "Unexpected external domain: " + hostname);
 });
 
