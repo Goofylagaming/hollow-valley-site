@@ -5,6 +5,7 @@ const store = require('./automationStore');
 
 const GROWTH_PRESETS = Object.freeze([1, 2, 3, 4, 5, 10]);
 const DESTINATIONS = Object.freeze(['announcement', 'progress']);
+const PING_MODES = Object.freeze(['none', 'community', 'everyone']);
 
 function invalid(message, code = 'FEATURE_ANNOUNCEMENT_INVALID') {
   const error = new Error(message);
@@ -31,6 +32,16 @@ function validate(payload = {}) {
     invalid('Choose at least one supported Discord destination.');
   }
 
+  // Mass mentions are only permitted for a manually VERIFIED global growth
+  // notice in Community Announcements, never for generic event text.
+  const pingMode = payload.pingMode == null ? 'none' : String(payload.pingMode).trim();
+  if (!PING_MODES.includes(pingMode)) {
+    invalid('Choose no ping, Community Member or everyone for growth changes.');
+  }
+  if (pingMode !== 'none' && (kind !== 'growth' || !channels.includes('announcement'))) {
+    invalid('Growth-rate pings require a verified growth announcement in Community Announcements.');
+  }
+
   let message;
   if (kind === 'growth') {
     const multiplier = typeof payload.multiplier === 'number' ? payload.multiplier : NaN;
@@ -44,7 +55,7 @@ function validate(payload = {}) {
   } else {
     invalid('Choose a supported feature announcement type.');
   }
-  return { kind, message, requestId, channels };
+  return { kind, message, requestId, channels, pingMode };
 }
 
 function queueVerifiedAnnouncement(payload) {
@@ -55,7 +66,14 @@ function queueVerifiedAnnouncement(payload) {
   // Reserve the complete request before queuing any destination. A changed
   // channel set must not enqueue a new message before detecting a conflict.
   const key = 'feature-announcement:' + announcement.requestId;
-  const signature = JSON.stringify({ ...announcement, channels: [...announcement.channels].sort() });
+  // A request with no ping has the exact historical reservation signature.
+  // Old successful requests remain replay-safe across this release.
+  const { pingMode, ...legacySignature } = announcement;
+  const signature = JSON.stringify({
+    ...legacySignature,
+    channels: [...announcement.channels].sort(),
+    ...(pingMode === 'none' ? {} : { pingMode }),
+  });
   const existing = store.getState(key)?.value;
   if (existing) {
     if (existing.signature !== signature) invalid('This announcement ID was already used for different content.', 'FEATURE_ANNOUNCEMENT_CONFLICT');
@@ -64,10 +82,22 @@ function queueVerifiedAnnouncement(payload) {
   }
   // Preserve dedupe for notices queued by the previous release, before the
   // complete-request reservation existed. Inspect every supported destination.
-  const legacy = DESTINATIONS.map(destination => store.getOutboxEventByNonce(
-    'hv-feature-' + announcement.requestId.replace(/-/g, '') + '-' + destination)).filter(Boolean);
+  const noncePrefix = 'hv-feature-' + announcement.requestId.replace(/-/g, '') + '-';
+  const nonceFor = destination => noncePrefix + destination +
+    (destination === 'announcement' && announcement.kind === 'growth' && pingMode !== 'none'
+      ? '-ping-' + pingMode : '');
+  // Check both legacy and opt-in scoped pings BEFORE reserving/queueing. This
+  // prevents a reused request ID from converting an already sent silent
+  // announcement into a second notification.
+  const priorNonces = DESTINATIONS.flatMap(destination => destination === 'announcement'
+    ? [noncePrefix + destination, noncePrefix + destination + '-ping-community',
+       noncePrefix + destination + '-ping-everyone']
+    : [noncePrefix + destination]);
+  const legacy = priorNonces.map(nonce => store.getOutboxEventByNonce(nonce)).filter(Boolean);
   if (legacy.length && (legacy.length !== announcement.channels.length || legacy.some(event =>
-    !announcement.channels.includes(event.destination) || event.message !== announcement.message))) {
+    !announcement.channels.includes(event.destination) ||
+    event.nonce !== nonceFor(event.destination) ||
+    event.message !== announcement.message))) {
     invalid('This announcement ID was already used for different content.', 'FEATURE_ANNOUNCEMENT_CONFLICT');
   }
   const reservation = store.reserveState(key, { signature, status: 'pending', result: null });
@@ -78,7 +108,7 @@ function queueVerifiedAnnouncement(payload) {
   }
   const receipts = [];
   for (const destination of announcement.channels) {
-    const nonce = `hv-feature-${announcement.requestId.replace(/-/g, '')}-${destination}`;
+    const nonce = nonceFor(destination);
     const event = outbox.queueMessage({ destination, message: announcement.message, nonce });
     if (event.destination !== destination || event.message !== announcement.message) {
       // Same request ID reused for different content. Preserve the first
@@ -88,9 +118,9 @@ function queueVerifiedAnnouncement(payload) {
     receipts.push({ destination, eventId: event.id, state: event.status });
   }
   const result = { queued: true, kind: announcement.kind, message: announcement.message,
-    requestId: announcement.requestId, receipts, deliveryConfirmed: false };
+    requestId: announcement.requestId, pingMode, receipts, deliveryConfirmed: false };
   store.setState(key, { signature, status: 'queued', result });
   return result;
 }
 
-module.exports = { GROWTH_PRESETS, DESTINATIONS, validate, queueVerifiedAnnouncement };
+module.exports = { GROWTH_PRESETS, DESTINATIONS, PING_MODES, validate, queueVerifiedAnnouncement };
