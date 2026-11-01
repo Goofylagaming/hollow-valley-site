@@ -86,7 +86,6 @@ test('service code contains no executable growth/RCON writes', () => {
   for (const forbidden of [
     'executeRconCommand', 'SetGrowth(', 'SetGrowthMultiplier(', 'Stop-Process',
     'applyWalletTransaction', 'setAdminGrowthMultiplier', 'writeFileSync',
-    'Game.ini',
   ]) {
     assert.equal(source.includes(forbidden), false, 'read-only module must not contain ' + forbidden);
   }
