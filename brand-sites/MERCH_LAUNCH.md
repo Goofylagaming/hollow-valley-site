@@ -59,3 +59,16 @@ The existing HVS E-Commerce Windows helper is a separate **local-only drafting a
 
 ## Chromie hoodie image update — 31 October 2026
 The user-approved supplied front/back composite now appears in the existing Chromie Hoodie product card. Source: `brand-sites/merch/assets/chromie-hoodie-front-back.webp`, published at `/merch/assets/chromie-hoodie-front-back.webp`. This is a combined product mockup, not a claim of current in-stock options or an independently verified Fourthwall image. The product links directly to the original Fourthwall listing, without creating another SKU. Book 1 stays unpublished and the 10-order validation gate is unchanged.
+
+## Book 1 Fourthwall listing prepared for linking — 1 Nov 2026
+
+The owner created a public Fourthwall digital book product at:
+`https://hollowvalleystudios-shop.fourthwall.com/products/primalbound-characters-dinosaur-adventures-vol-1`.
+
+The owner confirmed checkout displays approximately **A$8.68** for an underlying **US$5.99** price. This is a price observation only, not independent confirmation of an end-to-end completed purchase, fulfilled download, or payout.
+
+**CRITICAL CONTENT ISSUE:** The file attached in the owner's previous Fourthwall product screenshot was `Primalbound-Book1-Digital-24-Pages.zip` (~3.8 MB). We inspected the exact user-uploaded ZIP, and it contains the **old 24-page proof**, with lower-detail vector drawings on pages 15–24. It is not the final 20-illustration release candidate created later. The complete, buyer-facing final upload ZIP is `Primalbound_Book1_Fourthwall_Upload_Ready_Package.zip` (~20.5 MB), available in the conversation. Before actively advertising Book 1, replace the old product attachment and verify the email/download contents. While the old ZIP remains attached, consider setting the product Private to prevent buyers from receiving the wrong edition.
+
+The book listing uses a different Fourthwall hostname from the existing Chromie Hoodie at `hvs-e-commerce-shop.fourthwall.com`; preserve the exact owner-provided per-product URLs rather than assuming the two shop subdomains are interchangeable. Do not publish the product price on the static Studio page where it could become stale, and do not count test payments as profitable customer sales.
+
+The linked website change is **release-gated on the owner correcting the Fourthwall download** and a successful buyer-side validation of the file. Merging the branch into the production Studio site before that validation would encourage purchases of a superseded edition.
