@@ -393,6 +393,8 @@ router.post("/species-coin-events", async (req, res) => {
 });
 
 router.post("/species-coin-events/:id/stop", async (req, res) => {
+  if (!req.is("application/json")) return res.status(415).json({ error: "JSON is required." });
+  if (req.headers["sec-fetch-site"] === "cross-site") return res.status(403).json({ error: "Cross-site request rejected." });
   if (req.body?.confirm !== "STOP EVENT") {
     return res.status(400).json({ error: 'Type STOP EVENT to end this event.' });
   }
