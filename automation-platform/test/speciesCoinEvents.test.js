@@ -132,31 +132,33 @@ test('HerbyBot receives idempotent start and stop messages for opted-in events',
     const before = outbox.getOutboxSummary().total;
     const initial = events.reconcileAnnouncements({ nowMs: T0 + 1000 });
     assert.equal(initial.skipped, false);
-    assert.equal(outbox.getOutboxSummary().total, before + 2);
+    assert.equal(outbox.getOutboxSummary().total, before + 1);
     const startNotices = outbox.listOutboxEvents({ limit: 500 }).filter(entry =>
       entry.nonce.includes(event.id) && entry.nonce.includes('-start-'));
-    assert.equal(startNotices.length, 2);
+    assert.equal(startNotices.length, 1);
+    assert.equal(startNotices[0].destination, 'event-announcement');
     for (const notice of startNotices) {
       assert.match(notice.message, /Ends at 01-11-2026 20:00 \(QLD time\)\./);
       assert.doesNotMatch(notice.message, /2026-11-01T10:00:00\.000Z/);
     }
     events.reconcileAnnouncements({ nowMs: T0 + 3000 });
-    assert.equal(outbox.getOutboxSummary().total, before + 2, 'same notification cannot be double-queued');
+    assert.equal(outbox.getOutboxSummary().total, before + 1, 'same notification cannot be double-queued');
     events.stopEvent(event.id, { nowMs: T0 + 60000 });
     events.reconcileAnnouncements({ nowMs: T0 + 61000 });
-    assert.equal(outbox.getOutboxSummary().total, before + 4);
+    assert.equal(outbox.getOutboxSummary().total, before + 2);
     const stopNotices = outbox.listOutboxEvents({ limit: 500 }).filter(entry =>
       entry.nonce.includes(event.id) && entry.nonce.includes('-end-'));
-    assert.equal(stopNotices.length, 2);
+    assert.equal(stopNotices.length, 1);
+    assert.equal(stopNotices[0].destination, 'event-announcement');
     for (const notice of stopNotices) {
       assert.match(notice.message, /Ended at 01-11-2026 19:01 \(QLD time\)\./);
     }
     events.reconcileAnnouncements({ nowMs: T0 + 63000 });
-    assert.equal(outbox.getOutboxSummary().total, before + 4, 'stop notice is idempotent');
+    assert.equal(outbox.getOutboxSummary().total, before + 2, 'stop notice is idempotent');
 
     create({ title: 'Silent Event', species: 'Triceratops', autoAnnounce: false });
     events.reconcileAnnouncements({ nowMs: T0 + 65000 });
-    assert.equal(outbox.getOutboxSummary().total, before + 4);
+    assert.equal(outbox.getOutboxSummary().total, before + 2);
   } finally {
     if (previous === undefined) delete process.env.HERBYBOT_AUTOMATION_TOKEN;
     else process.env.HERBYBOT_AUTOMATION_TOKEN = previous;
@@ -194,24 +196,15 @@ test('Random Event pings are opt-in, start-only, and never duplicate by nonce', 
 
     assert.deepEqual(
       forId(first.event.id).map(row => row.nonce).sort(),
-      [
-        'hv-species-event-' + first.event.id + '-start-announcement-ping-community',
-        'hv-species-event-' + first.event.id + '-start-progress',
-      ]
+      ['hv-species-event-' + first.event.id + '-start-event-announcement-ping-community']
     );
     assert.deepEqual(
       forId(second.event.id).map(row => row.nonce).sort(),
-      [
-        'hv-species-event-' + second.event.id + '-start-announcement-ping-everyone',
-        'hv-species-event-' + second.event.id + '-start-progress',
-      ]
+      ['hv-species-event-' + second.event.id + '-start-event-announcement-ping-everyone']
     );
     assert.deepEqual(
       forId(silent.event.id).map(row => row.nonce).sort(),
-      [
-        'hv-species-event-' + silent.event.id + '-start-announcement',
-        'hv-species-event-' + silent.event.id + '-start-progress',
-      ]
+      ['hv-species-event-' + silent.event.id + '-start-event-announcement']
     );
     const count = all().length;
     events.reconcileAnnouncements({ nowMs: T0 + 2000 });
@@ -220,7 +213,8 @@ test('Random Event pings are opt-in, start-only, and never duplicate by nonce', 
     events.stopEvent(first.event.id, { nowMs: T0 + 60_000 });
     events.reconcileAnnouncements({ nowMs: T0 + 61_000 });
     const ending = forId(first.event.id).filter(row => row.nonce.includes('-end-'));
-    assert.equal(ending.length, 2);
+    assert.equal(ending.length, 1);
+    assert.equal(ending[0].destination, 'event-announcement');
     assert.ok(ending.every(row => !row.nonce.includes('ping-')));
   } finally {
     if (previous === undefined) delete process.env.HERBYBOT_AUTOMATION_TOKEN;
@@ -237,4 +231,31 @@ test('bad ping targets are denied; event replay must not change ping target', ()
   assert.equal(initial.event.pingMode, 'community');
   assert.equal(create({ requestId: id, pingMode: 'community' }, T0 + 20_000).duplicate, true);
   assert.throws(() => create({ requestId: id, pingMode: 'everyone' }, T0 + 20_000), /different event settings/);
+});
+
+test('new Random Events publish exclusively in the dedicated start/finish channel', () => {
+  reset();
+  const previous = process.env.HERBYBOT_AUTOMATION_TOKEN;
+  process.env.HERBYBOT_AUTOMATION_TOKEN = 'dedicated-test-bridge';
+  const outbox = require('../src/services/automationStore');
+  try {
+    const created = create({ title: 'PT Test', species: 'pteranodon', coinsPerMinute: 300, pingMode: 'community' });
+    assert.equal(created.event.announceRoute, 'event-announcement');
+    events.reconcileAnnouncements({ nowMs: T0 + 1000 });
+    const start = outbox.listOutboxEvents({ limit: 500 })
+      .filter(row => row.nonce.includes(created.event.id));
+    assert.equal(start.length, 1);
+    assert.equal(start[0].destination, 'event-announcement');
+    assert.match(start[0].message, /Ends at 01-11-2026 20:00 \\(QLD time\\)/);
+    events.stopEvent(created.event.id, { nowMs: T0 + 120_000 });
+    events.reconcileAnnouncements({ nowMs: T0 + 120_001 });
+    const all = outbox.listOutboxEvents({ limit: 500 })
+      .filter(row => row.nonce.includes(created.event.id));
+    assert.deepEqual(all.map(row => row.destination), ['event-announcement', 'event-announcement']);
+    assert.ok(all.some(row => row.nonce.includes('-end-event-announcement')));
+    assert.ok(all.every(row => !['announcement', 'progress'].includes(row.destination)));
+  } finally {
+    if (previous === undefined) delete process.env.HERBYBOT_AUTOMATION_TOKEN;
+    else process.env.HERBYBOT_AUTOMATION_TOKEN = previous;
+  }
 });
