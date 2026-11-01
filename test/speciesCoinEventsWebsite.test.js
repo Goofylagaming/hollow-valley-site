@@ -98,3 +98,51 @@ test('random event UI consistently displays Brisbane time, not browser or Render
     assert.doesNotMatch(script, /date\.toLocaleString\('en-AU'\)/);
   }
 });
+
+test('Admin Hub only allows the three safe mention modes and forwards the selected preference', async (t) => {
+  const original = automation.createAdminSpeciesCoinEvent;
+  const calls = [];
+  automation.createAdminSpeciesCoinEvent = async (payload) => {
+    calls.push(payload);
+    return { event: { id: 'unit-test', pingMode: payload.pingMode }, duplicate: false };
+  };
+  t.after(() => { automation.createAdminSpeciesCoinEvent = original; });
+  const server = await serve({ id: 1, is_admin: 1, steam_id: '76561198038977506' });
+  t.after(() => new Promise(resolve => server.close(resolve)));
+
+  const event = (pingMode, autoAnnounce = true) => ({
+    requestId: '000df949-6000-4db0-92be-e137ae116c98', title: 'PT Test',
+    species: 'pteranodon', durationMinutes: 30, coinsPerMinute: 300,
+    pingMode, autoAnnounce,
+  });
+  async function post(payload) {
+    return fetch(base(server) + '/api/admin-operations/species-coin-events', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  }
+  assert.equal((await post(event('@everyone'))).status, 400);
+  assert.equal((await post(event('here'))).status, 400);
+  assert.equal((await post(event('community', false))).status, 400);
+  assert.equal(calls.length, 0);
+
+  for (const mode of ['community', 'everyone', 'none']) {
+    const response = await post(event(mode));
+    assert.equal(response.status, 201);
+    assert.equal((await response.json()).event.pingMode, mode);
+    assert.equal(calls.at(-1).pingMode, mode);
+  }
+});
+
+test('Admin Hub offers explicit role, everyone and no-ping choices for event starts', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../public/adminoperations.html'), 'utf8');
+  const js = fs.readFileSync(path.join(__dirname, '../public/assets/species-events-admin.js'), 'utf8');
+  assert.match(html, /id="ops-species-event-ping"/);
+  assert.match(html, /value="community" selected/);
+  assert.match(html, /value="everyone"/);
+  assert.match(html, /value="none"/);
+  assert.match(html, /when the event starts/);
+  assert.match(js, /pingMode:|pingMode \}/);
+  assert.match(js, /effectivePing\(\)/);
+  assert.match(js, /The START announcement will ping/);
+});
