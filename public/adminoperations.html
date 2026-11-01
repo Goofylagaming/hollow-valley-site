@@ -146,6 +146,13 @@
                 <input id="ops-species-event-start-at" type="datetime-local" aria-label="Event start date and time" style="padding:10px;background:#0f172a;color:#fff;border:1px solid #334155">
                 <small>Leave blank to start now. Server presence must remain healthy for rewards.</small>
                 <label><input id="ops-species-event-auto-announce" type="checkbox" checked> Automatically announce start and end through HerbyBot (community + server-progress Discord)</label>
+                <label for="ops-species-event-ping">Notify members on event START</label>
+                <select id="ops-species-event-ping" aria-label="Random Event Discord mention target" style="padding:10px;background:#0f172a;color:#fff;border:1px solid #334155">
+                  <option value="community" selected>@Community Member (recommended)</option>
+                  <option value="everyone">@everyone (entire server)</option>
+                  <option value="none">No ping</option>
+                </select>
+                <small>Ping occurs once in Community Announcements when the event starts; never again at the end or in #server-progress-and-updates. HerbyBot requires Discord permission to mention your choice.</small>
               </div>
               <div class="page-toolbar ops-toolbar">
                 <label>Species-only growth</label>
