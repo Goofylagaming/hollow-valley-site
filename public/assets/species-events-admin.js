@@ -36,6 +36,19 @@
   function selectedSpecies() {
     return el('ops-species-event-species')?.selectedOptions?.[0]?.textContent || 'a dinosaur';
   }
+  const pingLabels = Object.freeze({
+    none: 'no Discord ping',
+    community: '@Community Member',
+    everyone: '@everyone',
+  });
+  function effectivePing() {
+    if (el('ops-species-event-auto-announce')?.checked === false) return 'none';
+    return el('ops-species-event-ping')?.value || 'none';
+  }
+  function syncPingControl() {
+    const target = el('ops-species-event-ping');
+    if (target) target.disabled = el('ops-species-event-auto-announce')?.checked === false;
+  }
   function preview() {
     const coins = Number(el('ops-species-event-coins')?.value || 0);
     const minutes = Number(el('ops-species-event-duration')?.value || 0);
@@ -44,13 +57,16 @@
       'Extra ' + (Number.isFinite(coins) ? coins : 0).toLocaleString() +
       ' VC/min · ' + selectedSpecies() + ' · up to ' +
       (Number.isFinite(budget) ? budget : 0).toLocaleString() +
-      ' bonus VC per eligible player (separate from regular playtime rewards).');
+      ' bonus VC per eligible player (separate from regular playtime rewards). ' +
+      (effectivePing() === 'none' ? 'No Discord start ping.' :
+        'One Discord start notification to ' + pingLabels[effectivePing()] + '.'));
   }
   ['ops-species-event-species', 'ops-species-event-coins', 'ops-species-event-duration',
    'ops-species-event-start-at', 'ops-species-event-title',
-   'ops-species-event-auto-announce'].forEach((id) => {
-    el(id)?.addEventListener('input', preview);
+   'ops-species-event-auto-announce', 'ops-species-event-ping'].forEach((id) => {
+    el(id)?.addEventListener('input', () => { syncPingControl(); preview(); });
   });
+  syncPingControl();
 
   function render(data) {
     state = data;
@@ -93,7 +109,11 @@
           Number(event.coinsPerMinute).toLocaleString() + ' VC/min</td><td>' +
           escapeHtml(formatDate(event.startsAt)) + ' – ' +
           escapeHtml(formatDate(event.endsAt)) + '</td><td>' +
-          escapeHtml(event.status) + '</td><td>' + stop + announce + '</td></tr>';
+          escapeHtml(event.status) +
+          (event.autoAnnounce && pingLabels[event.pingMode] && event.pingMode !== 'none'
+            ? ' · start ping: ' + escapeHtml(pingLabels[event.pingMode])
+            : '') +
+          '</td><td>' + stop + announce + '</td></tr>';
       }).join('') : '<tr><td colspan="6">No configured dinosaur coin events.</td></tr>';
     }
     preview();
@@ -128,9 +148,14 @@
     if (localStart && !Number.isFinite(new Date(localStart).getTime())) {
       throw new Error('Choose a valid local date and time.');
     }
+    const pingMode = effectivePing();
+    if (!Object.hasOwn(pingLabels, pingMode)) {
+      throw new Error('Select a valid Discord notification target.');
+    }
     return { title, species, coinsPerMinute, durationMinutes,
       startsAt: localStart ? new Date(localStart).toISOString() : null,
-      autoAnnounce: el('ops-species-event-auto-announce')?.checked !== false };
+      autoAnnounce: el('ops-species-event-auto-announce')?.checked !== false,
+      pingMode };
   }
 
   el('ops-species-event-form')?.addEventListener('submit', async (event) => {
@@ -147,7 +172,11 @@
     };
     const copy = 'Start ' + draft.title + ' for ' + draft.species + ' at ' +
       draft.coinsPerMinute + ' bonus VC per minute for ' + draft.durationMinutes +
-      ' minutes? It will end automatically. This does NOT increase species growth.';
+      ' minutes? It will end automatically. ' +
+      (draft.pingMode === 'none' ? 'No mass ping will be sent.' :
+        'The START announcement will ping ' + pingLabels[draft.pingMode] +
+        ' once in the Community Announcements channel.') +
+      ' This does NOT increase species growth.';
     if (!window.confirm(copy)) return;
 
     savePending({ form: draft, payload });

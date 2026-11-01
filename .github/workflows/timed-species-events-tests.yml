@@ -7,6 +7,7 @@ on:
       - 'automation-platform/src/services/playerPresenceService.js'
       - 'automation-platform/src/routes/adminRoutes.js'
       - 'automation-platform/test/speciesCoinEvents.test.js'
+      - 'automation-platform/test/speciesCoinPingMigration.test.js'
       - 'automation-platform/src/services/eventTimeFormatter.js'
       - 'automation-platform/test/eventTimeFormatter.test.js'
       - 'automation-platform/test/speciesCoinEventRoutes.test.js'
@@ -32,4 +33,4 @@ jobs:
         with:
           node-version: '22'
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: node --test automation-platform/test/eventTimeFormatter.test.js automation-platform/test/speciesCoinEvents.test.js automation-platform/test/speciesCoinEventRoutes.test.js test/speciesCoinEventsWebsite.test.js test/adminOperationsRoute.test.js automation-platform/test/playerPresence.test.js automation-platform/test/questSync.test.js
+      - run: node --test automation-platform/test/eventTimeFormatter.test.js automation-platform/test/speciesCoinPingMigration.test.js automation-platform/test/speciesCoinEvents.test.js automation-platform/test/speciesCoinEventRoutes.test.js test/speciesCoinEventsWebsite.test.js test/adminOperationsRoute.test.js automation-platform/test/playerPresence.test.js automation-platform/test/questSync.test.js

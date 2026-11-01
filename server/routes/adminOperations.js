@@ -369,6 +369,13 @@ router.post("/species-coin-events", async (req, res) => {
   if (!/^[0-9a-f]{8}-[0-9a-f-]{27,32}$/i.test(String(input.requestId || ""))) {
     return res.status(400).json({ error: "A valid event request ID is required." });
   }
+  const pingMode = input.pingMode == null ? "none" : String(input.pingMode);
+  if (!["none", "community", "everyone"].includes(pingMode)) {
+    return res.status(400).json({ error: "Choose No ping, Community Member or everyone." });
+  }
+  if (input.autoAnnounce === false && pingMode !== "none") {
+    return res.status(400).json({ error: "Random Event mentions require automatic announcements." });
+  }
   const actorSteamId = String(req.user?.steam_id || "").trim();
   if (!/^\d{17}$/.test(actorSteamId)) {
     return res.status(403).json({ error: "Steam-linked admin access is required." });
@@ -382,6 +389,7 @@ router.post("/species-coin-events", async (req, res) => {
       startsAt: input.startsAt || undefined,
       requestId: input.requestId,
       autoAnnounce: input.autoAnnounce !== false,
+      pingMode,
       actorSteamId,
     });
     res.set("Cache-Control", "no-store");
