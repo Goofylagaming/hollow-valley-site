@@ -70,6 +70,14 @@ test("all production wallet, marketplace, storage, admin and other page scripts 
         "Reset handler must load after the existing Prime tracker");
       assert.deepEqual(actual.filter(src => src !== reset), baseline,
         "DinoStorage's existing production scripts must remain in order");
+    } else if (page === "events.html") {
+      const randomEvents = "assets/events-species-bonuses.js";
+      assert.equal(actual.filter(src => src === randomEvents).length, 1,
+        "Random event display script must be loaded exactly once");
+      assert.ok(actual.indexOf(randomEvents) > actual.indexOf("assets/events.js"),
+        "Public event bonuses load after the existing Events script");
+      assert.deepEqual(actual.filter(src => src !== randomEvents), baseline,
+        "All existing Events page scripts must retain their original order");
     } else {
       assert.deepEqual(actual, baseline, page + ": feature scripts were dropped or reordered");
     }
