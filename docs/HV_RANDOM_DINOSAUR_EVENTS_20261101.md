@@ -60,12 +60,20 @@ SteamID64 and canonical playable species, never user/client submissions.
 
 ## Announcements
 
-The existing Admin Hub Feature Announcements composer can be used to
-announce a verified active event to the community announcement or
-server-progress Discord destination. A 'Prepare announcement' action
-populates that composer with the event details; an admin must verify and
-queue it. Automatic scheduled start/expiry announcements are not claimed
-until a durable transition outbox is added.
+When **Automatically announce start and end** is selected, the existing
+automation scheduler runs a 15-second sweep and queues start/end notices
+to the community announcement and server-progress Discord destinations,
+using unique event+phase+channel nonces. The existing durable HerbyBot
+outbox makes repeated scheduler sweeps idempotent; delivery is asynchronous
+and requires the bot's configured channel IDs. Failure to post a Discord
+message does not stop a legitimate event or issue duplicate coin credits.
+
+The existing Admin Hub Feature Announcements composer remains available for
+additional verified manual messages; a 'Prepare announcement' action
+populates that composer. Do not queue a second manual post for an event
+that already had automatic notices, unless an additional announcement is
+intended. In-game announcements still require a separate verified RCON path.
+
 
 ## Rollout and rollback
 
