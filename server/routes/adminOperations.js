@@ -3,6 +3,8 @@ const { requireAdmin } = require("../middleware/requireAuth");
 const automation = require("../services/automationWebsiteClient");
 const dinoRequestAdmin = require("../services/dinoStorageRequestAdminClient");
 const { db } = require("../db");
+const playableSpecies = require("../data/species.json").filter((item) => item.releasedInEvrima !== false);
+const speciesIndex = new Map(playableSpecies.map((item) => [String(item.id), item]));
 
 const router = express.Router();
 
@@ -334,6 +336,74 @@ router.post("/growth-multiplier", async (req, res) => {
     return res.json(await automation.setAdminGrowthMultiplier(value, "TEST GROWTH"));
   } catch (error) {
     const mapped = mapAutomationError(error, "Could not request growth multiplier change.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.get("/species-coin-events", async (_req, res) => {
+  res.set("Cache-Control", "no-store");
+  try {
+    const response = await automation.getAdminSpeciesCoinEvents();
+    return res.json({ ...response, species: playableSpecies.map((item) => ({ id: item.id, name: item.name })) });
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not load dinosaur events.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.post("/species-coin-events", async (req, res) => {
+  if (!req.is("application/json")) return res.status(415).json({ error: "JSON is required." });
+  if (req.headers["sec-fetch-site"] === "cross-site") return res.status(403).json({ error: "Cross-site request rejected." });
+  const input = req.body || {};
+  const species = speciesIndex.get(String(input.species || "").toLowerCase());
+  if (!species) return res.status(400).json({ error: "Choose a playable dinosaur species." });
+  if (!Number.isSafeInteger(input.coinsPerMinute) || input.coinsPerMinute < 1 || input.coinsPerMinute > 1000) {
+    return res.status(400).json({ error: "Bonus must be 1–1,000 Valley Coins per minute." });
+  }
+  if (!Number.isSafeInteger(input.durationMinutes) || input.durationMinutes < 5 || input.durationMinutes > 720) {
+    return res.status(400).json({ error: "Duration must be 5–720 minutes." });
+  }
+  if (input.growthMultiplier !== undefined && input.growthMultiplier !== null) {
+    return res.status(400).json({ error: "Species-specific growth is not available until a game-side override is verified." });
+  }
+  if (!/^[0-9a-f]{8}-[0-9a-f-]{27,32}$/i.test(String(input.requestId || ""))) {
+    return res.status(400).json({ error: "A valid event request ID is required." });
+  }
+  const actorSteamId = String(req.user?.steam_id || "").trim();
+  if (!/^\d{17}$/.test(actorSteamId)) {
+    return res.status(403).json({ error: "Steam-linked admin access is required." });
+  }
+  try {
+    const result = await automation.createAdminSpeciesCoinEvent({
+      title: String(input.title || "").trim(),
+      species: species.id,
+      coinsPerMinute: input.coinsPerMinute,
+      durationMinutes: input.durationMinutes,
+      startsAt: input.startsAt || undefined,
+      requestId: input.requestId,
+      actorSteamId,
+    });
+    res.set("Cache-Control", "no-store");
+    return res.status(result.duplicate ? 200 : 201).json(result);
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not create dinosaur bonus event.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.post("/species-coin-events/:id/stop", async (req, res) => {
+  if (req.body?.confirm !== "STOP EVENT") {
+    return res.status(400).json({ error: 'Type STOP EVENT to end this event.' });
+  }
+  const actorSteamId = String(req.user?.steam_id || "").trim();
+  if (!/^\d{17}$/.test(actorSteamId)) {
+    return res.status(403).json({ error: "Steam-linked admin access is required." });
+  }
+  try {
+    res.set("Cache-Control", "no-store");
+    return res.json(await automation.stopAdminSpeciesCoinEvent(req.params.id, actorSteamId));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not stop dinosaur bonus event.");
     return res.status(mapped.status).json(mapped.body);
   }
 });
