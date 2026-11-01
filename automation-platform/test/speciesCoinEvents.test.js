@@ -133,11 +133,24 @@ test('HerbyBot receives idempotent start and stop messages for opted-in events',
     const initial = events.reconcileAnnouncements({ nowMs: T0 + 1000 });
     assert.equal(initial.skipped, false);
     assert.equal(outbox.getOutboxSummary().total, before + 2);
+    const startNotices = outbox.listOutboxEvents({ limit: 500 }).filter(entry =>
+      entry.nonce.includes(event.id) && entry.nonce.includes('-start-'));
+    assert.equal(startNotices.length, 2);
+    for (const notice of startNotices) {
+      assert.match(notice.message, /Ends at 01-11-2026 20:00 \\(QLD time\\)\\./);
+      assert.doesNotMatch(notice.message, /2026-11-01T10:00:00\\.000Z/);
+    }
     events.reconcileAnnouncements({ nowMs: T0 + 3000 });
     assert.equal(outbox.getOutboxSummary().total, before + 2, 'same notification cannot be double-queued');
     events.stopEvent(event.id, { nowMs: T0 + 60000 });
     events.reconcileAnnouncements({ nowMs: T0 + 61000 });
     assert.equal(outbox.getOutboxSummary().total, before + 4);
+    const stopNotices = outbox.listOutboxEvents({ limit: 500 }).filter(entry =>
+      entry.nonce.includes(event.id) && entry.nonce.includes('-end-'));
+    assert.equal(stopNotices.length, 2);
+    for (const notice of stopNotices) {
+      assert.match(notice.message, /Ended at 01-11-2026 19:01 \\(QLD time\\)\\./);
+    }
     events.reconcileAnnouncements({ nowMs: T0 + 63000 });
     assert.equal(outbox.getOutboxSummary().total, before + 4, 'stop notice is idempotent');
 
