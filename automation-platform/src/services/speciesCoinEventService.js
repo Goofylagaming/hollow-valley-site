@@ -8,6 +8,7 @@ const MINUTE_MS = 60_000;
 const MAX_SAMPLE_GAP_MS = 90_000;
 const MAX_COINS_PER_MINUTE = 1_000;
 const MAX_DURATION_MINUTES = 12 * 60;
+const PING_MODES = Object.freeze(['none', 'community', 'everyone']);
 const ALLOWED_SPECIES = new Set([
   'tyrannosaurus', 'allosaurus', 'carnotaurus', 'ceratosaurus',
   'deinosuchus', 'dilophosaurus', 'herrerasaurus', 'omniraptor',
@@ -23,6 +24,7 @@ db.exec(
     "starts_at_ms INTEGER NOT NULL, ends_at_ms INTEGER NOT NULL," +
     "status TEXT NOT NULL DEFAULT 'scheduled', created_by TEXT," +
     "auto_announce INTEGER NOT NULL DEFAULT 1," +
+    "ping_mode TEXT NOT NULL DEFAULT 'none'," +
     "stopped_at_ms INTEGER, created_at TEXT NOT NULL DEFAULT (datetime('now'))" +
   ");" +
   "CREATE INDEX IF NOT EXISTS idx_species_events_window ON species_coin_events(starts_at_ms, ends_at_ms, status);" +
@@ -33,6 +35,13 @@ db.exec(
     "PRIMARY KEY(event_id, steam_id)" +
   ");"
 );
+
+// Additive migration: old events never get an unsolicited role/everyone ping.
+// SQLite upgrade touches no player wallets, reward progress or existing events.
+if (!db.prepare('PRAGMA table_info(species_coin_events)').all()
+  .some(column => column.name === 'ping_mode')) {
+  db.exec("ALTER TABLE species_coin_events ADD COLUMN ping_mode TEXT NOT NULL DEFAULT 'none'");
+}
 
 function enabled() {
   return process.env.SPECIES_COIN_EVENTS_ENABLED === 'true';
@@ -65,6 +74,7 @@ function view(row, nowMs = Date.now()) {
     endsAt: new Date(Number(row.ends_at_ms)).toISOString(),
     status: statusFor(row, nowMs), createdBy: row.created_by,
     autoAnnounce: Number(row.auto_announce) === 1,
+    pingMode: PING_MODES.includes(row.ping_mode) ? row.ping_mode : 'none',
     stoppedAt: row.stopped_at_ms == null ? null : new Date(Number(row.stopped_at_ms)).toISOString(),
   };
 }
@@ -109,7 +119,16 @@ function validateEvent(input, nowMs) {
   const actorSteamId = String(input.actorSteamId || '').trim();
   if (!/^\d{17}$/.test(actorSteamId)) eventError('Steam-linked admin identity is required');
   const autoAnnounce = input.autoAnnounce !== false;
-  return { requestId, title, species, coins, start, end: start + duration * MINUTE_MS, actorSteamId, autoAnnounce };
+  // Absence of this new option is intentionally silent for existing callers.
+  const pingMode = input.pingMode == null ? 'none' : String(input.pingMode).trim().toLowerCase();
+  if (!PING_MODES.includes(pingMode)) {
+    eventError('Select no ping, Community Member, or everyone for Random Event announcements');
+  }
+  if (!autoAnnounce && pingMode !== 'none') {
+    eventError('Random Event pings require automatic announcements to be enabled');
+  }
+  return { requestId, title, species, coins, start, end: start + duration * MINUTE_MS,
+    actorSteamId, autoAnnounce, pingMode };
 }
 
 function createEvent(input, { nowMs = Date.now() } = {}) {
@@ -126,7 +145,8 @@ function createEvent(input, { nowMs = Date.now() } = {}) {
       if (existing.title !== p.title || existing.species_key !== p.species ||
           Number(existing.coins_per_minute) !== p.coins || Number(existing.starts_at_ms) !== p.start ||
           Number(existing.ends_at_ms) !== p.end || existing.created_by !== p.actorSteamId ||
-          Number(existing.auto_announce) !== (p.autoAnnounce ? 1 : 0)) {
+          Number(existing.auto_announce) !== (p.autoAnnounce ? 1 : 0) ||
+          existing.ping_mode !== p.pingMode) {
         eventError('This request ID was already used for different event settings', 'SPECIES_EVENT_CONFLICT');
       }
       db.exec('COMMIT');
@@ -142,9 +162,9 @@ function createEvent(input, { nowMs = Date.now() } = {}) {
     const id = randomUUID();
     db.prepare(
       'INSERT INTO species_coin_events ' +
-      '(id, request_id, title, species_key, coins_per_minute, starts_at_ms, ends_at_ms, created_by, auto_announce) ' +
-      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    ).run(id, p.requestId, p.title, p.species, p.coins, p.start, p.end, p.actorSteamId, p.autoAnnounce ? 1 : 0);
+      '(id, request_id, title, species_key, coins_per_minute, starts_at_ms, ends_at_ms, created_by, auto_announce, ping_mode) ' +
+      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    ).run(id, p.requestId, p.title, p.species, p.coins, p.start, p.end, p.actorSteamId, p.autoAnnounce ? 1 : 0, p.pingMode);
     const row = db.prepare('SELECT * FROM species_coin_events WHERE id = ?').get(id);
     db.exec('COMMIT');
     return { duplicate: false, event: view(row, nowMs) };
@@ -191,7 +211,14 @@ function reconcileAnnouncements({ nowMs = Date.now() } = {}) {
         ' Valley Coins/min bonus for ' + row.species_key + ' has finished. ' +
         'Ended at ' + formatEventTimeQld(row.stopped_at_ms != null ? Number(row.stopped_at_ms) : Number(row.ends_at_ms)) + '.';
     for (const destination of destinations) {
-      const nonce = 'hv-species-event-' + row.id + '-' + phase + '-' + destination;
+      // Only the first community announcement may ping. Existing events keep
+      // their historical nonce exactly, so old messages are never resent.
+      // The live HerbyBot worker validates the entire nonce + start message
+      // before enabling an actual Discord AllowedMentions policy.
+      const pingSuffix = phase === 'start' && destination === 'announcement' &&
+        PING_MODES.includes(row.ping_mode) && row.ping_mode !== 'none'
+        ? '-ping-' + row.ping_mode : '';
+      const nonce = 'hv-species-event-' + row.id + '-' + phase + '-' + destination + pingSuffix;
       try {
         const event = outbox.queueMessage({ destination, message, nonce });
         if (event.status === 'pending' || event.status === 'claimed') queued++;
@@ -303,4 +330,5 @@ function processSnapshot(players, { nowMs = Date.now() } = {}) {
 module.exports = {
   enabled, canonicalSpecies, validateEvent, statusFor, listEvents,
   createEvent, stopEvent, processSnapshot, reconcileAnnouncements, MAX_SAMPLE_GAP_MS,
+  PING_MODES,
 };
