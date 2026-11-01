@@ -40,12 +40,15 @@ test('species event administration requires token, rejects growth and stop confi
   assert.equal((await post(base, input, false)).status, 401);
   assert.equal((await post(base, { ...input, growthMultiplier: 2 })).status, 400);
   assert.equal((await post(base, { ...input, coinsPerMinute: 100000 })).status, 400);
+  assert.equal((await post(base, { ...input, pingMode: '@everyone' })).status, 400);
+  assert.equal((await post(base, { ...input, pingMode: 'community', autoAnnounce: false })).status, 400);
   const created = await post(base, input);
   assert.equal(created.status, 201);
   const first = await created.json();
   assert.equal(first.event.title, 'Raptor Hour');
   assert.equal(first.event.species, 'omniraptor');
   assert.equal(first.event.coinsPerMinute, 40);
+  assert.equal(first.event.pingMode, 'none', 'existing API calls are silent by default');
   const replay = await post(base, input);
   assert.equal(replay.status, 200);
   assert.equal((await replay.json()).duplicate, true);
