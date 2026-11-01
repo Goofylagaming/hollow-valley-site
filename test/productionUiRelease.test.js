@@ -72,11 +72,16 @@ test("all production wallet, marketplace, storage, admin and other page scripts 
         "DinoStorage's existing production scripts must remain in order");
     } else if (page === "adminoperations.html") {
       const speciesAdmin = "assets/species-events-admin.js";
+      const growthProbe = "assets/omniraptor-growth-validation.js";
       assert.equal(actual.filter(src => src === speciesAdmin).length, 1,
         "Timed species event admin script must load exactly once");
+      assert.equal(actual.filter(src => src === growthProbe).length, 1,
+        "Omniraptor read-only validation script must load exactly once");
       assert.ok(actual.indexOf(speciesAdmin) > actual.indexOf("assets/adminoperations.js"),
         "Species event controls load after the existing operations controls");
-      assert.deepEqual(actual.filter(src => src !== speciesAdmin), baseline,
+      assert.ok(actual.indexOf(growthProbe) > actual.indexOf(speciesAdmin),
+        "Read-only Omniraptor validation loads after the existing species event controls");
+      assert.deepEqual(actual.filter(src => src !== speciesAdmin && src !== growthProbe), baseline,
         "Existing Admin Operations scripts must retain their original order");
     } else if (page === "events.html") {
       const randomEvents = "assets/events-species-bonuses.js";
