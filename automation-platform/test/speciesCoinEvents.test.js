@@ -246,7 +246,7 @@ test('new Random Events publish exclusively in the dedicated start/finish channe
       .filter(row => row.nonce.includes(created.event.id));
     assert.equal(start.length, 1);
     assert.equal(start[0].destination, 'event-announcement');
-    assert.match(start[0].message, /Ends at 01-11-2026 20:00 \\(QLD time\\)/);
+    assert.match(start[0].message, /Ends at 01-11-2026 20:00 \(QLD time\)/);
     events.stopEvent(created.event.id, { nowMs: T0 + 120_000 });
     events.reconcileAnnouncements({ nowMs: T0 + 120_001 });
     const all = outbox.listOutboxEvents({ limit: 500 })
