@@ -90,3 +90,30 @@ test("internal supporter lookup rejects malformed Steam IDs", async (t) => {
   });
   assert.equal(response.status, 400);
 });
+
+test("confirmed cancellation or expiry removes bonus eligibility even while Stripe is active", async (t) => {
+  reset();
+  const insert = db.prepare("INSERT INTO users (id, steam_id, username) VALUES (?, ?, ?)");
+  insert.run(44, "76561198000000044", "scheduled-cancellation");
+  insert.run(45, "76561198000000045", "already-cancelled");
+  insert.run(46, "76561198000000046", "expired");
+  db.prepare("INSERT INTO supporter_subscriptions (user_id, tier, auto_renew, stripe_status, cancelled_at) VALUES (?, ?, ?, ?, ?)").run(44, "member", 0, "active", "2026-10-31");
+  db.prepare("INSERT INTO supporter_subscriptions (user_id, tier, auto_renew, stripe_status, cancelled_at) VALUES (?, ?, ?, ?, ?)").run(45, "legend", 1, "active", "2026-10-31");
+  db.prepare("INSERT INTO supporter_subscriptions (user_id, tier, auto_renew, stripe_status, cancelled_at) VALUES (?, ?, ?, ?, ?)").run(46, "elite", 0, "canceled", "2026-10-31");
+
+  const server = await listen();
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const response = await fetch(`http://127.0.0.1:${server.address().port}/api/internal/supporter-memberships`, {
+    method: "POST",
+    headers: { Authorization: "Bearer supporter-internal-secret", "Content-Type": "application/json" },
+    body: JSON.stringify({ steamIds: ["76561198000000041", "76561198000000044", "76561198000000045", "76561198000000046"] }),
+  });
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("cache-control") || "", /no-store/);
+  assert.deepEqual((await response.json()).memberships, [
+    { steamId: "76561198000000041", entitled: true, tier: "supporter" },
+    { steamId: "76561198000000044", entitled: false, tier: null },
+    { steamId: "76561198000000045", entitled: false, tier: null },
+    { steamId: "76561198000000046", entitled: false, tier: null },
+  ]);
+});
