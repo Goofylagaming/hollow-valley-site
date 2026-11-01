@@ -537,6 +537,13 @@ function cancelSupporterAutoRenew(userId) {
   return getSupporterStatus(userId);
 }
 
+function resumeSupporterAutoRenew(userId) {
+  db.prepare(
+    "UPDATE supporter_subscriptions SET auto_renew = 1, cancelled_at = NULL WHERE user_id = ?"
+  ).run(userId);
+  return getSupporterStatus(userId);
+}
+
 // ---------- Daily bonus ----------
 function hasDailyBonusClaim(userId, periodKey) {
   return Boolean(
@@ -952,6 +959,7 @@ module.exports = {
   getSupporterStatus,
   setSupporterTier,
   cancelSupporterAutoRenew,
+  resumeSupporterAutoRenew,
   hasDailyBonusClaim,
   recordDailyBonusClaim,
   createBodyDropRequest,
