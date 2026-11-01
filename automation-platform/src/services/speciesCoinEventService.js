@@ -25,6 +25,7 @@ db.exec(
     "status TEXT NOT NULL DEFAULT 'scheduled', created_by TEXT," +
     "auto_announce INTEGER NOT NULL DEFAULT 1," +
     "ping_mode TEXT NOT NULL DEFAULT 'none'," +
+    "announce_route TEXT NOT NULL DEFAULT 'legacy'," +
     "stopped_at_ms INTEGER, created_at TEXT NOT NULL DEFAULT (datetime('now'))" +
   ");" +
   "CREATE INDEX IF NOT EXISTS idx_species_events_window ON species_coin_events(starts_at_ms, ends_at_ms, status);" +
@@ -41,6 +42,12 @@ db.exec(
 if (!db.prepare('PRAGMA table_info(species_coin_events)').all()
   .some(column => column.name === 'ping_mode')) {
   db.exec("ALTER TABLE species_coin_events ADD COLUMN ping_mode TEXT NOT NULL DEFAULT 'none'");
+}
+// Existing events remain on their original destination, avoiding a second
+// start message or a surprise mass ping during the channel migration.
+if (!db.prepare('PRAGMA table_info(species_coin_events)').all()
+  .some(column => column.name === 'announce_route')) {
+  db.exec("ALTER TABLE species_coin_events ADD COLUMN announce_route TEXT NOT NULL DEFAULT 'legacy'");
 }
 
 function enabled() {
@@ -75,6 +82,7 @@ function view(row, nowMs = Date.now()) {
     status: statusFor(row, nowMs), createdBy: row.created_by,
     autoAnnounce: Number(row.auto_announce) === 1,
     pingMode: PING_MODES.includes(row.ping_mode) ? row.ping_mode : 'none',
+    announceRoute: row.announce_route === 'event-announcement' ? 'event-announcement' : 'legacy',
     stoppedAt: row.stopped_at_ms == null ? null : new Date(Number(row.stopped_at_ms)).toISOString(),
   };
 }
@@ -162,9 +170,9 @@ function createEvent(input, { nowMs = Date.now() } = {}) {
     const id = randomUUID();
     db.prepare(
       'INSERT INTO species_coin_events ' +
-      '(id, request_id, title, species_key, coins_per_minute, starts_at_ms, ends_at_ms, created_by, auto_announce, ping_mode) ' +
-      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    ).run(id, p.requestId, p.title, p.species, p.coins, p.start, p.end, p.actorSteamId, p.autoAnnounce ? 1 : 0, p.pingMode);
+      '(id, request_id, title, species_key, coins_per_minute, starts_at_ms, ends_at_ms, created_by, auto_announce, ping_mode, announce_route) ' +
+      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    ).run(id, p.requestId, p.title, p.species, p.coins, p.start, p.end, p.actorSteamId, p.autoAnnounce ? 1 : 0, p.pingMode, 'event-announcement');
     const row = db.prepare('SELECT * FROM species_coin_events WHERE id = ?').get(id);
     db.exec('COMMIT');
     return { duplicate: false, event: view(row, nowMs) };
@@ -197,7 +205,8 @@ function reconcileAnnouncements({ nowMs = Date.now() } = {}) {
   let queued = 0, failed = 0;
   for (const row of rows) {
     const status = statusFor(row, nowMs);
-    const destinations = ['announcement', 'progress'];
+    const destinations = row.announce_route === 'event-announcement'
+      ? ['event-announcement'] : ['announcement', 'progress'];
     const phase = status === 'active' ? 'start' :
       status === 'expired' || (status === 'stopped' &&
         Number(row.stopped_at_ms) >= Number(row.starts_at_ms)) ? 'end' : null;
