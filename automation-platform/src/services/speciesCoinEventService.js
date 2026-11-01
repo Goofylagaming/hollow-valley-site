@@ -6,6 +6,13 @@ const MINUTE_MS = 60_000;
 const MAX_SAMPLE_GAP_MS = 90_000;
 const MAX_COINS_PER_MINUTE = 1_000;
 const MAX_DURATION_MINUTES = 12 * 60;
+const ALLOWED_SPECIES = new Set([
+  'tyrannosaurus', 'allosaurus', 'carnotaurus', 'ceratosaurus',
+  'deinosuchus', 'dilophosaurus', 'herrerasaurus', 'omniraptor',
+  'troodon', 'pteranodon', 'diabloceratops', 'dryosaurus',
+  'tenontosaurus', 'maiasaura', 'pachycephalosaurus', 'stegosaurus',
+  'triceratops', 'gallimimus', 'hypsilophodon', 'beipiaosaurus',
+]);
 
 db.exec(
   "CREATE TABLE IF NOT EXISTS species_coin_events (" +
@@ -36,7 +43,7 @@ function eventError(message, code = 'SPECIES_EVENT_INVALID') {
 
 function canonicalSpecies(value) {
   const species = String(value || '').trim().toLowerCase().replace(/[^a-z]/g, '');
-  return /^[a-z]{3,40}$/.test(species) ? species : null;
+  return ALLOWED_SPECIES.has(species) ? species : null;
 }
 
 function statusFor(row, nowMs = Date.now()) {
