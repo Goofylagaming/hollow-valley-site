@@ -88,3 +88,13 @@ test('random event form visibly distinguishes supported minute coins and unavail
   assert.match(js, /crypto\.randomUUID/);
   assert.match(publicEvents, /RANDOM DINOSAUR BONUSES/);
 });
+
+test('random event UI consistently displays Brisbane time, not browser or Render local time', () => {
+  const admin = fs.readFileSync(path.join(__dirname, '../public/assets/species-events-admin.js'), 'utf8');
+  const player = fs.readFileSync(path.join(__dirname, '../public/assets/events-species-bonuses.js'), 'utf8');
+  for (const script of [admin, player]) {
+    assert.match(script, /Australia\/Brisbane/);
+    assert.match(script, /QLD time/);
+    assert.doesNotMatch(script, /date\.toLocaleString\('en-AU'\)/);
+  }
+});

@@ -7,10 +7,18 @@
   if (!target || typeof api !== 'function') return;
   let events = [];
 
-  const formatDate = (value) => {
+  const qldClock = new Intl.DateTimeFormat('en-AU', {
+    timeZone: 'Australia/Brisbane', year: 'numeric', month: '2-digit',
+    day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  });
+  function formatDate(value) {
     const date = new Date(value);
-    return Number.isFinite(date.getTime()) ? date.toLocaleString('en-AU') : 'Unknown time';
-  };
+    if (!Number.isFinite(date.getTime())) return 'Unknown time';
+    const p = Object.fromEntries(qldClock.formatToParts(date)
+      .filter(part => part.type !== 'literal')
+      .map(part => [part.type, part.value]));
+    return `${p.day}-${p.month}-${p.year} ${p.hour}:${p.minute} (QLD time)`;
+  }
   const remaining = (iso) => {
     const ms = new Date(iso).getTime() - Date.now();
     if (!Number.isFinite(ms) || ms <= 0) return 'Ending / expired';

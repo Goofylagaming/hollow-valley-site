@@ -1,6 +1,7 @@
 const { randomUUID } = require('node:crypto');
 const economy = require('./economyStore');
 const outbox = require('./herbyBotOutboxService');
+const { formatEventTimeQld } = require('./eventTimeFormatter');
 
 const db = economy.db;
 const MINUTE_MS = 60_000;
@@ -184,10 +185,11 @@ function reconcileAnnouncements({ nowMs = Date.now() } = {}) {
     const message = phase === 'start'
       ? '🦖 Hollow Valley Random Event STARTED: ' + row.title +
         '! Play ' + row.species_key + ' for an extra ' + row.coins_per_minute +
-        ' Valley Coins per verified minute. Ends at ' + new Date(Number(row.ends_at_ms)).toISOString() + '.'
+        ' Valley Coins per verified minute. Ends at ' + formatEventTimeQld(Number(row.ends_at_ms)) + '.'
       : '🦖 Hollow Valley Random Event ENDED: ' + row.title +
         '. The extra ' + row.coins_per_minute +
-        ' Valley Coins/min bonus for ' + row.species_key + ' has finished.';
+        ' Valley Coins/min bonus for ' + row.species_key + ' has finished. ' +
+        'Ended at ' + formatEventTimeQld(row.stopped_at_ms != null ? Number(row.stopped_at_ms) : Number(row.ends_at_ms)) + '.';
     for (const destination of destinations) {
       const nonce = 'hv-species-event-' + row.id + '-' + phase + '-' + destination;
       try {
