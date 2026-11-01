@@ -102,7 +102,11 @@ function validateEvent(input, nowMs) {
 
 function createEvent(input, { nowMs = Date.now() } = {}) {
   if (!enabled()) eventError('Species coin events are disabled by the server', 'SPECIES_EVENT_DISABLED');
-  const p = validateEvent(input, nowMs);
+  // A retried request must compare against its original event window,
+  // not the current clock (which has advanced since "Start now").
+  const requestId = String(input?.requestId || '').trim().toLowerCase();
+  const priorRequest = db.prepare('SELECT * FROM species_coin_events WHERE request_id = ?').get(requestId);
+  const p = validateEvent(input, priorRequest ? Number(priorRequest.starts_at_ms) : nowMs);
   db.exec('BEGIN IMMEDIATE');
   try {
     const existing = db.prepare('SELECT * FROM species_coin_events WHERE request_id = ?').get(p.requestId);
