@@ -38,7 +38,7 @@ const merchPage=await readFile(new URL('merch/index.html',studioBase),'utf8');
 assert.match(merchPage,/Fourthwall shop/i);
 assert.match(merchPage,/Colouring Book/i);
 assert.equal((merchPage.match(/class="product-card"/g)||[]).length,2);
-assert.equal((merchPage.match(/class="preview-only">Preview only/g)||[]).length,1);
+assert.equal((merchPage.match(/class="preview-only">Preview only/g)||[]).length,0);
 assert.match(merchPage,/href="https:\/\/hvs-e-commerce-shop\.fourthwall\.com\//);
 assert.doesNotMatch(merchPage,/<form\b|<iframe\b|https:\/\/(?:checkout\.stripe\.com|buy\.stripe\.com)/i);
 const merchJs=await readFile(new URL('merch/app.js',studioBase),'utf8');
