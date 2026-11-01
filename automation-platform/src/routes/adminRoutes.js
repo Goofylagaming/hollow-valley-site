@@ -11,6 +11,7 @@ const rconControl = require('../services/rconControlService');
 const featureAnnouncements = require('../services/featureAnnouncementService');
 const serverMonitor = require('../services/serverMonitorService');
 const playerPresence = require('../services/playerPresenceService');
+const speciesEvents = require('../services/speciesCoinEventService');
 const audit = require('../services/auditService');
 const store = require('../services/automationStore');
 const eventRewards = require('../services/eventRewardService');
@@ -37,6 +38,49 @@ router.get('/status', async (req, res) => {
   } catch (error) {
     console.error('[automation-admin-status]', error);
     res.status(503).json({ error: error.message || 'Admin status unavailable.' });
+  }
+});
+
+router.get('/species-coin-events', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  return res.json(speciesEvents.listEvents({ limit: Number(req.query.limit) || 40 }));
+});
+
+router.post('/species-coin-events', async (req, res) => {
+  try {
+    const input = req.body || {};
+    const result = await audit.run('species_coin_event', 'create', {
+      title: String(input.title || '').slice(0, 90),
+      species: String(input.species || '').slice(0, 40),
+      coinsPerMinute: Number(input.coinsPerMinute) || 0,
+      durationMinutes: Number(input.durationMinutes) || 0,
+      actorSteamId: String(input.actorSteamId || '').slice(0, 17),
+    }, () => speciesEvents.createEvent(input), (value) => ({
+      eventId: value.event.id, status: value.event.status, duplicate: value.duplicate,
+    }));
+    res.status(result.duplicate ? 200 : 201).json({ ok: true, ...result });
+  } catch (error) {
+    return res.status(error.code === 'SPECIES_EVENT_DISABLED' ? 503 :
+      error.code === 'SPECIES_EVENT_CONFLICT' ? 409 : 400)
+      .json({ error: error.message || 'Could not create species bonus event.', code: error.code || null });
+  }
+});
+
+router.post('/species-coin-events/:id/stop', async (req, res) => {
+  if (req.body?.confirm !== 'STOP EVENT') {
+    return res.status(400).json({ error: 'Type STOP EVENT to stop the bonus now.' });
+  }
+  try {
+    const result = await audit.run('species_coin_event', 'stop', {
+      eventId: req.params.id,
+      actorSteamId: String(req.body?.actorSteamId || '').slice(0, 17),
+    }, () => speciesEvents.stopEvent(req.params.id), (value) => ({
+      eventId: value.event.id, status: value.event.status, duplicate: value.duplicate,
+    }));
+    return res.json({ ok: true, ...result });
+  } catch (error) {
+    return res.status(error.code === 'SPECIES_EVENT_NOT_FOUND' ? 404 : 400)
+      .json({ error: error.message || 'Could not stop species event.', code: error.code || null });
   }
 });
 

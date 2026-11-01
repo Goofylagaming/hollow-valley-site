@@ -42,6 +42,24 @@ router.get("/", async (_req, res) => {
   }
 });
 
+router.get("/species-bonuses", async (_req, res) => {
+  res.set("Cache-Control", "public, max-age=10");
+  try {
+    const state = await automation.getAdminSpeciesCoinEvents();
+    const events = state.enabled ? (Array.isArray(state.events) ? state.events : [])
+      .filter((event) => event.status === "active" || event.status === "scheduled")
+      .map((event) => ({
+        id: event.id, title: event.title, species: event.species,
+        coinsPerMinute: event.coinsPerMinute,
+        startsAt: event.startsAt, endsAt: event.endsAt,
+        status: event.status,
+      })) : [];
+    return res.json({ enabled: state.enabled === true, events });
+  } catch (error) {
+    return res.status(503).json({ enabled: false, events: [], error: "Dinosaur bonus status unavailable." });
+  }
+});
+
 router.get("/rewards/mine", requireAuth, async (req, res) => {
   if (!req.user?.steam_id) return res.status(400).json({ error: "Your Steam account is not linked." });
   try {
