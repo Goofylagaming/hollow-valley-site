@@ -224,7 +224,8 @@ function reconcileAnnouncements({ nowMs = Date.now() } = {}) {
       // their historical nonce exactly, so old messages are never resent.
       // The live HerbyBot worker validates the entire nonce + start message
       // before enabling an actual Discord AllowedMentions policy.
-      const pingSuffix = phase === 'start' && destination === 'announcement' &&
+      const pingSuffix = phase === 'start' &&
+        (destination === 'announcement' || destination === 'event-announcement') &&
         PING_MODES.includes(row.ping_mode) && row.ping_mode !== 'none'
         ? '-ping-' + row.ping_mode : '';
       const nonce = 'hv-species-event-' + row.id + '-' + phase + '-' + destination + pingSuffix;
