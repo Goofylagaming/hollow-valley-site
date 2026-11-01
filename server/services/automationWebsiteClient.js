@@ -692,6 +692,24 @@ function activateAdminGlobalBodyDrop() {
   });
 }
 
+function getAdminSpeciesCoinEvents() {
+  return callAdmin('/species-coin-events');
+}
+
+function createAdminSpeciesCoinEvent(payload) {
+  return callAdmin('/species-coin-events', {
+    method: 'POST',
+    body: payload,
+  });
+}
+
+function stopAdminSpeciesCoinEvent(id, actorSteamId) {
+  return callAdmin('/species-coin-events/' + encodeURIComponent(String(id)) + '/stop', {
+    method: 'POST',
+    body: { confirm: 'STOP EVENT', actorSteamId },
+  });
+}
+
 function setAdminGrowthMultiplier(value, confirm) {
   if (confirm !== 'TEST GROWTH') throw new Error('Growth test requires TEST GROWTH confirmation');
   if (![2, 3].includes(value)) throw new Error('Invalid experimental growth value');
@@ -879,6 +897,9 @@ module.exports = {
   activateAdminGlobalBodyDrop,
   wipeAdminCorpses,
   setAdminGrowthMultiplier,
+  getAdminSpeciesCoinEvents,
+  createAdminSpeciesCoinEvent,
+  stopAdminSpeciesCoinEvent,
   queueAdminFeatureAnnouncement,
   createAdminBackup,
   getAdminServerHealth,
