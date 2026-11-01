@@ -356,6 +356,8 @@ function featureAnnouncementPayload() {
     kind,
     multiplier: Number(document.getElementById("ops-feature-growth")?.value),
     message: document.getElementById("ops-feature-custom")?.value.trim() || "",
+    pingMode: kind === "growth"
+      ? (document.getElementById("ops-feature-growth-ping")?.value || "none") : "none",
     channels: [
       ...(document.getElementById("ops-feature-community")?.checked ? ["announcement"] : []),
       ...(document.getElementById("ops-feature-progress")?.checked ? ["progress"] : []),
@@ -379,8 +381,18 @@ function updateFeatureAnnouncementPreview() {
   if (growth) growth.hidden = !growthVisible;
   if (growthLabel) growthLabel.hidden = !growthVisible;
   if (custom) custom.hidden = growthVisible;
-  text("ops-feature-preview", featureAnnouncementText(payload));
-  const ready = featureAnnouncementReady &&
+  const pingWrap = document.getElementById("ops-feature-growth-ping-wrap");
+  const pingSelect = document.getElementById("ops-feature-growth-ping");
+  if (pingWrap) pingWrap.hidden = !growthVisible;
+  if (pingSelect) pingSelect.disabled = !growthVisible || !payload.channels.includes("announcement");
+  const pingLabel = payload.pingMode === "community" ? "@Community Member" :
+    payload.pingMode === "everyone" ? "@everyone" : null;
+  text("ops-feature-preview",
+    (growthVisible && pingLabel ? "Start-of-notice ping: " + pingLabel +
+      " (Community Announcements only)\n" : "") + featureAnnouncementText(payload));
+  const pingAllowed = !growthVisible || payload.pingMode === "none" ||
+    payload.channels.includes("announcement");
+  const ready = pingAllowed && featureAnnouncementReady &&
     document.getElementById("ops-feature-verified")?.checked &&
     payload.channels.length > 0 && (growthVisible || Boolean(payload.message));
   const button = document.getElementById("ops-feature-publish");
@@ -388,7 +400,8 @@ function updateFeatureAnnouncementPreview() {
 }
 
 ["ops-feature-type", "ops-feature-growth", "ops-feature-custom",
- "ops-feature-community", "ops-feature-progress", "ops-feature-verified"]
+ "ops-feature-community", "ops-feature-progress", "ops-feature-verified",
+ "ops-feature-growth-ping"]
   .forEach((id) => document.getElementById(id)?.addEventListener("input", () => {
     // The persisted content signature below controls request identity.
     const message = document.getElementById("ops-feature-message");
@@ -411,8 +424,11 @@ document.getElementById("ops-feature-publish")?.addEventListener("click", async 
   const payload = featureAnnouncementPayload();
   if (!featureAnnouncementReady || !document.getElementById("ops-feature-verified")?.checked ||
       !payload.channels.length || (payload.kind === "custom" && !payload.message)) return;
+  if (payload.pingMode !== "none" && !payload.channels.includes("announcement")) return;
+  const requestedPing = payload.kind === "growth" && payload.pingMode !== "none"
+    ? (payload.pingMode === "community" ? "@Community Member" : "@everyone") : "No ping";
   if (!window.confirm(
-    `Confirm this change is already active and queue this message to Discord?\n\n${featureAnnouncementText(payload)}\n\nQueued messages are not necessarily delivered immediately.`
+    `Confirm this change is already active and queue this message to Discord?\n\n${featureAnnouncementText(payload)}\n\nNotification: ${requestedPing} (Community Announcements only).\nQueued messages are not necessarily delivered immediately.`
   )) return;
 
   const button = event.currentTarget;
