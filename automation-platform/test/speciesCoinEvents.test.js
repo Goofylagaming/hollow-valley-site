@@ -149,3 +149,18 @@ test('HerbyBot receives idempotent start and stop messages for opted-in events',
     else process.env.HERBYBOT_AUTOMATION_TOKEN = previous;
   }
 });
+
+test('one missing authoritative presence sample prevents all offline event accrual', () => {
+  reset();
+  create({ coinsPerMinute: 65 });
+  snapshot(T0);
+  assert.equal(snapshot(T0 + 30_000).coins, 0);
+  // During a 20s offline gap, the player is missing from an authoritative
+  // RCON presence sample. The minute accrual must immediately reset.
+  events.processSnapshot([], { nowMs: T0 + 50_000 });
+  assert.equal(snapshot(T0 + 70_000).coins, 0);
+  assert.equal(snapshot(T0 + 110_000).coins, 0);
+  assert.equal(snapshot(T0 + 130_000).coins, 65);
+  assert.equal(balance(), 65);
+  assert.equal(snapshot(T0 + 130_000).coins, 0);
+});
