@@ -340,6 +340,22 @@ router.post("/growth-multiplier", async (req, res) => {
   }
 });
 
+// Scope the observation to the actual logged-in admin's Steam identity. The
+// browser cannot choose another player, spoof growth data, or submit a rate.
+router.get("/growth-validation/omniraptor", async (req, res) => {
+  res.set("Cache-Control", "private, no-store");
+  const steamId = String(req.user?.steam_id || "").trim();
+  if (!/^\d{17}$/.test(steamId)) {
+    return res.status(409).json({ error: "Sign in with your Steam-linked administrator account to observe your Omniraptor." });
+  }
+  try {
+    return res.json(await automation.getAdminOmniraptorGrowthValidation(steamId));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not observe your Omniraptor safely.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
 router.get("/species-coin-events", async (_req, res) => {
   res.set("Cache-Control", "no-store");
   try {

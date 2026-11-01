@@ -122,6 +122,46 @@
             </div>
           </section>
 
+                    <section class="ops-panel" id="omni-growth-validation" aria-labelledby="omni-growth-validation-title">
+            <div class="list-heading">
+              <span id="omni-growth-validation-title">OMNIRAPTOR GROWTH VALIDATION</span>
+              <small>Read-only · your live Steam-linked dinosaur</small>
+            </div>
+            <p class="section-intro">Prepare an individual growth-rate test without changing the server. Pick the desired effective rate (1×–10×) and observe your Omniraptor's actual growth for up to 10 minutes. <strong>No option applies growth yet.</strong> Baseline growth, vitals, mutations, other players and Game.ini are never modified by this tool.</p>
+            <div class="page-toolbar ops-toolbar">
+              <label for="omni-growth-target">Requested effective growth rate</label>
+              <select id="omni-growth-target" aria-label="Omniraptor growth test multiplier" style="padding:10px;background:#0f172a;color:#fff;border:1px solid #334155">
+                <option value="1">1× growth</option>
+                <option value="2">2× growth</option>
+                <option value="3" selected>3× growth</option>
+                <option value="4">4× growth</option>
+                <option value="5">5× growth</option>
+                <option value="6">6× growth</option>
+                <option value="7">7× growth</option>
+                <option value="8">8× growth</option>
+                <option value="9">9× growth</option>
+                <option value="10">10× growth</option>
+              </select>
+              <span id="omni-growth-selection">3× requested · no command will be sent</span>
+            </div>
+            <div class="page-toolbar ops-toolbar">
+              <button class="small-button" type="button" id="omni-growth-start">Start read-only observation</button>
+              <button class="small-button" type="button" id="omni-growth-stop" disabled>Stop observation</button>
+              <button class="small-button" type="button" id="omni-growth-copy" disabled>Copy test report</button>
+            </div>
+            <p id="omni-growth-state" class="section-intro" role="status" aria-live="polite">Not started. Log into The Isle with a growing Omniraptor before collecting measurements.</p>
+            <div class="ops-table-wrap">
+              <table class="ops-table">
+                <thead>
+                  <tr><th>Sample (QLD)</th><th>Omniraptor growth</th><th>Health</th><th>Stamina</th><th>Hunger</th><th>Thirst</th></tr>
+                </thead>
+                <tbody id="omni-growth-observations"><tr><td colspan="6">No live observation captured.</td></tr></tbody>
+              </table>
+            </div>
+            <p id="omni-growth-rate" class="section-intro">Observed natural growth rate: unavailable until two fresh samples are collected.</p>
+            <p class="section-intro"><strong>Safety:</strong> The requested multiplier is a future per-dinosaur target, not a global growth multiplier or a character growth grant. If you switch species, disconnect, reach full growth or the feed becomes stale, the observation stops. No in-game XP or growth rate is changed.</p>
+          </section>
+
           <section class="ops-panel" id="species-events">
             <div class="list-heading"><span>RANDOM DINOSAUR EVENTS</span><small>Per-species Valley Coins · no game restart</small></div>
             <p class="section-intro">Run a temporary bonus for players currently using one dinosaur. Extra Valley Coins accrue per verified minute while they stay online with the chosen species. Events end automatically at the deadline. Species-specific growth bonuses require a separately verified game mod and are unavailable here.</p>
@@ -223,5 +263,6 @@
   <script src="/assets/common.js?v=21"></script>
   <script src="/assets/adminoperations.js?v=14"></script>
   <script src="/assets/species-events-admin.js?v=1"></script>
+  <script src="/assets/omniraptor-growth-validation.js?v=1"></script>
 </body>
 </html>

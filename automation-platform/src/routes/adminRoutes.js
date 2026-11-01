@@ -1,6 +1,7 @@
 const express = require('express');
 const { requireAdminToken } = require('../middleware/adminAuth');
-const { getAdminStatus } = require('../services/statusService');
+const { getAdminStatus, getServerSnapshot } = require('../services/statusService');
+const omniGrowthValidation = require('../services/omniraptorGrowthValidationService');
 const bodyDrop = require('../services/bodyDropService');
 const dinoStorage = require('../services/dinoStorageService');
 const adminActions = require('../services/adminActionsService');
@@ -38,6 +39,23 @@ router.get('/status', async (req, res) => {
   } catch (error) {
     console.error('[automation-admin-status]', error);
     res.status(503).json({ error: error.message || 'Admin status unavailable.' });
+  }
+});
+
+// Strictly read-only. SteamID comes from the authenticated website server;
+// never touches per-player pawn state or the global GrowthMultiplier.
+router.get('/growth-validation/omniraptor', async (req, res) => {
+  const steamId = String(req.query.steamId || '').trim();
+  if (!/^\d{17}$/.test(steamId)) {
+    return res.status(400).json({ error: 'A Steam-linked administrator is required.' });
+  }
+  try {
+    const snapshot = await getServerSnapshot({ force: false });
+    res.set('Cache-Control', 'private, no-store');
+    return res.json(omniGrowthValidation.projectSnapshot(snapshot, steamId));
+  } catch (error) {
+    console.warn('[omniraptor-growth-validation] unable to obtain read-only snapshot:', error.message);
+    return res.status(503).json({ error: 'Growth observation is temporarily unavailable.' });
   }
 });
 

@@ -692,6 +692,11 @@ function activateAdminGlobalBodyDrop() {
   });
 }
 
+function getAdminOmniraptorGrowthValidation(steamId) {
+  return callAdmin('/growth-validation/omniraptor?steamId=' +
+    encodeURIComponent(validateSteamId(steamId)));
+}
+
 function getAdminSpeciesCoinEvents() {
   return callAdmin('/species-coin-events');
 }
@@ -898,6 +903,7 @@ module.exports = {
   wipeAdminCorpses,
   setAdminGrowthMultiplier,
   getAdminSpeciesCoinEvents,
+  getAdminOmniraptorGrowthValidation,
   createAdminSpeciesCoinEvent,
   stopAdminSpeciesCoinEvent,
   queueAdminFeatureAnnouncement,
