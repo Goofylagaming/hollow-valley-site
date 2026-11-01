@@ -36,9 +36,9 @@ jobs:
         run: |
           node brand-sites/build.mjs --production
           node brand-sites/verify.mjs --production
-      - name: Verify production only exposes preview products
+      - name: Verify genuine separate Fourthwall product destinations
         run: |
-          grep -q 'Preview only' brand-sites/dist/hollow-valley/merch/index.html
-          grep -q 'hvs-e-commerce-shop.fourthwall.com' brand-sites/dist/hollow-valley/merch/index.html
+          grep -q 'hollowvalleystudios-shop.fourthwall.com/products/primalbound-characters-dinosaur-adventures-vol-1' brand-sites/dist/hollow-valley/merch/index.html
+          grep -q 'hvs-e-commerce-shop.fourthwall.com/en-aud/products/hollow-valley-chromie-hoodie' brand-sites/dist/hollow-valley/merch/index.html
           test -f brand-sites/dist/hollow-valley/merch/styles.css
           test -f brand-sites/dist/hollow-valley/merch/app.js
