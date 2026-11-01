@@ -14,6 +14,7 @@ const {
   processStripeEvent,
   tierFromSubscription,
   isEntitled,
+  isCoinBonusEligible,
 } = require("../server/services/supporterWebhook");
 
 function signedHeader(body, timestamp = 2_000_000_000, secret = process.env.STRIPE_WEBHOOK_SECRET) {
@@ -266,4 +267,47 @@ test("live-mode webhooks are processed only when live mode is explicitly enabled
     id: "evt_test_rejected_in_live",
     livemode: false,
   }, liveEnv), { ignored: true });
+});
+
+test("scheduled cancellation revokes future coin multipliers without revoking remaining paid access", () => {
+  reset();
+  const base = {
+    id: "sub_cancel_42",
+    status: "active",
+    cancel_at_period_end: false,
+    customer: "cus_cancel_42",
+    metadata: { user_id: "42", tier: "member" },
+    items: { data: [{ price: { id: process.env.STRIPE_PRICE_MEMBER } }] },
+  };
+  const subscriptionEvent = (id, object) => ({
+    id, type: "customer.subscription.updated", livemode: false, data: { object },
+  });
+
+  processStripeEvent(subscriptionEvent("evt_coin_active", base));
+  assert.equal(isCoinBonusEligible(getSupporterStatus(42)), true);
+
+  processStripeEvent(subscriptionEvent("evt_coin_cancellation", { ...base, cancel_at_period_end: true }));
+  let status = getSupporterStatus(42);
+  assert.equal(status.stripe_status, "active");
+  assert.equal(isEntitled(status.stripe_status), true, "paid access remains to billing expiry");
+  assert.equal(status.auto_renew, 0);
+  assert.ok(status.cancelled_at);
+  assert.equal(isCoinBonusEligible(status), false);
+
+  // Receiving a subsequent paid invoice must not override the cancelled state.
+  processStripeEvent({
+    id: "evt_coin_invoice_paid", type: "invoice.paid", livemode: false,
+    data: { object: { parent: { subscription_details: { subscription: base.id } } } },
+  });
+  assert.equal(isCoinBonusEligible(getSupporterStatus(42)), false);
+
+  processStripeEvent(subscriptionEvent("evt_coin_resumed", base));
+  status = getSupporterStatus(42);
+  assert.equal(status.auto_renew, 1);
+  assert.equal(status.cancelled_at, null);
+  assert.equal(isCoinBonusEligible(status), true);
+
+  processStripeEvent({ id: "evt_coin_deleted", type: "customer.subscription.deleted",
+    livemode: false, data: { object: { ...base, status: "canceled" } } });
+  assert.equal(isCoinBonusEligible(getSupporterStatus(42)), false);
 });
