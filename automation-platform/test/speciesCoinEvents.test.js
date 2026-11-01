@@ -177,3 +177,64 @@ test('one missing authoritative presence sample prevents all offline event accru
   assert.equal(balance(), 65);
   assert.equal(snapshot(T0 + 130_000).coins, 0);
 });
+
+test('Random Event pings are opt-in, start-only, and never duplicate by nonce', () => {
+  reset();
+  const previous = process.env.HERBYBOT_AUTOMATION_TOKEN;
+  process.env.HERBYBOT_AUTOMATION_TOKEN = 'role-mention-test';
+  const outbox = require('../src/services/automationStore');
+  try {
+    const first = create({ title: 'Pteranodon Test', species: 'pteranodon', pingMode: 'community' });
+    const second = create({ title: 'Raptor Test', species: 'omniraptor', pingMode: 'everyone' });
+    const silent = create({ title: 'Triceratops Test', species: 'triceratops' });
+
+    const all = () => outbox.listOutboxEvents({ limit: 500 });
+    events.reconcileAnnouncements({ nowMs: T0 + 1000 });
+    const forId = (id) => all().filter(row => row.nonce.includes(id));
+
+    assert.deepEqual(
+      forId(first.event.id).map(row => row.nonce).sort(),
+      [
+        'hv-species-event-' + first.event.id + '-start-announcement-ping-community',
+        'hv-species-event-' + first.event.id + '-start-progress',
+      ]
+    );
+    assert.deepEqual(
+      forId(second.event.id).map(row => row.nonce).sort(),
+      [
+        'hv-species-event-' + second.event.id + '-start-announcement-ping-everyone',
+        'hv-species-event-' + second.event.id + '-start-progress',
+      ]
+    );
+    assert.deepEqual(
+      forId(silent.event.id).map(row => row.nonce).sort(),
+      [
+        'hv-species-event-' + silent.event.id + '-start-announcement',
+        'hv-species-event-' + silent.event.id + '-start-progress',
+      ]
+    );
+    const count = all().length;
+    events.reconcileAnnouncements({ nowMs: T0 + 2000 });
+    assert.equal(all().length, count, 'same start cannot queue two pings');
+
+    events.stopEvent(first.event.id, { nowMs: T0 + 60_000 });
+    events.reconcileAnnouncements({ nowMs: T0 + 61_000 });
+    const ending = forId(first.event.id).filter(row => row.nonce.includes('-end-'));
+    assert.equal(ending.length, 2);
+    assert.ok(ending.every(row => !row.nonce.includes('ping-')));
+  } finally {
+    if (previous === undefined) delete process.env.HERBYBOT_AUTOMATION_TOKEN;
+    else process.env.HERBYBOT_AUTOMATION_TOKEN = previous;
+  }
+});
+
+test('bad ping targets are denied; event replay must not change ping target', () => {
+  reset();
+  assert.throws(() => create({ pingMode: 'all' }), /no ping, Community Member, or everyone/);
+  assert.throws(() => create({ autoAnnounce: false, pingMode: 'community' }), /require automatic announcements/);
+  const id = randomUUID();
+  const initial = create({ requestId: id, pingMode: 'community' });
+  assert.equal(initial.event.pingMode, 'community');
+  assert.equal(create({ requestId: id, pingMode: 'community' }, T0 + 20_000).duplicate, true);
+  assert.throws(() => create({ requestId: id, pingMode: 'everyone' }, T0 + 20_000), /different event settings/);
+});
