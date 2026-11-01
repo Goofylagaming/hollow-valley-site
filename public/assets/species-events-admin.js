@@ -39,7 +39,8 @@
       ' bonus VC per eligible player (separate from regular playtime rewards).');
   }
   ['ops-species-event-species', 'ops-species-event-coins', 'ops-species-event-duration',
-   'ops-species-event-start-at', 'ops-species-event-title'].forEach((id) => {
+   'ops-species-event-start-at', 'ops-species-event-title',
+   'ops-species-event-auto-announce'].forEach((id) => {
     el(id)?.addEventListener('input', preview);
   });
 
@@ -120,7 +121,8 @@
       throw new Error('Choose a valid local date and time.');
     }
     return { title, species, coinsPerMinute, durationMinutes,
-      startsAt: localStart ? new Date(localStart).toISOString() : null };
+      startsAt: localStart ? new Date(localStart).toISOString() : null,
+      autoAnnounce: el('ops-species-event-auto-announce')?.checked !== false };
   }
 
   el('ops-species-event-form')?.addEventListener('submit', async (event) => {
