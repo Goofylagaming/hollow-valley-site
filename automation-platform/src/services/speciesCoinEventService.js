@@ -1,5 +1,6 @@
 const { randomUUID } = require('node:crypto');
 const economy = require('./economyStore');
+const outbox = require('./herbyBotOutboxService');
 
 const db = economy.db;
 const MINUTE_MS = 60_000;
@@ -20,6 +21,7 @@ db.exec(
     "species_key TEXT NOT NULL, coins_per_minute INTEGER NOT NULL," +
     "starts_at_ms INTEGER NOT NULL, ends_at_ms INTEGER NOT NULL," +
     "status TEXT NOT NULL DEFAULT 'scheduled', created_by TEXT," +
+    "auto_announce INTEGER NOT NULL DEFAULT 1," +
     "stopped_at_ms INTEGER, created_at TEXT NOT NULL DEFAULT (datetime('now'))" +
   ");" +
   "CREATE INDEX IF NOT EXISTS idx_species_events_window ON species_coin_events(starts_at_ms, ends_at_ms, status);" +
@@ -61,6 +63,7 @@ function view(row, nowMs = Date.now()) {
     startsAt: new Date(Number(row.starts_at_ms)).toISOString(),
     endsAt: new Date(Number(row.ends_at_ms)).toISOString(),
     status: statusFor(row, nowMs), createdBy: row.created_by,
+    autoAnnounce: Number(row.auto_announce) === 1,
     stoppedAt: row.stopped_at_ms == null ? null : new Date(Number(row.stopped_at_ms)).toISOString(),
   };
 }
@@ -104,7 +107,8 @@ function validateEvent(input, nowMs) {
   }
   const actorSteamId = String(input.actorSteamId || '').trim();
   if (!/^\d{17}$/.test(actorSteamId)) eventError('Steam-linked admin identity is required');
-  return { requestId, title, species, coins, start, end: start + duration * MINUTE_MS, actorSteamId };
+  const autoAnnounce = input.autoAnnounce !== false;
+  return { requestId, title, species, coins, start, end: start + duration * MINUTE_MS, actorSteamId, autoAnnounce };
 }
 
 function createEvent(input, { nowMs = Date.now() } = {}) {
@@ -120,7 +124,8 @@ function createEvent(input, { nowMs = Date.now() } = {}) {
     if (existing) {
       if (existing.title !== p.title || existing.species_key !== p.species ||
           Number(existing.coins_per_minute) !== p.coins || Number(existing.starts_at_ms) !== p.start ||
-          Number(existing.ends_at_ms) !== p.end || existing.created_by !== p.actorSteamId) {
+          Number(existing.ends_at_ms) !== p.end || existing.created_by !== p.actorSteamId ||
+          Number(existing.auto_announce) !== (p.autoAnnounce ? 1 : 0)) {
         eventError('This request ID was already used for different event settings', 'SPECIES_EVENT_CONFLICT');
       }
       db.exec('COMMIT');
@@ -136,9 +141,9 @@ function createEvent(input, { nowMs = Date.now() } = {}) {
     const id = randomUUID();
     db.prepare(
       'INSERT INTO species_coin_events ' +
-      '(id, request_id, title, species_key, coins_per_minute, starts_at_ms, ends_at_ms, created_by) ' +
-      'VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-    ).run(id, p.requestId, p.title, p.species, p.coins, p.start, p.end, p.actorSteamId);
+      '(id, request_id, title, species_key, coins_per_minute, starts_at_ms, ends_at_ms, created_by, auto_announce) ' +
+      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    ).run(id, p.requestId, p.title, p.species, p.coins, p.start, p.end, p.actorSteamId, p.autoAnnounce ? 1 : 0);
     const row = db.prepare('SELECT * FROM species_coin_events WHERE id = ?').get(id);
     db.exec('COMMIT');
     return { duplicate: false, event: view(row, nowMs) };
@@ -157,6 +162,44 @@ function stopEvent(id, { nowMs = Date.now() } = {}) {
     "UPDATE species_coin_events SET status = 'stopped', stopped_at_ms = ? WHERE id = ? AND status != 'stopped'"
   ).run(nowMs, row.id);
   return { duplicate: false, event: view(db.prepare('SELECT * FROM species_coin_events WHERE id = ?').get(row.id), nowMs) };
+}
+
+// Called by the existing 15-second automation scheduler; the durable HerbyBot
+// nonce makes repeat scans safe. Messages are QUEUED, not claimed as delivered.
+function reconcileAnnouncements({ nowMs = Date.now() } = {}) {
+  if (!enabled()) return { skipped: true, reason: 'disabled', queued: 0 };
+  if (!outbox.configured()) return { skipped: true, reason: 'herbybot-not-configured', queued: 0 };
+  const rows = db.prepare(
+    "SELECT * FROM species_coin_events WHERE auto_announce = 1 " +
+    'AND starts_at_ms <= ? AND ends_at_ms >= ? ORDER BY starts_at_ms ASC LIMIT 100'
+  ).all(nowMs, nowMs - 24 * 60 * MINUTE_MS);
+  let queued = 0, failed = 0;
+  for (const row of rows) {
+    const status = statusFor(row, nowMs);
+    const destinations = ['announcement', 'progress'];
+    const phase = status === 'active' ? 'start' :
+      status === 'expired' || (status === 'stopped' &&
+        Number(row.stopped_at_ms) >= Number(row.starts_at_ms)) ? 'end' : null;
+    if (!phase) continue;
+    const message = phase === 'start'
+      ? '🦖 Hollow Valley Random Event STARTED: ' + row.title +
+        '! Play ' + row.species_key + ' for an extra ' + row.coins_per_minute +
+        ' Valley Coins per verified minute. Ends at ' + new Date(Number(row.ends_at_ms)).toISOString() + '.'
+      : '🦖 Hollow Valley Random Event ENDED: ' + row.title +
+        '. The extra ' + row.coins_per_minute +
+        ' Valley Coins/min bonus for ' + row.species_key + ' has finished.';
+    for (const destination of destinations) {
+      const nonce = 'hv-species-event-' + row.id + '-' + phase + '-' + destination;
+      try {
+        const event = outbox.queueMessage({ destination, message, nonce });
+        if (event.status === 'pending' || event.status === 'claimed') queued++;
+      } catch (error) {
+        failed++;
+        console.warn('[species-event-announcement] queued failed', error.message);
+      }
+    }
+  }
+  return { skipped: false, queued, failed };
 }
 
 function processSnapshot(players, { nowMs = Date.now() } = {}) {
@@ -241,5 +284,5 @@ function processSnapshot(players, { nowMs = Date.now() } = {}) {
 
 module.exports = {
   enabled, canonicalSpecies, validateEvent, statusFor, listEvents,
-  createEvent, stopEvent, processSnapshot, MAX_SAMPLE_GAP_MS,
+  createEvent, stopEvent, processSnapshot, reconcileAnnouncements, MAX_SAMPLE_GAP_MS,
 };
