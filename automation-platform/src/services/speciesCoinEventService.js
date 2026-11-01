@@ -212,7 +212,23 @@ function processSnapshot(players, { nowMs = Date.now() } = {}) {
   ).all(nowMs, nowMs - MAX_SAMPLE_GAP_MS);
 
   let intervals = 0, coins = 0, eligible = 0, errors = 0;
+  const presentIds = new Set(players
+    .map((player) => String(player?.steamId || '').trim())
+    .filter((steamId) => /^\d{17}$/.test(steamId)));
   for (const event of events) {
+    // A disconnected player must never accrue seconds between their previous
+    // observation and their later reconnect, even when that gap is <90s.
+    // Reset the continuity marker on the very first authoritative absence.
+    const tracked = db.prepare(
+      'SELECT steam_id FROM species_coin_event_progress WHERE event_id = ?'
+    ).all(event.id);
+    for (const trackedPlayer of tracked) {
+      if (presentIds.has(trackedPlayer.steam_id)) continue;
+      db.prepare(
+        "UPDATE species_coin_event_progress SET last_seen_ms = ?, species_key = '', accrued_ms = 0 " +
+        'WHERE event_id = ? AND steam_id = ? AND last_seen_ms < ?'
+      ).run(nowMs, event.id, trackedPlayer.steam_id, nowMs);
+    }
     for (const player of players) {
       const steamId = String(player?.steamId || '').trim();
       if (!/^\d{17}$/.test(steamId)) continue;
