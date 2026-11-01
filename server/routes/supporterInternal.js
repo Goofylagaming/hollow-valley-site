@@ -3,7 +3,7 @@ const express = require("express");
 const { db } = require("../db");
 const { TIERS } = require("../services/supporterCheckout");
 const { normalizeTier } = require("../services/supporterTiers");
-const { isEntitled } = require("../services/supporterWebhook");
+const { isCoinBonusEligible } = require("../services/supporterWebhook");
 
 const router = express.Router();
 
@@ -34,6 +34,7 @@ router.use((req, res, next) => {
 });
 
 router.post("/", (req, res) => {
+  res.set("Cache-Control", "private, no-store");
   const rawIds = req.body?.steamIds;
   if (!Array.isArray(rawIds) || rawIds.length > 200) {
     return res.status(400).json({ error: "steamIds must be an array with at most 200 entries." });
@@ -45,7 +46,7 @@ router.post("/", (req, res) => {
   }
 
   const lookup = db.prepare(`
-    SELECT u.steam_id, s.tier, s.stripe_status
+    SELECT u.steam_id, s.tier, s.stripe_status, s.auto_renew, s.cancelled_at
     FROM users u
     LEFT JOIN supporter_subscriptions s ON s.user_id = u.id
     WHERE u.steam_id = ?
@@ -58,7 +59,7 @@ router.post("/", (req, res) => {
       row &&
       tier &&
       Object.hasOwn(TIERS, tier) &&
-      isEntitled(row.stripe_status)
+      isCoinBonusEligible(row)
     );
     return {
       steamId,

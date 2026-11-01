@@ -122,12 +122,12 @@ function upsertSupporter({
       user_id, tier, auto_renew, renews_at, cancelled_at,
       stripe_customer_id, stripe_subscription_id, stripe_status
     )
-    VALUES (?, ?, ?, ?, NULL, ?, ?, ?)
+    VALUES (?, ?, ?, ?, CASE WHEN ? = 1 THEN NULL ELSE datetime('now') END, ?, ?, ?)
     ON CONFLICT(user_id) DO UPDATE SET
       tier = excluded.tier,
       auto_renew = excluded.auto_renew,
       renews_at = COALESCE(excluded.renews_at, supporter_subscriptions.renews_at),
-      cancelled_at = CASE WHEN excluded.auto_renew = 1 THEN NULL ELSE supporter_subscriptions.cancelled_at END,
+      cancelled_at = CASE WHEN excluded.auto_renew = 1 THEN NULL ELSE COALESCE(supporter_subscriptions.cancelled_at, datetime('now')) END,
       stripe_customer_id = COALESCE(excluded.stripe_customer_id, supporter_subscriptions.stripe_customer_id),
       stripe_subscription_id = COALESCE(excluded.stripe_subscription_id, supporter_subscriptions.stripe_subscription_id),
       stripe_status = excluded.stripe_status
@@ -136,6 +136,7 @@ function upsertSupporter({
     canonicalTier,
     autoRenew ? 1 : 0,
     renewsAt,
+    autoRenew ? 1 : 0,
     customerId,
     subscriptionId,
     status
@@ -277,11 +278,20 @@ function isEntitled(status) {
   return ACTIVE_STATUSES.has(status);
 }
 
+// Supporters may retain paid access until the end of a billing period after
+// cancelling renewal. Bonus Valley Coins stop as soon as cancellation is
+// confirmed, regardless of whether Stripe still reports "active".
+function isCoinBonusEligible(row) {
+  return Boolean(row && isEntitled(row.stripe_status) &&
+    Number(row.auto_renew) === 1 && !row.cancelled_at);
+}
+
 module.exports = {
   verifyStripeSignature,
   processStripeEvent,
   tierFromSubscription,
   isEntitled,
+  isCoinBonusEligible,
   upsertSupporter,
   subscriptionPeriodEnd,
   _test: {

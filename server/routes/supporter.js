@@ -1,10 +1,10 @@
 // Hollow Valley membership checkout and sandbox subscription management.
 const express = require("express");
-const { getSupporterStatus, cancelSupporterAutoRenew } = require("../db");
+const { getSupporterStatus, cancelSupporterAutoRenew, resumeSupporterAutoRenew } = require("../db");
 const { requireAuth } = require("../middleware/requireAuth");
 const { TIERS, checkoutConfigured, stripePriceHealth, createCheckoutSession, CheckoutError } = require("../services/supporterCheckout");
 const { normalizeTier, supporterMultiplier } = require("../services/supporterTiers");
-const { isEntitled } = require("../services/supporterWebhook");
+const { isEntitled, isCoinBonusEligible } = require("../services/supporterWebhook");
 const {
   ManageError,
   changeSubscription,
@@ -56,7 +56,8 @@ router.get("/", requireAuth, (req, res) => {
   res.json({
     tier: canonicalTier || status.tier,
     tierLabel: tier?.label || status.tier,
-    multiplier: supporterMultiplier(canonicalTier),
+    multiplier: isCoinBonusEligible(status) ? supporterMultiplier(canonicalTier) : 1,
+    coinBonusEligible: isCoinBonusEligible(status),
     auto_renew: Boolean(status.auto_renew),
     renews_at: status.renews_at,
     cancelled_at: status.cancelled_at,
@@ -137,11 +138,15 @@ router.post("/cancel", requireAuth, async (req, res) => {
   }
 
   try {
-    res.json(await cancelSubscription({
+    const result = await cancelSubscription({
       subscriptionId: status.stripe_subscription_id,
       userId: req.user.id,
       steamId: req.user.steam_id || null,
-    }));
+    });
+    // Stripe commonly schedules cancellation at period end. Reflect the
+    // confirmed cancellation locally now; webhook delivery may be delayed.
+    if (result.cancelAtPeriodEnd === true) cancelSupporterAutoRenew(req.user.id);
+    res.json(result);
   } catch (error) {
     sendManageError(res, error);
   }
@@ -154,11 +159,13 @@ router.post("/resume", requireAuth, async (req, res) => {
   }
 
   try {
-    res.json(await resumeSubscription({
+    const result = await resumeSubscription({
       subscriptionId: status.stripe_subscription_id,
       userId: req.user.id,
       steamId: req.user.steam_id || null,
-    }));
+    });
+    if (result.cancelAtPeriodEnd === false) resumeSupporterAutoRenew(req.user.id);
+    res.json(result);
   } catch (error) {
     sendManageError(res, error);
   }
