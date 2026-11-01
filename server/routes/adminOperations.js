@@ -381,6 +381,7 @@ router.post("/species-coin-events", async (req, res) => {
       durationMinutes: input.durationMinutes,
       startsAt: input.startsAt || undefined,
       requestId: input.requestId,
+      autoAnnounce: input.autoAnnounce !== false,
       actorSteamId,
     });
     res.set("Cache-Control", "no-store");
