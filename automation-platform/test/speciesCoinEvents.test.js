@@ -121,3 +121,31 @@ test('unmatched dinosaur and player IDs never create wallet credits', () => {
   events.processSnapshot([{ steamId: other, species: 'Triceratops' }], { nowMs: T0 + 60000 });
   assert.equal(wallet.getWallet(other).balance, 0);
 });
+
+test('HerbyBot receives idempotent start and stop messages for opted-in events', () => {
+  reset();
+  const previous = process.env.HERBYBOT_AUTOMATION_TOKEN;
+  process.env.HERBYBOT_AUTOMATION_TOKEN = 'species-test-herbybot';
+  const outbox = require('../src/services/automationStore');
+  try {
+    const { event } = create({ title: 'First 60-Minute Raptor Hour' });
+    const before = outbox.getOutboxSummary().total;
+    const initial = events.reconcileAnnouncements({ nowMs: T0 + 1000 });
+    assert.equal(initial.skipped, false);
+    assert.equal(outbox.getOutboxSummary().total, before + 2);
+    events.reconcileAnnouncements({ nowMs: T0 + 3000 });
+    assert.equal(outbox.getOutboxSummary().total, before + 2, 'same notification cannot be double-queued');
+    events.stopEvent(event.id, { nowMs: T0 + 60000 });
+    events.reconcileAnnouncements({ nowMs: T0 + 61000 });
+    assert.equal(outbox.getOutboxSummary().total, before + 4);
+    events.reconcileAnnouncements({ nowMs: T0 + 63000 });
+    assert.equal(outbox.getOutboxSummary().total, before + 4, 'stop notice is idempotent');
+
+    create({ title: 'Silent Event', species: 'Triceratops', autoAnnounce: false });
+    events.reconcileAnnouncements({ nowMs: T0 + 65000 });
+    assert.equal(outbox.getOutboxSummary().total, before + 4);
+  } finally {
+    if (previous === undefined) delete process.env.HERBYBOT_AUTOMATION_TOKEN;
+    else process.env.HERBYBOT_AUTOMATION_TOKEN = previous;
+  }
+});
