@@ -70,6 +70,14 @@ test("all production wallet, marketplace, storage, admin and other page scripts 
         "Reset handler must load after the existing Prime tracker");
       assert.deepEqual(actual.filter(src => src !== reset), baseline,
         "DinoStorage's existing production scripts must remain in order");
+    } else if (page === "adminoperations.html") {
+      const speciesAdmin = "assets/species-events-admin.js";
+      assert.equal(actual.filter(src => src === speciesAdmin).length, 1,
+        "Timed species event admin script must load exactly once");
+      assert.ok(actual.indexOf(speciesAdmin) > actual.indexOf("assets/adminoperations.js"),
+        "Species event controls load after the existing operations controls");
+      assert.deepEqual(actual.filter(src => src !== speciesAdmin), baseline,
+        "Existing Admin Operations scripts must retain their original order");
     } else if (page === "events.html") {
       const randomEvents = "assets/events-species-bonuses.js";
       assert.equal(actual.filter(src => src === randomEvents).length, 1,
