@@ -259,3 +259,173 @@ test('new Random Events publish exclusively in the dedicated start/finish channe
     else process.env.HERBYBOT_AUTOMATION_TOKEN = previous;
   }
 });
+
+test('one event pays different rates to two dinosaur species, with independent minute receipts', () => {
+  reset();
+  const { event } = create({
+    title: 'Carnivore Bonus Hour',
+    speciesBonuses: [
+      { species: 'pteranodon', coinsPerMinute: 500 },
+      { species: 'omniraptor', coinsPerMinute: 300 },
+    ],
+  });
+  assert.equal(event.isMultiSpecies, true);
+  assert.equal(event.speciesCount, 2);
+  assert.deepEqual(event.speciesBonuses, [
+    { species: 'omniraptor', coinsPerMinute: 300 },
+    { species: 'pteranodon', coinsPerMinute: 500 },
+  ]);
+  const both = [
+    { steamId: player, species: 'Omniraptor' },
+    { steamId: other, species: 'Pteranodon' },
+  ];
+  assert.equal(events.processSnapshot(both, { nowMs: T0 }).coins, 0);
+  assert.equal(events.processSnapshot(both, { nowMs: T0 + 30_000 }).coins, 0);
+  const payout = events.processSnapshot(both, { nowMs: T0 + 60_000 });
+  assert.equal(payout.coins, 800);
+  assert.equal(payout.intervals, 2);
+  assert.equal(wallet.getWallet(player).balance, 300);
+  assert.equal(wallet.getWallet(other).balance, 500);
+  assert.equal(events.processSnapshot(both, { nowMs: T0 + 60_000 }).coins, 0);
+  assert.equal(wallet.getWallet(player).transactions[0].metadata.species, 'omniraptor');
+  assert.equal(wallet.getWallet(other).transactions[0].metadata.species, 'pteranodon');
+});
+
+test('switching between two eligible dinosaurs resets the event minute streak and keeps a unique receipt sequence', () => {
+  reset();
+  const { event } = create({
+    speciesBonuses: [
+      { species: 'omniraptor', coinsPerMinute: 300 },
+      { species: 'pteranodon', coinsPerMinute: 500 },
+    ],
+  });
+  const observe = (time, species) => events.processSnapshot(
+    [{ steamId: player, species }], { nowMs: time });
+  observe(T0, 'Omniraptor');
+  assert.equal(observe(T0 + 60_000, 'Omniraptor').coins, 300);
+  assert.equal(observe(T0 + 90_000, 'Pteranodon').coins, 0, 'species change breaks the minute');
+  assert.equal(observe(T0 + 120_000, 'Pteranodon').coins, 0);
+  assert.equal(observe(T0 + 150_000, 'Pteranodon').coins, 500);
+  assert.equal(observe(T0 + 150_000, 'Pteranodon').coins, 0);
+  assert.equal(wallet.getWallet(player).balance, 800);
+  const receipts = wallet.getWallet(player).transactions;
+  assert.equal(receipts.length, 2);
+  const keys = wallet.db.prepare(
+    'SELECT idempotency_key FROM economy_wallet_ledger WHERE steam_id = ? AND reference_id = ?'
+  ).all(player, event.id).map(row => row.idempotency_key);
+  assert.equal(new Set(keys).size, 2, 'each completed minute must have a distinct durable receipt key');
+  assert.ok(receipts.every(r => r.reference_id === event.id));
+});
+
+test('every species in a grouped event blocks overlapping bonuses, not just the first', () => {
+  reset();
+  create({
+    speciesBonuses: [
+      { species: 'omniraptor', coinsPerMinute: 300 },
+      { species: 'pteranodon', coinsPerMinute: 500 },
+    ],
+  });
+  assert.throws(() => create({ species: 'pteranodon', coinsPerMinute: 30 }), /overlapping bonus/);
+  assert.throws(() => create({
+    speciesBonuses: [
+      { species: 'triceratops', coinsPerMinute: 200 },
+      { species: 'pteranodon', coinsPerMinute: 100 },
+    ],
+  }), /overlapping bonus/);
+  const unrelated = create({ species: 'Triceratops', coinsPerMinute: 200 });
+  assert.equal(unrelated.event.species, 'triceratops');
+  assert.equal(unrelated.event.speciesBonuses.length, 1);
+});
+
+test('group requests validate rate limits, duplicate species and idempotent reordering', () => {
+  reset();
+  assert.throws(() => create({ speciesBonuses: [] }), /Choose between/);
+  assert.throws(() => create({ speciesBonuses: 'omniraptor' }), /Choose between/);
+  assert.throws(() => create({ speciesBonuses: [
+    { species: 'omniraptor', coinsPerMinute: 50 },
+    { species: 'Omniraptor', coinsPerMinute: 100 },
+  ] }), /more than once/);
+  assert.throws(() => create({ speciesBonuses: [
+    { species: 'omniraptor', coinsPerMinute: 50 },
+    { species: 'not_a_dino', coinsPerMinute: 100 },
+  ] }), /valid dinosaur/);
+  assert.throws(() => create({ speciesBonuses: [
+    { species: 'omniraptor', coinsPerMinute: 50.5 },
+  ] }), /whole number/);
+  assert.throws(() => create({ speciesBonuses: [
+    { species: 'omniraptor', coinsPerMinute: 1001 },
+  ] }), /whole number/);
+
+  const requestId = randomUUID();
+  const base = [
+    { species: 'pteranodon', coinsPerMinute: 150 },
+    { species: 'omniraptor', coinsPerMinute: 90 },
+  ];
+  const first = create({ requestId, speciesBonuses: base });
+  const retry = create({ requestId, speciesBonuses: [...base].reverse() }, T0 + 40_000);
+  assert.equal(first.event.id, retry.event.id);
+  assert.equal(retry.duplicate, true);
+  assert.throws(() => create({ requestId, speciesBonuses: [
+    { species: 'pteranodon', coinsPerMinute: 150 },
+    { species: 'omniraptor', coinsPerMinute: 91 },
+  ] }, T0 + 40_000), /different event settings/);
+});
+
+test('grouped events queue one combined start and one end announcement, even on retries', () => {
+  reset();
+  const prior = process.env.HERBYBOT_AUTOMATION_TOKEN;
+  process.env.HERBYBOT_AUTOMATION_TOKEN = 'multi-species-outbox-test';
+  const store = require('../src/services/automationStore');
+  try {
+    const { event } = create({
+      title: 'Featured Dinosaur Hour',
+      speciesBonuses: [
+        { species: 'omniraptor', coinsPerMinute: 300 },
+        { species: 'pteranodon', coinsPerMinute: 200 },
+        { species: 'triceratops', coinsPerMinute: 500 },
+      ],
+      pingMode: 'community',
+    });
+    const matching = () => store.listOutboxEvents({ limit: 500 })
+      .filter(row => row.nonce.includes(event.id));
+    events.reconcileAnnouncements({ nowMs: T0 + 1000 });
+    assert.equal(matching().length, 1);
+    assert.equal(matching()[0].destination, 'event-announcement');
+    assert.match(matching()[0].message, /omniraptor \+300 VC\/min/);
+    assert.match(matching()[0].message, /pteranodon \+200 VC\/min/);
+    assert.match(matching()[0].message, /triceratops \+500 VC\/min/);
+    assert.match(matching()[0].message, /Ends at 01-11-2026 20:00 \(QLD time\)/);
+    assert.ok(matching()[0].nonce.endsWith('-start-event-announcement-ping-community'));
+    events.reconcileAnnouncements({ nowMs: T0 + 2000 });
+    assert.equal(matching().length, 1);
+    events.stopEvent(event.id, { nowMs: T0 + 120_000 });
+    events.reconcileAnnouncements({ nowMs: T0 + 121_000 });
+    assert.equal(matching().length, 2);
+    assert.equal(matching().filter(row => row.nonce.includes('-end-')).length, 1);
+    assert.ok(matching().find(row => row.nonce.includes('-end-')).nonce.endsWith('-end-event-announcement'));
+    events.reconcileAnnouncements({ nowMs: T0 + 122_000 });
+    assert.equal(matching().length, 2);
+  } finally {
+    if (prior === undefined) delete process.env.HERBYBOT_AUTOMATION_TOKEN;
+    else process.env.HERBYBOT_AUTOMATION_TOKEN = prior;
+  }
+});
+
+test('group expiry and authoritative disconnect protect all selected species', () => {
+  reset();
+  create({
+    durationMinutes: 5,
+    speciesBonuses: [
+      { species: 'omniraptor', coinsPerMinute: 100 },
+      { species: 'pteranodon', coinsPerMinute: 200 },
+    ],
+  });
+  const players = [{ steamId: player, species: 'Pteranodon' }];
+  events.processSnapshot(players, { nowMs: T0 });
+  assert.equal(events.processSnapshot(players, { nowMs: T0 + 60_000 }).coins, 200);
+  events.processSnapshot([], { nowMs: T0 + 80_000 });
+  assert.equal(events.processSnapshot(players, { nowMs: T0 + 100_000 }).coins, 0);
+  assert.equal(events.processSnapshot(players, { nowMs: T0 + 160_000 }).coins, 200);
+  assert.equal(events.processSnapshot(players, { nowMs: T0 + 600_000 }).coins, 0);
+  assert.equal(wallet.getWallet(player).balance, 400);
+});
