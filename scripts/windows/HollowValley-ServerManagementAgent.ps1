@@ -2,9 +2,13 @@
 # Outbound HTTPS only. No inbound RDP, RCON, WinRM or arbitrary shell endpoint.
 [CmdletBinding()]
 param(
-    [string]$SiteUrl = 'https://hollowvalleyisle.com',
+    [ValidateSet('https://hollow-valley-management-staging.onrender.com', 'https://hollowvalleyisle.com')]
+    [string]$SiteUrl = 'https://hollow-valley-management-staging.onrender.com',
+    [ValidateSet('C:\HollowValley\Secrets\management-agent-token.txt', 'C:\HollowValley\Secrets\management-agent-production-token.txt')]
+    [string]$TokenFile = 'C:\HollowValley\Secrets\management-agent-token.txt',
     [int]$PollSeconds = 20,
-    [switch]$StatusOnly
+    [switch]$StatusOnly,
+    [switch]$AllowTaskWrites
 )
 
 $ErrorActionPreference = 'Stop'
@@ -15,11 +19,22 @@ if ($PollSeconds -lt 10 -or $PollSeconds -gt 120) {
     throw 'PollSeconds must be between 10 and 120.'
 }
 
-$secretFile = 'C:\HollowValley\Secrets\management-agent-token.txt'
-if (-not (Test-Path -LiteralPath $secretFile)) {
-    throw "Management token file is missing: $secretFile"
+$production = $SiteUrl -eq 'https://hollowvalleyisle.com'
+$expectedTokenFile = if ($production) {
+    'C:\HollowValley\Secrets\management-agent-production-token.txt'
+} else {
+    'C:\HollowValley\Secrets\management-agent-token.txt'
 }
-$token = (Get-Content -LiteralPath $secretFile -Raw).Trim()
+if ($TokenFile -ne $expectedTokenFile) {
+    throw 'Management site and token-file environments do not match.'
+}
+if ($AllowTaskWrites -and -not $production) {
+    throw 'Management writes cannot be enabled for the staging agent.'
+}
+if (-not (Test-Path -LiteralPath $TokenFile)) {
+    throw "Management token file is missing: $TokenFile"
+}
+$token = (Get-Content -LiteralPath $TokenFile -Raw).Trim()
 if ($token.Length -lt 32) { throw 'Dedicated management token is too short.' }
 $apiBase = $SiteUrl.TrimEnd('/') + '/api/binarylane-management'
 $headers = @{ Authorization = "Bearer $token" }
@@ -87,7 +102,7 @@ try {
             $states[$key] = Get-TaskState -Name $taskNames[$key]
         }
         return @{
-            agentVersion = 'v0.1'
+            agentVersion = 'v0.2-readwrite-gated'
             server = @{
                 pid = $gamePid
                 processCount = $processes.Count
@@ -159,7 +174,8 @@ try {
         return ('{0}: task={1}; processDetected={2}' -f $name,(Get-TaskState -Name $name),(Find-RunningAgent -Target $target))
     }
 
-    Write-Host 'Hollow Valley management agent starting (outbound HTTPS; allowlisted tasks only).'
+    $mode = if ($AllowTaskWrites) { 'allowlisted task writes enabled' } else { 'read-only' }
+    Write-Host "Hollow Valley management agent starting (outbound HTTPS; $mode)."
     while ($true) {
         try {
             $null = Send-Json -Path '/status' -Body (Get-Snapshot)
@@ -168,6 +184,10 @@ try {
                 break
             }
 
+            if (-not $AllowTaskWrites) {
+                Start-Sleep -Seconds $PollSeconds
+                continue
+            }
             $next = Invoke-RestMethod -Uri ($apiBase + '/next') -Method Get -Headers $headers -TimeoutSec 15
             if ($null -ne $next.job) {
                 $job = $next.job
