@@ -24,8 +24,8 @@ test("roadmap ballot limits voting to three idea-stage features per Steam identi
   const initial = voting.voteSummary(steam1);
   assert.equal(initial.maxVotes, 3);
   assert.equal(initial.myVotes.length, 0);
-  assert.equal(initial.eligibleFeatureIds.length, 24);
   assert.equal(initial.eligibleFeatureIds.length, 22);
+  assert.equal(new Set(initial.eligibleFeatureIds).size, 22, "No duplicate roadmap feature IDs");
 
   for (const id of [1, 2, 3]) voting.setVote(steam1, id, true);
   voting.setVote(steam1, 3, true); // idempotent repeated request
@@ -52,9 +52,9 @@ test("retired #25 votes remain in historical totals but free all three active ba
   const steam3 = "76561198000000003";
   db.prepare("INSERT INTO roadmap_votes (steam_id, feature_id) VALUES (?, 25)").run(steam3);
   db.prepare("INSERT INTO roadmap_votes (steam_id, feature_id) VALUES (?, 26)").run(steam3);
-  const summary = voting.voteSummary(steam3);
-  assert.equal(summary.counts[25], 1);
-  assert.equal(summary.counts[26], 1);
+  const historyBefore = voting.voteSummary(steam3);
+  assert.equal(historyBefore.counts[25], 1);
+  assert.equal(historyBefore.counts[26], 1);
   db.prepare("INSERT INTO roadmap_votes (steam_id, feature_id) VALUES (?, 29)").run(steam3);
   const summary = voting.voteSummary(steam3);
   assert.equal(summary.counts[25], 1);
