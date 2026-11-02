@@ -52,6 +52,7 @@ const adminSafeLogRecoveryRouter = require("./routes/adminSafeLogRecovery");
 const adminCommsRouter = require("./routes/adminComms");
 const adminSupportersRouter = require("./routes/adminSupporters");
 const adminFinanceRouter = require("./routes/adminFinance");
+const { ownerRouter: ownerServerManagementRouter, agentRouter: binaryLaneManagementRouter } = require("./routes/serverManagement");
 const adminBodyDropResetRouter = require("./routes/adminBodyDropReset");
 const serverStatusService = require("./services/serverStatus");
 const automationWebsiteClient = require("./services/automationWebsiteClient");
@@ -297,6 +298,9 @@ function createApp() {
   app.use("/api/admin-comms", adminCommsRouter);
   app.use("/api/admin-supporters", adminSupportersRouter);
   app.use("/api/admin/finance", requireFinanceOwner, adminFinanceRouter);
+  // Owner-only UI; agent uses a separate bearer-authenticated outbound HTTPS channel.
+  app.use("/api/admin/server-management", requireFinanceOwner, ownerServerManagementRouter);
+  app.use("/api/binarylane-management", binaryLaneManagementRouter);
   app.use("/api/admin-bodydrop-reset", adminBodyDropResetRouter);
   app.use("/api/mapdata", mapdataRouter);
 
@@ -318,6 +322,9 @@ function createApp() {
   // Private HTML lives outside public/; direct file paths cannot bypass this check.
   app.get(["/admin/finance", "/admin/finance/"], requireFinanceOwner, (_req, res) => {
     res.sendFile(path.join(__dirname, "pages", "adminFinance.html"));
+  });
+  app.get(["/admin/server", "/admin/server/"], requireFinanceOwner, (_req, res) => {
+    res.sendFile(path.join(__dirname, "pages", "adminServerManagement.html"));
   });
 
   const ADMIN_PAGE_ROUTES = {
