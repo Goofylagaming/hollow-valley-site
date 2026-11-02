@@ -370,6 +370,8 @@ window.HDS = (function () {
     if (territoryAdminNavLink) territoryAdminNavLink.hidden = !Boolean(me?.territoryWarsAdminAccess);
     const financeOwnerLink = document.getElementById("finance-owner-nav-link");
     if (financeOwnerLink) financeOwnerLink.hidden = !Boolean(me?.financeOwnerAccess);
+    const managementOwnerLink = document.getElementById("server-management-owner-nav-link");
+    if (managementOwnerLink) managementOwnerLink.hidden = !Boolean(me?.financeOwnerAccess);
     await claimDailyLoginBonus(me);
 
     document.getElementById("auth-area")?.addEventListener("click", (event) => {

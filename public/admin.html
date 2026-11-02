@@ -177,6 +177,11 @@
               <div><small>OWNER ONLY</small><h2>Finance</h2><p>See Stripe renewals, payout arrival estimates and available balances privately.</p></div>
               <b>→</b>
             </a>
+            <a class="admin-hub-card" href="/admin/server" id="server-management-owner-hub-link" hidden style="display:none">
+              <span class="admin-hub-icon">⚙</span>
+              <div><small>OWNER ONLY · BINARYLANE</small><h2>Server management</h2><p>View Windows tasks, server uptime and logs; request approved maintenance actions.</p></div>
+              <b>→</b>
+            </a>
             <a class="admin-hub-card" href="/adminsupporters">
               <span class="admin-hub-icon">★</span>
               <div><small>SUPPORTERS</small><h2>Supporter roster</h2><p>See who paid, copy Steam IDs, find missing Discord links and re-sync supporter roles.</p></div>
@@ -221,6 +226,11 @@
       if (finance) {
         finance.hidden = !data?.financeOwnerAccess;
         finance.style.display = data?.financeOwnerAccess ? "" : "none";
+      }
+      const management = document.getElementById("server-management-owner-hub-link");
+      if (management) {
+        management.hidden = !data?.financeOwnerAccess;
+        management.style.display = data?.financeOwnerAccess ? "" : "none";
       }
     } catch {}
   })();
