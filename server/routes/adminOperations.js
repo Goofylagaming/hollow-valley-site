@@ -371,11 +371,34 @@ router.post("/species-coin-events", async (req, res) => {
   if (!req.is("application/json")) return res.status(415).json({ error: "JSON is required." });
   if (req.headers["sec-fetch-site"] === "cross-site") return res.status(403).json({ error: "Cross-site request rejected." });
   const input = req.body || {};
-  const species = speciesIndex.get(String(input.species || "").toLowerCase());
-  if (!species) return res.status(400).json({ error: "Choose a playable dinosaur species." });
-  if (!Number.isSafeInteger(input.coinsPerMinute) || input.coinsPerMinute < 1 || input.coinsPerMinute > 1000) {
-    return res.status(400).json({ error: "Bonus must be 1–1,000 Valley Coins per minute." });
+  // Backwards compatible with the original one-dinosaur Admin Hub input.
+  // The server, never the browser, validates every species against the
+  // published playable roster and forbids duplicated species/bonus inflation.
+  const inputBonuses = input.speciesBonuses == null
+    ? [{ species: input.species, coinsPerMinute: input.coinsPerMinute }]
+    : input.speciesBonuses;
+  if (!Array.isArray(inputBonuses) || inputBonuses.length < 1 || inputBonuses.length > 20) {
+    return res.status(400).json({ error: "Choose 1–20 playable dinosaurs for this event." });
   }
+  const seen = new Set();
+  const speciesBonuses = [];
+  for (const item of inputBonuses) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      return res.status(400).json({ error: "Each dinosaur needs an individual Valley Coin rate." });
+    }
+    const species = speciesIndex.get(String(item.species || "").toLowerCase());
+    if (!species) return res.status(400).json({ error: "Choose a playable dinosaur species." });
+    if (seen.has(species.id)) {
+      return res.status(400).json({ error: "Select each dinosaur only once per event." });
+    }
+    seen.add(species.id);
+    const coins = item.coinsPerMinute;
+    if (!Number.isSafeInteger(coins) || coins < 1 || coins > 1000) {
+      return res.status(400).json({ error: "Each dinosaur bonus must be 1–1,000 Valley Coins per minute." });
+    }
+    speciesBonuses.push({ species: species.id, coinsPerMinute: coins });
+  }
+  speciesBonuses.sort((a, b) => a.species.localeCompare(b.species));
   if (!Number.isSafeInteger(input.durationMinutes) || input.durationMinutes < 5 || input.durationMinutes > 720) {
     return res.status(400).json({ error: "Duration must be 5–720 minutes." });
   }
@@ -399,8 +422,10 @@ router.post("/species-coin-events", async (req, res) => {
   try {
     const result = await automation.createAdminSpeciesCoinEvent({
       title: String(input.title || "").trim(),
-      species: species.id,
-      coinsPerMinute: input.coinsPerMinute,
+      // Legacy fields remain populated for existing automation consumers.
+      species: speciesBonuses[0].species,
+      coinsPerMinute: speciesBonuses[0].coinsPerMinute,
+      speciesBonuses,
       durationMinutes: input.durationMinutes,
       startsAt: input.startsAt || undefined,
       requestId: input.requestId,
