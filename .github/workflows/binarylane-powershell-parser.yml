@@ -1,0 +1,51 @@
+name: BinaryLane Windows PowerShell syntax check
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'scripts/windows/HollowValley-ServerManagementAgent.ps1'
+      - 'scripts/windows/Install-HollowValley-ServerManagement.ps1'
+      - '.github/workflows/binarylane-powershell-parser.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  parser:
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse Windows scripts using Windows PowerShell 5.1
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $paths = @(
+            'scripts/windows/HollowValley-ServerManagementAgent.ps1'
+            'scripts/windows/Install-HollowValley-ServerManagement.ps1'
+          )
+          foreach ($path in $paths) {
+            $tokens = $null
+            $errors = $null
+            $null = [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path -LiteralPath $path).Path,
+              [ref]$tokens,
+              [ref]$errors
+            )
+            if ($errors.Count -gt 0) {
+              foreach ($errorItem in $errors) {
+                Write-Error ("{0}: {1}" -f $path, $errorItem.Message)
+              }
+              throw ("PowerShell parse failed for " + $path)
+            }
+            Write-Host ("PowerShell parser PASS: " + $path)
+          }
+          $agent = Get-Content 'scripts/windows/HollowValley-ServerManagementAgent.ps1' -Raw
+          if (([regex]::Matches($agent, 'function Get-Snapshot')).Count -ne 1) {
+            throw 'Management agent duplicated Get-Snapshot function.'
+          }
+          if (([regex]::Matches($agent, 'function Invoke-ApprovedTaskAction')).Count -ne 1) {
+            throw 'Management agent duplicated write action function.'
+          }
