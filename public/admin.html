@@ -227,6 +227,11 @@
         finance.hidden = !data?.financeOwnerAccess;
         finance.style.display = data?.financeOwnerAccess ? "" : "none";
       }
+      const management = document.getElementById("server-management-owner-hub-link");
+      if (management) {
+        management.hidden = !data?.financeOwnerAccess;
+        management.style.display = data?.financeOwnerAccess ? "" : "none";
+      }
     } catch {}
   })();
 </script>
