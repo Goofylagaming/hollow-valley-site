@@ -210,25 +210,34 @@ function createEvent(input, { nowMs = Date.now() } = {}) {
           Number(existing.coins_per_minute) !== p.coins || Number(existing.starts_at_ms) !== p.start ||
           Number(existing.ends_at_ms) !== p.end || existing.created_by !== p.actorSteamId ||
           Number(existing.auto_announce) !== (p.autoAnnounce ? 1 : 0) ||
-          existing.ping_mode !== p.pingMode) {
+          existing.ping_mode !== p.pingMode ||
+          !sameBonuses(rowBonuses(existing), p.bonuses)) {
         eventError('This request ID was already used for different event settings', 'SPECIES_EVENT_CONFLICT');
       }
       db.exec('COMMIT');
       return { duplicate: true, event: view(existing, nowMs) };
     }
 
-    const overlapping = db.prepare(
-      "SELECT id FROM species_coin_events WHERE species_key = ? AND status != 'stopped' " +
-      'AND ends_at_ms > ? AND starts_at_ms < ? LIMIT 1'
-    ).get(p.species, p.start, p.end);
-    if (overlapping) eventError('An overlapping bonus event already exists for this dinosaur', 'SPECIES_EVENT_CONFLICT');
+    // Check every selected species across existing single and grouped events.
+    // BEGIN IMMEDIATE makes the conflict check and insert atomic.
+    const intersecting = db.prepare(
+      "SELECT * FROM species_coin_events WHERE status != 'stopped' " +
+      'AND ends_at_ms > ? AND starts_at_ms < ?'
+    ).all(p.start, p.end);
+    const selected = new Set(p.bonuses.map(item => item.species));
+    const overlapping = intersecting.find(row =>
+      rowBonuses(row).some(item => selected.has(item.species)));
+    if (overlapping) {
+      eventError('An overlapping bonus event already exists for one of the selected dinosaurs', 'SPECIES_EVENT_CONFLICT');
+    }
 
     const id = randomUUID();
     db.prepare(
       'INSERT INTO species_coin_events ' +
-      '(id, request_id, title, species_key, coins_per_minute, starts_at_ms, ends_at_ms, created_by, auto_announce, ping_mode) ' +
-      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    ).run(id, p.requestId, p.title, p.species, p.coins, p.start, p.end, p.actorSteamId, p.autoAnnounce ? 1 : 0, p.pingMode);
+      '(id, request_id, title, species_key, coins_per_minute, starts_at_ms, ends_at_ms, created_by, auto_announce, ping_mode, species_bonuses_json) ' +
+      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    ).run(id, p.requestId, p.title, p.species, p.coins, p.start, p.end,
+      p.actorSteamId, p.autoAnnounce ? 1 : 0, p.pingMode, JSON.stringify(p.bonuses));
     const row = db.prepare('SELECT * FROM species_coin_events WHERE id = ?').get(id);
     db.exec('COMMIT');
     return { duplicate: false, event: view(row, nowMs) };
