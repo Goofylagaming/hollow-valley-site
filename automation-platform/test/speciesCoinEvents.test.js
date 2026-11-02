@@ -289,7 +289,10 @@ test('switching between two eligible dinosaurs resets the event minute streak an
   assert.equal(wallet.getWallet(player).balance, 800);
   const receipts = wallet.getWallet(player).transactions;
   assert.equal(receipts.length, 2);
-  assert.deepEqual(new Set(receipts.map(r => r.idempotency_key)).size, 2);
+  const keys = wallet.db.prepare(
+    'SELECT idempotency_key FROM economy_wallet_ledger WHERE steam_id = ? AND reference_id = ?'
+  ).all(player, event.id).map(row => row.idempotency_key);
+  assert.equal(new Set(keys).size, 2, 'each completed minute must have a distinct durable receipt key');
   assert.ok(receipts.every(r => r.reference_id === event.id));
 });
 
