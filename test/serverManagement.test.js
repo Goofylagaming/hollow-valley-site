@@ -85,7 +85,7 @@ test("management page and APIs are private, bounded, and each job is executed at
         command_bridge: "Ready", combat_forwarder: "Running",
         legacy_combat_forwarder: "Disabled",
       },
-      logs: { restart: ["Save completed"], forwarder: ["Log connected"] },
+      logs: { restart: ["Authorization: Bearer SHOULD_NOT_LEAK"], forwarder: ["token=SHOULD_NOT_LEAK"] },
     }),
   });
   assert.equal(status.status, 200);
@@ -132,6 +132,7 @@ test("management page and APIs are private, bounded, and each job is executed at
   const state = await after.json();
   assert.equal(state.connected, true);
   assert.equal(state.snapshot.server.pid, 9560);
+  assert.doesNotMatch(JSON.stringify(state.snapshot.logs), /SHOULD_NOT_LEAK/, "secrets are redacted on ingestion");
   assert.equal(state.jobs[0].state, "succeeded");
   assert.equal(state.jobs[0].leaseToken, undefined);
   assert.equal((await action("command_bridge", "ENABLE command_bridge")).status, 429,
