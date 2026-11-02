@@ -8,6 +8,7 @@ const session = require("express-session");
 const { db } = require("./db");
 const { SqliteSessionStore } = require("./sessionStore");
 const { requireAdmin } = require("./middleware/requireAuth");
+const { isFinanceOwner, requireFinanceOwner } = require("./middleware/requireFinanceOwner");
 const { isAuthorized: isTerritoryAdmin, requireTerritoryAdmin } = require("./middleware/requireTerritoryAdmin");
 const { skinShareCodeRedaction } = require("./middleware/skinShareCodeRedaction");
 const { getSkinStudioSafety, startSkinSharePolicySync } = require("./middleware/skinStudioSafety");
@@ -50,6 +51,7 @@ const adminPlayerDirectoryRouter = require("./routes/adminPlayerDirectory");
 const adminSafeLogRecoveryRouter = require("./routes/adminSafeLogRecovery");
 const adminCommsRouter = require("./routes/adminComms");
 const adminSupportersRouter = require("./routes/adminSupporters");
+const adminFinanceRouter = require("./routes/adminFinance");
 const adminBodyDropResetRouter = require("./routes/adminBodyDropReset");
 const serverStatusService = require("./services/serverStatus");
 const automationWebsiteClient = require("./services/automationWebsiteClient");
@@ -230,6 +232,7 @@ function createApp() {
       valleyLegacyEnabled: process.env.VALLEY_LEGACY_ENABLED === "1",
       user: req.user || null,
       territoryWarsAdminAccess: TERRITORY_WARS_ADMIN_TEST_ENABLED && isTerritoryAdmin(req.user),
+      financeOwnerAccess: isFinanceOwner(req.user),
       discordLoginConfigured: authRouter.isConfigured,
       steamLoginConfigured: authSteamRouter.isConfigured,
       skinStudioCalibrationPreview: process.env.SKIN_STUDIO_CALIBRATION_PREVIEW === "1",
@@ -293,6 +296,7 @@ function createApp() {
   app.use("/api/admin-safelog-recovery", adminSafeLogRecoveryRouter);
   app.use("/api/admin-comms", adminCommsRouter);
   app.use("/api/admin-supporters", adminSupportersRouter);
+  app.use("/api/admin/finance", requireFinanceOwner, adminFinanceRouter);
   app.use("/api/admin-bodydrop-reset", adminBodyDropResetRouter);
   app.use("/api/mapdata", mapdataRouter);
 
@@ -309,6 +313,11 @@ function createApp() {
   app.get("/owner-login", (_req, res) => {
     res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
     res.sendFile(path.join(__dirname, "..", "public", "owner-login.html"));
+  });
+
+  // Private HTML lives outside public/; direct file paths cannot bypass this check.
+  app.get(["/admin/finance", "/admin/finance/"], requireFinanceOwner, (_req, res) => {
+    res.sendFile(path.join(__dirname, "pages", "adminFinance.html"));
   });
 
   const ADMIN_PAGE_ROUTES = {
