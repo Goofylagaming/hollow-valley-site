@@ -292,10 +292,16 @@
       });
       savePending(null);
       const created = response.event || {};
-      text('ops-species-event-message', 'Created ' + (created.title || 'event') +
-        ' (' + (created.status || 'scheduled') +
-        '). Use the Feature Announcements panel to publish the confirmed event.');
+      selectedBonuses.clear();
+      renderSelected();
       await refresh();
+      text('ops-species-event-message', 'Created ONE event for ' +
+        (created.speciesCount || created.speciesBonuses?.length || 1) +
+        ' dinosaur(s): ' + (created.title || 'Event') + ' (' +
+        (created.status || 'scheduled') + '). ' +
+        (created.autoAnnounce
+          ? 'One automatic start and one finish Discord notice are queued at their respective times.'
+          : 'Automatic Discord announcements are disabled for this event.'));
     } catch (error) {
       text('ops-species-event-message', (error.message || 'Event submission failed') +
         '. Refresh the list before retrying. The original request ID is retained to avoid duplicate events.');
