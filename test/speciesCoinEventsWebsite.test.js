@@ -142,7 +142,7 @@ test('Admin Hub offers explicit role, everyone and no-ping choices for event sta
   assert.match(html, /value="everyone"/);
   assert.match(html, /value="none"/);
   assert.match(html, /when the event starts/);
-  assert.match(js, /pingMode:|pingMode \}/);
+  assert.match(js, /pingMode[,}:]/, 'the Admin Hub forwards the selected Discord ping mode');
   assert.match(js, /effectivePing\(\)/);
   assert.match(js, /The START announcement will ping/);
 });
