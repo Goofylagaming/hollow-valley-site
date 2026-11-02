@@ -103,6 +103,7 @@ try {
         }
         return @{
             agentVersion = 'v0.2-readwrite-gated'
+            allowTaskWrites = [bool]$AllowTaskWrites
             server = @{
                 pid = $gamePid
                 processCount = $processes.Count
