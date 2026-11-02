@@ -2,6 +2,13 @@
 # Does not restart The Isle or modify existing scheduled tasks.
 [CmdletBinding()]
 param(
+    # Require an explicit environment; never default the background task to production.
+    [Parameter(Mandatory = $true)]
+    [ValidateSet(
+        'https://hollow-valley-management-staging.onrender.com',
+        'https://hollowvalleyisle.com'
+    )]
+    [string]$SiteUrl,
     [string]$AgentPath = 'C:\HollowValley\Scripts\HollowValley-ServerManagementAgent.ps1',
     [string]$TaskName = 'Hollow Valley Server Management Agent'
 )
@@ -9,6 +16,21 @@ $ErrorActionPreference = 'Stop'
 
 if (-not (Test-Path -LiteralPath $AgentPath)) {
     throw "First copy the agent to $AgentPath"
+}
+# Verify the local agent syntax before storing credentials or registering tasks.
+$tokens = $null
+$parseErrors = $null
+$null = [System.Management.Automation.Language.Parser]::ParseFile(
+    (Resolve-Path -LiteralPath $AgentPath).Path,
+    [ref]$tokens,
+    [ref]$parseErrors
+)
+if ($parseErrors.Count -gt 0) {
+    throw 'The management agent has PowerShell parse errors. No task was created.'
+}
+if ((Get-Content -LiteralPath $AgentPath -Raw) -notmatch
+    "function Invoke-ApprovedTaskAction") {
+    throw 'The management agent file does not contain the expected allowlisted action function.'
 }
 $currentIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
 $currentPrincipal = [Security.Principal.WindowsPrincipal]::new($currentIdentity)
@@ -48,7 +70,7 @@ try {
 }
 
 $action = New-ScheduledTaskAction -Execute 'PowerShell.exe' -Argument (
-    '-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + $AgentPath + '"'
+    '-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + $AgentPath + '" -SiteUrl "' + $SiteUrl + '"'
 )
 $trigger = New-ScheduledTaskTrigger -AtStartup
 $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
@@ -57,4 +79,5 @@ Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Pr
 Start-ScheduledTask -TaskName $TaskName
 
 Write-Host "Installed and started: $TaskName" -ForegroundColor Green
+Write-Host "Outbound management endpoint: $SiteUrl"
 Write-Host 'No game-server restart was requested. Verify the owner management page heartbeat.'
