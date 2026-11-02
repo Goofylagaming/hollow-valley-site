@@ -46,11 +46,54 @@ test("all production wallet, marketplace, storage, admin and other page scripts 
     // Approved test-preview Live Map migration intentionally extends this page.
     if (page === "livemap.html") continue;
     const file = "public/" + page;
-    assert.deepEqual(
-      scriptSources(read(file)),
-      scriptSources(previous(file)),
-      page + ": feature scripts were dropped or reordered"
-    );
+    const actual = scriptSources(read(file));
+    const baseline = scriptSources(previous(file));
+    if (page === "skins.html") {
+      // v015 intentionally inserts the auto-map and batch-mask helpers before
+      // the original viewer. The entire pre-existing script order is preserved.
+      const autoMap = "assets/skin-studio-auto-map.js";
+      const batchMap = "assets/skin-studio-batch-map.js";
+      const reader = "assets/skin-studio-3d.js";
+      assert.equal(actual.indexOf(autoMap), actual.indexOf(batchMap) - 1, "Batch helper follows auto-map");
+      assert.equal(actual.indexOf(batchMap), actual.indexOf(reader) - 1, "Batch helper precedes the viewer");
+      assert.equal(actual.filter(src => src === autoMap).length, 1);
+      assert.equal(actual.filter(src => src === batchMap).length, 1);
+      assert.deepEqual(actual.filter(src => src !== autoMap && src !== batchMap), baseline,
+        page + ": existing feature scripts must be preserved");
+    } else if (page === "dinostorage/index.html") {
+      // Prime zone reset is the only additive DinoStorage script. Existing
+      // storage/marketplace scripts must retain their exact order.
+      const reset = "assets/prime-zone-reset.js";
+      assert.equal(actual.filter(src => src === reset).length, 1,
+        "Prime reset script appears once");
+      assert.equal(actual.indexOf(reset), actual.indexOf("assets/mydinos.js") + 1,
+        "Reset handler must load after the existing Prime tracker");
+      assert.deepEqual(actual.filter(src => src !== reset), baseline,
+        "DinoStorage's existing production scripts must remain in order");
+    } else if (page === "adminoperations.html") {
+      const speciesAdmin = "assets/species-events-admin.js";
+      const growthProbe = "assets/omniraptor-growth-validation.js";
+      assert.equal(actual.filter(src => src === speciesAdmin).length, 1,
+        "Timed species event admin script must load exactly once");
+      assert.equal(actual.filter(src => src === growthProbe).length, 1,
+        "Omniraptor read-only validation script must load exactly once");
+      assert.ok(actual.indexOf(speciesAdmin) > actual.indexOf("assets/adminoperations.js"),
+        "Species event controls load after the existing operations controls");
+      assert.ok(actual.indexOf(growthProbe) > actual.indexOf(speciesAdmin),
+        "Read-only Omniraptor validation loads after the existing species event controls");
+      assert.deepEqual(actual.filter(src => src !== speciesAdmin && src !== growthProbe), baseline,
+        "Existing Admin Operations scripts must retain their original order");
+    } else if (page === "events.html") {
+      const randomEvents = "assets/events-species-bonuses.js";
+      assert.equal(actual.filter(src => src === randomEvents).length, 1,
+        "Random event display script must be loaded exactly once");
+      assert.ok(actual.indexOf(randomEvents) > actual.indexOf("assets/events.js"),
+        "Public event bonuses load after the existing Events script");
+      assert.deepEqual(actual.filter(src => src !== randomEvents), baseline,
+        "All existing Events page scripts must retain their original order");
+    } else {
+      assert.deepEqual(actual, baseline, page + ": feature scripts were dropped or reordered");
+    }
   }
 });
 test("every public page preloads the upgraded UI without losing its base CSS", () => {
@@ -72,7 +115,7 @@ test("homepage removes species UI only and preserves existing summary scripts", 
   assert.doesNotMatch(html, /class="dino-dialog"/);
   assert.match(html, /home-roadmap\.js/);
   assert.match(html, /assets\/site\.js\?v=8/);
-  assert.match(html, /assets\/home-v2\.js\?v=2/);
+  assert.match(html, /assets\/home-v2\.js\?v=3/);
   assert.ok(fs.statSync(path.join(root, "public/assets/images/hollow-valley-banner.png")).size > 10000);
 });
 test("shared navigation retains production owner login and admin permission hiding", () => {

@@ -39,6 +39,7 @@ HERBYBOT_AUTOMATION_TOKEN=<same secret>
 DISCORD_BOT_TOKEN=<existing HerbyBot token>
 DISCORD_ANNOUNCEMENT_CHANNEL_ID=<existing/selected channel>
 DISCORD_ALERT_CHANNEL_ID=<existing/selected alert channel>
+DISCORD_PROGRESS_CHANNEL_ID=1550133934871023679
 ```
 
 Never copy `DISCORD_BOT_TOKEN` into the automation service.
@@ -111,12 +112,20 @@ The automation bridge adds durable announcement and alert delivery on top.
 
 ## Delivery destinations
 
-Outbox events currently use two logical destinations:
+The existing HerbyBot bridge now has these dedicated logical destinations:
 
 - `announcement` → `DISCORD_ANNOUNCEMENT_CHANNEL_ID`
 - `alert` → `DISCORD_ALERT_CHANNEL_ID`
+- `progress` → `DISCORD_PROGRESS_CHANNEL_ID` (Hollow Valley server-progress-and-updates)
 
-The automation service does not know or store those Discord channel IDs.
+The automation service does not know or store those Discord channel IDs. A separate
+release-progress API (`POST /api/progress-updates`) accepts narrowly validated,
+authenticated GitHub progress events using `HV_DISCORD_PROGRESS_TOKEN` and queues
+them as `progress`. The matching GitHub Actions secret is configured separately.
+Release posts wait until `/readyz` verifies the production SHA; manually triggered
+milestones are labelled Building, Testing, Blocked, Ready to Deploy or Live and
+require an explicit summary. No RCON/website/admin/Discord bot credentials are
+shared with GitHub Actions.
 
 ## Producers
 

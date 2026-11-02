@@ -3,12 +3,16 @@
   // Update this release register whenever a roadmap item ships. Dates are the
   // verified production release date in Brisbane, never the date of a draft.
   const releases = {
+    15: { status: 'partial', note: 'Admin-confirmed event announcements use HerbyBot. Opt-in experimental growth requests are available to admins; gameplay effect and recovery remain unverified. Automatic events, species bonuses and private in-game delivery remain pending.' },
     7: { status: 'complete', added: '2026-10-23', note: 'Live: species XP, 50 mastery levels, statistics and milestone titles. Additional skins and profile cosmetics remain future extensions.' },
     9: { status: 'complete', added: '2026-10-23', note: 'Live: nest listings, egg availability, requests, host approval and automatic closure. An accepted request reserves an advertised egg; it does not verify an in-game hatch.' },
     8: { status: 'partial', note: 'Available in Valley Legacy: verified parent/child links and lineage display. Automatic hatch detection and inherited-mutation verification are still pending.' },
     13: { status: 'partial', note: 'Available: seasonal and all-time records, Hall of Fame, presence, combat and gameplay-coin connections. Territory capture and group-battle connections are still pending.' },
     26: { status: 'building', note: 'HV-W01.3: authenticated private reports, bounded media links and admin-only moderation are in development behind an opt-in runtime flag. Automated chat/combat evidence correlation remains planned.' },
     25: { status: 'building', note: 'HV-W01.2: protected incident timeline is in development, with recent operator audits and automation request outcomes. Game chat/combat correlation and long-term historical search remain planned.' },
+    25: { status: 'building', note: 'HV-W01.2: protected incident timeline is in development, with recent operator audits and automation request outcomes. Game chat/combat correlation and long-term historical search remain planned.' },
+    26: { status: 'building', note: 'HV-W01.3: authenticated private reports, bounded media links and admin-only moderation are in development behind an opt-in runtime flag. Automated chat/combat evidence correlation remains planned.' },
+    29: { status: 'building', note: 'HV-W01.1: public read-only status page in development. Independent RCON, Discord, Marketplace, Steam and Live Map monitors, plus incident history, are not yet available.' },
     31: { status: 'building', note: 'Building / Testing. Completion has not yet been verified.' }
   };
   const stages = [
@@ -94,6 +98,10 @@
         } else if (id === 26) {
           const link = element('a', '', 'Player Reports →');
           link.href = '/reports';
+          note.append(' ', link);
+        } else if (id === 29) {
+          const link = element('a', '', 'View status page →');
+          link.href = '/status';
           note.append(' ', link);
         }
         feature.append(note);

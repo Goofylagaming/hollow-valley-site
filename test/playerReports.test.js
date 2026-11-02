@@ -179,6 +179,8 @@ test("report pages are routed, admin page is gated and all untrusted text is esc
   assert.match(index,/app\.use\("\/api\/reports", playerReportsRouter\)/);
   assert.match(index,/adminreports: "adminreports\.html"/);
   assert.match(index,/"events", "reports"/);
+  assert.match(index,/"reports"/);
+  assert.match(index,/"events"/);
   assert.match(ui,/report-form/);
   assert.match(adminUi,/noindex, nofollow/);
   assert.match(adminJs,/escapeHtml/);

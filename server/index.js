@@ -1,4 +1,6 @@
 require("dotenv").config();
+// Protect the attached production SQLite disk before feature modules migrate schema.
+require("./predeployBackup").beforeDatabaseInitialization();
 const path = require("node:path");
 const express = require("express");
 const session = require("express-session");
@@ -6,6 +8,7 @@ const session = require("express-session");
 const { db } = require("./db");
 const { SqliteSessionStore } = require("./sessionStore");
 const { requireAdmin } = require("./middleware/requireAuth");
+const { isFinanceOwner, requireFinanceOwner } = require("./middleware/requireFinanceOwner");
 const { isAuthorized: isTerritoryAdmin, requireTerritoryAdmin } = require("./middleware/requireTerritoryAdmin");
 const { skinShareCodeRedaction } = require("./middleware/skinShareCodeRedaction");
 const { getSkinStudioSafety, startSkinSharePolicySync } = require("./middleware/skinStudioSafety");
@@ -31,6 +34,11 @@ const serverStatusRouter = require("./routes/serverStatus");
 const eventsRouter = require("./routes/events");
 const friendsRouter = require("./routes/friends");
 const roadmapCommunityRouter = require("./routes/roadmapCommunity");
+const communityGuidesRouter = require("./routes/communityGuides");
+const siteUpdatesRouter = require("./routes/siteUpdates");
+const supportTicketsRouter = require("./routes/supportTickets");
+const groupRecruitmentRouter = require("./routes/groupRecruitment");
+const communityActivityRouter = require("./routes/communityActivity");
 const groupsRouter = require("./routes/groups");
 const mapdataRouter = require("./routes/mapdata");
 const supporterInternalRouter = require("./routes/supporterInternal");
@@ -43,6 +51,8 @@ const adminPlayerDirectoryRouter = require("./routes/adminPlayerDirectory");
 const adminSafeLogRecoveryRouter = require("./routes/adminSafeLogRecovery");
 const adminCommsRouter = require("./routes/adminComms");
 const adminSupportersRouter = require("./routes/adminSupporters");
+const adminFinanceRouter = require("./routes/adminFinance");
+const { ownerRouter: ownerServerManagementRouter, agentRouter: binaryLaneManagementRouter } = require("./routes/serverManagement");
 const adminBodyDropResetRouter = require("./routes/adminBodyDropReset");
 const serverStatusService = require("./services/serverStatus");
 const automationWebsiteClient = require("./services/automationWebsiteClient");
@@ -223,6 +233,7 @@ function createApp() {
       valleyLegacyEnabled: process.env.VALLEY_LEGACY_ENABLED === "1",
       user: req.user || null,
       territoryWarsAdminAccess: TERRITORY_WARS_ADMIN_TEST_ENABLED && isTerritoryAdmin(req.user),
+      financeOwnerAccess: isFinanceOwner(req.user),
       discordLoginConfigured: authRouter.isConfigured,
       steamLoginConfigured: authSteamRouter.isConfigured,
       skinStudioCalibrationPreview: process.env.SKIN_STUDIO_CALIBRATION_PREVIEW === "1",
@@ -264,6 +275,11 @@ function createApp() {
   app.use("/api/events", eventsRouter);
   app.use("/api/friends", friendsRouter);
   app.use("/api/roadmap", roadmapCommunityRouter);
+  app.use("/api/community-guides", communityGuidesRouter);
+  app.use("/api/site-updates", siteUpdatesRouter);
+  app.use("/api/support-tickets", supportTicketsRouter);
+  app.use("/api/group-recruitment", groupRecruitmentRouter);
+  app.use("/api/community-activity", communityActivityRouter);
   app.use("/api/groups", groupsRouter);
   if (TERRITORY_WARS_ADMIN_TEST_ENABLED) {
     // Loading the module creates isolated territory_* tables: never load while disabled.
@@ -281,6 +297,10 @@ function createApp() {
   app.use("/api/admin-safelog-recovery", adminSafeLogRecoveryRouter);
   app.use("/api/admin-comms", adminCommsRouter);
   app.use("/api/admin-supporters", adminSupportersRouter);
+  app.use("/api/admin/finance", requireFinanceOwner, adminFinanceRouter);
+  // Owner-only UI; agent uses a separate bearer-authenticated outbound HTTPS channel.
+  app.use("/api/admin/server-management", requireFinanceOwner, ownerServerManagementRouter);
+  app.use("/api/binarylane-management", binaryLaneManagementRouter);
   app.use("/api/admin-bodydrop-reset", adminBodyDropResetRouter);
   app.use("/api/mapdata", mapdataRouter);
 
@@ -288,6 +308,7 @@ function createApp() {
   app.all(["/api/park", "/api/playerdata", "/api/redeem", "/api/parked", "/api/admin"], legacyDirectGameApiRetired);
 
   const PAGE_ROUTES = ["legacy", "dashboard", "wallet", "quests", "profile", "mydinos", "bodydrop", "friends", "groups", "marketplace", "livemap", "leaderboard", "supporter", "events", "reports"];
+  const PAGE_ROUTES = ["legacy", "dashboard", "wallet", "quests", "profile", "mydinos", "bodydrop", "friends", "groups", "marketplace", "livemap", "leaderboard", "supporter", "events", "help", "rules", "packs", "updates", "support", "community", "recruitment", "activity", "status", "reports"];
   for (const page of PAGE_ROUTES) {
     app.get(`/${page}`, (req, res) => {
       res.sendFile(path.join(__dirname, "..", "public", `${page}.html`));
@@ -299,6 +320,14 @@ function createApp() {
     res.sendFile(path.join(__dirname, "..", "public", "owner-login.html"));
   });
 
+  // Private HTML lives outside public/; direct file paths cannot bypass this check.
+  app.get(["/admin/finance", "/admin/finance/"], requireFinanceOwner, (_req, res) => {
+    res.sendFile(path.join(__dirname, "pages", "adminFinance.html"));
+  });
+  app.get(["/admin/server", "/admin/server/"], requireFinanceOwner, (_req, res) => {
+    res.sendFile(path.join(__dirname, "pages", "adminServerManagement.html"));
+  });
+
   const ADMIN_PAGE_ROUTES = {
     admin: "admin.html",
     adminoperations: "adminoperations.html",
@@ -308,6 +337,10 @@ function createApp() {
     adminrestore: "adminrestore.html",
     adminsupporters: "adminsupporters.html",
     adminroadmap: "adminroadmap.html",
+    adminrules: "adminrules.html",
+    adminupdates: "adminupdates.html",
+    adminsupport: "adminsupport.html",
+    adminactivity: "adminactivity.html",
   };
   for (const [route, file] of Object.entries(ADMIN_PAGE_ROUTES)) {
     app.get([`/${route}`, `/${route}.html`], requireAdmin, (_req, res) => {

@@ -201,6 +201,12 @@ function getProgressionLeaderboard() {
 function getPrimeTracker(steamId) {
   return call(`/prime/${encodeURIComponent(validateSteamId(steamId))}`);
 }
+function resetPrimeZones({ steamId, lifeId, requestId, confirm }) {
+  return call(`/prime/${encodeURIComponent(validateSteamId(steamId))}/reset-zones`, {
+    method: 'POST',
+    body: { lifeId, requestId, confirm },
+  });
+}
 
 function getDailyLoginBonus(steamId) {
   return call(`/daily-login/${encodeURIComponent(validateSteamId(steamId))}`);
@@ -686,6 +692,45 @@ function activateAdminGlobalBodyDrop() {
   });
 }
 
+function getAdminOmniraptorGrowthValidation(steamId) {
+  return callAdmin('/growth-validation/omniraptor?steamId=' +
+    encodeURIComponent(validateSteamId(steamId)));
+}
+
+function getAdminSpeciesCoinEvents() {
+  return callAdmin('/species-coin-events');
+}
+
+function createAdminSpeciesCoinEvent(payload) {
+  return callAdmin('/species-coin-events', {
+    method: 'POST',
+    body: payload,
+  });
+}
+
+function stopAdminSpeciesCoinEvent(id, actorSteamId) {
+  return callAdmin('/species-coin-events/' + encodeURIComponent(String(id)) + '/stop', {
+    method: 'POST',
+    body: { confirm: 'STOP EVENT', actorSteamId },
+  });
+}
+
+function setAdminGrowthMultiplier(value, confirm) {
+  if (confirm !== 'TEST GROWTH') throw new Error('Growth test requires TEST GROWTH confirmation');
+  if (![2, 3].includes(value)) throw new Error('Invalid experimental growth value');
+  return callAdmin('/rcon/growth-multiplier', {
+    method: 'POST',
+    body: { value, confirm, experimental: true },
+  });
+}
+
+function queueAdminFeatureAnnouncement(payload) {
+  return callAdmin('/feature-announcements', {
+    method: 'POST',
+    body: payload,
+  });
+}
+
 function wipeAdminCorpses(confirm) {
   if (String(confirm || '') !== 'WIPE CORPSES') {
     throw new Error('Corpse wipe requires the exact confirmation WIPE CORPSES');
@@ -796,6 +841,7 @@ module.exports = {
   linkProgressionIdentity,
   getProgressionLeaderboard,
   getPrimeTracker,
+  resetPrimeZones,
   getDailyLoginBonus,
   claimDailyLoginBonus,
   getDiscordScheduledEvents,
@@ -855,6 +901,12 @@ module.exports = {
   setAdminGlobalBodyDropEnabled,
   activateAdminGlobalBodyDrop,
   wipeAdminCorpses,
+  setAdminGrowthMultiplier,
+  getAdminSpeciesCoinEvents,
+  getAdminOmniraptorGrowthValidation,
+  createAdminSpeciesCoinEvent,
+  stopAdminSpeciesCoinEvent,
+  queueAdminFeatureAnnouncement,
   createAdminBackup,
   getAdminServerHealth,
   getAdminDiscordState,

@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Rules & Pack Policies | Hollow Valley Admin</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=38">
+  <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
+  <link rel="stylesheet" href="/assets/snapshot-ui.css?v=5">
+  <link rel="stylesheet" href="/assets/community-guides.css?v=1">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main class="hv-admin-rules-main">
+      <header>
+        <p class="hv-guide-eyebrow">ADMIN · HOLLOW VALLEY POLICY</p>
+        <h1>Rules & pack policy editor.</h1>
+        <p>Create proposed server policies, review the draft and publish only after they have been approved by Hollow Valley staff. The species database's reference pack values are <strong>not imported or published automatically</strong>.</p>
+        <a href="/rules">View public rules</a> · <a href="/packs">View public pack checker</a>
+      </header>
+      <section class="hv-admin-rules-panel" id="hv-admin-guide-guard" hidden>Administrator access is required.</section>
+      <div id="hv-admin-guide-content" hidden>
+        <div class="hv-admin-rules-panel">
+          <div class="hv-guide-section-header">
+            <div><p class="hv-guide-eyebrow">DRAFT STATUS</p><h2 id="hv-admin-published">Loading rule editor…</h2></div>
+            <span id="hv-admin-draft-version" class="hv-guide-version">Draft version —</span>
+          </div>
+          <p id="hv-admin-status" class="hv-admin-rules-notice" role="status" aria-live="polite">Loading approved and unpublished policies…</p>
+          <p>Saving a draft does not change public rules. Publishing requires typing <strong>PUBLISH</strong> and a Steam-linked administrator session. Each publication is recorded as a versioned, immutable history entry.</p>
+        </div>
+        <section class="hv-admin-rules-panel" aria-labelledby="hv-admin-rules-label">
+          <h2 id="hv-admin-rules-label">Rule articles</h2>
+          <p>Choose a category and write an exact rule. These statements are not visible publicly until published.</p>
+          <div class="hv-admin-rules-list" id="hv-admin-rule-list"></div>
+          <button id="hv-admin-add-rule" type="button">Add a rule</button>
+        </section>
+        <section class="hv-admin-rules-panel" aria-labelledby="hv-admin-pack-label">
+          <h2 id="hv-admin-pack-label">Approved single-species pack sizes</h2>
+          <p>Enter only maximum player counts that Hollow Valley staff have approved. Each species may have only one rule. Missing limits remain labelled unverified.</p>
+          <div class="hv-admin-rules-list" id="hv-admin-pack-list"></div>
+          <button id="hv-admin-add-pack" type="button">Add a pack limit</button>
+        </section>
+        <section class="hv-admin-rules-panel" aria-labelledby="hv-admin-mix-label">
+          <h2 id="hv-admin-mix-label">Mixed-species compatibility decisions</h2>
+          <p>Specify a pair as allowed or prohibited. Even “allowed” does not establish a mixed-group maximum; the public checker will explicitly note that limitation.</p>
+          <div class="hv-admin-rules-list" id="hv-admin-mix-list"></div>
+          <button id="hv-admin-add-mix" type="button">Add a compatibility decision</button>
+        </section>
+        <section class="hv-admin-rules-panel">
+          <h2>Save and publish</h2>
+          <div class="hv-admin-rule-actions">
+            <button id="hv-admin-save-draft" type="button">Save private draft</button>
+            <button id="hv-admin-reload" type="button">Reload latest draft</button>
+          </div>
+          <div class="hv-admin-rules-review">
+            <label>Type PUBLISH to release this saved draft
+              <input id="hv-admin-confirm" type="text" placeholder="PUBLISH" autocomplete="off" spellcheck="false" maxlength="7">
+            </label>
+            <button id="hv-admin-publish" type="button" disabled>Publish approved policy</button>
+          </div>
+          <p class="hv-admin-rules-notice" id="hv-admin-action-status" role="status" aria-live="polite">Unsaved changes stay in this browser until you save a draft.</p>
+        </section>
+        <section class="hv-admin-rules-panel">
+          <h2>Published version history</h2>
+          <p>Publication history cannot be edited or deleted from this page.</p>
+          <div id="hv-admin-history" class="hv-guide-history"></div>
+        </section>
+      </div>
+    </main>
+    <footer><span>© 2026 Hollow Valley</span><span>ADMIN ONLY · RULE PUBLISHING</span><a href="/admin">Admin hub ↑</a></footer>
+  </div>
+  <script src="/assets/common.js?v=22"></script>
+  <script src="/assets/admin-community-guides.js?v=1"></script>
+</body>
+</html>

@@ -219,6 +219,16 @@ function renderPrimeTracker(state) {
         <small>${(state.zoneVisits || []).length} unique visits</small>
       </div>
       ${renderPrimeZoneHistory(state.zoneVisits || [])}
+      <div class="prime-reset-controls">
+        <button type="button" class="prime-zone-reset-button"
+          data-prime-zone-reset="${escapeHtml(life.id)}">Reset tracked zones</button>
+        <p class="prime-reset-hint">After Entomb, wait until this tracker shows your new dinosaur.
+          Only this life’s migration, patrol and sanctuary visits will restart at 0.
+          Your existing Prime status and tracked Prime time are protected.</p>
+        <span role="status" aria-live="polite" data-prime-reset-feedback>
+          ${progress.zoneResetAt ? `Last reset: ${escapeHtml(primeDate(progress.zoneResetAt))}. Leave and revisit the current zone to count it again.` : ""}
+        </span>
+      </div>
     </div>`;
 }
 
@@ -234,6 +244,8 @@ async function loadPrimeTracker() {
     primeTrackerLoading = false;
   }
 }
+
+window.addEventListener("hv-prime-zones-reset", () => { loadPrimeTracker(); });
 
 async function loadActiveCharacter() {
   const container = document.getElementById("active-character-card");

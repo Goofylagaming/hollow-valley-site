@@ -1,0 +1,65 @@
+/* HV-UX03 — Hollow Valley releases and verified development notes. */
+.hv-updates-main { min-height:80vh; padding:clamp(22px,4.5vw,68px); background:radial-gradient(ellipse at 75% 0%,rgba(31,91,63,.2),transparent 47%),#071610; color:#f1f4e8; }
+.hv-updates-eyebrow { margin:0 0 11px; color:#9fdfb0; font:800 10px Manrope,Arial,sans-serif; letter-spacing:.17em; }
+.hv-updates-hero {
+  border:1px solid #416c50; border-radius:13px; padding:clamp(22px,4vw,46px);
+  background:linear-gradient(105deg,#071f18f0,#1d432ee0),url('/assets/images/hollow-valley-banner.png') center/cover;
+}
+.hv-updates-hero h1 { font:600 clamp(32px,4.4vw,59px)/1.1 Georgia,serif; margin:0 0 14px; color:#f4e5b8; }
+.hv-updates-hero > p:not(.hv-updates-eyebrow) { max-width:790px; color:#c9dacf; font-size:14px; line-height:1.7; }
+.hv-updates-hero-links { display:flex; gap:18px; flex-wrap:wrap; margin-top:19px; }
+.hv-updates-hero a { color:#efce8c; font-size:13px; text-decoration:underline; text-underline-offset:3px; }
+.hv-updates-guide,.hv-updates-board,.hv-update-editor-panel { border:1px solid #375c44; border-radius:12px; padding:clamp(18px,2.6vw,30px); background:linear-gradient(130deg,#102a1d,#071e16); margin-top:18px; }
+.hv-updates-guide h2,.hv-updates-heading h2,.hv-update-editor-panel h2 { margin:0 0 15px; color:#f2e3ba; font:600 clamp(23px,2.6vw,32px)/1.25 Georgia,serif; }
+.hv-update-status-guide { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.hv-update-status-guide > div { display:grid; gap:5px; min-width:0; border:1px solid #345c41; border-radius:7px; padding:12px; background:#092017; }
+.hv-update-status-guide span { color:#f1d390; font-size:12px; font-weight:750; }
+.hv-update-status-guide small { color:#c4d2c5; font-size:11px; line-height:1.5; }
+.hv-updates-heading { display:flex; justify-content:space-between; align-items:end; flex-wrap:wrap; gap:14px; }
+.hv-updates-filters,.hv-update-editor-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:15px; margin:17px 0; }
+.hv-updates-filters label,.hv-update-editor label,.hv-publish-confirm label { display:grid; gap:7px; color:#d8e4d4; font-size:12px; font-weight:750; min-width:0; }
+.hv-updates-filters input,.hv-updates-filters select,.hv-update-editor input,.hv-update-editor textarea,.hv-update-editor select,.hv-publish-confirm input {
+  width:100%; padding:12px; min-height:44px; background:#0b2318; border:1px solid #577662; border-radius:7px; color:#f7f3de; font:500 13px Manrope,Arial,sans-serif;
+}
+.hv-update-editor textarea { min-height:130px; resize:vertical; line-height:1.5; }
+.hv-updates-filters button,.hv-update-editor button,.hv-admin-updates-main button,#hv-updates-more {
+  cursor:pointer; min-height:43px; padding:10px 16px; border:1px solid #c5a96c; border-radius:7px; background:#285b3f; color:#f5e6c9; font-size:12px; font-weight:800;
+}
+.hv-updates-filters button { align-self:end; }
+.hv-updates-main :focus-visible { outline:3px solid #f5d992; outline-offset:3px; }
+.hv-updates-main button:disabled { opacity:.54; cursor:wait; }
+#hv-updates-feedback,#hv-editor-feedback { color:#c8d5bd; min-height:20px; font-size:12px; margin:17px 0; }
+.hv-updates-list { display:grid; gap:13px; }
+.hv-update-card { border:1px solid #416b4c; border-radius:10px; padding:clamp(17px,2.4vw,25px); background:#081b12; min-width:0; }
+.hv-update-card-head { display:flex; gap:13px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+.hv-update-stage { display:inline-flex; border:1px solid #8c7853; border-radius:999px; padding:5px 10px; color:#f3d5a3; background:#392d18; font-size:11px; font-weight:800; }
+.hv-update-stage[data-stage="testing"] { color:#c9e5ff; background:#1d344a; border-color:#4c83ad; }
+.hv-update-stage[data-stage="blocked"] { color:#ffc0b0; background:#442825; border-color:#a76a5a; }
+.hv-update-stage[data-stage="ready"] { color:#fee1a0; background:#4b391d; border-color:#baa161; }
+.hv-update-stage[data-stage="live"],.hv-update-stage[data-stage="fixed"] { color:#abf1c9; background:#18422c; border-color:#529a6a; }
+.hv-update-stage[data-stage="unverified"] { color:#f3c6aa; background:#472e24; border-color:#a06c51; }
+.hv-update-card-meta { color:#a6bba9; font-size:11px; letter-spacing:.03em; overflow-wrap:anywhere; }
+.hv-update-card h3 { color:#f3e5bb; margin:0 0 10px; font:600 clamp(22px,2.4vw,29px)/1.25 Georgia,serif; overflow-wrap:anywhere; }
+.hv-update-card p { margin:0; color:#d1ded3; font-size:13px; line-height:1.72; white-space:pre-wrap; overflow-wrap:anywhere; }
+.hv-update-card-footer { display:flex; justify-content:space-between; gap:14px; flex-wrap:wrap; align-items:center; margin-top:18px; border-top:1px solid #2b4833; padding-top:13px; }
+.hv-update-card-footer a { color:#efcf88; font-size:12px; font-weight:750; text-decoration:underline; text-underline-offset:3px; overflow-wrap:anywhere; }
+.hv-update-card-footer small { color:#a6bda9; font-size:11px; }
+.hv-update-empty { border:1px dashed #5f735d; border-radius:9px; padding:22px; color:#c9d6c4; line-height:1.7; }
+#hv-updates-more { display:block; margin:18px auto; }
+#hv-updates-more[hidden] { display:none; }
+.hv-updates-footnote { font-size:12px; line-height:1.6; color:#a8baad; margin:20px 0 0; }
+.hv-update-editor-panel > p { color:#c7d5c4; font-size:13px; line-height:1.65; }
+.hv-update-editor-grid .hv-wide { grid-column:1/-1; }
+.hv-update-editor-actions { display:flex; gap:12px; flex-wrap:wrap; margin-top:12px; }
+.hv-publish-confirm { margin-top:20px; padding:20px; border:1px solid #94794a; border-radius:8px; background:#272a19; }
+.hv-publish-confirm h3 { color:#f1d295; margin:0 0 12px; font-size:18px; }
+.hv-publish-confirm p { color:#d7caa8; font-size:12px; line-height:1.6; }
+.hv-publish-confirm label { max-width:340px; margin:14px 0; }
+.hv-admin-update-list { display:grid; gap:10px; }
+.hv-admin-update-entry { padding:17px; background:#0c1f15; border:1px solid #41694d; border-radius:9px; }
+.hv-admin-update-entry .hv-update-card-head { margin-bottom:8px; }
+.hv-admin-update-entry strong { display:block; margin-bottom:9px; color:#f5dfb1; font-size:16px; }
+.hv-admin-update-entry p { color:#c4d5ca; white-space:pre-wrap; font-size:12px; line-height:1.65; }
+.hv-admin-update-entry button { margin-top:13px; }
+@media(max-width:950px) { .hv-update-status-guide,.hv-updates-filters,.hv-update-editor-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:620px) { .hv-updates-main { padding:15px 12px 40px; } .hv-update-status-guide,.hv-updates-filters,.hv-update-editor-grid { grid-template-columns:1fr; } .hv-updates-hero { padding:23px 17px; } .hv-updates-guide,.hv-updates-board,.hv-update-editor-panel { padding:18px; } }

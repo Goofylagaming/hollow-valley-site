@@ -25,6 +25,7 @@ test("roadmap ballot limits voting to three idea-stage features per Steam identi
   assert.equal(initial.maxVotes, 3);
   assert.equal(initial.myVotes.length, 0);
   assert.equal(initial.eligibleFeatureIds.length, 24);
+  assert.equal(initial.eligibleFeatureIds.length, 22);
 
   for (const id of [1, 2, 3]) voting.setVote(steam1, id, true);
   voting.setVote(steam1, 3, true); // idempotent repeated request
@@ -32,7 +33,7 @@ test("roadmap ballot limits voting to three idea-stage features per Steam identi
   assert.equal(voting.voteSummary(steam1).counts[3], 1);
   assert.throws(() => voting.setVote(steam1, 4, true), { code: "VOTE_LIMIT" });
 
-  for (const id of [7, 8, 9, 13, 31, 0, 100]) {
+  for (const id of [7, 8, 9, 13, 15, 31, 0, 100]) {
     assert.throws(() => voting.setVote(steam1, id, true), { code: "FEATURE_NOT_VOTABLE" });
   }
   assert.throws(() => voting.setVote("not-steam", 1, true), { code: "STEAM_REQUIRED" });
@@ -54,6 +55,12 @@ test("retired #25 votes remain in historical totals but free all three active ba
   const summary = voting.voteSummary(steam3);
   assert.equal(summary.counts[25], 1);
   assert.equal(summary.counts[26], 1);
+  db.prepare("INSERT INTO roadmap_votes (steam_id, feature_id) VALUES (?, 29)").run(steam3);
+  const summary = voting.voteSummary(steam3);
+  assert.equal(summary.counts[25], 1);
+  assert.equal(summary.counts[26], 1);
+  assert.equal(summary.counts[29], 1);
+  assert.equal(summary.eligibleFeatureIds.includes(29), false);
   assert.equal(summary.eligibleFeatureIds.includes(26), false);
   assert.deepEqual(summary.myVotes, []);
   assert.equal(summary.eligibleFeatureIds.includes(25), false);
@@ -63,6 +70,16 @@ test("retired #25 votes remain in historical totals but free all three active ba
   assert.throws(() => voting.setVote(steam3, 25, true), { code: "FEATURE_NOT_VOTABLE" });
   assert.throws(() => voting.setVote(steam3, 26, true), { code: "FEATURE_NOT_VOTABLE" });
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM roadmap_votes WHERE steam_id = ? AND feature_id IN (25, 26)").get(steam3).n, 2);
+  assert.throws(() => voting.setVote(steam3, 29, true), { code: "FEATURE_NOT_VOTABLE" });
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM roadmap_votes WHERE steam_id = ? AND feature_id IN (25, 26, 29)").get(steam3).n, 3);
+});
+
+test("retired world-event votes remain recorded without occupying active slots", () => {
+  const steam = "76561198000000009";
+  db.prepare("INSERT INTO roadmap_votes (steam_id, feature_id) VALUES (?, 15)").run(steam);
+  for (const id of [1,2,3]) voting.setVote(steam, id, true);
+  assert.deepEqual(voting.voteSummary(steam).myVotes, [1,2,3]);
+  assert.equal(voting.voteSummary().counts[15], 1);
 });
 
 test("player ideas require moderation, are rate limited and never publish Steam identities", () => {

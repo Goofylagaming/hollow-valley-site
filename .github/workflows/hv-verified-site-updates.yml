@@ -1,0 +1,65 @@
+name: Hollow Valley Verified Website Updates
+# This publishes to the website release history, NOT to Discord.
+# HerbyBot Discord announcements are separately handled by HV-C01 once approved.
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'public/**'
+      - 'server/**'
+      - 'automation-platform/**'
+      - 'scripts/**'
+      - 'render.yaml'
+      - 'Dockerfile'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hv-verified-website-releases
+  cancel-in-progress: false
+
+jobs:
+  verified-website-update:
+    if: github.repository == 'Goofylagaming/hollow-valley-site' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      HV_SITE_UPDATES_TOKEN: ${{ secrets.HV_SITE_UPDATES_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check whether the feed is activated
+        shell: bash
+        run: |
+          if [ -z "$HV_SITE_UPDATES_TOKEN" ]; then
+            echo "HV_SITE_UPDATES_TOKEN is not configured; verified release posting is disabled."
+            echo "HV_SITE_UPDATES_SKIP=1" >> "$GITHUB_ENV"
+          fi
+      - name: Verify deployed website revision before claiming it live
+        if: env.HV_SITE_UPDATES_SKIP != '1'
+        run: node scripts/verify-readiness.cjs https://hollow-valley-site.onrender.com "$GITHUB_SHA"
+      - name: Check whether automation changed in this revision
+        if: env.HV_SITE_UPDATES_SKIP != '1' && github.event_name == 'push'
+        env:
+          PREVIOUS_SHA: ${{ github.event.before }}
+        shell: bash
+        run: |
+          if [[ ! "$PREVIOUS_SHA" =~ ^[0-9a-f]{40}$ ]] || [[ "$PREVIOUS_SHA" =~ ^0+$ ]]; then
+            echo 'HV_SITE_UPDATES_AUTOMATION_CHANGED=true' >> "$GITHUB_ENV"
+          elif git diff --name-only "$PREVIOUS_SHA" "$GITHUB_SHA" | grep -q '^automation-platform/'; then
+            echo 'HV_SITE_UPDATES_AUTOMATION_CHANGED=true' >> "$GITHUB_ENV"
+          else
+            echo 'HV_SITE_UPDATES_AUTOMATION_CHANGED=false' >> "$GITHUB_ENV"
+          fi
+      - name: Verify automation deployment when automation code changed
+        if: env.HV_SITE_UPDATES_SKIP != '1' && env.HV_SITE_UPDATES_AUTOMATION_CHANGED == 'true'
+        run: node scripts/verify-readiness.cjs https://hollow-valley-automation.onrender.com "$GITHUB_SHA"
+      - name: Record this exact verified website revision once
+        if: env.HV_SITE_UPDATES_SKIP != '1'
+        run: node scripts/publish-hv-site-update.cjs
