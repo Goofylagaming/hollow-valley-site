@@ -48,10 +48,15 @@ test('old active Random Events migrate with NO ping and preserve all stored sett
 
   const fields = economy.db.prepare('PRAGMA table_info(species_coin_events)').all();
   assert.ok(fields.some(field => field.name === 'ping_mode'));
+  assert.ok(fields.some(field => field.name === 'species_bonuses_json'), 'additive group column is present');
   const current = events.listEvents({ nowMs: start + 1000 }).events[0];
   assert.equal(current.id, id);
   assert.equal(current.title, 'PT Test');
   assert.equal(current.coinsPerMinute, 300);
+  assert.deepEqual(current.speciesBonuses, [{ species: 'pteranodon', coinsPerMinute: 300 }]);
+  assert.equal(current.isMultiSpecies, false);
+  assert.equal(current.speciesCount, 1);
+  assert.equal(economy.db.prepare('SELECT species_bonuses_json FROM species_coin_events WHERE id = ?').get(id).species_bonuses_json, null);
   assert.equal(current.pingMode, 'none');
   assert.equal(current.autoAnnounce, true);
   assert.equal(current.status, 'active');
