@@ -71,6 +71,13 @@ agentRouter.post("/status", (req, res) => {
     res.json({ ok: true, at: new Date().toISOString() });
   } catch (e) { rejectError(res, e); }
 });
+// Side-effect-free preflight for the Windows cutover. Never claims a job,
+// writes a heartbeat, changes player state, or exposes any secret value.
+agentRouter.get("/probe", (_req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.json({ ok: true, writesEnabled: management.writesEnabled() });
+});
+
 agentRouter.get("/next", (_req, res) => {
   try {
     res.json({ job: management.leaseNextJob(), writesEnabled: management.writesEnabled() });
