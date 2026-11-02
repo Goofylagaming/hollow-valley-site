@@ -51,6 +51,12 @@ router.get("/species-bonuses", async (_req, res) => {
       .map((event) => ({
         id: event.id, title: event.title, species: event.species,
         coinsPerMinute: event.coinsPerMinute,
+        // Only publish gameplay fields; creator Steam IDs and request nonces
+        // are retained inside authenticated Admin Operations.
+        speciesBonuses: Array.isArray(event.speciesBonuses)
+          ? event.speciesBonuses.map(rate => ({
+              species: rate.species, coinsPerMinute: rate.coinsPerMinute,
+            })) : [{ species: event.species, coinsPerMinute: event.coinsPerMinute }],
         startsAt: event.startsAt, endsAt: event.endsAt,
         status: event.status,
       })) : [];
