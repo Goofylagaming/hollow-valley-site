@@ -58,6 +58,19 @@ In **Render > Hollow Valley Studios > hollow-valley-site** (PRODUCTION website o
 
 Save and verify the production website deploy is Live. Keep the existing persistent SQLite disk mounted at /app/data. Do not put the token in chat, GitHub, screenshots or scripts. Clear your clipboard afterward.
 
+## Important: verify the correct Render service and token
+
+There are **two distinct** Render services and token files. Do not paste a production token into staging or vice versa:
+
+- Staging service: `hollow-valley-management-staging`; staging token file: `C:\HollowValley\Secrets\management-agent-token.txt`.
+- Production website: `hollow-valley-site`; production token file: `C:\HollowValley\Secrets\management-agent-production-token.txt`.
+
+The agent token value itself must remain secret. On BinaryLane use `Set-Clipboard -Value ((Get-Content -LiteralPath '<correct-token-path>' -Raw).Trim())` and paste into that **specific** service's `HV_MANAGEMENT_AGENT_TOKEN` Render field; never print the secret or put it into an ordinary transcript.
+
+Expected results after the right settings deploy: staging status heartbeat `200`; production authenticated probe `200` with writes disabled. If staging switches from `200` to `401` immediately after a staging configuration redeploy, restore the staging token from its original BinaryLane file. If production responds `404`, configure `HV_MANAGEMENT_ENABLED=1` and the **separate** production token on the production website. Do not retry cutover until both environments authenticate.
+
+The updated cutover script uses a side-effect-free production authentication probe **before stopping staging**, so a missing/mismatched production token no longer interrupts the working staging process.
+
 ## Step 3: Read-only agent cutover
 
 Once the production website deploy is Live, on elevated BinaryLane PowerShell:
