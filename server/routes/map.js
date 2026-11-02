@@ -82,7 +82,42 @@ router.get("/activity", async (req, res) => {
   }
 });
 
-router.get("/positions", requireAuth, (req, res) => {
+function recentlyVerified(checkedAt, maxAgeMs = 45_000) {
+  const sampledAt = Date.parse(checkedAt || '');
+  const age = Date.now() - sampledAt;
+  return Number.isFinite(sampledAt) && age >= -5_000 && age <= maxAgeMs;
+}
+
+// Never derive native groups from website groups, chat, proximity or species.
+async function getGroupmates(req, state, mine) {
+  const unavailable = { groupmates: [], groupmatesVerified: false };
+  if (process.env.GROUPMATES_API_ENABLED !== '1' || !mine ||
+      state.snapshotSource !== 'external-presence' || !state.sampleId ||
+      !recentlyVerified(state.lastChecked)) return unavailable;
+  try {
+    const resolved = await automation.getVerifiedNativeGroupmates(req.user.steam_id);
+    if (resolved?.verified !== true ||
+        resolved.presenceSampleId !== state.sampleId ||
+        !recentlyVerified(resolved.sampledAt, 30_000) ||
+        !Array.isArray(resolved.memberSteamIds)) return unavailable;
+    const characters = new Map(state.characters.map((c) => [c.steamId, c]));
+    const groupmates = [];
+    for (const id of new Set(resolved.memberSteamIds)) {
+      if (!/^\d{17}$/.test(id) || id === req.user.steam_id) continue;
+      const character = characters.get(id);
+      if (!character) continue;
+      const { x, y } = fromRconLocation(character.location);
+      const position = project(x, y);
+      if (!position) continue;
+      groupmates.push({ name: character.name, species: character.species, position });
+    }
+    return { groupmates, groupmatesVerified: true };
+  } catch {
+    return unavailable;
+  }
+}
+
+router.get("/positions", requireAuth, async (req, res) => {
   const state = serverStatus.getState();
 
   if (!state.configured || !state.online) {
@@ -91,6 +126,8 @@ router.get("/positions", requireAuth, (req, res) => {
       configured: state.configured,
       linked: Boolean(req.user.steam_id),
       me: null,
+      groupmates: [],
+      groupmatesVerified: false,
       others: [],
       playerCount: 0,
       maxPlayers: state.maxPlayers,
@@ -108,12 +145,14 @@ router.get("/positions", requireAuth, (req, res) => {
   // of Steam have no steam_id and so can't be matched.
   const mine = steamId ? state.characters.find((c) => c.steamId === steamId) : null;
   const others = state.characters.filter((c) => c !== mine);
+  const groupmateState = await getGroupmates(req, state, mine);
 
   res.json({
     connected: true,
     configured: true,
     linked: Boolean(steamId),
     me: mine ? toDetailedEntry(mine) : null,
+    ...groupmateState,
     others: others.map(isAdmin ? toDetailedEntry : toPublicEntry),
     othersHavePositions: isAdmin,
     playerCount: state.playerCount,

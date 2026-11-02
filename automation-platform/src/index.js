@@ -28,6 +28,7 @@ const bodyDropRoutes = require('./routes/bodyDropRoutes');
 const dinoStorageRoutes = require('./routes/dinoStorageRoutes');
 const combatRoutes = require('./routes/combatRoutes');
 const presenceFeedRoutes = require('./routes/presenceFeedRoutes');
+const groupFeedRoutes = require('./routes/groupFeedRoutes');
 const chatFeedRoutes = require('./routes/chatFeedRoutes');
 const binaryLaneCommandBridgeRoutes = require('./routes/binaryLaneCommandBridgeRoutes');
 const commandBridge = require('./services/commandBridgeService');
@@ -249,6 +250,8 @@ app.use('/api/herbybot', (_req, res, next) => {
 app.use('/api/bodydrop', bodyDropRoutes);
 app.use('/api/dinostorage', dinoStorageRoutes);
 app.use('/api/combat', combatRoutes);
+// Group receiver is independent of the presence feed and OFF until native verification.
+app.use('/api/group-feed', groupFeedRoutes);
 app.use('/api/presence-feed', (_req, res, next) => {
   res.set('Cache-Control', 'no-store');
   next();

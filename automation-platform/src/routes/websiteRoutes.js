@@ -24,6 +24,7 @@ const combatEvents = require('../services/combatEventService');
 const discordEvents = require('../services/discordEventService');
 const primeTracker = require('../services/primeTrackerService');
 const progression = require('../services/progressionService');
+const nativeGroups = require('../services/nativeGroupMembershipService');
 
 const router = express.Router();
 router.use(requireWebsiteToken);
@@ -44,11 +45,27 @@ router.get('/server-snapshot', async (_req, res) => {
       characters: snapshot.characters || [],
       maxPlayers: snapshot.maxPlayers ?? null,
       checkedAt: snapshot.checkedAt || null,
+      sampleId: snapshot.sampleId || null,
+      source: snapshot.source || null,
       cached: Boolean(snapshot.cached),
       error: snapshot.error || null,
     });
   } catch (error) {
     return res.status(503).json({ error: error.message || 'Unable to read cached server snapshot.' });
+  }
+});
+
+// Website-only, authenticated inter-service endpoint. Never browser-exposed.
+router.get('/groupmates/:steamId', async (req, res) => {
+  res.set('Cache-Control', 'no-store, private');
+  const unavailable = { verified: false, memberSteamIds: [], presenceSampleId: null };
+  if (!nativeGroups.enabled()) return res.json(unavailable);
+  try {
+    const steamId = validateSteamId(req.params.steamId);
+    const snapshot = await statusService.getServerSnapshot();
+    return res.json(nativeGroups.groupmatesFor(steamId, snapshot));
+  } catch {
+    return res.json(unavailable);
   }
 });
 

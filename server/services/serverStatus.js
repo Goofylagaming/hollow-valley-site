@@ -28,6 +28,8 @@ const state = {
   maxPlayers: DEFAULT_MAX_PLAYERS,
   players: [],
   characters: [],
+  sampleId: null,
+  snapshotSource: null,
   lastChecked: null,
   lastError: null,
   source: "automation-cache",
@@ -61,6 +63,8 @@ async function poll() {
     state.maxPlayers = snapshot.maxPlayers || DEFAULT_MAX_PLAYERS;
     state.players = state.online ? players : [];
     state.characters = state.online ? characters : [];
+    state.sampleId = snapshot.sampleId || null;
+    state.snapshotSource = snapshot.source || null;
     state.lastChecked = snapshot.checkedAt || new Date().toISOString();
     state.lastError = snapshot.error || null;
     state.source = "automation-cache";

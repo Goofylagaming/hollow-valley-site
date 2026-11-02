@@ -119,6 +119,10 @@ function getServerSnapshot() {
   return call('/server-snapshot');
 }
 
+function getVerifiedNativeGroupmates(steamId) {
+  return call('/groupmates/' + encodeURIComponent(validateSteamId(steamId)), { timeoutMs: 3000 });
+}
+
 function getActiveCharacter(steamId) {
   return call(`/dinostorage/active-character/${encodeURIComponent(validateSteamId(steamId))}`);
 }
@@ -827,6 +831,7 @@ module.exports = {
   publishTerritoryWarFeedEvent,
   getAdminChat: () => callAdmin('/chat'),
   getServerSnapshot,
+  getVerifiedNativeGroupmates,
   getActiveCharacter,
   listStoredDinos,
   requestDinoAction,
