@@ -59,8 +59,8 @@ function clampText(v, max = 240) {
 function scrubLogLine(value) {
   const line = clampText(value, 300);
   return line
-    .replace(/\\bBearer\\s+[^\\s]+/gi, "Bearer [REDACTED]")
-    .replace(/\\b(token|password|secret|authorization)\\s*[:=]\\s*.*$/gi, "$1=[REDACTED]");
+    .replace(/\bBearer\s+[^\s]+/gi, "Bearer [REDACTED]")
+    .replace(/\b(token|password|secret|authorization)\s*[:=]\s*.*$/gi, "$1=[REDACTED]");
 }
 function normalizeHeartbeat(source = {}) {
   const game = source && typeof source.server === "object" ? source.server : {};
