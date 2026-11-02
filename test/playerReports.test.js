@@ -178,7 +178,9 @@ test("report pages are routed, admin page is gated and all untrusted text is esc
   const adminJs=read("public/assets/admin-reports.js");
   assert.match(index,/app\.use\("\/api\/reports", playerReportsRouter\)/);
   assert.match(index,/adminreports: "adminreports\.html"/);
-  assert.match(index,/"events", "reports"/);
+  const routeMatch = index.match(/const PAGE_ROUTES\s*=\s*(\[[^\]]+\])/);
+  assert.ok(routeMatch, "Public page routes must be defined");
+  assert.ok(JSON.parse(routeMatch[1]).includes("reports"), "Reports must remain publicly routed");
   assert.match(index,/"reports"/);
   assert.match(index,/"events"/);
   assert.match(ui,/report-form/);
