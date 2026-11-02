@@ -6,6 +6,8 @@
   if (typeof api !== 'function') return;
   const DRAFT_KEY = 'hvSpeciesCoinEventPendingV1';
   let state = null;
+  const selectedBonuses = new Map();
+  const speciesNames = new Map();
 
   const el = (id) => document.getElementById(id);
   function text(id, value) { if (el(id)) el(id).textContent = String(value || ''); }
@@ -36,6 +38,89 @@
   function selectedSpecies() {
     return el('ops-species-event-species')?.selectedOptions?.[0]?.textContent || 'a dinosaur';
   }
+  function speciesName(id) {
+    return speciesNames.get(String(id)) || String(id || 'unknown');
+  }
+  function selectedRates() {
+    // One dinosaur without using Add is the backwards-compatible shortcut.
+    if (!selectedBonuses.size) {
+      return [{
+        species: el('ops-species-event-species')?.value || '',
+        coinsPerMinute: Number(el('ops-species-event-coins')?.value),
+      }];
+    }
+    return [...selectedBonuses.entries()].map(([species, coinsPerMinute]) =>
+      ({ species, coinsPerMinute })).sort((a, b) => a.species.localeCompare(b.species));
+  }
+  function describeRates(bonuses) {
+    return bonuses.map(rate => speciesName(rate.species) + ': +' +
+      Number(rate.coinsPerMinute).toLocaleString() + ' VC/min').join('; ');
+  }
+  function renderSelected() {
+    const body = el('ops-species-event-selected');
+    if (!body) return;
+    body.replaceChildren();
+    if (!selectedBonuses.size) {
+      const row = document.createElement('tr');
+      const cell = document.createElement('td');
+      cell.colSpan = 3;
+      cell.textContent = 'No dinosaurs added yet. The selected dinosaur above is used for a single-species event.';
+      row.append(cell);
+      body.append(row);
+    }
+    for (const [species, rate] of [...selectedBonuses.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+      const row = document.createElement('tr');
+      const nameCell = document.createElement('td');
+      nameCell.textContent = speciesName(species);
+      const rateCell = document.createElement('td');
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.min = '1';
+      input.max = '1000';
+      input.step = '1';
+      input.value = String(rate);
+      input.setAttribute('aria-label', speciesName(species) + ' extra Valley Coins per minute');
+      input.style.cssText = 'width:110px;padding:8px;background:#0f172a;color:#fff;border:1px solid #334155';
+      input.addEventListener('input', () => {
+        selectedBonuses.set(species, Number(input.value));
+        preview();
+      });
+      rateCell.append(input);
+      const removeCell = document.createElement('td');
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'small-button';
+      remove.textContent = 'Remove';
+      remove.setAttribute('aria-label', 'Remove ' + speciesName(species));
+      remove.addEventListener('click', () => {
+        selectedBonuses.delete(species);
+        renderSelected();
+        preview();
+      });
+      removeCell.append(remove);
+      row.append(nameCell, rateCell, removeCell);
+      body.append(row);
+    }
+    text('ops-species-event-selected-caption', selectedBonuses.size
+      ? selectedBonuses.size + ' dinosaur(s) included in this event. Set each species rate independently.'
+      : 'Choose one dinosaur, or add several above. Each can have its own coin rate.');
+  }
+  el('ops-species-event-add')?.addEventListener('click', () => {
+    const species = el('ops-species-event-species')?.value || '';
+    const coins = Number(el('ops-species-event-coins')?.value);
+    if (!speciesNames.has(species) || !Number.isSafeInteger(coins) || coins < 1 || coins > 1000) {
+      text('ops-species-event-message', 'Choose a playable dinosaur and 1–1,000 bonus Valley Coins/min.');
+      return;
+    }
+    if (!selectedBonuses.has(species) && selectedBonuses.size >= 20) {
+      text('ops-species-event-message', 'An event can contain a maximum of 20 dinosaurs.');
+      return;
+    }
+    selectedBonuses.set(species, coins);
+    renderSelected();
+    preview();
+    text('ops-species-event-message', speciesName(species) + ' added to the combined event.');
+  });
   const pingLabels = Object.freeze({
     none: 'no Discord ping',
     community: '@Community Member',
@@ -50,16 +135,17 @@
     if (target) target.disabled = el('ops-species-event-auto-announce')?.checked === false;
   }
   function preview() {
-    const coins = Number(el('ops-species-event-coins')?.value || 0);
-    const minutes = Number(el('ops-species-event-duration')?.value || 0);
-    const budget = coins > 0 && minutes > 0 ? coins * minutes : 0;
+    const bonuses = selectedRates();
+    const duration = Number(el('ops-species-event-duration')?.value) || 0;
+    const maxRate = Math.max(0, ...bonuses.map(rate => Number(rate.coinsPerMinute) || 0));
+    const budget = maxRate * Math.max(0, duration);
     text('ops-species-event-preview',
-      'Extra ' + (Number.isFinite(coins) ? coins : 0).toLocaleString() +
-      ' VC/min · ' + selectedSpecies() + ' · up to ' +
-      (Number.isFinite(budget) ? budget : 0).toLocaleString() +
-      ' bonus VC per eligible player (separate from regular playtime rewards). ' +
-      (effectivePing() === 'none' ? 'No Discord start ping.' :
-        'One Discord start notification to ' + pingLabels[effectivePing()] + '.'));
+      bonuses.length + ' dinosaur(s): ' + describeRates(bonuses) +
+      ' · up to ' + budget.toLocaleString() +
+      ' bonus VC per eligible player for the full duration.' +
+      (bonuses.length > 1 ? ' One combined event and one start/end announcement in #event-start-and-finish.' : '') +
+      (effectivePing() === 'none' ? ' No Discord start ping.' :
+        ' One Discord start ping to ' + pingLabels[effectivePing()] + '.'));
   }
   ['ops-species-event-species', 'ops-species-event-coins', 'ops-species-event-duration',
    'ops-species-event-start-at', 'ops-species-event-title',
@@ -86,13 +172,16 @@
     if (select && Array.isArray(data?.species)) {
       const previous = select.value || 'omniraptor';
       select.replaceChildren();
+      speciesNames.clear();
       for (const species of data.species) {
+        speciesNames.set(String(species.id), String(species.name));
         const option = document.createElement('option');
         option.value = String(species.id);
         option.textContent = String(species.name);
         select.append(option);
       }
       if (data.species.some((species) => species.id === previous)) select.value = previous;
+      renderSelected();
     }
     const events = Array.isArray(data?.events) ? data.events : [];
     const body = el('ops-species-event-list');
@@ -104,9 +193,13 @@
         const announce = event.status === 'active'
           ? '<button type="button" class="small-button" data-announce-event="' +
             escapeHtml(event.id) + '">Prepare announcement</button>' : '';
+        const rates = Array.isArray(event.speciesBonuses) && event.speciesBonuses.length
+          ? event.speciesBonuses
+          : [{ species: event.species, coinsPerMinute: event.coinsPerMinute }];
         return '<tr><td>' + escapeHtml(event.title) + '</td><td>' +
-          escapeHtml(event.species) + '</td><td>' +
-          Number(event.coinsPerMinute).toLocaleString() + ' VC/min</td><td>' +
+          escapeHtml(rates.map(rate => speciesName(rate.species)).join(', ')) + '</td><td>' +
+          escapeHtml(rates.map(rate => '+' + rate.coinsPerMinute + ' ' + speciesName(rate.species)).join('; ')) +
+          ' VC/min</td><td>' +
           escapeHtml(formatDate(event.startsAt)) + ' – ' +
           escapeHtml(formatDate(event.endsAt)) + '</td><td>' +
           escapeHtml(event.status) +
@@ -135,15 +228,19 @@
 
   function draftPayload() {
     const title = el('ops-species-event-title')?.value.trim() || '';
-    const species = el('ops-species-event-species')?.value || '';
-    const coinsPerMinute = Number(el('ops-species-event-coins')?.value || 0);
     const durationMinutes = Number(el('ops-species-event-duration')?.value || 0);
     const localStart = el('ops-species-event-start-at')?.value || '';
-    if (!title || !species || !Number.isSafeInteger(coinsPerMinute) ||
-        coinsPerMinute < 1 || coinsPerMinute > 1000 ||
-        !Number.isSafeInteger(durationMinutes) ||
+    const speciesBonuses = selectedRates();
+    if (!title || title.length > 90 || !speciesBonuses.length ||
+        speciesBonuses.length > 20 || !Number.isSafeInteger(durationMinutes) ||
         durationMinutes < 5 || durationMinutes > 720) {
-      throw new Error('Enter a dinosaur, 1–1,000 VC/min, and a duration of 5–720 minutes.');
+      throw new Error('Choose 1–20 dinosaurs and a duration of 5–720 minutes.');
+    }
+    if (new Set(speciesBonuses.map(rate => rate.species)).size !== speciesBonuses.length ||
+        speciesBonuses.some(rate => !speciesNames.has(rate.species) ||
+          !Number.isSafeInteger(rate.coinsPerMinute) ||
+          rate.coinsPerMinute < 1 || rate.coinsPerMinute > 1000)) {
+      throw new Error('Each selected dinosaur needs a unique 1–1,000 Valley Coins/min bonus.');
     }
     if (localStart && !Number.isFinite(new Date(localStart).getTime())) {
       throw new Error('Choose a valid local date and time.');
@@ -152,10 +249,16 @@
     if (!Object.hasOwn(pingLabels, pingMode)) {
       throw new Error('Select a valid Discord notification target.');
     }
-    return { title, species, coinsPerMinute, durationMinutes,
+    return {
+      title,
+      // Keep single-species consumers compatible with the first entry.
+      species: speciesBonuses[0].species,
+      coinsPerMinute: speciesBonuses[0].coinsPerMinute,
+      speciesBonuses, durationMinutes,
       startsAt: localStart ? new Date(localStart).toISOString() : null,
       autoAnnounce: el('ops-species-event-auto-announce')?.checked !== false,
-      pingMode };
+      pingMode,
+    };
   }
 
   el('ops-species-event-form')?.addEventListener('submit', async (event) => {
@@ -170,9 +273,9 @@
       ...draft, startsAt: draft.startsAt || new Date().toISOString(),
       requestId: crypto.randomUUID(),
     };
-    const copy = 'Start ' + draft.title + ' for ' + draft.species + ' at ' +
-      draft.coinsPerMinute + ' bonus VC per minute for ' + draft.durationMinutes +
-      ' minutes? It will end automatically. ' +
+    const copy = 'Start ONE event: ' + draft.title + '\n\n' +
+      describeRates(draft.speciesBonuses) + '\nDuration: ' + draft.durationMinutes +
+      ' minutes.\nThis will end automatically and send ONE grouped start and finish announcement. ' +
       (draft.pingMode === 'none' ? 'No mass ping will be sent.' :
         'The START announcement will ping ' + pingLabels[draft.pingMode] +
         ' once in #event-start-and-finish.') +
@@ -189,10 +292,16 @@
       });
       savePending(null);
       const created = response.event || {};
-      text('ops-species-event-message', 'Created ' + (created.title || 'event') +
-        ' (' + (created.status || 'scheduled') +
-        '). Use the Feature Announcements panel to publish the confirmed event.');
+      selectedBonuses.clear();
+      renderSelected();
       await refresh();
+      text('ops-species-event-message', 'Created ONE event for ' +
+        (created.speciesCount || created.speciesBonuses?.length || 1) +
+        ' dinosaur(s): ' + (created.title || 'Event') + ' (' +
+        (created.status || 'scheduled') + '). ' +
+        (created.autoAnnounce
+          ? 'One automatic start and one finish Discord notice are queued at their respective times.'
+          : 'Automatic Discord announcements are disabled for this event.'));
     } catch (error) {
       text('ops-species-event-message', (error.message || 'Event submission failed') +
         '. Refresh the list before retrying. The original request ID is retained to avoid duplicate events.');
@@ -227,9 +336,12 @@
       const message = el('ops-feature-custom');
       if (!type || !message) return;
       type.value = 'custom';
-      message.value = '🦖 Hollow Valley Random Event: ' + active.title + '! Play ' +
-        active.species + ' for an extra ' + active.coinsPerMinute +
-        ' Valley Coins per minute until ' + formatDate(active.endsAt) + '.';
+      const rates = Array.isArray(active.speciesBonuses) && active.speciesBonuses.length
+        ? active.speciesBonuses
+        : [{ species: active.species, coinsPerMinute: active.coinsPerMinute }];
+      message.value = '🦖 Hollow Valley Random Event: ' + active.title +
+        '! Featured dinosaurs: ' + describeRates(rates) +
+        '. Extra Valley Coins for each verified minute until ' + formatDate(active.endsAt) + '.';
       type.dispatchEvent(new Event('input', { bubbles: true }));
       el('feature-announcements')?.scrollIntoView({ behavior: 'smooth' });
       text('ops-species-event-message', 'Announcement text prepared. Confirm the event is active before queueing it.');
