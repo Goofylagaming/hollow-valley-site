@@ -73,11 +73,15 @@ scripts/windows/Install-HollowValley-ServerManagement.ps1
   -> C:\HollowValley\Scripts\Install-HollowValley-ServerManagement.ps1
 ```
 
-Use an elevated PowerShell prompt. Run the installer and paste the same token you saved to Render **into its hidden prompt**:
+Use an elevated PowerShell prompt. Run the installer. If `management-agent-token.txt` already exists and passed the earlier read-only staging test, the installer **reuses it without displaying or overwriting the secret**. Only a new installation without a token file prompts for a secret:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\HollowValley\Scripts\Install-HollowValley-ServerManagement.ps1"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\HollowValley\Scripts\Install-HollowValley-ServerManagement.ps1" -SiteUrl "https://hollow-valley-management-staging.onrender.com"
 ```
+
+**Environment targeting:** The installer now requires explicit `-SiteUrl` and accepts only the staging hostname above or `https://hollowvalleyisle.com`. For staging, use only the staging URL; never allow a background task to silently default to production. The installer validates the agent's PowerShell syntax before registering the task.
+
+The installer **refuses to replace an existing management scheduled task**, to avoid unintentionally switching a production agent to staging or the reverse. Inspect such a task manually first.
 
 The installer stores the token at `C:\HollowValley\Secrets\management-agent-token.txt` with ACL access restricted to SYSTEM and Administrators, registers a **separate** startup task `Hollow Valley Server Management Agent` running as SYSTEM, and starts it. It does not modify, replace or terminate the existing watchdog, player scanner, Command Bridge or combat forwarder.
 

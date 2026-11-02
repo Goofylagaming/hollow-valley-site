@@ -84,6 +84,7 @@ function normalizeHeartbeat(source = {}) {
     logs: Object.fromEntries(LOG_KEYS.map((key) =>
       [key, (Array.isArray(logs[key]) ? logs[key] : []).slice(-12).map(scrubLogLine)])),
     agentVersion: clampText(source.agentVersion, 40),
+    allowTaskWrites: source.allowTaskWrites === true,
   };
 }
 
@@ -131,11 +132,16 @@ function publicJob(row) {
 function ownerOverview() {
   expireStaleJobs();
   const jobs = db.prepare("SELECT * FROM hv_management_jobs ORDER BY created_at_ms DESC LIMIT 30").all().map(publicJob);
+  const live = heartbeat();
   return {
     featureEnabled: enabled(),
     agentConfigured: tokenConfigured(),
-    writesEnabled: writesEnabled() && tokenConfigured(),
-    ...heartbeat(),
+    writeGates: {
+      render: writesEnabled(),
+      local: live.connected && live.snapshot?.allowTaskWrites === true,
+    },
+    writesEnabled: writesEnabled() && tokenConfigured() && live.connected && live.snapshot?.allowTaskWrites === true,
+    ...live,
     taskNames: TASKS,
     writableTargets: [...ACTION_TARGETS],
     jobs,
@@ -154,6 +160,7 @@ function queueAction({ action, target, ownerSteamId, confirmation }) {
 
   const health = heartbeat();
   if (!health.connected) reject("BinaryLane agent is offline or its heartbeat is stale.", 409);
+  if (health.snapshot?.allowTaskWrites !== true) reject("The local BinaryLane write gate is disabled.", 409);
   if (health.snapshot?.server?.processCount !== 1) reject("Expected exactly one running game server.", 409);
   if (target === "combat_forwarder"
     && health.snapshot?.tasks?.legacy_combat_forwarder !== "Disabled"
@@ -178,6 +185,8 @@ function queueAction({ action, target, ownerSteamId, confirmation }) {
 }
 function leaseNextJob() {
   if (!writesEnabled() || !tokenConfigured()) return null;
+  const live = heartbeat();
+  if (!live.connected || live.snapshot?.allowTaskWrites !== true) return null;
   expireStaleJobs();
   db.exec("BEGIN IMMEDIATE");
   try {

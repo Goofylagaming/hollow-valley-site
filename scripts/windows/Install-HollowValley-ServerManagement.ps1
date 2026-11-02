@@ -2,6 +2,15 @@
 # Does not restart The Isle or modify existing scheduled tasks.
 [CmdletBinding()]
 param(
+    # Require an explicit environment; never default the background task to production.
+    [Parameter(Mandatory = $true)]
+    [ValidateSet(
+        'https://hollow-valley-management-staging.onrender.com',
+        'https://hollowvalleyisle.com'
+    )]
+    [string]$SiteUrl,
+    [ValidateSet('C:\HollowValley\Secrets\management-agent-token.txt', 'C:\HollowValley\Secrets\management-agent-production-token.txt')]
+    [string]$TokenFile = 'C:\HollowValley\Secrets\management-agent-token.txt',
     [string]$AgentPath = 'C:\HollowValley\Scripts\HollowValley-ServerManagementAgent.ps1',
     [string]$TaskName = 'Hollow Valley Server Management Agent'
 )
@@ -10,6 +19,20 @@ $ErrorActionPreference = 'Stop'
 if (-not (Test-Path -LiteralPath $AgentPath)) {
     throw "First copy the agent to $AgentPath"
 }
+# Verify the local agent syntax before storing credentials or registering tasks.
+$tokens = $null
+$parseErrors = $null
+$null = [System.Management.Automation.Language.Parser]::ParseFile(
+    (Resolve-Path -LiteralPath $AgentPath).Path,
+    [ref]$tokens,
+    [ref]$parseErrors
+)
+if ($parseErrors.Count -gt 0) {
+    throw 'The management agent has PowerShell parse errors. No task was created.'
+}
+if ((Get-Content -LiteralPath $AgentPath -Raw) -notmatch 'function Invoke-ApprovedTaskAction') {
+    throw 'The management agent file does not contain the expected allowlisted action function.'
+}
 $currentIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
 $currentPrincipal = [Security.Principal.WindowsPrincipal]::new($currentIdentity)
 if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
@@ -17,38 +40,76 @@ if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Adm
 }
 
 $secretDir = 'C:\HollowValley\Secrets'
-$secretPath = Join-Path $secretDir 'management-agent-token.txt'
+$production = $SiteUrl -eq 'https://hollowvalleyisle.com'
+$expectedTokenFile = if ($production) {
+    'C:\HollowValley\Secrets\management-agent-production-token.txt'
+} else {
+    'C:\HollowValley\Secrets\management-agent-token.txt'
+}
+if ($TokenFile -ne $expectedTokenFile) {
+    throw 'The requested website and token file must belong to the same environment.'
+}
+if ($production) {
+    if ($TaskName -ne 'Hollow Valley Server Management Agent - Production') {
+        throw 'Production requires the exact production task name.'
+    }
+    $stagingTask = Get-ScheduledTask -TaskName 'Hollow Valley Server Management Agent - Staging' -ErrorAction SilentlyContinue
+    if ($stagingTask -and $stagingTask.State -eq 'Running') {
+        throw 'Stop ONLY the staging management task before installing production. Do not touch the game watchdog.'
+    }
+} elseif ($TaskName -ne 'Hollow Valley Server Management Agent - Staging') {
+    throw 'Staging requires the exact staging task name.'
+}
+$secretPath = $TokenFile
 New-Item -ItemType Directory -Path $secretDir -Force | Out-Null
 
-Write-Host 'Enter the dedicated HV_MANAGEMENT_AGENT_TOKEN from Render. Input will be hidden.'
-$inputSecret = Read-Host 'Management token' -AsSecureString
-$ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($inputSecret)
-try {
-    $secretText = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
-    if ($secretText.Length -lt 32) { throw 'Management token must be at least 32 characters.' }
-
-    if (-not (Test-Path -LiteralPath $secretPath)) {
-        New-Item -ItemType File -Path $secretPath -Force | Out-Null
+# Reuse the token that already passed the one-shot staging HTTPS test.
+# Never overwrite a working token merely because the scheduled task is installed.
+$tokenExists = Test-Path -LiteralPath $secretPath
+$newTokenText = $null
+if ($tokenExists) {
+    $existingToken = (Get-Content -LiteralPath $secretPath -Raw).Trim()
+    if ($existingToken.Length -lt 32) {
+        throw 'Existing management token file is too short. Resolve it manually before installing.'
     }
-    # Remove inherited access BEFORE writing the secret.
-    $acl = Get-Acl -LiteralPath $secretPath
-    $acl.SetAccessRuleProtection($true, $false)
-    foreach ($rule in @($acl.Access)) { $acl.RemoveAccessRuleSpecific($rule) }
-    $systemSid = [Security.Principal.SecurityIdentifier]::new('S-1-5-18')
-    $adminsSid = [Security.Principal.SecurityIdentifier]::new('S-1-5-32-544')
-    $read = [Security.AccessControl.FileSystemAccessRule]::new($systemSid, 'Read', 'Allow')
-    $full = [Security.AccessControl.FileSystemAccessRule]::new($adminsSid, 'FullControl', 'Allow')
-    $acl.AddAccessRule($read)
-    $acl.AddAccessRule($full)
-    Set-Acl -LiteralPath $secretPath -AclObject $acl
-    [System.IO.File]::WriteAllText($secretPath, $secretText, [System.Text.Encoding]::ASCII)
-} finally {
-    if ($ptr -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr) }
-    $secretText = $null
+    $existingToken = $null
+    Write-Host 'Using the existing management-agent-token.txt (token not displayed).'
+} else {
+    Write-Host 'Enter the dedicated HV_MANAGEMENT_AGENT_TOKEN for this environment. Input will be hidden.'
+    $inputSecret = Read-Host 'Management token' -AsSecureString
+    $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($inputSecret)
+    try {
+        $newTokenText = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
+        if ($newTokenText.Length -lt 32) { throw 'Management token must be at least 32 characters.' }
+    } finally {
+        if ($ptr -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr) }
+    }
+    New-Item -ItemType File -Path $secretPath -Force | Out-Null
+}
+
+# Restrict existing/new secret file permissions to SYSTEM and Administrators.
+$acl = Get-Acl -LiteralPath $secretPath
+$acl.SetAccessRuleProtection($true, $false)
+foreach ($rule in @($acl.Access)) { $acl.RemoveAccessRuleSpecific($rule) }
+$systemSid = [Security.Principal.SecurityIdentifier]::new('S-1-5-18')
+$adminsSid = [Security.Principal.SecurityIdentifier]::new('S-1-5-32-544')
+$read = [Security.AccessControl.FileSystemAccessRule]::new($systemSid, 'Read', 'Allow')
+$full = [Security.AccessControl.FileSystemAccessRule]::new($adminsSid, 'FullControl', 'Allow')
+$acl.AddAccessRule($read)
+$acl.AddAccessRule($full)
+Set-Acl -LiteralPath $secretPath -AclObject $acl
+if (-not $tokenExists) {
+    [System.IO.File]::WriteAllText($secretPath, $newTokenText, [System.Text.Encoding]::ASCII)
+    $newTokenText = $null
+}
+
+# Avoid silently replacing an existing production/staging task configuration.
+if (Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue) {
+    throw "A management task named '$TaskName' already exists. Inspect it before replacing."
 }
 
 $action = New-ScheduledTaskAction -Execute 'PowerShell.exe' -Argument (
-    '-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + $AgentPath + '"'
+    '-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + $AgentPath + '" -SiteUrl "' + $SiteUrl + '" -TokenFile "' + $TokenFile + '"'
 )
 $trigger = New-ScheduledTaskTrigger -AtStartup
 $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
@@ -57,4 +118,6 @@ Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Pr
 Start-ScheduledTask -TaskName $TaskName
 
 Write-Host "Installed and started: $TaskName" -ForegroundColor Green
+Write-Host "Outbound management endpoint: $SiteUrl"
+Write-Host "Management mode: READ ONLY. Writes require a separate, reviewed activation step."
 Write-Host 'No game-server restart was requested. Verify the owner management page heartbeat.'

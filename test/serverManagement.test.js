@@ -75,10 +75,9 @@ test("management page and APIs are private, bounded, and each job is executed at
 
   assert.equal((await action("command_bridge", "ENABLE command_bridge")).status, 409,
     "cannot queue when agent is offline");
-  const status = await fetch(url + "/api/binarylane-management/status", {
-    method: "POST", headers: agentHeaders(),
-    body: JSON.stringify({
-      agentVersion: "v0.1",
+  const baseSnapshot = {
+      agentVersion: "v0.2-readwrite-gated",
+      allowTaskWrites: false,
       server: { pid: 9560, processCount: 1, rconOwnedByGame: true },
       tasks: {
         watchdog: "Running", scheduled_restart: "Ready",
@@ -86,9 +85,11 @@ test("management page and APIs are private, bounded, and each job is executed at
         legacy_combat_forwarder: "Disabled",
       },
       logs: { restart: ["Authorization: Bearer SHOULD_NOT_LEAK"], forwarder: ["token=SHOULD_NOT_LEAK"] },
-    }),
+  };
+  const postStatus = (snapshot) => fetch(url + "/api/binarylane-management/status", {
+    method: "POST", headers: agentHeaders(), body: JSON.stringify(snapshot),
   });
-  assert.equal(status.status, 200);
+  assert.equal((await postStatus(baseSnapshot)).status, 200);
   assert.equal((await action("watchdog", "ENABLE watchdog")).status, 400,
     "watchdog is never a write target");
   assert.equal((await action("command_bridge", "WRONG")).status, 400);
@@ -99,6 +100,19 @@ test("management page and APIs are private, bounded, and each job is executed at
     body: JSON.stringify({ action: "enable_start", target: "command_bridge" }),
   })).status, 403, "custom request header is required");
 
+  // Even with the Render writes flag ON, the local BinaryLane gate fails closed.
+  assert.equal((await action("command_bridge", "ENABLE command_bridge")).status, 409);
+  const locked = await fetch(url + "/api/admin/server-management", { headers: { Cookie: cookie } });
+  const gates = await locked.json();
+  assert.equal(gates.writeGates.render, true);
+  assert.equal(gates.writeGates.local, false);
+  assert.equal(gates.writesEnabled, false);
+  const unleaseable = await fetch(url + "/api/binarylane-management/next", {
+    headers: agentHeaders(),
+  });
+  assert.equal((await unleaseable.json()).job, null, "read-only agent cannot lease jobs");
+
+  assert.equal((await postStatus({ ...baseSnapshot, allowTaskWrites: true })).status, 200);
   const accepted = await action("command_bridge", "ENABLE command_bridge");
   assert.equal(accepted.status, 202);
   const queuedJob = (await accepted.json()).job;
@@ -131,6 +145,9 @@ test("management page and APIs are private, bounded, and each job is executed at
   const after = await fetch(url + "/api/admin/server-management", { headers: { Cookie: cookie } });
   const state = await after.json();
   assert.equal(state.connected, true);
+  assert.equal(state.writeGates.render, true);
+  assert.equal(state.writeGates.local, true);
+  assert.equal(state.writesEnabled, true);
   assert.equal(state.snapshot.server.pid, 9560);
   assert.doesNotMatch(JSON.stringify(state.snapshot.logs), /SHOULD_NOT_LEAK/, "secrets are redacted on ingestion");
   assert.equal(state.jobs[0].state, "succeeded");
