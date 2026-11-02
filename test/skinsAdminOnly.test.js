@@ -2,9 +2,26 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const vm = require("node:vm");
 
 function read(relativePath) {
   return fs.readFileSync(path.join(__dirname, "..", relativePath), "utf8");
+}
+
+function mySkinCard(preset) {
+  const client = read("public/assets/skins.js");
+  const start = client.indexOf("function skinCard(");
+  const end = client.indexOf("function wireCardActions(", start);
+  assert.ok(start >= 0 && end > start, "Skin Studio exposes its card renderer");
+  return vm.runInNewContext(client.slice(start, end) + "\nskinCard(preset, 'mine');", {
+    preset,
+    me: { user: { steam_id: "76561198000000001", is_admin: false } },
+    externalLibraryMeta: value => ({ description: value || "" }),
+    escapeHtml: value => String(value ?? ""),
+    swatches: () => "",
+    colorToHex: () => "#000000",
+    skinCardShareMarkup: () => "",
+  }, { timeout: 100 });
 }
 
 test("Skin Studio player routes are no longer globally admin-only", () => {
@@ -40,16 +57,30 @@ test("Admin-only skin management remains protected", () => {
 
 
 test("normal players can edit their created or granted exclusive skins in My Skins", () => {
-  const client = read("public/assets/skins.js");
-  assert.match(client, /const canEdit = isCreator \|\| Boolean\(preset\.exclusive && preset\.granted\)/);
-  assert.match(client, /if \(mode === "mine" && canEdit\)/);
-  assert.match(client, /class="small-button skin-edit"/);
+  for (const preset of [
+    { id: "created", owner_steam_id: "76561198000000001" },
+    { id: "granted", exclusive: true, granted: true },
+  ]) assert.match(mySkinCard(preset), /class="small-button skin-edit"/);
+  assert.doesNotMatch(mySkinCard({ id: "other", owner_steam_id: "76561198000000002" }), /class="small-button skin-edit"/);
 });
 
 test("normal players get Delete for removable My Skins entries", () => {
-  const client = read("public/assets/skins.js");
-  assert.match(client, /const canDelete = isCreator \|\| Boolean\(preset\.exclusive && preset\.granted\)/);
-  assert.match(client, /if \(mode === "mine" && canDelete\)/);
-  assert.match(client, /class="small-button skin-delete"/);
-  assert.match(client, /removes only your exclusive copy/);
+  for (const preset of [
+    { id: "created", owner_steam_id: "76561198000000001" },
+    { id: "granted", exclusive: true, granted: true },
+  ]) assert.match(mySkinCard(preset), /class="small-button skin-delete"/);
+  assert.doesNotMatch(mySkinCard({ id: "other", owner_steam_id: "76561198000000002" }), /class="small-button skin-delete"/);
+  assert.match(read("public/assets/skins.js"), /removes only your exclusive copy/);
+});
+
+test("managed premium collection cards preserve wear actions without ordinary edit or delete", () => {
+  for (const preset of [
+    { id: "creator-premium", owner_steam_id: "76561198000000001" },
+    { id: "granted-premium", exclusive: true, granted: true },
+  ]) {
+    const html = mySkinCard({ ...preset, membershipPremium: true, membershipVerifiedSpecies: ["Omniraptor"] });
+    assert.doesNotMatch(html, /class="small-button skin-(edit|delete)"/);
+    assert.match(html, /class="small-button skin-wear"/);
+    assert.match(html, /Premium collection/);
+  }
 });

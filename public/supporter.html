@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=4">
   <link rel="stylesheet" href="/assets/membership-rewards.css?v=1">
+  <link rel="stylesheet" href="/assets/subscriber-progress.css?v=1">
 </head>
 <body>
   <div class="app-shell">
@@ -21,6 +22,7 @@
         <p id="checkout-message" class="section-intro" role="status"></p>
       </section>
       <section class="roster-section">
+        <section id="supporter-subscriber-progress" class="subscriber-progress" data-subscriber-progress hidden aria-label="Subscriber Bar" aria-busy="true"></section>
         <div class="list-heading"><span>ACCOUNT LINKS</span><small>membership identity</small></div>
         <div id="supporter-account-status" class="summary-grid"></div>
         <div class="list-heading supporter-membership-heading"><span>MEMBERSHIP STATUS</span><small>Stripe + rewards</small></div>
@@ -38,5 +40,6 @@
   <script src="/assets/membership-rewards.js?v=1"></script>
   <script src="assets/supporter.js?v=10"></script>
   <script src="assets/supporter-stripe-upgrade.js?v=1"></script>
+  <script src="/assets/subscriber-progress.js?v=1"></script>
 </body>
 </html>

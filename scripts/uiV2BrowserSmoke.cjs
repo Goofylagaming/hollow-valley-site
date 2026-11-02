@@ -259,6 +259,62 @@ async function checkAuthenticatedGroupProgress(browser, origin){
     console.log("PASS authenticated Groups Achievements & Quests mobile");
   }finally{await context.close();}
 }
+
+async function checkSubscriberBarFixture(browser, origin, route, size, label) {
+  const context = await browser.newContext({ viewport: size, deviceScaleFactor: 1, reducedMotion: "reduce" });
+  const page = await context.newPage();
+  const issues = collect(page);
+  // Browser-only synthetic budget and receipt totals. These are never saved to
+  // the isolated database and never configure a real public fundraising goal.
+  const now = Date.now();
+  const local = new Date(now + 10 * 60 * 60 * 1000);
+  const year = local.getUTCFullYear();
+  const month = local.getUTCMonth();
+  const monthLabel = new Intl.DateTimeFormat("en-AU", {
+    month: "long", year: "numeric", timeZone: "Australia/Brisbane",
+  }).format(new Date(now));
+  const fixture = {
+    enabled: true, configured: true, available: true,
+    month: `${year}-${String(month + 1).padStart(2, "0")}`, currency: "aud", timeZone: "Australia/Brisbane",
+    periodStart: new Date(Date.UTC(year, month, 1) - 10 * 60 * 60 * 1000).toISOString(),
+    periodEnd: new Date(Date.UTC(year, month + 1, 1) - 10 * 60 * 60 * 1000).toISOString(),
+    targetCents: 30000, amountMinor: 15000, updatedAt: new Date(now).toISOString(),
+    categories: [
+      { id: "fixture-game", label: "Game hosting · test fixture", amountCents: 20000 },
+      { id: "fixture-web", label: "Website and automation · test fixture", amountCents: 10000 },
+    ],
+    basis: "Subscription payments received this month, after refunds, before Stripe fees",
+  };
+  try {
+    await setReadOnlyApiMocks(page);
+    await page.route("**/api/supporter/progress", (request) => request.fulfill({
+      status: 200, contentType: "application/json", body: JSON.stringify(fixture),
+    }));
+    const response = await page.goto(origin + route, { waitUntil: "domcontentloaded", timeout: 25000 });
+    assert.equal(response.status(), 200, label + " HTTP status");
+    const bar = page.locator("[data-subscriber-progress]");
+    await bar.getByRole("progressbar", { name: "Server costs this month" }).waitFor({ state: "visible", timeout: 15000 });
+    assert.equal(await bar.isVisible(), true, label + " configured Subscriber Bar must be visible");
+    const meter = bar.getByRole("progressbar");
+    assert.equal(await meter.getAttribute("aria-valuemin"), "0");
+    assert.equal(await meter.getAttribute("aria-valuemax"), "100");
+    assert.equal(await meter.getAttribute("aria-valuenow"), "50.00");
+    assert.match(await meter.getAttribute("aria-valuetext"), /\$150\.00 AUD received toward \$300\.00 AUD/);
+    assert.ok((await bar.textContent()).includes(monthLabel + " · AUD · Australia/Brisbane"));
+    await bar.locator("summary").click();
+    assert.equal(await bar.locator(".subscriber-cost").count(), 2);
+    assert.equal(await bar.locator(".subscriber-cost").first().isVisible(), true);
+    assert.equal(await bar.evaluate((element) => element.scrollWidth <= element.clientWidth + 1), true,
+      label + " Subscriber Bar must not overflow horizontally");
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), true,
+      label + " page must fit the viewport");
+    await bar.screenshot({ path: path.join(screenshots, "subscriber-bar-fixture-" + label + ".png") });
+    assert.deepEqual(issues.missing, [], label + " missing local Subscriber Bar assets");
+    assert.deepEqual(issues.errors, [], label + " Subscriber Bar runtime errors");
+    console.log("PASS Subscriber Bar synthetic fixture", label, route, size.width + "x" + size.height);
+  } finally { await context.close(); }
+}
+
 async function main() {
   assert.ok(process.env.DB_PATH, "Must set DB_PATH to isolated staging SQLite file");
   assert.ok(!process.env.DB_PATH.startsWith("/app/data"), "Never use Render persistent disk");
@@ -294,6 +350,10 @@ async function main() {
       await checkPage(browser, origin, route, phone, label + "-phone", { capture: true });
     }
     await checkAuthenticatedGroupProgress(browser, origin);
+    for (const [route, label] of [["/", "home"], ["/supporter", "supporter"]]) {
+      await checkSubscriberBarFixture(browser, origin, route, desktop, label + "-desktop");
+      await checkSubscriberBarFixture(browser, origin, route, phone, label + "-phone");
+    }
     const page = await browser.newPage();
     const response = await page.goto(origin + "/admin");
     assert.ok([401, 403, 302].includes(response.status()), "Admin page should block unauthenticated requests; got " + response.status());

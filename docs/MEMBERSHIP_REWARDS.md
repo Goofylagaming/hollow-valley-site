@@ -29,6 +29,12 @@ The Supporter page contains **My Membership**. The profile page renders the
 selected frame, membership badge and highest earned loyalty badge. Both handle
 disabled rollout, incomplete paid history and unavailable downstream services.
 
+The homepage and Supporter page also include a **Subscriber Bar** for progress
+toward owner-configured monthly server costs. It uses verified aggregate
+subscription payments in AUD for the Brisbane calendar month, adjusted for
+refunds and before Stripe fees. Costs start blank and visibility is disabled;
+see `SUBSCRIBER_BAR.md` for owner controls, privacy and reconciliation details.
+
 ## Paid periods and cancellation
 
 `MEMBERSHIP_REWARDS_ENABLED=true` enables the website reward ledger and UI.
