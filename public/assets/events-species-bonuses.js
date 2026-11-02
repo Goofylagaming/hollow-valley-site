@@ -39,12 +39,17 @@
         Date.now() < new Date(event.startsAt).getTime()
           ? 'Starts ' + formatDate(event.startsAt)
           : 'Event ended';
+      const bonuses = Array.isArray(event.speciesBonuses) && event.speciesBonuses.length
+        ? event.speciesBonuses : [{ species: event.species, coinsPerMinute: event.coinsPerMinute }];
+      const rates = bonuses.map(rate =>
+        '<li><strong>' + escapeHtml(rate.species || 'Dinosaur') + '</strong>: +' +
+        Number(rate.coinsPerMinute || 0).toLocaleString() +
+        ' Valley Coins/min</li>').join('');
       return '<div class="event-card">' +
         '<div><small>' + (active ? 'LIVE RANDOM EVENT' : 'UPCOMING DINOSAUR BONUS') +
         '</small><h3>' + escapeHtml(event.title || 'Dinosaur bonus') + '</h3>' +
-        '<p>Play <strong>' + escapeHtml(event.species) + '</strong> for an extra <strong>' +
-        Number(event.coinsPerMinute || 0).toLocaleString() +
-        ' Valley Coins per verified minute</strong>.</p>' +
+        '<p>' + bonuses.length + ' featured dinosaur(s). Earn the listed bonus for your current species on every verified complete minute:</p>' +
+        '<ul style="margin:8px 0 12px;padding-left:22px">' + rates + '</ul>' +
         '<small>Ends ' + escapeHtml(formatDate(event.endsAt)) + '</small></div>' +
         '<div class="event-date"><strong>' + escapeHtml(status) + '</strong></div></div>';
     }).join('');

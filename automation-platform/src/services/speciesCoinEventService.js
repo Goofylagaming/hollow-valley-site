@@ -8,6 +8,7 @@ const MINUTE_MS = 60_000;
 const MAX_SAMPLE_GAP_MS = 90_000;
 const MAX_COINS_PER_MINUTE = 1_000;
 const MAX_DURATION_MINUTES = 12 * 60;
+const MAX_EVENT_SPECIES = 20;
 const PING_MODES = Object.freeze(['none', 'community', 'everyone']);
 const ALLOWED_SPECIES = new Set([
   'tyrannosaurus', 'allosaurus', 'carnotaurus', 'ceratosaurus',
@@ -25,6 +26,7 @@ db.exec(
     "status TEXT NOT NULL DEFAULT 'scheduled', created_by TEXT," +
     "auto_announce INTEGER NOT NULL DEFAULT 1," +
     "ping_mode TEXT NOT NULL DEFAULT 'none'," +
+    "species_bonuses_json TEXT," +
     "announce_route TEXT NOT NULL DEFAULT 'legacy'," +
     "stopped_at_ms INTEGER, created_at TEXT NOT NULL DEFAULT (datetime('now'))" +
   ");" +
@@ -43,8 +45,12 @@ if (!db.prepare('PRAGMA table_info(species_coin_events)').all()
   .some(column => column.name === 'ping_mode')) {
   db.exec("ALTER TABLE species_coin_events ADD COLUMN ping_mode TEXT NOT NULL DEFAULT 'none'");
 }
-// Existing events remain on their original destination, avoiding a second
-// start message or a surprise mass ping during the channel migration.
+// Additive, fail-closed migration. Historic single-dinosaur events stay intact.
+if (!db.prepare('PRAGMA table_info(species_coin_events)').all()
+  .some(column => column.name === 'species_bonuses_json')) {
+  db.exec('ALTER TABLE species_coin_events ADD COLUMN species_bonuses_json TEXT');
+}
+// Old events stay on their historical announcement channels and nonce IDs.
 if (!db.prepare('PRAGMA table_info(species_coin_events)').all()
   .some(column => column.name === 'announce_route')) {
   db.exec("ALTER TABLE species_coin_events ADD COLUMN announce_route TEXT NOT NULL DEFAULT 'legacy'");
@@ -65,6 +71,62 @@ function canonicalSpecies(value) {
   return ALLOWED_SPECIES.has(species) ? species : null;
 }
 
+
+function validateSpeciesBonuses(input) {
+  // Legacy single-species clients keep their existing request contract.
+  const provided = input.speciesBonuses;
+  const source = provided == null
+    ? [{ species: input.species, coinsPerMinute: input.coinsPerMinute }]
+    : provided;
+  if (!Array.isArray(source) || source.length < 1 || source.length > MAX_EVENT_SPECIES) {
+    eventError('Choose between 1 and ' + MAX_EVENT_SPECIES + ' playable dinosaur species');
+  }
+  const seen = new Set();
+  const bonuses = source.map(item => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      eventError('Each dinosaur must have its own Valley Coin rate');
+    }
+    const species = canonicalSpecies(item.species);
+    if (!species) eventError('Select a valid dinosaur species');
+    if (seen.has(species)) eventError('Do not include the same dinosaur more than once');
+    seen.add(species);
+    const coins = item.coinsPerMinute;
+    if (!Number.isSafeInteger(coins) || coins < 1 || coins > MAX_COINS_PER_MINUTE) {
+      eventError('Bonus must be a whole number from 1 to 1,000 Valley Coins per minute');
+    }
+    return { species, coinsPerMinute: coins };
+  });
+  return bonuses.sort((a, b) => a.species.localeCompare(b.species));
+}
+
+// A null JSON column means the original single-species schema. An invalid
+// non-null group must not silently fall back to its first dinosaur.
+function rowBonuses(row) {
+  if (row.species_bonuses_json == null) {
+    return [{ species: row.species_key, coinsPerMinute: Number(row.coins_per_minute) }];
+  }
+  let values;
+  try { values = JSON.parse(row.species_bonuses_json); } catch { return []; }
+  if (!Array.isArray(values) || values.length < 1 || values.length > MAX_EVENT_SPECIES) return [];
+  const seen = new Set();
+  const bonuses = [];
+  for (const item of values) {
+    if (!item || !ALLOWED_SPECIES.has(item.species) || seen.has(item.species) ||
+        !Number.isSafeInteger(item.coinsPerMinute) ||
+        item.coinsPerMinute < 1 || item.coinsPerMinute > MAX_COINS_PER_MINUTE) {
+      return [];
+    }
+    seen.add(item.species);
+    bonuses.push({ species: item.species, coinsPerMinute: item.coinsPerMinute });
+  }
+  return bonuses.sort((a, b) => a.species.localeCompare(b.species));
+}
+function sameBonuses(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
+function summaryBonuses(bonuses) {
+  return bonuses.map(bonus =>
+    bonus.species + ' +' + bonus.coinsPerMinute + ' VC/min').join('; ');
+}
+
 function statusFor(row, nowMs = Date.now()) {
   if (row.status === 'stopped') return 'stopped';
   if (nowMs >= Number(row.ends_at_ms)) return 'expired';
@@ -74,15 +136,18 @@ function statusFor(row, nowMs = Date.now()) {
 
 function view(row, nowMs = Date.now()) {
   if (!row) return null;
+  const speciesBonuses = rowBonuses(row);
   return {
     id: row.id, requestId: row.request_id, title: row.title,
     species: row.species_key, coinsPerMinute: Number(row.coins_per_minute),
+    speciesBonuses, speciesCount: speciesBonuses.length,
+    isMultiSpecies: speciesBonuses.length > 1,
+    announceRoute: row.announce_route === 'event-announcement' ? 'event-announcement' : 'legacy',
     startsAt: new Date(Number(row.starts_at_ms)).toISOString(),
     endsAt: new Date(Number(row.ends_at_ms)).toISOString(),
     status: statusFor(row, nowMs), createdBy: row.created_by,
     autoAnnounce: Number(row.auto_announce) === 1,
     pingMode: PING_MODES.includes(row.ping_mode) ? row.ping_mode : 'none',
-    announceRoute: row.announce_route === 'event-announcement' ? 'event-announcement' : 'legacy',
     stoppedAt: row.stopped_at_ms == null ? null : new Date(Number(row.stopped_at_ms)).toISOString(),
   };
 }
@@ -95,6 +160,8 @@ function listEvents({ limit = 40, nowMs = Date.now() } = {}) {
     perSpeciesGrowthSupported: false,
     maxCoinsPerMinute: MAX_COINS_PER_MINUTE,
     maxDurationMinutes: MAX_DURATION_MINUTES,
+    maxSpeciesPerEvent: MAX_EVENT_SPECIES,
+    multipleSpeciesSupported: true,
     events: db.prepare(
       'SELECT * FROM species_coin_events ORDER BY created_at DESC, rowid DESC LIMIT ?'
     ).all(Math.min(100, Math.max(1, Number(limit) || 40))).map(row => view(row, nowMs)),
@@ -107,12 +174,8 @@ function validateEvent(input, nowMs) {
   if (!/^[0-9a-f]{8}-[0-9a-f-]{27,32}$/.test(requestId)) eventError('A UUID request ID is required');
   const title = String(input.title || '').trim();
   if (!title || title.length > 90 || /[\x00-\x1f]/.test(title)) eventError('Event title must be 1–90 characters');
-  const species = canonicalSpecies(input.species);
-  if (!species) eventError('Select a valid dinosaur species');
-  const coins = input.coinsPerMinute;
-  if (!Number.isSafeInteger(coins) || coins < 1 || coins > MAX_COINS_PER_MINUTE) {
-    eventError('Bonus must be a whole number from 1 to 1,000 Valley Coins per minute');
-  }
+  const bonuses = validateSpeciesBonuses(input);
+  const { species, coinsPerMinute: coins } = bonuses[0];
   const duration = input.durationMinutes;
   if (!Number.isSafeInteger(duration) || duration < 5 || duration > MAX_DURATION_MINUTES) {
     eventError('Event duration must be 5–720 minutes');
@@ -135,8 +198,8 @@ function validateEvent(input, nowMs) {
   if (!autoAnnounce && pingMode !== 'none') {
     eventError('Random Event pings require automatic announcements to be enabled');
   }
-  return { requestId, title, species, coins, start, end: start + duration * MINUTE_MS,
-    actorSteamId, autoAnnounce, pingMode };
+  return { requestId, title, species, coins, bonuses,
+    start, end: start + duration * MINUTE_MS, actorSteamId, autoAnnounce, pingMode };
 }
 
 function createEvent(input, { nowMs = Date.now() } = {}) {
@@ -154,25 +217,35 @@ function createEvent(input, { nowMs = Date.now() } = {}) {
           Number(existing.coins_per_minute) !== p.coins || Number(existing.starts_at_ms) !== p.start ||
           Number(existing.ends_at_ms) !== p.end || existing.created_by !== p.actorSteamId ||
           Number(existing.auto_announce) !== (p.autoAnnounce ? 1 : 0) ||
-          existing.ping_mode !== p.pingMode) {
+          existing.ping_mode !== p.pingMode ||
+          !sameBonuses(rowBonuses(existing), p.bonuses)) {
         eventError('This request ID was already used for different event settings', 'SPECIES_EVENT_CONFLICT');
       }
       db.exec('COMMIT');
       return { duplicate: true, event: view(existing, nowMs) };
     }
 
-    const overlapping = db.prepare(
-      "SELECT id FROM species_coin_events WHERE species_key = ? AND status != 'stopped' " +
-      'AND ends_at_ms > ? AND starts_at_ms < ? LIMIT 1'
-    ).get(p.species, p.start, p.end);
-    if (overlapping) eventError('An overlapping bonus event already exists for this dinosaur', 'SPECIES_EVENT_CONFLICT');
+    // Check every selected species across existing single and grouped events.
+    // BEGIN IMMEDIATE makes the conflict check and insert atomic.
+    const intersecting = db.prepare(
+      "SELECT * FROM species_coin_events WHERE status != 'stopped' " +
+      'AND ends_at_ms > ? AND starts_at_ms < ?'
+    ).all(p.start, p.end);
+    const selected = new Set(p.bonuses.map(item => item.species));
+    const overlapping = intersecting.find(row =>
+      rowBonuses(row).some(item => selected.has(item.species)));
+    if (overlapping) {
+      eventError('An overlapping bonus event already exists for one of the selected dinosaurs', 'SPECIES_EVENT_CONFLICT');
+    }
 
     const id = randomUUID();
     db.prepare(
       'INSERT INTO species_coin_events ' +
-      '(id, request_id, title, species_key, coins_per_minute, starts_at_ms, ends_at_ms, created_by, auto_announce, ping_mode, announce_route) ' +
-      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    ).run(id, p.requestId, p.title, p.species, p.coins, p.start, p.end, p.actorSteamId, p.autoAnnounce ? 1 : 0, p.pingMode, 'event-announcement');
+      '(id, request_id, title, species_key, coins_per_minute, starts_at_ms, ends_at_ms, created_by, auto_announce, ping_mode, announce_route, species_bonuses_json) ' +
+      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    ).run(id, p.requestId, p.title, p.species, p.coins, p.start, p.end,
+      p.actorSteamId, p.autoAnnounce ? 1 : 0, p.pingMode,
+      'event-announcement', JSON.stringify(p.bonuses));
     const row = db.prepare('SELECT * FROM species_coin_events WHERE id = ?').get(id);
     db.exec('COMMIT');
     return { duplicate: false, event: view(row, nowMs) };
@@ -205,20 +278,34 @@ function reconcileAnnouncements({ nowMs = Date.now() } = {}) {
   let queued = 0, failed = 0;
   for (const row of rows) {
     const status = statusFor(row, nowMs);
+    const bonuses = rowBonuses(row);
+    if (!bonuses.length) {
+      failed++;
+      console.warn('[species-event-announcement] invalid persisted species bonus list; skipping');
+      continue;
+    }
+    // All new events, grouped or single, use the dedicated start/finish
+    // channel. Legacy events retain their original routing and nonce IDs.
     const destinations = row.announce_route === 'event-announcement'
       ? ['event-announcement'] : ['announcement', 'progress'];
     const phase = status === 'active' ? 'start' :
       status === 'expired' || (status === 'stopped' &&
         Number(row.stopped_at_ms) >= Number(row.starts_at_ms)) ? 'end' : null;
     if (!phase) continue;
+    const group = bonuses.length > 1;
     const message = phase === 'start'
       ? '🦖 Hollow Valley Random Event STARTED: ' + row.title +
-        '! Play ' + row.species_key + ' for an extra ' + row.coins_per_minute +
-        ' Valley Coins per verified minute. Ends at ' + formatEventTimeQld(Number(row.ends_at_ms)) + '.'
+        (group ? '! Featured dinosaurs: ' + summaryBonuses(bonuses) +
+          '. Earn the listed extra Valley Coins per verified minute with your current dinosaur.' :
+          '! Play ' + row.species_key + ' for an extra ' + row.coins_per_minute +
+          ' Valley Coins per verified minute.') +
+        ' Ends at ' + formatEventTimeQld(Number(row.ends_at_ms)) + '.'
       : '🦖 Hollow Valley Random Event ENDED: ' + row.title +
-        '. The extra ' + row.coins_per_minute +
-        ' Valley Coins/min bonus for ' + row.species_key + ' has finished. ' +
-        'Ended at ' + formatEventTimeQld(row.stopped_at_ms != null ? Number(row.stopped_at_ms) : Number(row.ends_at_ms)) + '.';
+        (group ? '. Featured bonuses have finished: ' + summaryBonuses(bonuses) + '.' :
+          '. The extra ' + row.coins_per_minute +
+          ' Valley Coins/min bonus for ' + row.species_key + ' has finished.') +
+        ' Ended at ' + formatEventTimeQld(
+          row.stopped_at_ms != null ? Number(row.stopped_at_ms) : Number(row.ends_at_ms)) + '.';
     for (const destination of destinations) {
       // Only the first community announcement may ping. Existing events keep
       // their historical nonce exactly, so old messages are never resent.
@@ -255,6 +342,13 @@ function processSnapshot(players, { nowMs = Date.now() } = {}) {
     .map((player) => String(player?.steamId || '').trim())
     .filter((steamId) => /^\d{17}$/.test(steamId)));
   for (const event of events) {
+    const bonuses = rowBonuses(event);
+    if (!bonuses.length) {
+      errors++;
+      console.warn('[species-coin-events] invalid persisted species rates');
+      continue;
+    }
+    const rateBySpecies = new Map(bonuses.map(item => [item.species, item.coinsPerMinute]));
     // A disconnected player must never accrue seconds between their previous
     // observation and their later reconnect, even when that gap is <90s.
     // Reset the continuity marker on the very first authoritative absence.
@@ -272,12 +366,13 @@ function processSnapshot(players, { nowMs = Date.now() } = {}) {
       const steamId = String(player?.steamId || '').trim();
       if (!/^\d{17}$/.test(steamId)) continue;
       const species = canonicalSpecies(player?.species);
+      const coinsPerMinute = rateBySpecies.get(species);
       const prior = db.prepare(
         'SELECT * FROM species_coin_event_progress WHERE event_id = ? AND steam_id = ?'
       ).get(event.id, steamId);
 
       if (!prior) {
-        if (species === event.species_key && nowMs < Number(event.ends_at_ms)) {
+        if (coinsPerMinute != null && nowMs < Number(event.ends_at_ms)) {
           db.prepare(
             'INSERT OR IGNORE INTO species_coin_event_progress ' +
             '(event_id, steam_id, last_seen_ms, species_key) VALUES (?, ?, ?, ?)'
@@ -288,7 +383,7 @@ function processSnapshot(players, { nowMs = Date.now() } = {}) {
       if (nowMs <= Number(prior.last_seen_ms)) continue;
       const delta = nowMs - Number(prior.last_seen_ms);
       const uninterrupted = delta <= MAX_SAMPLE_GAP_MS &&
-        species === event.species_key && species === prior.species_key;
+        coinsPerMinute != null && species === prior.species_key;
       if (!uninterrupted) {
         db.prepare(
           'UPDATE species_coin_event_progress SET last_seen_ms = ?, species_key = ?, accrued_ms = 0 WHERE event_id = ? AND steam_id = ?'
@@ -306,11 +401,11 @@ function processSnapshot(players, { nowMs = Date.now() } = {}) {
           const sequence = previousCount + index;
           const key = 'species-minute:' + event.id + ':' + steamId + ':' + sequence;
           const receipt = economy.applyWalletTransaction({
-            steamId, amount: Number(event.coins_per_minute), kind: 'species_event_bonus',
-            reason: event.title + ' — ' + event.species_key + ' playtime',
+            steamId, amount: coinsPerMinute, kind: 'species_event_bonus',
+            reason: event.title + ' — ' + species + ' playtime',
             idempotencyKey: key, referenceType: 'species_bonus_event', referenceId: event.id,
             metadata: {
-              species: event.species_key, coinsPerMinute: Number(event.coins_per_minute),
+              species, coinsPerMinute,
               sequence, intervalSeconds: 60,
               // Flat event amount; supporter and quest multipliers apply to
               // their existing normal reward stream, not this extra credit.
@@ -319,7 +414,7 @@ function processSnapshot(players, { nowMs = Date.now() } = {}) {
           });
           if (!receipt.duplicate) {
             intervals++;
-            coins += Number(event.coins_per_minute);
+            coins += coinsPerMinute;
           }
         }
         db.prepare(
@@ -340,5 +435,5 @@ function processSnapshot(players, { nowMs = Date.now() } = {}) {
 module.exports = {
   enabled, canonicalSpecies, validateEvent, statusFor, listEvents,
   createEvent, stopEvent, processSnapshot, reconcileAnnouncements, MAX_SAMPLE_GAP_MS,
-  PING_MODES,
+  PING_MODES, MAX_EVENT_SPECIES, validateSpeciesBonuses, rowBonuses,
 };
