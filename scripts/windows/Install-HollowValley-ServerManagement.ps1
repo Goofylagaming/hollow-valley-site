@@ -28,8 +28,7 @@ $null = [System.Management.Automation.Language.Parser]::ParseFile(
 if ($parseErrors.Count -gt 0) {
     throw 'The management agent has PowerShell parse errors. No task was created.'
 }
-if ((Get-Content -LiteralPath $AgentPath -Raw) -notmatch
-    "function Invoke-ApprovedTaskAction") {
+if ((Get-Content -LiteralPath $AgentPath -Raw) -notmatch 'function Invoke-ApprovedTaskAction') {
     throw 'The management agent file does not contain the expected allowlisted action function.'
 }
 $currentIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -42,31 +41,49 @@ $secretDir = 'C:\HollowValley\Secrets'
 $secretPath = Join-Path $secretDir 'management-agent-token.txt'
 New-Item -ItemType Directory -Path $secretDir -Force | Out-Null
 
-Write-Host 'Enter the dedicated HV_MANAGEMENT_AGENT_TOKEN from Render. Input will be hidden.'
-$inputSecret = Read-Host 'Management token' -AsSecureString
-$ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($inputSecret)
-try {
-    $secretText = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
-    if ($secretText.Length -lt 32) { throw 'Management token must be at least 32 characters.' }
-
-    if (-not (Test-Path -LiteralPath $secretPath)) {
-        New-Item -ItemType File -Path $secretPath -Force | Out-Null
+# Reuse the token that already passed the one-shot staging HTTPS test.
+# Never overwrite a working token merely because the scheduled task is installed.
+$tokenExists = Test-Path -LiteralPath $secretPath
+$newTokenText = $null
+if ($tokenExists) {
+    $existingToken = (Get-Content -LiteralPath $secretPath -Raw).Trim()
+    if ($existingToken.Length -lt 32) {
+        throw 'Existing management token file is too short. Resolve it manually before installing.'
     }
-    # Remove inherited access BEFORE writing the secret.
-    $acl = Get-Acl -LiteralPath $secretPath
-    $acl.SetAccessRuleProtection($true, $false)
-    foreach ($rule in @($acl.Access)) { $acl.RemoveAccessRuleSpecific($rule) }
-    $systemSid = [Security.Principal.SecurityIdentifier]::new('S-1-5-18')
-    $adminsSid = [Security.Principal.SecurityIdentifier]::new('S-1-5-32-544')
-    $read = [Security.AccessControl.FileSystemAccessRule]::new($systemSid, 'Read', 'Allow')
-    $full = [Security.AccessControl.FileSystemAccessRule]::new($adminsSid, 'FullControl', 'Allow')
-    $acl.AddAccessRule($read)
-    $acl.AddAccessRule($full)
-    Set-Acl -LiteralPath $secretPath -AclObject $acl
-    [System.IO.File]::WriteAllText($secretPath, $secretText, [System.Text.Encoding]::ASCII)
-} finally {
-    if ($ptr -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr) }
-    $secretText = $null
+    $existingToken = $null
+    Write-Host 'Using the existing management-agent-token.txt (token not displayed).'
+} else {
+    Write-Host 'Enter the dedicated HV_MANAGEMENT_AGENT_TOKEN from staging. Input will be hidden.'
+    $inputSecret = Read-Host 'Management token' -AsSecureString
+    $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($inputSecret)
+    try {
+        $newTokenText = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
+        if ($newTokenText.Length -lt 32) { throw 'Management token must be at least 32 characters.' }
+    } finally {
+        if ($ptr -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr) }
+    }
+    New-Item -ItemType File -Path $secretPath -Force | Out-Null
+}
+
+# Restrict existing/new secret file permissions to SYSTEM and Administrators.
+$acl = Get-Acl -LiteralPath $secretPath
+$acl.SetAccessRuleProtection($true, $false)
+foreach ($rule in @($acl.Access)) { $acl.RemoveAccessRuleSpecific($rule) }
+$systemSid = [Security.Principal.SecurityIdentifier]::new('S-1-5-18')
+$adminsSid = [Security.Principal.SecurityIdentifier]::new('S-1-5-32-544')
+$read = [Security.AccessControl.FileSystemAccessRule]::new($systemSid, 'Read', 'Allow')
+$full = [Security.AccessControl.FileSystemAccessRule]::new($adminsSid, 'FullControl', 'Allow')
+$acl.AddAccessRule($read)
+$acl.AddAccessRule($full)
+Set-Acl -LiteralPath $secretPath -AclObject $acl
+if (-not $tokenExists) {
+    [System.IO.File]::WriteAllText($secretPath, $newTokenText, [System.Text.Encoding]::ASCII)
+    $newTokenText = $null
+}
+
+# Avoid silently replacing an existing production/staging task configuration.
+if (Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue) {
+    throw "A management task named '$TaskName' already exists. Inspect it before replacing."
 }
 
 $action = New-ScheduledTaskAction -Execute 'PowerShell.exe' -Argument (
