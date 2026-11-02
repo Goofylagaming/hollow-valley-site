@@ -9,6 +9,8 @@ param(
         'https://hollowvalleyisle.com'
     )]
     [string]$SiteUrl,
+    [ValidateSet('C:\HollowValley\Secrets\management-agent-token.txt', 'C:\HollowValley\Secrets\management-agent-production-token.txt')]
+    [string]$TokenFile = 'C:\HollowValley\Secrets\management-agent-token.txt',
     [string]$AgentPath = 'C:\HollowValley\Scripts\HollowValley-ServerManagementAgent.ps1',
     [string]$TaskName = 'Hollow Valley Server Management Agent'
 )
@@ -38,7 +40,27 @@ if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Adm
 }
 
 $secretDir = 'C:\HollowValley\Secrets'
-$secretPath = Join-Path $secretDir 'management-agent-token.txt'
+$production = $SiteUrl -eq 'https://hollowvalleyisle.com'
+$expectedTokenFile = if ($production) {
+    'C:\HollowValley\Secrets\management-agent-production-token.txt'
+} else {
+    'C:\HollowValley\Secrets\management-agent-token.txt'
+}
+if ($TokenFile -ne $expectedTokenFile) {
+    throw 'The requested website and token file must belong to the same environment.'
+}
+if ($production) {
+    if ($TaskName -ne 'Hollow Valley Server Management Agent - Production') {
+        throw 'Production requires the exact production task name.'
+    }
+    $stagingTask = Get-ScheduledTask -TaskName 'Hollow Valley Server Management Agent - Staging' -ErrorAction SilentlyContinue
+    if ($stagingTask -and $stagingTask.State -eq 'Running') {
+        throw 'Stop ONLY the staging management task before installing production. Do not touch the game watchdog.'
+    }
+} elseif ($TaskName -ne 'Hollow Valley Server Management Agent - Staging') {
+    throw 'Staging requires the exact staging task name.'
+}
+$secretPath = $TokenFile
 New-Item -ItemType Directory -Path $secretDir -Force | Out-Null
 
 # Reuse the token that already passed the one-shot staging HTTPS test.
@@ -53,7 +75,7 @@ if ($tokenExists) {
     $existingToken = $null
     Write-Host 'Using the existing management-agent-token.txt (token not displayed).'
 } else {
-    Write-Host 'Enter the dedicated HV_MANAGEMENT_AGENT_TOKEN from staging. Input will be hidden.'
+    Write-Host 'Enter the dedicated HV_MANAGEMENT_AGENT_TOKEN for this environment. Input will be hidden.'
     $inputSecret = Read-Host 'Management token' -AsSecureString
     $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($inputSecret)
     try {
@@ -87,7 +109,7 @@ if (Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue) {
 }
 
 $action = New-ScheduledTaskAction -Execute 'PowerShell.exe' -Argument (
-    '-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + $AgentPath + '" -SiteUrl "' + $SiteUrl + '"'
+    '-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + $AgentPath + '" -SiteUrl "' + $SiteUrl + '" -TokenFile "' + $TokenFile + '"'
 )
 $trigger = New-ScheduledTaskTrigger -AtStartup
 $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
@@ -97,4 +119,5 @@ Start-ScheduledTask -TaskName $TaskName
 
 Write-Host "Installed and started: $TaskName" -ForegroundColor Green
 Write-Host "Outbound management endpoint: $SiteUrl"
+Write-Host "Management mode: READ ONLY. Writes require a separate, reviewed activation step."
 Write-Host 'No game-server restart was requested. Verify the owner management page heartbeat.'
