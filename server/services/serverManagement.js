@@ -56,6 +56,12 @@ function tokenConfigured() {
 function clampText(v, max = 240) {
   return String(v == null ? "" : v).replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "").slice(0, max);
 }
+function scrubLogLine(value) {
+  const line = clampText(value, 300);
+  return line
+    .replace(/\\bBearer\\s+[^\\s]+/gi, "Bearer [REDACTED]")
+    .replace(/\\b(token|password|secret|authorization)\\s*[:=]\\s*.*$/gi, "$1=[REDACTED]");
+}
 function normalizeHeartbeat(source = {}) {
   const game = source && typeof source.server === "object" ? source.server : {};
   const tasks = source && typeof source.tasks === "object" && !Array.isArray(source.tasks)
@@ -76,7 +82,7 @@ function normalizeHeartbeat(source = {}) {
     },
     tasks: safeTasks,
     logs: Object.fromEntries(LOG_KEYS.map((key) =>
-      [key, (Array.isArray(logs[key]) ? logs[key] : []).slice(-12).map((line) => clampText(line, 300))])),
+      [key, (Array.isArray(logs[key]) ? logs[key] : []).slice(-12).map(scrubLogLine)])),
     agentVersion: clampText(source.agentVersion, 40),
   };
 }
