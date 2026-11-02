@@ -175,7 +175,7 @@
       ' minutes? It will end automatically. ' +
       (draft.pingMode === 'none' ? 'No mass ping will be sent.' :
         'The START announcement will ping ' + pingLabels[draft.pingMode] +
-        ' once in the Community Announcements channel.') +
+        ' once in #event-start-and-finish.') +
       ' This does NOT increase species growth.';
     if (!window.confirm(copy)) return;
 

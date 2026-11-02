@@ -461,6 +461,13 @@ router.post("/feature-announcement", async (req, res) => {
   } else {
     return res.status(400).json({ error: "Unsupported feature announcement type." });
   }
+  const pingMode = body.pingMode == null ? "none" : String(body.pingMode);
+  if (!["none", "community", "everyone"].includes(pingMode)) {
+    return res.status(400).json({ error: "Choose no ping, Community Member or everyone." });
+  }
+  if (pingMode !== "none" && (kind !== "growth" || !channels.includes("announcement"))) {
+    return res.status(400).json({ error: "Only verified global growth announcements in Community Announcements can ping members." });
+  }
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(body.requestId || ""))) {
     return res.status(400).json({ error: "A valid announcement request ID is required." });
   }
@@ -471,6 +478,7 @@ router.post("/feature-announcement", async (req, res) => {
       multiplier: kind === "growth" ? Number(body.multiplier) : undefined,
       message: kind === "custom" ? String(body.message).trim() : undefined,
       channels,
+      pingMode,
       requestId: String(body.requestId),
       verified: true,
       confirm: "ANNOUNCE VERIFIED",

@@ -111,6 +111,15 @@
               <label><input id="ops-feature-progress" type="checkbox"> Server progress &amp; updates (Discord)</label>
               <label title="Requires a private Windows-host RCON command bridge"><input type="checkbox" disabled> In-game (not connected)</label>
             </div>
+            <div class="page-toolbar ops-toolbar" id="ops-feature-growth-ping-wrap">
+              <label for="ops-feature-growth-ping">Notify members about verified growth changes</label>
+              <select id="ops-feature-growth-ping" aria-label="Verified growth-change Discord mention target" style="padding:10px;background:#0f172a;color:#fff;border:1px solid #334155">
+                <option value="none" selected>No ping (default)</option>
+                <option value="community">@Community Member</option>
+                <option value="everyone">@everyone</option>
+              </select>
+              <small>One ping in Community Announcements only. Requires a confirmed live growth change, the Community Announcements destination and HerbyBot mention permission; no ping to Server Progress.</small>
+            </div>
             <div class="page-toolbar ops-toolbar">
               <label><input id="ops-feature-verified" type="checkbox"> I verified this change is active on the live server</label>
             </div>
@@ -185,14 +194,14 @@
                 <label for="ops-species-event-start-at">Optional scheduled start (your local time)</label>
                 <input id="ops-species-event-start-at" type="datetime-local" aria-label="Event start date and time" style="padding:10px;background:#0f172a;color:#fff;border:1px solid #334155">
                 <small>Leave blank to start now. Server presence must remain healthy for rewards.</small>
-                <label><input id="ops-species-event-auto-announce" type="checkbox" checked> Automatically announce start and end through HerbyBot (community + server-progress Discord)</label>
+                <label><input id="ops-species-event-auto-announce" type="checkbox" checked> Automatically announce start and finish in the dedicated #event-start-and-finish Discord channel</label>
                 <label for="ops-species-event-ping">Notify members on event START</label>
                 <select id="ops-species-event-ping" aria-label="Random Event Discord mention target" style="padding:10px;background:#0f172a;color:#fff;border:1px solid #334155">
                   <option value="community" selected>@Community Member (recommended)</option>
                   <option value="everyone">@everyone (entire server)</option>
                   <option value="none">No ping</option>
                 </select>
-                <small>Ping occurs once in Community Announcements when the event starts; never again at the end or in #server-progress-and-updates. HerbyBot requires Discord permission to mention your choice.</small>
+                <small>Ping occurs once in #event-start-and-finish when the event starts; never again when it ends. HerbyBot requires Discord permission to mention your choice.</small>
               </div>
               <div class="page-toolbar ops-toolbar">
                 <label>Species-only growth</label>

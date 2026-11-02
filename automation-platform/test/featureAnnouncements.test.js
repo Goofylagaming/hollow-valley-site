@@ -103,3 +103,71 @@ test('partial queue failure preserves its uncertain receipt and cannot replay', 
   assert.equal(store.listOutboxEvents({}).length, count);
   assert.equal(calls, 2);
 });
+
+test('verified global growth notice can ping only the selected announcement-channel audience', () => {
+  const id = '9f0d9cea-9a7d-4b17-811e-985531aa0d13';
+  const input = {
+    kind: 'growth', multiplier: 3, channels: ['announcement', 'progress'],
+    pingMode: 'community', requestId: id, verified: true, confirm: 'ANNOUNCE VERIFIED',
+  };
+  const before = store.listOutboxEvents({}).length;
+  const result = announcements.queueVerifiedAnnouncement(input);
+  assert.equal(result.queued, true);
+  assert.equal(result.pingMode, 'community');
+  assert.equal(result.receipts.length, 2);
+  const out = store.listOutboxEvents({ limit: 500 }).filter(row => row.nonce.includes(id.replace(/-/g, '')));
+  assert.equal(out.length, 2);
+  assert.ok(out.some(row => row.destination === 'announcement' &&
+    row.nonce.endsWith('-announcement-ping-community')));
+  assert.ok(out.some(row => row.destination === 'progress' && row.nonce.endsWith('-progress')));
+  const retry = announcements.queueVerifiedAnnouncement(input);
+  assert.deepEqual(retry.receipts, result.receipts);
+  assert.equal(store.listOutboxEvents({}).length, before + 2);
+  assert.throws(() => announcements.queueVerifiedAnnouncement({ ...input, pingMode: 'everyone' }), /different content/);
+  assert.equal(store.listOutboxEvents({}).length, before + 2);
+});
+
+test('growth ping cannot be forged by custom notices, invalid modes or progress-only publication', () => {
+  const input = {
+    kind: 'growth', multiplier: 2, channels: ['announcement'],
+    requestId: '0dc9be11-6b17-4ce2-b496-53e417d23b31',
+    verified: true, confirm: 'ANNOUNCE VERIFIED',
+  };
+  assert.throws(() => announcements.validate({ ...input, pingMode: '@everyone' }), /Choose no ping/);
+  assert.throws(() => announcements.validate({ ...input, pingMode: 'everyone', verified: false }), /Confirm the change/);
+  assert.throws(() => announcements.validate({ ...input, pingMode: 'everyone', channels: ['progress'] }), /require a verified growth/);
+  assert.throws(() => announcements.validate({ ...input, kind: 'custom', message: 'Event start', pingMode: 'community' }), /require a verified growth/);
+  assert.equal(announcements.validate(input).pingMode, 'none');
+});
+
+test('older silent growth notices cannot be replayed as mass mentions', () => {
+  const id = '16d43e9b-5838-4796-8027-478bd0191d78';
+  const original = {
+    kind: 'growth', multiplier: 2, channels: ['announcement'], requestId: id,
+    verified: true, confirm: 'ANNOUNCE VERIFIED',
+  };
+  const first = announcements.queueVerifiedAnnouncement(original);
+  assert.equal(first.pingMode, 'none');
+  const count = store.listOutboxEvents({}).length;
+  assert.throws(() => announcements.queueVerifiedAnnouncement({ ...original, pingMode: 'everyone' }), /different content/);
+  assert.equal(store.listOutboxEvents({}).length, count);
+  const silentRetry = announcements.queueVerifiedAnnouncement({ ...original, pingMode: 'none' });
+  assert.deepEqual(silentRetry.receipts, first.receipts);
+  assert.equal(store.listOutboxEvents({}).length, count);
+});
+
+test('unreserved legacy receipt cannot be converted to another ping on retry', () => {
+  const id = '3a433350-2835-481c-969b-b1874137ad31';
+  const sample = {
+    kind: 'growth', multiplier: 2, channels: ['announcement'], requestId: id,
+    verified: true, confirm: 'ANNOUNCE VERIFIED',
+  };
+  const msg = announcements.validate(sample).message;
+  outbox.queueMessage({
+    destination: 'announcement', message: msg,
+    nonce: 'hv-feature-' + id.replace(/-/g, '') + '-announcement',
+  });
+  const count = store.listOutboxEvents({}).length;
+  assert.throws(() => announcements.queueVerifiedAnnouncement({ ...sample, pingMode: 'everyone' }), /different content/);
+  assert.equal(store.listOutboxEvents({}).length, count);
+});

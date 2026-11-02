@@ -81,3 +81,46 @@ test('Admin Hub feature UI describes verification, Discord and private in-game l
   assert.match(js, /crypto\.randomUUID\(\)/);
   assert.match(js, /ANNOUNCE VERIFIED/);
 });
+
+test('Admin Hub validates growth-only ping modes and never accepts custom mass mentions', async (t) => {
+  const old = automation.queueAdminFeatureAnnouncement;
+  const sent = [];
+  automation.queueAdminFeatureAnnouncement = async (data) => {
+    sent.push(data);
+    return { ok: true, announcement: { queued: true, receipts: [{ destination: 'announcement' }] } };
+  };
+  t.after(() => { automation.queueAdminFeatureAnnouncement = old; });
+  const server = await serve({ id: 1, is_admin: 1, steam_id: '76561198038977506' });
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  async function post(data) {
+    return fetch(url(server), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Sec-Fetch-Site': 'same-origin' },
+      body: JSON.stringify(data),
+    });
+  }
+  assert.equal((await post({ ...payload(), pingMode: '@everyone' })).status, 400);
+  assert.equal((await post({ ...payload(), pingMode: 'everyone', channels: ['progress'] })).status, 400);
+  assert.equal((await post({ ...payload(), kind: 'custom', message: 'Event is live', pingMode: 'community' })).status, 400);
+  assert.equal((await post({ ...payload(), verified: false, pingMode: 'everyone' })).status, 400);
+  assert.equal(sent.length, 0);
+
+  for (const mode of ['community', 'everyone', 'none']) {
+    const response = await post({ ...payload(), pingMode: mode });
+    assert.equal(response.status, 202);
+    assert.equal(sent.at(-1).pingMode, mode);
+    assert.equal(sent.at(-1).actorSteamId, '76561198038977506');
+    assert.deepEqual(sent.at(-1).channels, ['announcement', 'progress']);
+  }
+});
+
+test('Admin UI shows explicit growth ping options with no ping as default', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../public/adminoperations.html'), 'utf8');
+  const js = fs.readFileSync(path.join(__dirname, '../public/assets/adminoperations.js'), 'utf8');
+  assert.match(html, /id="ops-feature-growth-ping"/);
+  assert.match(html, /value="none" selected/);
+  assert.match(html, /value="community"/);
+  assert.match(html, /value="everyone"/);
+  assert.match(js, /pingAllowed/);
+  assert.match(js, /Confirm this change is already active/);
+});
