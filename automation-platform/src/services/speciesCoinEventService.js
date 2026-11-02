@@ -8,6 +8,7 @@ const MINUTE_MS = 60_000;
 const MAX_SAMPLE_GAP_MS = 90_000;
 const MAX_COINS_PER_MINUTE = 1_000;
 const MAX_DURATION_MINUTES = 12 * 60;
+const MAX_EVENT_SPECIES = 20;
 const PING_MODES = Object.freeze(['none', 'community', 'everyone']);
 const ALLOWED_SPECIES = new Set([
   'tyrannosaurus', 'allosaurus', 'carnotaurus', 'ceratosaurus',
@@ -25,6 +26,7 @@ db.exec(
     "status TEXT NOT NULL DEFAULT 'scheduled', created_by TEXT," +
     "auto_announce INTEGER NOT NULL DEFAULT 1," +
     "ping_mode TEXT NOT NULL DEFAULT 'none'," +
+    "species_bonuses_json TEXT," +
     "stopped_at_ms INTEGER, created_at TEXT NOT NULL DEFAULT (datetime('now'))" +
   ");" +
   "CREATE INDEX IF NOT EXISTS idx_species_events_window ON species_coin_events(starts_at_ms, ends_at_ms, status);" +
@@ -42,6 +44,11 @@ if (!db.prepare('PRAGMA table_info(species_coin_events)').all()
   .some(column => column.name === 'ping_mode')) {
   db.exec("ALTER TABLE species_coin_events ADD COLUMN ping_mode TEXT NOT NULL DEFAULT 'none'");
 }
+// Additive, fail-closed migration. Historic single-dinosaur events stay intact.
+if (!db.prepare('PRAGMA table_info(species_coin_events)').all()
+  .some(column => column.name === 'species_bonuses_json')) {
+  db.exec('ALTER TABLE species_coin_events ADD COLUMN species_bonuses_json TEXT');
+}
 
 function enabled() {
   return process.env.SPECIES_COIN_EVENTS_ENABLED === 'true';
@@ -58,6 +65,62 @@ function canonicalSpecies(value) {
   return ALLOWED_SPECIES.has(species) ? species : null;
 }
 
+
+function validateSpeciesBonuses(input) {
+  // Legacy single-species clients keep their existing request contract.
+  const provided = input.speciesBonuses;
+  const source = provided == null
+    ? [{ species: input.species, coinsPerMinute: input.coinsPerMinute }]
+    : provided;
+  if (!Array.isArray(source) || source.length < 1 || source.length > MAX_EVENT_SPECIES) {
+    eventError('Choose between 1 and ' + MAX_EVENT_SPECIES + ' playable dinosaur species');
+  }
+  const seen = new Set();
+  const bonuses = source.map(item => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      eventError('Each dinosaur must have its own Valley Coin rate');
+    }
+    const species = canonicalSpecies(item.species);
+    if (!species) eventError('Select a valid dinosaur species');
+    if (seen.has(species)) eventError('Do not include the same dinosaur more than once');
+    seen.add(species);
+    const coins = item.coinsPerMinute;
+    if (!Number.isSafeInteger(coins) || coins < 1 || coins > MAX_COINS_PER_MINUTE) {
+      eventError('Bonus must be a whole number from 1 to 1,000 Valley Coins per minute');
+    }
+    return { species, coinsPerMinute: coins };
+  });
+  return bonuses.sort((a, b) => a.species.localeCompare(b.species));
+}
+
+// A null JSON column means the original single-species schema. An invalid
+// non-null group must not silently fall back to its first dinosaur.
+function rowBonuses(row) {
+  if (row.species_bonuses_json == null) {
+    return [{ species: row.species_key, coinsPerMinute: Number(row.coins_per_minute) }];
+  }
+  let values;
+  try { values = JSON.parse(row.species_bonuses_json); } catch { return []; }
+  if (!Array.isArray(values) || values.length < 1 || values.length > MAX_EVENT_SPECIES) return [];
+  const seen = new Set();
+  const bonuses = [];
+  for (const item of values) {
+    if (!item || !ALLOWED_SPECIES.has(item.species) || seen.has(item.species) ||
+        !Number.isSafeInteger(item.coinsPerMinute) ||
+        item.coinsPerMinute < 1 || item.coinsPerMinute > MAX_COINS_PER_MINUTE) {
+      return [];
+    }
+    seen.add(item.species);
+    bonuses.push({ species: item.species, coinsPerMinute: item.coinsPerMinute });
+  }
+  return bonuses.sort((a, b) => a.species.localeCompare(b.species));
+}
+function sameBonuses(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
+function summaryBonuses(bonuses) {
+  return bonuses.map(bonus =>
+    bonus.species + ' +' + bonus.coinsPerMinute + ' VC/min').join('; ');
+}
+
 function statusFor(row, nowMs = Date.now()) {
   if (row.status === 'stopped') return 'stopped';
   if (nowMs >= Number(row.ends_at_ms)) return 'expired';
@@ -67,9 +130,12 @@ function statusFor(row, nowMs = Date.now()) {
 
 function view(row, nowMs = Date.now()) {
   if (!row) return null;
+  const speciesBonuses = rowBonuses(row);
   return {
     id: row.id, requestId: row.request_id, title: row.title,
     species: row.species_key, coinsPerMinute: Number(row.coins_per_minute),
+    speciesBonuses, speciesCount: speciesBonuses.length,
+    isMultiSpecies: speciesBonuses.length > 1,
     startsAt: new Date(Number(row.starts_at_ms)).toISOString(),
     endsAt: new Date(Number(row.ends_at_ms)).toISOString(),
     status: statusFor(row, nowMs), createdBy: row.created_by,
@@ -87,6 +153,8 @@ function listEvents({ limit = 40, nowMs = Date.now() } = {}) {
     perSpeciesGrowthSupported: false,
     maxCoinsPerMinute: MAX_COINS_PER_MINUTE,
     maxDurationMinutes: MAX_DURATION_MINUTES,
+    maxSpeciesPerEvent: MAX_EVENT_SPECIES,
+    multipleSpeciesSupported: true,
     events: db.prepare(
       'SELECT * FROM species_coin_events ORDER BY created_at DESC, rowid DESC LIMIT ?'
     ).all(Math.min(100, Math.max(1, Number(limit) || 40))).map(row => view(row, nowMs)),
@@ -99,12 +167,8 @@ function validateEvent(input, nowMs) {
   if (!/^[0-9a-f]{8}-[0-9a-f-]{27,32}$/.test(requestId)) eventError('A UUID request ID is required');
   const title = String(input.title || '').trim();
   if (!title || title.length > 90 || /[\x00-\x1f]/.test(title)) eventError('Event title must be 1–90 characters');
-  const species = canonicalSpecies(input.species);
-  if (!species) eventError('Select a valid dinosaur species');
-  const coins = input.coinsPerMinute;
-  if (!Number.isSafeInteger(coins) || coins < 1 || coins > MAX_COINS_PER_MINUTE) {
-    eventError('Bonus must be a whole number from 1 to 1,000 Valley Coins per minute');
-  }
+  const bonuses = validateSpeciesBonuses(input);
+  const { species, coinsPerMinute: coins } = bonuses[0];
   const duration = input.durationMinutes;
   if (!Number.isSafeInteger(duration) || duration < 5 || duration > MAX_DURATION_MINUTES) {
     eventError('Event duration must be 5–720 minutes');
@@ -127,8 +191,8 @@ function validateEvent(input, nowMs) {
   if (!autoAnnounce && pingMode !== 'none') {
     eventError('Random Event pings require automatic announcements to be enabled');
   }
-  return { requestId, title, species, coins, start, end: start + duration * MINUTE_MS,
-    actorSteamId, autoAnnounce, pingMode };
+  return { requestId, title, species, coins, bonuses,
+    start, end: start + duration * MINUTE_MS, actorSteamId, autoAnnounce, pingMode };
 }
 
 function createEvent(input, { nowMs = Date.now() } = {}) {
