@@ -270,19 +270,33 @@ function reconcileAnnouncements({ nowMs = Date.now() } = {}) {
   let queued = 0, failed = 0;
   for (const row of rows) {
     const status = statusFor(row, nowMs);
-    const destinations = ['announcement', 'progress'];
+    const bonuses = rowBonuses(row);
+    if (!bonuses.length) {
+      failed++;
+      console.warn('[species-event-announcement] invalid persisted species bonus list; skipping');
+      continue;
+    }
+    // Exactly one START and one END message for grouped events.
+    // Original single-dinosaur events keep their historical destinations.
+    const destinations = bonuses.length > 1 ? ['announcement'] : ['announcement', 'progress'];
     const phase = status === 'active' ? 'start' :
       status === 'expired' || (status === 'stopped' &&
         Number(row.stopped_at_ms) >= Number(row.starts_at_ms)) ? 'end' : null;
     if (!phase) continue;
+    const group = bonuses.length > 1;
     const message = phase === 'start'
       ? '🦖 Hollow Valley Random Event STARTED: ' + row.title +
-        '! Play ' + row.species_key + ' for an extra ' + row.coins_per_minute +
-        ' Valley Coins per verified minute. Ends at ' + formatEventTimeQld(Number(row.ends_at_ms)) + '.'
+        (group ? '! Featured dinosaurs: ' + summaryBonuses(bonuses) +
+          '. Earn the listed extra Valley Coins per verified minute with your current dinosaur.' :
+          '! Play ' + row.species_key + ' for an extra ' + row.coins_per_minute +
+          ' Valley Coins per verified minute.') +
+        ' Ends at ' + formatEventTimeQld(Number(row.ends_at_ms)) + '.'
       : '🦖 Hollow Valley Random Event ENDED: ' + row.title +
-        '. The extra ' + row.coins_per_minute +
-        ' Valley Coins/min bonus for ' + row.species_key + ' has finished. ' +
-        'Ended at ' + formatEventTimeQld(row.stopped_at_ms != null ? Number(row.stopped_at_ms) : Number(row.ends_at_ms)) + '.';
+        (group ? '. Featured bonuses have finished: ' + summaryBonuses(bonuses) + '.' :
+          '. The extra ' + row.coins_per_minute +
+          ' Valley Coins/min bonus for ' + row.species_key + ' has finished.') +
+        ' Ended at ' + formatEventTimeQld(
+          row.stopped_at_ms != null ? Number(row.stopped_at_ms) : Number(row.ends_at_ms)) + '.';
     for (const destination of destinations) {
       // Only the first community announcement may ping. Existing events keep
       // their historical nonce exactly, so old messages are never resent.
@@ -318,6 +332,13 @@ function processSnapshot(players, { nowMs = Date.now() } = {}) {
     .map((player) => String(player?.steamId || '').trim())
     .filter((steamId) => /^\d{17}$/.test(steamId)));
   for (const event of events) {
+    const bonuses = rowBonuses(event);
+    if (!bonuses.length) {
+      errors++;
+      console.warn('[species-coin-events] invalid persisted species rates');
+      continue;
+    }
+    const rateBySpecies = new Map(bonuses.map(item => [item.species, item.coinsPerMinute]));
     // A disconnected player must never accrue seconds between their previous
     // observation and their later reconnect, even when that gap is <90s.
     // Reset the continuity marker on the very first authoritative absence.
@@ -335,12 +356,13 @@ function processSnapshot(players, { nowMs = Date.now() } = {}) {
       const steamId = String(player?.steamId || '').trim();
       if (!/^\d{17}$/.test(steamId)) continue;
       const species = canonicalSpecies(player?.species);
+      const coinsPerMinute = rateBySpecies.get(species);
       const prior = db.prepare(
         'SELECT * FROM species_coin_event_progress WHERE event_id = ? AND steam_id = ?'
       ).get(event.id, steamId);
 
       if (!prior) {
-        if (species === event.species_key && nowMs < Number(event.ends_at_ms)) {
+        if (coinsPerMinute != null && nowMs < Number(event.ends_at_ms)) {
           db.prepare(
             'INSERT OR IGNORE INTO species_coin_event_progress ' +
             '(event_id, steam_id, last_seen_ms, species_key) VALUES (?, ?, ?, ?)'
@@ -351,7 +373,7 @@ function processSnapshot(players, { nowMs = Date.now() } = {}) {
       if (nowMs <= Number(prior.last_seen_ms)) continue;
       const delta = nowMs - Number(prior.last_seen_ms);
       const uninterrupted = delta <= MAX_SAMPLE_GAP_MS &&
-        species === event.species_key && species === prior.species_key;
+        coinsPerMinute != null && species === prior.species_key;
       if (!uninterrupted) {
         db.prepare(
           'UPDATE species_coin_event_progress SET last_seen_ms = ?, species_key = ?, accrued_ms = 0 WHERE event_id = ? AND steam_id = ?'
@@ -369,11 +391,11 @@ function processSnapshot(players, { nowMs = Date.now() } = {}) {
           const sequence = previousCount + index;
           const key = 'species-minute:' + event.id + ':' + steamId + ':' + sequence;
           const receipt = economy.applyWalletTransaction({
-            steamId, amount: Number(event.coins_per_minute), kind: 'species_event_bonus',
-            reason: event.title + ' — ' + event.species_key + ' playtime',
+            steamId, amount: coinsPerMinute, kind: 'species_event_bonus',
+            reason: event.title + ' — ' + species + ' playtime',
             idempotencyKey: key, referenceType: 'species_bonus_event', referenceId: event.id,
             metadata: {
-              species: event.species_key, coinsPerMinute: Number(event.coins_per_minute),
+              species, coinsPerMinute,
               sequence, intervalSeconds: 60,
               // Flat event amount; supporter and quest multipliers apply to
               // their existing normal reward stream, not this extra credit.
@@ -382,7 +404,7 @@ function processSnapshot(players, { nowMs = Date.now() } = {}) {
           });
           if (!receipt.duplicate) {
             intervals++;
-            coins += Number(event.coins_per_minute);
+            coins += coinsPerMinute;
           }
         }
         db.prepare(
@@ -403,5 +425,5 @@ function processSnapshot(players, { nowMs = Date.now() } = {}) {
 module.exports = {
   enabled, canonicalSpecies, validateEvent, statusFor, listEvents,
   createEvent, stopEvent, processSnapshot, reconcileAnnouncements, MAX_SAMPLE_GAP_MS,
-  PING_MODES,
+  PING_MODES, MAX_EVENT_SPECIES, validateSpeciesBonuses, rowBonuses,
 };
