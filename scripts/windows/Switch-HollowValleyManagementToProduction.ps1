@@ -35,6 +35,36 @@ if (@($stageTask.Actions).Count -ne 1 -or
     throw 'Unexpected staging task configuration. No changes made.'
 }
 
+# Verify production credentials BEFORE stopping the known-good staging agent.
+# This endpoint is read-only and never claims a job or alters a heartbeat.
+$secret = (Get-Content -LiteralPath $productionToken -Raw).Trim()
+if ($secret.Length -lt 32) {
+    throw 'Production management token is too short. Staging was not touched.'
+}
+try {
+    $auth = @{ Authorization = "Bearer $secret" }
+    $probe = Invoke-RestMethod -Uri ($siteUrl + '/api/binarylane-management/probe') -Method Get -Headers $auth -TimeoutSec 15
+} catch {
+    $code = 0
+    if ($_.Exception.Response) {
+        $code = [int]$_.Exception.Response.StatusCode
+    }
+    if ($code -eq 404) {
+        throw 'Production management is still disabled or its dedicated token is missing in Render. Staging was not touched.'
+    }
+    if ($code -eq 401) {
+        throw 'Production Render and BinaryLane tokens do not match. Staging was not touched.'
+    }
+    throw "Production management preflight failed (HTTP $code). Staging was not touched."
+} finally {
+    $secret = $null
+    $auth = $null
+}
+if ($probe.ok -ne $true -or $probe.writesEnabled -ne $false) {
+    throw 'Production preflight rejected: endpoint must be healthy with writes DISABLED. Staging was not touched.'
+}
+Write-Host 'Production endpoint authenticated; read-only preflight passed. Staging is still running.' -ForegroundColor Green
+
 $answer = Read-Host 'Type exactly SWITCH MANAGEMENT TO PRODUCTION (does NOT restart The Isle)'
 if ($answer -cne 'SWITCH MANAGEMENT TO PRODUCTION') {
     throw 'Confirmation did not match. No changes made.'

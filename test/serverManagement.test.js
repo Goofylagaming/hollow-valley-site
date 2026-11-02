@@ -55,6 +55,20 @@ test("management page and APIs are private, bounded, and each job is executed at
     headers: agentHeaders("bad-token"),
   })).status, 401);
 
+  // Preflight must authenticate without creating jobs or publishing status.
+  const probeUrl = url + "/api/binarylane-management/probe";
+  assert.equal((await fetch(probeUrl)).status, 401);
+  assert.equal((await fetch(probeUrl, { headers: agentHeaders("wrong-token") })).status, 401);
+  const currentGate = process.env.HV_MANAGEMENT_WRITES_ENABLED;
+  process.env.HV_MANAGEMENT_WRITES_ENABLED = "0";
+  try {
+    const response = await fetch(probeUrl, { headers: agentHeaders() });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { ok: true, writesEnabled: false });
+  } finally {
+    process.env.HV_MANAGEMENT_WRITES_ENABLED = currentGate;
+  }
+
   const cookie = await ownerCookie(url);
   const page = await fetch(url + "/admin/server", { headers: { Cookie: cookie } });
   assert.equal(page.status, 200);
