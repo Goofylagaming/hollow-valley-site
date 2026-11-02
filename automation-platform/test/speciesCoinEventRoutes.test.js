@@ -69,3 +69,46 @@ test('species event administration requires token, rejects growth and stop confi
   assert.equal(stopped.status, 200);
   assert.equal((await stopped.json()).event.status, 'stopped');
 });
+
+test('automation admin API creates one idempotent multi-dinosaur event and refuses overlapping species', async t => {
+  const server = await serve();
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const base = 'http://127.0.0.1:' + server.address().port + '/api/admin/species-coin-events';
+  const post = data => fetch(base, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer test-automation-admin-secret',
+    },
+    body: JSON.stringify(data),
+  });
+  const group = {
+    requestId: '6a3e1e52-868c-4598-a1cb-b0ab6a96b12a',
+    title: 'Carnivore Bonus Hour',
+    speciesBonuses: [
+      { species: 'pteranodon', coinsPerMinute: 300 },
+      { species: 'triceratops', coinsPerMinute: 500 },
+    ],
+    durationMinutes: 60,
+    actorSteamId: '76561198038977506',
+  };
+  const created = await post(group);
+  assert.equal(created.status, 201);
+  const first = await created.json();
+  assert.equal(first.event.isMultiSpecies, true);
+  assert.equal(first.event.speciesBonuses.length, 2);
+  assert.equal(first.event.speciesBonuses[0].species, 'pteranodon');
+  assert.equal((await post({ ...group, speciesBonuses: [...group.speciesBonuses].reverse() })).status, 200);
+  const collision = await post({ ...group, requestId: '6a3e1e52-868c-4598-a1cb-b0ab6a96b12b',
+    speciesBonuses: [{ species: 'triceratops', coinsPerMinute: 200 }],
+  });
+  assert.equal(collision.status, 409);
+  const listing = await fetch(base, {
+    headers: { Authorization: 'Bearer test-automation-admin-secret' },
+  });
+  const data = await listing.json();
+  assert.equal(data.multipleSpeciesSupported, true);
+  assert.equal(data.maxSpeciesPerEvent, 20);
+  const saved = data.events.find(event => event.id === first.event.id);
+  assert.equal(saved.speciesCount, 2);
+});
