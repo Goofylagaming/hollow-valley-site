@@ -13,7 +13,12 @@ for (const site of ['primalbound','hollow-valley']) {
       if (info.isDirectory()){await walk(file);continue;}
       if(!file.endsWith('.html'))continue;
       const html=await readFile(file,'utf8');
-      if(production) assert.doesNotMatch(html,/noindex|STAGING PREVIEW|onrender\.com/);
+      if(production) {
+        // The live W42 game/account origin is an explicit exception.
+        // All other Render preview links and staging indicators stay blocked.
+        const approvedGameOrigin='https://primalbound-cloud-preview.onrender.com/';
+        assert.doesNotMatch(html.replaceAll(approvedGameOrigin,'[approved-primalbound-game]'),/noindex|STAGING PREVIEW|onrender\.com/);
+      }
       else assert.match(html,/noindex,nofollow/);
       assert.match(html,/<h1>/);
       assert.match(html,/id="main(?:-content)?"/);
