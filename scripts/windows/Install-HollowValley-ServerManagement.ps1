@@ -10,8 +10,9 @@ $ErrorActionPreference = 'Stop'
 if (-not (Test-Path -LiteralPath $AgentPath)) {
     throw "First copy the agent to $AgentPath"
 }
-if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
-    [Security.Principal.WindowsBuiltInRole]::Administrator)) {
+$currentIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
+$currentPrincipal = [Security.Principal.WindowsPrincipal]::new($currentIdentity)
+if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     throw 'Run this installer in an elevated Administrator PowerShell window.'
 }
 
@@ -30,12 +31,13 @@ try {
         New-Item -ItemType File -Path $secretPath -Force | Out-Null
     }
     # Remove inherited access BEFORE writing the secret.
-    $acl = New-Object System.Security.AccessControl.FileSecurity
+    $acl = Get-Acl -LiteralPath $secretPath
     $acl.SetAccessRuleProtection($true, $false)
-    $system = New-Object System.Security.Principal.NTAccount('NT AUTHORITY', 'SYSTEM')
-    $admins = New-Object System.Security.Principal.NTAccount('BUILTIN', 'Administrators')
-    $read = New-Object System.Security.AccessControl.FileSystemAccessRule($system, 'Read', 'Allow')
-    $full = New-Object System.Security.AccessControl.FileSystemAccessRule($admins, 'FullControl', 'Allow')
+    foreach ($rule in @($acl.Access)) { $acl.RemoveAccessRuleSpecific($rule) }
+    $systemSid = [Security.Principal.SecurityIdentifier]::new('S-1-5-18')
+    $adminsSid = [Security.Principal.SecurityIdentifier]::new('S-1-5-32-544')
+    $read = [Security.AccessControl.FileSystemAccessRule]::new($systemSid, 'Read', 'Allow')
+    $full = [Security.AccessControl.FileSystemAccessRule]::new($adminsSid, 'FullControl', 'Allow')
     $acl.AddAccessRule($read)
     $acl.AddAccessRule($full)
     Set-Acl -LiteralPath $secretPath -AclObject $acl
