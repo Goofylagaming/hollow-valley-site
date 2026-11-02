@@ -76,8 +76,10 @@ scripts/windows/Install-HollowValley-ServerManagement.ps1
 Use an elevated PowerShell prompt. Run the installer and paste the same token you saved to Render **into its hidden prompt**:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\HollowValley\Scripts\Install-HollowValley-ServerManagement.ps1"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\HollowValley\Scripts\Install-HollowValley-ServerManagement.ps1" -SiteUrl "https://hollow-valley-management-staging.onrender.com"
 ```
+
+**Environment targeting:** The installer now requires explicit `-SiteUrl` and accepts only the staging hostname above or `https://hollowvalleyisle.com`. For staging, use only the staging URL; never allow a background task to silently default to production. The installer validates the agent's PowerShell syntax before registering the task.
 
 The installer stores the token at `C:\HollowValley\Secrets\management-agent-token.txt` with ACL access restricted to SYSTEM and Administrators, registers a **separate** startup task `Hollow Valley Server Management Agent` running as SYSTEM, and starts it. It does not modify, replace or terminate the existing watchdog, player scanner, Command Bridge or combat forwarder.
 
