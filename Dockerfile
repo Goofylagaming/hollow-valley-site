@@ -10,6 +10,9 @@ COPY public ./public
 COPY landing ./landing
 COPY mydinos ./mydinos
 
+# Syntax errors must fail the image build, not the production application startup.
+RUN node --check server/index.js
+
 ENV NODE_ENV=production
 ENV PORT=3000
 VOLUME ["/app/data"]
