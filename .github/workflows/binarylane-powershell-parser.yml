@@ -76,6 +76,14 @@ jobs:
               $cutover -notmatch 'Enable-ScheduledTask -TaskName \$stagingName') {
             throw 'Cutover must stop staging and implement automatic rollback.'
           }
+          $probeIndex = $cutover.IndexOf('/api/binarylane-management/probe')
+          $stopIndex = $cutover.IndexOf('Stop-ScheduledTask -TaskName $stagingName')
+          if ($probeIndex -lt 0 -or $stopIndex -lt 0 -or $probeIndex -ge $stopIndex) {
+            throw 'Production auth probe must occur before staging task is stopped.'
+          }
+          if ($cutover -notmatch 'endpoint must be healthy with writes DISABLED') {
+            throw 'Cutover must refuse a production endpoint with writes enabled.'
+          }
           $mode = Get-Content 'scripts/windows/Set-HollowValley-ManagementWriteMode.ps1' -Raw
           if ($mode -notmatch 'ENABLE LIMITED PROD TASK ACTIONS' -or
               $mode -notmatch 'Stop-ScheduledTask -TaskName \$taskName') {
