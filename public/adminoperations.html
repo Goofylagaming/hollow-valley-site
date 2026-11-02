@@ -164,7 +164,7 @@
 
           <section class="ops-panel" id="species-events">
             <div class="list-heading"><span>RANDOM DINOSAUR EVENTS</span><small>Per-species Valley Coins · no game restart</small></div>
-            <p class="section-intro">Run a temporary bonus for players currently using one dinosaur. Extra Valley Coins accrue per verified minute while they stay online with the chosen species. Events end automatically at the deadline. Species-specific growth bonuses require a separately verified game mod and are unavailable here.</p>
+            <p class="section-intro">Run one temporary event covering one or several dinosaurs, each with a separate Valley Coin rate. Extra coins accrue per verified minute while players stay online with a selected species. Events end automatically at the deadline. Species-specific growth bonuses require a separately verified game mod and are unavailable here.</p>
             <div class="page-toolbar ops-toolbar">
               <span class="ops-status-label" id="ops-species-event-state">Checking events…</span>
               <span id="ops-species-event-detail">Loading active events…</span>
@@ -174,12 +174,20 @@
               <div class="page-toolbar ops-toolbar">
                 <label for="ops-species-event-title">Event name</label>
                 <input id="ops-species-event-title" maxlength="90" required value="Dinosaur Spotlight" aria-label="Event name" style="min-width:175px;padding:10px;background:#0f172a;color:#fff;border:1px solid #334155">
-                <label for="ops-species-event-species">Dinosaur</label>
+                <label for="ops-species-event-species">Add dinosaur</label>
                 <select id="ops-species-event-species" required aria-label="Event dinosaur" style="padding:10px;background:#0f172a;color:#fff;border:1px solid #334155"><option value="">Loading species…</option></select>
-                <label for="ops-species-event-coins">Bonus VC per minute</label>
+                <label for="ops-species-event-coins">Bonus VC/min to add</label>
                 <input id="ops-species-event-coins" inputmode="numeric" type="number" min="1" max="1000" value="50" required style="width:100px;padding:10px;background:#0f172a;color:#fff;border:1px solid #334155">
+                <button type="button" class="small-button" id="ops-species-event-add">+ Add dinosaur</button>
                 <label for="ops-species-event-duration">Duration (minutes)</label>
                 <input id="ops-species-event-duration" inputmode="numeric" type="number" min="5" max="720" value="60" required style="width:100px;padding:10px;background:#0f172a;color:#fff;border:1px solid #334155">
+              </div>
+              <div class="ops-table-wrap" style="margin:12px 0">
+                <p class="section-intro" id="ops-species-event-selected-caption">Choose one dinosaur, or add several above. Each can have its own coin rate.</p>
+                <table class="ops-table">
+                  <thead><tr><th>Selected dinosaur</th><th>Extra Valley Coins / min</th><th>Remove</th></tr></thead>
+                  <tbody id="ops-species-event-selected"><tr><td colspan="3">No dinosaurs added yet. The selected dinosaur above will be used for a single-species event.</td></tr></tbody>
+                </table>
               </div>
               <div class="page-toolbar ops-toolbar">
                 <label for="ops-species-event-start-at">Optional scheduled start (your local time)</label>
@@ -207,7 +215,7 @@
             <p class="section-intro" id="ops-species-event-message" role="status" aria-live="polite">Events are paused until backend enablement is confirmed. No coins are awarded by this form until an event has been created.</p>
             <div class="ops-table-wrap">
               <table class="ops-table">
-                <thead><tr><th>Event</th><th>Species</th><th>Bonus</th><th>Start / end</th><th>Status</th><th>Action</th></tr></thead>
+                <thead><tr><th>Event</th><th>Dinosaurs</th><th>Individual bonuses</th><th>Start / end</th><th>Status</th><th>Action</th></tr></thead>
                 <tbody id="ops-species-event-list"><tr><td colspan="6">Loading…</td></tr></tbody>
               </table>
             </div>
@@ -262,7 +270,7 @@
   </div>
   <script src="/assets/common.js?v=21"></script>
   <script src="/assets/adminoperations.js?v=14"></script>
-  <script src="/assets/species-events-admin.js?v=1"></script>
+  <script src="/assets/species-events-admin.js?v=2"></script>
   <script src="/assets/omniraptor-growth-validation.js?v=1"></script>
 </body>
 </html>
