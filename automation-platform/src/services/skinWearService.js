@@ -212,6 +212,7 @@ async function wearPreset({ steamId, presetId }) {
   }
 
   const resolvedSpecies = skinPresets.validateSpecies(targetSpecies || preset.species);
+  if (preset.membershipPremium) skinPresets.assertMembershipSpecies(preset, steamId, resolvedSpecies);
   const safeSkin = skinPresets.sanitizeSkin(preset.skin);
   const lifeMarker = activeCharacter ? {
     species: activeCharacter.species || resolvedSpecies,

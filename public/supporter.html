@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="assets/styles.css?v=16">
   <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=4">
+  <link rel="stylesheet" href="/assets/membership-rewards.css?v=1">
 </head>
 <body>
   <div class="app-shell">
@@ -24,13 +25,18 @@
         <div id="supporter-account-status" class="summary-grid"></div>
         <div class="list-heading supporter-membership-heading"><span>MEMBERSHIP STATUS</span><small>Stripe + rewards</small></div>
         <div id="supporter-status" class="summary-grid"></div>
+        <section id="membership-rewards" class="membership-rewards" aria-label="My Membership rewards" aria-busy="true">
+          <div class="membership-empty"><strong>My Membership</strong><p>Loading your rewards…</p></div>
+        </section>
+        <div class="list-heading"><span>MEMBERSHIP TIERS</span><small>support the Valley</small></div>
         <div class="tier-grid" id="tier-grid"><p class="section-intro">Loading tiers…</p></div>
       </section>
     </main>
     <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="assets/common.js?v=21"></script>
-  <script src="assets/supporter.js?v=9"></script>
+  <script src="/assets/membership-rewards.js?v=1"></script>
+  <script src="assets/supporter.js?v=10"></script>
   <script src="assets/supporter-stripe-upgrade.js?v=1"></script>
 </body>
 </html>

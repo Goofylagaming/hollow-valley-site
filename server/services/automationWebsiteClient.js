@@ -127,6 +127,10 @@ function listStoredDinos(steamId) {
   return call(`/dinostorage/${encodeURIComponent(validateSteamId(steamId))}`);
 }
 
+function getMembershipStorage(steamId) {
+  return call(`/membership-storage/${encodeURIComponent(validateSteamId(steamId))}`);
+}
+
 function requestDinoAction(action, { steamId, slot }) {
   if (!['store', 'redeem'].includes(action)) throw new Error('Unsupported DinoStorage action');
   const selectedSlot = String(slot || '').trim();
@@ -829,6 +833,7 @@ module.exports = {
   getServerSnapshot,
   getActiveCharacter,
   listStoredDinos,
+  getMembershipStorage,
   requestDinoAction,
   deleteStoredDino,
   scrapStoredDino,

@@ -152,6 +152,9 @@ function buildAdminRestoreJson({ restore, fullNutrients } = {}) {
 }
 
 async function uploadAdminRestore({ steamId, slot, restore, fullNutrients } = {}, bridge = fileBridge) {
+  // Trusted recovery intentionally ignores subscriber capacity. Recovery must
+  // never discard existing assets; the next capacity check sees these files
+  // and only restricts NEW deposits if the account is over its allowance.
   if (!isWriteEnabled()) {
     const error = new Error('Admin restore file uploads are disabled. Set ADMIN_RESTORE_WRITE_ENABLED=true only for controlled operator use.');
     error.code = 'ADMIN_RESTORE_WRITE_DISABLED';

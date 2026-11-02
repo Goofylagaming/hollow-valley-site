@@ -41,7 +41,7 @@ async function action(req, res, actionName) {
     if (error.code === 'DINOSTORAGE_PENDING') {
       return res.status(409).json({ error: error.message, request: error.request });
     }
-    res.status(502).json({ error: error.message || `DinoStorage ${actionName} failed.` });
+    res.status(Number.isInteger(error.status) ? error.status : 502).json({ error: error.message || `DinoStorage ${actionName} failed.`, code: error.code || null });
   }
 }
 

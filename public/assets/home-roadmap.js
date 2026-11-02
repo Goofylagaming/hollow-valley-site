@@ -3,6 +3,7 @@
   // Update this release register whenever a roadmap item ships. Dates are the
   // verified production release date in Brisbane, never the date of a draft.
   const releases = {
+    22: { status: 'building', note: 'Membership skin collections, permanent monthly choices and verified-species publication are in development behind rollout flags. Starter palettes require in-game review. Broader rarity tiers and profile collection displays remain planned; production delivery is not yet verified.' },
     15: { status: 'partial', note: 'Admin-confirmed event announcements use HerbyBot. Opt-in experimental growth requests are available to admins; gameplay effect and recovery remain unverified. Automatic events, species bonuses and private in-game delivery remain pending.' },
     7: { status: 'complete', added: '2026-10-23', note: 'Live: species XP, 50 mastery levels, statistics and milestone titles. Additional skins and profile cosmetics remain future extensions.' },
     9: { status: 'complete', added: '2026-10-23', note: 'Live: nest listings, egg availability, requests, host approval and automatic closure. An accepted request reserves an advertised egg; it does not verify an in-game hatch.' },

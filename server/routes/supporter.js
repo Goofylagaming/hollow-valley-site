@@ -18,6 +18,7 @@ const {
 } = require("../services/discordMembership");
 
 const router = express.Router();
+const discordQueue = require("../services/membershipDiscordQueue");
 
 function requireSteamLink(req, res) {
   if (!req.user?.steam_id) {
@@ -69,6 +70,7 @@ router.get("/", requireAuth, (req, res) => {
 
 router.post("/sync-discord", requireAuth, async (req, res) => {
   try {
+    discordQueue.enqueue(req.user.id);
     res.json(await syncDiscordMembershipForUser(req.user.id));
   } catch (error) {
     res.status(error instanceof DiscordMembershipError ? error.status : 500).json({
@@ -79,10 +81,12 @@ router.post("/sync-discord", requireAuth, async (req, res) => {
 
 router.post("/reconcile", requireAuth, async (req, res) => {
   try {
-    res.json(await reconcileCurrentUser({
+    const result = await reconcileCurrentUser({
       userId: req.user.id,
       steamId: req.user.steam_id || null,
-    }));
+    });
+    discordQueue.enqueue(req.user.id);
+    res.json(result);
   } catch (error) {
     res.status(error instanceof ReconcileError ? error.status : 500).json({
       error: error instanceof ReconcileError ? error.message : "Unable to recover membership.",

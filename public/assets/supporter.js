@@ -32,6 +32,7 @@ function renderAccountStatus(me = currentMe, syncState = discordSyncState) {
 
   const steamLinked = Boolean(me.user.steam_id);
   const discordLinked = Boolean(me.user.discord_id);
+  const syncingRole = discordLinked && syncState === null && discordSyncAttemptedKey !== null;
 
   let roleLabel = "Waiting for Discord";
   let roleDetail = "Link Discord to sync supporter roles.";
@@ -41,6 +42,11 @@ function renderAccountStatus(me = currentMe, syncState = discordSyncState) {
   } else if (discordLinked && syncState?.configured === false) {
     roleLabel = "Not configured";
     roleDetail = "Discord role automation is not configured.";
+  } else if (discordLinked && syncState?.skipped) {
+    roleLabel = syncState.reason === "preview" ? "Preview mode" : "Role sync not active";
+    roleDetail = syncState.reason === "preview"
+      ? "Discord roles stay unchanged while you use this preview."
+      : "Automatic membership role updates are not active yet.";
   } else if (discordLinked && syncState?.linked) {
     roleLabel = syncState.roleName || "No supporter role";
     roleDetail = syncState.changed ? "Role updated from your current membership." : "Discord role is already in sync.";
@@ -61,8 +67,12 @@ function renderAccountStatus(me = currentMe, syncState = discordSyncState) {
   host.innerHTML = `
     <div class="summary-tile"><small>STEAM ACCOUNT</small><b>${steamLinked ? "Linked" : "Required"}</b>${steamAction}</div>
     <div class="summary-tile"><small>DISCORD ACCOUNT</small><b>${discordLinked ? "Linked" : "Not linked"}</b>${discordAction}</div>
-    <div class="summary-tile"><small>DISCORD SUPPORTER ROLE</small><b>${escapeHtml(roleLabel)}</b><span>${escapeHtml(roleDetail)}</span></div>
+    <div class="summary-tile"><small>DISCORD SUPPORTER ROLE</small><b>${escapeHtml(roleLabel)}</b><span>${escapeHtml(roleDetail)}</span>${discordLinked ? `<button type="button" class="small-button" id="supporter-refresh-discord"${syncingRole ? " disabled" : ""}>${syncingRole ? "Syncing…" : "Refresh role"}</button>` : ""}</div>
   `;
+  host.querySelector("#supporter-refresh-discord")?.addEventListener("click", () => {
+    discordSyncAttemptedKey = null;
+    return syncDiscordAccount(currentStatus);
+  });
 }
 
 async function loadStatus() {
@@ -115,7 +125,7 @@ async function loadStatus() {
       <div class="summary-tile"><small>REWARD MULTIPLIER</small><b>×${Number(status.multiplier || 1)}</b></div>
       <div class="summary-tile"><small>STRIPE STATUS</small><b>${escapeHtml(state)}</b></div>
       <div class="summary-tile"><small>AUTO-RENEW</small><b>${renewText}</b></div>
-      <div class="summary-tile"><small>BENEFITS</small><b>${status.entitled ? "Active on eligible rewards" : "Inactive / pending"}</b></div>
+      <div class="summary-tile"><small>ELIGIBLE COIN BONUS</small><b>${status.coinBonusEligible === true ? "Active" : "Inactive / pending"}</b></div>
       ${managementButton}
     `;
 
@@ -127,7 +137,7 @@ async function loadStatus() {
       try {
         await api("/api/supporter/cancel", { method: "POST" });
         document.getElementById("checkout-message").textContent =
-          "Cancellation scheduled. Your membership stays active until the billing period ends.";
+          "Cancellation scheduled. Subscriber coin bonuses stop now. Other eligible paid benefits continue until the paid period ends.";
         queueStatusRefresh();
       } catch (err) {
         alert(err.message);
@@ -176,7 +186,7 @@ async function syncDiscordAccount(status = currentStatus) {
     return;
   }
 
-  const key = `${status?.tier || "none"}:${status?.stripe_status || "none"}:discord-linked`;
+  const key = `${status?.tier || "none"}:${status?.stripe_status || "none"}:${status?.renews_at || ""}:${Boolean(status?.auto_renew)}:discord-linked`;
   if (discordSyncAttemptedKey === key && discordSyncState) {
     renderAccountStatus(currentMe, discordSyncState);
     return;
@@ -281,8 +291,16 @@ async function loadTiers(status = currentStatus) {
 
 async function loadPage() {
   const status = await loadStatus();
-  await loadTiers(status);
-  await syncDiscordAccount(status);
+  const results = await Promise.allSettled([
+    loadTiers(status),
+    syncDiscordAccount(status),
+    window.HVMembership?.loadRewards({
+      host: document.getElementById("membership-rewards"), me: currentMe, api, document,
+    }),
+  ]);
+  if (results[0].status === "rejected") {
+    document.getElementById("tier-grid").textContent = "Unable to load membership tiers. Please refresh to try again.";
+  }
 }
 
 loadPage().catch(() => {
