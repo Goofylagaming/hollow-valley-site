@@ -49,3 +49,13 @@ jobs:
           if (([regex]::Matches($agent, 'function Invoke-ApprovedTaskAction')).Count -ne 1) {
             throw 'Management agent duplicated write action function.'
           }
+          $installer = Get-Content 'scripts/windows/Install-HollowValley-ServerManagement.ps1' -Raw
+          if ($installer -notmatch 'Parameter\(Mandatory\s*=\s*\$true\)') {
+            throw 'Management installer must require explicit SiteUrl.'
+          }
+          if ($installer -notmatch 'hollow-valley-management-staging.onrender.com') {
+            throw 'Management installer must support staging.'
+          }
+          if ($installer -notmatch '\-SiteUrl') {
+            throw 'Management scheduled task must forward SiteUrl.'
+          }
