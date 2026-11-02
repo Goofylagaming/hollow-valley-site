@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Owner Finance | Hollow Valley</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=24">
+  <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
+  <link rel="stylesheet" href="/assets/snapshot-ui.css?v=4">
+  <link rel="stylesheet" href="/assets/admin-finance.css?v=1">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main>
+      <section class="page-header">
+        <p class="overline green">HOLLOW VALLEY · ADMIN · OWNER ONLY</p>
+        <h1>Finance.</h1>
+        <p class="section-intro">Read-only Stripe subscriptions, upcoming renewals, balance and bank payouts. Visible only to the configured Hollow Valley owner.</p>
+      </section>
+      <section class="roster-section finance-page">
+        <div class="finance-toolbar">
+          <div>
+            <strong>Stripe account overview</strong>
+            <p id="finance-updated" class="finance-muted">Retrieving live data…</p>
+          </div>
+          <button type="button" id="finance-refresh" class="small-button">Refresh from Stripe</button>
+        </div>
+        <p id="finance-error" class="finance-error" role="status" hidden></p>
+        <div id="finance-content" hidden>
+          <div class="finance-kpis">
+            <div class="summary-tile"><small>ACTIVE / TRIALING</small><b id="finance-active">—</b><span>Hollow Valley supporters</span></div>
+            <div class="summary-tile"><small>RENEWALS · NEXT 30 DAYS</small><b id="finance-renewals">—</b><span>Automatic, active subscriptions</span></div>
+            <div class="summary-tile"><small>PAYMENT ATTENTION</small><b id="finance-attention">—</b><span>Past due, unpaid or incomplete</span></div>
+            <div class="summary-tile"><small>NEXT STRIPE PAYOUT</small><b id="finance-next-payout">—</b><span id="finance-next-payout-date">No bank payout scheduled</span></div>
+          </div>
+
+          <div class="finance-two-col">
+            <section class="finance-panel">
+              <h2>Stripe balance</h2>
+              <p class="finance-muted">Funds held by the connected Stripe account, not the bank balance.</p>
+              <div id="finance-balances" class="finance-amount-list"></div>
+            </section>
+            <section class="finance-panel">
+              <h2>Expected subscription renewals</h2>
+              <p class="finance-muted">Estimated gross at listed recurring prices over the next 30 days, before fees, taxes, discounts or changes. Not guaranteed revenue.</p>
+              <div id="finance-projection" class="finance-amount-list"></div>
+            </section>
+          </div>
+
+          <section class="finance-panel">
+            <div class="finance-section-header">
+              <div><h2>Subscriber renewals</h2><p class="finance-muted">Live Stripe periods, including subscriptions approaching cancellation.</p></div>
+              <div class="finance-tools">
+                <select id="finance-filter" aria-label="Filter subscriptions">
+                  <option value="all">All statuses</option>
+                  <option value="next30">Renewing in 30 days</option>
+                  <option value="attention">Payment attention</option>
+                  <option value="cancelling">Cancelling</option>
+                </select>
+                <input id="finance-search" type="search" autocomplete="off" aria-label="Search subscriptions" placeholder="Search player or email">
+                <button id="finance-export" type="button" class="small-button">Export CSV</button>
+              </div>
+            </div>
+            <div class="finance-table-wrap">
+              <table class="finance-table">
+                <thead><tr><th>Player / customer</th><th>Membership</th><th>Recurring price</th><th>Stripe status</th><th>Period end / next date</th><th>Renewal</th></tr></thead>
+                <tbody id="finance-subscription-rows"><tr><td colspan="6">Loading…</td></tr></tbody>
+              </table>
+            </div>
+            <p class="finance-muted" id="finance-subscription-count"></p>
+          </section>
+
+          <section class="finance-panel">
+            <div class="finance-section-header">
+              <div><h2>Bank payout history</h2><p class="finance-muted">Pending, in-transit, paid and failed Stripe bank transfers. Arrival dates are estimates.</p></div>
+            </div>
+            <div class="finance-table-wrap">
+              <table class="finance-table">
+                <thead><tr><th>Created</th><th>Amount</th><th>Status</th><th>Expected arrival</th><th>Method</th></tr></thead>
+                <tbody id="finance-payout-rows"><tr><td colspan="5">Loading…</td></tr></tbody>
+              </table>
+            </div>
+            <p class="finance-muted" id="finance-payout-note"></p>
+          </section>
+          <p class="finance-footnote">This view does not initiate charges, alter subscriptions or transfer funds. Payouts and balances cover the connected Stripe account; if other brands share that account, those amounts are not exclusive to Hollow Valley. For bank-confirmed receipt, check your bank statement.</p>
+        </div>
+      </section>
+    </main>
+    <footer><span>© 2026 Hollow Valley</span><span>PRIVATE OWNER FINANCE</span><a href="/admin">Back to admin hub</a></footer>
+  </div>
+  <script src="/assets/common.js?v=22"></script>
+  <script src="/assets/admin-finance.js?v=1"></script>
+</body>
+</html>
