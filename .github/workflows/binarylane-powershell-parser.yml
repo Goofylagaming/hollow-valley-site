@@ -6,6 +6,9 @@ on:
     paths:
       - 'scripts/windows/HollowValley-ServerManagementAgent.ps1'
       - 'scripts/windows/Install-HollowValley-ServerManagement.ps1'
+      - 'scripts/windows/Initialize-HVProductionManagementToken.ps1'
+      - 'scripts/windows/Switch-HollowValleyManagementToProduction.ps1'
+      - 'scripts/windows/Set-HollowValley-ManagementWriteMode.ps1'
       - '.github/workflows/binarylane-powershell-parser.yml'
   workflow_dispatch:
 
@@ -24,7 +27,10 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $paths = @(
             'scripts/windows/HollowValley-ServerManagementAgent.ps1'
-            'scripts/windows/Install-HollowValley-ServerManagement.ps1'
+            'scripts/windows/Install-HollowValley-ServerManagement.ps1',
+            'scripts/windows/Initialize-HVProductionManagementToken.ps1',
+            'scripts/windows/Switch-HollowValleyManagementToProduction.ps1',
+            'scripts/windows/Set-HollowValley-ManagementWriteMode.ps1'
           )
           foreach ($path in $paths) {
             $tokens = $null
@@ -58,4 +64,20 @@ jobs:
           }
           if ($installer -notmatch '\-SiteUrl') {
             throw 'Management scheduled task must forward SiteUrl.'
+          }
+          if ($installer -notmatch '\-TokenFile') {
+            throw 'Management installer must include per-environment token file.'
+          }
+          if ($agent -notmatch 'if \(\-not \$AllowTaskWrites\)') {
+            throw 'Management agent must be read-only by default.'
+          }
+          $cutover = Get-Content 'scripts/windows/Switch-HollowValleyManagementToProduction.ps1' -Raw
+          if ($cutover -notmatch 'Disable-ScheduledTask -TaskName \$stagingName' -or
+              $cutover -notmatch 'Enable-ScheduledTask -TaskName \$stagingName') {
+            throw 'Cutover must stop staging and implement automatic rollback.'
+          }
+          $mode = Get-Content 'scripts/windows/Set-HollowValley-ManagementWriteMode.ps1' -Raw
+          if ($mode -notmatch 'ENABLE LIMITED PROD TASK ACTIONS' -or
+              $mode -notmatch 'Stop-ScheduledTask -TaskName \$taskName') {
+            throw 'Local write activation must require explicit confirmation and restart only its own task.'
           }
