@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Premium palette drafts | Hollow Valley</title>
+  <link rel="stylesheet" href="/assets/styles.css">
+  <link rel="stylesheet" href="/assets/skin-studio.css">
+  <style>
+    main { max-width: 1400px; margin: 1rem auto; padding: 1.5rem; }
+    h1 { font-size: clamp(24px, 3vw, 40px); margin: 0 0 .6rem; }
+    .hv-viewer-stage { height: min(62vh, 620px); min-height: 370px; background: radial-gradient(ellipse at 50% 50%, #53605d55, #0e151400 75%); }
+    .hv-preview-panel { padding: 16px; background: #17201e; }
+    .hv-preview-heading { padding: 10px 4px; }
+    #premium-draft-choices { gap: 10px; }
+    #premium-draft-choices [aria-pressed="true"] { background: #c6df9e; color: #17201e; }
+    #drafts { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 1.5rem; margin: 2rem 0; }
+    article { border: 1px solid #657367; border-radius: 12px; padding: 1.2rem; }
+    .palette { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; }
+    .swatch { display: block; height: 45px; border: 1px solid #879287; border-radius: 5px; }
+    figcaption { font-size: .85rem; margin-top: .3rem; } figure { margin: 0; }
+  </style>
+  <script src="/assets/skin-studio-core.js" defer></script>
+  <script src="/assets/skin-studio-model-registry.js?v=6" defer></script>
+  <script src="/assets/skin-studio-rex-mask-rle.js?v=1" defer></script>
+  <script src="/assets/rex-staging-calibration.js?v=2" defer></script>
+  <script src="/assets/species-skin-preview.js?v=1" defer></script>
+</head>
+<body class="hv-studio-page"><main>
+  <h1>Dinosaur Skin Studio</h1>
+  <p>Ashfall, Moonlit Marsh and Valley Royalty. Unpublished and awaiting in-game verification.</p>
+  <p id="status" role="status" style="font-size:12px;color:#a2afa4">Loading draft palettes…</p>
+  <section class="hv-preview-panel" aria-label="Dinosaur premium skin preview">
+    <div id="premium-draft-choices" class="hv-action-group" aria-label="Choose a draft"></div>
+    <div class="hv-preview-selectors"><label for="premium-material-mode">Surface<select id="premium-material-mode"><option value="palette">Palette + game textures</option><option value="clay">Neutral material study</option></select></label><label for="premium-preview-sex">Display<select id="premium-preview-sex"><option value="male">Male</option></select></label></div>
+<label>Dinosaur<select id="preview-species"></select></label>
+    <label for="premium-lighting-mode">Lighting<select id="premium-lighting-mode"><option value="daylight">Neutral daylight</option><option value="reference">Dark menu approximation</option></select></label>
+    <p>Adult default pattern from each extracted material. Static reference pose. These species have not yet been compared in game; colour mapping, eyes, special surfaces, growth and lighting remain provisional.</p>
+    <div class="hv-preview-heading"><strong id="premium-preview-name">Ashfall</strong><span id="hv-viewer-status" role="status">Preparing preview</span></div>
+    <div class="hv-viewer-stage">
+      <canvas id="hv-viewer-canvas" aria-label="Dinosaur preview. Drag to rotate and scroll to zoom." tabindex="0"></canvas>
+      <div id="hv-viewer-empty" class="hv-viewer-empty" role="status">Loading T-rex reference…</div>
+    </div>
+    <div class="hv-viewer-controls">
+      <button id="hv-viewer-reset" class="hv-button" type="button">Reset view</button>
+      <button id="hv-viewer-rotate" class="hv-button" type="button" aria-pressed="false">Auto rotate</button>
+      <label for="hv-viewer-light">Light <input id="hv-viewer-light" type="range" min="35" max="180" value="105"></label>
+    </div>
+    <div class="hv-preview-disclosure"><div><strong id="hv-viewer-title">Supplied dinosaur</strong><p id="hv-viewer-detail">Fixed-pattern reference only; verify the final appearance in game.</p><a id="hv-viewer-credit" href="#" target="_blank" rel="noopener noreferrer" hidden>Model credits</a></div></div>
+  </section>
+  
+  <p>This page only reads the draft file. It cannot save, publish, grant, purchase or apply skins.</p>
+  <p><a href="/premium-skin-preview.html">Verified Rex pattern controls</a> · <a href="/assets/premium-skin-drafts.json" download>Download draft JSON pack</a> · <a href="/skins">Skin Studio</a></p>
+</main>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
+<script type="module" src="/assets/species-staging-viewer.js?v=1"></script>
+</body>
+</html>
+
