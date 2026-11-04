@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Premium palette drafts | Hollow Valley</title>
+  <link rel="stylesheet" href="/assets/styles.css">
+  <style>
+    main { max-width: 1100px; margin: 3rem auto; padding: 1.5rem; }
+    #drafts { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 1.5rem; margin: 2rem 0; }
+    article { border: 1px solid #657367; border-radius: 12px; padding: 1.2rem; }
+    .palette { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; }
+    .swatch { display: block; height: 45px; border: 1px solid #879287; border-radius: 5px; }
+    figcaption { font-size: .85rem; margin-top: .3rem; } figure { margin: 0; }
+  </style>
+  <script src="/assets/skin-studio-core.js" defer></script>
+  <script src="/assets/premium-skin-preview.js" defer></script>
+</head>
+<body><main>
+  <h1>Premium palette drafts</h1>
+  <p>Ashfall, Moonlit Marsh and Valley Royalty. Unpublished and awaiting in-game verification.</p>
+  <p>These are colour swatches, not in-game renders. They use only Skin Studio's ten colour channels and existing native controls. No custom artwork, glow, metallic effects or new patterns are included.</p>
+  <p>Pattern 0 · Theme 0 · Variation 0. Universal is a compatibility setting, not proof that every species looks correct. Colour placement and male display visibility depend on the dinosaur and sex.</p>
+  <p id="status" role="status">Loading draft palettes…</p>
+  <section id="drafts" aria-label="Draft palettes"></section>
+  <p>This page only reads the draft file. It cannot save, publish, grant, purchase or apply skins.</p>
+  <p><a href="/assets/premium-skin-drafts.json" download>Download draft JSON pack</a> · <a href="/skins">Skin Studio</a></p>
+</main></body>
+</html>

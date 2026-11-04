@@ -208,6 +208,7 @@
     host.className = "skin-capture-note";
     host.innerHTML = `
       <strong>Hollow Valley batch packs</strong>
+      <span><a href="/premium-skin-preview.html">Review the three premium palette drafts</a> — awaiting in-game verification. Download their JSON pack for later draft import; nothing is published by the preview.</span>
       <span>Load the bundled 20-skin collection or choose a future Hollow Valley JSON pack. Names, descriptions, rarity, prices and all ten colour zones are preserved automatically.</span>
       <div class="skin-editor-actions">
         <button class="primary-button green" id="hv-pack-load" type="button">Load Hollow Valley 20-Pack <b>→</b></button>

@@ -1,0 +1,27 @@
+{
+  "format": "hollow-valley-skin-pack",
+  "version": 1,
+  "id": "hv-premium-palette-drafts-v1",
+  "name": "Premium palette drafts — awaiting in-game verification",
+  "species": "Universal",
+  "skins": [
+    {
+      "name": "Ashfall",
+      "description": "UNVERIFIED DRAFT. Charcoal body, ash-grey flanks, warm bone underside and muted rust display. Palette only; native pattern/theme/variation 0.",
+      "colors": {"body":"#41413C","markings":"#292B28","flank":"#64635A","underbelly":"#B0A793","detail1":"#795344","eyes":"#B69B59","teeth":"#CEC5AE","mouth":"#68484A","claws":"#34352F","maleDisplay":"#956747"},
+      "patternIndex": 0, "themeIndex": 0, "skinVariation": 0
+    },
+    {
+      "name": "Moonlit Marsh",
+      "description": "UNVERIFIED DRAFT. Slate-green body, dark reed markings, grey-sage flanks and a pale muted underside. Palette only; native pattern/theme/variation 0.",
+      "colors": {"body":"#44534E","markings":"#2D3935","flank":"#66766C","underbelly":"#ABB1A0","detail1":"#607C76","eyes":"#BBC18A","teeth":"#D0CEB9","mouth":"#655051","claws":"#343E39","maleDisplay":"#7C9690"},
+      "patternIndex": 0, "themeIndex": 0, "skinVariation": 0
+    },
+    {
+      "name": "Valley Royalty",
+      "description": "UNVERIFIED DRAFT. Deep woodland body, olive flanks, warm ivory underside and subdued ochre display. Palette only; native pattern/theme/variation 0.",
+      "colors": {"body":"#35483C","markings":"#26322B","flank":"#59664B","underbelly":"#B9B096","detail1":"#8D784C","eyes":"#BAA767","teeth":"#D5CDB6","mouth":"#69484A","claws":"#333A30","maleDisplay":"#A28A50"},
+      "patternIndex": 0, "themeIndex": 0, "skinVariation": 0
+    }
+  ]
+}
