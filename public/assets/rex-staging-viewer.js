@@ -8,6 +8,7 @@ const $ = id => document.getElementById(id);
 const canvas = $('hv-viewer-canvas');
 const colours = ['body','markings','flank','underbelly','detail1','eyes','teeth','mouth','claws','maleDisplay'];
 const uniforms = Object.fromEntries(colours.map(key => [`hv_${key}`, { value: new THREE.Color('#777766') }]));
+uniforms.hv_pattern = {value:null};
 uniforms.hv_male = { value: 1 };
 uniforms.hv_surfaceMode = { value: 0 };
 let latest = window.__HV_STUDIO_PREVIEW || {};
@@ -20,7 +21,7 @@ const materials = [];
 const maps = {};
 async function loadMaps() {
   const loader = new THREE.TextureLoader();
-  await Promise.all(['pattern','normal','surface','zones','detail-normal','iris','pupil'].map(async name => {
+  await Promise.all(['pattern','pattern2','pattern3','pattern4','pattern5','normal','surface','zones','detail-normal','iris','pupil'].map(async name => {
     const t = await loader.loadAsync(`/assets/skin-models/rex-staging/textures/${name}.png?v=2`);
     t.flipY=false; t.colorSpace=THREE.NoColorSpace;
     t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
@@ -32,7 +33,7 @@ function bodyMaterial() {
   const material = new THREE.MeshStandardMaterial({color:'white',roughness:1,metalness:0,normalMap:maps.normal,normalScale:new THREE.Vector2(1,-1)});
   material.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, uniforms, {
-      hv_pattern:{value:maps.pattern},hv_surface:{value:maps.surface},hv_zones:{value:maps.zones},hv_detailNormal:{value:maps['detail-normal']}
+      hv_surface:{value:maps.surface},hv_zones:{value:maps.zones},hv_detailNormal:{value:maps['detail-normal']}
     });
     shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec2 hv_uv;').replace('#include <begin_vertex>','#include <begin_vertex>\nhv_uv=uv;');
     shader.fragmentShader=shader.fragmentShader.replace('#include <common>',`#include <common>
@@ -77,6 +78,7 @@ function bodyMaterial() {
 }
 
 function applyPalette() {
+  uniforms.hv_pattern.value=maps[calibration.patterns[latest.patternIndex||0].texture]||maps.pattern;
   for(const k of colours) {
     const hex=latest.skin?.[k];
     if(/^#[0-9a-f]{6}$/i.test(hex||'')) {
@@ -183,7 +185,7 @@ async function init() {
   $('hv-viewer-empty').hidden=true;
   $('hv-viewer-status').textContent='T-rex - extracted game textures';
   $('hv-viewer-title').textContent='Your supplied Tyrannosaurus mesh';
-  $('hv-viewer-detail').textContent='Body and flank corrected against your game export. Reference palette uses exported sRGB colours; premium drafts retain native values. Lighting is an approximation; variation, sex behaviour and unexported channels remain unverified.';
+  $('hv-viewer-detail').textContent='Body and flank corrected against your game export. Reference palette uses exported sRGB colours; premium drafts retain native values. Five patterns and their channel counts checked in the adult game menu. Small/Medium/Large showed no visible difference with fixed imported colours, so no artificial scaling is applied. Lighting, sex behaviour, growth and unexported channels are not fully verified.';
   $('hv-viewer-credit').hidden=true;
   new ResizeObserver(resize).observe(canvas.parentElement);
   new IntersectionObserver(([e])=>{visible=e.isIntersecting;if(!visible&&frame){cancelAnimationFrame(frame);frame=0;}resume();}).observe(canvas);

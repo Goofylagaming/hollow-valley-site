@@ -1,0 +1,60 @@
+{
+  "species": "Tyrannosaurus",
+  "gameBuild": "24664737",
+  "patterns": [
+    {
+      "index": 0,
+      "channels": [
+        "underbelly",
+        "body",
+        "flank",
+        "markings",
+        "maleDisplay"
+      ],
+      "texture": "pattern"
+    },
+    {
+      "index": 1,
+      "channels": [
+        "underbelly",
+        "body",
+        "flank",
+        "markings",
+        "maleDisplay"
+      ],
+      "texture": "pattern2"
+    },
+    {
+      "index": 2,
+      "channels": [
+        "underbelly",
+        "body",
+        "flank",
+        "markings",
+        "maleDisplay"
+      ],
+      "texture": "pattern3"
+    },
+    {
+      "index": 3,
+      "channels": [
+        "detail1",
+        "underbelly",
+        "body",
+        "flank",
+        "markings",
+        "maleDisplay"
+      ],
+      "texture": "pattern4"
+    },
+    {
+      "index": 4,
+      "channels": [
+        "underbelly",
+        "body",
+        "flank"
+      ],
+      "texture": "pattern5"
+    }
+  ]
+}

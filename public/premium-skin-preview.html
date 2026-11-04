@@ -23,8 +23,8 @@
   <script src="/assets/skin-studio-core.js" defer></script>
   <script src="/assets/skin-studio-model-registry.js?v=6" defer></script>
   <script src="/assets/skin-studio-rex-mask-rle.js?v=1" defer></script>
-  <script src="/assets/rex-staging-calibration.js?v=1" defer></script>
-  <script src="/assets/premium-skin-preview.js?v=3" defer></script>
+  <script src="/assets/rex-staging-calibration.js?v=2" defer></script>
+  <script src="/assets/premium-skin-preview.js?v=4" defer></script>
 </head>
 <body class="hv-studio-page"><main>
   <h1>Tyrannosaurus · Skin Studio</h1>
@@ -33,6 +33,7 @@
   <section class="hv-preview-panel" aria-label="Skin Studio T-rex preview">
     <div id="premium-draft-choices" class="hv-action-group" aria-label="Choose a draft"></div>
     <div class="hv-preview-selectors"><label for="premium-material-mode">Surface<select id="premium-material-mode"><option value="palette">Palette + game textures</option><option value="clay">Neutral material study</option></select></label><label for="premium-preview-sex">Display<select id="premium-preview-sex"><option value="male">Male</option><option value="female">Female</option></select></label></div>
+<div class="hv-preview-selectors"><label>Pattern<select id="premium-pattern"><option value="0">Pattern1</option><option value="1">Pattern2</option><option value="2">Pattern3</option><option value="3">Pattern4</option><option value="4">Pattern5</option></select></label><label>Variation<select id="premium-variation"><option value="0">Small</option><option value="1">Medium</option><option value="2">Large</option></select></label><label>Channel test<select id="premium-diagnostic"><option value="off">Premium / reference palette</option><option value="all">All channels</option><option value="underbelly">Underbelly only</option><option value="body">Body only</option><option value="flank">Flank only</option><option value="markings">Markings only</option><option value="maleDisplay">Male display only</option><option value="detail1">Accents (Pattern4) only</option></select></label></div><label>Unsaved game preview code<input id="premium-game-code" readonly style="width:100%;font-family:monospace" aria-label="Unsaved game preview code"></label><p style="font-size:12px">Select the matching pattern in game first, then import and check the swatches. Pattern4 has six colours; Pattern5 has three. These controls do not change the saved drafts. Adult variations showed no visible change with fixed imported colours.</p>
     <label for="premium-lighting-mode">Lighting <select id="premium-lighting-mode"><option value="daylight">Neutral daylight</option><option value="reference">Game menu reference (approximate)</option></select></label>
     <p style="font-size:12px">In-game reference: Pattern1 / Medium / Default. The reference export contains five colours; other channels use preview defaults.</p>
     <div class="hv-preview-heading"><strong id="premium-preview-name">Ashfall</strong><span id="hv-viewer-status" role="status">Preparing preview</span></div>
@@ -52,7 +53,7 @@
   <p><a href="/assets/premium-skin-drafts.json" download>Download draft JSON pack</a> · <a href="/skins">Skin Studio</a></p>
 </main>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
-<script type="module" src="/assets/rex-staging-viewer.js?v=3"></script>
+<script type="module" src="/assets/rex-staging-viewer.js?v=4"></script>
 </body>
 </html>
 

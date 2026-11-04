@@ -85,6 +85,54 @@
         2048
       ],
       "sha256": "02024359b419c1629c1133abc376cb213ecd3d08bfeb339f45a0d74861b17f5e"
+    },
+    "pattern2": {
+      "source": "T_Tyrannosaurus_Adult_Pattern_2.png",
+      "sourceSize": [
+        2048,
+        2048
+      ],
+      "previewSize": [
+        2048,
+        2048
+      ],
+      "sha256": "a55798a10bbaa1de5f91e4f68b711123762e293a4f0152748eeab1a31091d262"
+    },
+    "pattern3": {
+      "source": "T_Tyrannosaurus_Adult_Pattern_3.png",
+      "sourceSize": [
+        2048,
+        2048
+      ],
+      "previewSize": [
+        2048,
+        2048
+      ],
+      "sha256": "aa5e644959ead0890c9c42916d0d249c8610865fd8945a6b1b09ce15c2d40161"
+    },
+    "pattern4": {
+      "source": "T_Tyrannosaurus_Adult_Pattern_4__Grizzly_V1__3_.png",
+      "sourceSize": [
+        2048,
+        2048
+      ],
+      "previewSize": [
+        2048,
+        2048
+      ],
+      "sha256": "dfc48b579ca43ed58cfa2ca421c7d5cc539e04d5d1bec02c0eb7c319ec5b2008"
+    },
+    "pattern5": {
+      "source": "T_Tyrannosaurus_Adult_Pattern_Simple.png",
+      "sourceSize": [
+        2048,
+        2048
+      ],
+      "previewSize": [
+        2048,
+        2048
+      ],
+      "sha256": "a5829978a6e97ebcbe960baf5d35b0f6208a3275f7aad1624402f797828b4420"
     }
   }
 }

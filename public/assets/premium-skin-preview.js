@@ -38,10 +38,20 @@
       const entries = window.HVRexCalibration ? [...pack.skins, window.HVRexCalibration.reference] : pack.skins;
       const sex = document.getElementById('premium-preview-sex');
       const buttons = [];
+      const calibration=window.HVRexCalibration;
+      const pattern=document.getElementById('premium-pattern');
+      const variation=document.getElementById('premium-variation');
+      const diagnostic=document.getElementById('premium-diagnostic');
+      const code=document.getElementById('premium-game-code');
       const show = (index) => {
         selected = index;
         const entry = entries[index];
-        const detail = { name: entry.name, species: 'tyrannosaurus', sex: sex.value === 'female' ? 'female' : 'male', colorSpace: entry.colorSpace || 'native-linear', skin: { ...entry.colors } };
+        const detail = { patternIndex:Number(pattern?.value||0), skinVariation:Number(variation?.value||0), themeIndex:0, name: entry.name, species: 'tyrannosaurus', sex: sex.value === 'female' ? 'female' : 'male', colorSpace: entry.colorSpace || 'native-linear', skin: { ...entry.colors } };
+        if(diagnostic && diagnostic.value!=='off'){
+          if(diagnostic.value!=='all'&&!calibration.patterns[detail.patternIndex].channels.includes(diagnostic.value))diagnostic.value='all';
+          detail.skin=calibration.diagnostic(detail.patternIndex,diagnostic.value);detail.colorSpace='srgb';
+        }
+        if(code)code.value=calibration.gameCode(detail);
         window.__HV_STUDIO_PREVIEW = detail;
         document.getElementById('premium-preview-name').textContent = entry.name;
         buttons.forEach((button, i) => button.setAttribute('aria-pressed', String(i === index)));
@@ -52,10 +62,16 @@
         button.type = 'button';
         button.className = 'hv-button';
         button.textContent = entry.name;
-        button.addEventListener('click', () => show(index));
+        button.addEventListener('click', () => {
+          if(pattern)pattern.value=String(entry.patternIndex||0);
+          if(variation)variation.value=String(entry.skinVariation||0);
+          if(diagnostic)diagnostic.value='off';
+          show(index);
+        });
         buttons.push(button);
         choices.append(button);
       });
+      for(const control of [pattern,variation,diagnostic])control?.addEventListener('change',()=>show(selected));
       sex.addEventListener('change', () => show(selected));
       show(0);
     }
