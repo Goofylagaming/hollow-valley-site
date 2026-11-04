@@ -23,6 +23,7 @@ function reset({ tier = 'supporter' } = {}) {
       stripe_customer_id, stripe_subscription_id, stripe_status
     ) VALUES (?, ?, 1, NULL, NULL, ?, ?, 'active')
   `).run(42, tier, 'cus_test_42', 'sub_test_42');
+  db.exec("UPDATE supporter_subscriptions SET renews_at = '2099-01-01T00:00:00.000Z'");
 }
 
 function invoiceEvent({ id = 'in_test_001', billingReason = 'subscription_cycle' } = {}) {

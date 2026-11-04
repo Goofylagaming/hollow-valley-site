@@ -23,6 +23,7 @@ function reset({ tier = "legend", stripeStatus = "active", discordId = "15460233
       "INSERT INTO supporter_subscriptions (user_id, tier, stripe_status, auto_renew) VALUES (?, ?, ?, 1)"
     ).run(42, tier, stripeStatus);
   }
+  db.exec("UPDATE supporter_subscriptions SET renews_at = '2099-01-01T00:00:00.000Z'");
 }
 
 test("Discord membership role sync is disabled until token and guild are configured", async () => {

@@ -24,6 +24,7 @@ function reset() {
   insertMembership.run(41, "member", "active");
   insertMembership.run(42, "elite", "trialing");
   insertMembership.run(43, "legend", "past_due");
+  db.exec("UPDATE supporter_subscriptions SET renews_at = '2099-01-01T00:00:00.000Z'");
 }
 
 function listen() {
@@ -68,7 +69,7 @@ test("internal supporter lookup is token protected and returns only entitled tie
   assert.deepEqual(await response.json(), {
     memberships: [
       { steamId: "76561198000000041", entitled: true, tier: "supporter" },
-      { steamId: "76561198000000042", entitled: true, tier: "guardian" },
+      { steamId: "76561198000000042", entitled: false, tier: null },
       { steamId: "76561198000000043", entitled: false, tier: null },
       { steamId: "76561198000000044", entitled: false, tier: null },
     ],

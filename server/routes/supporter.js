@@ -64,7 +64,7 @@ router.get("/", requireAuth, (req, res) => {
     renews_at: status.renews_at,
     cancelled_at: status.cancelled_at,
     stripe_status: status.stripe_status,
-    entitled: isEntitled(status.stripe_status),
+    entitled: isEntitled(status),
     managed: Boolean(status.stripe_subscription_id),
   });
 });

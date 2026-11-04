@@ -17,7 +17,7 @@ router.get("/", requireAuth, (req, res) => {
       tierLabel: tier?.label || summary.supporter.tier,
       multiplier: isCoinBonusEligible(summary.supporter) ? supporterMultiplier(canonicalTier) : 1,
       coinBonusEligible: isCoinBonusEligible(summary.supporter),
-      entitled: isEntitled(summary.supporter.stripe_status),
+      entitled: isEntitled(summary.supporter),
     };
   }
   res.json(summary);

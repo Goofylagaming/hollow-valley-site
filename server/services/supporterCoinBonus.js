@@ -43,6 +43,7 @@ function subscriberForSubscription(subscriptionId) {
       s.user_id,
       s.tier,
       s.stripe_status,
+      s.renews_at,
       s.auto_renew,
       s.cancelled_at,
       s.stripe_subscription_id,

@@ -189,6 +189,14 @@ test("live-mode events are ignored on the sandbox integration", () => {
 test("HTTP webhook route accepts a valid signed raw body and rejects tampering", async (t) => {
   reset();
   const express = require("express");
+  const originalFetch = globalThis.fetch;
+  const originalSecret = process.env.STRIPE_SECRET_KEY;
+  process.env.STRIPE_SECRET_KEY = "rk_test_fixture";
+  globalThis.fetch = async (url, options) => String(url).startsWith("https://api.stripe.com/")
+    ? { ok: true, json: async () => ({ id: "sub_http", livemode: false, status: "active",
+      metadata: { user_id: "42", tier: "member" }, current_period_end: 4102444800 }) }
+    : originalFetch(url, options);
+  t.after(() => { globalThis.fetch = originalFetch; if (originalSecret === undefined) delete process.env.STRIPE_SECRET_KEY; else process.env.STRIPE_SECRET_KEY = originalSecret; });
   const router = require("../server/routes/stripeWebhook");
   const app = express();
   app.use("/api/stripe/webhook", router);
@@ -277,7 +285,7 @@ test("scheduled cancellation revokes future coin multipliers without revoking re
     cancel_at_period_end: false,
     customer: "cus_cancel_42",
     metadata: { user_id: "42", tier: "member" },
-    items: { data: [{ price: { id: process.env.STRIPE_PRICE_MEMBER } }] },
+    items: { data: [{ price: { id: process.env.STRIPE_PRICE_MEMBER }, current_period_end: 4102444800 }] },
   };
   const subscriptionEvent = (id, object) => ({
     id, type: "customer.subscription.updated", livemode: false, data: { object },
