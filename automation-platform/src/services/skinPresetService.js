@@ -305,6 +305,7 @@ function publishPreset({ presetId, price = 0, description = '', published = true
     error.code = 'SKIN_PRESET_NOT_FOUND';
     throw error;
   }
+  assertOrdinaryPreset(preset);
   if (preset.exclusive && published) {
     const error = new Error('Exclusive skins cannot be published in the public Skin Shop');
     error.code = 'SKIN_EXCLUSIVE';
@@ -335,6 +336,7 @@ function grantExclusivePreset({ presetId, steamId, grantedBySteamId = null, note
     error.code = 'SKIN_PRESET_NOT_FOUND';
     throw error;
   }
+  assertOrdinaryPreset(preset);
   return store.grantSkinPreset({
     steamId,
     presetId: preset.id,
@@ -374,6 +376,7 @@ function updatePreset({ steamId, presetId, species, name, description = '', skin
     error.code = 'SKIN_PRESET_NOT_FOUND';
     throw error;
   }
+  assertOrdinaryPreset(preset);
 
   const safeSpecies = validateSpecies(species);
   const safeName = validateName(name);
@@ -415,6 +418,7 @@ function deletePreset({ steamId, presetId }) {
     error.code = 'SKIN_PRESET_NOT_FOUND';
     throw error;
   }
+  assertOrdinaryPreset(preset);
 
   if (preset.owner_steam_id === steam) {
     store.db.prepare(`UPDATE economy_skin_presets SET active = 0, published = 0, updated_at = datetime('now') WHERE id = ? AND owner_steam_id = ?`).run(preset.id, steam);
@@ -538,6 +542,29 @@ function parkedSkinTokens(skinInput) {
   return values;
 }
 
+function assertOrdinaryPreset(preset) {
+  if (!preset?.membershipPremium) return;
+  const error = new Error('Manage this membership skin through the Premium Collections review panel.');
+  error.code = 'PREMIUM_SKIN_MANAGED';
+  throw error;
+}
+
+function assertMembershipSpecies(preset, steamId, targetSpecies) {
+  if (!preset?.membershipPremium) return;
+  // Creators can test unpublished drafts. Once a palette is reviewed, even
+  // its creator uses the recorded compatibility until making a new draft.
+  if (preset.owner_steam_id === String(steamId)) {
+    const catalog = store.db.prepare('SELECT state FROM economy_membership_skin_catalog WHERE preset_id = ?').get(preset.id);
+    if (catalog?.state === 'draft') return;
+  }
+  const normalize = (value) => String(value || '').toLowerCase().replace(/^bp_/, '').replace(/_c$/, '').replace(/[^a-z0-9]/g, '');
+  const verified = Array.isArray(preset.membershipVerifiedSpecies) ? preset.membershipVerifiedSpecies : [];
+  if (verified.some((species) => normalize(species) === normalize(targetSpecies))) return;
+  const error = new Error('This premium palette has not been verified for your dinosaur species yet.');
+  error.code = 'PREMIUM_SKIN_SPECIES_UNVERIFIED';
+  throw error;
+}
+
 async function applyPreset({ steamId, slot, presetId }) {
   if (!applyEnabled()) {
     const error = new Error('Applying skins to parked dinosaurs is disabled');
@@ -550,6 +577,7 @@ async function applyPreset({ steamId, slot, presetId }) {
   const preset = getPresetForPlayer(steam, presetId);
   const state = await dinoStorage.getStoredDino(steam, selectedSlot);
   const targetSpecies = speciesFromClassPath(state.classPath);
+  assertMembershipSpecies(preset, steam, targetSpecies);
 
   if (String(preset.species).toLowerCase() !== 'universal' &&
       targetSpecies.toLowerCase() !== String(preset.species).toLowerCase()) {
@@ -599,4 +627,5 @@ module.exports = {
   deletePreset,
   purchasePreset,
   applyPreset,
+  assertMembershipSpecies,
 };

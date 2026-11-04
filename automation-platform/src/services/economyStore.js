@@ -235,6 +235,8 @@ db.exec(`
     ['price', 'INTEGER NOT NULL DEFAULT 0'],
     ['share_code', 'TEXT'],
     ['create_key', 'TEXT'],
+    ['membership_premium', 'INTEGER NOT NULL DEFAULT 0'],
+    ['membership_verified_species_json', "TEXT NOT NULL DEFAULT '[]'"],
   ];
   for (const [name, definition] of additions) {
     if (!names.has(name)) db.exec(`ALTER TABLE economy_skin_presets ADD COLUMN ${name} ${definition};`);
@@ -558,6 +560,9 @@ function mapSkinPreset(row, { owned = false } = {}) {
       ? row.grant_custom_description
       : row.description,
     isPremium: Boolean(row.is_premium),
+    membershipPremium: Boolean(row.membership_premium),
+    membershipVerifiedSpecies: Array.isArray(parseJson(row.membership_verified_species_json))
+      ? parseJson(row.membership_verified_species_json) : [],
     active: Boolean(row.active),
     published: Boolean(row.published),
     exclusive: Boolean(row.exclusive),

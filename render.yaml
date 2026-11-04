@@ -43,6 +43,13 @@ services:
         sync: false
       - key: OWNER_STEAM_ID
         sync: false
+      # BinaryLane owner management is OFF unless explicitly commissioned.
+      - key: HV_MANAGEMENT_ENABLED
+        value: "0"
+      - key: HV_MANAGEMENT_WRITES_ENABLED
+        value: "0"
+      - key: HV_MANAGEMENT_AGENT_TOKEN
+        sync: false
       - key: STRIPE_SECRET_KEY
         sync: false
 

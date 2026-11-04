@@ -1,0 +1,39 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Event Results Publishing | Hollow Valley Admin</title>
+<link rel="stylesheet" href="/assets/styles.css?v=38">
+<link rel="stylesheet" href="/assets/ui-v2.css?v=3">
+<link rel="stylesheet" href="/assets/snapshot-ui.css?v=5">
+<link rel="stylesheet" href="/assets/community-activity.css?v=1">
+</head><body><div class="app-shell"><div id="nav-slot"></div>
+<main class="hv-activity-main">
+<header class="hv-activity-hero">
+<p class="hv-activity-eyebrow">ADMIN · EVENT HISTORY</p>
+<h1>Publish event results.</h1>
+<p>Record staff-confirmed summaries for completed Hollow Valley events. This is a publication tool only; it cannot award Valley Coins, confirm game-side kills or grant prizes.</p>
+<a href="/activity">View public community activity ↗</a>
+</header>
+<section id="hv-admin-activity-guard" class="hv-activity-panel" hidden>Only authorised website admins can access event publishing.</section>
+<section id="hv-admin-activity-content" class="hv-activity-panel" hidden>
+<h2>Staff-confirmed event outcome</h2>
+<form id="hv-admin-event-result" class="hv-admin-activity-form">
+<label>Unique event key
+<input id="hv-event-key" type="text" required minlength="6" maxlength="60" placeholder="event-20261027" autocomplete="off"></label>
+<label>Event name
+<input id="hv-event-title" type="text" required minlength="8" maxlength="120" placeholder="Hollow Valley Fight Night"></label>
+<label>Event date and time
+<input id="hv-event-time" type="datetime-local" required></label>
+<label class="hv-admin-wide">Public result description
+<textarea id="hv-event-summary" required minlength="40" maxlength="1000" rows="5" placeholder="Summarise what staff confirmed, and what remains unverified."></textarea></label>
+<label class="hv-admin-wide">Winner display names (optional, one per line, up to five; no Steam IDs)
+<textarea id="hv-event-winners" rows="4" placeholder="Display name"></textarea></label>
+<label>Type PUBLISH to confirm
+<input id="hv-event-confirm" type="text" required maxlength="7" placeholder="PUBLISH" spellcheck="false"></label>
+<button type="submit" id="hv-event-submit">Publish staff-confirmed result</button>
+</form>
+<p id="hv-admin-event-feedback" role="status" aria-live="polite">Review and confirm results before publication. Published entries are immutable.</p>
+</section>
+</main><footer><span>© 2026 Hollow Valley</span><span>ADMIN ONLY · EVENT RESULTS</span><a href="/admin">Admin Hub ↑</a></footer></div>
+<script src="/assets/common.js?v=22"></script><script src="/assets/admin-community-activity.js?v=1"></script>
+</body></html>

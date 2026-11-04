@@ -1,0 +1,56 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Hollow Valley website groups and opt-in clan recruitment.">
+<title>Group Recruitment | Hollow Valley</title>
+<link rel="stylesheet" href="/assets/styles.css?v=38"><link rel="stylesheet" href="/assets/ui-v2.css?v=3">
+<link rel="stylesheet" href="/assets/snapshot-ui.css?v=5"><link rel="stylesheet" href="/assets/group-discovery.css?v=1">
+</head><body><div class="app-shell"><div id="nav-slot"></div>
+<main class="hv-group-main">
+<header class="hv-group-hero"><p class="hv-group-eyebrow">HOLLOW VALLEY · COMMUNITY GROUPS</p><h1>Groups are recruiting.</h1>
+<p>Browse groups that have chosen to recruit through the website. Interest requests are private to the group owner and require a Steam-linked account. They don't send an invitation or automatically join an in-game party.</p>
+<a href="/groups">Manage my group ↗</a></header>
+<section class="hv-group-panel"><h2>Find a group</h2>
+<form id="hv-group-discovery-filter" class="hv-group-filters">
+<label>Search name or description<input id="hv-group-search" type="search" maxlength="100" placeholder="e.g. casual nesting"></label>
+<label>Playstyle<select id="hv-group-style"><option value="">Any</option>
+<option value="casual">Casual</option><option value="survival">Survival</option><option value="nesting">Nesting</option>
+<option value="events">Events</option><option value="exploration">Exploration</option></select></label>
+<label>Species focus<select id="hv-group-focus"><option value="">Any</option>
+<option value="any">All species</option><option value="herbivores">Herbivores</option>
+<option value="carnivores">Carnivores</option><option value="omnivores">Omnivores</option>
+<option value="mixed">Mixed community</option></select></label>
+<button type="submit">Search groups</button></form>
+<p id="hv-group-search-status" role="status" aria-live="polite">Loading group listings…</p>
+<div id="hv-group-search-results" class="hv-group-grid"></div>
+</section>
+<section id="hv-group-guest" class="hv-group-panel" hidden>
+<h2>Sign in to express interest</h2><p>Use your Steam-linked Hollow Valley account to send a private enquiry to a recruiting group's owner.</p>
+<a href="/auth/steam?returnTo=/recruitment">Sign in with Steam ↗</a></section>
+<section id="hv-group-membership" hidden>
+<section class="hv-group-panel" id="hv-group-interest-form-panel" hidden>
+<h2 id="hv-group-interest-heading">Ask to join a group</h2>
+<form id="hv-group-interest-form" class="hv-group-filters">
+<label>Short private message for the group owner<textarea id="hv-group-interest-message" maxlength="400" minlength="15" rows="4" required placeholder="Tell the owner your usual species and how you'd like to play"></textarea></label>
+<button type="submit">Send interest request</button></form>
+<p id="hv-group-interest-status" role="status" aria-live="polite"></p></section>
+<section class="hv-group-panel"><h2>My group enquiries</h2>
+<p>Group owners can review your request. To join a group they must still send an invitation through the existing Groups page.</p>
+<div id="hv-group-sent" class="hv-group-list"></div></section>
+<section class="hv-group-panel" id="hv-group-owner-panel" hidden>
+<h2>Recruitment settings · Group owner</h2><p>Your group is private until you opt in to public recruitment. Turning it off removes the listing without deleting the group or its history.</p>
+<form id="hv-group-owner-form" class="hv-group-filters">
+<label>Playstyle<select id="hv-group-owner-style"><option value="casual">Casual</option><option value="survival">Survival</option>
+<option value="nesting">Nesting</option><option value="events">Events</option><option value="exploration">Exploration</option></select></label>
+<label>Species focus<select id="hv-group-owner-focus"><option value="any">All species</option>
+<option value="herbivores">Herbivores</option><option value="carnivores">Carnivores</option>
+<option value="omnivores">Omnivores</option><option value="mixed">Mixed community</option></select></label>
+<label class="hv-group-wide">Recruitment description<textarea id="hv-group-owner-description" maxlength="500" rows="5" placeholder="What is your group about?"></textarea></label>
+<label class="hv-group-check"><input id="hv-group-owner-active" type="checkbox"> List my group publicly as recruiting</label>
+<button type="submit">Save recruitment listing</button></form>
+<p id="hv-group-owner-status" aria-live="polite"></p>
+<h3>Private interest requests</h3><p>Review enquiries and invite suitable players through <a href="/groups">My Groups</a>. Marking a request acknowledged does not send an invitation.</p>
+<div id="hv-group-incoming" class="hv-group-list"></div>
+</section></section>
+</main><footer><span>© 2026 Hollow Valley</span><span>WEBSITE-ONLY GROUP RECRUITMENT</span><a href="/community">Community ↑</a></footer></div>
+<script src="/assets/common.js?v=22"></script><script src="/assets/group-recruitment.js?v=1"></script>
+</body></html>

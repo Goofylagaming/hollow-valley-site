@@ -91,6 +91,7 @@ function ensureSupporterColumns() {
   add("stripe_customer_id", "TEXT");
   add("stripe_subscription_id", "TEXT");
   add("stripe_status", "TEXT");
+  add("stripe_last_event_created", "INTEGER NOT NULL DEFAULT 0");
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_supporter_stripe_subscription ON supporter_subscriptions(stripe_subscription_id) WHERE stripe_subscription_id IS NOT NULL;");
   db.exec(`
     CREATE TABLE IF NOT EXISTS stripe_webhook_events (
@@ -116,18 +117,27 @@ function upsertSupporter({
   if (!userId || !canonicalTier || !Object.hasOwn(TIERS, canonicalTier)) return null;
   const user = db.prepare("SELECT id FROM users WHERE id = ?").get(userId);
   if (!user) return null;
+  const current = getSupporterStatus(userId);
+  // Stripe cancellation is terminal for this subscription ID. A delayed
+  // checkout or subscription update must not revive it; a genuinely new
+  // subscription uses a different ID and remains eligible for activation.
+  if (subscriptionId && current?.stripe_subscription_id === subscriptionId &&
+      ["canceled", "incomplete_expired"].includes(current.stripe_status) &&
+      !["canceled", "incomplete_expired"].includes(status)) return current;
+  if (subscriptionId && current?.stripe_subscription_id && current.stripe_subscription_id !== subscriptionId &&
+      ["canceled", "incomplete_expired"].includes(status)) return current;
 
   db.prepare(`
     INSERT INTO supporter_subscriptions (
       user_id, tier, auto_renew, renews_at, cancelled_at,
       stripe_customer_id, stripe_subscription_id, stripe_status
     )
-    VALUES (?, ?, ?, ?, NULL, ?, ?, ?)
+    VALUES (?, ?, ?, ?, CASE WHEN ? = 1 THEN NULL ELSE datetime('now') END, ?, ?, ?)
     ON CONFLICT(user_id) DO UPDATE SET
       tier = excluded.tier,
       auto_renew = excluded.auto_renew,
       renews_at = COALESCE(excluded.renews_at, supporter_subscriptions.renews_at),
-      cancelled_at = CASE WHEN excluded.auto_renew = 1 THEN NULL ELSE supporter_subscriptions.cancelled_at END,
+      cancelled_at = CASE WHEN excluded.auto_renew = 1 THEN NULL ELSE COALESCE(supporter_subscriptions.cancelled_at, datetime('now')) END,
       stripe_customer_id = COALESCE(excluded.stripe_customer_id, supporter_subscriptions.stripe_customer_id),
       stripe_subscription_id = COALESCE(excluded.stripe_subscription_id, supporter_subscriptions.stripe_subscription_id),
       stripe_status = excluded.stripe_status
@@ -136,6 +146,7 @@ function upsertSupporter({
     canonicalTier,
     autoRenew ? 1 : 0,
     renewsAt,
+    autoRenew ? 1 : 0,
     customerId,
     subscriptionId,
     status
@@ -184,6 +195,17 @@ function processStripeEvent(event, env = process.env) {
 
   const object = event.data?.object || {};
   let affectedUserId = null;
+  const eventSubscriptionId = event.type.startsWith("customer.subscription.") ? normalizeId(object.id) :
+    event.type === "checkout.session.completed" ? normalizeId(object.subscription) :
+    event.type.startsWith("invoice.") ? invoiceSubscriptionId(object) : null;
+  const knownSubscription = existingBySubscription(eventSubscriptionId);
+  const eventUserId = userIdFromObject(object) || knownSubscription?.user_id;
+  const currentMembership = eventUserId ? getSupporterStatus(eventUserId) : null;
+  const eventCreated = Number(event.created) || 0;
+  if (eventCreated > 0 && Number(currentMembership?.stripe_last_event_created || 0) > eventCreated) {
+    recordProcessed(event);
+    return { processed: true, userId: currentMembership.user_id, stale: true };
+  }
 
   if (event.type === "checkout.session.completed") {
     if (object.mode === "subscription") {
@@ -246,6 +268,13 @@ function processStripeEvent(event, env = process.env) {
   } else if (event.type === "invoice.paid") {
     const subscriptionId = invoiceSubscriptionId(object);
     if (subscriptionId) {
+      const existing = existingBySubscription(subscriptionId);
+      // A delayed paid invoice records history but cannot resurrect a
+      // subscription whose termination has already been confirmed by Stripe.
+      if (existing && ["canceled", "incomplete_expired"].includes(existing.stripe_status)) {
+        recordProcessed(event);
+        return { processed: true, userId: existing.user_id };
+      }
       const periodEnd = object.lines?.data?.reduce((latest, line) => {
         const end = Number(line?.period?.end) || 0;
         return Math.max(latest, end);
@@ -269,6 +298,10 @@ function processStripeEvent(event, env = process.env) {
     }
   }
 
+  if (affectedUserId && eventSubscriptionId && eventCreated > 0) {
+    db.prepare(`UPDATE supporter_subscriptions SET stripe_last_event_created = MAX(stripe_last_event_created, ?)
+      WHERE user_id = ? AND stripe_subscription_id = ?`).run(eventCreated, affectedUserId, eventSubscriptionId);
+  }
   recordProcessed(event);
   return { processed: true, userId: affectedUserId };
 }
@@ -277,11 +310,20 @@ function isEntitled(status) {
   return ACTIVE_STATUSES.has(status);
 }
 
+// Supporters may retain paid access until the end of a billing period after
+// cancelling renewal. Bonus Valley Coins stop as soon as cancellation is
+// confirmed, regardless of whether Stripe still reports "active".
+function isCoinBonusEligible(row) {
+  return Boolean(row && isEntitled(row.stripe_status) &&
+    Number(row.auto_renew) === 1 && !row.cancelled_at);
+}
+
 module.exports = {
   verifyStripeSignature,
   processStripeEvent,
   tierFromSubscription,
   isEntitled,
+  isCoinBonusEligible,
   upsertSupporter,
   subscriptionPeriodEnd,
   _test: {

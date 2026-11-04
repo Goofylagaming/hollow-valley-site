@@ -1,0 +1,36 @@
+name: Owner finance security tests
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'server/index.js'
+      - 'server/middleware/requireFinanceOwner.js'
+      - 'server/services/stripeFinance.js'
+      - 'server/routes/adminFinance.js'
+      - 'server/pages/adminFinance.html'
+      - 'public/assets/admin-finance.*'
+      - 'public/assets/common.js'
+      - 'public/admin.html'
+      - 'public/partials/nav.html'
+      - 'test/financeOwner.test.js'
+      - 'test/stripeFinance.test.js'
+      - '.github/workflows/finance-owner-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  owner-finance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Owner-only routes and Stripe finance read-only tests
+        run: node --test test/financeOwner.test.js test/stripeFinance.test.js test/adminPagesRoute.test.js

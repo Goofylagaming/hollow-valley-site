@@ -8,6 +8,17 @@ on:
       - "public/skins.html"
       - "public/assets/skins.js"
       - "public/assets/skin-studio-3d.js"
+      - "public/assets/skin-studio-auto-map.js"
+      - "public/assets/skin-studio-batch-map.js"
+      - "test/skinStudioBatchMap.test.js"
+      - "test/skinStudioAutoMap.test.js"
+      - "test/skinStudioCalibration.test.js"
+      - "test/skinStudioMottling.test.js"
+      - "public/assets/external-skin-import.js"
+      - "public/skin-studio/model-lab.html"
+      - "scripts/skin_studio_psk_to_glb.py"
+      - "scripts/test_skin_studio_psk_to_glb.py"
+      - "test/external-skin-import.test.js"
       - "public/assets/skin-studio-model-registry.js"
       - "public/assets/skin-studio-rex-mask-rle.js"
       - "public/assets/skin-models/**"
@@ -33,7 +44,9 @@ jobs:
       - run: npm ci
       - name: Validate Skin Studio browser module syntax
         run: node --input-type=module --check < public/assets/skin-studio-3d.js
-      - run: node --test test/skinStudioClient.test.js
+      - run: node --check public/assets/skin-studio-auto-map.js
+      - run: node --check public/assets/skin-studio-batch-map.js
+      - run: node --test test/skinStudioClient.test.js test/external-skin-import.test.js test/skinStudioAutoMap.test.js test/skinStudioBatchMap.test.js test/skinStudioCalibration.test.js test/skinStudioMottling.test.js
 
   lua:
     runs-on: ubuntu-latest
@@ -45,3 +58,23 @@ jobs:
         run: |
           luac -p server-mods/SkinStudio/Scripts/main.lua
           luac -p server-mods/CommandBridge/Scripts/main.lua
+
+  model_conversion:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Test PSK converter with synthetic fixtures (no game assets)
+        run: python scripts/test_skin_studio_psk_to_glb.py
+      - name: Check model lab browser module syntax
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re, subprocess
+          html = Path("public/skin-studio/model-lab.html").read_text()
+          code = re.findall(r'<script type="module">([\s\S]*?)</script>', html)
+          assert len(code) == 1, "Expected one preview browser module"
+          subprocess.run(["node", "--input-type=module", "--check"], input=code[0], text=True, check=True)
+          PY

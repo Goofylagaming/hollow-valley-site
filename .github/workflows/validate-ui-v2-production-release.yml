@@ -15,7 +15,7 @@ permissions:
 jobs:
   release-safety:
     name: Production identity and feature-preservation tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -61,7 +61,7 @@ jobs:
 
   staging-browser-smoke:
     name: Browser staging (isolated DB, desktop/mobile, guest auth)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4

@@ -1,6 +1,7 @@
 const express = require('express');
 const { requireAdminToken } = require('../middleware/adminAuth');
-const { getAdminStatus } = require('../services/statusService');
+const { getAdminStatus, getServerSnapshot } = require('../services/statusService');
+const omniGrowthValidation = require('../services/omniraptorGrowthValidationService');
 const bodyDrop = require('../services/bodyDropService');
 const dinoStorage = require('../services/dinoStorageService');
 const adminActions = require('../services/adminActionsService');
@@ -8,8 +9,10 @@ const adminRestore = require('../services/adminRestoreService');
 const discordAutomation = require('../services/discordAutomationService');
 const scheduler = require('../services/schedulerService');
 const rconControl = require('../services/rconControlService');
+const featureAnnouncements = require('../services/featureAnnouncementService');
 const serverMonitor = require('../services/serverMonitorService');
 const playerPresence = require('../services/playerPresenceService');
+const speciesEvents = require('../services/speciesCoinEventService');
 const audit = require('../services/auditService');
 const store = require('../services/automationStore');
 const eventRewards = require('../services/eventRewardService');
@@ -36,6 +39,66 @@ router.get('/status', async (req, res) => {
   } catch (error) {
     console.error('[automation-admin-status]', error);
     res.status(503).json({ error: error.message || 'Admin status unavailable.' });
+  }
+});
+
+// Strictly read-only. SteamID comes from the authenticated website server;
+// never touches per-player pawn state or the global GrowthMultiplier.
+router.get('/growth-validation/omniraptor', async (req, res) => {
+  const steamId = String(req.query.steamId || '').trim();
+  if (!/^\d{17}$/.test(steamId)) {
+    return res.status(400).json({ error: 'A Steam-linked administrator is required.' });
+  }
+  try {
+    const snapshot = await getServerSnapshot({ force: false });
+    res.set('Cache-Control', 'private, no-store');
+    return res.json(omniGrowthValidation.projectSnapshot(snapshot, steamId));
+  } catch (error) {
+    console.warn('[omniraptor-growth-validation] unable to obtain read-only snapshot:', error.message);
+    return res.status(503).json({ error: 'Growth observation is temporarily unavailable.' });
+  }
+});
+
+router.get('/species-coin-events', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  return res.json(speciesEvents.listEvents({ limit: Number(req.query.limit) || 40 }));
+});
+
+router.post('/species-coin-events', async (req, res) => {
+  try {
+    const input = req.body || {};
+    const result = await audit.run('species_coin_event', 'create', {
+      title: String(input.title || '').slice(0, 90),
+      species: String(input.species || '').slice(0, 40),
+      coinsPerMinute: Number(input.coinsPerMinute) || 0,
+      durationMinutes: Number(input.durationMinutes) || 0,
+      actorSteamId: String(input.actorSteamId || '').slice(0, 17),
+    }, () => speciesEvents.createEvent(input), (value) => ({
+      eventId: value.event.id, status: value.event.status, duplicate: value.duplicate,
+    }));
+    res.status(result.duplicate ? 200 : 201).json({ ok: true, ...result });
+  } catch (error) {
+    return res.status(error.code === 'SPECIES_EVENT_DISABLED' ? 503 :
+      error.code === 'SPECIES_EVENT_CONFLICT' ? 409 : 400)
+      .json({ error: error.message || 'Could not create species bonus event.', code: error.code || null });
+  }
+});
+
+router.post('/species-coin-events/:id/stop', async (req, res) => {
+  if (req.body?.confirm !== 'STOP EVENT') {
+    return res.status(400).json({ error: 'Type STOP EVENT to stop the bonus now.' });
+  }
+  try {
+    const result = await audit.run('species_coin_event', 'stop', {
+      eventId: req.params.id,
+      actorSteamId: String(req.body?.actorSteamId || '').slice(0, 17),
+    }, () => speciesEvents.stopEvent(req.params.id), (value) => ({
+      eventId: value.event.id, status: value.event.status, duplicate: value.duplicate,
+    }));
+    return res.json({ ok: true, ...result });
+  } catch (error) {
+    return res.status(error.code === 'SPECIES_EVENT_NOT_FOUND' ? 404 : 400)
+      .json({ error: error.message || 'Could not stop species event.', code: error.code || null });
   }
 });
 
@@ -543,6 +606,31 @@ router.post('/discord/announce', async (req, res) => {
   }
 });
 
+// A reusable, manually verified publication step for growth and later
+// feature toggles. No automatic message is sent merely because RCON accepted
+// a packet; an operator must first confirm the feature actually changed.
+router.post('/feature-announcements', async (req, res) => {
+  try {
+    const payload = req.body || {};
+    const result = await audit.run('feature_announcement', 'queue_verified', {
+      kind: String(payload.kind || ''),
+      channels: Array.isArray(payload.channels) ? payload.channels : [],
+      requestId: String(payload.requestId || ''),
+      actorSteamId: String(payload.actorSteamId || '').trim().slice(0, 17) || null,
+    }, () => featureAnnouncements.queueVerifiedAnnouncement(payload),
+    (value) => ({
+      requestId: value.requestId,
+      receipts: value.receipts.map(({ destination, eventId, state }) => ({ destination, eventId, state })),
+      delivered: false,
+    }));
+    return res.status(202).json({ ok: true, announcement: result });
+  } catch (error) {
+    const status = error.code === 'FEATURE_ANNOUNCEMENT_UNAVAILABLE' ? 503
+      : error.code === 'FEATURE_ANNOUNCEMENT_CONFLICT' ? 409 : 400;
+    return res.status(status).json({ error: error.message || 'Cannot publish feature announcement.', code: error.code || null });
+  }
+});
+
 router.get('/monitor', (_req, res) => {
   res.json(serverMonitor.getState());
 });
@@ -606,6 +694,7 @@ function rconAuditDetails(action, payload = {}) {
   if (action === 'announce') return { messageLength: String(payload.message || '').trim().length };
   if (action === 'directMessage') return { hasTarget: Boolean(payload.steamId), messageLength: String(payload.message || '').trim().length };
   if (action === 'aiDensity') return { value: payload.value };
+  if (action === 'growthMultiplier') return { value: payload.value, experimental: true, effectVerified: false };
   if (action === 'wipeCorpses') return { confirmationProvided: payload.confirm === 'WIPE CORPSES' };
   return {};
 }
@@ -630,5 +719,11 @@ router.post('/rcon/direct-message', (req, res) => runRcon(res, 'directMessage', 
 router.post('/rcon/save', (_req, res) => runRcon(res, 'save'));
 router.post('/rcon/wipe-corpses', (req, res) => runRcon(res, 'wipeCorpses', req.body || {}));
 router.post('/rcon/ai-density', (req, res) => runRcon(res, 'aiDensity', req.body || {}));
+router.post('/rcon/growth-multiplier', (req, res) => {
+  if (req.body?.confirm !== 'TEST GROWTH' || req.body?.experimental !== true) {
+    return res.status(400).json({ error: 'Type TEST GROWTH and acknowledge experimental=true. Effect and scope are unverified.' });
+  }
+  return runRcon(res, 'growthMultiplier', req.body || {});
+});
 
 module.exports = router;

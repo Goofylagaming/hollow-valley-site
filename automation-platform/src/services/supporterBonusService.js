@@ -13,6 +13,7 @@ const LEGACY_TIER_ALIASES = Object.freeze({
 });
 
 const memberships = new Map();
+const MAX_MEMBERSHIP_CACHE_AGE_MS = 90_000;
 
 function enabled(env = process.env) {
   return /^(1|true|yes)$/i.test(String(env.SUPPORTER_COIN_BONUSES_ENABLED || "").trim());
@@ -58,7 +59,15 @@ function noMembership(steamId) {
 function membershipForSteamId(steamId, env = process.env) {
   const id = validateSteamId(steamId);
   if (!enabled(env)) return noMembership(id);
-  return memberships.get(id) || noMembership(id);
+  const cached = memberships.get(id);
+  // Fail closed on stale membership data, including after an interrupted
+  // Stripe or website connection. A current sample refreshes before payout.
+  if (!cached || !Number.isFinite(cached.checkedAtMs) ||
+      Date.now() - cached.checkedAtMs > MAX_MEMBERSHIP_CACHE_AGE_MS) {
+    memberships.delete(id);
+    return noMembership(id);
+  }
+  return cached;
 }
 
 function replaceMemberships(steamIds, records = [], env = process.env) {
@@ -77,7 +86,7 @@ function replaceMemberships(steamIds, records = [], env = process.env) {
     const membership = tier && multiplier > 1
       ? { steamId, entitled: true, tier, multiplier }
       : noMembership(steamId);
-    memberships.set(steamId, membership);
+    memberships.set(steamId, { ...membership, checkedAtMs: Date.now() });
     if (membership.entitled) entitled += 1;
   }
   return { requested: ids.length, entitled };

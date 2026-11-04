@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Manage Updates | Hollow Valley Admin</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=38">
+  <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
+  <link rel="stylesheet" href="/assets/snapshot-ui.css?v=5">
+  <link rel="stylesheet" href="/assets/site-updates.css?v=1">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main class="hv-updates-main hv-admin-updates-main">
+      <header class="hv-updates-hero">
+        <p class="hv-updates-eyebrow">HOLLOW VALLEY · ADMIN PUBLISHING</p>
+        <h1>Changelog editor.</h1>
+        <p>Create development notes, announce testing results and mark approved milestones ready. Only verified deployments may be marked <strong>Live</strong> or <strong>Fix Released</strong>.</p>
+        <a href="/updates">View public updates →</a>
+      </header>
+      <section id="hv-update-guard" class="hv-update-editor-panel" hidden>
+        Administrator sign-in is required to manage site updates.
+      </section>
+      <div id="hv-update-admin-content" hidden>
+        <section class="hv-update-editor-panel" aria-labelledby="hv-editor-title">
+          <h2 id="hv-editor-title">Create a private draft</h2>
+          <p>Staff drafts are not public until explicitly published. Published posts are immutable; create a follow-up note to correct an earlier post.</p>
+          <form id="hv-update-editor" class="hv-update-editor">
+            <div class="hv-update-editor-grid">
+              <label>Milestone ID
+                <input id="hv-editor-milestone" type="text" maxlength="40" placeholder="HV-UX03" required>
+              </label>
+              <label>Area
+                <select id="hv-editor-category" required>
+                  <option value="website">Website</option>
+                  <option value="game">Game server</option>
+                  <option value="automation">Automation</option>
+                  <option value="community">Community</option>
+                </select>
+              </label>
+              <label>Stage
+                <select id="hv-editor-stage" required>
+                  <option value="building">In Development — not live</option>
+                  <option value="testing">Testing — not live</option>
+                  <option value="blocked">Blocked — not live</option>
+                  <option value="ready">Ready to Deploy — not live</option>
+                </select>
+              </label>
+              <label class="hv-wide">Title
+                <input id="hv-editor-title-input" type="text" minlength="8" maxlength="100" placeholder="What has changed?" required>
+              </label>
+              <label class="hv-wide">Public description
+                <textarea id="hv-editor-summary" rows="5" minlength="30" maxlength="900"
+                  placeholder="Explain what players will see, what is still being tested and the next action. Do not include private IDs, player reports or access details." required></textarea>
+              </label>
+              <label class="hv-wide">Hollow Valley GitHub PR, commit or workflow URL
+                <input id="hv-editor-reference" type="url" maxlength="300"
+                  placeholder="https://github.com/Goofylagaming/hollow-valley-site/pull/240" required>
+              </label>
+            </div>
+            <div class="hv-update-editor-actions">
+              <button id="hv-editor-save" type="submit">Save private draft</button>
+              <button id="hv-editor-reset" type="button">New draft / reset editor</button>
+            </div>
+            <p id="hv-editor-feedback" aria-live="polite">Ready to create a draft.</p>
+          </form>
+          <section class="hv-publish-confirm">
+            <h3>Publish the saved draft</h3>
+            <p>Review the text and source link, then type PUBLISH exactly. This makes the note publicly visible on /updates and cannot be undone from this editor.</p>
+            <label>Publication confirmation
+              <input id="hv-editor-confirm" type="text" maxlength="7" placeholder="PUBLISH" spellcheck="false">
+            </label>
+            <button type="button" id="hv-editor-publish" disabled>Publish saved update</button>
+          </section>
+        </section>
+        <section class="hv-update-editor-panel" aria-labelledby="hv-saved-list-heading">
+          <div class="hv-updates-heading">
+            <h2 id="hv-saved-list-heading">Recent drafts and published posts</h2>
+            <button id="hv-editor-reload" type="button">Refresh list</button>
+          </div>
+          <p>Draft revisions are private. Click a draft to edit it; already published entries are read-only.</p>
+          <div id="hv-admin-update-list" class="hv-admin-update-list"></div>
+        </section>
+        <section class="hv-update-editor-panel">
+          <h2>Discord publishing</h2>
+          <p>The dedicated HerbyBot progress channel is <strong>1550133934871023679</strong>. This editor does not send messages to Discord. Automatic Discord progress posts require separate HV-C01 bridge activation and verified delivery tests.</p>
+        </section>
+      </div>
+    </main>
+    <footer><span>© 2026 Hollow Valley</span><span>ADMIN ONLY · DEVELOPMENT RELEASES</span><a href="/admin">Admin Hub ↑</a></footer>
+  </div>
+  <script src="/assets/common.js?v=22"></script>
+  <script src="/assets/admin-site-updates.js?v=1"></script>
+</body>
+</html>

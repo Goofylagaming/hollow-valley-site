@@ -87,3 +87,70 @@ test("membership checkout and tier changes require a linked Steam account", asyn
     assert.match(payload.error, /link your Steam account/i);
   }
 });
+
+test("successful Stripe cancellation revokes the supporter coin multiplier immediately and resume restores it", async (t) => {
+  const express = require("express");
+  const { db } = require("../server/db");
+  const router = require("../server/routes/supporter");
+  db.exec("DELETE FROM supporter_subscriptions; DELETE FROM users;");
+  const steamId = "76561198000000042";
+  db.prepare("INSERT INTO users (id, steam_id, username) VALUES (42, ?, ?)").run(steamId, "cancel-test");
+  db.prepare(
+    "INSERT INTO supporter_subscriptions (user_id, tier, auto_renew, stripe_subscription_id, stripe_status) VALUES (?, ?, 1, ?, ?)"
+  ).run(42, "supporter", "sub_test_42", "active");
+  const app = express();
+  app.use(express.json());
+  app.use((req, _res, next) => {
+    req.user = { id: 42, steam_id: steamId };
+    next();
+  });
+  app.use("/api/supporter", router);
+  const server = await new Promise(resolve => {
+    const instance = app.listen(0, "127.0.0.1", () => resolve(instance));
+  });
+  const base = "http://127.0.0.1:" + server.address().port;
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const realFetch = globalThis.fetch;
+  let cancelled = false;
+  globalThis.fetch = async (url, options = {}) => {
+    if (String(url).startsWith("https://api.stripe.com/v1/subscriptions/sub_test_42")) {
+      if (options.method === "POST") {
+        cancelled = options.body.get("cancel_at_period_end") === "true";
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          id: "sub_test_42", customer: "cus_test_42", livemode: false,
+          status: "active", cancel_at_period_end: cancelled,
+          metadata: { user_id: "42", steam_id: steamId, tier: "member" },
+          items: { data: [{ id: "si_test_42", price: { id: process.env.STRIPE_PRICE_MEMBER } }] },
+        }),
+      };
+    }
+    return realFetch(url, options);
+  };
+  t.after(() => { globalThis.fetch = realFetch; });
+
+  const get = async () => (await realFetch(base + "/api/supporter")).json();
+  assert.equal((await get()).multiplier, 2);
+  assert.equal((await get()).coinBonusEligible, true);
+
+  const cancel = await realFetch(base + "/api/supporter/cancel", { method: "POST" });
+  assert.equal(cancel.status, 200);
+  assert.equal((await cancel.json()).cancelAtPeriodEnd, true);
+  let row = db.prepare("SELECT * FROM supporter_subscriptions WHERE user_id = 42").get();
+  assert.equal(row.stripe_status, "active");
+  assert.equal(row.auto_renew, 0);
+  assert.ok(row.cancelled_at);
+  assert.equal((await get()).entitled, true);
+  assert.equal((await get()).coinBonusEligible, false);
+  assert.equal((await get()).multiplier, 1);
+
+  const resume = await realFetch(base + "/api/supporter/resume", { method: "POST" });
+  assert.equal(resume.status, 200);
+  assert.equal((await resume.json()).cancelAtPeriodEnd, false);
+  row = db.prepare("SELECT * FROM supporter_subscriptions WHERE user_id = 42").get();
+  assert.equal(row.auto_renew, 1);
+  assert.equal(row.cancelled_at, null);
+  assert.equal((await get()).multiplier, 2);
+});

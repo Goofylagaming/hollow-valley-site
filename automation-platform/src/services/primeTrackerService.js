@@ -58,6 +58,31 @@ try {
 // original achievement timestamp.
 db.exec(`\n  UPDATE prime_tracker_lives\n  SET prime_preexisting = 1, prime_started_at = NULL\n  WHERE is_prime = 1\n    AND prime_preexisting = 0\n    AND prime_started_at = started_at;\n`);
 
+
+/* Reset history is append-only. The player's Prime flag and lifetime remain
+ * untouched; only the zone visits for the currently selected life are cleared.
+ */
+for (const stmt of [
+  "ALTER TABLE prime_tracker_lives ADD COLUMN zone_reset_at TEXT",
+  "ALTER TABLE prime_tracker_lives ADD COLUMN zone_reset_blocked_json TEXT NOT NULL DEFAULT '{}'",
+]) {
+  try { db.exec(stmt); }
+  catch(error) { if(!/duplicate column name/i.test(String(error.message))) throw error; }
+}
+db.exec([
+  "CREATE TABLE IF NOT EXISTS prime_tracker_zone_resets (",
+  " id TEXT PRIMARY KEY,",
+  " steam_id TEXT NOT NULL,",
+  " life_id TEXT NOT NULL,",
+  " reset_at TEXT NOT NULL,",
+  " archived_visits_json TEXT NOT NULL,",
+  " blocked_zones_json TEXT NOT NULL,",
+  " FOREIGN KEY(life_id) REFERENCES prime_tracker_lives(id)",
+  ");",
+  "CREATE INDEX IF NOT EXISTS idx_prime_zone_resets_player",
+  " ON prime_tracker_zone_resets(steam_id, reset_at DESC);"
+].join("\n"));
+
 const BOUNDS = { minX: -607000, maxX: 509000, minY: -505000, maxY: 607000 };
 const WIDTH_UNITS = BOUNDS.maxY - BOUNDS.minY;
 const HEIGHT_UNITS = BOUNDS.maxX - BOUNDS.minX;
@@ -324,6 +349,103 @@ function zoneMembership(location) {
   return result;
 }
 
+
+function primeResetError(code, message, status = 400) {
+  const error = new Error(message);
+  error.code = code;
+  error.status = status;
+  return error;
+}
+function emptyBlockedZones() {
+  return { migration: [], patrol: [], sanctuary: [] };
+}
+function parseBlockedZones(input) {
+  let saved;
+  try { saved = JSON.parse(input || '{}'); } catch { saved = {}; }
+  const blocked = emptyBlockedZones();
+  for (const kind of Object.keys(blocked)) {
+    blocked[kind] = Array.isArray(saved?.[kind]) ?
+      saved[kind].filter(name => typeof name === 'string' && name.length <= 160) : [];
+  }
+  return blocked;
+}
+function blockerForLocation(location) {
+  const zones = zoneMembership(location);
+  return {
+    migration: zones.migrations,
+    patrol: zones.patrolZones,
+    sanctuary: zones.sanctuaries,
+  };
+}
+function resetZoneVisits({ steamId, lifeId, requestId, confirm }, env = process.env) {
+  const player = String(steamId || '').trim();
+  if (!/^\d{17}$/.test(player)) {
+    throw primeResetError('INVALID_STEAM', 'A linked Steam account is required.');
+  }
+  if (confirm !== 'RESET ZONES') {
+    throw primeResetError('CONFIRM_REQUIRED', 'Confirm RESET ZONES before clearing active tracked zones.');
+  }
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!uuid.test(String(lifeId || '')) || !uuid.test(String(requestId || ''))) {
+    throw primeResetError('INVALID_RESET', 'Refresh the Prime Tracker and try again.');
+  }
+  if (!enabled(env)) {
+    throw primeResetError('TRACKER_DISABLED', 'Prime tracking is currently unavailable.', 503);
+  }
+  const id = String(requestId).toLowerCase();
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const prior = db.prepare('SELECT * FROM prime_tracker_zone_resets WHERE id = ?').get(id);
+    if (prior) {
+      if (prior.steam_id !== player || prior.life_id !== lifeId) {
+        throw primeResetError('RESET_CONFLICT', 'This request belongs to a different dinosaur life.', 409);
+      }
+      db.exec('COMMIT');
+      return {
+        ok: true, duplicate: true, lifeId: prior.life_id, resetAt: prior.reset_at,
+        clearedZones: JSON.parse(prior.archived_visits_json).length,
+        tracker: trackerState(player, env),
+      };
+    }
+    const life = activeLife(player);
+    if (!life || life.id !== lifeId) {
+      throw primeResetError('STALE_LIFE',
+        'The tracked dinosaur has changed. Spawn the new dinosaur, refresh and reset that life.', 409);
+    }
+    const now = new Date().toISOString();
+    const recent = db.prepare(
+      'SELECT reset_at FROM prime_tracker_zone_resets WHERE steam_id = ? ORDER BY reset_at DESC LIMIT 1'
+    ).get(player);
+    if (recent && Date.parse(now) - Date.parse(recent.reset_at) < 60000) {
+      throw primeResetError('RESET_COOLDOWN', 'Zones were recently reset. Try again after one minute.', 429);
+    }
+    const archived = visitsForLife(life.id);
+    const previousLocation = parseLocationJson(life.last_location_json);
+    const blocked = previousLocation?.raw ?
+      blockerForLocation(previousLocation.raw) : emptyBlockedZones();
+    // The archive and zeroing of current visits are one atomic write.
+    db.prepare(
+      'INSERT INTO prime_tracker_zone_resets ' +
+      '(id,steam_id,life_id,reset_at,archived_visits_json,blocked_zones_json) ' +
+      'VALUES (?,?,?,?,?,?)'
+    ).run(id, player, life.id, now, JSON.stringify(archived), JSON.stringify(blocked));
+    db.prepare('DELETE FROM prime_tracker_zone_visits WHERE life_id = ?').run(life.id);
+    db.prepare(
+      'UPDATE prime_tracker_lives SET zone_reset_at = ?, ' +
+      "zone_reset_blocked_json = ?, updated_at = datetime('now') " +
+      'WHERE id = ? AND steam_id = ? AND ended_at IS NULL'
+    ).run(now, JSON.stringify(blocked), life.id, player);
+    db.exec('COMMIT');
+    return {
+      ok: true, duplicate: false, lifeId: life.id, resetAt: now,
+      clearedZones: archived.length, tracker: trackerState(player, env),
+    };
+  } catch(error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
+}
+
 function activeLife(steamId) {
   return db.prepare(`
     SELECT *
@@ -413,12 +535,22 @@ function updateLife(player, sampledAt, env = process.env) {
   if (!/^\d{17}$/.test(steamId)) return null;
 
   let life = activeLife(steamId);
+  const sampledMs = Date.parse(sampledAt);
+  // Old or duplicate samples must not resurrect visits cleared by a reset.
+  // This also stops a delayed pre-entomb sample rolling back a newer life.
+  if (life) {
+    const lastSampleMs = Date.parse(life.last_seen_at);
+    const resetMs = Date.parse(life.zone_reset_at || '');
+    if ((Number.isFinite(lastSampleMs) && sampledMs <= lastSampleMs) ||
+        (Number.isFinite(resetMs) && sampledMs <= resetMs)) {
+      return getLife(life.id);
+    }
+  }
   if (needsNewLife(life, player)) {
     if (life) closeLife(life, sampledAt, 'species-or-growth-reset');
     life = createLife(player, sampledAt);
   }
 
-  const sampledMs = Date.parse(sampledAt);
   const previousMs = Date.parse(life.last_seen_at);
   const gapMs = Number.isFinite(sampledMs) && Number.isFinite(previousMs)
     ? Math.max(0, sampledMs - previousMs)
@@ -434,9 +566,20 @@ function updateLife(player, sampledAt, env = process.env) {
   const projected = projectLocation(player.location);
   const membership = zoneMembership(player.location);
 
-  for (const name of membership.migrations) upsertZoneVisit(life, 'migration', name, sampledAt, deltaSeconds);
-  for (const name of membership.patrolZones) upsertZoneVisit(life, 'patrol', name, sampledAt, deltaSeconds);
-  for (const name of membership.sanctuaries) upsertZoneVisit(life, 'sanctuary', name, sampledAt, deltaSeconds);
+  // A currently occupied zone must be exited before it counts as a fresh
+  // visit after reset. Visits to new zones start counting immediately.
+  const blocked = parseBlockedZones(life.zone_reset_blocked_json);
+  const nextBlocked = emptyBlockedZones();
+  for (const [kind, names] of [
+    ['migration', membership.migrations], ['patrol', membership.patrolZones],
+    ['sanctuary', membership.sanctuaries],
+  ]) {
+    const currentBlocked = new Set(blocked[kind]);
+    nextBlocked[kind] = names.filter(name => currentBlocked.has(name));
+    for (const name of names) {
+      if (!currentBlocked.has(name)) upsertZoneVisit(life, kind, name, sampledAt, deltaSeconds);
+    }
+  }
 
   db.prepare(`
     UPDATE prime_tracker_lives
@@ -447,6 +590,7 @@ function updateLife(player, sampledAt, env = process.env) {
         prime_started_at = ?,
         prime_seconds = prime_seconds + ?,
         last_location_json = ?,
+        zone_reset_blocked_json = ?,
         updated_at = datetime('now')
     WHERE id = ?
   `).run(
@@ -457,6 +601,7 @@ function updateLife(player, sampledAt, env = process.env) {
     primeStartedAt,
     addPrimeSeconds,
     projected ? JSON.stringify(projected) : life.last_location_json,
+    JSON.stringify(nextBlocked),
     life.id
   );
 
@@ -502,6 +647,7 @@ function mapLife(row) {
     lastLocation: parseLocationJson(row.last_location_json),
     endedAt: row.ended_at,
     endReason: row.end_reason,
+    zoneResetAt: row.zone_reset_at || null,
   };
 }
 
@@ -573,6 +719,7 @@ function trackerState(steamId, env = process.env) {
       isPrime: active.is_prime === 1,
       primeStartedAt: active.prime_started_at,
       primePreexisting: active.prime_preexisting === 1,
+      zoneResetAt: active.zone_reset_at || null,
     } : null,
     zoneVisits: activeVisits,
     history: historyRows.map(mapLife),
@@ -590,6 +737,7 @@ module.exports = {
   zoneMembership,
   recordSnapshot,
   trackerState,
+  resetZoneVisits,
   _test: {
     db,
     parseVulnonaFile,

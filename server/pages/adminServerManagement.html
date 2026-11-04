@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Server Management | Hollow Valley</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=24">
+  <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
+  <link rel="stylesheet" href="/assets/snapshot-ui.css?v=4">
+  <link rel="stylesheet" href="/assets/admin-server-management.css?v=1">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main>
+      <section class="page-header">
+        <p class="overline green">HOLLOW VALLEY · OWNER ONLY · BINARYLANE</p>
+        <h1>Server management.</h1>
+        <p class="section-intro">Private BinaryLane status, scheduled tasks, operational logs and approved service recovery. Never runs arbitrary PowerShell or restarts The Isle.</p>
+      </section>
+      <section class="roster-section hv-management">
+        <div class="hv-management-toolbar">
+          <div>
+            <strong id="hv-management-connection">Checking secure agent…</strong>
+            <p id="hv-management-updated" class="hv-muted">Last heartbeat: —</p>
+          </div>
+          <button type="button" id="hv-management-refresh" class="small-button">Refresh status</button>
+        </div>
+        <p id="hv-management-error" role="status" class="hv-management-error" hidden></p>
+        <div class="hv-management-kpis">
+          <div class="summary-tile"><small>GAME PROCESS</small><b id="hv-management-pid">—</b><span id="hv-management-processes">Process count: —</span></div>
+          <div class="summary-tile"><small>LOCAL RCON</small><b id="hv-management-rcon">—</b><span>Read-only listener check</span></div>
+          <div class="summary-tile"><small>COMMAND ACTIONS</small><b id="hv-management-writes">Locked</b><span>Owner-only, allowlisted actions</span></div>
+        </div>
+
+        <section class="hv-management-panel">
+          <h2>Windows scheduled tasks</h2>
+          <p class="hv-muted">Read-only state for watchdog, 12-hour restart, scanner and automation. Only the Command Bridge and current combat forwarder have an Enable &amp; Start action.</p>
+          <div class="hv-management-table-wrap">
+            <table class="hv-management-table">
+              <thead><tr><th>Task</th><th>Windows state</th><th>Action</th></tr></thead>
+              <tbody id="hv-management-task-rows"><tr><td colspan="3">Awaiting BinaryLane heartbeat…</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="hv-management-panel">
+          <h2>Recent maintenance requests</h2>
+          <p class="hv-muted">Every request is recorded on the existing site database. Unconfirmed actions become <strong>Unknown</strong> and are never automatically retried.</p>
+          <div class="hv-management-table-wrap">
+            <table class="hv-management-table">
+              <thead><tr><th>Requested (QLD)</th><th>Target</th><th>Status / result</th></tr></thead>
+              <tbody id="hv-management-job-rows"><tr><td colspan="3">No requests yet.</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="hv-management-panel">
+          <h2>Operational logs</h2>
+          <p class="hv-muted">Recent restart, Command Bridge and chat/combat-forwarder diagnostics. Sensitive tokens are redacted at the source; game chat and player data are not forwarded here.</p>
+          <div class="hv-management-log-grid">
+            <div><h3>Restart</h3><pre id="hv-management-log-restart">No entries available.</pre></div>
+            <div><h3>Combat forwarder</h3><pre id="hv-management-log-forwarder">No entries available.</pre></div>
+            <div><h3>Command Bridge</h3><pre id="hv-management-log-bridge">No entries available.</pre></div>
+          </div>
+        </section>
+        <p class="hv-muted hv-management-footnote">Maintenance actions are available only when the dedicated BinaryLane agent is online and server-side writes are explicitly enabled. No browser ever receives the agent token.</p>
+      </section>
+    </main>
+    <footer><span>© 2026 Hollow Valley</span><span>OWNER SERVER OPERATIONS</span><a href="/admin">Back to admin hub</a></footer>
+  </div>
+  <script src="/assets/common.js?v=22"></script>
+  <script src="/assets/admin-server-management.js?v=1"></script>
+</body>
+</html>

@@ -11,6 +11,9 @@ test('RCON control actions are allowlisted and validated', () => {
   });
   assert.deepEqual(rcon.buildAction('save'), { action: 'save', code: 0x50, params: '' });
   assert.deepEqual(rcon.buildAction('aiDensity', { value: 0.5 }), { action: 'aiDensity', code: 0x92, params: '0.5' });
+  assert.throws(() => rcon.buildAction('growthMultiplier', { value: 3 }), /confirmation/);
+  assert.throws(() => rcon.validateGrowthMultiplier('3x'), /Invalid experimental growth/);
+  assert.throws(() => rcon.validateGrowthMultiplier(25), /Invalid experimental growth/);
   assert.throws(() => rcon.buildAction('unknown'), /Unsupported/);
   assert.throws(() => rcon.buildAction('aiDensity', { value: 1.1 }), /between 0 and 1/);
   assert.throws(() => rcon.buildAction('announce', { message: 'x'.repeat(241) }), /240/);
@@ -41,6 +44,7 @@ test('RCON writes fail closed unless the specific action is enabled', async () =
     'RCON_CORPSE_WIPE_WRITE_ENABLED',
     'RCON_SAVE_WRITE_ENABLED',
     'RCON_AI_DENSITY_WRITE_ENABLED',
+    'RCON_GROWTH_MULTIPLIER_WRITE_ENABLED',
   ];
   const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
 
@@ -49,6 +53,7 @@ test('RCON writes fail closed unless the specific action is enabled', async () =
   process.env.RCON_CORPSE_WIPE_WRITE_ENABLED = 'true';
   process.env.RCON_SAVE_WRITE_ENABLED = 'false';
   process.env.RCON_AI_DENSITY_WRITE_ENABLED = 'false';
+  process.env.RCON_GROWTH_MULTIPLIER_WRITE_ENABLED = 'false';
 
   assert.equal(rcon.writeEnabled('announce'), true);
   assert.equal(rcon.writeEnabled('wipeCorpses'), true);
@@ -60,6 +65,7 @@ test('RCON writes fail closed unless the specific action is enabled', async () =
     wipeCorpses: true,
     save: false,
     aiDensity: false,
+    growthMultiplier: false,
   });
 
   await assert.rejects(() => rcon.execute('save'), /RCON_SAVE_WRITE_ENABLED/);
@@ -106,4 +112,28 @@ test('legacy RCON_WRITE_ENABLED remains a fallback when no per-action gate is se
   else process.env.RCON_WRITE_ENABLED = previousGlobal;
   if (previousAnnouncement === undefined) delete process.env.RCON_ANNOUNCEMENT_WRITE_ENABLED;
   else process.env.RCON_ANNOUNCEMENT_WRITE_ENABLED = previousAnnouncement;
+});
+
+test('growth writes require their own gate even when legacy all-write is enabled', async () => {
+  const keys = ['RCON_DISABLED', 'RCON_WRITE_ENABLED', 'RCON_GROWTH_MULTIPLIER_WRITE_ENABLED', 'RCON_GROWTH_EXPERIMENTAL_ENABLED'];
+  const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+  try {
+    delete process.env.RCON_DISABLED;
+    delete process.env.RCON_GROWTH_EXPERIMENTAL_ENABLED;
+    process.env.RCON_WRITE_ENABLED = 'true';
+    delete process.env.RCON_GROWTH_MULTIPLIER_WRITE_ENABLED;
+    assert.equal(rcon.writeEnabled('growthMultiplier'), false);
+    await assert.rejects(() => rcon.execute('growthMultiplier', { value: 3 }), /RCON_GROWTH_MULTIPLIER_WRITE_ENABLED/);
+    process.env.RCON_GROWTH_MULTIPLIER_WRITE_ENABLED = 'true';
+    assert.equal(rcon.writeEnabled('growthMultiplier'), false);
+    process.env.RCON_GROWTH_EXPERIMENTAL_ENABLED = 'true';
+    assert.equal(rcon.writeEnabled('growthMultiplier'), true);
+    process.env.RCON_DISABLED = 'true';
+    assert.equal(rcon.writeEnabled('growthMultiplier'), false);
+  } finally {
+    for (const key of keys) {
+      if (previous[key] === undefined) delete process.env[key];
+      else process.env[key] = previous[key];
+    }
+  }
 });

@@ -128,6 +128,7 @@ async function fulfillViaCommandBridge(order, state) {
     if (row && row.status === 'completed') {
       const result = resultPayload(row);
       if (result?.ok === true && result?.source === 'DinoStorage') {
+        require('./dinoStorageCapacityService').markMaterialized(`official:${order.id}`);
         const fulfilled = marketplace.markOrderFulfilled(order.id, fulfillmentMeta(order, state, {
           commandId: progress.commandId,
           commandStatus: 'completed',
@@ -217,6 +218,12 @@ async function fulfillOrder(orderId) {
   const state = buildStoredState(order);
 
   try {
+    const capacity = require('./dinoStorageCapacityService');
+    if (capacity.enabled()) {
+      // Orders paid before rollout retain delivery rights, even if the owner
+      // has since lost a membership bonus. New orders reserve before charging.
+      await capacity.reserveIncoming({ steamId: order.steam_id, slot: state.slot, operation: `official:${order.id}`, allowExisting: true });
+    }
     if (deliveryTransport() === 'command_bridge') {
       return await fulfillViaCommandBridge(order, state);
     }

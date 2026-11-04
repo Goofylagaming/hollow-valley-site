@@ -6,6 +6,7 @@ const COMMANDS = Object.freeze({
   wipeCorpses: 0x13,
   save: 0x50,
   aiDensity: 0x92,
+  growthMultiplier: 0x22,
 });
 
 const ACTION_GATES = Object.freeze({
@@ -14,6 +15,7 @@ const ACTION_GATES = Object.freeze({
   wipeCorpses: 'RCON_CORPSE_WIPE_WRITE_ENABLED',
   save: 'RCON_SAVE_WRITE_ENABLED',
   aiDensity: 'RCON_AI_DENSITY_WRITE_ENABLED',
+  growthMultiplier: 'RCON_GROWTH_MULTIPLIER_WRITE_ENABLED',
 });
 
 function envEnabled(name) {
@@ -36,6 +38,11 @@ function writeEnabled(action = null) {
 
   const gate = ACTION_GATES[action];
   if (!gate) return false;
+
+  // Experimental opt-in never inherits the legacy all-write gate.
+  if (action === 'growthMultiplier') {
+    return envEnabled(gate) && envEnabled('RCON_GROWTH_EXPERIMENTAL_ENABLED');
+  }
 
   // Explicit per-action gates override the legacy global gate. If a specific
   // gate is not present, keep backward compatibility with RCON_WRITE_ENABLED.
@@ -89,6 +96,18 @@ function validateDensity(value) {
   return density;
 }
 
+// Only the two scalar candidates explicitly authorised for this experiment.
+// Their gameplay effect and command semantics are not verified.
+const GROWTH_PRESETS = Object.freeze([2, 3]);
+
+function validateGrowthMultiplier(value) {
+  const multiplier = typeof value === 'number' ? value : NaN;
+  if (!Number.isFinite(multiplier) || !GROWTH_PRESETS.includes(multiplier)) {
+    throw new Error('Invalid experimental growth value: only 2 or 3 is allowed');
+  }
+  return multiplier;
+}
+
 function buildAction(action, payload = {}) {
   switch (action) {
     case 'announce':
@@ -107,6 +126,11 @@ function buildAction(action, payload = {}) {
       return { action, code: COMMANDS.wipeCorpses, params: '' };
     case 'aiDensity':
       return { action, code: COMMANDS.aiDensity, params: String(validateDensity(payload.value)) };
+    case 'growthMultiplier':
+      if (payload.confirm !== 'TEST GROWTH' || payload.experimental !== true) {
+        throw new Error('Experimental growth requires TEST GROWTH confirmation and experimental=true');
+      }
+      return { action, code: COMMANDS.growthMultiplier, params: String(validateGrowthMultiplier(payload.value)) };
     default:
       throw new Error('Unsupported RCON control action');
   }
@@ -115,7 +139,9 @@ function buildAction(action, payload = {}) {
 async function execute(action, payload = {}) {
   if (!writeEnabled(action)) {
     const gate = ACTION_GATES[action] || 'RCON_WRITE_ENABLED';
-    const error = new Error(`RCON ${action} writes are disabled. Enable ${gate}=true only after operator review.`);
+    const error = new Error(action === 'growthMultiplier'
+      ? `Experimental growth requires ${gate}=true and RCON_GROWTH_EXPERIMENTAL_ENABLED=true.`
+      : `RCON ${action} writes are disabled. Enable ${gate}=true only after operator review.`);
     error.code = 'RCON_WRITE_DISABLED';
     error.gate = gate;
     throw error;
@@ -125,9 +151,12 @@ async function execute(action, payload = {}) {
   return {
     action,
     sent: result.sent,
-    confirmed: result.confirmed,
+    confirmed: action === 'growthMultiplier' ? false : result.confirmed,
     response: result.response || null,
-    warning: result.warning || null,
+    warning: action === 'growthMultiplier'
+      ? 'Experimental request only. Effect and scope are unverified. No Game.ini change, automatic restoration or restart. Check gameplay before retrying.'
+      : result.warning || null,
+    ...(action === 'growthMultiplier' ? { experimental: true, effectVerified: false } : {}),
     executedAt: new Date().toISOString(),
   };
 }
@@ -153,6 +182,8 @@ module.exports = {
   validateMessage,
   validateSteamId,
   validateDensity,
+  validateGrowthMultiplier,
+  GROWTH_PRESETS,
   buildAction,
   execute,
   getState,

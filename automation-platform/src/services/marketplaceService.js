@@ -29,12 +29,14 @@ function assertOfficialPurchaseEnabled() {
   }
 }
 
-function purchaseCatalogItem({ steamId, catalogId, idempotencyKey }) {
+function purchaseCatalogItem({ steamId, catalogId, idempotencyKey, reservedOrderId = null }) {
   assertOfficialPurchaseEnabled();
   const buyer = store.validateSteamId(steamId);
   const itemId = String(catalogId || '').trim();
   const key = String(idempotencyKey || '').trim();
   if (!key || key.length > 160) throw new Error('Marketplace idempotency key is required');
+  const capacity = require('./dinoStorageCapacityService');
+  if (capacity.enabled()) capacity.initialize();
 
   db.exec('BEGIN IMMEDIATE');
   try {
@@ -59,6 +61,11 @@ function purchaseCatalogItem({ steamId, catalogId, idempotencyKey }) {
       assertOfficialDinoSalePolicy(item);
     }
 
+    const orderId = reservedOrderId || randomUUID();
+    if (item.item_type === 'dino' && capacity.enabled()) {
+      capacity.assertReservation({ steamId: buyer, slot: capacity.officialSlot(orderId), operation: `official:${orderId}` });
+    }
+
     const wallet = db.prepare('SELECT balance FROM economy_wallets WHERE steam_id = ?').get(buyer);
     if (Number(wallet.balance) < Number(item.price)) {
       const error = new Error('Not enough Valley Coin');
@@ -66,7 +73,6 @@ function purchaseCatalogItem({ steamId, catalogId, idempotencyKey }) {
       throw error;
     }
 
-    const orderId = randomUUID();
     const nextBalance = Number(wallet.balance) - Number(item.price);
     const snapshot = {
       id: item.id,
@@ -106,6 +112,34 @@ function purchaseCatalogItem({ steamId, catalogId, idempotencyKey }) {
     };
   } catch (error) {
     try { db.exec('ROLLBACK'); } catch {}
+    throw error;
+  }
+}
+
+async function purchaseCatalogItemWithCapacity(input) {
+  const capacity = require('./dinoStorageCapacityService');
+  if (!capacity.enabled()) return purchaseCatalogItem(input);
+  assertOfficialPurchaseEnabled();
+  const buyer = store.validateSteamId(input.steamId);
+  const key = String(input.idempotencyKey || '').trim();
+  if (!key || key.length > 160) throw new Error('Marketplace idempotency key is required');
+  // Existing orders are already paid for; retries must return their original
+  // receipt rather than reserve another slot or charge a second time.
+  const existing = db.prepare('SELECT id FROM economy_marketplace_orders WHERE idempotency_key = ?').get(key);
+  if (existing) return purchaseCatalogItem(input);
+  const item = store.getCatalogItem(String(input.catalogId || '').trim());
+  if (!item || !item.active || item.item_type !== 'dino') return purchaseCatalogItem(input);
+  assertOfficialDinoSalePolicy(item);
+  const orderId = randomUUID();
+  const operation = `official:${orderId}`;
+  const admission = await capacity.reserveIncoming({ steamId: buyer, slot: capacity.officialSlot(orderId), operation });
+  try {
+    const result = purchaseCatalogItem({ ...input, reservedOrderId: orderId });
+    if (result.duplicate && admission.enabled) capacity.releaseReservation(operation);
+    return result;
+  } catch (error) {
+    // The synchronous transaction rolled back and no delivery was attempted.
+    if (admission.enabled) capacity.releaseReservation(operation);
     throw error;
   }
 }
@@ -195,6 +229,7 @@ module.exports = {
   assertWriteEnabled,
   assertOfficialPurchaseEnabled,
   purchaseCatalogItem,
+  purchaseCatalogItemWithCapacity,
   updateOrderFulfillmentProgress,
   markOrderFulfilled,
   markOrderFailed,

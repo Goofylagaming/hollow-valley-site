@@ -1,6 +1,7 @@
 const { randomUUID } = require('node:crypto');
 const store = require('./automationStore');
 const discord = require('./discordAutomationService');
+const speciesEvents = require('./speciesCoinEventService');
 
 const RECURRENCES = new Set(['none', 'daily', 'weekly']);
 let cycleRunning = false;
@@ -105,6 +106,14 @@ async function runDueJobs() {
       const result = await executeJob(job);
       if (result?.status === 'failed') failed += 1;
       else completed += 1;
+    }
+    // Random species events are time-gated in the payout function itself.
+    // This separate sweep queues start/expiry notices, without any player data
+    // or wallet mutation and without requiring game-server restarts.
+    try {
+      speciesEvents.reconcileAnnouncements();
+    } catch (error) {
+      console.warn('[species-event-announcement]', error.message);
     }
     return { skipped: false, checked: jobs.length, completed, failed };
   } finally {

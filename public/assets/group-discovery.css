@@ -1,0 +1,39 @@
+.hv-group-main{min-height:78vh;padding:clamp(20px,4.4vw,66px);background:#07160f;color:#f1f2e4;}
+.hv-group-hero{padding:clamp(23px,4vw,46px);border:1px solid #547451;border-radius:14px;background:linear-gradient(130deg,#0a2d21ef,#1a3e28d9),url('/assets/images/hollow-valley-banner.png') center/cover;}
+.hv-group-eyebrow{color:#a6ddb2;font-size:10px;letter-spacing:.16em;font-weight:800;margin:0 0 12px;}
+.hv-group-hero h1{color:#f5dfb3;font:600 clamp(31px,4.3vw,54px)/1.15 Georgia,serif;margin:0 0 14px;}
+.hv-group-hero p{max-width:800px;line-height:1.8;color:#caddcb;font-size:14px;}
+.hv-group-hero a,.hv-group-panel a{color:#efce8a;font-size:13px;text-decoration:underline;text-underline-offset:4px;}
+.hv-group-panel{margin:20px 0;padding:clamp(18px,3vw,30px);border:1px solid #3b5e42;border-radius:11px;background:linear-gradient(145deg,#0c2b1b,#071e14);}
+.hv-group-panel h2{font:600 clamp(22px,3vw,34px)/1.2 Georgia,serif;color:#f3e3bf;margin:0 0 14px;}
+.hv-group-panel h3{font:600 21px Georgia,serif;color:#ecd19d;}
+.hv-group-panel p,.hv-group-hint{color:#c5d4c4;line-height:1.7;font-size:13px;}
+.hv-community-links{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px;margin:19px 0;}
+.hv-community-links a{display:flex;flex-direction:column;min-height:145px;gap:7px;background:#0d2d20;border:1px solid #45644a;border-radius:10px;padding:20px;}
+.hv-community-links a span{font-size:25px;color:#e9d08d;}
+.hv-community-links a strong{font:600 21px Georgia,serif;color:#f5e5bf;}
+.hv-community-links a small{color:#bdd1be;line-height:1.4;font-size:11px;}
+.hv-group-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin:15px 0;}
+.hv-group-card{min-width:0;display:flex;flex-direction:column;gap:11px;background:#0b1c15;border:1px solid #406149;border-radius:10px;padding:20px;}
+.hv-group-card small{color:#a1cbb0;font-size:11px;}
+.hv-group-card strong{font:600 21px Georgia,serif;color:#f3e3ba;}
+.hv-group-card p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7;color:#d1e0d2;font-size:12px;}
+.hv-group-card button{align-self:start;margin-top:auto;}
+.hv-group-filters{display:flex;align-items:end;flex-wrap:wrap;gap:15px;margin:15px 0;}
+.hv-group-filters label{flex:1 1 210px;min-width:0;display:grid;gap:8px;font-size:12px;font-weight:700;color:#d9e5d2;}
+.hv-group-filters .hv-group-wide{flex-basis:100%;}
+.hv-group-filters input,.hv-group-filters select,.hv-group-filters textarea{width:100%;min-height:42px;padding:10px;background:#103120;color:#f1e8d3;border:1px solid #617e68;border-radius:7px;font:500 13px Manrope,Arial,sans-serif;}
+.hv-group-filters textarea{min-height:90px;resize:vertical;}
+.hv-group-filters .hv-group-check{display:flex;align-items:center;gap:10px;flex-basis:100%;}
+.hv-group-check input{width:18px;min-height:18px;}
+.hv-group-main button{cursor:pointer;min-height:43px;padding:10px 15px;background:#275c3a;color:#f8ebc7;border:1px solid #c9ad7a;border-radius:7px;font-size:12px;font-weight:750;}
+.hv-group-main button:disabled{opacity:.55;cursor:wait;}
+.hv-group-main :focus-visible{outline:3px solid #f7d992;outline-offset:3px;}
+.hv-group-list{display:grid;gap:10px;margin-top:14px;}
+.hv-group-list article{padding:15px;border:1px solid #35543c;border-radius:9px;background:#0a1d12;}
+.hv-group-list p{white-space:pre-wrap;overflow-wrap:anywhere;}
+.hv-group-list small{color:#afc8b2;}
+.hv-group-heading{display:flex;justify-content:space-between;align-items:end;flex-wrap:wrap;gap:10px;}
+#hv-group-search-status,#hv-group-interest-status,#hv-group-owner-status{color:#f1d79c;font-size:12px;}
+@media(max-width:1000px){.hv-community-links,.hv-group-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media(max-width:620px){.hv-group-main{padding:16px 12px 40px;}.hv-community-links,.hv-group-grid{grid-template-columns:1fr;}.hv-group-panel{padding:18px;}.hv-community-links a{min-height:105px;}}

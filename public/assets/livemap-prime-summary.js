@@ -81,6 +81,16 @@
               </span>`).join("") : '<span class="prime-map-mini-empty">No mapped zone visits yet.</span>'}
           </div>
         </div>
+        <div class="prime-reset-controls">
+          <button type="button" class="prime-zone-reset-button"
+            data-prime-zone-reset="${escapeHtml(life.id)}">Reset tracked zones</button>
+          <p class="prime-reset-hint">After Entomb, spawn your new dinosaur and check that
+            the tracker shows its current life. This restarts tracked migration,
+            patrol and sanctuary visits only; existing Prime status is preserved.</p>
+          <span role="status" aria-live="polite" data-prime-reset-feedback>
+            ${progress.zoneResetAt ? `Last reset: ${escapeHtml(shortDate(progress.zoneResetAt))}. Re-enter your current zone to count it again.` : ""}
+          </span>
+        </div>
       </section>`;
   }
 
@@ -92,6 +102,7 @@
     }
   }
 
+  window.addEventListener("hv-prime-zones-reset", () => { load(); });
   load();
   const timer = setInterval(() => {
     if (!document.hidden) load();

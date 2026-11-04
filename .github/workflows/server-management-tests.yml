@@ -1,0 +1,35 @@
+name: BinaryLane owner management tests
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'server/index.js'
+      - 'server/services/serverManagement.js'
+      - 'server/routes/serverManagement.js'
+      - 'server/pages/adminServerManagement.html'
+      - 'public/assets/admin-server-management.*'
+      - 'public/assets/common.js'
+      - 'public/admin.html'
+      - 'public/partials/nav.html'
+      - 'scripts/windows/*ServerManagement*.ps1'
+      - 'test/serverManagement.test.js'
+      - '.github/workflows/server-management-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  management-security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: BinaryLane owner-only access and no-replay tests
+        run: node --test test/serverManagement.test.js test/financeOwner.test.js test/adminPagesRoute.test.js
