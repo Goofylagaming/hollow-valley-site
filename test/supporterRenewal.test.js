@@ -49,7 +49,8 @@ test('one-month checkout validates a monthly price and persists the authenticate
         assert.equal(options.body.get('mode'), 'subscription');
         assert.equal(options.body.get('subscription_data[metadata][renewal_mode]'), 'one_month');
         assert.equal(options.body.get('subscription_data[metadata][user_id]'), '42');
-        assert.match(options.body.get('custom_text[submit][message]'), /One month only/);
+        assert.equal(options.body.has('custom_text[submit][message]'), false, 'Managed Payments does not support custom_text');
+        assert.equal(options.body.has('managed_payments[enabled]'), false, 'preserve account payment settings');
         return response(session);
       } });
     assert.equal(calls, 2);

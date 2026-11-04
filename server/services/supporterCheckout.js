@@ -129,9 +129,8 @@ async function createCheckoutSession({ tier, userId, steamId = null, renewalMode
   }
   body.set("metadata[renewal_mode]", renewalMode);
   body.set("subscription_data[metadata][renewal_mode]", renewalMode);
-  if (renewalMode === "one_month") {
-    body.set("custom_text[submit][message]", "One month only: Hollow Valley will turn off renewal after checkout. Your membership ends after the first paid month.");
-  }
+  // Keep the renewal disclosure on our membership page: Stripe Managed
+  // Payments rejects custom_text. Preserve the account's payment settings.
 
   try {
     if (renewalMode === "one_month") {
