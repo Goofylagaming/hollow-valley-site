@@ -160,7 +160,8 @@
     const highest = (Array.isArray(rewards.loyalty?.milestones) ? rewards.loyalty.milestones : []).filter((milestone) => milestone.earned === true)
       .sort((left, right) => Number(right.months) - Number(left.months))[0];
     if (loyalty && highest && appearance.badgeVisible) {
-      loyalty.textContent = `${Number(highest.months)}-month supporter`;
+      loyalty.textContent = highest.title || `${Number(highest.months)}-month supporter`;
+      loyalty.title = `${Number(highest.months)} verified paid months`;
       loyalty.hidden = false;
     }
   }

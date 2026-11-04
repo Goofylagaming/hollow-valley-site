@@ -115,6 +115,17 @@ test("paid history verification is offered only when a linked subscription can b
   assert.doesNotMatch(client.renderRewards(payload, "Goofy"), /Verify paid history/);
 });
 
+test("earned loyalty profile badge uses the named milestone reward", () => {
+  const avatar = { attributes: {}, removeAttribute(key) { delete this.attributes[key]; }, setAttribute(key, value) { this.attributes[key] = value; } };
+  const badge = { hidden: false, textContent: "" };
+  const loyalty = { hidden: true, textContent: "", title: "" };
+  const document = { querySelector() { return avatar; }, getElementById(id) { return id === "profile-supporter-badge" ? badge : loyalty; } };
+  client.applyProfileAppearance(document, rewards());
+  assert.equal(loyalty.hidden, false);
+  assert.equal(loyalty.textContent, "Valley Rooted");
+  assert.equal(loyalty.title, "3 verified paid months");
+});
+
 test("private badge preference hides both membership and loyalty badges on profile", () => {
   const avatar = { attributes: {}, removeAttribute(key) { delete this.attributes[key]; }, setAttribute(key, value) { this.attributes[key] = value; } };
   const badge = { hidden: false, textContent: "Valley Guardian" };
