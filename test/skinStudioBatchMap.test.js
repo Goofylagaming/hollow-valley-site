@@ -88,8 +88,9 @@ test("live UI batch stays admin-only, browser-local and does not touch wear or p
   assert.match(html, /id="skin-calibration-batch-download"/);
   assert.ok(html.indexOf("skin-studio-auto-map.js?v=2") <
     html.indexOf("skin-studio-batch-map.js?v=1"));
-  assert.ok(html.indexOf("skin-studio-batch-map.js?v=1") <
-    html.indexOf("skin-studio-3d.js?v=24"));
+  const batchIndex = html.indexOf("skin-studio-batch-map.js?v=");
+  const viewerIndex = html.indexOf("skin-studio-3d.js?v=");
+  assert.ok(batchIndex >= 0 && viewerIndex >= 0 && batchIndex < viewerIndex);
   assert.match(viewer, /async function batchMapAllLocalModels\(\)/);
   assert.match(viewer, /await gltfLoader.loadAsync\(def.loader.url\)/);
   assert.match(viewer, /buildModelUvCoverage\(gltf.scene\)/);
