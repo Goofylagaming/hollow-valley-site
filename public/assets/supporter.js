@@ -240,7 +240,7 @@ async function loadTiers(status = currentStatus) {
         ? `<p><strong>${coins.toLocaleString("en-AU")} Valley Coins</strong><br>on each eligible monthly payment</p>` : "";
       return `<div class="tier-card">
         <h3>${escapeHtml(tier.label)}</h3>
-        <p class="price">A${tier.priceAud.toFixed(2)} / month</p>
+        <p class="price">A$${tier.priceAud.toFixed(2)} / month</p>
         ${bonus}
         <p class="section-intro">×${Number(tier.multiplier || 1)} on eligible Valley Coin rewards</p>
         <button

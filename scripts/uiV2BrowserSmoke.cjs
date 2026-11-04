@@ -294,6 +294,13 @@ async function checkSubscriberBarFixture(browser, origin, route, size, label) {
     assert.equal(await meter.getAttribute("aria-valuenow"), String(fixture.coveragePercent));
     assert.equal(await meter.getAttribute("aria-valuetext"), fixture.coveragePercent + "% of this month’s running costs covered");
     const barText = await bar.textContent();
+    if (route === "/supporter") {
+      const prices = page.locator("#tier-grid .price");
+      await prices.first().waitFor({ state: "visible" });
+      const textPrices = await prices.allTextContents();
+      assert.equal(textPrices.length, 3);
+      for (const price of textPrices) assert.match(price, /^A\$\d+\.\d{2} \/ month$/);
+    }
     assert.ok(barText.includes(monthLabel + " (QLD)"));
     assert.ok(barText.includes("First goal: 50%") && barText.includes("Stretch goal: 75%"));
     assert.doesNotMatch(barText, /\$|\bAUD\b|Stripe|monthly cost milestones/i);
