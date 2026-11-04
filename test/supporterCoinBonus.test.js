@@ -101,17 +101,18 @@ test('proration and upgrade invoices do not award another monthly bonus', async 
   assert.equal(called, false);
 });
 
-test('monthly subscriber bonus is not paid after cancellation, even when invoice.paid is delayed', async () => {
+test('delayed paid invoice stays eligible with renewal off; expiry and cancellation block payouts', async () => {
   reset();
   let calls = 0;
-  const fetchImpl = async () => { calls++; throw new Error('cancelled account must not be credited'); };
+  const fetchImpl = async () => { calls++; return { ok: true, json: async () => ({ ok: true }) }; };
   db.prepare("UPDATE supporter_subscriptions SET auto_renew = 0, cancelled_at = datetime('now') WHERE user_id = 42").run();
-  const ending = await creditMonthlySubscriberBonus(invoiceEvent({ id: 'in_cancelled_001' }), { fetchImpl });
-  assert.deepEqual(ending, {
-    skipped: true, reason: 'subscription-no-longer-coin-eligible', subscriptionId: 'sub_test_42',
-  });
-  db.prepare("UPDATE supporter_subscriptions SET stripe_status = 'canceled', auto_renew = 0 WHERE user_id = 42").run();
-  const expired = await creditMonthlySubscriberBonus(invoiceEvent({ id: 'in_cancelled_002' }), { fetchImpl });
-  assert.equal(expired.skipped, true);
-  assert.equal(calls, 0);
+  const ending = await creditMonthlySubscriberBonus(invoiceEvent({ id: 'in_paid_001' }), { fetchImpl });
+  assert.equal(ending.skipped, false);
+  assert.equal(ending.amount, 15000);
+  assert.equal(calls, 1);
+  db.prepare("UPDATE supporter_subscriptions SET renews_at = '2020-01-01T00:00:00Z' WHERE user_id = 42").run();
+  assert.equal((await creditMonthlySubscriberBonus(invoiceEvent({ id: 'in_expired' }), { fetchImpl })).skipped, true);
+  db.prepare("UPDATE supporter_subscriptions SET stripe_status = 'canceled', renews_at = '2099-01-01T00:00:00Z' WHERE user_id = 42").run();
+  assert.equal((await creditMonthlySubscriberBonus(invoiceEvent({ id: 'in_cancelled' }), { fetchImpl })).skipped, true);
+  assert.equal(calls, 1);
 });

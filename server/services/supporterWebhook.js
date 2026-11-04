@@ -351,13 +351,10 @@ function isEntitled(status, now = Date.now()) {
   return Boolean(status && status.stripe_status === "active" && until !== null && until > now);
 }
 
-// Supporters may retain paid access until the end of a billing period after
-// cancelling renewal. Bonus Valley Coins stop as soon as cancellation is
-// confirmed, regardless of whether Stripe still reports "active". A one-month
-// purchase intentionally has no renewal; its coin benefits last the paid month.
-function isCoinBonusEligible(row) {
-  return Boolean(row && isEntitled(row) &&
-    (row.renewal_mode === "one_month" || (Number(row.auto_renew) === 1 && !row.cancelled_at)));
+// Renewal preference does not shorten paid access. Coin rewards follow the
+// same active-subscription and paid-period boundary as other subscriber perks.
+function isCoinBonusEligible(row, now = Date.now()) {
+  return Boolean(row && typeof row === "object" && isEntitled(row, now));
 }
 
 module.exports = {

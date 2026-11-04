@@ -4,9 +4,9 @@
 
 Subscriber benefits require an active Stripe subscription and a known future
 billing-period end. Scheduled cancellation keeps Discord membership, badges,
-tier frames, extra storage allowance and monthly skin-choice eligibility until
-that boundary. The existing coin policy remains stricter: requesting cancellation
-stops monthly bonus payouts and coin multipliers immediately.
+tier frames, monthly skin-choice eligibility, eligible monthly coin payouts and
+coin multipliers until that boundary. Turning off renewal never shortens paid
+access. DinoStorage remains unlimited for every player.
 
 There is no payment-failure grace period. `past_due`, `unpaid`, `paused`,
 `incomplete`, `incomplete_expired`, `canceled` and `trialing` do not grant paid

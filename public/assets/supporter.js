@@ -138,7 +138,7 @@ async function loadStatus() {
       try {
         await api("/api/supporter/cancel", { method: "POST" });
         document.getElementById("checkout-message").textContent =
-          "Cancellation scheduled. Subscriber coin bonuses stop now. Other eligible paid benefits continue until the paid period ends.";
+          "Auto-renew is off. All subscriber perks, including coin bonuses, continue until your paid period ends.";
         queueStatusRefresh();
       } catch (err) {
         alert(err.message);
