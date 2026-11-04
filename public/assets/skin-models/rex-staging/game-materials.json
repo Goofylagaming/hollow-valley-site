@@ -1,0 +1,138 @@
+{
+  "gameBuild": "24664737",
+  "verifiedInGame": false,
+  "textures": {
+    "pattern": {
+      "source": "T_Tyrannosaurus_Adult_Pattern_1",
+      "sourceSize": [
+        2048,
+        2048
+      ],
+      "previewSize": [
+        2048,
+        2048
+      ],
+      "sha256": "560fe49781fc506601553d717f320151ab0db2eeafcfb8eadca3e7eb3d760e03"
+    },
+    "normal": {
+      "source": "T_Tyrannosaurus_N",
+      "sourceSize": [
+        4096,
+        4096
+      ],
+      "previewSize": [
+        2048,
+        2048
+      ],
+      "sha256": "16e2addb195bb89a378f9407ceb082cf3c075cc3f712534fcdacab68d2844894"
+    },
+    "surface": {
+      "source": "T_Tyrannosaurus_RAC",
+      "sourceSize": [
+        4096,
+        4096
+      ],
+      "previewSize": [
+        2048,
+        2048
+      ],
+      "sha256": "4f34505faeca3e9eece43ff35127bdf9ed72f7f8cbc19a211326d0a1a253c0a8"
+    },
+    "zones": {
+      "source": "T_Tyrannosaurus_Mask_TMC",
+      "sourceSize": [
+        2048,
+        2048
+      ],
+      "previewSize": [
+        2048,
+        2048
+      ],
+      "sha256": "0535becb31ceaf8badfaaeb7d036283df985b1ebe90c5681751593c916cda63c"
+    },
+    "detail-normal": {
+      "source": "T_DinoSkinDetail_5_N",
+      "sourceSize": [
+        512,
+        512
+      ],
+      "previewSize": [
+        512,
+        512
+      ],
+      "sha256": "f3056c7c9d3023832d6dd39f26e6c6b3b3804c075febb25ee203c339ae682b06"
+    },
+    "iris": {
+      "source": "T_AnimalEyes_Iris_2",
+      "sourceSize": [
+        1024,
+        1024
+      ],
+      "previewSize": [
+        1024,
+        1024
+      ],
+      "sha256": "69e3728d2114cb475d00a0f666ca37c31bbe2fee34937b87b21a4b2c3f59db13"
+    },
+    "pupil": {
+      "source": "T_AnimalEyes_Pupil_3",
+      "sourceSize": [
+        2048,
+        2048
+      ],
+      "previewSize": [
+        2048,
+        2048
+      ],
+      "sha256": "02024359b419c1629c1133abc376cb213ecd3d08bfeb339f45a0d74861b17f5e"
+    },
+    "pattern2": {
+      "source": "T_Tyrannosaurus_Adult_Pattern_2.png",
+      "sourceSize": [
+        2048,
+        2048
+      ],
+      "previewSize": [
+        2048,
+        2048
+      ],
+      "sha256": "a55798a10bbaa1de5f91e4f68b711123762e293a4f0152748eeab1a31091d262"
+    },
+    "pattern3": {
+      "source": "T_Tyrannosaurus_Adult_Pattern_3.png",
+      "sourceSize": [
+        2048,
+        2048
+      ],
+      "previewSize": [
+        2048,
+        2048
+      ],
+      "sha256": "aa5e644959ead0890c9c42916d0d249c8610865fd8945a6b1b09ce15c2d40161"
+    },
+    "pattern4": {
+      "source": "T_Tyrannosaurus_Adult_Pattern_4__Grizzly_V1__3_.png",
+      "sourceSize": [
+        2048,
+        2048
+      ],
+      "previewSize": [
+        2048,
+        2048
+      ],
+      "sha256": "dfc48b579ca43ed58cfa2ca421c7d5cc539e04d5d1bec02c0eb7c319ec5b2008"
+    },
+    "pattern5": {
+      "source": "T_Tyrannosaurus_Adult_Pattern_Simple.png",
+      "sourceSize": [
+        2048,
+        2048
+      ],
+      "previewSize": [
+        2048,
+        2048
+      ],
+      "sha256": "a5829978a6e97ebcbe960baf5d35b0f6208a3275f7aad1624402f797828b4420"
+    }
+  }
+}

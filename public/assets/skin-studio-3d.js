@@ -1,3 +1,4 @@
+import { installExtractedMaterial, fitExtractedCamera } from './skin-studio-extracted-material.js?v=1';
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -141,6 +142,8 @@ let currentLoadToken = 0;
 let homeCamera = null;
 let shaderControllers = [];
 let materialBindings = [];
+let extractedController=null;
+let currentPattern=0;
 let shapeTintMaterials = [];
 let shapeTintControllers = [];
 let maskAtlases = [];
@@ -359,6 +362,13 @@ function setRail(def, label = "") {
     return;
   }
 
+  if (def.extracted) {
+    if(modelCapabilityEl)modelCapabilityEl.textContent='TEXTURED COLOUR PREVIEW';
+    if(modelSourceEl)modelSourceEl.textContent='Supplied species mesh and extracted textures';
+    if(modelHelpEl)modelHelpEl.textContent=def.key==='tyrannosaurus'?'Adult Rex patterns checked in game. Lighting, growth and sex differences remain approximate.':'Adult default-pattern preview. Colour mapping, special surfaces and lighting still require in-game verification.';
+    if(modelCreditEl)modelCreditEl.hidden=true;
+    return;
+  }
   if (def.localPreview) {
     if (modelCapabilityEl) modelCapabilityEl.textContent = "PRIVATE LOCAL GLB";
     if (modelSourceEl) modelSourceEl.textContent = "Loaded only in this browser · never uploaded";
@@ -746,6 +756,7 @@ function applyShapeMaterials(root) {
     child.material = Array.isArray(child.material) ? clones : clones[0];
   });
 
+  extractedController?.setPalette(currentPalette);extractedController?.setSex(currentSex);extractedController?.setPattern(currentPattern);
   updateShapeBodyTint(currentPalette.body);
   applyPreviewMode("game");
 }
@@ -1650,6 +1661,7 @@ function applyPreviewMode(mode) {
     groundMaterial.color.set(0x07110d);
   }
 
+  if(currentModelDef?.extracted){scene.fog=null;key.color.set(0xffffff);rim.color.set(0xffffff);rim.intensity=.15;hemi.color.set(0xe5efff);hemi.groundColor.set(0x383229);hemi.intensity=.7;fill.color.set(0xdce8ff);fill.intensity=.65;}
   if (calibrated()) {
     for (const binding of materialBindings) {
       const materials = binding.pairs.map((pair) => pair[previewMode]);
@@ -1678,7 +1690,7 @@ function applyPreviewMode(mode) {
   syncZoneHint();
 
   if (statusEl && model && currentModelDef) {
-    if (currentModelDef.capability === "zones") {
+    if(currentModelDef.extracted){statusEl.textContent=`${currentModelDef.displayName} · textured colour preview · approximate`;} else if (currentModelDef.capability === "zones") {
       statusEl.textContent = `${currentModelDef.displayName} · ${accurate ? "EVRIMA linear colour" : "calibrated game preview"}`;
     } else {
       statusEl.textContent = `${currentModelDef.displayName} · ${calibrated() ? (!accurate && currentModelDef.key === "deinosuchus" && deinoMottling ? "approximate mottled preview · not verified EVRIMA pattern" : "provisional zone preview") : "neutral Body preview · zones pending"}`;
@@ -1722,7 +1734,7 @@ function frameModel(root) {
   camera.position.set(distance, target.y + finalSize.y * 0.13, distance * yaw);
   controls.target.copy(target);
   controls.update();
-  homeCamera = { position: camera.position.clone(), target: controls.target.clone() };
+  homeCamera = currentModelDef?.extracted?fitExtractedCamera(THREE,root,camera,controls,currentModelDef.key):{ position: camera.position.clone(), target: controls.target.clone() };
 }
 
 function updatePalette(palette) {
@@ -1731,6 +1743,7 @@ function updatePalette(palette) {
     controller.setPalette(currentPalette);
     controller.setSex?.(currentSex);
   }
+  extractedController?.setPalette(currentPalette);extractedController?.setSex(currentSex);extractedController?.setPattern(currentPattern);
   updateShapeBodyTint(currentPalette.body);
   syncZoneStrip();
 }
@@ -1762,6 +1775,7 @@ function syncZoneStrip() {
 }
 
 function disposeModel() {
+  extractedController?.dispose();extractedController=null;
   if (referenceFrame) {
     referenceFrame.hidden = true;
     referenceFrame.removeAttribute("src");
@@ -1963,15 +1977,23 @@ async function loadModelForSpecies(label) {
     const gltf = await loadModelResource(def, token);
     if (token !== currentLoadToken) return;
 
+    if(def.extracted){
+      const binding=await installExtractedMaterial(gltf.scene,def.extracted,renderer);
+      if(token!==currentLoadToken){binding.dispose();gltf.scene.traverse(c=>{c.geometry?.dispose();c.material?.dispose();});return;}
+      extractedController=binding;
+    }
     model = gltf.scene;
-    if (def.capability === "zones") applyCalibratedMaterials(model);
+    if(def.extracted) { /* Materials installed without touching editor data. */ }
+    else if (def.capability === "zones") applyCalibratedMaterials(model);
     else applyShapeMaterials(model);
 
     scene.add(model);
     frameModel(model);
     updatePalette(paletteFromEditor());
 
-    if (def.capability === "zones") {
+    if(def.extracted){
+      applyPreviewMode('game');setStatus(true,`${def.displayName} · textured colour preview · approximate`);
+    } else if (def.capability === "zones") {
       applyPreviewMode(previewMode);
       setStatus(true, `${def.displayName} · ${previewMode === "accurate" ? "EVRIMA linear colour" : "calibrated game preview"}`);
     } else {
@@ -1983,7 +2005,7 @@ async function loadModelForSpecies(label) {
     setLocalModelControlsEnabled(true);
     setCalibrationStatus(def.capability === "shape"
       ? `${def.displayName} is inside Hollow Valley's renderer. Body colour now uses a hue-neutral texture preview; map the EVRIMA UV zones to unlock accurate per-region colour painting.`
-      : `${def.displayName} already has a calibrated zone map.`);
+      : def.extracted?`${def.displayName}: extracted textures; preview calibration remains provisional.`:`${def.displayName} already has a calibrated zone map.`);
     if (calibrationToggleEl) calibrationToggleEl.disabled = def.capability !== "shape";
     if (calibrationAutoEl) calibrationAutoEl.disabled = def.capability !== "shape";
     document.dispatchEvent(new CustomEvent("hds:skin-model-ready", {
@@ -2476,6 +2498,7 @@ speciesSelect?.addEventListener("change", () => {
 });
 
 document.addEventListener("hds:skin-preview-change", (event) => {
+  currentPattern=Number(event.detail?.patternIndex)||0;
   currentSex = event.detail?.sex === "female" ? "female" : "male";
   updatePalette(event.detail?.skin || paletteFromEditor());
   const label = event.detail?.species || selectedSpeciesLabel();

@@ -168,7 +168,7 @@
   function renderPreview() {
     const doc = editor.document;
     const previewSpecies = Core.canonicalSpecies(doc.species) === 'universal' ? doc.previewSpecies : doc.species;
-    const detail = { name: doc.name.trim() || 'Untitled skin', species: previewSpecies || 'tyrannosaurus', sex: doc.sex, skin: Object.fromEntries(Core.COLOR_KEYS.map((key) => [key, Core.colorToHex(doc.skin[key])])) };
+    const detail = { patternIndex: doc.skin.patternIndex, name: doc.name.trim() || 'Untitled skin', species: previewSpecies || 'tyrannosaurus', sex: doc.sex, skin: Object.fromEntries(Core.COLOR_KEYS.map((key) => [key, Core.colorToHex(doc.skin[key])])) };
     window.__HV_STUDIO_PREVIEW = detail;
     document.dispatchEvent(new CustomEvent('hds:skin-preview-change', { detail }));
     setText('hv-current-name', detail.name);
