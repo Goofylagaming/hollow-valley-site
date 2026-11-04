@@ -319,6 +319,7 @@ router.post("/:userId/repair-stripe", requireAdmin, async (req, res) => {
       status: subscription.status || "unknown",
       renewsAt: isoFromUnix(subscriptionPeriodEnd(subscription)),
       autoRenew: !subscription.cancel_at_period_end && subscription.status !== "canceled",
+      renewalMode: subscription.metadata?.renewal_mode,
     });
 
     let discordSync = null;

@@ -2,6 +2,7 @@
 
 const { getSupporterStatus } = require("../db");
 const { liveModeEnabled } = require("./supporterCheckout");
+const { ensureOneMonthEnd, serializeMembershipOperation } = require("./supporterRenewal");
 const { processStripeEvent, resolveUser, _test: { invoiceSubscriptionId } } = require("./supporterWebhook");
 const ref = value => typeof value === "string" ? value : value?.id;
 const TYPES = new Set(["checkout.session.completed", "checkout.session.async_payment_succeeded",
@@ -10,11 +11,8 @@ const TYPES = new Set(["checkout.session.completed", "checkout.session.async_pay
 
 // Serialize read/apply pairs in this SQLite process so two HTTP deliveries
 // cannot apply Stripe snapshots in reverse order across an await.
-let tail = Promise.resolve();
 function processLifecycle(event, options = {}) {
-  const job = tail.then(() => reconcile(event, options));
-  tail = job.catch(() => {});
-  return job;
+  return serializeMembershipOperation(() => reconcile(event, options));
 }
 
 async function reconcile(event, { env = process.env, fetchImpl = globalThis.fetch } = {}) {
@@ -44,6 +42,15 @@ async function reconcile(event, { env = process.env, fetchImpl = globalThis.fetc
   if (!userId) throw new Error("Stripe subscription has no verified Hollow Valley account");
   // Validate Checkout's account reference as well as the subscription metadata.
   if (event.type.startsWith("checkout.") && resolveUser(object, subscription.id) !== userId) throw new Error("Stripe checkout account mismatch");
+  await ensureOneMonthEnd(subscription, { secret, fetchImpl });
+  if (subscription.metadata?.renewal_mode === "one_month") {
+    // Read again: a concurrent explicit renewal change may have superseded
+    // the initial cancellation request or an idempotent replay response.
+    subscription = await retrieve(subscriptionId);
+    if (resolveUser(subscription, subscription.id) !== userId) throw new Error("Stripe renewal account mismatch");
+    if (subscription.status === "active" && subscription.metadata?.renewal_mode === "one_month" &&
+        !subscription.cancel_at_period_end) throw new Error("One-month renewal is still pending");
+  }
   const current = getSupporterStatus(userId);
   if (current?.stripe_subscription_id && current.stripe_subscription_id !== subscription.id) {
     const previous = await retrieve(current.stripe_subscription_id);

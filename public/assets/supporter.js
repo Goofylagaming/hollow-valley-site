@@ -116,7 +116,7 @@ async function loadStatus() {
       ? status.auto_renew
         ? `<div class="summary-tile"><button class="small-button" id="cancel-supporter">Cancel at renewal</button></div>`
         : activeManagedSubscription(status)
-          ? `<div class="summary-tile"><button class="small-button" id="resume-supporter">Keep membership</button></div>`
+          ? `<div class="summary-tile"><button class="small-button" id="resume-supporter">Turn on auto-renew</button></div>`
           : ""
       : "";
 
@@ -125,6 +125,7 @@ async function loadStatus() {
       <div class="summary-tile"><small>REWARD MULTIPLIER</small><b>×${Number(status.multiplier || 1)}</b></div>
       <div class="summary-tile"><small>STRIPE STATUS</small><b>${escapeHtml(state)}</b></div>
       <div class="summary-tile"><small>AUTO-RENEW</small><b>${renewText}</b></div>
+      <div class="summary-tile"><small>${status.auto_renew ? "NEXT RENEWAL" : "ACCESS ENDS"}</small><b>${status.renews_at ? escapeHtml(new Date(status.renews_at).toLocaleString("en-AU")) : "Pending payment confirmation"}</b></div>
       <div class="summary-tile"><small>ELIGIBLE COIN BONUS</small><b>${status.coinBonusEligible === true ? "Active" : "Inactive / pending"}</b></div>
       ${managementButton}
     `;
@@ -147,6 +148,7 @@ async function loadStatus() {
     });
 
     document.getElementById("resume-supporter")?.addEventListener("click", async () => {
+      if (!confirm("Turn on automatic monthly payments? You will be charged again at the end of this paid month, then every month until you cancel.")) return;
       const button = document.getElementById("resume-supporter");
       button.disabled = true;
       button.textContent = "Updating…";
@@ -158,7 +160,7 @@ async function loadStatus() {
       } catch (err) {
         alert(err.message);
         button.disabled = false;
-        button.textContent = "Keep membership";
+        button.textContent = "Turn on auto-renew";
       }
     });
 
@@ -209,6 +211,8 @@ async function loadTiers(status = currentStatus) {
   const grid = document.getElementById("tier-grid");
   const { tiers, monthlyCoinBonuses, checkoutConfigured } = await api("/api/supporter/tiers");
   const managing = activeManagedSubscription(status);
+  const renewalChoice = document.getElementById("membership-renewal-choice");
+  if (renewalChoice) renewalChoice.hidden = managing;
   const steamLinked = Boolean(currentMe?.user?.steam_id);
 
   grid.innerHTML = Object.entries(tiers)
@@ -225,7 +229,7 @@ async function loadTiers(status = currentStatus) {
         label = "Link Steam first";
         disabled = true;
       } else if (isCurrent) {
-        label = status.auto_renew ? "Current membership" : "Current until renewal";
+        label = status.auto_renew ? "Current membership" : "Current until expiry";
         disabled = true;
       } else if (managing) {
         label = `Change to ${tier.label}`;
@@ -281,7 +285,10 @@ async function loadTiers(status = currentStatus) {
             `Stripe is changing your membership to ${tierLabel}. The status will update automatically.`;
           queueStatusRefresh();
         } else {
-          const result = await api(`/api/supporter/${tier}/checkout`, { method: "POST" });
+          const renewalMode = document.querySelector('input[name="renewal-mode"]:checked')?.value || "one_month";
+          const result = await api(`/api/supporter/${tier}/checkout`, {
+            method: "POST", body: JSON.stringify({ renewalMode }),
+          });
           if (result.url) window.location.href = result.url;
         }
       } catch (err) {

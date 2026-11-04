@@ -46,7 +46,7 @@ router.post("/", (req, res) => {
   }
 
   const lookup = db.prepare(`
-    SELECT u.steam_id, s.tier, s.stripe_status, s.renews_at, s.auto_renew, s.cancelled_at
+    SELECT u.steam_id, s.tier, s.stripe_status, s.renews_at, s.auto_renew, s.cancelled_at, s.renewal_mode
     FROM users u
     LEFT JOIN supporter_subscriptions s ON s.user_id = u.id
     WHERE u.steam_id = ?

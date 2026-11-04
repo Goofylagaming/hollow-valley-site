@@ -94,7 +94,10 @@ async function stripePriceHealth(env = process.env, fetchImpl = globalThis.fetch
   return { configured: true, live: config.live, tiers };
 }
 
-async function createCheckoutSession({ tier, userId, steamId = null, env = process.env, fetchImpl = globalThis.fetch }) {
+async function createCheckoutSession({ tier, userId, steamId = null, renewalMode = "auto_renew", env = process.env, fetchImpl = globalThis.fetch }) {
+  if (!["one_month", "auto_renew"].includes(renewalMode)) {
+    throw new CheckoutError(400, "Choose one month only or automatic monthly renewal.");
+  }
   const canonicalTier = normalizeTier(tier);
   if (!canonicalTier) throw new CheckoutError(404, "Unknown supporter tier");
   if (userId === undefined || userId === null || String(userId) === "") {
@@ -124,8 +127,23 @@ async function createCheckoutSession({ tier, userId, steamId = null, env = proce
     body.set("metadata[steam_id]", String(steamId));
     body.set("subscription_data[metadata][steam_id]", String(steamId));
   }
+  body.set("metadata[renewal_mode]", renewalMode);
+  body.set("subscription_data[metadata][renewal_mode]", renewalMode);
+  if (renewalMode === "one_month") {
+    body.set("custom_text[submit][message]", "One month only: Hollow Valley will turn off renewal after checkout. Your membership ends after the first paid month.");
+  }
 
   try {
+    if (renewalMode === "one_month") {
+      const priceResponse = await fetchImpl(`https://api.stripe.com/v1/prices/${encodeURIComponent(priceId)}`, {
+        headers: { Authorization: `Bearer ${config.secret}` }, signal: AbortSignal.timeout(10000),
+      });
+      const price = priceResponse.ok ? await priceResponse.json() : null;
+      if (price?.id !== priceId || price.active !== true || price.livemode !== config.live ||
+          price.recurring?.interval !== "month" || price.recurring?.interval_count !== 1) {
+        throw new Error("One-month checkout requires an active monthly Stripe price");
+      }
+    }
     const response = await fetchImpl("https://api.stripe.com/v1/checkout/sessions", {
       method: "POST",
       headers: {
