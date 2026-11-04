@@ -9,15 +9,16 @@ storage restrictions or publication are performed by installing this code alone.
 
 ## Member benefits
 
-| Tier | Monthly skin choices | Proposed extra storage | Profile frame |
-| --- | ---: | ---: | --- |
-| Valley Supporter | 1 | +1 | Fern |
-| Valley Guardian | 2 | +2 | River, plus Fern |
-| Valley Legend | 3 | +4 | Valley Gold, plus lower-tier frames |
+| Tier | Monthly skin choices | Profile frame |
+| --- | ---: | --- |
+| Valley Supporter | 1 | Fern |
+| Valley Guardian | 2 | River, plus Fern |
+| Valley Legend | 3 | Valley Gold, plus lower-tier frames |
 
 The existing prices, eligible Valley Coin multipliers and monthly coin grants
-are retained. Storage additions have no effect until a standard allowance and
-all game-server intake paths are verified; see `MEMBERSHIP_STORAGE_ROLLOUT.md`.
+are retained. DinoStorage is unlimited for every player, including players
+without a subscription. Joining, changing tier or cancelling does not change
+how many dinosaurs a player can park or redeem.
 
 Three cumulative, verified paid months earn the **Valley Companion** frame and
 loyalty badge; six earn **Ancient Guardian**; twelve earn **Heart of the Valley**.
@@ -115,7 +116,7 @@ current entitlements and linked accounts; unrelated Discord roles are retained.
 ## API surface
 
 - `GET /api/supporter/rewards`: authenticated rewards, appearance, monthly
-  allowance, loyalty, downstream storage readiness and Discord sync status.
+  skin choices, loyalty and Discord sync status.
 - `POST /api/supporter/appearance`: select an owned frame and badge visibility.
 - `POST /api/supporter/rewards/sync-history`: verify current-subscription paid
   history through read-only Stripe requests; rate limited and serialized.
@@ -145,9 +146,10 @@ of both website and automation databases before enabling this release.
    its idempotent retry.
 6. Enable Discord reconciliation only after role IDs, bot permissions and
    production environment identity are checked. Confirm expiry and retries.
-7. Leave storage capacity disabled until the base allowance and every native
-   game-server/chat/mod intake route are verified. Then use a controlled store,
-   retrieval, expiry and full-capacity purchase test without risking player data.
+
+DinoStorage capacity is outside this release. Leave the dormant experiment
+disabled and preserve unlimited storage for all players; see
+[`MEMBERSHIP_STORAGE_ROLLOUT.md`](MEMBERSHIP_STORAGE_ROLLOUT.md).
 
 Rollback disables new admission/claim switches while preserving earned rewards,
 pending receipts and dinosaurs. Database rollback is not an application rollback.

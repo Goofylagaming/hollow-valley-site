@@ -234,17 +234,17 @@ test("duplicate balance rows are counted once, and an incomplete page sequence n
   await assert.rejects(collect(incomplete, { maxPages: 1 }), "A reporting limit cannot silently publish a partial total");
 });
 
-test("public reads never fetch Stripe and withhold amounts until a configured verified snapshot exists", async (t) => {
+test("public reads never fetch Stripe and withhold coverage until a configured verified snapshot exists", async (t) => {
   const context = serviceFixture(t);
   assert.equal(context.service.getProgress().available, false);
-  assert.equal(context.service.getProgress().amountMinor, null);
+  assert.equal(context.service.getProgress().coveragePercent, null);
   enable(context.service);
   assert.equal(context.service.getProgress().available, false);
-  assert.equal(context.service.getProgress().amountMinor, null);
+  assert.equal(context.service.getProgress().coveragePercent, null);
   assert.equal(context.reads(), 0);
   await context.service.refresh();
   assert.equal(context.service.getProgress().available, true);
-  assert.equal(context.service.getProgress().amountMinor, 1400);
+  assert.equal(context.service.getProgress().coveragePercent, 9);
   context.service.getProgress();
   context.service.getOwnerState();
   assert.equal(context.reads(), 1);
@@ -258,9 +258,10 @@ test("disabling publication hides cost details while retaining them for the owne
   context.service.setConfig({ ...configured, enabled: false });
   const progress = context.service.getProgress();
   assert.equal(progress.enabled, false);
-  assert.equal(progress.targetCents, null);
-  assert.deepEqual(progress.categories, []);
-  assert.equal(progress.amountMinor, null);
+  assert.equal(progress.configured, false);
+  assert.equal(Object.hasOwn(progress, "targetCents"), false);
+  assert.equal(Object.hasOwn(progress, "categories"), false);
+  assert.equal(progress.coveragePercent, null);
   assert.doesNotMatch(JSON.stringify(progress), /Game server|15000/);
   assert.deepEqual(context.service.getOwnerState().config.categories, configured.categories);
 });
@@ -274,12 +275,12 @@ test("a verified snapshot expires after two hours and immediately when the Brisb
   const nextMonth = context.service.getProgress();
   assert.equal(nextMonth.month, "2026-12");
   assert.equal(nextMonth.available, false);
-  assert.equal(nextMonth.amountMinor, null);
+  assert.equal(nextMonth.coveragePercent, null);
   await context.service.refresh();
   assert.equal(context.service.getProgress().available, true);
   context.now(MONTH_END + 2 * 3600000 + 1);
   assert.equal(context.service.getProgress().available, false);
-  assert.equal(context.service.getProgress().amountMinor, null);
+  assert.equal(context.service.getProgress().coveragePercent, null);
 });
 
 test("public projection strips provider/customer details even from a verified collector result", async (t) => {
@@ -292,7 +293,7 @@ test("public projection strips provider/customer details even from a verified co
   await context.service.refresh();
   const publicJson = JSON.stringify(context.service.getProgress());
   assert.doesNotMatch(publicJson, /private-payer|private-player|ch_private|cus_private|rk_live|customer|subscriptions/);
-  assert.equal(context.service.getProgress().amountMinor, 1400);
+  assert.equal(context.service.getProgress().coveragePercent, 9);
 });
 
 test("config validation is atomic and optimistic versions prevent an older owner form overwriting a new target", (t) => {
@@ -324,5 +325,5 @@ test("turning publication off while a refresh is running cannot republish income
   const progress = context.service.getProgress();
   assert.equal(progress.enabled, false);
   assert.equal(progress.available, false);
-  assert.equal(progress.amountMinor, null);
+  assert.equal(progress.coveragePercent, null);
 });

@@ -36,7 +36,7 @@ jobs:
       - name: Verify rewards, entitlement and permanent ownership
         run: >-
           node --test test/membership*.test.js test/premiumSkinsRoute.test.js
-          test/subscriber*.test.js test/financeOwner.test.js test/stripeFinance.test.js
+          test/subscriber*.test.js test/adminSupportGoalDraft.test.js test/financeOwner.test.js test/stripeFinance.test.js
           test/supporterWebhook.test.js test/supporterCoinBonus.test.js test/supporterInternalRoute.test.js
           test/supporterManageRoute.test.js test/discordMembership.test.js
           test/skinStudioSafety.test.js test/skinShareCodeRedaction.test.js test/skinsAdminOnly.test.js

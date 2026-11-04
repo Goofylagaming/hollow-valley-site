@@ -115,8 +115,8 @@ test("summary uses the authenticated identity and stays available if remote feat
   assert.match(response.headers.get("cache-control"),/no-store/);
   const body=await response.json();
   assert.equal(body.tier,"supporter");assert.equal(body.monthly.allowance,1);
-  assert.equal(body.monthly.catalogueUnavailable,true);assert.equal(body.storage.unavailable,true);
-  assert.deepEqual(calls.catalogue,[user.steam_id]);assert.deepEqual(calls.storage,[user.steam_id]);
+  assert.equal(body.monthly.catalogueUnavailable,true);assert.equal(Object.hasOwn(body,"storage"),false);
+  assert.deepEqual(calls.catalogue,[user.steam_id]);assert.deepEqual(calls.storage,[]);
   assert.equal(JSON.stringify(body).includes("private upstream details"),false);
 });
 

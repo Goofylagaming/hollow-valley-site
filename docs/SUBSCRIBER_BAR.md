@@ -8,27 +8,22 @@ while building it. It starts disabled with no cost items or invented amounts.
 
 ## Player experience
 
-The homepage and Supporter page share a compact **Subscriber Bar**. Once the
-owner publishes the real monthly cost targets, it shows:
+The homepage and Supporter page show the percentage of the private monthly
+budget covered by verified subscription receipts, with milestones at **50%**
+and **75%**. The owner decides whether to publish the bar. Its period and
+verification time refer to the **Australia/Brisbane** calendar month.
 
-- The current calendar month in **Australia/Brisbane** and **AUD**.
-- Verified subscription payments for that month against the combined target.
-- An accessible overall progress bar, the remaining amount, and any surplus.
-- Progress toward each cost in the order chosen by the owner.
-- The update time and the basis: **Subscription payments received this month,
-  after refunds, before Stripe fees**.
+The server divides verified receipts by the private target, rounds down to a
+whole percentage and limits the public result to 0–100%. A payment one cent
+short of a milestone therefore does not mark it reached. Both milestones may
+move back below their thresholds after a refund. Reaching a milestone does not
+confirm a bill was paid.
 
-Cost progress allocates the combined amount to the targets in order. It is a
-budget illustration; it does not assert that the corresponding supplier bill
-has actually been paid. The monthly total is the sum of the cost items, so there
-is no separate overall goal that can disagree with its breakdown.
-
-A verified zero displays zero. An unavailable or expired total displays an
-awaiting-verification state without a financial amount. A negative month, for
-example when refunds for earlier payments exceed this month's receipts, keeps
-its signed amount visible while the progress bar stops at zero. Surplus remains
-visible when the bar reaches 100%. Progress begins a new reporting period at
-midnight on the first day of each month in Brisbane.
+A verified zero or negative balance shows 0%; surplus above the target shows
+100%. Unverified or expired coverage shows an awaiting-verification state,
+not 0% or a reached milestone. A new period begins at midnight on the first of
+each month in Brisbane. Visitors never receive cost categories, exact receipts,
+the target, milestone amounts, remaining amounts, or the size of a surplus.
 
 ## Owner controls
 
@@ -36,15 +31,24 @@ Open **Owner Finance → Subscriber Bar** at `/admin/finance`. Only the configur
 finance owner can access its API; ordinary admin or Discord roles do not grant
 access.
 
-1. Enter the actual monthly costs and descriptive labels, such as game-server
-   hosting, website hosting or automation. One cost can represent the complete
-   monthly budget, or up to eight can provide a breakdown.
-2. Order the costs to set their progress priority. The editor derives the total.
-3. Save the settings. Draft labels and amounts remain private while visibility
-   is disabled. Enabling visibility publishes the cost breakdown and aggregate
-   subscription total when it is available.
-4. Use **Refresh** to request a read-only reconciliation. The collected amount
-   cannot be manually edited through this form or API.
+1. Enter one to eight cost items, or use **Load budget file**. The JSON file must
+   contain `currency: "aud"`, `enabled: false`, and a `categories` array. Each
+   item has a unique `id`, a `label`, and a positive integer `amountCents`.
+   Import validates the whole file locally (up to 16 KB) before replacing the
+   form. It retains the last saved revision, switches the draft to unpublished
+   and does not save, change existing visibility, refresh Stripe or upload the
+   file. Invalid files leave the current form untouched.
+2. Review the private target, which is the sum of these items, and the exact
+   amounts needed to reach 50% and 75%. Each threshold is rounded **up** to the
+   next whole cent when needed. The order of categories is for the owner's
+   convenience; it has no effect on either milestone.
+3. Save with publication off to keep a private draft. To publish progress,
+   check **Publish the percentage and 50% / 75% milestones** and save. Costs,
+   their labels, the target and the exact received total remain owner-only.
+4. Once published, **Refresh verified support total** runs a read-only
+   reconciliation. The owner sees the signed amount and its verification time.
+   A separate preview uses the same percentage-only data returned to players.
+   Receipts are never an editable field.
 
 Costs are positive integer cents, expressed as monthly AUD amounts in the
 editor. Annual bills need an explicitly chosen monthly budget amount. Settings
@@ -72,25 +76,31 @@ captured amount; an ambiguous shared payment is never estimated as a fraction.
 
 One-off unrelated payments, account top-ups, transfers and bank payouts are not
 subscriber income. The bar is not a forecast of renewals, a Stripe account
-balance, net profit, or evidence of a bank payout. Processing fees and tax are
-not deducted from the displayed payment amount.
+balance, net profit, or evidence of a bank payout. Receipts are adjusted for
+refunds and disputes **before Stripe fees**; processing fees and tax are not
+deducted from this measure. The owner may include a *provisional fee allowance*
+as a private budget item. That increases the target; it does not deduct fees
+from receipts or claim to measure fees actually charged.
 
 ## Completeness and privacy
 
-The public endpoint only reads the local aggregate snapshot; a visitor cannot
-trigger Stripe requests. Individual payment records, customer names, emails,
-card details and provider identifiers are not returned or retained in the
-Subscriber Bar snapshot. Disabling publication also removes draft costs from
-the public response.
+The public endpoint reads a separate, allowlisted percentage view of the local
+snapshot; a visitor cannot trigger Stripe requests. It does not send monetary
+amounts or private budget labels to the browser, including when progress is
+published. The private owner response contains the editor configuration and
+exact reporting figures, plus `publicProgress` for the preview. A disabled
+public bar does not disclose whether the owner has entered a private budget.
+Individual payment records, customer names, emails, card details and provider
+identifiers are not retained in the Subscriber Bar snapshot.
 
 A complete snapshot is valid only for its current Brisbane month, reporting
 configuration and a maximum age of two hours. Failed reconciliation withholds
-the displayed amount. The background worker checks whether an hourly refresh
+the public percentage and the owner's verified total. The background worker checks whether an hourly refresh
 is due; the owner can also request one explicitly. A database lease prevents
 overlapping refreshes from replacing newer results.
 
 An open public page rereads the aggregate once a minute while visible and when
-the player returns to the tab. A local expiry timer clears the monetary amount
+the player returns to the tab. A local expiry timer clears the percentage and milestone states
 at its freshness limit or the month boundary, including while a new request is
 still pending. These public reads do not start additional Stripe reconciliations.
 
@@ -124,15 +134,15 @@ invalid price must not produce a falsely verified zero.
 
 Before enabling production, validate the code on staging, confirm the real cost
 amounts, check the read-key permissions, and compare a controlled reconciliation
-with the relevant Stripe records. Keep owner visibility disabled until the
+with the relevant Stripe records. Keep public visibility disabled until the
 budget and accounting basis have been reviewed. Turning it off hides the bar
 without changing subscriptions or payments.
 
 ## Endpoints and implementation
 
-- `GET /api/supporter/progress`: public aggregate projection, with no-store
+- `GET /api/supporter/progress`: public percentage-only projection, with no-store
   caching and no provider requests.
-- `GET /api/admin/finance/support-goal`: owner settings and reporting state.
+- `GET /api/admin/finance/support-goal`: private owner settings and monetary reporting state, with a separate `publicProgress` preview.
 - `PUT /api/admin/finance/support-goal`: owner cost targets and visibility.
 - `POST /api/admin/finance/support-goal/refresh`: owner-triggered read-only
   reconciliation.

@@ -38,20 +38,10 @@ async function summary(user) {
   result.discord = { ...result.discord, ...require("../services/membershipDiscordQueue").getSyncState(user.id) };
   if (!/^\d{17}$/.test(String(user.steam_id || ""))) return result;
   const client = require("../services/premiumSkinClient");
-  const automation = require("../services/automationWebsiteClient");
-  const remote = await Promise.allSettled([
-    client.listCatalog(String(user.steam_id)),
-    automation.getMembershipStorage(String(user.steam_id)),
-  ]);
-  if (remote[0].status === "fulfilled") {
-    result.monthly.catalogueReady = Boolean(remote[0].value?.enabled && remote[0].value?.skins?.length);
-  } else result.monthly.catalogueUnavailable = true;
-  if (remote[1].status === "fulfilled") {
-    const storage = remote[1].value || {};
-    result.storage = { ...result.storage, ...storage,
-      totalSlots: storage.totalSlots ?? storage.limit ?? null,
-      usedSlots: storage.usedSlots ?? storage.used ?? null };
-  } else result.storage.unavailable = true;
+  try {
+    const catalogue = await client.listCatalog(String(user.steam_id));
+    result.monthly.catalogueReady = Boolean(catalogue?.enabled && catalogue.skins?.length);
+  } catch { result.monthly.catalogueUnavailable = true; }
   return result;
 }
 

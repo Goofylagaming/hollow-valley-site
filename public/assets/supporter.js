@@ -207,7 +207,7 @@ async function syncDiscordAccount(status = currentStatus) {
 
 async function loadTiers(status = currentStatus) {
   const grid = document.getElementById("tier-grid");
-  const { tiers, checkoutConfigured } = await api("/api/supporter/tiers");
+  const { tiers, monthlyCoinBonuses, checkoutConfigured } = await api("/api/supporter/tiers");
   const managing = activeManagedSubscription(status);
   const steamLinked = Boolean(currentMe?.user?.steam_id);
 
@@ -235,9 +235,13 @@ async function loadTiers(status = currentStatus) {
         action = "checkout";
       }
 
+      const coins = monthlyCoinBonuses?.[key];
+      const bonus = Number.isSafeInteger(coins) && coins > 0
+        ? `<p><strong>${coins.toLocaleString("en-AU")} Valley Coins</strong><br>on each eligible monthly payment</p>` : "";
       return `<div class="tier-card">
         <h3>${escapeHtml(tier.label)}</h3>
         <p class="price">A${tier.priceAud.toFixed(2)} / month</p>
+        ${bonus}
         <p class="section-intro">×${Number(tier.multiplier || 1)} on eligible Valley Coin rewards</p>
         <button
           class="small-button"

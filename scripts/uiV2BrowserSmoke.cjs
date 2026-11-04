@@ -264,8 +264,7 @@ async function checkSubscriberBarFixture(browser, origin, route, size, label) {
   const context = await browser.newContext({ viewport: size, deviceScaleFactor: 1, reducedMotion: "reduce" });
   const page = await context.newPage();
   const issues = collect(page);
-  // Browser-only synthetic budget and receipt totals. These are never saved to
-  // the isolated database and never configure a real public fundraising goal.
+  // Browser-only sample, using the same percentage-only projection as the public API.
   const now = Date.now();
   const local = new Date(now + 10 * 60 * 60 * 1000);
   const year = local.getUTCFullYear();
@@ -275,15 +274,9 @@ async function checkSubscriberBarFixture(browser, origin, route, size, label) {
   }).format(new Date(now));
   const fixture = {
     enabled: true, configured: true, available: true,
-    month: `${year}-${String(month + 1).padStart(2, "0")}`, currency: "aud", timeZone: "Australia/Brisbane",
-    periodStart: new Date(Date.UTC(year, month, 1) - 10 * 60 * 60 * 1000).toISOString(),
+    month: `${year}-${String(month + 1).padStart(2, "0")}`, timeZone: "Australia/Brisbane",
     periodEnd: new Date(Date.UTC(year, month + 1, 1) - 10 * 60 * 60 * 1000).toISOString(),
-    targetCents: 30000, amountMinor: 15000, updatedAt: new Date(now).toISOString(),
-    categories: [
-      { id: "fixture-game", label: "Game hosting · test fixture", amountCents: 20000 },
-      { id: "fixture-web", label: "Website and automation · test fixture", amountCents: 10000 },
-    ],
-    basis: "Subscription payments received this month, after refunds, before Stripe fees",
+    coveragePercent: size.width < 600 ? 75 : 50, updatedAt: new Date(now).toISOString(),
   };
   try {
     await setReadOnlyApiMocks(page);
@@ -293,17 +286,19 @@ async function checkSubscriberBarFixture(browser, origin, route, size, label) {
     const response = await page.goto(origin + route, { waitUntil: "domcontentloaded", timeout: 25000 });
     assert.equal(response.status(), 200, label + " HTTP status");
     const bar = page.locator("[data-subscriber-progress]");
-    await bar.getByRole("progressbar", { name: "Server costs this month" }).waitFor({ state: "visible", timeout: 15000 });
+    await bar.getByRole("progressbar", { name: "Monthly running costs covered" }).waitFor({ state: "visible", timeout: 15000 });
     assert.equal(await bar.isVisible(), true, label + " configured Subscriber Bar must be visible");
     const meter = bar.getByRole("progressbar");
     assert.equal(await meter.getAttribute("aria-valuemin"), "0");
     assert.equal(await meter.getAttribute("aria-valuemax"), "100");
-    assert.equal(await meter.getAttribute("aria-valuenow"), "50.00");
-    assert.match(await meter.getAttribute("aria-valuetext"), /\$150\.00 AUD received toward \$300\.00 AUD/);
-    assert.ok((await bar.textContent()).includes(monthLabel + " · AUD · Australia/Brisbane"));
-    await bar.locator("summary").click();
-    assert.equal(await bar.locator(".subscriber-cost").count(), 2);
-    assert.equal(await bar.locator(".subscriber-cost").first().isVisible(), true);
+    assert.equal(await meter.getAttribute("aria-valuenow"), String(fixture.coveragePercent));
+    assert.equal(await meter.getAttribute("aria-valuetext"), fixture.coveragePercent + "% of this month’s running costs covered");
+    const barText = await bar.textContent();
+    assert.ok(barText.includes(monthLabel + " (QLD)"));
+    assert.ok(barText.includes("First goal: 50%") && barText.includes("Stretch goal: 75%"));
+    assert.doesNotMatch(barText, /\$|\bAUD\b|Stripe|monthly cost milestones/i);
+    assert.equal(await bar.locator('.subscriber-goal-step[data-state="reached"]').count(), fixture.coveragePercent === 50 ? 1 : 2);
+    assert.equal(await bar.getByRole("link", { name: /See membership rewards/ }).getAttribute("href"), "/supporter#tier-grid");
     assert.equal(await bar.evaluate((element) => element.scrollWidth <= element.clientWidth + 1), true,
       label + " Subscriber Bar must not overflow horizontally");
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), true,

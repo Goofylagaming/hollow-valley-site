@@ -316,8 +316,6 @@ function rewardSummary(user, { env = process.env, now = Date.now() } = {}) {
       historyVerified: months > 0 || Boolean(history?.complete), historySyncedAt: history?.synced_at || null,
       historyScope: "current-subscription-and-recorded-periods",
       canSyncHistory: Boolean(getSupporterStatus(user.id)?.stripe_subscription_id) },
-    storage: { enabled: false, configured: false, baseSlots: null, bonusSlots: active.storageBonusSlots,
-      totalSlots: null, usedSlots: null, withdrawOnly: false },
     discord: { configured: Boolean(env.DISCORD_ROLE_BOT_TOKEN && /^\d{15,22}$/.test(env.DISCORD_GUILD_ID || "")),
       linked: Boolean(user.discord_id), roleName: active.tierLabel },
   };

@@ -82,7 +82,7 @@ test("scheduled cancellation retains bounded non-coin benefits and actual expiry
   reset("guardian"); record(invoice({tier:"guardian"}));
   db.exec("UPDATE supporter_subscriptions SET auto_renew=0,cancelled_at='2026-11-10'");
   assert.equal(summary().entitled,true);
-  assert.equal(summary().storage.bonusSlots,2);
+  assert.equal(Object.hasOwn(summary(), "storage"), false);
   assert.equal(rewards.rewardSummary(user,{env,now:Date.parse("2026-12-01T00:00:00Z")}).entitled,false);
   db.exec("UPDATE supporter_subscriptions SET stripe_status='canceled'");
   assert.equal(summary().entitled,false);

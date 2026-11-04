@@ -2,21 +2,21 @@
 
 const express = require("express");
 const { isFinanceOwner } = require("../middleware/requireFinanceOwner");
-const { FundingError, getDefaultService } = require("../services/subscriberFunding");
+const { FundingError, getDefaultService, publicFundingView } = require("../services/subscriberFunding");
 
 function createSubscriberFundingRouters({ service = getDefaultService(), env = process.env } = {}) {
   const publicRouter = express.Router();
   const ownerRouter = express.Router();
 
-  // Freshness is checked on every request. Do not let a CDN retain an amount
+  // Freshness is checked on every request. Do not let a CDN retain a percentage
   // after its month ends, the owner disables the bar, or reconciliation fails.
   publicRouter.use((_req, res, next) => {
     res.set("Cache-Control", "no-store, max-age=0");
     next();
   });
   publicRouter.get("/", (_req, res) => {
-    try { return res.json(service.getProgress()); }
-    catch { return res.status(503).json({ enabled: false, configured: false, available: false, amountMinor: null }); }
+    try { return res.json(publicFundingView(service.getProgress())); }
+    catch { return res.status(503).json(publicFundingView()); }
   });
 
   ownerRouter.use((req, res, next) => {

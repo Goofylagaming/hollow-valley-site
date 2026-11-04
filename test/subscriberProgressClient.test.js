@@ -12,103 +12,99 @@ const progress = {
   load: (host, api, options = {}) => progressClient.load(host, api, { now: () => TEST_NOW, ...options }),
 };
 
-// Synthetic amounts exercise presentation and validation; no default goal is published.
+// Synthetic public coverage only. Raw costs and provider records never drive this UI.
 function snapshot(overrides = {}) {
   return {
     enabled: true, configured: true, available: true,
-    month: "2026-11", currency: "aud", timeZone: "Australia/Brisbane",
-    periodStart: "2026-10-31T14:00:00.000Z", periodEnd: "2026-11-30T14:00:00.000Z",
-    targetCents: 30000, amountMinor: 15000,
-    updatedAt: "2026-11-02T23:15:00Z",
-    categories: [
-      { id: "game", label: "Game hosting", amountCents: 20000 },
-      { id: "website", label: "Website and automation", amountCents: 10000 },
-    ],
-    basis: "Subscription payments received this month, after refunds, before Stripe fees",
+    month: "2026-11", timeZone: "Australia/Brisbane", periodEnd: "2026-11-30T14:00:00.000Z",
+    updatedAt: "2026-11-02T23:15:00Z", coveragePercent: 42,
     ...overrides,
   };
 }
 
-test("public bar is hidden until explicitly enabled with a configured AUD cost goal", () => {
+test("public bar is hidden until explicitly enabled with a valid monthly goal", () => {
   for (const input of [null, {}, snapshot({ enabled: false }), snapshot({ configured: false }),
-    snapshot({ currency: "usd" }), snapshot({ timeZone: "UTC" }), snapshot({ month: "2026-13" }),
-    snapshot({ categories: [] }), snapshot({ targetCents: 40000 })]) {
+    snapshot({ timeZone: "UTC" }), snapshot({ month: "2026-13" })]) {
     assert.equal(progress.render(input), "");
   }
 });
 
-test("unavailable support is distinct from a verified zero and never fabricates progress", () => {
-  const waiting = progress.render(snapshot({ available: false, amountMinor: null, updatedAt: null }));
+test("only a verified server percentage produces a progress bar; zero is valid", () => {
+  const waiting = progress.render(snapshot({ available: false, coveragePercent: null, updatedAt: null }));
   assert.match(waiting, /Awaiting verification/);
-  assert.match(waiting, /Monthly cost target: \$300\.00 AUD/);
-  assert.doesNotMatch(waiting, /role="progressbar"|\$0\.00|0% funded|Funding target reached/);
-  const verifiedZero = progress.render(snapshot({ amountMinor: 0 }));
-  assert.match(verifiedZero, /<strong>\$0\.00<\/strong>/);
-  assert.match(verifiedZero, /role="progressbar"[^>]*aria-valuenow="0\.00"/);
-  assert.match(verifiedZero, /0% funded/);
-  assert.doesNotMatch(verifiedZero, /Awaiting verification/);
+  assert.doesNotMatch(waiting, /role="progressbar"|0% covered|data-state="reached"|class="subscriber-verified"/);
+  const zero = progress.render(snapshot({ coveragePercent: 0 }));
+  assert.match(zero, /aria-valuenow="0" aria-valuetext="0% of this month’s running costs covered"/);
+  assert.match(zero, /<strong>0%<\/strong>/);
+  assert.match(zero, /50 percentage points to the first goal/);
+  assert.doesNotMatch(zero, /data-state="reached"/);
 });
 
-test("public bar labels the AUD Brisbane month and allocates support across ordered budget targets", () => {
-  const markup = progress.render(snapshot(), { idPrefix: "home-subscriber-progress" });
-  assert.match(markup, /November 2026 · AUD · Australia\/Brisbane/);
-  assert.match(markup, /\$150\.00<\/strong><span>of \$300\.00 AUD/);
-  assert.match(markup, /aria-labelledby="home-subscriber-progress-heading"/);
-  assert.match(markup, /aria-valuenow="50\.00"/);
-  assert.match(markup, /\$150\.00 allocated toward this cost/);
-  assert.match(markup, /Next in the monthly budget/);
+test("bar shows a fresh QLD percentage, the membership link and an existing perk", () => {
+  const markup = progress.render(snapshot());
+  assert.match(markup, /November 2026 \(QLD\)/);
+  assert.match(markup, /role="progressbar" aria-label="Monthly running costs covered"/);
+  assert.match(markup, /aria-valuenow="42"/);
   assert.match(markup, /Verified 3 Nov 2026, 9:15 am QLD/);
-  assert.match(markup, /does not mean a bill has been paid/);
-  assert.doesNotMatch(markup, /Funding target reached/);
+  assert.match(markup, /href="\/supporter#tier-grid">See membership rewards/);
+  assert.match(markup, /2× to 5× on eligible Valley Coin rewards/);
+  assert.doesNotMatch(markup, /premium skins|extra storage|exclusive skins/i);
+  assert.doesNotMatch(progress.render(snapshot(), { showLink: false }), /subscriber-link/);
 });
 
-test("over-target support retains the real total and surplus while the progress bar stays bounded", () => {
-  const markup = progress.render(snapshot({ amountMinor: 45000 }));
-  assert.match(markup, /<strong>\$450\.00<\/strong>/);
-  assert.match(markup, /150% funded/);
-  assert.match(markup, /aria-valuenow="100\.00"/);
-  assert.match(markup, /style="width:100\.00%"/);
-  assert.match(markup, /\$150\.00 AUD above this month’s target/);
-  assert.equal((markup.match(/Funding target reached/g) || []).length, 2);
+test("first goal, stretch goal and full coverage are correctly distinguished", () => {
+  const cases = [
+    [49, 0, "1 percentage point to the first goal"],
+    [50, 1, "25 percentage points to the stretch goal"],
+    [74, 1, "1 percentage point to the stretch goal"],
+    [75, 2, "Stretch goal reached"],
+    [100, 2, "This month’s running costs are fully covered"],
+  ];
+  for (const [coveragePercent, reached, status] of cases) {
+    const html = progress.render(snapshot({ coveragePercent }));
+    assert.match(html, /First goal: 50%/);
+    assert.match(html, /Stretch goal: 75%/);
+    assert.ok(html.includes(status), `goal copy for ${coveragePercent}%`);
+    assert.equal((html.match(/data-state="reached"/g) || []).length, reached);
+    assert.match(html, new RegExp('aria-valuenow="' + coveragePercent + '"'));
+  }
 });
 
-test("refunds exceeding current receipts remain a negative AUD total with no negative allocation", () => {
-  const markup = progress.render(snapshot({ amountMinor: -2500 }));
-  assert.match(markup, /<strong>-\$25\.00<\/strong>/);
-  assert.match(markup, /aria-valuenow="0\.00"/);
-  assert.match(markup, /0% funded/);
-  assert.match(markup, /\$325\.00 AUD to this month’s target/);
-  assert.match(markup, /Refunds exceeded subscription payments received this month/);
-  assert.doesNotMatch(markup, /Funding target reached|allocated toward this cost|width:-/);
-});
-
-test("missing or malformed verified totals are unavailable and do not become zero", () => {
-  for (const amountMinor of [null, undefined, "15000", NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
-    const markup = progress.render(snapshot({ amountMinor }));
-    assert.match(markup, /Awaiting verification/);
-    assert.doesNotMatch(markup, /role="progressbar"/);
+test("malformed percentages, invalid period boundaries and pre-month receipts cannot invent coverage", () => {
+  for (const coveragePercent of [null, undefined, "42", -1, 101, 49.9, NaN, Infinity]) {
+    assert.doesNotMatch(progress.render(snapshot({ coveragePercent })), /role="progressbar"/);
   }
   assert.match(progress.render(snapshot({ updatedAt: "not-a-date" })), /Awaiting verification/);
+  assert.match(progress.render(snapshot({ periodEnd: "2026-11-30T12:00:00Z" })), /Awaiting verification/);
+  const brisbaneStart = Date.parse("2026-10-31T14:00:00Z");
+  assert.match(progress.render(snapshot({ updatedAt: new Date(brisbaneStart - 2000).toISOString() }),
+    { now: brisbaneStart + 1000 }), /Awaiting verification/);
 });
 
-test("category names, basis and caller IDs cannot inject markup or private fields", () => {
-  const input = snapshot();
-  input.categories[0].label = '<img src=x onerror="alert(1)">';
-  input.basis = '<script>alert("private")</script>';
-  input.email = "PRIVATE_CUSTOMER_EMAIL";
-  input.paymentId = "PRIVATE_STRIPE_PAYMENT";
-  const markup = progress.render(input, { idPrefix: '" onmouseover="alert(2)' });
-  assert.match(markup, /&lt;img/);
-  assert.match(markup, /&lt;script&gt;/);
-  assert.doesNotMatch(markup, /<img|<script|onmouseover=|PRIVATE_CUSTOMER_EMAIL|PRIVATE_STRIPE_PAYMENT/);
+test("a legacy financial response cannot reveal costs, vendors, receipts or inferred coverage", async () => {
+  const legacy = {
+    ...snapshot(), currency: "aud", amountMinor: 12345, targetCents: 98765,
+    categories: [{ id: "vendor", label: "SECRET_VENDOR", amountCents: 98765 }],
+    basis: '<img src=x onerror="alert(1)"> provider $123.45', email: "PRIVATE_CUSTOMER_EMAIL",
+  };
+  delete legacy.coveragePercent;
+  const host = { id: "test-progress", innerHTML: "", hidden: true, setAttribute() {} };
+  const result = await progress.load(host, async () => legacy);
+  assert.match(host.innerHTML, /Awaiting verification/);
+  assert.doesNotMatch(host.innerHTML, /role="progressbar"/);
+  const withPercent = progress.render({ ...legacy, coveragePercent: 63 }, { idPrefix: '" onmouseover="leak' });
+  assert.match(withPercent, /aria-valuenow="63"/);
+  for (const content of [host.innerHTML, withPercent, JSON.stringify(result.data)]) {
+    assert.doesNotMatch(content, /\$|\bAUD\b|SECRET_VENDOR|amountMinor|12345|98765|targetCents|categories|provider|PRIVATE_CUSTOMER_EMAIL|<img|onmouseover=/i);
+  }
 });
 
-test("public data read failures and disabled responses cannot leave an old total visible", async () => {
+test("failed and disabled reads remove the previous percentage", async () => {
   const host = { id: "test-progress", innerHTML: "", hidden: true, setAttribute() {} };
   const calls = [];
   await progress.load(host, async (url) => { calls.push(url); return snapshot(); });
   assert.equal(host.hidden, false);
-  assert.match(host.innerHTML, /\$150\.00/);
+  assert.match(host.innerHTML, /aria-valuenow="42"/);
   await progress.load(host, async () => { throw new Error("private provider details"); });
   assert.equal(host.hidden, true);
   assert.equal(host.innerHTML, "");
@@ -128,18 +124,18 @@ test("a delayed old public response cannot overwrite a newer disabled state", as
   assert.equal(host.innerHTML, "");
 });
 
-test("rendering rejects expired or future-dated income and changes the month at Brisbane midnight", () => {
+test("rendering rejects expired or future-dated coverage and rolls over at Brisbane midnight", () => {
   assert.match(progress.render(snapshot(), { now: TEST_NOW + 2 * 60 * 60 * 1000 }), /role="progressbar"/);
   for (const now of [TEST_NOW - 1, TEST_NOW + 2 * 60 * 60 * 1000 + 1]) {
     const markup = progress.render(snapshot(), { now });
     assert.match(markup, /Awaiting verification/);
-    assert.doesNotMatch(markup, /role="progressbar"|\$150\.00/);
+    assert.doesNotMatch(markup, /role="progressbar"|42%/);
   }
   const rollover = Date.parse("2026-11-30T14:00:00.000Z");
   const markup = progress.render(snapshot({ updatedAt: new Date(rollover - 1000).toISOString() }), { now: rollover });
-  assert.match(markup, /December 2026 · AUD/);
+  assert.match(markup, /December 2026 \(QLD\)/);
   assert.match(markup, /Awaiting verification/);
-  assert.doesNotMatch(markup, /role="progressbar"|\$150\.00/);
+  assert.doesNotMatch(markup, /role="progressbar"|42%/);
 });
 
 function fakeBrowserClock(start) {
@@ -199,14 +195,14 @@ test("public polling reads once per visible minute, resumes on visibility and av
   assert.equal(calls, 3);
   clock.tickInterval();
   assert.equal(calls, 3, "Do not stack reads while a previous one is pending");
-  completePending(snapshot({ amountMinor: 0 }));
+  completePending(snapshot({ coveragePercent: 0 }));
   await settle();
-  assert.match(host.innerHTML, /<strong>\$0\.00<\/strong>/);
+  assert.match(host.innerHTML, /<strong>0%<\/strong>/);
   watcher.dispose();
   assert.equal(clock.active(), 0);
 });
 
-test("expiry timers clear income while hidden and retain honest awaiting state when refresh fails", async () => {
+test("expiry timers clear coverage while hidden and retain honest awaiting state when refresh fails", async () => {
   const rollover = Date.parse("2026-11-30T14:00:00.000Z");
   for (const [start, deadline, month] of [
     [TEST_NOW, TEST_NOW + 2 * 60 * 60 * 1000 + 1, "November"],
@@ -226,14 +222,14 @@ test("expiry timers clear income while hidden and retain honest awaiting state w
     assert.match(host.innerHTML, /role="progressbar"/);
     clock.setVisibility("hidden");
     clock.advanceTo(deadline);
-    assert.match(host.innerHTML, /Awaiting verification/, "Amount is cleared before the network read completes");
-    assert.doesNotMatch(host.innerHTML, /role="progressbar"|\$150\.00/);
+    assert.match(host.innerHTML, /Awaiting verification/, "Coverage is cleared before the network read completes");
+    assert.doesNotMatch(host.innerHTML, /role="progressbar"|42%/);
     await settle();
     assert.equal(calls, 2);
     assert.equal(host.hidden, false);
-    assert.match(host.innerHTML, new RegExp(month + " 2026 · AUD"));
-    assert.match(host.innerHTML, /Monthly cost target: \$300\.00 AUD/);
-    assert.doesNotMatch(host.innerHTML, /\$0\.00/);
+    assert.match(host.innerHTML, new RegExp(month + " 2026"));
+    assert.match(host.innerHTML, /First goal: 50%/);
+    assert.doesNotMatch(host.innerHTML, /<strong>0%<\/strong>/);
     watcher.dispose();
   }
 });
@@ -280,11 +276,12 @@ test("public pages start hidden and the owner editor is separate from private St
   for (const file of ["public/index.html", "public/supporter.html"]) {
     const page = read(file);
     assert.match(page, /data-subscriber-progress hidden/);
-    assert.equal((page.match(/src="\/assets\/subscriber-progress\.js\?v=1"/g) || []).length, 1);
+    assert.equal((page.match(/src="\/assets\/subscriber-progress\.js\?v=2"/g) || []).length, 1);
   }
   const owner = read("server/pages/adminFinance.html");
   assert.ok(owner.indexOf('id="subscriber-goal"') < owner.indexOf('id="finance-content"'));
-  assert.match(owner, /cost names, amounts and the aggregate subscription total/);
+  assert.match(owner, /the percentage and 50% \/ 75% milestones/i);
+  assert.match(owner, /cost names, individual amounts, the monthly target and the amount received stay private/i);
   assert.match(owner, /id="subscriber-goal-total"/);
   assert.doesNotMatch(owner, /<input[^>]*(raised|amountMinor|targetCents)/);
 });

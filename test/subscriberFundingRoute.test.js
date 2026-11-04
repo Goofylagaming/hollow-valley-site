@@ -6,6 +6,8 @@ const { createSubscriberFundingRouters } = require("../server/routes/subscriberF
 const { FundingError } = require("../server/services/subscriberFunding");
 const OWNER = "76561198000000001";
 const ORIGIN = "https://hollowvalley.example";
+const PUBLIC_UNAVAILABLE = { enabled: false, configured: false, available: false, month: null,
+  timeZone: "Australia/Brisbane", periodEnd: null, updatedAt: null, coveragePercent: null };
 async function fixture(t, user, options = {}) {
   const calls = [];
   const state = { config: { enabled: false, categories: [], version: 0 }, progress: { enabled: false, available: false, amountMinor: null } };
@@ -35,9 +37,33 @@ test("the aggregate is public, uncached, and cannot expose owner settings throug
   const f = await fixture(t, null);
   const result = await f.request("/api/supporter/progress");
   assert.equal(result.status, 200); assert.match(result.headers.get("cache-control"), /no-store/);
-  assert.deepEqual(await result.json(), { enabled: false, available: false, amountMinor: null });
+  assert.deepEqual(await result.json(), PUBLIC_UNAVAILABLE);
   assert.equal((await f.request(PATH)).status, 404);
   assert.deepEqual(f.calls, ["public"]);
+});
+
+test("public HTTP serializes only the percentage contract even for an owner or enriched service response", async t => {
+  const safe = { enabled: true, configured: true, available: true, month: "2026-11",
+    timeZone: "Australia/Brisbane", periodEnd: "2026-11-30T14:00:00.000Z",
+    updatedAt: "2026-11-02T00:00:00.000Z", coveragePercent: 75 };
+  const privateDetails = { amountMinor: 9753, targetCents: 13004, currency: "aud", basis: "private ledger basis",
+    categories: [{ id: "private-fixture", label: "Private service provider", amountCents: 13004 }],
+    customer: { email: "payer@example.invalid" }, invoice: "in_sensitive", internalDiagnostic: "confidential" };
+  for (const user of [null, { steam_id: OWNER }]) {
+    const f = await fixture(t, user, { service: {
+      getProgress: () => ({ ...safe, ...privateDetails, timeZone: privateDetails.invoice }),
+      getOwnerState: () => ({ config: { enabled: true, categories: privateDetails.categories },
+        progress: { ...privateDetails }, publicProgress: safe }),
+    } });
+    const result = await f.request("/api/supporter/progress");
+    assert.equal(result.status, 200);
+    assert.deepEqual(await result.json(), safe);
+    if (user) {
+      const owner = await (await f.request(PATH)).json();
+      assert.deepEqual(owner.publicProgress, safe);
+      assert.equal(owner.progress.amountMinor, privateDetails.amountMinor);
+    }
+  }
 });
 
 test("ordinary administrator flags and body identity cannot bypass the exact configured finance owner", async t => {
@@ -90,5 +116,5 @@ test("conflicts preserve their safe status and raw provider error contents never
   const refresh = await f.request(PATH + "/refresh", { method: "POST", headers: { Origin: f.origin } });
   assert.equal(refresh.status, 502); assert.doesNotMatch(await refresh.text(), /alice|rk_live|ch_private/);
   const result = await f.request("/api/supporter/progress");
-  assert.equal(result.status, 503); assert.equal((await result.json()).amountMinor, null);
+  assert.equal(result.status, 503); assert.deepEqual(await result.json(), PUBLIC_UNAVAILABLE);
 });

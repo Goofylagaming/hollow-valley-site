@@ -290,6 +290,35 @@ function validateSettings(input) {
   return { enabled: input.enabled, currency: CURRENCY, categories, version: input.version };
 }
 
+// The public contract is an explicit allowlist. Never serialize the owner's
+// finance report, even when every cost is funded or the caller is the owner.
+function publicFundingView(value = {}) {
+  const enabled = value.enabled === true;
+  const configured = enabled && value.configured === true;
+  const month = typeof value.month === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(value.month) ? value.month : null;
+  const iso = v => typeof v === "string" && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(v) ? v : null;
+  const periodEnd = iso(value.periodEnd);
+  const verifiedAt = iso(value.updatedAt);
+  const available = Boolean(configured && value.available === true && month && periodEnd && verifiedAt &&
+    whole(value.coveragePercent) && value.coveragePercent >= 0 && value.coveragePercent <= 100);
+  return {
+    enabled, configured, available, month, timeZone: TIME_ZONE, periodEnd,
+    updatedAt: available ? verifiedAt : null,
+    coveragePercent: available ? value.coveragePercent : null,
+  };
+}
+
+function publicFromOwnerReport(report) {
+  let coveragePercent = null;
+  if (report.available && whole(report.amountMinor) && whole(report.targetCents) && report.targetCents > 0) {
+    // Multiply before dividing so a payment one cent short of a milestone
+    // can never round up. Cap before multiplication to keep integers safe.
+    const covered = Math.max(0, Math.min(report.targetCents, report.amountMinor));
+    coveragePercent = Math.floor(covered * 100 / report.targetCents);
+  }
+  return publicFundingView({ ...report, coveragePercent });
+}
+
 function createSubscriberFundingService({ db, env = process.env, fetchImpl = globalThis.fetch, clock = Date.now, collect = collectMonthlyFunding } = {}) {
   if (!db) throw new TypeError("A database is required");
   db.exec(`
@@ -318,27 +347,32 @@ function createSubscriberFundingService({ db, env = process.env, fetchImpl = glo
     if (!changed.changes) throw new FundingError("conflict", 409);
     return getOwnerState();
   }
-  function getProgress() {
+  function getOwnerReport(config) {
     const now = clock();
-    const config = getConfig();
     const { startSeconds, endSeconds, ...period } = monthBounds(now);
     const row = db.prepare("SELECT * FROM subscriber_funding_snapshot WHERE id = 1").get();
     const configured = config.categories.length > 0;
     const available = Boolean(config.enabled && configured && reportingConfiguration(env) && !getSkinStudioSafety(env).readOnly &&
       row.complete === 1 && row.month === period.month && row.currency === CURRENCY && row.scope_hash === scopeHash(env) &&
       row.period_start === period.periodStart && row.period_end === period.periodEnd && whole(row.amount_minor) &&
-      whole(row.updated_at) && row.updated_at <= now && now - row.updated_at <= MAX_AGE_MS);
+      whole(row.updated_at) && row.updated_at <= now && now - row.updated_at < MAX_AGE_MS);
     return {
       enabled: config.enabled, configured, available, ...period,
-      targetCents: config.enabled ? config.categories.reduce((total, item) => total + item.amountCents, 0) : null,
+      targetCents: configured ? config.categories.reduce((total, item) => total + item.amountCents, 0) : null,
       amountMinor: available ? row.amount_minor : null,
       updatedAt: available ? new Date(row.updated_at).toISOString() : null,
-      categories: config.enabled ? config.categories : [], basis: BASIS,
+      categories: config.categories, basis: BASIS,
     };
   }
+  function getProgress() {
+    return publicFromOwnerReport(getOwnerReport(getConfig()));
+  }
   function getOwnerState() {
+    const config = getConfig();
+    const progress = getOwnerReport(config);
     const row = db.prepare("SELECT last_error FROM subscriber_funding_snapshot WHERE id = 1").get();
-    return { config: getConfig(), progress: getProgress(), lastRefreshError: row.last_error ? (MESSAGES[row.last_error] || MESSAGES.incomplete) : null };
+    return { config, progress, publicProgress: publicFromOwnerReport(progress),
+      lastRefreshError: row.last_error ? (MESSAGES[row.last_error] || MESSAGES.incomplete) : null };
   }
   async function refresh() {
     const config = getConfig();
@@ -391,4 +425,4 @@ function getDefaultService() {
 }
 
 module.exports = { FundingError, collectMonthlyFunding, createSubscriberFundingService, getDefaultService,
-  monthBounds, MAX_AGE_MS, REFRESH_MS, BASIS, validateSettings };
+  monthBounds, MAX_AGE_MS, REFRESH_MS, BASIS, validateSettings, publicFundingView };

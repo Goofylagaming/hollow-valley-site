@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=4">
   <link rel="stylesheet" href="/assets/admin-finance.css?v=2">
-  <link rel="stylesheet" href="/assets/subscriber-progress.css?v=1">
+  <link rel="stylesheet" href="/assets/subscriber-progress.css?v=2">
 </head>
 <body>
   <div class="app-shell">
@@ -18,31 +18,36 @@
       <section class="page-header">
         <p class="overline green">HOLLOW VALLEY · ADMIN · OWNER ONLY</p>
         <h1>Finance.</h1>
-        <p class="section-intro">Manage the public server-cost goal and review Stripe subscriptions, upcoming renewals, balance and bank payouts. Visible only to the configured Hollow Valley owner.</p>
+        <p class="section-intro">Set the private monthly budget, choose whether to show players its progress, and review Stripe subscriptions, renewals, balance and bank payouts.</p>
       </section>
       <section class="roster-section finance-page">
         <section id="subscriber-goal" class="finance-panel subscriber-goal" aria-labelledby="subscriber-goal-heading" hidden>
           <div class="finance-section-header">
-            <div><h2 id="subscriber-goal-heading">Subscriber Bar · monthly server costs</h2><p class="finance-muted">Set the costs you want subscription support to cover. Cost names and amounts appear publicly when you enable the bar.</p></div>
+            <div><h2 id="subscriber-goal-heading">Subscriber Bar · private monthly budget</h2><p class="finance-muted">Set the costs you want subscription support to cover each calendar month in Brisbane. All budget figures are in AUD.</p></div>
             <button type="button" id="subscriber-goal-reload" class="small-button">Reload saved settings</button>
           </div>
           <p id="subscriber-goal-status" class="subscriber-goal-status" role="status" aria-live="polite">Loading saved goal settings…</p>
           <form id="subscriber-goal-form" hidden>
             <fieldset id="subscriber-goal-fields">
-              <label class="subscriber-goal-toggle"><input id="subscriber-goal-enabled" type="checkbox"><span>Show Subscriber Bar publicly</span></label>
-              <p class="finance-muted">When enabled, the homepage and membership page publish these cost names, amounts and the aggregate subscription total for each calendar month in Australia/Brisbane. All amounts are AUD. Individual payments and subscriber identities stay private.</p>
+              <label class="subscriber-goal-toggle"><input id="subscriber-goal-enabled" type="checkbox"><span>Publish the percentage and 50% / 75% milestones</span></label>
+              <p class="finance-muted">Cost names, individual amounts, the monthly target and the amount received stay private. Players see the percentage of the budget covered and whether each milestone has been reached once a total is verified.</p>
+              <label for="subscriber-goal-import"><strong>Load budget file</strong></label>
+              <input id="subscriber-goal-import" type="file" accept=".json,application/json" aria-describedby="subscriber-goal-import-help">
+              <p id="subscriber-goal-import-help" class="finance-muted">The file stays in your browser. Loading it replaces this form with an unpublished draft. Review the costs, then choose Save goal settings when ready.</p>
               <div id="subscriber-goal-costs" class="subscriber-goal-costs"></div>
               <button type="button" id="subscriber-goal-add" class="small-button">+ Add monthly cost</button>
-              <p class="finance-muted">Use up to eight costs, or one item for your total. Their order sets the funding milestones; reaching a milestone does not confirm a bill payment.</p>
-              <div class="subscriber-goal-total"><span>Monthly target · sum of costs</span><output id="subscriber-goal-total" aria-live="polite">Not set</output></div>
+              <p class="finance-muted">Use one to eight cost items. If you include an allowance for processing fees, treat it as a provisional budget item. Reordering costs does not change the total or the milestones.</p>
+              <div class="subscriber-goal-total"><span>Private monthly target · sum of costs in this form</span><output id="subscriber-goal-total" aria-live="polite">Not set</output></div>
+              <p class="finance-muted">Private milestone amounts: <output id="subscriber-goal-thresholds" aria-live="polite">Not set</output></p>
               <button type="submit" class="small-button">Save goal settings</button>
             </fieldset>
           </form>
           <div class="subscriber-goal-refresh">
-            <div><h3>Verified support total</h3><p class="finance-muted">Refresh reads subscription payments and refunds for the current month. It does not charge anyone, edit a subscription or transfer funds.</p></div>
+            <div><h3>Verified support received · owner only</h3><p id="subscriber-goal-received" aria-live="polite">No verified total for this month.</p><p class="finance-muted">This is subscription income after refunds and dispute adjustments, before Stripe fees. A fee estimate in your budget changes only the target. Refresh is available after you publish and save.</p></div>
             <button type="button" id="subscriber-goal-refresh" class="small-button" disabled>Refresh verified support total</button>
           </div>
           <p id="subscriber-goal-refresh-error" class="finance-error" role="status" hidden></p>
+          <h3>What players see</h3>
           <p id="subscriber-goal-preview-state" class="finance-muted">The public preview will appear after the saved settings load.</p>
           <section id="subscriber-goal-preview" class="subscriber-progress" aria-label="Saved public Subscriber Bar preview" hidden></section>
         </section>
@@ -118,7 +123,7 @@
   </div>
   <script src="/assets/common.js?v=22"></script>
   <script src="/assets/admin-finance.js?v=1"></script>
-  <script src="/assets/subscriber-progress.js?v=1"></script>
-  <script src="/assets/admin-support-goal.js?v=1"></script>
+  <script src="/assets/subscriber-progress.js?v=2"></script>
+  <script src="/assets/admin-support-goal.js?v=2"></script>
 </body>
 </html>

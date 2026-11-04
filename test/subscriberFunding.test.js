@@ -43,6 +43,9 @@ function serviceFixture(t, options = {}) {
 }
 const costs = [{ id: "hosting", label: "Server hosting", amountCents: 12345 }];
 const enable = service => service.setConfig({ enabled: true, categories: costs, version: service.getConfig().version });
+const PUBLIC_KEYS = [
+  "enabled", "configured", "available", "month", "timeZone", "periodEnd", "updatedAt", "coveragePercent",
+].sort();
 function summary(now, amountMinor = 700) {
   const { startSeconds, endSeconds, ...period } = monthBounds(now);
   return { ...period, amountMinor, updatedAt: new Date(now).toISOString() };
@@ -98,6 +101,43 @@ test("an empty ledger is not a verified zero until every configured monthly AUD 
   await assert.rejects(collectMonthlyFunding({ env, fetchImpl: f.fetchImpl, now: NOW }), FundingError);
 });
 
+test("verified coverage floors at each milestone and capped public results reveal no monetary fields", async t => {
+  const target = 7200;
+  let receipts = 0;
+  const { service, advance } = serviceFixture(t, { collect: async ({ now }) => summary(now, receipts) });
+  const before = service.getProgress();
+  const categories = [{ id: "private-test-item", label: "Private test fixture", amountCents: target }];
+  const hidden = service.setConfig({ enabled: false, categories, version: 0 });
+  assert.deepEqual(hidden.publicProgress, before, "disabled drafts and empty settings look identical to the public");
+  assert.deepEqual(hidden.config.categories, categories);
+  assert.equal(hidden.progress.targetCents, target);
+  const pending = service.setConfig({ enabled: true, categories, version: hidden.config.version });
+  assert.equal(pending.publicProgress.coveragePercent, null);
+  assert.deepEqual(Object.keys(pending.publicProgress).sort(), PUBLIC_KEYS);
+  for (const [amount, percent] of [
+    [-500, 0], [0, 0], [3599, 49], [3600, 50], [5399, 74], [5400, 75],
+    [7199, 99], [7200, 100], [9601, 100], [Number.MAX_SAFE_INTEGER, 100],
+  ]) {
+    receipts = amount;
+    const owner = await service.refresh();
+    const publicState = service.getProgress();
+    assert.deepEqual(Object.keys(publicState).sort(), PUBLIC_KEYS);
+    assert.equal(publicState.available, true);
+    assert.equal(publicState.coveragePercent, percent);
+    assert.deepEqual(owner.publicProgress, publicState);
+    assert.equal(owner.progress.amountMinor, amount);
+    assert.equal(owner.progress.targetCents, target);
+    assert.deepEqual(owner.config.categories, categories);
+    assert.doesNotMatch(JSON.stringify(publicState), /private-test-item|Private test fixture|amountMinor|targetCents|currency|basis|fees|income/i);
+  }
+  advance(MAX_AGE_MS);
+  const expired = service.getProgress();
+  assert.deepEqual(Object.keys(expired).sort(), PUBLIC_KEYS);
+  assert.equal(expired.available, false);
+  assert.equal(expired.coveragePercent, null);
+  assert.equal(expired.updatedAt, null);
+});
+
 test("invoice paid status alone never substitutes for captured funds and matching mode/currency", async () => {
   for (const charge of [
     { paid: false }, { captured: false }, { status: "pending" }, { status: "failed" },
@@ -145,11 +185,11 @@ test("failed refresh immediately invalidates a fresh amount and exposes only a f
     if (fail) throw new Error("secret customer alice@example.com pi_private rk_live_sensitive");
     return summary(now);
   } });
-  enable(f.service); await f.service.refresh(); assert.equal(f.service.getProgress().amountMinor, 700);
+  enable(f.service); await f.service.refresh(); assert.equal(f.service.getProgress().coveragePercent, 5);
   fail = true;
   await assert.rejects(f.service.refresh(), FundingError);
   assert.equal(f.service.getProgress().available, false);
-  assert.equal(f.service.getProgress().amountMinor, null);
+  assert.equal(f.service.getProgress().coveragePercent, null);
   assert.ok(!JSON.stringify(f.service.getOwnerState()).includes("alice"));
   assert.ok(!JSON.stringify(f.db.prepare("SELECT * FROM subscriber_funding_snapshot").all()).includes("private"));
 });
@@ -159,10 +199,10 @@ test("changing credentials or a price invalidates cached totals without a provid
   const f = serviceFixture(t, { env: mutable, collect: async ({ now }) => summary(now) });
   enable(f.service); await f.service.refresh();
   mutable.STRIPE_PRICE_MEMBER = "price_new";
-  assert.equal(f.service.getProgress().amountMinor, null);
+  assert.equal(f.service.getProgress().coveragePercent, null);
   mutable.STRIPE_PRICE_MEMBER = env.STRIPE_PRICE_MEMBER;
   mutable.STRIPE_FINANCE_READ_KEY = "rk_live_differentAccount";
-  assert.equal(f.service.getProgress().amountMinor, null);
+  assert.equal(f.service.getProgress().coveragePercent, null);
 });
 
 test("refreshes have a durable lease and a second worker cannot duplicate an in-progress provider scan", async t => {
@@ -187,7 +227,7 @@ test("background polling never reads with the bar disabled and refreshes at most
   enable(f.service); await tick(); assert.equal(scans, 1);
   f.advance(59 * 60 * 1000); await tick(); assert.equal(scans, 1);
   f.advance(60 * 1000); await tick(); assert.equal(scans, 2);
-  f.advance(MAX_AGE_MS + 1); assert.equal(f.service.getProgress().amountMinor, null);
+  f.advance(MAX_AGE_MS + 1); assert.equal(f.service.getProgress().coveragePercent, null);
 });
 
 test("settings reject numeric coercion, malformed labels and excessive summed targets atomically", t => {

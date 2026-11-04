@@ -8,16 +8,11 @@
 })(typeof window === "undefined" ? globalThis : window, function () {
   "use strict";
 
-  const BASIS = "Subscription payments received this month, after refunds, before Stripe fees";
   const MAX_AGE_MS = 2 * 60 * 60 * 1000;
   const loads = new WeakMap();
   const escape = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
   })[character]);
-
-  function money(cents) {
-    return new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(cents / 100);
-  }
 
   function monthLabel(month) {
     if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(String(month || ""))) return "";
@@ -43,82 +38,82 @@
     const month = local.getUTCMonth();
     return {
       key: `${year}-${String(month + 1).padStart(2, "0")}`,
+      start: Date.UTC(year, month, 1) - 10 * 60 * 60 * 1000,
       end: Date.UTC(year, month + 1, 1) - 10 * 60 * 60 * 1000,
     };
   }
 
-  function viewOf(data, now = Date.now()) {
-    const period = currentMonth(now);
-    if (data?.enabled !== true || data.configured !== true || data.currency !== "aud" ||
-        data.timeZone !== "Australia/Brisbane" || !monthLabel(data.month) || !period) return null;
-    const categories = Array.isArray(data.categories) ? data.categories : [];
-    if (!categories.length || categories.length > 50 || categories.some((item) =>
-      !item || typeof item.label !== "string" || !item.label.trim() ||
-      !Number.isSafeInteger(item.amountCents) || item.amountCents <= 0)) return null;
-    const target = categories.reduce((sum, item) => sum + item.amountCents, 0);
-    if (!Number.isSafeInteger(target) || target !== data.targetCents) return null;
-    const updated = updatedLabel(data.updatedAt);
-    const updatedAt = typeof data.updatedAt === "string" ? Date.parse(data.updatedAt) : NaN;
-    const periodEnd = typeof data.periodEnd === "string" ? Date.parse(data.periodEnd) : NaN;
-    const available = data.available === true && Number.isSafeInteger(data.amountMinor) && !!updated &&
-      updatedAt <= now && now - updatedAt <= MAX_AGE_MS && data.month === period.key &&
-      periodEnd === period.end && now < periodEnd;
-    const raised = available ? data.amountMinor : null;
+  // Keep only the public projection. A legacy response must never become a
+  // source of cost labels, amounts, private provider details or a derived ratio.
+  function publicSnapshot(data) {
+    if (!data || typeof data !== "object") return null;
     return {
-      categories, target, available, raised, updated,
-      month: monthLabel(period.key),
-      percent: available ? raised / target * 100 : null,
-      expiresAt: available ? Math.min(updatedAt + MAX_AGE_MS + 1, periodEnd) : null,
-      basis: typeof data.basis === "string" && data.basis.trim() ? data.basis : BASIS,
+      enabled: data.enabled === true, configured: data.configured === true, available: data.available === true,
+      month: typeof data.month === "string" ? data.month : null,
+      timeZone: data.timeZone === "Australia/Brisbane" ? data.timeZone : null,
+      periodEnd: typeof data.periodEnd === "string" ? data.periodEnd : null,
+      updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : null,
+      coveragePercent: Number.isInteger(data.coveragePercent) && data.coveragePercent >= 0 && data.coveragePercent <= 100
+        ? data.coveragePercent : null,
     };
+  }
+
+  function viewOf(input, now = Date.now()) {
+    const data = publicSnapshot(input);
+    const period = currentMonth(now);
+    if (!data?.enabled || !data.configured || !data.timeZone || !monthLabel(data.month) || !period) return null;
+    const updated = Date.parse(data.updatedAt);
+    const end = Date.parse(data.periodEnd);
+    const available = data.available && data.coveragePercent !== null && data.month === period.key &&
+      end === period.end && updated >= period.start && updated <= now && now - updated <= MAX_AGE_MS;
+    return {
+      month: monthLabel(period.key), available,
+      percent: available ? data.coveragePercent : null,
+      updated: available ? updatedLabel(data.updatedAt) : "",
+      expiresAt: available ? Math.min(updated + MAX_AGE_MS + 1, end) : null,
+    };
+  }
+
+  function goalStatus(percent, target) {
+    if (percent === null) return "Awaiting update";
+    if (percent >= target) return "Reached";
+    return target === 50 || percent >= 50 ? "Next goal" : "Ahead";
+  }
+
+  function nextStep(percent) {
+    if (percent === 100) return "This month’s running costs are fully covered.";
+    if (percent >= 75) return "Stretch goal reached. Thank you for supporting the Valley!";
+    const target = percent < 50 ? 50 : 75;
+    const gap = target - percent;
+    return gap + " percentage " + (gap === 1 ? "point" : "points") + " to the " + (target === 50 ? "first" : "stretch") + " goal.";
   }
 
   function render(data, options = {}) {
     const view = viewOf(data, options.now ?? Date.now());
     if (!view) return "";
-    const prefix = /^[a-z][a-z0-9-]*$/.test(options.idPrefix || "") ? options.idPrefix : "subscriber-progress";
-    const { target, raised, available, categories, month, updated, basis } = view;
-    const percent = available ? new Intl.NumberFormat("en-AU", { maximumFractionDigits: 1 }).format(Math.max(0, view.percent)) : "";
-    const valueNow = available ? Math.min(100, Math.max(0, view.percent)).toFixed(2) : "0";
-    const remaining = available ? Math.max(0, target - raised) : null;
-    let cumulative = 0;
-    const milestones = categories.map((item, index) => {
-      const before = cumulative;
-      cumulative += item.amountCents;
-      const allocated = available ? Math.min(item.amountCents, Math.max(0, raised - before)) : null;
-      const reached = available && allocated === item.amountCents;
-      const detail = !available ? "Awaiting verified support total"
-        : reached ? "Funding target reached"
-          : allocated > 0 ? money(allocated) + " allocated toward this cost"
-            : "Next in the monthly budget";
-      return `<li class="subscriber-cost${reached ? " is-funded" : ""}">
-        <span class="subscriber-cost-marker" aria-hidden="true">${reached ? "✓" : index + 1}</span>
-        <div><strong>${escape(item.label)}</strong><small>${escape(detail)}</small></div>
-        <span class="subscriber-cost-amount">${escape(money(item.amountCents))}</span>
-      </li>`;
+    const { month, percent, available, updated } = view;
+    const goals = [[50, "First goal"], [75, "Stretch goal"]].map(([target, label]) => {
+      const state = goalStatus(percent, target);
+      return `<li class="subscriber-goal-step" data-state="${state === "Reached" ? "reached" : state === "Next goal" ? "next" : "pending"}"><span class="subscriber-goal-icon" aria-hidden="true">${state === "Reached" ? "✓" : "◇"}</span><span><strong>${label}: ${target}%</strong><small>${state}</small></span></li>`;
     }).join("");
-    const amount = available
-      ? `<p class="subscriber-amount"><strong>${escape(money(raised))}</strong><span>of ${escape(money(target))} AUD</span></p>`
-      : `<p class="subscriber-amount is-awaiting"><strong>Awaiting verification</strong><span>Monthly cost target: ${escape(money(target))} AUD</span></p>`;
-    const state = available
-      ? `<div class="subscriber-meter" role="progressbar" aria-labelledby="${prefix}-heading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${valueNow}" aria-valuetext="${escape(money(raised))} AUD received toward ${escape(money(target))} AUD; ${percent}% of the monthly budget"><span style="width:${valueNow}%"></span></div>
-        <div class="subscriber-progress-caption"><strong>${percent}% funded</strong><span>${remaining > 0 ? escape(money(remaining)) + " AUD to this month’s target" : raised > target ? escape(money(raised - target)) + " AUD above this month’s target" : "This month’s funding target is reached"}</span></div>${raised < 0 ? '<p class="subscriber-awaiting">Refunds exceeded subscription payments received this month.</p>' : ""}`
-      : '<p class="subscriber-awaiting" role="status">The current month’s subscription total has not been verified yet. Progress will appear after a successful refresh.</p>';
-    return `<div class="subscriber-header"><div><p class="subscriber-eyebrow">SUBSCRIBER BAR</p><h2 id="${prefix}-heading">Server costs this month</h2><p class="subscriber-period">${escape(month)} · AUD · Australia/Brisbane</p></div>${options.showLink === false ? "" : '<a class="subscriber-link" href="/supporter#tier-grid">Explore memberships <span aria-hidden="true">↗</span></a>'}</div>
-      ${amount}${state}
-      <details class="subscriber-costs"><summary>Monthly cost milestones <span>${categories.length} ${categories.length === 1 ? "cost" : "costs"}</span></summary><ol>${milestones}</ol><p>Support is allocated to these budget targets in order. Reaching a milestone does not mean a bill has been paid.</p></details>
-      <div class="subscriber-footnote"><p>${escape(basis)}.</p><p>${available ? "Verified " + escape(updated) : updated ? "Last successful refresh: " + escape(updated) + ". A current verified total is unavailable." : "A verified update is pending."}</p></div>`;
+    const meter = available
+      ? `<p class="subscriber-coverage"><strong>${percent}%</strong><span>of this month’s running costs covered</span></p>
+        <div class="subscriber-meter" role="progressbar" aria-label="Monthly running costs covered" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}" aria-valuetext="${percent}% of this month’s running costs covered"><span style="width:${percent}%"></span></div>
+        <p class="subscriber-next-step">${nextStep(percent)}</p>`
+      : '<p class="subscriber-awaiting" role="status"><strong>Awaiting verification</strong>Current coverage will appear here when the latest support has been verified.</p>';
+    return `<div class="subscriber-header"><div><p class="subscriber-eyebrow">SUBSCRIBER BAR</p><h2>Earn more Valley Coins</h2><p class="subscriber-intro">Members earn 2× to 5× on eligible Valley Coin rewards, depending on their tier. Every membership helps keep the Valley running.</p></div>${options.showLink === false ? "" : '<a class="subscriber-link" href="/supporter#tier-grid">See membership rewards <span aria-hidden="true">→</span></a>'}</div>
+      <div class="subscriber-budget"><p class="subscriber-period">Monthly server support · ${escape(month)} (QLD)</p>${meter}
+      <ol class="subscriber-goals" aria-label="Monthly support goals">${goals}</ol>
+      ${available ? '<p class="subscriber-verified">Verified ' + escape(updated) + '</p>' : ""}</div>`;
   }
 
   function paint(host, data, now) {
-    const markup = render(data, { idPrefix: host.id, now });
+    const markup = render(data, { now });
     if (host.innerHTML !== markup) {
-      const costsOpen = host.querySelector?.(".subscriber-costs")?.open;
-      const summaryFocused = host.querySelector?.("summary") === host.ownerDocument?.activeElement;
+      const link = host.querySelector?.(".subscriber-link");
+      const restoreFocus = link && link === host.ownerDocument?.activeElement;
       host.innerHTML = markup;
-      const costs = host.querySelector?.(".subscriber-costs");
-      if (costs && costsOpen) costs.open = true;
-      if (summaryFocused) host.querySelector?.("summary")?.focus();
+      if (restoreFocus) host.querySelector?.(".subscriber-link")?.focus();
     }
     host.hidden = !markup;
   }
@@ -130,15 +125,15 @@
     loads.set(host, generation);
     host.setAttribute("aria-busy", "true");
     try {
-      const data = await api("/api/supporter/progress");
+      const data = publicSnapshot(await api("/api/supporter/progress"));
       if (loads.get(host) !== generation) return;
       paint(host, data, now());
       return { ok: true, data };
     } catch {
       if (loads.get(host) !== generation) return;
-      // Preserve a known cost goal, but never substitute zero or retain income
+      // Preserve the goals, but never substitute zero or retain a percentage
       // as current after a failed public read.
-      const data = options.previousData ? { ...options.previousData, available: false, amountMinor: null } : null;
+      const data = options.previousData ? { ...publicSnapshot(options.previousData), available: false, coveragePercent: null } : null;
       paint(host, data, now());
       return { ok: false, data };
     } finally {
@@ -159,9 +154,9 @@
       if (stopped || !expiresAt) return;
       expiryTimer = timers.setTimeout(() => {
         expiryTimer = null;
-        // Clear the amount synchronously at expiry, even if the refresh is
+        // Clear the percentage synchronously at expiry, even if the refresh is
         // slow or the page is hidden. Only a fresh response may restore it.
-        data = { ...data, available: false, amountMinor: null };
+        data = { ...data, available: false, coveragePercent: null };
         paint(host, data, now());
         void refresh();
       }, Math.max(1, expiresAt - now()));
@@ -207,5 +202,5 @@
     else init();
   }
 
-  return { money, monthLabel, viewOf, render, load, watch, mount };
+  return { monthLabel, viewOf, render, load, watch, mount };
 });

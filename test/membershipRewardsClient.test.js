@@ -52,14 +52,26 @@ test("monthly choices require a published collection and a verified paid cycle",
   assert.match(active, /href="\/skins#premium-collection"/);
 });
 
-test("expired extra storage is clearly withdraw-only without deleting owned dinosaurs", () => {
-  const markup = client.renderRewards(rewards({
-    entitled: false,
-    storage: { enabled: true, configured: true, usedSlots: 7, totalSlots: 5, bonusSlots: 0, withdrawOnly: true },
-  }), "Goofy");
-  assert.match(markup, /Withdraw-only storage/);
-  assert.match(markup, /All stored dinosaurs are safe to withdraw/);
-  assert.doesNotMatch(markup, /Benefits active/);
+test("active and expired memberships never advertise dinosaur storage or quotas, including with legacy capacity data", () => {
+  for (const entitled of [true, false]) {
+    const withoutStorage = rewards({ entitled, storage: undefined });
+    const markup = client.renderRewards(withoutStorage, "Goofy");
+    assert.doesNotMatch(markup, /storage|slots used|withdraw.only|new deposits|membership slots/i);
+    for (const storage of [
+      { enabled: false },
+      { enabled: true, configured: true, usedSlots: 4, totalSlots: 8, bonusSlots: 4 },
+      { enabled: true, configured: true, usedSlots: 7, totalSlots: 5, bonusSlots: 0, withdrawOnly: true },
+    ]) {
+      assert.equal(client.renderRewards({ ...withoutStorage, storage }, "Goofy"), markup);
+    }
+  }
+});
+
+test("the guest sign-in prompt promotes actual membership rewards without offering storage", async () => {
+  const host = { innerHTML: "", setAttribute() {} };
+  await client.loadRewards({ host, me: { loggedIn: false }, api: () => assert.fail("guest rewards lookup") });
+  assert.match(host.innerHTML, /skin choices, profile frames and loyalty progress/);
+  assert.doesNotMatch(host.innerHTML, /storage|slot|quota/i);
 });
 
 test("reward labels, names, errors and frame IDs cannot inject markup", () => {

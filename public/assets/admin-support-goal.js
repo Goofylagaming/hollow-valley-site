@@ -8,6 +8,9 @@
   const ENDPOINT = "/api/admin/finance/support-goal";
   const MAX_COSTS = 8;
   const MAX_CENTS = 100000000;
+  const MAX_FILE_BYTES = 16 * 1024;
+  const aud = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" });
+  const money = cents => aud.format(cents / 100) + " AUD";
   const escape = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
   })[character]);
@@ -49,6 +52,34 @@
     return { enabled: enabled === true, categories, version };
   }
 
+  // Validate the complete file before replacing a single input. Importing uses
+  // the editor's saved revision, never a revision or visibility from the file.
+  async function readBudgetFile(file, version) {
+    if (!file || !Number.isSafeInteger(file.size) || file.size < 1 || file.size > MAX_FILE_BYTES) {
+      throw new Error("Choose a budget JSON file no larger than 16 KB.");
+    }
+    let input;
+    try { input = JSON.parse(await file.text()); }
+    catch { throw new Error("This file could not be read as budget JSON. Your edits are unchanged."); }
+    if (input?.currency !== "aud" || input.enabled !== false || !Array.isArray(input.categories) ||
+        input.categories.length < 1 || input.categories.length > MAX_COSTS) {
+      throw new Error("Use an unpublished AUD budget file with one to eight cost items.");
+    }
+    const rows = input.categories.map(item => {
+      if (typeof item?.id !== "string" || typeof item.label !== "string" ||
+          !Number.isSafeInteger(item.amountCents) || item.amountCents < 1 || item.amountCents > MAX_CENTS) {
+        throw new Error("Each budget item needs a cost ID, name and positive whole-cent amount.");
+      }
+      const cents = item.amountCents;
+      return { id: item.id, label: item.label, amount: `${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, "0")}` };
+    });
+    return draftOf({ enabled: false, version, rows });
+  }
+
+  function milestonesFor(targetCents) {
+    return [50, 75].map(percent => ({ percent, amountCents: Math.ceil(targetCents * percent / 100) }));
+  }
+
   function rowMarkup(row) {
     const id = escape(row.id);
     const amount = Number.isSafeInteger(row.amountCents) ? (row.amountCents / 100).toFixed(2) : "";
@@ -68,6 +99,9 @@
     const rowsHost = doc.getElementById("subscriber-goal-costs");
     const enabled = doc.getElementById("subscriber-goal-enabled");
     const total = doc.getElementById("subscriber-goal-total");
+    const thresholds = doc.getElementById("subscriber-goal-thresholds");
+    const received = doc.getElementById("subscriber-goal-received");
+    const fileInput = doc.getElementById("subscriber-goal-import");
     const status = doc.getElementById("subscriber-goal-status");
     const add = doc.getElementById("subscriber-goal-add");
     const reload = doc.getElementById("subscriber-goal-reload");
@@ -76,6 +110,7 @@
     const previewState = doc.getElementById("subscriber-goal-preview-state");
     const refreshError = doc.getElementById("subscriber-goal-refresh-error");
     let version = null;
+    let published = false;
     let busy = false;
     let count = 0;
 
@@ -88,7 +123,7 @@
       busy = value;
       fields.disabled = value;
       reload.disabled = value;
-      refresh.disabled = value || version === null;
+      refresh.disabled = value || !published || version === null;
       host.setAttribute("aria-busy", String(value));
     }
 
@@ -111,9 +146,11 @@
       try {
         const draft = draftOf({ enabled: false, version: version ?? 0, rows: readRows() });
         const cents = draft.categories.reduce((sum, row) => sum + row.amountCents, 0);
-        total.textContent = cents ? win.HVSubscriberProgress.money(cents) + " AUD" : "Not set";
+        total.textContent = cents ? money(cents) : "Not set";
+        thresholds.textContent = cents ? milestonesFor(cents).map(item => `${item.percent}%: ${money(item.amountCents)}`).join(" · ") : "Not set";
       } catch {
         total.textContent = "Complete the cost items to calculate the target";
+        thresholds.textContent = "Not set";
       }
     }
 
@@ -128,13 +165,19 @@
     }
 
     function renderPreview(result) {
-      const markup = win.HVSubscriberProgress.render(result?.progress, { idPrefix: "subscriber-goal-preview", showLink: false });
+      // Only this separate projection may be passed to the public renderer.
+      const markup = win.HVSubscriberProgress.render(result?.publicProgress, { idPrefix: "subscriber-goal-preview", showLink: false });
       preview.innerHTML = markup;
       preview.hidden = !markup;
       previewState.hidden = !!markup;
       previewState.textContent = result?.config?.enabled
-        ? "The public bar is not available until the goal is configured and public display is enabled on the server."
-        : "The Subscriber Bar is hidden from the homepage and membership page. Enable public display and save to show it.";
+        ? "A public preview is unavailable. Reload the saved settings to check its status."
+        : "The Subscriber Bar is hidden from the homepage and membership page.";
+      const progress = result?.progress;
+      const at = typeof progress?.updatedAt === "string" ? Date.parse(progress.updatedAt) : NaN;
+      received.textContent = progress?.available === true && progress.currency === "aud" && Number.isSafeInteger(progress.amountMinor) && Number.isFinite(at)
+        ? `${money(progress.amountMinor)} · verified ${new Intl.DateTimeFormat("en-AU", { dateStyle: "medium", timeStyle: "short", timeZone: "Australia/Brisbane" }).format(at)} QLD`
+        : "No verified total for this month.";
       refreshError.textContent = result?.lastRefreshError || "";
       refreshError.hidden = !result?.lastRefreshError;
     }
@@ -146,7 +189,8 @@
         throw new Error("The saved goal could not be read. Reload the settings and try again.");
       }
       version = config.version;
-      enabled.checked = config.enabled === true;
+      published = config.enabled === true;
+      enabled.checked = published;
       rowsHost.innerHTML = "";
       for (const row of config.categories) addRow(row);
       if (!config.categories.length) addRow();
@@ -154,6 +198,24 @@
       form.hidden = false;
       renderPreview(result);
     }
+
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files?.[0];
+      if (busy || version === null || !file) return;
+      setBusy(true);
+      try {
+        const draft = await readBudgetFile(file, version);
+        enabled.checked = false;
+        rowsHost.innerHTML = "";
+        for (const row of draft.categories) addRow(row);
+        setStatus("Budget loaded into the form with publication switched off. The saved settings are unchanged until you save.");
+      } catch (error) {
+        setStatus(error.message || "The budget could not be loaded. Your edits are unchanged.", true);
+      } finally {
+        fileInput.value = "";
+        setBusy(false);
+      }
+    });
 
     async function load() {
       if (busy) return;
@@ -203,7 +265,8 @@
           preview.innerHTML = "";
           preview.hidden = true;
           previewState.hidden = false;
-          previewState.textContent = "The current public support total could not be verified. Reload the saved settings to check its status.";
+          previewState.textContent = "Current progress could not be verified. Reload the saved settings to check its status.";
+          received.textContent = "No verified total for this month.";
         }
         setStatus(error.message || "Could not refresh subscription support. Goal settings were not changed.", true);
       } finally { setBusy(false); }
@@ -235,5 +298,5 @@
     })();
   }
 
-  return { amountToCents, draftOf, rowMarkup, mount };
+  return { amountToCents, draftOf, readBudgetFile, milestonesFor, rowMarkup, mount };
 });

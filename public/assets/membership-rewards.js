@@ -78,21 +78,6 @@
     return `<article class="membership-benefit"><span class="membership-kicker">MONTHLY SKINS</span><h3>${escape(heading)}</h3><p>${escape(detail)}</p>${pending ? `<p class="membership-notice">${pending} ${pending === 1 ? "choice is" : "choices are"} being delivered. Repeating a claim will not use another choice.</p>` : ""}${monthly.claimError ? `<p class="membership-notice">${escape(monthly.claimError)}</p>` : ""}<a href="/skins#premium-collection">Open Skin Studio <span aria-hidden="true">→</span></a></article>`;
   }
 
-  function renderStorage(storage = {}) {
-    let heading = "Not active yet";
-    let detail = "Extra storage is being prepared. Your existing dinosaurs remain available.";
-    if (storage.enabled === true && storage.configured === true) {
-      const bonus = count(storage.bonusSlots) ?? 0;
-      const total = count(storage.totalSlots);
-      const used = count(storage.usedSlots);
-      heading = storage.withdrawOnly === true ? "Withdraw-only storage" : bonus ? `+${bonus} membership ${bonus === 1 ? "slot" : "slots"}` : "Standard storage allowance";
-      detail = storage.withdrawOnly === true
-        ? "All stored dinosaurs are safe to withdraw. New deposits resume when you are below your current allowance."
-        : `${used !== null && total !== null ? `${used} of ${total} slots used. ` : total !== null ? `${total} slots in total. ` : ""}Stored dinosaurs stay safe if your membership changes.`;
-    }
-    return `<article class="membership-benefit"><span class="membership-kicker">DINOSAUR STORAGE</span><h3>${escape(heading)}</h3><p>${escape(detail)}</p><a href="/mydinos">Open My Dinos <span aria-hidden="true">→</span></a></article>`;
-  }
-
   function renderLoyalty(loyalty = {}) {
     const months = count(loyalty.paidMonths);
     const milestones = (Array.isArray(loyalty.milestones) ? loyalty.milestones : [])
@@ -126,7 +111,7 @@
     const note = rewards.entitled === true
       ? `Your active membership rewards${until ? ` · current paid period ends ${until}` : ""}.`
       : "Earned cosmetics and loyalty progress stay with you. Active membership benefits appear when your paid access is verified.";
-    return `<div class="membership-overview"><div><span class="membership-kicker">MY MEMBERSHIP</span><h2>${escape(label)}</h2><p>${escape(note)}</p></div><span class="membership-status${rewards.entitled === true ? " is-active" : ""}">${rewards.entitled === true ? "Benefits active" : "No verified active benefits"}</span></div><div class="membership-benefits-grid">${renderMonthly(rewards.monthly)}${renderStorage(rewards.storage)}</div>${renderLoyalty(rewards.loyalty)}${renderAppearance(rewards, username)}`;
+    return `<div class="membership-overview"><div><span class="membership-kicker">MY MEMBERSHIP</span><h2>${escape(label)}</h2><p>${escape(note)}</p></div><span class="membership-status${rewards.entitled === true ? " is-active" : ""}">${rewards.entitled === true ? "Benefits active" : "No verified active benefits"}</span></div><div class="membership-benefits-grid">${renderMonthly(rewards.monthly)}</div>${renderLoyalty(rewards.loyalty)}${renderAppearance(rewards, username)}`;
   }
 
   function applyProfileAppearance(document, rewards) {
@@ -155,7 +140,7 @@
     const loadVersion = (loadVersions.get(host) || 0) + 1;
     loadVersions.set(host, loadVersion);
     if (!me?.loggedIn) {
-      host.innerHTML = state("Your rewards, in one place", "Sign in to see your skin choices, storage allowance and loyalty progress.") + '<a class="small-button membership-signin" href="/auth/steam?returnTo=/supporter">Sign in with Steam</a>';
+      host.innerHTML = state("Your rewards, in one place", "Sign in to see your skin choices, profile frames and loyalty progress.") + '<a class="small-button membership-signin" href="/auth/steam?returnTo=/supporter">Sign in with Steam</a>';
       host.setAttribute("aria-busy", "false");
       return null;
     }
