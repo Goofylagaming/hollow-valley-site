@@ -8,8 +8,9 @@ checkout behavior; invalid explicit values return 400.
 Both choices use the existing server-owned monthly Stripe Prices and account /
 Steam identity checks. The one-month path verifies that its Price really has a
 one-month interval. It writes `renewal_mode=one_month` to the Checkout Session
-and subscription metadata and discloses the end-of-month cancellation in Stripe
-Checkout. No new Stripe products, prices, tax settings or API-version changes
+and subscription metadata. The membership page discloses the end-of-month
+cancellation before checkout; Stripe Managed Payments does not support Checkout
+`custom_text`, so that optional parameter is omitted. No new Stripe products, prices, tax settings or API-version changes
 are needed.
 
 Stripe Checkout does not expose `cancel_at_period_end` on subscription creation.
