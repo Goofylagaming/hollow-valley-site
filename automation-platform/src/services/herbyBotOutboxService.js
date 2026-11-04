@@ -1,7 +1,6 @@
 const { randomUUID } = require('node:crypto');
 const store = require('./automationStore');
 
-const DESTINATIONS = new Set(['announcement', 'alert', 'territory-war', 'progress']);
 const DESTINATIONS = new Set(['announcement', 'alert', 'territory-war', 'progress', 'event-announcement']);
 
 function configured() {

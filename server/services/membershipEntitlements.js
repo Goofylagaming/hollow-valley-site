@@ -2,10 +2,12 @@
 
 const { normalizeTier, tierInfo } = require("./supporterTiers");
 
+// DinoStorage is unlimited for every player. Keep the legacy field at zero
+// so older callers cannot accidentally turn storage capacity into a paid perk.
 const BENEFITS = Object.freeze({
-  supporter: Object.freeze({ storageBonusSlots: 1, monthlySkinChoices: 1, frameId: "supporter-fern" }),
-  guardian: Object.freeze({ storageBonusSlots: 2, monthlySkinChoices: 2, frameId: "guardian-river" }),
-  legend: Object.freeze({ storageBonusSlots: 4, monthlySkinChoices: 3, frameId: "legend-gold" }),
+  supporter: Object.freeze({ storageBonusSlots: 0, monthlySkinChoices: 1, frameId: "supporter-fern" }),
+  guardian: Object.freeze({ storageBonusSlots: 0, monthlySkinChoices: 2, frameId: "guardian-river" }),
+  legend: Object.freeze({ storageBonusSlots: 0, monthlySkinChoices: 3, frameId: "legend-gold" }),
 });
 
 function enabled(env = process.env) {

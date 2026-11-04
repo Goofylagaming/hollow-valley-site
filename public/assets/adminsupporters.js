@@ -141,7 +141,7 @@ function renderRows() {
             ? " Membership repaired and Discord role sync completed."
             : " Membership repaired.";
         text("supporter-admin-status", discordMessage.trim());
-        await loadSupporters();
+        await Promise.all([loadSupporters(), loadSkinVote()]);
       } catch (error) {
         text("supporter-admin-status", error.message || "Membership repair failed.");
         button.disabled = false;
@@ -217,6 +217,82 @@ document.querySelectorAll("[data-supporter-filter]").forEach((button) => {
 
 document.getElementById("supporter-admin-search")?.addEventListener("input", renderRows);
 document.getElementById("supporter-admin-refresh")?.addEventListener("click", loadSupporters);
+
+
+function voteOptionLines() {
+  return String(document.getElementById("admin-skin-vote-options")?.value || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [label, ...rest] = line.split("|");
+      return { label: label.trim(), description: rest.join("|").trim() };
+    });
+}
+
+function renderSkinVoteAdmin(state) {
+  const host = document.getElementById("admin-skin-vote-current");
+  if (!host) return;
+  if (state?.enabled !== true) {
+    host.innerHTML = '<div class="summary-tile"><small>STATUS</small><b>Membership rewards disabled</b><span>Enable membership rewards before opening a poll.</span></div>';
+    return;
+  }
+  if (!state.current) {
+    const last = state.lastWinner?.label
+      ? `Last winner: ${escapeHtml(state.lastWinner.label)}`
+      : "No completed member vote yet.";
+    host.innerHTML = `<div class="summary-tile"><small>STATUS</small><b>No vote open</b><span>${last}</span></div>`;
+    return;
+  }
+  const total = (state.current.options || []).reduce((sum, option) => sum + Number(option.votes || 0), 0);
+  host.innerHTML = [
+    `<div class="summary-tile"><small>OPEN VOTE</small><b>${escapeHtml(state.current.title)}</b><span>Closes ${escapeHtml(formatDate(state.current.closesAt))}</span></div>`,
+    `<div class="summary-tile"><small>VERIFIED VOTES</small><b>${total}</b><span>One vote per active member</span></div>`,
+    ...(state.current.options || []).map((option) =>
+      `<div class="summary-tile"><small>CANDIDATE</small><b>${escapeHtml(option.label)}</b><span>${Number(option.votes || 0)} vote${Number(option.votes || 0) === 1 ? "" : "s"}</span></div>`
+    ),
+  ].join("");
+}
+
+async function loadSkinVote() {
+  try {
+    const state = await api("/api/admin-supporters/skin-vote");
+    renderSkinVoteAdmin(state);
+  } catch (error) {
+    text("admin-skin-vote-status", error.message || "Could not load the member skin vote.");
+  }
+}
+
+document.getElementById("admin-skin-vote-form")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const options = voteOptionLines();
+  text("admin-skin-vote-status", "Opening member vote…");
+  try {
+    const state = await api("/api/admin-supporters/skin-vote", {
+      method: "POST",
+      body: JSON.stringify({
+        title: document.getElementById("admin-skin-vote-title-input")?.value,
+        durationDays: Number(document.getElementById("admin-skin-vote-duration")?.value),
+        options,
+      }),
+    });
+    renderSkinVoteAdmin(state);
+    text("admin-skin-vote-status", "Member skin vote opened.");
+  } catch (error) {
+    text("admin-skin-vote-status", error.message || "Could not open the member skin vote.");
+  }
+});
+
+document.getElementById("admin-skin-vote-close")?.addEventListener("click", async () => {
+  text("admin-skin-vote-status", "Closing member vote…");
+  try {
+    const state = await api("/api/admin-supporters/skin-vote/close", { method: "POST" });
+    renderSkinVoteAdmin(state);
+    text("admin-skin-vote-status", "Member skin vote closed.");
+  } catch (error) {
+    text("admin-skin-vote-status", error.message || "Could not close the member skin vote.");
+  }
+});
 
 async function init() {
   const me = await window.HDS.loadMe();
