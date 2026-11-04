@@ -71,6 +71,7 @@ test("all production wallet, marketplace, storage, admin and other page scripts 
       // the original viewer. The entire pre-existing script order is preserved.
       const autoMap = "assets/skin-studio-auto-map.js";
       const batchMap = "assets/skin-studio-batch-map.js";
+      const extractedRegistry = "assets/skin-studio-extracted-registry.js";
       const reader = "assets/skin-studio-3d.js";
       const premium = "assets/premium-skins.js";
       assert.equal(actual.filter(src => src === premium).length, 1,
@@ -81,7 +82,15 @@ test("all production wallet, marketplace, storage, admin and other page scripts 
       assert.equal(actual.indexOf(batchMap), actual.indexOf(reader) - 1, "Batch helper precedes the viewer");
       assert.equal(actual.filter(src => src === autoMap).length, 1);
       assert.equal(actual.filter(src => src === batchMap).length, 1);
-      assert.deepEqual(actual.filter(src => src !== autoMap && src !== batchMap && src !== premium), baseline,
+      // Current production Skin Studio also loads the extracted model registry
+      // immediately after the legacy model registry. The pinned baseline predates
+      // that additive script, so preserve it explicitly instead of misclassifying
+      // it as a dropped/reordered feature.
+      assert.equal(actual.filter(src => src === extractedRegistry).length, 1,
+        "Extracted Skin Studio registry must load exactly once");
+      assert.equal(actual.indexOf(extractedRegistry), actual.indexOf("assets/skin-studio-model-registry.js") + 1,
+        "Extracted registry must follow the existing model registry");
+      assert.deepEqual(actual.filter(src => src !== autoMap && src !== batchMap && src !== premium && src !== extractedRegistry), baseline,
         page + ": existing feature scripts must be preserved");
     } else if (page === "dinostorage/index.html") {
       // Prime zone reset is the only additive DinoStorage script. Existing

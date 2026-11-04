@@ -40,7 +40,15 @@ test('BinaryLane presence feed is private, validated, deduplicated and reconcile
   const address = server.address();
   const base = `http://127.0.0.1:${address.port}`;
   const steamId = '76561198000000091';
-  const startMs = Date.now() - 120000;
+  // Keep both progress samples inside the same Brisbane calendar day. This
+  // suite can run around 00:00 QLD, when using Date.now()-120s used to put the
+  // samples on yesterday while the quest-status read correctly used today.
+  const wallNowMs = Date.now();
+  const brisbaneDay = (value) => new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Australia/Brisbane', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date(value));
+  let startMs = wallNowMs - 60000;
+  if (brisbaneDay(startMs) !== brisbaneDay(wallNowMs)) startMs = wallNowMs;
 
   assert.equal(playerPresence.pollingEnabled(), false);
   assert.equal(playerPresence.enabled(), true);
