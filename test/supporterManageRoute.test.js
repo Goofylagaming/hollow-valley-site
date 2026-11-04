@@ -98,6 +98,7 @@ test("successful Stripe cancellation revokes the supporter coin multiplier immed
   db.prepare(
     "INSERT INTO supporter_subscriptions (user_id, tier, auto_renew, stripe_subscription_id, stripe_status) VALUES (?, ?, 1, ?, ?)"
   ).run(42, "supporter", "sub_test_42", "active");
+  db.exec("UPDATE supporter_subscriptions SET renews_at = '2099-01-01T00:00:00.000Z'");
   const app = express();
   app.use(express.json());
   app.use((req, _res, next) => {

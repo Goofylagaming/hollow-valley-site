@@ -95,7 +95,7 @@ async function listStripeSubscriptions({ env = process.env, fetchImpl = globalTh
 
 function localRowToEntry(row, { discordConfigured }) {
   const tier = normalizeTier(row.tier);
-  const entitled = isEntitled(row.stripe_status);
+  const entitled = isEntitled(row);
   const discordLinked = Boolean(String(row.discord_id || "").trim());
   const steamLinked = Boolean(String(row.steam_id || "").trim());
 
@@ -322,7 +322,7 @@ router.post("/:userId/repair-stripe", requireAdmin, async (req, res) => {
 
     let discordSync = null;
     let discordSyncError = null;
-    if (status && isEntitled(status.stripe_status) && user.discord_id) {
+    if (status && isEntitled(status) && user.discord_id) {
       try {
         discordSync = await syncDiscordMembershipForUser(userId);
       } catch (error) {
@@ -350,14 +350,14 @@ router.post("/:userId/sync-discord", requireAdmin, async (req, res) => {
   }
 
   const supporter = db.prepare(`
-    SELECT s.user_id, s.stripe_status, u.discord_id
+    SELECT s.user_id, s.stripe_status, s.renews_at, u.discord_id
     FROM supporter_subscriptions s
     JOIN users u ON u.id = s.user_id
     WHERE s.user_id = ?
   `).get(userId);
 
   if (!supporter) return res.status(404).json({ error: "Supporter subscription was not found." });
-  if (!isEntitled(supporter.stripe_status)) {
+  if (!isEntitled(supporter)) {
     return res.status(409).json({ error: "This supporter is not currently entitled to a supporter role." });
   }
   if (!supporter.discord_id) {

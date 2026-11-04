@@ -39,7 +39,7 @@ function automaticSyncEnabled(env = process.env) {
 
 function targetTierForStatus(status, { env = process.env, now = Date.now() } = {}) {
   if (membershipEntitlements.enabled(env)) return membershipEntitlements.entitlement(status, { env, now }).tier;
-  return status && ["active", "trialing"].includes(status.stripe_status) ? normalizeTier(status.tier) : null;
+  return require("./supporterWebhook").isEntitled(status, now) ? normalizeTier(status.tier) : null;
 }
 
 function syncGate(env) {
