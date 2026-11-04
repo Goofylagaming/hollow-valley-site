@@ -353,11 +353,24 @@ function finalizeSale(listingId) {
 
 async function buyDinoListing({ buyerSteamId, listingId, idempotencyKey }) {
   assertWriteEnabled();
-  const reservation = reservePurchase({
-    buyerSteamId,
-    listingId,
-    purchaseKey: idempotencyKey,
-  });
+  const capacity = require('./dinoStorageCapacityService');
+  let admission = null;
+  if (capacity.enabled()) {
+    const buyer = store.validateSteamId(buyerSteamId);
+    validateKey(idempotencyKey, 'Purchase idempotency key');
+    const listing = getListing(listingId);
+    if (listing.status !== 'sold') {
+      admission = await capacity.reserveIncoming({ steamId: buyer, slot: buyerSlotForListing(listing.id), operation: `p2p:${listing.id}`, allowExisting: true });
+    }
+  }
+  let reservation;
+  try {
+    reservation = reservePurchase({ buyerSteamId, listingId, purchaseKey: idempotencyKey });
+  } catch (error) {
+    // No funds were reserved and no file/game mutation started.
+    if (admission?.enabled && !admission.duplicate) capacity.releaseReservation(admission.operation);
+    throw error;
+  }
   if (reservation.listing.status === 'sold') {
     return {
       duplicate: true,
@@ -392,6 +405,7 @@ async function buyDinoListing({ buyerSteamId, listingId, idempotencyKey }) {
     }
 
     refundReservation(reservation.listing, `Marketplace transfer failed: ${error.message}`);
+    if (admission?.enabled) capacity.releaseReservation(admission.operation);
     throw error;
   }
 }

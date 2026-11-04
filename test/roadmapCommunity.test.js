@@ -24,8 +24,8 @@ test("roadmap ballot limits voting to three idea-stage features per Steam identi
   const initial = voting.voteSummary(steam1);
   assert.equal(initial.maxVotes, 3);
   assert.equal(initial.myVotes.length, 0);
-  assert.equal(initial.eligibleFeatureIds.length, 22);
-  assert.equal(new Set(initial.eligibleFeatureIds).size, 22, "No duplicate roadmap feature IDs");
+  assert.equal(initial.eligibleFeatureIds.length, 21);
+  assert.equal(new Set(initial.eligibleFeatureIds).size, 21, "No duplicate roadmap feature IDs");
 
   for (const id of [1, 2, 3]) voting.setVote(steam1, id, true);
   voting.setVote(steam1, 3, true); // idempotent repeated request
@@ -33,7 +33,7 @@ test("roadmap ballot limits voting to three idea-stage features per Steam identi
   assert.equal(voting.voteSummary(steam1).counts[3], 1);
   assert.throws(() => voting.setVote(steam1, 4, true), { code: "VOTE_LIMIT" });
 
-  for (const id of [7, 8, 9, 13, 15, 31, 0, 100]) {
+  for (const id of [7, 8, 9, 13, 15, 22, 31, 0, 100]) {
     assert.throws(() => voting.setVote(steam1, id, true), { code: "FEATURE_NOT_VOTABLE" });
   }
   assert.throws(() => voting.setVote("not-steam", 1, true), { code: "STEAM_REQUIRED" });
@@ -80,6 +80,14 @@ test("retired world-event votes remain recorded without occupying active slots",
   for (const id of [1,2,3]) voting.setVote(steam, id, true);
   assert.deepEqual(voting.voteSummary(steam).myVotes, [1,2,3]);
   assert.equal(voting.voteSummary().counts[15], 1);
+});
+
+test("skin-collection votes stay recorded after development starts without consuming an active vote", () => {
+  const steam = "76561198000000022";
+  db.prepare("INSERT INTO roadmap_votes (steam_id, feature_id) VALUES (?, 22)").run(steam);
+  for (const id of [1,2,3]) voting.setVote(steam,id,true);
+  assert.deepEqual(voting.voteSummary(steam).myVotes,[1,2,3]);
+  assert.equal(voting.voteSummary().counts[22],1);
 });
 
 test("player ideas require moderation, are rate limited and never publish Steam identities", () => {

@@ -52,6 +52,7 @@ const adminSafeLogRecoveryRouter = require("./routes/adminSafeLogRecovery");
 const adminCommsRouter = require("./routes/adminComms");
 const adminSupportersRouter = require("./routes/adminSupporters");
 const adminFinanceRouter = require("./routes/adminFinance");
+const { createSubscriberFundingRouters } = require("./routes/subscriberFunding");
 const { ownerRouter: ownerServerManagementRouter, agentRouter: binaryLaneManagementRouter } = require("./routes/serverManagement");
 const adminBodyDropResetRouter = require("./routes/adminBodyDropReset");
 const serverStatusService = require("./services/serverStatus");
@@ -255,6 +256,7 @@ function createApp() {
   app.use("/auth/owner", authOwnerRouter);
   app.use("/api/internal/commandbridge", legacyDirectGameApiRetired);
   app.use("/api/internal/supporter-memberships", supporterInternalRouter);
+  app.use("/api/internal/membership-rewards", require("./routes/membershipRewardsInternal"));
   app.use("/api/species", speciesRouter);
   app.use("/api/wallet", walletRouter);
   app.use("/api/quests", questsRouter);
@@ -266,8 +268,12 @@ function createApp() {
   app.use("/api/dashboard", dashboardRouter);
   app.use("/api/mydinos", mydinosRouter);
   app.use("/api/marketplace", marketplaceRouter);
+  app.use("/api/skins/premium", require("./routes/premiumSkins"));
   app.use("/api/skins", skinShareCodeRedaction);
   app.use("/api/skins", skinsRouter);
+  app.use("/api/supporter", require("./routes/membershipRewards"));
+  const subscriberFundingRouters = createSubscriberFundingRouters();
+  app.use("/api/supporter/progress", subscriberFundingRouters.publicRouter);
   app.use("/api/supporter", supporterRouter);
   app.use("/api/daily-bonus", dailyBonusRouter);
   app.use("/api/bodydrop", bodydropRouter);
@@ -297,6 +303,7 @@ function createApp() {
   app.use("/api/admin-safelog-recovery", adminSafeLogRecoveryRouter);
   app.use("/api/admin-comms", adminCommsRouter);
   app.use("/api/admin-supporters", adminSupportersRouter);
+  app.use("/api/admin/finance/support-goal", requireFinanceOwner, subscriberFundingRouters.ownerRouter);
   app.use("/api/admin/finance", requireFinanceOwner, adminFinanceRouter);
   // Owner-only UI; agent uses a separate bearer-authenticated outbound HTTPS channel.
   app.use("/api/admin/server-management", requireFinanceOwner, ownerServerManagementRouter);
@@ -385,6 +392,10 @@ function startServer() {
     console.log(`Herby Death Squad portal running on port ${PORT}`);
     console.log("[legacy-api] direct game execution paths retired");
     serverStatusService.start();
+    const membershipDiscordTimer = require("./services/membershipDiscordQueue").start();
+    server.once("close", () => { if (membershipDiscordTimer) clearInterval(membershipDiscordTimer); });
+    const subscriberFundingTimer = require("./services/subscriberFunding").getDefaultService().start();
+    server.once("close", () => { if (subscriberFundingTimer) clearInterval(subscriberFundingTimer); });
     if (TERRITORY_WARS_ADMIN_TEST_ENABLED) {
       const territoryRouter = require("./routes/territoryWars");
       const runtimeTimer = setInterval(() => {

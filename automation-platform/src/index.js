@@ -221,6 +221,8 @@ app.use('/api/website/skin-share-policy', (_req, res, next) => {
   next();
 }, skinSharePolicyRoutes);
 
+app.use('/api/website/membership-storage', require('./routes/membershipStorageRoutes'));
+
 app.use('/api/website', (_req, res, next) => {
   res.set('Cache-Control', 'no-store');
   next();

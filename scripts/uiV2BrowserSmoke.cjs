@@ -259,6 +259,64 @@ async function checkAuthenticatedGroupProgress(browser, origin){
     console.log("PASS authenticated Groups Achievements & Quests mobile");
   }finally{await context.close();}
 }
+
+async function checkSubscriberBarFixture(browser, origin, route, size, label) {
+  const context = await browser.newContext({ viewport: size, deviceScaleFactor: 1, reducedMotion: "reduce" });
+  const page = await context.newPage();
+  const issues = collect(page);
+  // Browser-only sample, using the same percentage-only projection as the public API.
+  const now = Date.now();
+  const local = new Date(now + 10 * 60 * 60 * 1000);
+  const year = local.getUTCFullYear();
+  const month = local.getUTCMonth();
+  const monthLabel = new Intl.DateTimeFormat("en-AU", {
+    month: "long", year: "numeric", timeZone: "Australia/Brisbane",
+  }).format(new Date(now));
+  const fixture = {
+    enabled: true, configured: true, available: true,
+    month: `${year}-${String(month + 1).padStart(2, "0")}`, timeZone: "Australia/Brisbane",
+    periodEnd: new Date(Date.UTC(year, month + 1, 1) - 10 * 60 * 60 * 1000).toISOString(),
+    coveragePercent: size.width < 600 ? 75 : 50, updatedAt: new Date(now).toISOString(),
+  };
+  try {
+    await setReadOnlyApiMocks(page);
+    await page.route("**/api/supporter/progress", (request) => request.fulfill({
+      status: 200, contentType: "application/json", body: JSON.stringify(fixture),
+    }));
+    const response = await page.goto(origin + route, { waitUntil: "domcontentloaded", timeout: 25000 });
+    assert.equal(response.status(), 200, label + " HTTP status");
+    const bar = page.locator("[data-subscriber-progress]");
+    await bar.getByRole("progressbar", { name: "Monthly running costs covered" }).waitFor({ state: "visible", timeout: 15000 });
+    assert.equal(await bar.isVisible(), true, label + " configured Subscriber Bar must be visible");
+    const meter = bar.getByRole("progressbar");
+    assert.equal(await meter.getAttribute("aria-valuemin"), "0");
+    assert.equal(await meter.getAttribute("aria-valuemax"), "100");
+    assert.equal(await meter.getAttribute("aria-valuenow"), String(fixture.coveragePercent));
+    assert.equal(await meter.getAttribute("aria-valuetext"), fixture.coveragePercent + "% of this month’s running costs covered");
+    const barText = await bar.textContent();
+    if (route === "/supporter") {
+      const prices = page.locator("#tier-grid .price");
+      await prices.first().waitFor({ state: "visible" });
+      const textPrices = await prices.allTextContents();
+      assert.equal(textPrices.length, 3);
+      for (const price of textPrices) assert.match(price, /^A\$\d+\.\d{2} \/ month$/);
+    }
+    assert.ok(barText.includes(monthLabel + " (QLD)"));
+    assert.ok(barText.includes("First goal: 50%") && barText.includes("Stretch goal: 75%"));
+    assert.doesNotMatch(barText, /\$|\bAUD\b|Stripe|monthly cost milestones/i);
+    assert.equal(await bar.locator('.subscriber-goal-step[data-state="reached"]').count(), fixture.coveragePercent === 50 ? 1 : 2);
+    assert.equal(await bar.getByRole("link", { name: /See membership rewards/ }).getAttribute("href"), "/supporter#tier-grid");
+    assert.equal(await bar.evaluate((element) => element.scrollWidth <= element.clientWidth + 1), true,
+      label + " Subscriber Bar must not overflow horizontally");
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), true,
+      label + " page must fit the viewport");
+    await bar.screenshot({ path: path.join(screenshots, "subscriber-bar-fixture-" + label + ".png") });
+    assert.deepEqual(issues.missing, [], label + " missing local Subscriber Bar assets");
+    assert.deepEqual(issues.errors, [], label + " Subscriber Bar runtime errors");
+    console.log("PASS Subscriber Bar synthetic fixture", label, route, size.width + "x" + size.height);
+  } finally { await context.close(); }
+}
+
 async function main() {
   assert.ok(process.env.DB_PATH, "Must set DB_PATH to isolated staging SQLite file");
   assert.ok(!process.env.DB_PATH.startsWith("/app/data"), "Never use Render persistent disk");
@@ -294,6 +352,10 @@ async function main() {
       await checkPage(browser, origin, route, phone, label + "-phone", { capture: true });
     }
     await checkAuthenticatedGroupProgress(browser, origin);
+    for (const [route, label] of [["/", "home"], ["/supporter", "supporter"]]) {
+      await checkSubscriberBarFixture(browser, origin, route, desktop, label + "-desktop");
+      await checkSubscriberBarFixture(browser, origin, route, phone, label + "-phone");
+    }
     const page = await browser.newPage();
     const response = await page.goto(origin + "/admin");
     assert.ok([401, 403, 302].includes(response.status()), "Admin page should block unauthenticated requests; got " + response.status());

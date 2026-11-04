@@ -230,8 +230,18 @@ async function createStoredDino(steamId, slot, state) {
   const selectedSlot = validateSlot(slot);
   const next = JSON.parse(JSON.stringify(state || {}));
   next.slot = selectedSlot;
+  const capacity = require('./dinoStorageCapacityService');
+  const capacityOperation = next.marketplacePurchase?.orderId ? `official:${next.marketplacePurchase.orderId}` : `file:${steam}:${selectedSlot}`;
+  if (capacity.enabled()) {
+    await capacity.reserveIncoming({
+      steamId: steam,
+      slot: selectedSlot,
+      operation: capacityOperation,
+    });
+  }
   return fileBridge.withClient(async (client) => {
     await writeJsonExclusive(client, storedPath(steam, selectedSlot), next);
+    capacity.markMaterialized(capacityOperation);
     return next;
   });
 }
@@ -327,6 +337,10 @@ async function transferEscrowToStored({ listingId, buyerSteamId, buyerSlot }) {
   const listing = validateListingId(listingId);
   const buyer = validateSteamId(buyerSteamId);
   const selectedSlot = validateSlot(buyerSlot);
+  const capacity = require('./dinoStorageCapacityService');
+  if (capacity.enabled()) {
+    await capacity.reserveIncoming({ steamId: buyer, slot: selectedSlot, operation: `p2p:${listing}`, allowExisting: true });
+  }
 
   if (usingCommandBridgeStorage()) {
     await runMarketplaceBridgeCommand({
@@ -335,6 +349,7 @@ async function transferEscrowToStored({ listingId, buyerSteamId, buyerSlot }) {
       listingId: listing,
       slot: selectedSlot,
     });
+    capacity.markMaterialized(`p2p:${listing}`);
     return { transferred: true, resumed: false, target: `commandbridge:${buyer}:${selectedSlot}` };
   }
 
@@ -353,6 +368,7 @@ async function transferEscrowToStored({ listingId, buyerSteamId, buyerSlot }) {
         throw error;
       }
       if (escrowPresent) await client.remove(escrow);
+      capacity.markMaterialized(`p2p:${listing}`);
       return { transferred: true, resumed: true, target };
     }
 
@@ -376,6 +392,7 @@ async function transferEscrowToStored({ listingId, buyerSteamId, buyerSlot }) {
       throw uncertain;
     }
 
+    capacity.markMaterialized(`p2p:${listing}`);
     return { transferred: true, resumed: false, target };
   });
 }
@@ -384,6 +401,9 @@ async function restoreEscrowToSeller({ listingId, sellerSteamId, sellerSlot }) {
   const listing = validateListingId(listingId);
   const seller = validateSteamId(sellerSteamId);
   const selectedSlot = validateSlot(sellerSlot);
+
+  // Returns preserve the player's existing property, including after expiry.
+  // Capacity accounting already counts owned escrow until its return/sale.
 
   if (usingCommandBridgeStorage()) {
     await runMarketplaceBridgeCommand({

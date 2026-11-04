@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const express = require("express");
 const fs = require("node:fs");
 const path = require("node:path");
+const vm = require("node:vm");
 const automation = require("../server/services/automationWebsiteClient");
 const timeline = require("../server/services/incidentTimeline");
 const router = require("../server/routes/incidentTimeline");
@@ -129,6 +130,11 @@ test("admin incident page is routed behind an admin gate with escaped data rende
   assert.doesNotThrow(()=>new Function(js));
   assert.match(roadmap, /25: \{ status: 'building'/);
   const voting = read("server/services/roadmapCommunity.js");
-  assert.match(voting, /18, 19, 20, 21, 22, 23, 24, 27/);
-  assert.doesNotMatch(voting, /24, 25, 26/);
+  const eligibleList = voting.match(/const VOTABLE_FEATURE_IDS = Object\.freeze\((\[[\s\S]*?\])\)/);
+  assert.ok(eligibleList, "Roadmap voting declares an explicit eligibility list");
+  const eligibleIds = vm.runInNewContext(eligibleList[1], {}, { timeout: 100 });
+  for (const featureId of [25, 26, 29]) {
+    assert.equal(eligibleIds.includes(featureId), false,
+      `Roadmap feature #${featureId} is already in development and must not be votable`);
+  }
 });

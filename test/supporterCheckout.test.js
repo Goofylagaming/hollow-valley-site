@@ -137,6 +137,7 @@ test('HTTP routes enforce auth, ignore browser price/user fields, and preserve c
   assert.equal(checkoutCalls, 0);
   const tiers = await (await originalFetch(base + '/tiers')).json();
   assert.deepEqual(tiers.tiers, TIERS);
+  assert.deepEqual(tiers.monthlyCoinBonuses, require('../server/services/supporterCoinBonus').MONTHLY_SUPPORTER_BONUS);
   assert.equal(tiers.checkoutConfigured, true);
   assert.equal(tiers.stripeHealth.configured, true);
   assert.equal(tiers.stripeHealth.live, false);

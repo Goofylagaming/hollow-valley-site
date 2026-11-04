@@ -2,6 +2,9 @@ const express = require("express");
 const { verifyStripeSignature, processStripeEvent } = require("../services/supporterWebhook");
 const { creditMonthlySubscriberBonus } = require("../services/supporterCoinBonus");
 const { syncDiscordMembershipForUser } = require("../services/discordMembership");
+const { processRewardEvent, enabled: rewardsEnabled } = require("../services/membershipRewards");
+const { verifyInvoiceFunding } = require("../services/membershipPaymentVerification");
+const discordQueue = require("../services/membershipDiscordQueue");
 
 const router = express.Router();
 
@@ -25,6 +28,17 @@ router.post("/", express.raw({ type: "application/json" }), async (req, res) => 
 
   try {
     const result = processStripeEvent(event);
+    if (result?.ignored) return res.json({ received: true, ...result });
+    // Separate paid-period ledger: retry independently of the lifecycle event
+    // ledger, since an invoice can arrive before the account is linked.
+    let rewardEvent = event;
+    let membershipRewards;
+    if (rewardsEnabled() && event.type === "invoice.paid" && Number(event.data?.object?.amount_paid) > 0) {
+      const funding = await verifyInvoiceFunding(event.data.object);
+      if (funding.verified) rewardEvent = { ...event, data: { ...event.data, object: { ...event.data.object, _membershipFunding: funding } } };
+      else membershipRewards = { skipped: true, reason: funding.reason };
+    }
+    if (!membershipRewards) membershipRewards = processRewardEvent(rewardEvent);
 
     // Run this even when Stripe is retrying an event already recorded by the
     // membership webhook handler. The automation wallet uses the Stripe invoice
@@ -32,14 +46,16 @@ router.post("/", express.raw({ type: "application/json" }), async (req, res) => 
     // Valley Coin payout without ever paying twice.
     const monthlyBonus = await creditMonthlySubscriberBonus(event);
 
-    if (result?.userId) {
+    const affectedUserId = result?.userId || membershipRewards?.userId;
+    if (affectedUserId) {
       try {
-        await syncDiscordMembershipForUser(result.userId);
+        if (discordQueue.enabled()) discordQueue.enqueue(affectedUserId);
+        else await syncDiscordMembershipForUser(affectedUserId);
       } catch (error) {
         console.warn("Discord membership sync warning:", error.message);
       }
     }
-    return res.json({ received: true, ...result, monthlyBonus });
+    return res.json({ received: true, ...result, monthlyBonus, membershipRewards });
   } catch (error) {
     console.error("Stripe webhook processing failed:", error.message);
     return res.status(500).json({ error: "Webhook processing failed." });

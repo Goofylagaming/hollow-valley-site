@@ -4,6 +4,7 @@ const { getSupporterStatus, cancelSupporterAutoRenew, resumeSupporterAutoRenew }
 const { requireAuth } = require("../middleware/requireAuth");
 const { TIERS, checkoutConfigured, stripePriceHealth, createCheckoutSession, CheckoutError } = require("../services/supporterCheckout");
 const { normalizeTier, supporterMultiplier } = require("../services/supporterTiers");
+const { MONTHLY_SUPPORTER_BONUS } = require("../services/supporterCoinBonus");
 const { isEntitled, isCoinBonusEligible } = require("../services/supporterWebhook");
 const {
   ManageError,
@@ -18,6 +19,7 @@ const {
 } = require("../services/discordMembership");
 
 const router = express.Router();
+const discordQueue = require("../services/membershipDiscordQueue");
 
 function requireSteamLink(req, res) {
   if (!req.user?.steam_id) {
@@ -45,7 +47,7 @@ function sendManageError(res, error) {
 
 router.get("/tiers", async (req, res) => {
   const stripeHealth = await stripePriceHealth().catch(() => null);
-  res.json({ tiers: TIERS, checkoutConfigured: checkoutConfigured(), stripeHealth });
+  res.json({ tiers: TIERS, monthlyCoinBonuses: MONTHLY_SUPPORTER_BONUS, checkoutConfigured: checkoutConfigured(), stripeHealth });
 });
 
 router.get("/", requireAuth, (req, res) => {
@@ -69,6 +71,7 @@ router.get("/", requireAuth, (req, res) => {
 
 router.post("/sync-discord", requireAuth, async (req, res) => {
   try {
+    discordQueue.enqueue(req.user.id);
     res.json(await syncDiscordMembershipForUser(req.user.id));
   } catch (error) {
     res.status(error instanceof DiscordMembershipError ? error.status : 500).json({
@@ -79,10 +82,12 @@ router.post("/sync-discord", requireAuth, async (req, res) => {
 
 router.post("/reconcile", requireAuth, async (req, res) => {
   try {
-    res.json(await reconcileCurrentUser({
+    const result = await reconcileCurrentUser({
       userId: req.user.id,
       steamId: req.user.steam_id || null,
-    }));
+    });
+    discordQueue.enqueue(req.user.id);
+    res.json(result);
   } catch (error) {
     res.status(error instanceof ReconcileError ? error.status : 500).json({
       error: error instanceof ReconcileError ? error.message : "Unable to recover membership.",

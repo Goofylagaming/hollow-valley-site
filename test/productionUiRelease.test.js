@@ -48,17 +48,40 @@ test("all production wallet, marketplace, storage, admin and other page scripts 
     const file = "public/" + page;
     const actual = scriptSources(read(file));
     const baseline = scriptSources(previous(file));
-    if (page === "skins.html") {
+    if (page === "profile.html" || page === "supporter.html") {
+      // Membership presentation extends both pages before their existing page
+      // controllers; all production feature scripts retain their exact order.
+      const membership = "assets/membership-rewards.js";
+      const subscriberBar = "assets/subscriber-progress.js";
+      const controller = page === "profile.html" ? "assets/profile.js" : "assets/supporter.js";
+      assert.equal(actual.filter(src => src === membership).length, 1,
+        page + ": membership rewards helper must load exactly once");
+      assert.equal(actual.indexOf(membership), actual.indexOf(controller) - 1,
+        page + ": membership rewards helper must immediately precede the page controller");
+      if (page === "supporter.html") {
+        assert.equal(actual.filter(src => src === subscriberBar).length, 1,
+          "Public Subscriber Bar helper must load exactly once");
+        assert.equal(actual.indexOf(subscriberBar), actual.indexOf("assets/supporter-stripe-upgrade.js") + 1,
+          "Subscriber Bar helper must follow the existing membership controls");
+      }
+      assert.deepEqual(actual.filter(src => src !== membership && (page !== "supporter.html" || src !== subscriberBar)), baseline,
+        page + ": existing feature scripts must be preserved");
+    } else if (page === "skins.html") {
       // v015 intentionally inserts the auto-map and batch-mask helpers before
       // the original viewer. The entire pre-existing script order is preserved.
       const autoMap = "assets/skin-studio-auto-map.js";
       const batchMap = "assets/skin-studio-batch-map.js";
       const reader = "assets/skin-studio-3d.js";
+      const premium = "assets/premium-skins.js";
+      assert.equal(actual.filter(src => src === premium).length, 1,
+        "Premium skin controls must load exactly once");
+      assert.equal(actual.indexOf(premium), actual.indexOf("assets/skins.js") + 1,
+        "Premium skin controls must immediately follow the existing Skin Studio controller");
       assert.equal(actual.indexOf(autoMap), actual.indexOf(batchMap) - 1, "Batch helper follows auto-map");
       assert.equal(actual.indexOf(batchMap), actual.indexOf(reader) - 1, "Batch helper precedes the viewer");
       assert.equal(actual.filter(src => src === autoMap).length, 1);
       assert.equal(actual.filter(src => src === batchMap).length, 1);
-      assert.deepEqual(actual.filter(src => src !== autoMap && src !== batchMap), baseline,
+      assert.deepEqual(actual.filter(src => src !== autoMap && src !== batchMap && src !== premium), baseline,
         page + ": existing feature scripts must be preserved");
     } else if (page === "dinostorage/index.html") {
       // Prime zone reset is the only additive DinoStorage script. Existing

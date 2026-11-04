@@ -72,10 +72,12 @@ async function queueCommand(command) {
     if (!transportConfigured()) {
       throw new Error('BINARYLANE_COMMAND_TOKEN must be configured for COMMAND_BRIDGE_TRANSPORT=http_pull');
     }
+    await require('./dinoStorageCapacityService').guardCommand(command);
     httpBridge.enqueue(command, SOURCES[command.verb]);
     return command;
   }
 
+  await require('./dinoStorageCapacityService').guardCommand(command);
   await fileBridge.publishCommandLine(JSON.stringify(command));
   return command;
 }
@@ -165,7 +167,7 @@ async function readHttpPullFileFallback(command) {
   }
 }
 
-async function readOutcome(command) {
+async function readOutcomeRaw(command) {
   if (getTransport() === 'http_pull') {
     const row = httpBridge.getRequest(command.id);
     if (!row || row.steam !== command.steam || row.verb !== command.verb) return null;
@@ -182,6 +184,11 @@ async function readOutcome(command) {
 
   const text = await fileBridge.readResultsText();
   return findOutcome(text, command);
+}
+
+async function readOutcome(command) {
+  const outcome = await readOutcomeRaw(command);
+  return require('./dinoStorageCapacityService').noteCommandOutcome(command, outcome);
 }
 
 async function getBridgeHealth() {

@@ -206,11 +206,12 @@ async function init() {
   content.hidden = false;
   renderIdentity(me);
 
-  const [progressionResult, walletResult, supporterResult, friendsResult] = await Promise.allSettled([
+  const [progressionResult, walletResult, supporterResult, friendsResult, rewardsResult] = await Promise.allSettled([
     api("/api/progression"),
     api("/api/wallet"),
     api("/api/supporter"),
     api("/api/friends"),
+    api("/api/supporter/rewards"),
   ]);
 
   if (progressionResult.status === "fulfilled") {
@@ -237,6 +238,10 @@ async function init() {
 
   if (supporterResult.status === "fulfilled") renderSupporter(supporterResult.value);
   else renderUnavailable("profile-supporter", "profile-supporter-detail");
+
+  if (rewardsResult.status === "fulfilled") {
+    window.HVMembership?.applyProfileAppearance(document, rewardsResult.value);
+  }
 
   if (friendsResult.status === "fulfilled") renderFriends(friendsResult.value);
   else renderUnavailable("profile-friends-count", "profile-friends-detail");
