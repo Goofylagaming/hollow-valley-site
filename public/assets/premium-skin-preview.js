@@ -35,18 +35,19 @@
     const choices = document.getElementById('premium-draft-choices');
     if (choices) {
       let selected = 0;
+      const entries = window.HVRexCalibration ? [...pack.skins, window.HVRexCalibration.reference] : pack.skins;
       const sex = document.getElementById('premium-preview-sex');
       const buttons = [];
       const show = (index) => {
         selected = index;
-        const entry = pack.skins[index];
-        const detail = { name: entry.name, species: 'tyrannosaurus', sex: sex.value === 'female' ? 'female' : 'male', skin: { ...entry.colors } };
+        const entry = entries[index];
+        const detail = { name: entry.name, species: 'tyrannosaurus', sex: sex.value === 'female' ? 'female' : 'male', colorSpace: entry.colorSpace || 'native-linear', skin: { ...entry.colors } };
         window.__HV_STUDIO_PREVIEW = detail;
         document.getElementById('premium-preview-name').textContent = entry.name;
         buttons.forEach((button, i) => button.setAttribute('aria-pressed', String(i === index)));
         document.dispatchEvent(new CustomEvent('hds:skin-preview-change', { detail }));
       };
-      pack.skins.forEach((entry, index) => {
+      entries.forEach((entry, index) => {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'hv-button';

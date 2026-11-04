@@ -34,3 +34,15 @@ The procedural pattern and scale relief were removed. UV textures use no sRGB co
 Recovered material references confirm six RGB/CYM layers, TMC zones, and eye texture scales. Cooked assets omit the material graph: RGB/CYM decomposition, field-to-layer assignment (red display, green belly, blue body, cyan flank, magenta markings, yellow detail), female fallback, eye blending and lighting remain provisional. Pattern index 0 to Adult_Pattern_1 also requires in-game confirmation. No claim of pixel-identical rendering, original shader reconstruction, subsurface scattering, animations or weather matching.
 
 Required acceptance: compare adult male and female with identical native palette and pattern 0, under neutral dry daylight; change one channel at a time to confirm layer assignments, verify teeth/mouth/claws and eyes, then compare all three themes. Do not publish premium skins before that comparison. No player database, skin save/wear/grant route or production deployment is involved.
+
+## In-game export comparison - 2026-11-04
+
+User supplied a labelled game screenshot (Pattern1 / Medium / Default) and export `Tyrannosaurus010D3B48BFF897559FF594A35FF352F2AFF6C3729FF`. A read-only screenshot of the open game also showed the adult preview with 3D background disabled. No game palette was edited, saved or confirmed.
+
+Verified from screenshot labels and export: underbelly D3B48B, body 897559, flank 594A35, markings 352F2A, male display 6C3729. Cross-checking extracted material defaults establishes green=underbelly, cyan=body, blue=flank, magenta=markings, red=male display. The earlier blue=body/cyan=flank assignment was wrong and is now corrected. Yellow/detail and female fallback are still unverified.
+
+The exported hex values are display sRGB: e.g. 897559 decodes to approximately (.250,.178,.100), matching the extracted cyan material parameter (.25,.17751,.1). Added a staging-only explicit reference fixture and colour-space conversion. The premium pack's native float semantics and colours are unchanged. This is deliberately not a general native-code importer: one example cannot establish the complete format or index semantics.
+
+Lighting: reduced the excessive rim, neutralised the daylight key, adjusted fill/exposure, and added a separately labelled approximate background-off game-menu mode. Camera now faces the same side as the reference. These are visual adjustments, not a recovered Unreal lighting rig or measured pixel match. Screenshots have different poses, framing, surface quality and environments; no claim of exact image equivalence.
+
+Reference contains only five exported colours. Eye/teeth/mouth/claw values use explicit preview/material defaults. Pattern variation and full shader blending remain unverified. All three premium drafts remain unpublished; production paths and player records are unchanged.

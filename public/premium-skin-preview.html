@@ -23,7 +23,8 @@
   <script src="/assets/skin-studio-core.js" defer></script>
   <script src="/assets/skin-studio-model-registry.js?v=6" defer></script>
   <script src="/assets/skin-studio-rex-mask-rle.js?v=1" defer></script>
-  <script src="/assets/premium-skin-preview.js" defer></script>
+  <script src="/assets/rex-staging-calibration.js?v=1" defer></script>
+  <script src="/assets/premium-skin-preview.js?v=3" defer></script>
 </head>
 <body class="hv-studio-page"><main>
   <h1>Tyrannosaurus · Skin Studio</h1>
@@ -32,6 +33,8 @@
   <section class="hv-preview-panel" aria-label="Skin Studio T-rex preview">
     <div id="premium-draft-choices" class="hv-action-group" aria-label="Choose a draft"></div>
     <div class="hv-preview-selectors"><label for="premium-material-mode">Surface<select id="premium-material-mode"><option value="palette">Palette + game textures</option><option value="clay">Neutral material study</option></select></label><label for="premium-preview-sex">Display<select id="premium-preview-sex"><option value="male">Male</option><option value="female">Female</option></select></label></div>
+    <label for="premium-lighting-mode">Lighting <select id="premium-lighting-mode"><option value="daylight">Neutral daylight</option><option value="reference">Game menu reference (approximate)</option></select></label>
+    <p style="font-size:12px">In-game reference: Pattern1 / Medium / Default. The reference export contains five colours; other channels use preview defaults.</p>
     <div class="hv-preview-heading"><strong id="premium-preview-name">Ashfall</strong><span id="hv-viewer-status" role="status">Preparing preview</span></div>
     <div class="hv-viewer-stage">
       <canvas id="hv-viewer-canvas" aria-label="T-rex reference. Drag to rotate and scroll to zoom." tabindex="0"></canvas>
@@ -49,7 +52,7 @@
   <p><a href="/assets/premium-skin-drafts.json" download>Download draft JSON pack</a> · <a href="/skins">Skin Studio</a></p>
 </main>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
-<script type="module" src="/assets/rex-staging-viewer.js?v=2"></script>
+<script type="module" src="/assets/rex-staging-viewer.js?v=3"></script>
 </body>
 </html>
 

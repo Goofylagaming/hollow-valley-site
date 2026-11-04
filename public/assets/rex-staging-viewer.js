@@ -11,7 +11,8 @@ const uniforms = Object.fromEntries(colours.map(key => [`hv_${key}`, { value: ne
 uniforms.hv_male = { value: 1 };
 uniforms.hv_surfaceMode = { value: 0 };
 let latest = window.__HV_STUDIO_PREVIEW || {};
-let scene, renderer, camera, controls, model, key, fill, rim, home;
+let scene, renderer, camera, controls, model, key, fill, rim, ambient, home;
+const calibration=window.HVRexCalibration;
 let frame = 0, visible = true;
 const materials = [];
 
@@ -43,7 +44,7 @@ function bodyMaterial() {
     shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
       vec3 mask=texture2D(hv_pattern,hv_uv).rgb;
       // RGB/CYM decomposition follows the extracted six-layer material naming.
-      // Assignment to native skin fields remains pending a controlled in-game comparison.
+      // Body/flank assignment corrected using the exported game palette and labelled swatches.
       float red=max(mask.r-max(mask.g,mask.b),0.0);
       float green=max(mask.g-max(mask.r,mask.b),0.0);
       float blue=max(mask.b-max(mask.r,mask.g),0.0);
@@ -51,7 +52,7 @@ function bodyMaterial() {
       float magenta=max(min(mask.r,mask.b)-mask.g,0.0);
       float yellow=max(min(mask.r,mask.g)-mask.b,0.0);
       float total=red+green+blue+cyan+magenta+yellow;
-      vec3 pigment=(mix(hv_body,hv_maleDisplay,hv_male)*red+hv_underbelly*green+hv_body*blue+hv_flank*cyan+hv_markings*magenta+hv_detail1*yellow)/max(total,.001);
+      vec3 pigment=(mix(hv_body,hv_maleDisplay,hv_male)*red+hv_underbelly*green+hv_${calibration.layers.blue}*blue+hv_${calibration.layers.cyan}*cyan+hv_markings*magenta+hv_detail1*yellow)/max(total,.001);
       pigment=mix(hv_body,pigment,step(.001,total));
       vec3 zones=texture2D(hv_zones,hv_uv).rgb;
       pigment=mix(pigment,hv_teeth,zones.r);
@@ -78,7 +79,10 @@ function bodyMaterial() {
 function applyPalette() {
   for(const k of colours) {
     const hex=latest.skin?.[k];
-    if(/^#[0-9a-f]{6}$/i.test(hex||'')) uniforms[`hv_${k}`].value.setRGB(parseInt(hex.slice(1,3),16)/255,parseInt(hex.slice(3,5),16)/255,parseInt(hex.slice(5,7),16)/255,THREE.LinearSRGBColorSpace);
+    if(/^#[0-9a-f]{6}$/i.test(hex||'')) {
+      const rgb=calibration.linearRGB(hex,latest.colorSpace || 'native-linear');
+      uniforms[`hv_${k}`].value.setRGB(...rgb,THREE.LinearSRGBColorSpace);
+    }
   }
   uniforms.hv_male.value=latest.sex==='female'?0:1;
   for(const material of materials) {
@@ -89,7 +93,17 @@ function applyPalette() {
 function lighting() {
   if(!key)return;
   const f=Math.max(.35,Math.min(1.8,Number($('hv-viewer-light').value)/100));
-  key.intensity=2.4*f;fill.intensity=.55*f;rim.intensity=1.8*f;
+  const reference=$('premium-lighting-mode').value==='reference';
+  // Reference mode approximates the observed background-off game menu, not outdoor weather.
+  key.color.set(reference?0xffe5bc:0xffffff);
+  key.position.set(reference?-5:-4,reference?1.8:7,5);
+  key.intensity=(reference?2.0:4.0)*f;
+  fill.color.set(0xdce8ff);fill.intensity=(reference?.025:.65)*f;
+  rim.intensity=(reference?0:.15)*f;
+  ambient.intensity=reference?.025:.7;
+  scene.environmentIntensity=reference?.025:.1;
+  renderer.toneMappingExposure=reference?1.0:1.3;
+  canvas.parentElement.style.background=reference?'#030405':'';
 }
 function resize() {
   if(!renderer)return;
@@ -102,7 +116,7 @@ function resize() {
 function fitCamera() {
   const target=new THREE.Vector3(0,1.32,.35);
   const distance=Math.max(7.6,6.8/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2))*camera.aspect)*1.12);
-  const direction=new THREE.Vector3(6.8,.6,3.05).normalize();
+  const direction=new THREE.Vector3(-6.8,.6,3.05).normalize();
   camera.position.copy(target).addScaledVector(direction,distance);
   controls.target.copy(target);controls.maxDistance=distance*2.4;controls.update();
   home={position:camera.position.clone(),target:target.clone()};
@@ -128,9 +142,10 @@ async function init() {
   controls.minDistance=2;controls.maxDistance=18;controls.maxPolarAngle=Math.PI*.49;controls.autoRotateSpeed=.6;
   key=new THREE.DirectionalLight(0xfff1df,3.2);key.position.set(4,7,5);key.castShadow=true;
   key.shadow.mapSize.set(2048,2048);Object.assign(key.shadow.camera,{left:-5,right:5,top:5,bottom:-5,near:.1,far:25});key.shadow.normalBias=.015;key.shadow.bias=-.0001;key.shadow.radius=3;
-  fill=new THREE.DirectionalLight(0xdce8ff,.8);fill.position.set(-4,3,2);
+  fill=new THREE.DirectionalLight(0xdce8ff,.8);fill.position.set(4,3,2);
   rim=new THREE.DirectionalLight(0xd9e6ff,2);rim.position.set(-3,5,-5);
-  scene.add(key,fill,rim,new THREE.HemisphereLight(0xf1f3ec,0x323a32,.3));
+  ambient=new THREE.HemisphereLight(0xe5efff,0x383229,.5);
+  scene.add(key,fill,rim,ambient);
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(100,100),new THREE.ShadowMaterial({color:0x030706,opacity:.24}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;floor.position.y=-.015;scene.add(floor);
   const gltf=await new GLTFLoader().loadAsync('/assets/skin-models/rex-staging/tyrannosaurus.glb?v=1');
   await loadMaps();
@@ -168,7 +183,7 @@ async function init() {
   $('hv-viewer-empty').hidden=true;
   $('hv-viewer-status').textContent='T-rex - extracted game textures';
   $('hv-viewer-title').textContent='Your supplied Tyrannosaurus mesh';
-  $('hv-viewer-detail').textContent='Original game pattern, normal and surface maps on your supplied mesh. Colour-layer assignment, sex behaviour and lighting still require an in-game comparison.';
+  $('hv-viewer-detail').textContent='Body and flank corrected against your game export. Reference palette uses exported sRGB colours; premium drafts retain native values. Lighting is an approximation; variation, sex behaviour and unexported channels remain unverified.';
   $('hv-viewer-credit').hidden=true;
   new ResizeObserver(resize).observe(canvas.parentElement);
   new IntersectionObserver(([e])=>{visible=e.isIntersecting;if(!visible&&frame){cancelAnimationFrame(frame);frame=0;}resume();}).observe(canvas);
@@ -177,6 +192,7 @@ async function init() {
 $('hv-viewer-reset').addEventListener('click',()=>{if(home){camera.position.copy(home.position);controls.target.copy(home.target);controls.update();}});
 $('hv-viewer-rotate').addEventListener('click',()=>{if(controls){controls.autoRotate=!controls.autoRotate;$('hv-viewer-rotate').setAttribute('aria-pressed',String(controls.autoRotate));}});
 $('hv-viewer-light').addEventListener('input',lighting);
+$('premium-lighting-mode').addEventListener('change',lighting);
 $('premium-material-mode')?.addEventListener('change',e=>{uniforms.hv_surfaceMode.value=e.target.value==='clay'?1:0;});
 document.addEventListener('hds:skin-preview-change',e=>{latest=e.detail||{};applyPalette();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&frame){cancelAnimationFrame(frame);frame=0;}resume();});

@@ -93,7 +93,7 @@ test('T-rex draft switching updates only the viewer and preserves native palette
   nodes['premium-preview-sex'].value = 'male';
   nodes['premium-preview-sex'].addEventListener = function(type, fn) { this[type] = fn; };
   const events = [];
-  const window = { HVSkinStudioCore: core };
+  const window = { HVSkinStudioCore: core, HVRexCalibration: require('../public/assets/rex-staging-calibration') };
   const requests = [];
   await vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../public/assets/premium-skin-preview.js'), 'utf8'), {
     window,
@@ -102,7 +102,7 @@ test('T-rex draft switching updates only the viewer and preserves native palette
     fetch: async url => { requests.push(url); return { ok: true, json: async () => pack }; },
   });
   const buttons = nodes['premium-draft-choices'].children;
-  assert.equal(buttons.length, 3);
+  assert.equal(buttons.length, 4);
   for (let i = 0; i < 3; i++) {
     buttons[i].click();
     const preview = window.__HV_STUDIO_PREVIEW;
@@ -115,6 +115,14 @@ test('T-rex draft switching updates only the viewer and preserves native palette
   nodes['premium-preview-sex'].change();
   assert.equal(window.__HV_STUDIO_PREVIEW.sex, 'female');
   assert.equal(window.__HV_STUDIO_PREVIEW.name, 'Valley Royalty');
+  const originalPack = JSON.stringify(pack);
+  buttons[3].click();
+  assert.equal(window.__HV_STUDIO_PREVIEW.name, 'In-game reference');
+  assert.equal(window.__HV_STUDIO_PREVIEW.colorSpace, 'srgb');
+  assert.equal(window.__HV_STUDIO_PREVIEW.skin.body, '#897559');
+  buttons[0].click();
+  assert.equal(window.__HV_STUDIO_PREVIEW.colorSpace, 'native-linear');
+  assert.equal(JSON.stringify(pack), originalPack);
   assert.deepEqual(requests, ['/assets/premium-skin-drafts.json']);
   assert.ok(events.every(e => e.type === 'hds:skin-preview-change'));
 });
