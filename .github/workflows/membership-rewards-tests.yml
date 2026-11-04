@@ -34,6 +34,10 @@ jobs:
           node-version: '22'
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Verify rewards, entitlement and permanent ownership
+        # Each test process gets its own SQLite database instead of racing
+        # other suites to initialize the repository's default database file.
+        env:
+          DB_PATH: ":memory:"
         run: >-
           node --test test/membership*.test.js test/premiumSkinsRoute.test.js
           test/subscriber*.test.js test/adminSupportGoalDraft.test.js test/financeOwner.test.js test/stripeFinance.test.js
