@@ -22,3 +22,15 @@ The supplied PSK has no texture images, normal map or game skin masks. This rele
 Eight focused tests passed: pack validation, preview read-only behavior, three-way palette switching, model hash/triangle/UV checks, anatomical primitive bounds and renderer isolation. Local browser review covered all three palettes, model loading and shader compilation. Browser has no new rendering errors after reducing environment-filter width.
 
 Exact game textures, native pattern/theme correspondence, species/growth calibration and live application remain separate in-game verification work. Do not publish the skins based solely on this preview.
+
+## Extracted game textures - 2026-11-04
+
+Read-only source: installed Evrima Steam build 24664737, TheIsle/Content/Paks. CUE4Parse 1.2.2.202611 with UE5.6 mappings read the archives; no installation files were modified. Extraction tools, archive key, original exports and full material JSON stay outside the commit under release-evidence/rex-extraction.
+
+Staging now uses Adult_Pattern_1, Tyrannosaurus_N, Tyrannosaurus_RAC, Mask_TMC, DinoSkinDetail_5_N, AnimalEyes_Iris_2 and AnimalEyes_Pupil_3. The manifest records original dimensions, preview dimensions and SHA256 hashes. Original 4K maps are retained locally; web copies are limited to 2K. Original supplied mesh/UVs and all draft data remain unchanged.
+
+The procedural pattern and scale relief were removed. UV textures use no sRGB conversion, a DirectX normal Y correction, the material's detail scale 12 and intensity 2, and RAC channels for roughness/albedo/cavity. Palette values now enter the renderer as linear native numbers, matching the existing importer rather than decoding those values as display sRGB.
+
+Recovered material references confirm six RGB/CYM layers, TMC zones, and eye texture scales. Cooked assets omit the material graph: RGB/CYM decomposition, field-to-layer assignment (red display, green belly, blue body, cyan flank, magenta markings, yellow detail), female fallback, eye blending and lighting remain provisional. Pattern index 0 to Adult_Pattern_1 also requires in-game confirmation. No claim of pixel-identical rendering, original shader reconstruction, subsurface scattering, animations or weather matching.
+
+Required acceptance: compare adult male and female with identical native palette and pattern 0, under neutral dry daylight; change one channel at a time to confirm layer assignments, verify teeth/mouth/claws and eyes, then compare all three themes. Do not publish premium skins before that comparison. No player database, skin save/wear/grant route or production deployment is involved.

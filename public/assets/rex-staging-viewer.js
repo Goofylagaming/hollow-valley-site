@@ -15,89 +15,70 @@ let scene, renderer, camera, controls, model, key, fill, rim, home;
 let frame = 0, visible = true;
 const materials = [];
 
-const surfaceGLSL = `
-varying vec3 hv_position;
-varying vec3 hv_normal;
-uniform float hv_male;
-uniform float hv_surfaceMode;
-${colours.map(k => `uniform vec3 hv_${k};`).join('\n')}
-vec3 hv_hash(vec3 p) {
-  p = vec3(dot(p,vec3(127.1,311.7,74.7)),dot(p,vec3(269.5,183.3,246.1)),dot(p,vec3(113.5,271.9,124.6)));
-  return fract(sin(p)*43758.5453);
+// Extracted maps retain their original UV layout. Data maps must not undergo sRGB decoding.
+const maps = {};
+async function loadMaps() {
+  const loader = new THREE.TextureLoader();
+  await Promise.all(['pattern','normal','surface','zones','detail-normal','iris','pupil'].map(async name => {
+    const t = await loader.loadAsync(`/assets/skin-models/rex-staging/textures/${name}.png?v=2`);
+    t.flipY=false; t.colorSpace=THREE.NoColorSpace;
+    t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
+    if(name==='detail-normal') t.wrapS=t.wrapT=THREE.RepeatWrapping;
+    maps[name]=t;
+  }));
 }
-float hv_noise(vec3 p) {
-  vec3 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
-  return mix(mix(mix(hv_hash(i).x,hv_hash(i+vec3(1,0,0)).x,f.x),mix(hv_hash(i+vec3(0,1,0)).x,hv_hash(i+vec3(1,1,0)).x,f.x),f.y),mix(mix(hv_hash(i+vec3(0,0,1)).x,hv_hash(i+vec3(1,0,1)).x,f.x),mix(hv_hash(i+vec3(0,1,1)).x,hv_hash(i+vec3(1,1,1)).x,f.x),f.y),f.z);
-}
-// Continuous object-space cells: scale relief crosses UV seams without a painted grid.
-float hv_scales(vec3 p) {
-  vec3 i=floor(p),f=fract(p);float first=8.0,second=8.0;
-  for(int z=-1;z<=1;z++)for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++) {
-    vec3 o=vec3(float(x),float(y),float(z));
-    vec3 r=o+0.25+0.5*hv_hash(i+o)-f;
-    float d=dot(r,r);
-    if(d<first){second=first;first=d;}else{second=min(second,d);}
-  }
-  float edge=second-first;
-  float aa=max(fwidth(edge),0.015);
-  return smoothstep(0.015-aa,0.16+aa,edge);
-}
-`;
-
 function bodyMaterial() {
-  const material = new THREE.MeshStandardMaterial({ color: 'white', roughness: .84, metalness: 0 });
+  const material = new THREE.MeshStandardMaterial({color:'white',roughness:1,metalness:0,normalMap:maps.normal,normalScale:new THREE.Vector2(1,-1)});
   material.onBeforeCompile = shader => {
-    Object.assign(shader.uniforms, uniforms);
-    shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 hv_position; varying vec3 hv_normal;');
-    shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nhv_position=position; hv_normal=normal;');
-    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\n'+surfaceGLSL);
-    shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
-      vec3 p=hv_position,n=normalize(hv_normal);
-      float head=smoothstep(2.2,3.5,p.z);
-      float belly=(1.0-smoothstep(-0.55,0.12,n.y))*smoothstep(0.65,1.5,p.y);
-      float flank=smoothstep(0.25,0.8,abs(n.x))*(1.0-belly)*0.65;
-      vec3 pigment=mix(hv_body,hv_flank,flank);
-      pigment=mix(pigment,hv_underbelly,belly*0.85);
-      float broad=hv_noise(p*2.8);
-      float stripes=sin(p.z*5.4+p.y*2.2+hv_noise(p*1.7)*3.8);
-      float marking=smoothstep(0.35,0.85,stripes)*(1.0-belly)*mix(.32,.12,head);
-      pigment=mix(pigment,hv_markings,marking);
-      float dorsal=smoothstep(.45,.85,n.y)*(1.0-smoothstep(.12,.40,abs(p.x)));
-      pigment=mix(pigment,hv_detail1,dorsal*.38);
-      float crest=smoothstep(3.65,4.05,p.y)*head;
-      pigment=mix(pigment,hv_maleDisplay,crest*hv_male*.6);
-      float claws=(1.0-smoothstep(.07,.23,p.y))*smoothstep(.1,.4,p.z);
-      pigment=mix(pigment,hv_claws,claws);
-      // Inward-facing jaw surfaces: local cross-section, not a UV mask from another mesh.
-      float inside=(1.0-smoothstep(.07,.16,abs(p.x)))*head*(1.0-smoothstep(3.0,3.25,p.y))*smoothstep(2.3,2.5,p.y);
-      inside*=smoothstep(.05,.25,-n.x*sign(p.x));
-      pigment=mix(pigment,hv_mouth,inside*.9);
-      float frequency=mix(32.0,65.0,head);
-      float scales=hv_scales(p*frequency);
-      float micro=hv_noise(p*160.0);
-      float relief=mix(.82,1.04,scales)*mix(.94,1.03,micro);
-      pigment*=relief*mix(.88,1.10,broad);
-      if(hv_surfaceMode>0.5) pigment=vec3(.32)*relief;
-      diffuseColor.rgb=pigment;
+    Object.assign(shader.uniforms, uniforms, {
+      hv_pattern:{value:maps.pattern},hv_surface:{value:maps.surface},hv_zones:{value:maps.zones},hv_detailNormal:{value:maps['detail-normal']}
+    });
+    shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec2 hv_uv;').replace('#include <begin_vertex>','#include <begin_vertex>\nhv_uv=uv;');
+    shader.fragmentShader=shader.fragmentShader.replace('#include <common>',`#include <common>
+      varying vec2 hv_uv;
+      uniform sampler2D hv_pattern,hv_surface,hv_zones,hv_detailNormal;
+      uniform float hv_surfaceMode,hv_male;
+      ${colours.map(k=>`uniform vec3 hv_${k};`).join('\n')}
     `);
-    shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
-      // Subtle derived relief. Geometry and native normals remain unchanged.
-      float height=hv_scales(hv_position*mix(48.0,85.0,smoothstep(2.2,3.5,hv_position.z)))*0.0012;
-      vec3 q0=dFdx(-vViewPosition), q1=dFdy(-vViewPosition);
-      vec3 r1=cross(q1,normal),r2=cross(normal,q0);
-      float det=dot(q0,r1);
-      vec3 grad=sign(det)*(dFdx(height)*r1+dFdy(height)*r2);
-      normal=normalize(abs(det)*normal-grad);
+    shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
+      vec3 mask=texture2D(hv_pattern,hv_uv).rgb;
+      // RGB/CYM decomposition follows the extracted six-layer material naming.
+      // Assignment to native skin fields remains pending a controlled in-game comparison.
+      float red=max(mask.r-max(mask.g,mask.b),0.0);
+      float green=max(mask.g-max(mask.r,mask.b),0.0);
+      float blue=max(mask.b-max(mask.r,mask.g),0.0);
+      float cyan=max(min(mask.g,mask.b)-mask.r,0.0);
+      float magenta=max(min(mask.r,mask.b)-mask.g,0.0);
+      float yellow=max(min(mask.r,mask.g)-mask.b,0.0);
+      float total=red+green+blue+cyan+magenta+yellow;
+      vec3 pigment=(mix(hv_body,hv_maleDisplay,hv_male)*red+hv_underbelly*green+hv_body*blue+hv_flank*cyan+hv_markings*magenta+hv_detail1*yellow)/max(total,.001);
+      pigment=mix(hv_body,pigment,step(.001,total));
+      vec3 zones=texture2D(hv_zones,hv_uv).rgb;
+      pigment=mix(pigment,hv_teeth,zones.r);
+      pigment=mix(pigment,hv_mouth,zones.g);
+      pigment=mix(pigment,hv_claws,zones.b);
+      vec3 rac=texture2D(hv_surface,hv_uv).rgb;
+      if(hv_surfaceMode>.5) pigment=vec3(.32);
+      diffuseColor.rgb=pigment*rac.g;
     `);
+    shader.fragmentShader=shader.fragmentShader.replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\nroughnessFactor=clamp(texture2D(hv_surface,hv_uv).r,.18,1.0);');
+    shader.fragmentShader=shader.fragmentShader.replace('#include <normal_fragment_maps>',`#ifdef USE_NORMALMAP_TANGENTSPACE
+      vec3 baseN=texture2D(normalMap,vNormalMapUv).xyz*2.0-1.0;
+      vec3 detailN=texture2D(hv_detailNormal,hv_uv*12.0).xyz*2.0-1.0;
+      baseN=normalize(vec3(baseN.xy+detailN.xy*2.0,baseN.z*detailN.z));
+      baseN.xy*=normalScale;
+      normal=normalize(tbn*baseN);
+      #endif`);
+    shader.fragmentShader=shader.fragmentShader.replace('#include <aomap_fragment>','#include <aomap_fragment>\nreflectedLight.indirectDiffuse*=texture2D(hv_surface,hv_uv).b;');
   };
-  material.customProgramCacheKey = () => 'hv-supplied-rex-staging-surface-v1';
+  material.customProgramCacheKey=()=> 'hv-extracted-rex-v2';
   return material;
 }
 
 function applyPalette() {
   for(const k of colours) {
     const hex=latest.skin?.[k];
-    if(/^#[0-9a-f]{6}$/i.test(hex||'')) uniforms[`hv_${k}`].value.set(hex);
+    if(/^#[0-9a-f]{6}$/i.test(hex||'')) uniforms[`hv_${k}`].value.setRGB(parseInt(hex.slice(1,3),16)/255,parseInt(hex.slice(3,5),16)/255,parseInt(hex.slice(5,7),16)/255,THREE.LinearSRGBColorSpace);
   }
   uniforms.hv_male.value=latest.sex==='female'?0:1;
   for(const material of materials) {
@@ -152,6 +133,7 @@ async function init() {
   scene.add(key,fill,rim,new THREE.HemisphereLight(0xf1f3ec,0x323a32,.3));
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(100,100),new THREE.ShadowMaterial({color:0x030706,opacity:.24}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;floor.position.y=-.015;scene.add(floor);
   const gltf=await new GLTFLoader().loadAsync('/assets/skin-models/rex-staging/tyrannosaurus.glb?v=1');
+  await loadMaps();
   model=gltf.scene;
   model.traverse(child=>{
     if(!child.isMesh)return;
@@ -160,11 +142,19 @@ async function init() {
     if(/Eye/.test(source.name)) {
       material=new THREE.MeshPhysicalMaterial({color:0xbca46b,roughness:.2,metalness:0,clearcoat:1,clearcoatRoughness:.12});material.userData.zone='eyes';
       material.onBeforeCompile=shader=>{
-        shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 hv_eyePosition;').replace('#include <begin_vertex>','#include <begin_vertex>\nhv_eyePosition=position;');
-        shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 hv_eyePosition;').replace('#include <color_fragment>','#include <color_fragment>\nfloat pupil=1.0-smoothstep(.85,1.05,length((hv_eyePosition.yz-vec2(3.670,3.882))/vec2(.020,.019))); diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.003),pupil);');
+        shader.uniforms.hv_iris={value:maps.iris};shader.uniforms.hv_pupil={value:maps.pupil};
+        shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec2 hv_eyeUV;').replace('#include <begin_vertex>','#include <begin_vertex>\nhv_eyeUV=uv;');
+        shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nvarying vec2 hv_eyeUV; uniform sampler2D hv_iris,hv_pupil;').replace('#include <color_fragment>',`#include <color_fragment>
+          vec2 irisUV=(hv_eyeUV-.5)*2.0+.5;
+          vec2 pupilUV=(hv_eyeUV-.5)*4.0+.5;
+          float irisDetail=texture2D(hv_iris,clamp(irisUV,0.0,1.0)).r;
+          float pupilMask=texture2D(hv_pupil,clamp(pupilUV,0.0,1.0)).r;
+          diffuseColor.rgb*=mix(.25,1.0,irisDetail);
+          diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.003),pupilMask);
+        `);
       };
     } else if(/Teeth/.test(source.name)) {
-      material=new THREE.MeshStandardMaterial({color:0xd0c5ac,roughness:.43,metalness:0});material.userData.zone='teeth';
+      material=bodyMaterial();
     } else material=bodyMaterial();
     material.name=source.name;materials.push(material);child.material=material;source.dispose();
     child.castShadow=true;child.receiveShadow=true;
@@ -176,9 +166,9 @@ async function init() {
   fitCamera();
   applyPalette();lighting();
   $('hv-viewer-empty').hidden=true;
-  $('hv-viewer-status').textContent='Supplied T-rex · detailed studio material';
+  $('hv-viewer-status').textContent='T-rex - extracted game textures';
   $('hv-viewer-title').textContent='Your supplied Tyrannosaurus mesh';
-  $('hv-viewer-detail').textContent='Original mesh and UVs. Preview-authored scale relief and anatomical colour regions; game textures were not supplied. In-game pattern matching remains unverified.';
+  $('hv-viewer-detail').textContent='Original game pattern, normal and surface maps on your supplied mesh. Colour-layer assignment, sex behaviour and lighting still require an in-game comparison.';
   $('hv-viewer-credit').hidden=true;
   new ResizeObserver(resize).observe(canvas.parentElement);
   new IntersectionObserver(([e])=>{visible=e.isIntersecting;if(!visible&&frame){cancelAnimationFrame(frame);frame=0;}resume();}).observe(canvas);

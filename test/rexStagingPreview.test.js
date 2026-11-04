@@ -50,3 +50,20 @@ test('new renderer is isolated to the staging preview and cannot write skins',()
   assert.doesNotMatch(fs.readFileSync(path.join(__dirname,'../public',page),'utf8'),/rex-staging-viewer/);
  }
 });
+
+test('extracted staging textures match the recorded game build and retain usable resolution',()=>{
+ const manifest=JSON.parse(fs.readFileSync(path.join(dir,'game-materials.json')));
+ assert.equal(manifest.gameBuild,'24664737');
+ assert.equal(manifest.verifiedInGame,false);
+ for(const [name,item] of Object.entries(manifest.textures)){
+  const png=fs.readFileSync(path.join(dir,'textures',name+'.png'));
+  assert.equal(crypto.createHash('sha256').update(png).digest('hex'),item.sha256);
+  assert.equal(png.readUInt32BE(16),item.previewSize[0]);
+  assert.equal(png.readUInt32BE(20),item.previewSize[1]);
+  assert.ok(item.previewSize[0]>=512);
+ }
+ const viewer=fs.readFileSync(path.join(__dirname,'../public/assets/rex-staging-viewer.js'),'utf8');
+ assert.match(viewer,/t\.flipY=false; t\.colorSpace=THREE\.NoColorSpace/);
+ assert.match(viewer,/THREE\.LinearSRGBColorSpace/);
+ assert.doesNotMatch(viewer,/hv_scales|hv_noise/);
+});
