@@ -14,6 +14,7 @@ const {
   configuration: discordMembershipConfiguration,
   syncDiscordMembershipForUser,
 } = require("../services/discordMembership");
+const membershipSkinVote = require("../services/membershipSkinVote");
 
 const router = express.Router();
 
@@ -379,6 +380,39 @@ router.post("/:userId/sync-discord", requireAdmin, async (req, res) => {
         ? error.message
         : "Unable to sync this supporter's Discord role.",
     });
+  }
+});
+
+function requireSameOrigin(req, res, next) {
+  const origin = req.get("origin");
+  if (!origin) return next();
+  try {
+    if (new URL(origin).host === req.get("host")) return next();
+  } catch {}
+  return res.status(403).json({ error: "Use the Hollow Valley admin page to change the member skin vote." });
+}
+
+router.get("/skin-vote", requireAdmin, (req, res) => {
+  try { return res.json(membershipSkinVote.adminState()); }
+  catch (error) {
+    return res.status(error instanceof membershipSkinVote.SkinVoteError ? error.status : 503)
+      .json({ error: error.message || "Member skin vote is unavailable.", code: error.code || "SKIN_VOTE_UNAVAILABLE" });
+  }
+});
+
+router.post("/skin-vote", requireAdmin, requireSameOrigin, (req, res) => {
+  try { return res.json(membershipSkinVote.createBallot(req.user, req.body)); }
+  catch (error) {
+    return res.status(error instanceof membershipSkinVote.SkinVoteError ? error.status : 503)
+      .json({ error: error.message || "Could not open the member skin vote.", code: error.code || "SKIN_VOTE_UNAVAILABLE" });
+  }
+});
+
+router.post("/skin-vote/close", requireAdmin, requireSameOrigin, (req, res) => {
+  try { return res.json(membershipSkinVote.closeBallot(req.user)); }
+  catch (error) {
+    return res.status(error instanceof membershipSkinVote.SkinVoteError ? error.status : 503)
+      .json({ error: error.message || "Could not close the member skin vote.", code: error.code || "SKIN_VOTE_UNAVAILABLE" });
   }
 });
 

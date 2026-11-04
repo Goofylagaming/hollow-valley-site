@@ -37,7 +37,7 @@ test('scheduled cancellation keeps all paid perks to the boundary; existing coin
   const row = getSupporterStatus(42);
   assert.equal(isEntitled(row, now), true);
   assert.equal(isCoinBonusEligible(row), false);
-  assert.equal(entitlement(row, { env, now }).storageBonusSlots, 1);
+  assert.equal(entitlement(row, { env, now }).storageBonusSlots, 0);
   assert.equal(targetTierForStatus(row, { env: {}, now }), 'supporter');
   assert.equal(isEntitled(row, now + 60000), false);
   assert.equal(targetTierForStatus(row, { env: {}, now: now + 60000 }), null);

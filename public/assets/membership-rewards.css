@@ -103,3 +103,40 @@
   .membership-form-actions { align-items: flex-start; flex-direction: column; gap: 12px; }
   .membership-history > div { align-items: flex-start; flex-direction: column; gap: 12px; }
 }
+
+
+.membership-skin-vote {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid rgba(143, 193, 153, .22);
+  border-radius: 16px;
+  background: rgba(12, 30, 24, .72);
+}
+.membership-vote-options {
+  display: grid;
+  gap: .65rem;
+  margin: .85rem 0;
+}
+.membership-vote-option {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: .75rem;
+  padding: .75rem;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 12px;
+  cursor: pointer;
+}
+.membership-vote-option:has(input:checked) {
+  border-color: rgba(154, 214, 165, .7);
+  background: rgba(77, 133, 86, .12);
+}
+.membership-vote-option small {
+  display: block;
+  opacity: .75;
+  margin-top: .15rem;
+}
+.membership-vote-option b {
+  min-width: 2ch;
+  text-align: right;
+}

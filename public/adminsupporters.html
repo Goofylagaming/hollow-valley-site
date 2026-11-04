@@ -46,6 +46,33 @@
 
           <p class="section-intro admin-supporter-status" id="supporter-admin-status" role="status"></p>
 
+          <section class="admin-supporter-vote" aria-labelledby="admin-skin-vote-title">
+            <div class="list-heading"><span>MEMBER SKIN VOTE</span><small>monthly subscriber incentive</small></div>
+            <h2 id="admin-skin-vote-title">Choose the next premium skin</h2>
+            <p class="section-intro">One active member gets one vote, regardless of tier. Open a poll only when the candidates are realistic Skin Studio concepts ready for community review.</p>
+            <div id="admin-skin-vote-current" class="summary-grid"></div>
+            <form id="admin-skin-vote-form">
+              <label>Vote title
+                <input id="admin-skin-vote-title-input" type="text" maxlength="80" value="Choose next month's premium skin">
+              </label>
+              <label>Skin candidates
+                <textarea id="admin-skin-vote-options" rows="6" placeholder="One per line: Skin name | short description"></textarea>
+              </label>
+              <label>Voting window
+                <select id="admin-skin-vote-duration">
+                  <option value="7">7 days</option>
+                  <option value="14" selected>14 days</option>
+                  <option value="21">21 days</option>
+                </select>
+              </label>
+              <div class="admin-supporter-actions">
+                <button class="small-button" type="submit">Open member vote</button>
+                <button class="small-button" type="button" id="admin-skin-vote-close">Close current vote</button>
+              </div>
+              <p class="section-intro" id="admin-skin-vote-status" role="status"></p>
+            </form>
+          </section>
+
           <div class="admin-supporter-table-wrap">
             <table class="admin-supporter-table">
               <thead>

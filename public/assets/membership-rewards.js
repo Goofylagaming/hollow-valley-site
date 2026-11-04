@@ -95,6 +95,36 @@
     return `<section class="membership-loyalty" aria-labelledby="membership-loyalty-title"><div class="membership-section-title"><div><span class="membership-kicker">LOYALTY REWARDS</span><h3 id="membership-loyalty-title">${escape(heading)}</h3></div>${next && months !== null ? `<span class="membership-next">Next: ${Number(next.months)} months</span>` : ""}</div><p>${escape(detail)}</p>${milestones.length ? `<div class="membership-progress" role="progressbar" aria-label="Progress towards the next loyalty reward" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress}"><span style="width:${progress}%"></span></div><ol class="membership-milestones">${milestones.map((milestone) => `<li class="${milestone.earned === true ? "is-earned" : "is-locked"}"><span class="membership-milestone-icon" aria-hidden="true">${milestone.earned === true ? "✓" : "◇"}</span><div><b>${Number(milestone.months)} months</b><strong>${escape(milestone.title || "Loyalty reward")}</strong><small>${milestone.earned === true ? `Earned${date(milestone.earnedAt) ? ` · ${date(milestone.earnedAt)}` : ""}` : "Permanent reward when earned"}</small></div></li>`).join("")}</ol>` : '<div class="membership-note">Loyalty milestones will appear when the rewards programme is available.</div>'}${history}</section>`;
   }
 
+
+  function renderSkinVote(vote = {}) {
+    if (vote.enabled !== true) return "";
+    if (vote.eligible !== true) {
+      return `<section class="membership-skin-vote" aria-labelledby="membership-skin-vote-title"><span class="membership-kicker">MEMBER SKIN VOTE</span><h3 id="membership-skin-vote-title">Help choose what comes next.</h3><p>Active members get one equal vote in premium skin polls. Higher tiers get more monthly skin choices, not more voting power.</p><a href="#tier-grid">View membership tiers <span aria-hidden="true">→</span></a></section>`;
+    }
+    if (vote.open !== true || !vote.ballot) {
+      const winner = vote.lastWinner?.label
+        ? `<p class="membership-notice">Last winner: <strong>${escape(vote.lastWinner.label)}</strong></p>`
+        : "";
+      return `<section class="membership-skin-vote" aria-labelledby="membership-skin-vote-title"><span class="membership-kicker">MEMBER SKIN VOTE</span><h3 id="membership-skin-vote-title">No vote open right now.</h3><p>Your next premium skin poll will appear here when the candidates are ready.</p>${winner}</section>`;
+    }
+    const options = Array.isArray(vote.options) ? vote.options : [];
+    const selected = Number(vote.selectedOptionId);
+    const closes = date(vote.ballot.closesAt);
+    return `<section class="membership-skin-vote" aria-labelledby="membership-skin-vote-title">
+      <div class="membership-section-title"><div><span class="membership-kicker">MEMBER SKIN VOTE</span><h3 id="membership-skin-vote-title">${escape(vote.ballot.title || "Choose the next premium skin")}</h3></div><span class="membership-next">${closes ? `Closes ${escape(closes)}` : "Open now"}</span></div>
+      <p>One vote per active member. You can change your choice until voting closes.</p>
+      <form id="membership-skin-vote-form">
+        <div class="membership-vote-options">${options.map((option) => `<label class="membership-vote-option">
+          <input type="radio" name="optionId" value="${Number(option.id)}"${Number(option.id) === selected ? " checked" : ""}>
+          <span><strong>${escape(option.label)}</strong><small>${escape(option.description || "Premium skin candidate")}</small></span>
+          <b>${count(option.votes) ?? 0}</b>
+        </label>`).join("")}</div>
+        <div class="membership-form-actions"><button type="submit" class="small-button"${options.length ? "" : " disabled"}>Save my vote</button><p id="membership-skin-vote-message" role="status" aria-live="polite"></p></div>
+      </form>
+      <small>${count(vote.totalVotes) ?? 0} verified member vote${Number(vote.totalVotes) === 1 ? "" : "s"} so far.</small>
+    </section>`;
+  }
+
   function renderAppearance(rewards, username = "Valley member") {
     const appearance = appearanceFor(rewards);
     const hasBadge = rewards.entitled === true && appearance.badge?.label;
@@ -111,7 +141,7 @@
     const note = rewards.entitled === true
       ? `Your active membership rewards${until ? ` · current paid period ends ${until}` : ""}.`
       : "Earned cosmetics and loyalty progress stay with you. Active membership benefits appear when your paid access is verified.";
-    return `<div class="membership-overview"><div><span class="membership-kicker">MY MEMBERSHIP</span><h2>${escape(label)}</h2><p>${escape(note)}</p></div><span class="membership-status${rewards.entitled === true ? " is-active" : ""}">${rewards.entitled === true ? "Benefits active" : "No verified active benefits"}</span></div><div class="membership-benefits-grid">${renderMonthly(rewards.monthly)}</div>${renderLoyalty(rewards.loyalty)}${renderAppearance(rewards, username)}`;
+    return `<div class="membership-overview"><div><span class="membership-kicker">MY MEMBERSHIP</span><h2>${escape(label)}</h2><p>${escape(note)}</p></div><span class="membership-status${rewards.entitled === true ? " is-active" : ""}">${rewards.entitled === true ? "Benefits active" : "No verified active benefits"}</span></div><div class="membership-benefits-grid">${renderMonthly(rewards.monthly)}</div>${renderSkinVote(rewards.skinVote)}${renderLoyalty(rewards.loyalty)}${renderAppearance(rewards, username)}`;
   }
 
   function applyProfileAppearance(document, rewards) {
@@ -149,6 +179,31 @@
       const rewards = await api("/api/supporter/rewards");
       if (loadVersions.get(host) !== loadVersion) return null;
       host.innerHTML = renderRewards(rewards, me.user?.username || "Valley member");
+      const voteForm = host.querySelector("#membership-skin-vote-form");
+      voteForm?.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const message = host.querySelector("#membership-skin-vote-message");
+        const selected = voteForm.querySelector('input[name="optionId"]:checked');
+        if (!selected) {
+          if (message) message.textContent = "Choose a skin before saving your vote.";
+          return;
+        }
+        const submit = voteForm.querySelector('button[type="submit"]');
+        if (submit) submit.disabled = true;
+        if (message) message.textContent = "Saving your vote…";
+        try {
+          await api("/api/supporter/skin-vote/vote", {
+            method: "POST",
+            body: JSON.stringify({ optionId: Number(selected.value) }),
+          });
+          await loadRewards({ host, me, api, document, onUpdated });
+          const refreshed = host.querySelector("#membership-skin-vote-message");
+          if (refreshed) refreshed.textContent = "Vote saved. You can change it while the poll is open.";
+        } catch (error) {
+          if (message) message.textContent = error?.message || "Could not save your vote.";
+          if (submit) submit.disabled = false;
+        }
+      });
       const historyButton = host.querySelector("[data-membership-history-sync]");
       historyButton?.addEventListener("click", async () => {
         if (historyButton.disabled) return;
@@ -214,5 +269,5 @@
     }
   }
 
-  return { FRAME_IDS, escape, count, date, frameId, appearanceFor, renderRewards, applyProfileAppearance, loadRewards };
+  return { FRAME_IDS, escape, count, date, frameId, appearanceFor, renderRewards, renderSkinVote, applyProfileAppearance, loadRewards };
 });

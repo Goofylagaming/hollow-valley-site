@@ -5,10 +5,11 @@ const { requireAuth } = require("../middleware/requireAuth");
 const { skinMutationGuard } = require("../middleware/skinStudioSafety");
 const rewards = require("../services/membershipRewards");
 const { syncPaidHistory } = require("../services/membershipHistory");
+const skinVote = require("../services/membershipSkinVote");
 
 const router = express.Router();
 router.use((req, _res, next) => {
-  if (req.path === "/appearance" || req.path === "/rewards" || req.path.startsWith("/rewards/")) return next();
+  if (req.path === "/appearance" || req.path === "/rewards" || req.path.startsWith("/rewards/") || req.path.startsWith("/skin-vote")) return next();
   return next("router");
 });
 router.use(requireAuth);
@@ -36,6 +37,7 @@ async function summary(user) {
   const result = rewards.rewardSummary(user);
   if (!result.enabled) return result;
   result.discord = { ...result.discord, ...require("../services/membershipDiscordQueue").getSyncState(user.id) };
+  result.skinVote = skinVote.currentForUser(user);
   if (!/^\d{17}$/.test(String(user.steam_id || ""))) return result;
   const client = require("../services/premiumSkinClient");
   try {
@@ -63,6 +65,21 @@ router.post("/rewards/sync-history", async (req, res) => {
 router.post("/rewards/skins/:skinId/claim", skinMutationGuard, async (req, res) => {
   try { return res.json(await rewards.claimSkin(req.user, req.params.skinId)); }
   catch (error) { return sendError(res, error); }
+});
+
+router.get("/skin-vote", (req, res) => {
+  try { return res.json(skinVote.currentForUser(req.user)); }
+  catch (error) { return sendError(res, error); }
+});
+
+router.post("/skin-vote/vote", (req, res) => {
+  try { return res.json(skinVote.castVote(req.user, req.body?.optionId)); }
+  catch (error) {
+    if (error instanceof skinVote.SkinVoteError) {
+      return res.status(error.status).json({ error: error.message, code: error.code });
+    }
+    return sendError(res, error);
+  }
 });
 
 module.exports = router;
