@@ -317,6 +317,108 @@ async function checkSubscriberBarFixture(browser, origin, route, size, label) {
   } finally { await context.close(); }
 }
 
+
+async function checkMembershipSkinVoteFixture(browser, origin, size, label) {
+  const context = await browser.newContext({ viewport: size, deviceScaleFactor: 1, reducedMotion: "reduce" });
+  const page = await context.newPage();
+  const issues = collect(page);
+  let selectedOptionId = 1;
+  let submittedOptionId = null;
+  const member = {
+    loggedIn: true,
+    user: { id: 42, steam_id: "76561198038977506", username: "Member", discord_id: "1091818722001424434", is_admin: 0 },
+    steamLoginConfigured: true,
+    discordLoginConfigured: true,
+  };
+  const tiers = {
+    supporter: { label: "Valley Supporter", priceAud: 7, multiplier: 2 },
+    guardian: { label: "Valley Guardian", priceAud: 15, multiplier: 3 },
+    legend: { label: "Valley Legend", priceAud: 25, multiplier: 5 },
+  };
+  const rewards = () => ({
+    enabled: true,
+    tier: "supporter",
+    tierLabel: "Valley Supporter",
+    entitled: true,
+    benefitsUntil: "2026-12-01T00:00:00.000Z",
+    appearance: {
+      badgeVisible: true,
+      badge: { id: "supporter", label: "Valley Supporter" },
+      frameId: "supporter-fern",
+      selectedFrameId: "supporter-fern",
+      frames: [
+        { id: "none", label: "Classic", available: true, permanent: true },
+        { id: "supporter-fern", label: "Fern", available: true, permanent: false },
+      ],
+    },
+    monthly: { enabled: false, allowance: 0, used: 0, remaining: 0, catalogueReady: false, claims: [] },
+    loyalty: { paidMonths: 1, milestones: [], historyVerified: true, canSyncHistory: false },
+    discord: { configured: true, linked: true, enabled: false, pending: false },
+    skinVote: {
+      enabled: true,
+      eligible: true,
+      tier: "supporter",
+      tierLabel: "Valley Supporter",
+      open: true,
+      ballot: { id: 7, title: "Choose next month's premium skin", opensAt: "2026-11-01T00:00:00.000Z", closesAt: "2026-11-20T00:00:00.000Z" },
+      options: [
+        { id: 1, label: "Ember Fern", description: "Warm rust and forest tones.", votes: selectedOptionId === 1 ? 3 : 2 },
+        { id: 2, label: "River Ghost", description: "Cool slate and pale teal.", votes: selectedOptionId === 2 ? 4 : 3 },
+        { id: 3, label: "Golden Hollow", description: "Cream, brown and muted gold.", votes: 1 },
+      ],
+      selectedOptionId,
+      totalVotes: 7,
+      lastWinner: null,
+    },
+  });
+
+  try {
+    await page.route("**/api/**", async (route) => {
+      const request = route.request();
+      const pathname = new URL(request.url()).pathname;
+      if (pathname === "/api/me") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(member) });
+      if (pathname === "/api/supporter") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
+        tier: "supporter", tierLabel: "Valley Supporter", multiplier: 2, stripe_status: "active",
+        auto_renew: true, renews_at: "2026-12-01T00:00:00.000Z", managed: true, coinBonusEligible: true,
+      }) });
+      if (pathname === "/api/supporter/tiers") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
+        tiers, monthlyCoinBonuses: { supporter: 15000, guardian: 20000, legend: 25000 }, checkoutConfigured: false,
+      }) });
+      if (pathname === "/api/supporter/rewards") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(rewards()) });
+      if (pathname === "/api/supporter/progress") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ enabled: false, configured: false, available: false }) });
+      if (pathname === "/api/supporter/sync-discord") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ configured: true, linked: true, skipped: true, reason: "preview" }) });
+      if (pathname === "/api/supporter/skin-vote/vote") {
+        const body = JSON.parse(request.postData() || "{}");
+        submittedOptionId = Number(body.optionId);
+        selectedOptionId = submittedOptionId;
+        return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(rewards().skinVote) });
+      }
+      if (request.method() !== "GET") return route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+      return route.continue();
+    });
+    await page.route(/https?:\/\/(?!127\.0\.0\.1)[^/]+\//, (route) => route.abort());
+    const response = await page.goto(origin + "/supporter", { waitUntil: "domcontentloaded", timeout: 25000 });
+    assert.equal(response.status(), 200, label + " supporter status");
+    const form = page.locator("#membership-skin-vote-form");
+    await form.waitFor({ state: "visible", timeout: 15000 });
+    assert.match(await page.locator("#membership-skin-vote-title").textContent(), /Choose next month's premium skin/);
+    assert.equal(await form.locator('input[name="optionId"]:checked').getAttribute("value"), "1");
+    await form.locator('input[name="optionId"][value="2"]').check();
+    await form.locator('button[type="submit"]').click();
+    await page.locator("#membership-skin-vote-message").getByText("Vote saved", { exact: false }).waitFor({ timeout: 12000 });
+    assert.equal(submittedOptionId, 2, label + " submitted wrong vote");
+    assert.equal(await form.locator('input[name="optionId"]:checked').getAttribute("value"), "2");
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), true,
+      label + " member vote must fit viewport");
+    await page.screenshot({ path: path.join(screenshots, "membership-skin-vote-" + label + ".png"), fullPage: true });
+    assert.deepEqual(issues.missing, [], label + " missing membership vote assets");
+    assert.deepEqual(issues.errors, [], label + " membership vote runtime errors");
+    console.log("PASS member premium skin vote", label, size.width + "x" + size.height);
+  } finally {
+    await context.close();
+  }
+}
+
 async function main() {
   assert.ok(process.env.DB_PATH, "Must set DB_PATH to isolated staging SQLite file");
   assert.ok(!process.env.DB_PATH.startsWith("/app/data"), "Never use Render persistent disk");
@@ -356,6 +458,8 @@ async function main() {
       await checkSubscriberBarFixture(browser, origin, route, desktop, label + "-desktop");
       await checkSubscriberBarFixture(browser, origin, route, phone, label + "-phone");
     }
+    await checkMembershipSkinVoteFixture(browser, origin, desktop, "desktop");
+    await checkMembershipSkinVoteFixture(browser, origin, phone, "phone");
     const page = await browser.newPage();
     const response = await page.goto(origin + "/admin");
     assert.ok([401, 403, 302].includes(response.status()), "Admin page should block unauthenticated requests; got " + response.status());
