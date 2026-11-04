@@ -142,7 +142,7 @@ test('existing renewing and canceled-at-period-end members are not converted to 
   f.state.cancel_at_period_end = true;
   await processLifecycle(event(), { env, fetchImpl: f.fetchImpl });
   assert.equal(isEntitled(getSupporterStatus(42)), true);
-  assert.equal(isCoinBonusEligible(getSupporterStatus(42)), false);
+  assert.equal(isCoinBonusEligible(getSupporterStatus(42)), true);
 });
 
 test('a concurrent explicit resume wins after the initial one-month webhook completes', async () => {

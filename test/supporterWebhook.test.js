@@ -277,7 +277,7 @@ test("live-mode webhooks are processed only when live mode is explicitly enabled
   }, liveEnv), { ignored: true });
 });
 
-test("scheduled cancellation revokes future coin multipliers without revoking remaining paid access", () => {
+test("scheduled cancellation retains coin multipliers until paid access ends", () => {
   reset();
   const base = {
     id: "sub_cancel_42",
@@ -300,14 +300,14 @@ test("scheduled cancellation revokes future coin multipliers without revoking re
   assert.equal(isEntitled(status.stripe_status), true, "paid access remains to billing expiry");
   assert.equal(status.auto_renew, 0);
   assert.ok(status.cancelled_at);
-  assert.equal(isCoinBonusEligible(status), false);
+  assert.equal(isCoinBonusEligible(status), true);
 
   // Receiving a subsequent paid invoice must not override the cancelled state.
   processStripeEvent({
     id: "evt_coin_invoice_paid", type: "invoice.paid", livemode: false,
     data: { object: { parent: { subscription_details: { subscription: base.id } } } },
   });
-  assert.equal(isCoinBonusEligible(getSupporterStatus(42)), false);
+  assert.equal(isCoinBonusEligible(getSupporterStatus(42)), true);
 
   processStripeEvent(subscriptionEvent("evt_coin_resumed", base));
   status = getSupporterStatus(42);

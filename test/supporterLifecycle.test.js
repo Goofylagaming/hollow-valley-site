@@ -31,12 +31,13 @@ function options(...subscriptions) {
   } };
 }
 
-test('scheduled cancellation keeps all paid perks to the boundary; existing coin exception remains', async () => {
+test('scheduled cancellation keeps all paid perks including coins to the exact boundary', async () => {
   reset();
   await processLifecycle(event(), options(sub({ cancel_at_period_end: true })));
   const row = getSupporterStatus(42);
   assert.equal(isEntitled(row, now), true);
-  assert.equal(isCoinBonusEligible(row), false);
+  assert.equal(isCoinBonusEligible(row, now + 59999), true);
+  assert.equal(isCoinBonusEligible(row, now + 60000), false);
   assert.equal(entitlement(row, { env, now }).storageBonusSlots, 0);
   assert.equal(targetTierForStatus(row, { env: {}, now }), 'supporter');
   assert.equal(isEntitled(row, now + 60000), false);
@@ -121,4 +122,19 @@ test('replaying a processed event reconciles current Stripe state for a missed c
   await processLifecycle(delivery, options(sub({ status: 'canceled' })));
   assert.equal(isEntitled(getSupporterStatus(42), now), false);
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM stripe_webhook_events').get().n, 1);
+});
+
+ test('coin eligibility requires active paid time regardless of renewal preference', () => {
+  for (const renewalMode of ['one_month', 'auto_renew']) {
+    for (const autoRenew of [0, 1]) {
+      const row = { renewal_mode: renewalMode, auto_renew: autoRenew, cancelled_at: '2026-11-01', stripe_status: 'active', renews_at: new Date(now + 60000).toISOString() };
+      assert.equal(isCoinBonusEligible(row, now + 59999), true);
+      assert.equal(isCoinBonusEligible(row, now + 60000), false);
+      for (const status of ['canceled', 'past_due', 'unpaid', 'paused', 'incomplete', 'incomplete_expired', 'trialing']) {
+        assert.equal(isCoinBonusEligible({ ...row, stripe_status: status }, now), false);
+      }
+      for (const end of [null, '', 'invalid']) assert.equal(isCoinBonusEligible({ ...row, renews_at: end }, now), false);
+    }
+  }
+  assert.equal(isCoinBonusEligible('active', now), false);
 });

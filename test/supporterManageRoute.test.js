@@ -88,7 +88,7 @@ test("membership checkout and tier changes require a linked Steam account", asyn
   }
 });
 
-test("successful Stripe cancellation revokes the supporter coin multiplier immediately and resume restores it", async (t) => {
+test("turning renewal off and on preserves the paid supporter coin multiplier", async (t) => {
   const express = require("express");
   const { db } = require("../server/db");
   const router = require("../server/routes/supporter");
@@ -144,8 +144,8 @@ test("successful Stripe cancellation revokes the supporter coin multiplier immed
   assert.equal(row.auto_renew, 0);
   assert.ok(row.cancelled_at);
   assert.equal((await get()).entitled, true);
-  assert.equal((await get()).coinBonusEligible, false);
-  assert.equal((await get()).multiplier, 1);
+  assert.equal((await get()).coinBonusEligible, true);
+  assert.equal((await get()).multiplier, 2);
 
   const resume = await realFetch(base + "/api/supporter/resume", { method: "POST" });
   assert.equal(resume.status, 200);

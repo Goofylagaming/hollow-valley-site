@@ -27,7 +27,7 @@ function entitlement(status, { now = Date.now(), env = process.env } = {}) {
   const tier = normalizeTier(status?.tier);
   const until = timestamp(status?.renews_at);
   // A scheduled cancellation keeps these paid benefits until the verified
-  // period end. Coin eligibility intentionally uses its existing stricter rule.
+  // period end, including coin eligibility.
   const entitled = Boolean(enabled(env) && tier && status?.stripe_status === "active" &&
     until !== null && until > now);
   return {

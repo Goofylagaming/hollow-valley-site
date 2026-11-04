@@ -26,9 +26,9 @@ first renewal; this integration depends on working Stripe webhooks.
 The existing `active` + future paid-period gate ends website and game benefits
 at expiry. The existing Discord queue sweep removes the membership role at the
 boundary. Immediate cancellation and payment failure still revoke access.
-One-month purchases retain their coin multiplier and eligible initial invoice
-bonus for their paid month. Existing recurring memberships that request
-cancellation retain the previous immediate coin cutoff. Invoice IDs remain the
+Both one-month purchases and recurring memberships with renewal turned off
+retain their coin multiplier and eligible monthly invoice bonus for their paid
+month. Turning off renewal does not award an additional bonus. Invoice IDs remain the
 wallet's idempotency keys; permanent coins/items are never taken back.
 
 Members can explicitly turn on auto-renew with a payment confirmation prompt.
