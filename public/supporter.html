@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="assets/styles.css?v=16">
   <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=4">
-  <link rel="stylesheet" href="/assets/membership-rewards.css?v=3">
+  <link rel="stylesheet" href="/assets/membership-rewards.css?v=4">
   <link rel="stylesheet" href="/assets/subscriber-progress.css?v=2">
 </head>
 <body>
@@ -24,6 +24,12 @@
       <section class="roster-section">
         <section id="supporter-subscriber-progress" class="subscriber-progress" data-subscriber-progress hidden aria-label="Subscriber Bar" aria-busy="true"></section>
         <div class="list-heading"><span>CHOOSE YOUR MEMBERSHIP</span><small>monthly tiers</small></div>
+        <fieldset id="membership-renewal-choice" class="membership-renewal-choice">
+          <legend>How would you like to pay?</legend>
+          <label><input type="radio" name="renewal-mode" value="one_month" checked> <strong>One month only</strong> — ends after your paid month.</label>
+          <label><input type="radio" name="renewal-mode" value="auto_renew"> <strong>Auto-renew monthly</strong> — charged each month until you cancel.</label>
+          <p class="section-intro">Both options include your tier's benefits for the paid month. One month only has no automatic renewal.</p>
+        </fieldset>
         <div class="tier-grid" id="tier-grid"><p class="section-intro">Loading tiers…</p></div>
         <p class="section-intro">Coin bonuses apply to eligible rewards. Marketplace sales, refunds, transfers and admin credits keep their original amounts.</p>
         <p>DinoStorage is unlimited for all players. You don't need a membership to store your dinosaurs.</p>
@@ -52,7 +58,7 @@
   </div>
   <script src="assets/common.js?v=21"></script>
   <script src="/assets/membership-rewards.js?v=3"></script>
-  <script src="assets/supporter.js?v=12"></script>
+  <script src="assets/supporter.js?v=13"></script>
   <script src="assets/supporter-stripe-upgrade.js?v=1"></script>
   <script src="/assets/subscriber-progress.js?v=2"></script>
 </body>

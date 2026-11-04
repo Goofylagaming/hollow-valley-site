@@ -1,5 +1,6 @@
 const { TIERS, configuration, stableIdentityRequired } = require("./supporterCheckout");
 const { normalizeTier, stripePriceId } = require("./supporterTiers");
+const { serializeMembershipOperation } = require("./supporterRenewal");
 
 class ManageError extends Error {
   constructor(status, message) {
@@ -307,11 +308,11 @@ async function resumeSubscription({
   fetchImpl = globalThis.fetch,
 }) {
   const subscription = await getSubscription({ subscriptionId, userId, steamId, env, fetchImpl });
-  if (!subscription.cancel_at_period_end) {
+  if (!subscription.cancel_at_period_end && subscription.metadata?.renewal_mode !== "one_month") {
     return { ok: true, changed: false, cancelAtPeriodEnd: false };
   }
 
-  const body = new URLSearchParams({ cancel_at_period_end: "false" });
+  const body = new URLSearchParams({ cancel_at_period_end: "false", "metadata[renewal_mode]": "auto_renew" });
   const updated = await stripeRequest(
     `/v1/subscriptions/${encodeURIComponent(subscriptionId)}`,
     { method: "POST", body, env, fetchImpl }
@@ -330,8 +331,8 @@ module.exports = {
   ManageError,
   getSubscription,
   changeSubscription,
-  cancelSubscription,
-  resumeSubscription,
+  cancelSubscription: options => serializeMembershipOperation(() => cancelSubscription(options)),
+  resumeSubscription: options => serializeMembershipOperation(() => resumeSubscription(options)),
   _test: {
     validateSubscriptionId,
     normalizeStripeId,

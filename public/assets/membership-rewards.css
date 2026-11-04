@@ -1,4 +1,9 @@
 /* Membership presentation only; entitlements come from the authenticated API. */
+.membership-renewal-choice { margin: 18px 0 24px; padding: 20px; border: 1px solid var(--hv-line, #38503e); border-radius: 14px; }
+.membership-renewal-choice legend { padding: 0 8px; font-weight: 700; }
+.membership-renewal-choice label { display: block; padding: 10px 0; cursor: pointer; line-height: 1.6; }
+.membership-renewal-choice input { width: auto; margin-right: 8px; accent-color: #8dc89b; }
+.membership-renewal-choice[hidden] { display: none; }
 .membership-collection-preview { margin: 24px 0 38px; padding: clamp(18px, 3vw, 30px); border: 1px solid var(--hv-line, #38503e); border-radius: 16px; background: var(--hv-panel, #14221b); color: var(--hv-text, #edf4ee); }
 .membership-collection-preview h2 { margin: 8px 0; font-size: clamp(21px, 3vw, 29px); }
 .membership-collection-preview p { max-width: 75ch; margin: 12px 0 0; color: var(--hv-muted, #b2bfb5); line-height: 1.6; }

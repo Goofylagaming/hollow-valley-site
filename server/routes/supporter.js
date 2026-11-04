@@ -61,6 +61,7 @@ router.get("/", requireAuth, (req, res) => {
     multiplier: isCoinBonusEligible(status) ? supporterMultiplier(canonicalTier) : 1,
     coinBonusEligible: isCoinBonusEligible(status),
     auto_renew: Boolean(status.auto_renew),
+    renewal_mode: status.renewal_mode || "auto_renew",
     renews_at: status.renews_at,
     cancelled_at: status.cancelled_at,
     stripe_status: status.stripe_status,
@@ -107,6 +108,7 @@ router.post("/:tier/checkout", requireAuth, async (req, res) => {
   try {
     res.json(await createCheckoutSession({
       tier: req.params.tier,
+      renewalMode: req.body?.renewalMode,
       userId: req.user.id,
       steamId: req.user.steam_id || null,
     }));

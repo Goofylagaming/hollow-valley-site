@@ -46,6 +46,7 @@ function subscriberForSubscription(subscriptionId) {
       s.renews_at,
       s.auto_renew,
       s.cancelled_at,
+      s.renewal_mode,
       s.stripe_subscription_id,
       u.steam_id
     FROM supporter_subscriptions s
