@@ -35,6 +35,9 @@ async function setReadOnlyApiMocks(page, me = guest) {
       return route.fulfill({ status: 200, contentType: "application/json",
         body: JSON.stringify({ officialWritesEnabled: false, p2pWritesEnabled: false, p2pBuyEnabled: false }) });
     }
+    // The pack checker is a read-only query even though it uses POST. Only
+    // allow it through to this isolated staging database, never production.
+    if (pathname === "/api/community-guides/check") return route.continue();
     // Avoid accidental writes even if a page auto-submits a login bonus request.
     if (route.request().method() !== "GET") {
       return route.fulfill({ status: 200, contentType: "application/json",
@@ -79,14 +82,118 @@ async function checkPage(browser, origin, route, size, name, opts = {}) {
       assert.ok(await page.locator('.main-nav a[href="' + href + '"]').count(), name + " link missing " + href);
     }
 
+    if (route === "/") {
+      assert.equal(await page.locator("#home-roadmap-stages > .roadmap-stage").count(), 6,
+        "Homepage must preserve all roadmap stages");
+      assert.equal(await page.locator(".roadmap-feature").count(), 31,
+        "Homepage must retain all 31 community roadmap features");
+      assert.ok(await page.locator("#roadmap-suggestion-form").count(),
+        "The roadmap suggestion form must remain reachable");
+    }
+
+    if (size.width > 1050 && route === "/") {
+      const myStuff = page.locator("#my-stuff-nav-group > button");
+      await myStuff.click();
+      assert.equal(await myStuff.getAttribute("aria-expanded"), "true",
+        "Desktop My Stuff dropdown must open");
+      assert.equal(await page.locator('#my-stuff-submenu a[href="/dinostorage/"]').isVisible(), true,
+        "Dino Storage must be visible in the desktop submenu");
+      await page.locator(".home-hub-intro").click();
+      assert.equal(await myStuff.getAttribute("aria-expanded"), "false",
+        "Clicking outside desktop dropdown must close it");
+    }
+
     if (size.width <= 1050) {
       const menu = page.locator(".menu-toggle");
       assert.equal(await menu.isVisible(), true, name + " mobile navigation toggle hidden");
       await menu.click();
       assert.equal(await page.locator(".main-nav").evaluate((el) => el.classList.contains("open")), true, name + " mobile nav not opened");
       assert.equal(await page.locator('.main-nav a[href="/wallet"]').isVisible(), true, name + " Wallet hidden in mobile menu");
+      if (route === "/") {
+        const communityButton = page.locator("#community-nav-group > button");
+        await communityButton.click();
+        assert.equal(await communityButton.getAttribute("aria-expanded"), "true",
+          "Community mobile submenu must open");
+        assert.equal(await page.locator('#community-submenu a[href="/groups"]').isVisible(), true,
+          "Groups must be accessible in the mobile submenu");
+        await page.keyboard.press("Escape");
+        assert.equal(await communityButton.getAttribute("aria-expanded"), "false",
+          "Escape must close the open mobile submenu");
+        assert.equal(await page.locator(".main-nav").evaluate((el) => el.classList.contains("open")), true,
+          "Closing a submenu should leave the mobile navigation available");
+      }
       await page.keyboard.press("Escape");
       assert.equal(await page.locator(".main-nav").evaluate((el) => el.classList.contains("open")), false, name + " Escape does not close menu");
+    }
+    if (route === "/recruitment") {
+      await page.locator("#hv-group-search-status").getByText("0 recruiting group(s)",{exact:false}).waitFor({timeout:12000});
+      assert.equal(await page.locator("#hv-group-guest").isVisible(),true,
+        "Guest recruitment browsing cannot reveal owner management or private applicants");
+      assert.equal(await page.locator("#hv-group-membership").isVisible(),false);
+    }
+    if (route === "/status") {
+      await page.locator("#status-overall").waitFor({state:"visible",timeout:12000});
+      assert.ok(await page.locator("#status-website-card").count());
+      assert.ok(await page.locator("#status-game-card").count());
+    }
+    if (route === "/reports") {
+      await page.locator("#report-signin").waitFor({state:"visible",timeout:12000});
+      assert.equal(await page.locator("#report-content").isVisible(),false,
+        "Private report content should be hidden to unauthenticated visitors");
+    }
+    if (route === "/activity") {
+      await page.locator("#hv-activity-state").getByText("Not configured",{exact:false})
+        .waitFor({timeout:16000});
+      assert.ok(await page.locator("#hv-activity-online").textContent()==="—",
+        "The isolated site must never invent a live online count");
+      assert.equal(await page.locator("#hv-activity-events .hv-activity-event").count(),0,
+        "No unverified events should appear live in disconnected staging");
+      assert.match(await page.locator("#hv-activity-pack").textContent(),/Sign in with Steam/);
+    }
+    if (route === "/community") {
+      await page.locator("#hv-community-group-status").getByText("0 group(s)",{exact:false}).waitFor({timeout:12000});
+      assert.equal(await page.locator("#hv-community-groups .hv-group-card").count(),0,
+        "Website group listing must be opt-in only");
+    }
+    if (route === "/support") {
+      await page.locator("#hv-support-guest").waitFor({state:"visible",timeout:12000});
+      assert.equal(await page.locator("#hv-support-app").isVisible(),false,
+        "Support creation and private ticket list must not be visible to guests");
+      assert.ok(await page.locator('a[href="/auth/steam?returnTo=/support"]').count(),
+        "Guest must be able to sign in with Steam");
+    }
+    if (route === "/updates") {
+      await page.locator("#hv-updates-feedback").getByText("0 published update(s)", {exact:false})
+        .waitFor({timeout:12000});
+      assert.equal(await page.locator("#hv-updates-list .hv-update-card").count(), 0,
+        "Unpublished development changes must never appear as a live release");
+      assert.ok(await page.locator('a[href="/#roadmap"]').count(),
+        "Roadmap remains reachable from Updates");
+    }
+    if (route === "/") {
+      await page.locator("#home-updates-list").getByText("first approved development", {exact:false})
+        .waitFor({timeout:12000});
+      assert.equal(await page.locator("#home-updates-list .hv-home-update").count(),0,
+        "Homepage may not invent news items before staff publishes any");
+    }
+    if (route === "/rules") {
+      await page.locator("#hv-rules-status").getByText("No approved Hollow Valley rules", { exact:false })
+        .waitFor({ timeout:12000 });
+      assert.equal(await page.locator("#hv-rules-list .hv-rule-item").count(),0,
+        "An isolated staging database must not invent official server rules");
+    }
+    if (route === "/packs") {
+      await page.locator("#hv-species-list .hv-species-card").first()
+        .waitFor({ timeout:12000 });
+      assert.equal(await page.locator("#hv-species-list .hv-species-card").count(),21,
+        "Pack directory must reuse Hollow Valley's existing species list");
+      await page.locator("#hv-pack-species-a").selectOption("tyrannosaurus");
+      await page.locator("#hv-pack-count").fill("3");
+      await page.locator("#hv-pack-checker button[type=submit]").click();
+      await page.locator("#hv-pack-result").getByText("No staff-published group-size limit", { exact:false })
+        .waitFor({ timeout:12000 });
+      assert.equal(await page.locator("#hv-pack-result").getAttribute("data-status"), "unverified",
+        "Reference pack sizes must not become rules automatically");
     }
     if (route === "/groups") {
       assert.equal(await page.locator(".groups-note").first().isVisible(), true, "Groups must be website-only");
@@ -152,6 +259,166 @@ async function checkAuthenticatedGroupProgress(browser, origin){
     console.log("PASS authenticated Groups Achievements & Quests mobile");
   }finally{await context.close();}
 }
+
+async function checkSubscriberBarFixture(browser, origin, route, size, label) {
+  const context = await browser.newContext({ viewport: size, deviceScaleFactor: 1, reducedMotion: "reduce" });
+  const page = await context.newPage();
+  const issues = collect(page);
+  // Browser-only sample, using the same percentage-only projection as the public API.
+  const now = Date.now();
+  const local = new Date(now + 10 * 60 * 60 * 1000);
+  const year = local.getUTCFullYear();
+  const month = local.getUTCMonth();
+  const monthLabel = new Intl.DateTimeFormat("en-AU", {
+    month: "long", year: "numeric", timeZone: "Australia/Brisbane",
+  }).format(new Date(now));
+  const fixture = {
+    enabled: true, configured: true, available: true,
+    month: `${year}-${String(month + 1).padStart(2, "0")}`, timeZone: "Australia/Brisbane",
+    periodEnd: new Date(Date.UTC(year, month + 1, 1) - 10 * 60 * 60 * 1000).toISOString(),
+    coveragePercent: size.width < 600 ? 75 : 50, updatedAt: new Date(now).toISOString(),
+  };
+  try {
+    await setReadOnlyApiMocks(page);
+    await page.route("**/api/supporter/progress", (request) => request.fulfill({
+      status: 200, contentType: "application/json", body: JSON.stringify(fixture),
+    }));
+    const response = await page.goto(origin + route, { waitUntil: "domcontentloaded", timeout: 25000 });
+    assert.equal(response.status(), 200, label + " HTTP status");
+    const bar = page.locator("[data-subscriber-progress]");
+    await bar.getByRole("progressbar", { name: "Monthly running costs covered" }).waitFor({ state: "visible", timeout: 15000 });
+    assert.equal(await bar.isVisible(), true, label + " configured Subscriber Bar must be visible");
+    const meter = bar.getByRole("progressbar");
+    assert.equal(await meter.getAttribute("aria-valuemin"), "0");
+    assert.equal(await meter.getAttribute("aria-valuemax"), "100");
+    assert.equal(await meter.getAttribute("aria-valuenow"), String(fixture.coveragePercent));
+    assert.equal(await meter.getAttribute("aria-valuetext"), fixture.coveragePercent + "% of this month’s running costs covered");
+    const barText = await bar.textContent();
+    if (route === "/supporter") {
+      const prices = page.locator("#tier-grid .price");
+      await prices.first().waitFor({ state: "visible" });
+      const textPrices = await prices.allTextContents();
+      assert.equal(textPrices.length, 3);
+      for (const price of textPrices) assert.match(price, /^A\$\d+\.\d{2} \/ month$/);
+    }
+    assert.ok(barText.includes(monthLabel + " (QLD)"));
+    assert.ok(barText.includes("First goal: 50%") && barText.includes("Stretch goal: 75%"));
+    assert.doesNotMatch(barText, /\$|\bAUD\b|Stripe|monthly cost milestones/i);
+    assert.equal(await bar.locator('.subscriber-goal-step[data-state="reached"]').count(), fixture.coveragePercent === 50 ? 1 : 2);
+    assert.equal(await bar.getByRole("link", { name: /See membership rewards/ }).getAttribute("href"), "/supporter#tier-grid");
+    assert.equal(await bar.evaluate((element) => element.scrollWidth <= element.clientWidth + 1), true,
+      label + " Subscriber Bar must not overflow horizontally");
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), true,
+      label + " page must fit the viewport");
+    await bar.screenshot({ path: path.join(screenshots, "subscriber-bar-fixture-" + label + ".png") });
+    assert.deepEqual(issues.missing, [], label + " missing local Subscriber Bar assets");
+    assert.deepEqual(issues.errors, [], label + " Subscriber Bar runtime errors");
+    console.log("PASS Subscriber Bar synthetic fixture", label, route, size.width + "x" + size.height);
+  } finally { await context.close(); }
+}
+
+
+async function checkMembershipSkinVoteFixture(browser, origin, size, label) {
+  const context = await browser.newContext({ viewport: size, deviceScaleFactor: 1, reducedMotion: "reduce" });
+  const page = await context.newPage();
+  const issues = collect(page);
+  let selectedOptionId = 1;
+  let submittedOptionId = null;
+  const member = {
+    loggedIn: true,
+    user: { id: 42, steam_id: "76561198038977506", username: "Member", discord_id: "1091818722001424434", is_admin: 0 },
+    steamLoginConfigured: true,
+    discordLoginConfigured: true,
+  };
+  const tiers = {
+    supporter: { label: "Valley Supporter", priceAud: 7, multiplier: 2 },
+    guardian: { label: "Valley Guardian", priceAud: 15, multiplier: 3 },
+    legend: { label: "Valley Legend", priceAud: 25, multiplier: 5 },
+  };
+  const rewards = () => ({
+    enabled: true,
+    tier: "supporter",
+    tierLabel: "Valley Supporter",
+    entitled: true,
+    benefitsUntil: "2026-12-01T00:00:00.000Z",
+    appearance: {
+      badgeVisible: true,
+      badge: { id: "supporter", label: "Valley Supporter" },
+      frameId: "supporter-fern",
+      selectedFrameId: "supporter-fern",
+      frames: [
+        { id: "none", label: "Classic", available: true, permanent: true },
+        { id: "supporter-fern", label: "Fern", available: true, permanent: false },
+      ],
+    },
+    monthly: { enabled: false, allowance: 0, used: 0, remaining: 0, catalogueReady: false, claims: [] },
+    loyalty: { paidMonths: 1, milestones: [], historyVerified: true, canSyncHistory: false },
+    discord: { configured: true, linked: true, enabled: false, pending: false },
+    skinVote: {
+      enabled: true,
+      eligible: true,
+      tier: "supporter",
+      tierLabel: "Valley Supporter",
+      open: true,
+      ballot: { id: 7, title: "Choose next month's premium skin", opensAt: "2026-11-01T00:00:00.000Z", closesAt: "2026-11-20T00:00:00.000Z" },
+      options: [
+        { id: 1, label: "Ember Fern", description: "Warm rust and forest tones.", votes: selectedOptionId === 1 ? 3 : 2 },
+        { id: 2, label: "River Ghost", description: "Cool slate and pale teal.", votes: selectedOptionId === 2 ? 4 : 3 },
+        { id: 3, label: "Golden Hollow", description: "Cream, brown and muted gold.", votes: 1 },
+      ],
+      selectedOptionId,
+      totalVotes: 7,
+      lastWinner: null,
+    },
+  });
+
+  try {
+    await page.route("**/api/**", async (route) => {
+      const request = route.request();
+      const pathname = new URL(request.url()).pathname;
+      if (pathname === "/api/me") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(member) });
+      if (pathname === "/api/supporter") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
+        tier: "supporter", tierLabel: "Valley Supporter", multiplier: 2, stripe_status: "active",
+        auto_renew: true, renews_at: "2026-12-01T00:00:00.000Z", managed: true, coinBonusEligible: true,
+      }) });
+      if (pathname === "/api/supporter/tiers") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
+        tiers, monthlyCoinBonuses: { supporter: 15000, guardian: 20000, legend: 25000 }, checkoutConfigured: false,
+      }) });
+      if (pathname === "/api/supporter/rewards") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(rewards()) });
+      if (pathname === "/api/supporter/progress") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ enabled: false, configured: false, available: false }) });
+      if (pathname === "/api/supporter/sync-discord") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ configured: true, linked: true, skipped: true, reason: "preview" }) });
+      if (pathname === "/api/supporter/skin-vote/vote") {
+        const body = JSON.parse(request.postData() || "{}");
+        submittedOptionId = Number(body.optionId);
+        selectedOptionId = submittedOptionId;
+        return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(rewards().skinVote) });
+      }
+      if (request.method() !== "GET") return route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+      return route.continue();
+    });
+    await page.route(/https?:\/\/(?!127\.0\.0\.1)[^/]+\//, (route) => route.abort());
+    const response = await page.goto(origin + "/supporter", { waitUntil: "domcontentloaded", timeout: 25000 });
+    assert.equal(response.status(), 200, label + " supporter status");
+    const form = page.locator("#membership-skin-vote-form");
+    await form.waitFor({ state: "visible", timeout: 15000 });
+    assert.match(await page.locator("#membership-skin-vote-title").textContent(), /Choose next month's premium skin/);
+    assert.equal(await form.locator('input[name="optionId"]:checked').getAttribute("value"), "1");
+    await form.locator('input[name="optionId"][value="2"]').check();
+    await form.locator('button[type="submit"]').click();
+    await page.locator("#membership-skin-vote-message").getByText("Vote saved", { exact: false }).waitFor({ timeout: 12000 });
+    assert.equal(submittedOptionId, 2, label + " submitted wrong vote");
+    assert.equal(await form.locator('input[name="optionId"]:checked').getAttribute("value"), "2");
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), true,
+      label + " member vote must fit viewport");
+    await page.screenshot({ path: path.join(screenshots, "membership-skin-vote-" + label + ".png"), fullPage: true });
+    assert.deepEqual(issues.missing, [], label + " missing membership vote assets");
+    assert.deepEqual(issues.errors, [], label + " membership vote runtime errors");
+    console.log("PASS member premium skin vote", label, size.width + "x" + size.height);
+  } finally {
+    await context.close();
+  }
+}
+
 async function main() {
   assert.ok(process.env.DB_PATH, "Must set DB_PATH to isolated staging SQLite file");
   assert.ok(!process.env.DB_PATH.startsWith("/app/data"), "Never use Render persistent disk");
@@ -170,22 +437,37 @@ async function main() {
     for (const [route, label] of [
       ["/", "home"], ["/wallet", "wallet"], ["/marketplace", "marketplace"],
       ["/marketplace-official.html", "market-official"], ["/marketplace-players.html", "market-player"],
-      ["/dinostorage/", "dino-storage"], ["/groups", "groups"], ["/events", "events"],
+      ["/dinostorage/", "dino-storage"], ["/groups", "groups"], ["/help", "help"], ["/events", "events"],
       ["/owner-login", "owner-login"], ["/livemap", "live-map"], ["/skins", "skin-studio"],
+      ["/rules", "rules"], ["/packs", "packs"], ["/updates", "updates"], ["/support", "support"],
+      ["/community", "community"], ["/recruitment", "recruitment"], ["/activity", "activity"],
+      ["/status", "status"], ["/reports", "reports"],
     ]) {
-      await checkPage(browser, origin, route, desktop, label + "-desktop", { capture: ["home", "wallet", "marketplace", "dino-storage"].includes(label) });
+      await checkPage(browser, origin, route, desktop, label + "-desktop", { capture: ["home", "wallet", "marketplace", "dino-storage", "help", "rules", "packs", "updates", "support", "community", "recruitment", "activity", "status", "reports"].includes(label) });
     }
     for (const [route, label] of [
       ["/", "home"], ["/wallet", "wallet"], ["/marketplace", "marketplace"],
-      ["/dinostorage/", "dino-storage"], ["/groups", "groups"],
+      ["/dinostorage/", "dino-storage"], ["/groups", "groups"], ["/help", "help"],
+      ["/rules", "rules"], ["/packs", "packs"],
     ]) {
       await checkPage(browser, origin, route, tablet, label + "-tablet");
       await checkPage(browser, origin, route, phone, label + "-phone", { capture: true });
     }
     await checkAuthenticatedGroupProgress(browser, origin);
+    for (const [route, label] of [["/", "home"], ["/supporter", "supporter"]]) {
+      await checkSubscriberBarFixture(browser, origin, route, desktop, label + "-desktop");
+      await checkSubscriberBarFixture(browser, origin, route, phone, label + "-phone");
+    }
+    await checkMembershipSkinVoteFixture(browser, origin, desktop, "desktop");
+    await checkMembershipSkinVoteFixture(browser, origin, phone, "phone");
     const page = await browser.newPage();
     const response = await page.goto(origin + "/admin");
     assert.ok([401, 403, 302].includes(response.status()), "Admin page should block unauthenticated requests; got " + response.status());
+    for (const route of ["/adminrules", "/adminrules.html", "/adminupdates", "/adminupdates.html", "/adminsupport", "/adminsupport.html", "/adminactivity", "/adminactivity.html", "/adminincidents", "/adminincidents.html", "/adminreports", "/adminreports.html"]) {
+      const guarded = await page.goto(origin + route);
+      assert.ok([401, 403, 302].includes(guarded.status()),
+        "Rules editor must block unauthenticated requests at " + route + "; got " + guarded.status());
+    }
     console.log("PASS", "admin access denied without a valid production session");
     await page.close();
     console.log("STAGING UI BROWSER SMOKE PASSED");

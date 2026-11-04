@@ -69,6 +69,167 @@
           </section>
 
 
+          <section class="ops-panel" id="growth-controls">
+            <div class="list-heading"><span>EXPERIMENTAL GROWTH TEST</span><small>Admin only · effect unverified</small></div>
+            <p class="section-intro">Send the same bounded 2× or 3× candidate used in manual testing. Its effect and scope remain unverified and may affect all players. This does not update the Windows Game.ini.</p>
+            <div class="page-toolbar ops-toolbar">
+              <label for="ops-growth-value">Requested test value</label>
+              <select id="ops-growth-value" aria-label="Growth multiplier" style="padding:10px;background:#0f172a;color:#fff;border:1px solid #334155">
+                <option value="2">2×</option>
+                <option value="3" selected>3×</option>
+              </select>
+              <span id="ops-growth-state" class="ops-status-label">Checking…</span>
+              <button class="small-button" id="ops-growth-apply" type="button" disabled>Send experimental request</button>
+              <span id="ops-growth-message" role="status" aria-live="polite">Loading growth control state…</span>
+            </div>
+            <p class="section-intro">This panel does not display the current effective multiplier. It does not track a dinosaur, automatically restore 3×, save or restart the game. Requesting 3× is not verified recovery. Keep host access available for manual recovery; announce a change only after verifying it.</p>
+          </section>
+
+          <section class="ops-panel" id="feature-announcements">
+            <div class="list-heading"><span>FEATURE ANNOUNCEMENTS</span><small>Admin only · HerbyBot</small></div>
+            <p class="section-intro">Announce verified growth changes or community events from the Admin Hub. Queue to Discord announcements and/or the server-progress updates channel. In-game broadcasting will require the private Windows RCON host bridge; it is not enabled here.</p>
+            <div class="page-toolbar ops-toolbar">
+              <label for="ops-feature-type">Type</label>
+              <select id="ops-feature-type" style="padding:10px;background:#0f172a;color:#fff;border:1px solid #334155">
+                <option value="growth">Global growth multiplier</option>
+                <option value="custom">Other confirmed event / feature</option>
+              </select>
+              <label for="ops-feature-growth" id="ops-feature-growth-label">Growth rate</label>
+              <select id="ops-feature-growth" style="padding:10px;background:#0f172a;color:#fff;border:1px solid #334155">
+                <option value="1">1×</option><option value="2">2×</option><option value="3" selected>3×</option>
+                <option value="4">4×</option><option value="5">5×</option><option value="10">10×</option>
+              </select>
+            </div>
+            <div id="ops-feature-custom-wrap" hidden style="margin:12px 0">
+              <label for="ops-feature-custom">Announcement text</label>
+              <textarea id="ops-feature-custom" rows="3" maxlength="1800" style="display:block;width:100%;margin-top:8px;padding:10px;background:#0f172a;color:#fff;border:1px solid #334155" placeholder="What changed, when it starts and who benefits?"></textarea>
+            </div>
+            <p class="section-intro" style="margin-top:10px">Message preview</p>
+            <p id="ops-feature-preview" style="white-space:pre-wrap;overflow-wrap:anywhere" aria-live="polite"></p>
+            <div class="page-toolbar ops-toolbar">
+              <label><input id="ops-feature-community" type="checkbox" checked> Community announcements (Discord)</label>
+              <label><input id="ops-feature-progress" type="checkbox"> Server progress &amp; updates (Discord)</label>
+              <label title="Requires a private Windows-host RCON command bridge"><input type="checkbox" disabled> In-game (not connected)</label>
+            </div>
+            <div class="page-toolbar ops-toolbar" id="ops-feature-growth-ping-wrap">
+              <label for="ops-feature-growth-ping">Notify members about verified growth changes</label>
+              <select id="ops-feature-growth-ping" aria-label="Verified growth-change Discord mention target" style="padding:10px;background:#0f172a;color:#fff;border:1px solid #334155">
+                <option value="none" selected>No ping (default)</option>
+                <option value="community">@Community Member</option>
+                <option value="everyone">@everyone</option>
+              </select>
+              <small>One ping in Community Announcements only. Requires a confirmed live growth change, the Community Announcements destination and HerbyBot mention permission; no ping to Server Progress.</small>
+            </div>
+            <div class="page-toolbar ops-toolbar">
+              <label><input id="ops-feature-verified" type="checkbox"> I verified this change is active on the live server</label>
+            </div>
+            <div class="page-toolbar ops-toolbar">
+              <span id="ops-feature-state" class="ops-status-label">Checking HerbyBot…</span>
+              <button class="small-button" id="ops-feature-publish" type="button" disabled>Queue verified announcement</button>
+              <button class="small-button" id="ops-feature-copy" type="button">Copy in-game text</button>
+              <span id="ops-feature-message" role="status" aria-live="polite">Messages are queued, not guaranteed delivered.</span>
+            </div>
+          </section>
+
+                    <section class="ops-panel" id="omni-growth-validation" aria-labelledby="omni-growth-validation-title">
+            <div class="list-heading">
+              <span id="omni-growth-validation-title">OMNIRAPTOR GROWTH VALIDATION</span>
+              <small>Read-only · your live Steam-linked dinosaur</small>
+            </div>
+            <p class="section-intro">Prepare an individual growth-rate test without changing the server. Pick the desired effective rate (1×–10×) and observe your Omniraptor's actual growth for up to 10 minutes. <strong>No option applies growth yet.</strong> Baseline growth, vitals, mutations, other players and Game.ini are never modified by this tool.</p>
+            <div class="page-toolbar ops-toolbar">
+              <label for="omni-growth-target">Requested effective growth rate</label>
+              <select id="omni-growth-target" aria-label="Omniraptor growth test multiplier" style="padding:10px;background:#0f172a;color:#fff;border:1px solid #334155">
+                <option value="1">1× growth</option>
+                <option value="2">2× growth</option>
+                <option value="3" selected>3× growth</option>
+                <option value="4">4× growth</option>
+                <option value="5">5× growth</option>
+                <option value="6">6× growth</option>
+                <option value="7">7× growth</option>
+                <option value="8">8× growth</option>
+                <option value="9">9× growth</option>
+                <option value="10">10× growth</option>
+              </select>
+              <span id="omni-growth-selection">3× requested · no command will be sent</span>
+            </div>
+            <div class="page-toolbar ops-toolbar">
+              <button class="small-button" type="button" id="omni-growth-start">Start read-only observation</button>
+              <button class="small-button" type="button" id="omni-growth-stop" disabled>Stop observation</button>
+              <button class="small-button" type="button" id="omni-growth-copy" disabled>Copy test report</button>
+            </div>
+            <p id="omni-growth-state" class="section-intro" role="status" aria-live="polite">Not started. Log into The Isle with a growing Omniraptor before collecting measurements.</p>
+            <div class="ops-table-wrap">
+              <table class="ops-table">
+                <thead>
+                  <tr><th>Sample (QLD)</th><th>Omniraptor growth</th><th>Health</th><th>Stamina</th><th>Hunger</th><th>Thirst</th></tr>
+                </thead>
+                <tbody id="omni-growth-observations"><tr><td colspan="6">No live observation captured.</td></tr></tbody>
+              </table>
+            </div>
+            <p id="omni-growth-rate" class="section-intro">Observed natural growth rate: unavailable until two fresh samples are collected.</p>
+            <p class="section-intro"><strong>Safety:</strong> The requested multiplier is a future per-dinosaur target, not a global growth multiplier or a character growth grant. If you switch species, disconnect, reach full growth or the feed becomes stale, the observation stops. No in-game XP or growth rate is changed.</p>
+          </section>
+
+          <section class="ops-panel" id="species-events">
+            <div class="list-heading"><span>RANDOM DINOSAUR EVENTS</span><small>Per-species Valley Coins · no game restart</small></div>
+            <p class="section-intro">Run one temporary event covering one or several dinosaurs, each with a separate Valley Coin rate. Extra coins accrue per verified minute while players stay online with a selected species. Events end automatically at the deadline. Species-specific growth bonuses require a separately verified game mod and are unavailable here.</p>
+            <div class="page-toolbar ops-toolbar">
+              <span class="ops-status-label" id="ops-species-event-state">Checking events…</span>
+              <span id="ops-species-event-detail">Loading active events…</span>
+              <button class="small-button" id="ops-species-event-refresh" type="button">Refresh events</button>
+            </div>
+            <form id="ops-species-event-form">
+              <div class="page-toolbar ops-toolbar">
+                <label for="ops-species-event-title">Event name</label>
+                <input id="ops-species-event-title" maxlength="90" required value="Dinosaur Spotlight" aria-label="Event name" style="min-width:175px;padding:10px;background:#0f172a;color:#fff;border:1px solid #334155">
+                <label for="ops-species-event-species">Add dinosaur</label>
+                <select id="ops-species-event-species" required aria-label="Event dinosaur" style="padding:10px;background:#0f172a;color:#fff;border:1px solid #334155"><option value="">Loading species…</option></select>
+                <label for="ops-species-event-coins">Bonus VC/min to add</label>
+                <input id="ops-species-event-coins" inputmode="numeric" type="number" min="1" max="1000" value="50" style="width:100px;padding:10px;background:#0f172a;color:#fff;border:1px solid #334155">
+                <button type="button" class="small-button" id="ops-species-event-add">+ Add dinosaur</button>
+                <label for="ops-species-event-duration">Duration (minutes)</label>
+                <input id="ops-species-event-duration" inputmode="numeric" type="number" min="5" max="720" value="60" required style="width:100px;padding:10px;background:#0f172a;color:#fff;border:1px solid #334155">
+              </div>
+              <div class="ops-table-wrap" style="margin:12px 0">
+                <p class="section-intro" id="ops-species-event-selected-caption">Choose one dinosaur, or add several above. Each can have its own coin rate.</p>
+                <table class="ops-table">
+                  <thead><tr><th>Selected dinosaur</th><th>Extra Valley Coins / min</th><th>Remove</th></tr></thead>
+                  <tbody id="ops-species-event-selected"><tr><td colspan="3">No dinosaurs added yet. The selected dinosaur above will be used for a single-species event.</td></tr></tbody>
+                </table>
+              </div>
+              <div class="page-toolbar ops-toolbar">
+                <label for="ops-species-event-start-at">Optional scheduled start (your local time)</label>
+                <input id="ops-species-event-start-at" type="datetime-local" aria-label="Event start date and time" style="padding:10px;background:#0f172a;color:#fff;border:1px solid #334155">
+                <small>Leave blank to start now. Server presence must remain healthy for rewards.</small>
+                <label><input id="ops-species-event-auto-announce" type="checkbox" checked> Automatically announce start and finish in the dedicated #event-start-and-finish Discord channel</label>
+                <label for="ops-species-event-ping">Notify members on event START</label>
+                <select id="ops-species-event-ping" aria-label="Random Event Discord mention target" style="padding:10px;background:#0f172a;color:#fff;border:1px solid #334155">
+                  <option value="community" selected>@Community Member (recommended)</option>
+                  <option value="everyone">@everyone (entire server)</option>
+                  <option value="none">No ping</option>
+                </select>
+                <small>Ping occurs once in #event-start-and-finish when the event starts; never again when it ends. HerbyBot requires Discord permission to mention your choice.</small>
+              </div>
+              <div class="page-toolbar ops-toolbar">
+                <label>Species-only growth</label>
+                <span class="ops-status-label">Not supported yet</span>
+                <span>Global growth stays unchanged; no Game.ini writes.</span>
+              </div>
+              <div class="page-toolbar ops-toolbar">
+                <button class="primary-button green" id="ops-species-event-create" type="submit" disabled>Start / schedule event <b>→</b></button>
+                <span id="ops-species-event-preview">Maximum bonus per eligible player shown here.</span>
+              </div>
+            </form>
+            <p class="section-intro" id="ops-species-event-message" role="status" aria-live="polite">Events are paused until backend enablement is confirmed. No coins are awarded by this form until an event has been created.</p>
+            <div class="ops-table-wrap">
+              <table class="ops-table">
+                <thead><tr><th>Event</th><th>Dinosaurs</th><th>Individual bonuses</th><th>Start / end</th><th>Status</th><th>Action</th></tr></thead>
+                <tbody id="ops-species-event-list"><tr><td colspan="6">Loading…</td></tr></tbody>
+              </table>
+            </div>
+          </section>
+
           <section class="ops-panel">
             <div class="list-heading"><span>CORPSE WIPE</span><small>admin-only · destructive RCON action</small></div>
             <p class="section-intro">Removes dead bodies from the live Evrima world. The action remains protected by the automation RCON corpse-wipe safety gate and requires an explicit confirmation before it is sent.</p>
@@ -117,6 +278,8 @@
     <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="/assets/common.js?v=21"></script>
-  <script src="/assets/adminoperations.js?v=10"></script>
+  <script src="/assets/adminoperations.js?v=14"></script>
+  <script src="/assets/species-events-admin.js?v=2"></script>
+  <script src="/assets/omniraptor-growth-validation.js?v=1"></script>
 </body>
 </html>

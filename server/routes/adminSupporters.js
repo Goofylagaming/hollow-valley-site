@@ -14,6 +14,7 @@ const {
   configuration: discordMembershipConfiguration,
   syncDiscordMembershipForUser,
 } = require("../services/discordMembership");
+const membershipSkinVote = require("../services/membershipSkinVote");
 
 const router = express.Router();
 
@@ -95,7 +96,7 @@ async function listStripeSubscriptions({ env = process.env, fetchImpl = globalTh
 
 function localRowToEntry(row, { discordConfigured }) {
   const tier = normalizeTier(row.tier);
-  const entitled = isEntitled(row.stripe_status);
+  const entitled = isEntitled(row);
   const discordLinked = Boolean(String(row.discord_id || "").trim());
   const steamLinked = Boolean(String(row.steam_id || "").trim());
 
@@ -318,11 +319,12 @@ router.post("/:userId/repair-stripe", requireAdmin, async (req, res) => {
       status: subscription.status || "unknown",
       renewsAt: isoFromUnix(subscriptionPeriodEnd(subscription)),
       autoRenew: !subscription.cancel_at_period_end && subscription.status !== "canceled",
+      renewalMode: subscription.metadata?.renewal_mode,
     });
 
     let discordSync = null;
     let discordSyncError = null;
-    if (status && isEntitled(status.stripe_status) && user.discord_id) {
+    if (status && isEntitled(status) && user.discord_id) {
       try {
         discordSync = await syncDiscordMembershipForUser(userId);
       } catch (error) {
@@ -350,14 +352,14 @@ router.post("/:userId/sync-discord", requireAdmin, async (req, res) => {
   }
 
   const supporter = db.prepare(`
-    SELECT s.user_id, s.stripe_status, u.discord_id
+    SELECT s.user_id, s.stripe_status, s.renews_at, u.discord_id
     FROM supporter_subscriptions s
     JOIN users u ON u.id = s.user_id
     WHERE s.user_id = ?
   `).get(userId);
 
   if (!supporter) return res.status(404).json({ error: "Supporter subscription was not found." });
-  if (!isEntitled(supporter.stripe_status)) {
+  if (!isEntitled(supporter)) {
     return res.status(409).json({ error: "This supporter is not currently entitled to a supporter role." });
   }
   if (!supporter.discord_id) {
@@ -379,6 +381,39 @@ router.post("/:userId/sync-discord", requireAdmin, async (req, res) => {
         ? error.message
         : "Unable to sync this supporter's Discord role.",
     });
+  }
+});
+
+function requireSameOrigin(req, res, next) {
+  const origin = req.get("origin");
+  if (!origin) return next();
+  try {
+    if (new URL(origin).host === req.get("host")) return next();
+  } catch {}
+  return res.status(403).json({ error: "Use the Hollow Valley admin page to change the member skin vote." });
+}
+
+router.get("/skin-vote", requireAdmin, (req, res) => {
+  try { return res.json(membershipSkinVote.adminState()); }
+  catch (error) {
+    return res.status(error instanceof membershipSkinVote.SkinVoteError ? error.status : 503)
+      .json({ error: error.message || "Member skin vote is unavailable.", code: error.code || "SKIN_VOTE_UNAVAILABLE" });
+  }
+});
+
+router.post("/skin-vote", requireAdmin, requireSameOrigin, (req, res) => {
+  try { return res.json(membershipSkinVote.createBallot(req.user, req.body)); }
+  catch (error) {
+    return res.status(error instanceof membershipSkinVote.SkinVoteError ? error.status : 503)
+      .json({ error: error.message || "Could not open the member skin vote.", code: error.code || "SKIN_VOTE_UNAVAILABLE" });
+  }
+});
+
+router.post("/skin-vote/close", requireAdmin, requireSameOrigin, (req, res) => {
+  try { return res.json(membershipSkinVote.closeBallot(req.user)); }
+  catch (error) {
+    return res.status(error instanceof membershipSkinVote.SkinVoteError ? error.status : 503)
+      .json({ error: error.message || "Could not close the member skin vote.", code: error.code || "SKIN_VOTE_UNAVAILABLE" });
   }
 });
 

@@ -46,11 +46,86 @@ test("all production wallet, marketplace, storage, admin and other page scripts 
     // Approved test-preview Live Map migration intentionally extends this page.
     if (page === "livemap.html") continue;
     const file = "public/" + page;
-    assert.deepEqual(
-      scriptSources(read(file)),
-      scriptSources(previous(file)),
-      page + ": feature scripts were dropped or reordered"
-    );
+    const actual = scriptSources(read(file));
+    const baseline = scriptSources(previous(file));
+    if (page === "profile.html" || page === "supporter.html") {
+      // Membership presentation extends both pages before their existing page
+      // controllers; all production feature scripts retain their exact order.
+      const membership = "assets/membership-rewards.js";
+      const subscriberBar = "assets/subscriber-progress.js";
+      const controller = page === "profile.html" ? "assets/profile.js" : "assets/supporter.js";
+      assert.equal(actual.filter(src => src === membership).length, 1,
+        page + ": membership rewards helper must load exactly once");
+      assert.equal(actual.indexOf(membership), actual.indexOf(controller) - 1,
+        page + ": membership rewards helper must immediately precede the page controller");
+      if (page === "supporter.html") {
+        assert.equal(actual.filter(src => src === subscriberBar).length, 1,
+          "Public Subscriber Bar helper must load exactly once");
+        assert.equal(actual.indexOf(subscriberBar), actual.indexOf("assets/supporter-stripe-upgrade.js") + 1,
+          "Subscriber Bar helper must follow the existing membership controls");
+      }
+      assert.deepEqual(actual.filter(src => src !== membership && (page !== "supporter.html" || src !== subscriberBar)), baseline,
+        page + ": existing feature scripts must be preserved");
+    } else if (page === "skins.html") {
+      // v015 intentionally inserts the auto-map and batch-mask helpers before
+      // the original viewer. The entire pre-existing script order is preserved.
+      const autoMap = "assets/skin-studio-auto-map.js";
+      const batchMap = "assets/skin-studio-batch-map.js";
+      const extractedRegistry = "assets/skin-studio-extracted-registry.js";
+      const reader = "assets/skin-studio-3d.js";
+      const premium = "assets/premium-skins.js";
+      assert.equal(actual.filter(src => src === premium).length, 1,
+        "Premium skin controls must load exactly once");
+      assert.equal(actual.indexOf(premium), actual.indexOf("assets/skins.js") + 1,
+        "Premium skin controls must immediately follow the existing Skin Studio controller");
+      assert.equal(actual.indexOf(autoMap), actual.indexOf(batchMap) - 1, "Batch helper follows auto-map");
+      assert.equal(actual.indexOf(batchMap), actual.indexOf(reader) - 1, "Batch helper precedes the viewer");
+      assert.equal(actual.filter(src => src === autoMap).length, 1);
+      assert.equal(actual.filter(src => src === batchMap).length, 1);
+      // Current production Skin Studio also loads the extracted model registry
+      // immediately after the legacy model registry. The pinned baseline predates
+      // that additive script, so preserve it explicitly instead of misclassifying
+      // it as a dropped/reordered feature.
+      assert.equal(actual.filter(src => src === extractedRegistry).length, 1,
+        "Extracted Skin Studio registry must load exactly once");
+      assert.equal(actual.indexOf(extractedRegistry), actual.indexOf("assets/skin-studio-model-registry.js") + 1,
+        "Extracted registry must follow the existing model registry");
+      assert.deepEqual(actual.filter(src => src !== autoMap && src !== batchMap && src !== premium && src !== extractedRegistry), baseline,
+        page + ": existing feature scripts must be preserved");
+    } else if (page === "dinostorage/index.html") {
+      // Prime zone reset is the only additive DinoStorage script. Existing
+      // storage/marketplace scripts must retain their exact order.
+      const reset = "assets/prime-zone-reset.js";
+      assert.equal(actual.filter(src => src === reset).length, 1,
+        "Prime reset script appears once");
+      assert.equal(actual.indexOf(reset), actual.indexOf("assets/mydinos.js") + 1,
+        "Reset handler must load after the existing Prime tracker");
+      assert.deepEqual(actual.filter(src => src !== reset), baseline,
+        "DinoStorage's existing production scripts must remain in order");
+    } else if (page === "adminoperations.html") {
+      const speciesAdmin = "assets/species-events-admin.js";
+      const growthProbe = "assets/omniraptor-growth-validation.js";
+      assert.equal(actual.filter(src => src === speciesAdmin).length, 1,
+        "Timed species event admin script must load exactly once");
+      assert.equal(actual.filter(src => src === growthProbe).length, 1,
+        "Omniraptor read-only validation script must load exactly once");
+      assert.ok(actual.indexOf(speciesAdmin) > actual.indexOf("assets/adminoperations.js"),
+        "Species event controls load after the existing operations controls");
+      assert.ok(actual.indexOf(growthProbe) > actual.indexOf(speciesAdmin),
+        "Read-only Omniraptor validation loads after the existing species event controls");
+      assert.deepEqual(actual.filter(src => src !== speciesAdmin && src !== growthProbe), baseline,
+        "Existing Admin Operations scripts must retain their original order");
+    } else if (page === "events.html") {
+      const randomEvents = "assets/events-species-bonuses.js";
+      assert.equal(actual.filter(src => src === randomEvents).length, 1,
+        "Random event display script must be loaded exactly once");
+      assert.ok(actual.indexOf(randomEvents) > actual.indexOf("assets/events.js"),
+        "Public event bonuses load after the existing Events script");
+      assert.deepEqual(actual.filter(src => src !== randomEvents), baseline,
+        "All existing Events page scripts must retain their original order");
+    } else {
+      assert.deepEqual(actual, baseline, page + ": feature scripts were dropped or reordered");
+    }
   }
 });
 test("every public page preloads the upgraded UI without losing its base CSS", () => {

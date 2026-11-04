@@ -1,0 +1,35 @@
+name: Omniraptor Read-Only Growth Validation Tests
+
+on:
+  pull_request:
+    paths:
+      - 'automation-platform/src/services/omniraptorGrowthValidationService.js'
+      - 'automation-platform/src/routes/adminRoutes.js'
+      - 'automation-platform/test/omniraptorGrowthValidation.test.js'
+      - 'automation-platform/test/omniraptorGrowthValidationRoutes.test.js'
+      - 'server/routes/adminOperations.js'
+      - 'server/services/automationWebsiteClient.js'
+      - 'public/adminoperations.html'
+      - 'public/assets/omniraptor-growth-validation.js'
+      - 'test/adminOmniraptorGrowthValidation.test.js'
+      - 'test/productionUiRelease.test.js'
+      - '.github/workflows/omniraptor-growth-readonly-tests.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  read-only-observation:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Read-only growth and login tests
+        run: node --test automation-platform/test/omniraptorGrowthValidation.test.js automation-platform/test/omniraptorGrowthValidationRoutes.test.js test/adminOmniraptorGrowthValidation.test.js test/adminOperationsRoute.test.js test/productionUiRelease.test.js

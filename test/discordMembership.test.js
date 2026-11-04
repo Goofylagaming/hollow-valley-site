@@ -23,6 +23,7 @@ function reset({ tier = "legend", stripeStatus = "active", discordId = "15460233
       "INSERT INTO supporter_subscriptions (user_id, tier, stripe_status, auto_renew) VALUES (?, ?, ?, 1)"
     ).run(42, tier, stripeStatus);
   }
+  db.exec("UPDATE supporter_subscriptions SET renews_at = '2099-01-01T00:00:00.000Z'");
 }
 
 test("Discord membership role sync is disabled until token and guild are configured", async () => {
@@ -37,9 +38,9 @@ test("active membership gets exactly its matching Discord role", async () => {
   reset();
   const calls = [];
   const roles = [
-    { id: "1", name: "Valley Supporter" },
-    { id: "2", name: "Valley Guardian" },
-    { id: "3", name: "Valley Legend" },
+    { id: "1550695486464204810", name: "Valley Supporter" },
+    { id: "1550695581373042688", name: "Valley Guardian" },
+    { id: "1550695426456555551", name: "Valley Legend" },
     { id: "4", name: "Community Member" },
   ];
 
@@ -49,7 +50,7 @@ test("active membership gets exactly its matching Discord role", async () => {
       if (url.endsWith("/roles")) {
         return { ok: true, status: 200, json: async () => roles };
       }
-      return { ok: true, status: 200, json: async () => ({ roles: ["1", "2"] }) };
+      return { ok: true, status: 200, json: async () => ({ roles: ["1550695486464204810", "1550695581373042688"] }) };
     }
     return { ok: true, status: 204, json: async () => null };
   };
@@ -59,18 +60,18 @@ test("active membership gets exactly its matching Discord role", async () => {
   assert.equal(result.roleName, "Valley Legend");
 
   const methods = calls.map((call) => [call.method, call.url]);
-  assert.ok(methods.some(([method, url]) => method === "PUT" && url.endsWith("/members/1546023362642317404/roles/3")));
-  assert.ok(methods.some(([method, url]) => method === "DELETE" && url.endsWith("/members/1546023362642317404/roles/1")));
-  assert.ok(methods.some(([method, url]) => method === "DELETE" && url.endsWith("/members/1546023362642317404/roles/2")));
+  assert.ok(methods.some(([method, url]) => method === "PUT" && url.endsWith("/members/1546023362642317404/roles/1550695426456555551")));
+  assert.ok(methods.some(([method, url]) => method === "DELETE" && url.endsWith("/members/1546023362642317404/roles/1550695486464204810")));
+  assert.ok(methods.some(([method, url]) => method === "DELETE" && url.endsWith("/members/1546023362642317404/roles/1550695581373042688")));
   assert.ok(!methods.some(([, url]) => url.endsWith("/roles/4")));
 });
 
 test("inactive membership removes all Hollow Valley membership roles", async () => {
   reset({ tier: "legend", stripeStatus: "canceled" });
   const roles = [
-    { id: "1", name: "Valley Supporter" },
-    { id: "2", name: "Valley Guardian" },
-    { id: "3", name: "Valley Legend" },
+    { id: "1550695486464204810", name: "Valley Supporter" },
+    { id: "1550695581373042688", name: "Valley Guardian" },
+    { id: "1550695426456555551", name: "Valley Legend" },
   ];
   const calls = [];
 
@@ -80,7 +81,7 @@ test("inactive membership removes all Hollow Valley membership roles", async () 
       if (url.endsWith("/roles")) {
         return { ok: true, status: 200, json: async () => roles };
       }
-      return { ok: true, status: 200, json: async () => ({ roles: ["1", "2", "3"] }) };
+      return { ok: true, status: 200, json: async () => ({ roles: ["1550695486464204810", "1550695581373042688", "1550695426456555551"] }) };
     }
     return { ok: true, status: 204, json: async () => null };
   };
@@ -90,35 +91,6 @@ test("inactive membership removes all Hollow Valley membership roles", async () 
   assert.equal(calls.filter((call) => call.method === "DELETE").length, 3);
   assert.equal(calls.filter((call) => call.method === "PUT").length, 0);
 });
-
-test("missing target role is created before assignment", async () => {
-  reset({ tier: "guardian" });
-  const calls = [];
-  let roles = [{ id: "1", name: "Valley Supporter" }];
-
-  const fetchImpl = async (url, options = {}) => {
-    const method = options.method || "GET";
-    calls.push({ url, method, body: options.body });
-    if (method === "GET") {
-      if (url.endsWith("/roles")) {
-        return { ok: true, status: 200, json: async () => roles };
-      }
-      return { ok: true, status: 200, json: async () => ({ roles: ["1"] }) };
-    }
-    if (method === "POST" && url.endsWith("/roles")) {
-      const created = { id: "2", name: "Valley Guardian" };
-      roles = [...roles, created];
-      return { ok: true, status: 200, json: async () => created };
-    }
-    return { ok: true, status: 204, json: async () => null };
-  };
-
-  const result = await syncDiscordMembershipForUser(42, { env, fetchImpl });
-  assert.equal(result.roleName, "Valley Guardian");
-  assert.ok(calls.some((call) => call.method === "POST" && call.url.endsWith("/guilds/1540359454627725382/roles")));
-  assert.ok(calls.some((call) => call.method === "PUT" && call.url.endsWith("/roles/2")));
-});
-
 
 test("configured supporter role IDs are used directly without listing or creating roles", async () => {
   reset({ tier: "legend" });
@@ -182,4 +154,12 @@ test("already-correct exact membership role is a no-op", async () => {
   assert.equal(result.changed, false);
   assert.equal(calls.filter((call) => call.method === "PUT").length, 0);
   assert.equal(calls.filter((call) => call.method === "DELETE").length, 0);
+});
+
+test("exact role mapping cannot fall back to name creation", () => {
+  const { configuredRoleIds, ROLE_NAMES } = require("../server/services/discordMembership");
+  assert.deepEqual(configuredRoleIds({ DISCORD_ROLE_SUPPORTER_ID: "invalid" }), {
+    supporter: "1550695486464204810", guardian: "1550695581373042688", legend: "1550695426456555551"
+  });
+  assert.equal(ROLE_NAMES.supporter, "Valley Member");
 });

@@ -33,6 +33,7 @@ let mineState = null;
 let storedDinos = [];
 let externalQueue = [];
 let editingPresetId = null;
+let editingPremiumSkinId = null;
 let wearState = null;
 let previewSex = "male";
 
@@ -159,6 +160,7 @@ function updatePreview() {
       name,
       species,
       sex: previewSex,
+      patternIndex: skin.patternIndex,
       skin: Object.fromEntries(Object.entries(skin).map(([key, value]) => [key, colorToHex(value)])),
     },
   }));
@@ -266,10 +268,10 @@ function skinCard(preset, mode) {
   const externalMeta = externalLibraryMeta(preset.description);
   const description = externalMeta.description || (preset.published ? "Published Hollow Valley skin." : "Saved Skin Studio design.");
   const isCreator = Boolean(preset.owner_steam_id && me.user?.steam_id === preset.owner_steam_id);
-  const canEdit = isCreator || Boolean(preset.exclusive && preset.granted);
-  const canDelete = isCreator || Boolean(preset.exclusive && preset.granted);
+  const canEdit = !preset.membershipPremium && (isCreator || Boolean(preset.exclusive && preset.granted));
+  const canDelete = !preset.membershipPremium && (isCreator || Boolean(preset.exclusive && preset.granted));
   const ownerBadge = isCreator ? "Creator" : "";
-  const status = preset.exclusive
+  const status = preset.membershipPremium ? 'Premium collection' : preset.exclusive
     ? (preset.granted ? "Exclusive · Granted" : "Exclusive")
     : preset.published ? (preset.isPremium ? "Free" : `${price.toLocaleString()} VC`) : "Draft";
   const swatchMarkup = mode === "store"
@@ -293,7 +295,7 @@ function skinCard(preset, mode) {
   if (mode === "mine" && canDelete) {
     actions.push(`<button class="small-button skin-delete" data-id="${preset.id}" data-name="${escapeHtml(preset.name)}" data-granted="${preset.exclusive && preset.granted && !isCreator ? "1" : "0"}">Delete</button>`);
   }
-  if ((mode === "mine" || mode === "library") && me.user?.is_admin && isCreator) {
+  if ((mode === "mine" || mode === "library") && me.user?.is_admin && isCreator && !preset.membershipPremium) {
     actions.push(`<button class="small-button skin-grant" data-id="${preset.id}" data-name="${escapeHtml(preset.name)}">Grant exclusive</button>`);
     actions.push(`<button class="small-button skin-grants" data-id="${preset.id}" data-name="${escapeHtml(preset.name)}">Grants</button>`);
     if (!preset.exclusive) {
@@ -327,6 +329,7 @@ function skinCard(preset, mode) {
           ${preset.exclusive ? "<span>🔒 Non-transferable</span>" : ""}
           ${preset.granted ? "<span>Admin granted</span>" : ""}
           ${preset.grantCustomized ? "<span>Personal edit</span>" : ""}
+          ${preset.membershipPremium ? `<span>Verified species: ${escapeHtml((preset.membershipVerifiedSpecies || []).join(', ') || 'Draft · awaiting review')}</span>` : ""}
           ${mode === "library" && externalMeta.source ? `<span>Source: ${escapeHtml(externalMeta.source)}</span>` : ""}
         </div>
         ${skinCardShareMarkup(preset, mode)}
@@ -359,6 +362,7 @@ function wireCardActions(root) {
     if (!preset) return showAlert("Skin could not be found.", "error");
     const meta = externalLibraryMeta(preset.description);
     editingPresetId = preset.id;
+    editingPremiumSkinId = null;
     document.getElementById("skin-species").value = preset.species;
     document.getElementById("skin-name").value = preset.name || "";
     document.getElementById("skin-description").value = meta.description || "";
@@ -494,6 +498,7 @@ function wireCardActions(root) {
   }));
 
   root.querySelectorAll(".skin-library-edit").forEach((button) => button.addEventListener("click", () => {
+    editingPremiumSkinId = null;
     const preset = (mineState?.presets || []).find((item) => String(item.id) === String(button.dataset.id));
     if (!preset) return showAlert("External library skin could not be found.", "error");
     const meta = externalLibraryMeta(preset.description);
@@ -827,6 +832,7 @@ document.getElementById("skin-randomize").addEventListener("click", () => {
 
 document.getElementById("skin-reset").addEventListener("click", () => {
   editingPresetId = null;
+  editingPremiumSkinId = null;
   document.getElementById("skin-save").textContent = "Save design →";
   resetEditor();
 });
@@ -838,8 +844,9 @@ document.getElementById("skin-save").addEventListener("click", async () => {
   const button = document.getElementById("skin-save");
   button.disabled = true;
   try {
-    const result = await api(editingPresetId ? `/api/skins/${editingPresetId}` : "/api/skins/studio", {
-      method: editingPresetId ? "PUT" : "POST",
+    const premiumEditing = editingPremiumSkinId;
+    const result = await api(premiumEditing ? `/api/skins/premium/admin/${encodeURIComponent(premiumEditing)}` : editingPresetId ? `/api/skins/${editingPresetId}` : "/api/skins/studio", {
+      method: premiumEditing || editingPresetId ? "PUT" : "POST",
       body: JSON.stringify({
         species: document.getElementById("skin-species").value,
         name,
@@ -848,10 +855,12 @@ document.getElementById("skin-save").addEventListener("click", async () => {
         ...(editingPresetId ? {} : { idempotencyKey: requestKey("skin-save") }),
       }),
     });
-    showAlert(editingPresetId ? `Updated ${result.preset?.name || name}.` : `Saved ${result.preset?.name || name}. Share code: ${result.preset?.share_code || "created"}.`, "success");
+    showAlert(premiumEditing ? `Updated premium draft ${name}. It remains private until verified and published.` : editingPresetId ? `Updated ${result.preset?.name || name}.` : `Saved ${result.preset?.name || name}. Share code: ${result.preset?.share_code || "created"}.`, "success");
     editingPresetId = null;
+    editingPremiumSkinId = null;
     document.getElementById("skin-save").textContent = "Save design →";
     await Promise.all([loadMine(), loadStore()]);
+    if (premiumEditing) await window.HVPremiumSkins?.refresh();
   } catch (err) {
     showAlert(err.message, "error");
   } finally {
@@ -1064,6 +1073,7 @@ async function init() {
   const note = document.getElementById("skin-save-note");
   note.textContent = me.loggedIn ? "Saving is free. Published skins can be priced in Valley Coin." : "Sign in with Steam to save designs.";
   await Promise.all([loadStore(), loadMine(), loadStoredSlots()]);
+  document.dispatchEvent(new CustomEvent("hds:skin-collection-ready"));
 }
 
 init().catch((err) => showAlert(err.message, "error"));

@@ -14,6 +14,7 @@ const {
   processStripeEvent,
   tierFromSubscription,
   isEntitled,
+  isCoinBonusEligible,
 } = require("../server/services/supporterWebhook");
 
 function signedHeader(body, timestamp = 2_000_000_000, secret = process.env.STRIPE_WEBHOOK_SECRET) {
@@ -188,6 +189,14 @@ test("live-mode events are ignored on the sandbox integration", () => {
 test("HTTP webhook route accepts a valid signed raw body and rejects tampering", async (t) => {
   reset();
   const express = require("express");
+  const originalFetch = globalThis.fetch;
+  const originalSecret = process.env.STRIPE_SECRET_KEY;
+  process.env.STRIPE_SECRET_KEY = "rk_test_fixture";
+  globalThis.fetch = async (url, options) => String(url).startsWith("https://api.stripe.com/")
+    ? { ok: true, json: async () => ({ id: "sub_http", livemode: false, status: "active",
+      metadata: { user_id: "42", tier: "member" }, current_period_end: 4102444800 }) }
+    : originalFetch(url, options);
+  t.after(() => { globalThis.fetch = originalFetch; if (originalSecret === undefined) delete process.env.STRIPE_SECRET_KEY; else process.env.STRIPE_SECRET_KEY = originalSecret; });
   const router = require("../server/routes/stripeWebhook");
   const app = express();
   app.use("/api/stripe/webhook", router);
@@ -266,4 +275,47 @@ test("live-mode webhooks are processed only when live mode is explicitly enabled
     id: "evt_test_rejected_in_live",
     livemode: false,
   }, liveEnv), { ignored: true });
+});
+
+test("scheduled cancellation retains coin multipliers until paid access ends", () => {
+  reset();
+  const base = {
+    id: "sub_cancel_42",
+    status: "active",
+    cancel_at_period_end: false,
+    customer: "cus_cancel_42",
+    metadata: { user_id: "42", tier: "member" },
+    items: { data: [{ price: { id: process.env.STRIPE_PRICE_MEMBER }, current_period_end: 4102444800 }] },
+  };
+  const subscriptionEvent = (id, object) => ({
+    id, type: "customer.subscription.updated", livemode: false, data: { object },
+  });
+
+  processStripeEvent(subscriptionEvent("evt_coin_active", base));
+  assert.equal(isCoinBonusEligible(getSupporterStatus(42)), true);
+
+  processStripeEvent(subscriptionEvent("evt_coin_cancellation", { ...base, cancel_at_period_end: true }));
+  let status = getSupporterStatus(42);
+  assert.equal(status.stripe_status, "active");
+  assert.equal(isEntitled(status.stripe_status), true, "paid access remains to billing expiry");
+  assert.equal(status.auto_renew, 0);
+  assert.ok(status.cancelled_at);
+  assert.equal(isCoinBonusEligible(status), true);
+
+  // Receiving a subsequent paid invoice must not override the cancelled state.
+  processStripeEvent({
+    id: "evt_coin_invoice_paid", type: "invoice.paid", livemode: false,
+    data: { object: { parent: { subscription_details: { subscription: base.id } } } },
+  });
+  assert.equal(isCoinBonusEligible(getSupporterStatus(42)), true);
+
+  processStripeEvent(subscriptionEvent("evt_coin_resumed", base));
+  status = getSupporterStatus(42);
+  assert.equal(status.auto_renew, 1);
+  assert.equal(status.cancelled_at, null);
+  assert.equal(isCoinBonusEligible(status), true);
+
+  processStripeEvent({ id: "evt_coin_deleted", type: "customer.subscription.deleted",
+    livemode: false, data: { object: { ...base, status: "canceled" } } });
+  assert.equal(isCoinBonusEligible(getSupporterStatus(42)), false);
 });

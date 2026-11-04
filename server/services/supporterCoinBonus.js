@@ -1,5 +1,6 @@
 const { db } = require('../db');
 const { normalizeTier } = require('./supporterTiers');
+const { isCoinBonusEligible } = require('./supporterWebhook');
 
 const MONTHLY_SUPPORTER_BONUS = Object.freeze({
   supporter: 15000,
@@ -42,6 +43,10 @@ function subscriberForSubscription(subscriptionId) {
       s.user_id,
       s.tier,
       s.stripe_status,
+      s.renews_at,
+      s.auto_renew,
+      s.cancelled_at,
+      s.renewal_mode,
       s.stripe_subscription_id,
       u.steam_id
     FROM supporter_subscriptions s
@@ -86,6 +91,12 @@ async function creditMonthlySubscriberBonus(event, { env = process.env, fetchImp
     const error = new Error('Stripe subscription is not linked to a Hollow Valley supporter account yet');
     error.code = 'SUPPORTER_BONUS_SUBSCRIPTION_NOT_LINKED';
     throw error;
+  }
+
+  // Do not credit the 15k/20k/25k monthly payout after cancellation
+  // is confirmed. A delayed or replayed invoice.paid cannot re-enable it.
+  if (!isCoinBonusEligible(subscriber)) {
+    return { skipped: true, reason: 'subscription-no-longer-coin-eligible', subscriptionId };
   }
 
   const steamId = String(subscriber.steam_id || '').trim();

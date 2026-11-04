@@ -7,7 +7,7 @@ const publicRoot = path.resolve(__dirname, "../public");
 
 test("Hollow Valley primary navigation exposes the Primalbound browser game for everyone", () => {
   const nav = fs.readFileSync(path.join(publicRoot, "partials/nav.html"), "utf8");
-  const match = nav.match(/<a\b[^>]*\bid="primalbound-nav-link"[^>]*>[^<]*<\/a>/i);
+  const match = nav.match(/<a\b[^>]*\bid="primalbound-nav-link"[^>]*>[\s\S]*?<\/a>/i);
   assert.ok(match, "Expected a public Primalbound entry in shared navigation");
   const anchor = match[0];
   assert.ok(anchor.includes('href="/primalbound/"'));

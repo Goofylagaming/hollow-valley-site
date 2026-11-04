@@ -4,6 +4,7 @@ const { randomUUID, createHash } = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
 const { getServerSnapshot } = require('./statusService');
 const playtimeRewards = require('./playtimeRewardsService');
+const speciesCoins = require('./speciesCoinEventService');
 const progression = require('./progressionService');
 const supporterBonuses = require('./supporterBonusService');
 const rconControl = require('./rconControlService');
@@ -437,6 +438,14 @@ async function ingestExternalPresenceSnapshot(input = {}) {
       rewards = { skipped: true, reason: 'reward-error', error: error.message };
     }
 
+    let speciesBonus;
+    try {
+      speciesBonus = speciesCoins.processSnapshot(players, { nowMs: sampledAtMs });
+    } catch (error) {
+      console.warn('[species-coin-events]', error.message);
+      speciesBonus = { skipped: true, reason: 'event-error' };
+    }
+
     let progressionRewards;
     try {
       progressionRewards = progression.trackOnlinePlayers(players, { nowMs: sampledAtMs });
@@ -469,6 +478,7 @@ async function ingestExternalPresenceSnapshot(input = {}) {
       sample,
       supporterMemberships,
       rewards,
+      speciesBonus,
       progression: progressionRewards,
       primeTracking,
     };
@@ -536,6 +546,16 @@ async function samplePresence({ force = false } = {}) {
       rewards = { skipped: true, reason: 'reward-error', error: error.message };
     }
 
+    let speciesBonus;
+    try {
+      speciesBonus = snapshot.source === 'external-presence' || snapshot.cached
+        ? { skipped: true, reason: 'not-fresh-authoritative-snapshot' }
+        : speciesCoins.processSnapshot(players, { nowMs: Date.parse(snapshot.checkedAt || nowIso) });
+    } catch (error) {
+      console.warn('[species-coin-events]', error.message);
+      speciesBonus = { skipped: true, reason: 'event-error' };
+    }
+
     let progressionRewards;
     try {
       progressionRewards = progression.trackOnlinePlayers(players, { nowMs: Date.parse(nowIso) });
@@ -562,7 +582,7 @@ async function samplePresence({ force = false } = {}) {
       joinMessages = await sendJoinMessages(newPlayers);
     }
 
-    return { skipped: false, ...reconciliation, sample, supporterMemberships, rewards, progression: progressionRewards, primeTracking, joinMessages };
+    return { skipped: false, ...reconciliation, sample, supporterMemberships, rewards, speciesBonus, progression: progressionRewards, primeTracking, joinMessages };
   } finally {
     running = false;
   }

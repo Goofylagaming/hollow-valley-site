@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Owner Finance | Hollow Valley</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=24">
+  <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
+  <link rel="stylesheet" href="/assets/snapshot-ui.css?v=4">
+  <link rel="stylesheet" href="/assets/admin-finance.css?v=2">
+  <link rel="stylesheet" href="/assets/subscriber-progress.css?v=2">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main>
+      <section class="page-header">
+        <p class="overline green">HOLLOW VALLEY · ADMIN · OWNER ONLY</p>
+        <h1>Finance.</h1>
+        <p class="section-intro">Set the private monthly budget, choose whether to show players its progress, and review Stripe subscriptions, renewals, balance and bank payouts.</p>
+      </section>
+      <section class="roster-section finance-page">
+        <section id="subscriber-goal" class="finance-panel subscriber-goal" aria-labelledby="subscriber-goal-heading" hidden>
+          <div class="finance-section-header">
+            <div><h2 id="subscriber-goal-heading">Subscriber Bar · private monthly budget</h2><p class="finance-muted">Set the costs you want subscription support to cover each calendar month in Brisbane. All budget figures are in AUD.</p></div>
+            <button type="button" id="subscriber-goal-reload" class="small-button">Reload saved settings</button>
+          </div>
+          <p id="subscriber-goal-status" class="subscriber-goal-status" role="status" aria-live="polite">Loading saved goal settings…</p>
+          <form id="subscriber-goal-form" hidden>
+            <fieldset id="subscriber-goal-fields">
+              <label class="subscriber-goal-toggle"><input id="subscriber-goal-enabled" type="checkbox"><span>Publish the percentage and 50% / 75% milestones</span></label>
+              <p class="finance-muted">Cost names, individual amounts, the monthly target and the amount received stay private. Players see the percentage of the budget covered and whether each milestone has been reached once a total is verified.</p>
+              <label for="subscriber-goal-import"><strong>Load budget file</strong></label>
+              <input id="subscriber-goal-import" type="file" accept=".json,application/json" aria-describedby="subscriber-goal-import-help">
+              <p id="subscriber-goal-import-help" class="finance-muted">The file stays in your browser. Loading it replaces this form with an unpublished draft. Review the costs, then choose Save goal settings when ready.</p>
+              <div id="subscriber-goal-costs" class="subscriber-goal-costs"></div>
+              <button type="button" id="subscriber-goal-add" class="small-button">+ Add monthly cost</button>
+              <p class="finance-muted">Use one to eight cost items. If you include an allowance for processing fees, treat it as a provisional budget item. Reordering costs does not change the total or the milestones.</p>
+              <div class="subscriber-goal-total"><span>Private monthly target · sum of costs in this form</span><output id="subscriber-goal-total" aria-live="polite">Not set</output></div>
+              <p class="finance-muted">Private milestone amounts: <output id="subscriber-goal-thresholds" aria-live="polite">Not set</output></p>
+              <button type="submit" class="small-button">Save goal settings</button>
+            </fieldset>
+          </form>
+          <div class="subscriber-goal-refresh">
+            <div><h3>Verified support received · owner only</h3><p id="subscriber-goal-received" aria-live="polite">No verified total for this month.</p><p class="finance-muted">This is subscription income after refunds and dispute adjustments, before Stripe fees. A fee estimate in your budget changes only the target. Refresh is available after you publish and save.</p></div>
+            <button type="button" id="subscriber-goal-refresh" class="small-button" disabled>Refresh verified support total</button>
+          </div>
+          <p id="subscriber-goal-refresh-error" class="finance-error" role="status" hidden></p>
+          <h3>What players see</h3>
+          <p id="subscriber-goal-preview-state" class="finance-muted">The public preview will appear after the saved settings load.</p>
+          <section id="subscriber-goal-preview" class="subscriber-progress" aria-label="Saved public Subscriber Bar preview" hidden></section>
+        </section>
+        <div class="finance-toolbar">
+          <div>
+            <strong>Stripe account overview</strong>
+            <p id="finance-updated" class="finance-muted">Retrieving live data…</p>
+          </div>
+          <button type="button" id="finance-refresh" class="small-button">Refresh from Stripe</button>
+        </div>
+        <p id="finance-error" class="finance-error" role="status" hidden></p>
+        <div id="finance-content" hidden>
+          <div class="finance-kpis">
+            <div class="summary-tile"><small>ACTIVE / TRIALING</small><b id="finance-active">—</b><span>Hollow Valley supporters</span></div>
+            <div class="summary-tile"><small>RENEWALS · NEXT 30 DAYS</small><b id="finance-renewals">—</b><span>Automatic, active subscriptions</span></div>
+            <div class="summary-tile"><small>PAYMENT ATTENTION</small><b id="finance-attention">—</b><span>Past due, unpaid or incomplete</span></div>
+            <div class="summary-tile"><small>NEXT STRIPE PAYOUT</small><b id="finance-next-payout">—</b><span id="finance-next-payout-date">No bank payout scheduled</span></div>
+          </div>
+
+          <div class="finance-two-col">
+            <section class="finance-panel">
+              <h2>Stripe balance</h2>
+              <p class="finance-muted">Funds held by the connected Stripe account, not the bank balance.</p>
+              <div id="finance-balances" class="finance-amount-list"></div>
+            </section>
+            <section class="finance-panel">
+              <h2>Expected subscription renewals</h2>
+              <p class="finance-muted">Estimated gross at listed recurring prices over the next 30 days, before fees, taxes, discounts or changes. Not guaranteed revenue.</p>
+              <div id="finance-projection" class="finance-amount-list"></div>
+            </section>
+          </div>
+
+          <section class="finance-panel">
+            <div class="finance-section-header">
+              <div><h2>Subscriber renewals</h2><p class="finance-muted">Live Stripe periods, including subscriptions approaching cancellation.</p></div>
+              <div class="finance-tools">
+                <select id="finance-filter" aria-label="Filter subscriptions">
+                  <option value="all">All statuses</option>
+                  <option value="next30">Renewing in 30 days</option>
+                  <option value="attention">Payment attention</option>
+                  <option value="cancelling">Cancelling</option>
+                </select>
+                <input id="finance-search" type="search" autocomplete="off" aria-label="Search subscriptions" placeholder="Search player or email">
+                <button id="finance-export" type="button" class="small-button">Export CSV</button>
+              </div>
+            </div>
+            <div class="finance-table-wrap">
+              <table class="finance-table">
+                <thead><tr><th>Player / customer</th><th>Membership</th><th>Recurring price</th><th>Stripe status</th><th>Period end / next date</th><th>Renewal</th></tr></thead>
+                <tbody id="finance-subscription-rows"><tr><td colspan="6">Loading…</td></tr></tbody>
+              </table>
+            </div>
+            <p class="finance-muted" id="finance-subscription-count"></p>
+          </section>
+
+          <section class="finance-panel">
+            <div class="finance-section-header">
+              <div><h2>Bank payout history</h2><p class="finance-muted">Pending, in-transit, paid and failed Stripe bank transfers. Arrival dates are estimates.</p></div>
+            </div>
+            <div class="finance-table-wrap">
+              <table class="finance-table">
+                <thead><tr><th>Created</th><th>Amount</th><th>Status</th><th>Expected arrival</th><th>Method</th></tr></thead>
+                <tbody id="finance-payout-rows"><tr><td colspan="5">Loading…</td></tr></tbody>
+              </table>
+            </div>
+            <p class="finance-muted" id="finance-payout-note"></p>
+          </section>
+          <p class="finance-footnote">This view does not initiate charges, alter subscriptions or transfer funds. Payouts and balances cover the connected Stripe account; if other brands share that account, those amounts are not exclusive to Hollow Valley. For bank-confirmed receipt, check your bank statement.</p>
+        </div>
+      </section>
+    </main>
+    <footer><span>© 2026 Hollow Valley</span><span>PRIVATE OWNER FINANCE</span><a href="/admin">Back to admin hub</a></footer>
+  </div>
+  <script src="/assets/common.js?v=22"></script>
+  <script src="/assets/admin-finance.js?v=1"></script>
+  <script src="/assets/subscriber-progress.js?v=2"></script>
+  <script src="/assets/admin-support-goal.js?v=2"></script>
+</body>
+</html>

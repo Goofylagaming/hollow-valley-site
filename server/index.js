@@ -1,4 +1,6 @@
 require("dotenv").config();
+// Protect the attached production SQLite disk before feature modules migrate schema.
+require("./predeployBackup").beforeDatabaseInitialization();
 const path = require("node:path");
 const express = require("express");
 const session = require("express-session");
@@ -6,6 +8,7 @@ const session = require("express-session");
 const { db } = require("./db");
 const { SqliteSessionStore } = require("./sessionStore");
 const { requireAdmin } = require("./middleware/requireAuth");
+const { isFinanceOwner, requireFinanceOwner } = require("./middleware/requireFinanceOwner");
 const { isAuthorized: isTerritoryAdmin, requireTerritoryAdmin } = require("./middleware/requireTerritoryAdmin");
 const { skinShareCodeRedaction } = require("./middleware/skinShareCodeRedaction");
 const { getSkinStudioSafety, startSkinSharePolicySync } = require("./middleware/skinStudioSafety");
@@ -31,16 +34,27 @@ const serverStatusRouter = require("./routes/serverStatus");
 const eventsRouter = require("./routes/events");
 const friendsRouter = require("./routes/friends");
 const roadmapCommunityRouter = require("./routes/roadmapCommunity");
+const communityGuidesRouter = require("./routes/communityGuides");
+const siteUpdatesRouter = require("./routes/siteUpdates");
+const supportTicketsRouter = require("./routes/supportTickets");
+const groupRecruitmentRouter = require("./routes/groupRecruitment");
+const communityActivityRouter = require("./routes/communityActivity");
 const groupsRouter = require("./routes/groups");
 const mapdataRouter = require("./routes/mapdata");
 const supporterInternalRouter = require("./routes/supporterInternal");
 const adminRestoreRouter = require("./routes/adminRestore");
 const adminOperationsRouter = require("./routes/adminOperations");
+const adminIncidentsRouter = require("./routes/incidentTimeline");
+const playerReportsRouter = require("./routes/playerReports");
 const adminCombatRouter = require("./routes/adminCombat");
 const adminPlayerDirectoryRouter = require("./routes/adminPlayerDirectory");
 const adminSafeLogRecoveryRouter = require("./routes/adminSafeLogRecovery");
 const adminCommsRouter = require("./routes/adminComms");
 const adminSupportersRouter = require("./routes/adminSupporters");
+const adminFinanceRouter = require("./routes/adminFinance");
+const { createSubscriberFundingRouters } = require("./routes/subscriberFunding");
+const { ownerRouter: ownerServerManagementRouter, agentRouter: binaryLaneManagementRouter } = require("./routes/serverManagement");
+const { router: desktopReadOnlyManagementRouter } = require("./routes/desktopReadOnlyManagement");
 const adminBodyDropResetRouter = require("./routes/adminBodyDropReset");
 const serverStatusService = require("./services/serverStatus");
 const automationWebsiteClient = require("./services/automationWebsiteClient");
@@ -221,6 +235,7 @@ function createApp() {
       valleyLegacyEnabled: process.env.VALLEY_LEGACY_ENABLED === "1",
       user: req.user || null,
       territoryWarsAdminAccess: TERRITORY_WARS_ADMIN_TEST_ENABLED && isTerritoryAdmin(req.user),
+      financeOwnerAccess: isFinanceOwner(req.user),
       discordLoginConfigured: authRouter.isConfigured,
       steamLoginConfigured: authSteamRouter.isConfigured,
       skinStudioCalibrationPreview: process.env.SKIN_STUDIO_CALIBRATION_PREVIEW === "1",
@@ -242,6 +257,7 @@ function createApp() {
   app.use("/auth/owner", authOwnerRouter);
   app.use("/api/internal/commandbridge", legacyDirectGameApiRetired);
   app.use("/api/internal/supporter-memberships", supporterInternalRouter);
+  app.use("/api/internal/membership-rewards", require("./routes/membershipRewardsInternal"));
   app.use("/api/species", speciesRouter);
   app.use("/api/wallet", walletRouter);
   app.use("/api/quests", questsRouter);
@@ -253,8 +269,12 @@ function createApp() {
   app.use("/api/dashboard", dashboardRouter);
   app.use("/api/mydinos", mydinosRouter);
   app.use("/api/marketplace", marketplaceRouter);
+  app.use("/api/skins/premium", require("./routes/premiumSkins"));
   app.use("/api/skins", skinShareCodeRedaction);
   app.use("/api/skins", skinsRouter);
+  app.use("/api/supporter", require("./routes/membershipRewards"));
+  const subscriberFundingRouters = createSubscriberFundingRouters();
+  app.use("/api/supporter/progress", subscriberFundingRouters.publicRouter);
   app.use("/api/supporter", supporterRouter);
   app.use("/api/daily-bonus", dailyBonusRouter);
   app.use("/api/bodydrop", bodydropRouter);
@@ -262,6 +282,11 @@ function createApp() {
   app.use("/api/events", eventsRouter);
   app.use("/api/friends", friendsRouter);
   app.use("/api/roadmap", roadmapCommunityRouter);
+  app.use("/api/community-guides", communityGuidesRouter);
+  app.use("/api/site-updates", siteUpdatesRouter);
+  app.use("/api/support-tickets", supportTicketsRouter);
+  app.use("/api/group-recruitment", groupRecruitmentRouter);
+  app.use("/api/community-activity", communityActivityRouter);
   app.use("/api/groups", groupsRouter);
   if (TERRITORY_WARS_ADMIN_TEST_ENABLED) {
     // Loading the module creates isolated territory_* tables: never load while disabled.
@@ -272,11 +297,19 @@ function createApp() {
   }
   app.use("/api/admin-restore", adminRestoreRouter);
   app.use("/api/admin-operations", adminOperationsRouter);
+  app.use("/api/admin-incidents", adminIncidentsRouter);
+  app.use("/api/reports", playerReportsRouter);
   app.use("/api/admin-combat", adminCombatRouter);
   app.use("/api/admin-player-directory", adminPlayerDirectoryRouter);
   app.use("/api/admin-safelog-recovery", adminSafeLogRecoveryRouter);
   app.use("/api/admin-comms", adminCommsRouter);
   app.use("/api/admin-supporters", adminSupportersRouter);
+  app.use("/api/admin/finance/support-goal", requireFinanceOwner, subscriberFundingRouters.ownerRouter);
+  app.use("/api/admin/finance", requireFinanceOwner, adminFinanceRouter);
+  // Owner-only UI; agent uses a separate bearer-authenticated outbound HTTPS channel.
+  app.use("/api/admin/server-management", requireFinanceOwner, ownerServerManagementRouter);
+  app.use("/api/binarylane-management", binaryLaneManagementRouter);
+  app.use("/api/hvs-desktop-readonly", desktopReadOnlyManagementRouter);
   app.use("/api/admin-bodydrop-reset", adminBodyDropResetRouter);
   app.use("/api/mapdata", mapdataRouter);
 
@@ -284,6 +317,7 @@ function createApp() {
   app.all(["/api/park", "/api/playerdata", "/api/redeem", "/api/parked", "/api/admin"], legacyDirectGameApiRetired);
 
   const PAGE_ROUTES = ["legacy", "dashboard", "wallet", "quests", "profile", "mydinos", "bodydrop", "friends", "groups", "marketplace", "livemap", "leaderboard", "supporter", "events", "status"];
+  const PAGE_ROUTES = ["legacy", "dashboard", "wallet", "quests", "profile", "mydinos", "bodydrop", "friends", "groups", "marketplace", "livemap", "leaderboard", "supporter", "events", "help", "rules", "packs", "updates", "support", "community", "recruitment", "activity", "status", "reports"];
   for (const page of PAGE_ROUTES) {
     app.get(`/${page}`, (req, res) => {
       res.sendFile(path.join(__dirname, "..", "public", `${page}.html`));
@@ -295,13 +329,27 @@ function createApp() {
     res.sendFile(path.join(__dirname, "..", "public", "owner-login.html"));
   });
 
+  // Private HTML lives outside public/; direct file paths cannot bypass this check.
+  app.get(["/admin/finance", "/admin/finance/"], requireFinanceOwner, (_req, res) => {
+    res.sendFile(path.join(__dirname, "pages", "adminFinance.html"));
+  });
+  app.get(["/admin/server", "/admin/server/"], requireFinanceOwner, (_req, res) => {
+    res.sendFile(path.join(__dirname, "pages", "adminServerManagement.html"));
+  });
+
   const ADMIN_PAGE_ROUTES = {
     admin: "admin.html",
     adminoperations: "adminoperations.html",
+    adminincidents: "adminincidents.html",
+    adminreports: "adminreports.html",
     admincomms: "admincomms.html",
     adminrestore: "adminrestore.html",
     adminsupporters: "adminsupporters.html",
     adminroadmap: "adminroadmap.html",
+    adminrules: "adminrules.html",
+    adminupdates: "adminupdates.html",
+    adminsupport: "adminsupport.html",
+    adminactivity: "adminactivity.html",
   };
   for (const [route, file] of Object.entries(ADMIN_PAGE_ROUTES)) {
     app.get([`/${route}`, `/${route}.html`], requireAdmin, (_req, res) => {
@@ -347,6 +395,10 @@ function startServer() {
     console.log(`Herby Death Squad portal running on port ${PORT}`);
     console.log("[legacy-api] direct game execution paths retired");
     serverStatusService.start();
+    const membershipDiscordTimer = require("./services/membershipDiscordQueue").start();
+    server.once("close", () => { if (membershipDiscordTimer) clearInterval(membershipDiscordTimer); });
+    const subscriberFundingTimer = require("./services/subscriberFunding").getDefaultService().start();
+    server.once("close", () => { if (subscriberFundingTimer) clearInterval(subscriberFundingTimer); });
     if (TERRITORY_WARS_ADMIN_TEST_ENABLED) {
       const territoryRouter = require("./routes/territoryWars");
       const runtimeTimer = setInterval(() => {

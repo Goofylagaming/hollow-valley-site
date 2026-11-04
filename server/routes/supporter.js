@@ -1,10 +1,11 @@
 // Hollow Valley membership checkout and sandbox subscription management.
 const express = require("express");
-const { getSupporterStatus, cancelSupporterAutoRenew } = require("../db");
+const { getSupporterStatus, cancelSupporterAutoRenew, resumeSupporterAutoRenew } = require("../db");
 const { requireAuth } = require("../middleware/requireAuth");
 const { TIERS, checkoutConfigured, stripePriceHealth, createCheckoutSession, CheckoutError } = require("../services/supporterCheckout");
 const { normalizeTier, supporterMultiplier } = require("../services/supporterTiers");
-const { isEntitled } = require("../services/supporterWebhook");
+const { MONTHLY_SUPPORTER_BONUS } = require("../services/supporterCoinBonus");
+const { isEntitled, isCoinBonusEligible } = require("../services/supporterWebhook");
 const {
   ManageError,
   changeSubscription,
@@ -18,6 +19,7 @@ const {
 } = require("../services/discordMembership");
 
 const router = express.Router();
+const discordQueue = require("../services/membershipDiscordQueue");
 
 function requireSteamLink(req, res) {
   if (!req.user?.steam_id) {
@@ -45,7 +47,7 @@ function sendManageError(res, error) {
 
 router.get("/tiers", async (req, res) => {
   const stripeHealth = await stripePriceHealth().catch(() => null);
-  res.json({ tiers: TIERS, checkoutConfigured: checkoutConfigured(), stripeHealth });
+  res.json({ tiers: TIERS, monthlyCoinBonuses: MONTHLY_SUPPORTER_BONUS, checkoutConfigured: checkoutConfigured(), stripeHealth });
 });
 
 router.get("/", requireAuth, (req, res) => {
@@ -56,18 +58,21 @@ router.get("/", requireAuth, (req, res) => {
   res.json({
     tier: canonicalTier || status.tier,
     tierLabel: tier?.label || status.tier,
-    multiplier: supporterMultiplier(canonicalTier),
+    multiplier: isCoinBonusEligible(status) ? supporterMultiplier(canonicalTier) : 1,
+    coinBonusEligible: isCoinBonusEligible(status),
     auto_renew: Boolean(status.auto_renew),
+    renewal_mode: status.renewal_mode || "auto_renew",
     renews_at: status.renews_at,
     cancelled_at: status.cancelled_at,
     stripe_status: status.stripe_status,
-    entitled: isEntitled(status.stripe_status),
+    entitled: isEntitled(status),
     managed: Boolean(status.stripe_subscription_id),
   });
 });
 
 router.post("/sync-discord", requireAuth, async (req, res) => {
   try {
+    discordQueue.enqueue(req.user.id);
     res.json(await syncDiscordMembershipForUser(req.user.id));
   } catch (error) {
     res.status(error instanceof DiscordMembershipError ? error.status : 500).json({
@@ -78,10 +83,12 @@ router.post("/sync-discord", requireAuth, async (req, res) => {
 
 router.post("/reconcile", requireAuth, async (req, res) => {
   try {
-    res.json(await reconcileCurrentUser({
+    const result = await reconcileCurrentUser({
       userId: req.user.id,
       steamId: req.user.steam_id || null,
-    }));
+    });
+    discordQueue.enqueue(req.user.id);
+    res.json(result);
   } catch (error) {
     res.status(error instanceof ReconcileError ? error.status : 500).json({
       error: error instanceof ReconcileError ? error.message : "Unable to recover membership.",
@@ -101,6 +108,7 @@ router.post("/:tier/checkout", requireAuth, async (req, res) => {
   try {
     res.json(await createCheckoutSession({
       tier: req.params.tier,
+      renewalMode: req.body?.renewalMode,
       userId: req.user.id,
       steamId: req.user.steam_id || null,
     }));
@@ -137,11 +145,15 @@ router.post("/cancel", requireAuth, async (req, res) => {
   }
 
   try {
-    res.json(await cancelSubscription({
+    const result = await cancelSubscription({
       subscriptionId: status.stripe_subscription_id,
       userId: req.user.id,
       steamId: req.user.steam_id || null,
-    }));
+    });
+    // Stripe commonly schedules cancellation at period end. Reflect the
+    // confirmed cancellation locally now; webhook delivery may be delayed.
+    if (result.cancelAtPeriodEnd === true) cancelSupporterAutoRenew(req.user.id);
+    res.json(result);
   } catch (error) {
     sendManageError(res, error);
   }
@@ -154,11 +166,13 @@ router.post("/resume", requireAuth, async (req, res) => {
   }
 
   try {
-    res.json(await resumeSubscription({
+    const result = await resumeSubscription({
       subscriptionId: status.stripe_subscription_id,
       userId: req.user.id,
       steamId: req.user.steam_id || null,
-    }));
+    });
+    if (result.cancelAtPeriodEnd === false) resumeSupporterAutoRenew(req.user.id);
+    res.json(result);
   } catch (error) {
     sendManageError(res, error);
   }

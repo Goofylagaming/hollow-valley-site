@@ -3,6 +3,8 @@ const { requireAdmin } = require("../middleware/requireAuth");
 const automation = require("../services/automationWebsiteClient");
 const dinoRequestAdmin = require("../services/dinoStorageRequestAdminClient");
 const { db } = require("../db");
+const playableSpecies = require("../data/species.json").filter((item) => item.releasedInEvrima !== false);
+const speciesIndex = new Map(playableSpecies.map((item) => [String(item.id), item]));
 
 const router = express.Router();
 
@@ -315,6 +317,198 @@ router.post("/bodydrop-global/activate", async (_req, res) => {
     return res.status(202).json(await automation.activateAdminGlobalBodyDrop());
   } catch (error) {
     const mapped = mapAutomationError(error, "Could not activate global BodyDrop.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.post("/growth-multiplier", async (req, res) => {
+  if (!req.is("application/json")) return res.status(415).json({ error: "JSON is required." });
+  if (req.headers["sec-fetch-site"] === "cross-site") return res.status(403).json({ error: "Cross-site request rejected." });
+  const value = req.body?.value;
+  if (![2, 3].includes(value)) {
+    return res.status(400).json({ error: "Experimental growth requests are limited to 2 or 3." });
+  }
+  if (req.body?.confirm !== "TEST GROWTH" || req.body?.experimental !== true) {
+    return res.status(400).json({ error: 'Confirm the experimental test with "TEST GROWTH" and experimental=true.' });
+  }
+  try {
+    res.set("Cache-Control", "no-store");
+    return res.json(await automation.setAdminGrowthMultiplier(value, "TEST GROWTH"));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not request growth multiplier change.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
+// Scope the observation to the actual logged-in admin's Steam identity. The
+// browser cannot choose another player, spoof growth data, or submit a rate.
+router.get("/growth-validation/omniraptor", async (req, res) => {
+  res.set("Cache-Control", "private, no-store");
+  const steamId = String(req.user?.steam_id || "").trim();
+  if (!/^\d{17}$/.test(steamId)) {
+    return res.status(409).json({ error: "Sign in with your Steam-linked administrator account to observe your Omniraptor." });
+  }
+  try {
+    return res.json(await automation.getAdminOmniraptorGrowthValidation(steamId));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not observe your Omniraptor safely.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.get("/species-coin-events", async (_req, res) => {
+  res.set("Cache-Control", "no-store");
+  try {
+    const response = await automation.getAdminSpeciesCoinEvents();
+    return res.json({ ...response, species: playableSpecies.map((item) => ({ id: item.id, name: item.name })) });
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not load dinosaur events.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.post("/species-coin-events", async (req, res) => {
+  if (!req.is("application/json")) return res.status(415).json({ error: "JSON is required." });
+  if (req.headers["sec-fetch-site"] === "cross-site") return res.status(403).json({ error: "Cross-site request rejected." });
+  const input = req.body || {};
+  // Accept legacy single-species requests and new grouped bonus lists.
+  const inputBonuses = input.speciesBonuses == null
+    ? [{ species: input.species, coinsPerMinute: input.coinsPerMinute }]
+    : input.speciesBonuses;
+  if (!Array.isArray(inputBonuses) || inputBonuses.length < 1 || inputBonuses.length > 20) {
+    return res.status(400).json({ error: "Choose 1–20 playable dinosaurs for this event." });
+  }
+  const seen = new Set();
+  const speciesBonuses = [];
+  for (const item of inputBonuses) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      return res.status(400).json({ error: "Each dinosaur needs an individual Valley Coin rate." });
+    }
+    const species = speciesIndex.get(String(item.species || "").toLowerCase());
+    if (!species) return res.status(400).json({ error: "Choose a playable dinosaur species." });
+    if (seen.has(species.id)) {
+      return res.status(400).json({ error: "Select each dinosaur only once per event." });
+    }
+    seen.add(species.id);
+    const coins = item.coinsPerMinute;
+    if (!Number.isSafeInteger(coins) || coins < 1 || coins > 1000) {
+      return res.status(400).json({ error: "Each dinosaur bonus must be 1–1,000 Valley Coins per minute." });
+    }
+    speciesBonuses.push({ species: species.id, coinsPerMinute: coins });
+  }
+  speciesBonuses.sort((a, b) => a.species.localeCompare(b.species));
+  if (!Number.isSafeInteger(input.durationMinutes) || input.durationMinutes < 5 || input.durationMinutes > 720) {
+    return res.status(400).json({ error: "Duration must be 5–720 minutes." });
+  }
+  if (input.growthMultiplier !== undefined && input.growthMultiplier !== null) {
+    return res.status(400).json({ error: "Species-specific growth is not available until a game-side override is verified." });
+  }
+  if (!/^[0-9a-f]{8}-[0-9a-f-]{27,32}$/i.test(String(input.requestId || ""))) {
+    return res.status(400).json({ error: "A valid event request ID is required." });
+  }
+  const pingMode = input.pingMode == null ? "none" : String(input.pingMode);
+  if (!["none", "community", "everyone"].includes(pingMode)) {
+    return res.status(400).json({ error: "Choose No ping, Community Member or everyone." });
+  }
+  if (input.autoAnnounce === false && pingMode !== "none") {
+    return res.status(400).json({ error: "Random Event mentions require automatic announcements." });
+  }
+  const actorSteamId = String(req.user?.steam_id || "").trim();
+  if (!/^\d{17}$/.test(actorSteamId)) {
+    return res.status(403).json({ error: "Steam-linked admin access is required." });
+  }
+  try {
+    const result = await automation.createAdminSpeciesCoinEvent({
+      title: String(input.title || "").trim(),
+      species: speciesBonuses[0].species,
+      coinsPerMinute: speciesBonuses[0].coinsPerMinute,
+      speciesBonuses,
+      durationMinutes: input.durationMinutes,
+      startsAt: input.startsAt || undefined,
+      requestId: input.requestId,
+      autoAnnounce: input.autoAnnounce !== false,
+      pingMode,
+      actorSteamId,
+    });
+    res.set("Cache-Control", "no-store");
+    return res.status(result.duplicate ? 200 : 201).json(result);
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not create dinosaur bonus event.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.post("/species-coin-events/:id/stop", async (req, res) => {
+  if (!req.is("application/json")) return res.status(415).json({ error: "JSON is required." });
+  if (req.headers["sec-fetch-site"] === "cross-site") return res.status(403).json({ error: "Cross-site request rejected." });
+  if (req.body?.confirm !== "STOP EVENT") {
+    return res.status(400).json({ error: 'Type STOP EVENT to end this event.' });
+  }
+  const actorSteamId = String(req.user?.steam_id || "").trim();
+  if (!/^\d{17}$/.test(actorSteamId)) {
+    return res.status(403).json({ error: "Steam-linked admin access is required." });
+  }
+  try {
+    res.set("Cache-Control", "no-store");
+    return res.json(await automation.stopAdminSpeciesCoinEvent(req.params.id, actorSteamId));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not stop dinosaur bonus event.");
+    return res.status(mapped.status).json(mapped.body);
+  }
+});
+
+router.post("/feature-announcement", async (req, res) => {
+  if (!req.is("application/json")) return res.status(415).json({ error: "JSON is required." });
+  if (req.headers["sec-fetch-site"] === "cross-site") return res.status(403).json({ error: "Cross-site request rejected." });
+  const body = req.body || {};
+  const channels = body.channels;
+  if (body.verified !== true || body.confirm !== "ANNOUNCE VERIFIED") {
+    return res.status(400).json({ error: "Confirm that the change is active before announcing it." });
+  }
+  if (!Array.isArray(channels) || channels.length < 1 || channels.length > 2 ||
+      new Set(channels).size !== channels.length ||
+      channels.some((channel) => !["announcement", "progress"].includes(channel))) {
+    return res.status(400).json({ error: "Choose one or two supported Discord channels." });
+  }
+  const kind = String(body.kind || "");
+  if (kind === "growth") {
+    if (![1, 2, 3, 4, 5, 10].includes(body.multiplier)) {
+      return res.status(400).json({ error: "Growth multiplier must be 1, 2, 3, 4, 5 or 10." });
+    }
+  } else if (kind === "custom") {
+    const message = String(body.message || "").trim();
+    if (!message || message.length > 1800 || /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(message)) {
+      return res.status(400).json({ error: "Provide a valid event announcement of 1–1,800 characters." });
+    }
+  } else {
+    return res.status(400).json({ error: "Unsupported feature announcement type." });
+  }
+  const pingMode = body.pingMode == null ? "none" : String(body.pingMode);
+  if (!["none", "community", "everyone"].includes(pingMode)) {
+    return res.status(400).json({ error: "Choose no ping, Community Member or everyone." });
+  }
+  if (pingMode !== "none" && (kind !== "growth" || !channels.includes("announcement"))) {
+    return res.status(400).json({ error: "Only verified global growth announcements in Community Announcements can ping members." });
+  }
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(body.requestId || ""))) {
+    return res.status(400).json({ error: "A valid announcement request ID is required." });
+  }
+  try {
+    res.set("Cache-Control", "no-store");
+    return res.status(202).json(await automation.queueAdminFeatureAnnouncement({
+      kind,
+      multiplier: kind === "growth" ? Number(body.multiplier) : undefined,
+      message: kind === "custom" ? String(body.message).trim() : undefined,
+      channels,
+      pingMode,
+      requestId: String(body.requestId),
+      verified: true,
+      confirm: "ANNOUNCE VERIFIED",
+      // Trusted website session; never accept this identity from the browser.
+      actorSteamId: String(req.user?.steam_id || "").trim(),
+    }));
+  } catch (error) {
+    const mapped = mapAutomationError(error, "Could not queue feature announcement.");
     return res.status(mapped.status).json(mapped.body);
   }
 });

@@ -82,6 +82,28 @@ function userIdFromObject(object) {
   return /^\d+$/.test(String(value || "")) ? Number(value) : null;
 }
 
+// Never let editable metadata move an already-bound subscription to another
+// account. Stable Steam identity also protects against recycled local IDs.
+function resolveUser(object, subscriptionId) {
+  const known = existingBySubscription(subscriptionId);
+  const metadataId = userIdFromObject(object);
+  const steam = String(object?.metadata?.steam_id || "");
+  const steamUser = steam ? db.prepare("SELECT id FROM users WHERE steam_id = ?").get(steam) : null;
+  const userId = known?.user_id || steamUser?.id || metadataId;
+  if (!userId) return null;
+  const user = db.prepare("SELECT id, steam_id FROM users WHERE id = ?").get(userId);
+  if (!user || (steam && user.steam_id !== steam) ||
+      (metadataId && metadataId !== userId) ||
+      (known?.stripe_customer_id && normalizeId(object.customer) && known.stripe_customer_id !== normalizeId(object.customer))) {
+    throw new Error("Stripe membership identity mismatch; account review required");
+  }
+  const customer = normalizeId(object.customer);
+  if (customer && db.prepare("SELECT 1 FROM supporter_subscriptions WHERE stripe_customer_id = ? AND user_id != ?").get(customer, userId)) {
+    throw new Error("Stripe customer is linked to a different account");
+  }
+  return userId;
+}
+
 function ensureSupporterColumns() {
   const columns = db.prepare("PRAGMA table_info(supporter_subscriptions)").all();
   const names = new Set(columns.map((column) => column.name));
@@ -91,6 +113,8 @@ function ensureSupporterColumns() {
   add("stripe_customer_id", "TEXT");
   add("stripe_subscription_id", "TEXT");
   add("stripe_status", "TEXT");
+  add("renewal_mode", "TEXT NOT NULL DEFAULT 'auto_renew'");
+  add("stripe_last_event_created", "INTEGER NOT NULL DEFAULT 0");
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_supporter_stripe_subscription ON supporter_subscriptions(stripe_subscription_id) WHERE stripe_subscription_id IS NOT NULL;");
   db.exec(`
     CREATE TABLE IF NOT EXISTS stripe_webhook_events (
@@ -111,34 +135,47 @@ function upsertSupporter({
   status = "active",
   renewsAt = null,
   autoRenew = true,
+  renewalMode = "auto_renew",
 }) {
   const canonicalTier = normalizeTier(tier);
   if (!userId || !canonicalTier || !Object.hasOwn(TIERS, canonicalTier)) return null;
   const user = db.prepare("SELECT id FROM users WHERE id = ?").get(userId);
   if (!user) return null;
+  const current = getSupporterStatus(userId);
+  // Stripe cancellation is terminal for this subscription ID. A delayed
+  // checkout or subscription update must not revive it; a genuinely new
+  // subscription uses a different ID and remains eligible for activation.
+  if (subscriptionId && current?.stripe_subscription_id === subscriptionId &&
+      ["canceled", "incomplete_expired"].includes(current.stripe_status) &&
+      !["canceled", "incomplete_expired"].includes(status)) return current;
+  if (subscriptionId && current?.stripe_subscription_id && current.stripe_subscription_id !== subscriptionId &&
+      ["canceled", "incomplete_expired"].includes(status)) return current;
 
   db.prepare(`
     INSERT INTO supporter_subscriptions (
       user_id, tier, auto_renew, renews_at, cancelled_at,
-      stripe_customer_id, stripe_subscription_id, stripe_status
+      stripe_customer_id, stripe_subscription_id, stripe_status, renewal_mode
     )
-    VALUES (?, ?, ?, ?, NULL, ?, ?, ?)
+    VALUES (?, ?, ?, ?, CASE WHEN ? = 1 THEN NULL ELSE datetime('now') END, ?, ?, ?, ?)
     ON CONFLICT(user_id) DO UPDATE SET
       tier = excluded.tier,
       auto_renew = excluded.auto_renew,
       renews_at = COALESCE(excluded.renews_at, supporter_subscriptions.renews_at),
-      cancelled_at = CASE WHEN excluded.auto_renew = 1 THEN NULL ELSE supporter_subscriptions.cancelled_at END,
+      cancelled_at = CASE WHEN excluded.auto_renew = 1 THEN NULL ELSE COALESCE(supporter_subscriptions.cancelled_at, datetime('now')) END,
       stripe_customer_id = COALESCE(excluded.stripe_customer_id, supporter_subscriptions.stripe_customer_id),
       stripe_subscription_id = COALESCE(excluded.stripe_subscription_id, supporter_subscriptions.stripe_subscription_id),
-      stripe_status = excluded.stripe_status
+      stripe_status = excluded.stripe_status,
+      renewal_mode = excluded.renewal_mode
   `).run(
     userId,
     canonicalTier,
     autoRenew ? 1 : 0,
     renewsAt,
+    autoRenew ? 1 : 0,
     customerId,
     subscriptionId,
-    status
+    status,
+    renewalMode === "one_month" ? "one_month" : "auto_renew"
   );
   return getSupporterStatus(userId);
 }
@@ -177,17 +214,40 @@ function recordProcessed(event) {
   db.prepare("INSERT OR IGNORE INTO stripe_webhook_events (event_id, event_type) VALUES (?, ?)").run(event.id, event.type);
 }
 
-function processStripeEvent(event, env = process.env) {
+function processStripeEvent(event, env = process.env, options = {}) {
+  db.exec("SAVEPOINT supporter_lifecycle");
+  try {
+    const result = applyStripeEvent(event, env, options);
+    db.exec("RELEASE supporter_lifecycle");
+    return result;
+  } catch (error) {
+    db.exec("ROLLBACK TO supporter_lifecycle; RELEASE supporter_lifecycle");
+    throw error;
+  }
+}
+
+function applyStripeEvent(event, env = process.env, { authoritative = false } = {}) {
   const expectedLive = liveModeEnabled(env);
   if (!event?.id || !event?.type || event.livemode !== expectedLive) return { ignored: true };
-  if (alreadyProcessed(event.id)) return { duplicate: true };
+  const duplicate = alreadyProcessed(event.id);
+  if (duplicate && !authoritative) return { duplicate: true };
 
   const object = event.data?.object || {};
   let affectedUserId = null;
+  const eventSubscriptionId = event.type.startsWith("customer.subscription.") ? normalizeId(object.id) :
+    event.type === "checkout.session.completed" ? normalizeId(object.subscription) :
+    event.type.startsWith("invoice.") ? invoiceSubscriptionId(object) : null;
+  const eventUserId = resolveUser(object, eventSubscriptionId);
+  const currentMembership = eventUserId ? getSupporterStatus(eventUserId) : null;
+  const eventCreated = Number(event.created) || 0;
+  if (eventCreated > 0 && Number(currentMembership?.stripe_last_event_created || 0) > eventCreated) {
+    recordProcessed(event);
+    return { processed: true, userId: currentMembership.user_id, stale: true };
+  }
 
   if (event.type === "checkout.session.completed") {
     if (object.mode === "subscription") {
-      const userId = userIdFromObject(object);
+      const userId = eventUserId;
       const tier = normalizeTier(object.metadata?.tier);
       const paid = object.payment_status === "paid" || object.payment_status === "no_payment_required";
       if (userId && tier) {
@@ -202,10 +262,10 @@ function processStripeEvent(event, env = process.env) {
         affectedUserId = updated?.user_id || userId;
       }
     }
-  } else if (event.type === "customer.subscription.updated") {
+  } else if (["customer.subscription.created", "customer.subscription.updated"].includes(event.type)) {
     const subscriptionId = normalizeId(object.id);
     const existing = existingBySubscription(subscriptionId);
-    const userId = userIdFromObject(object) || existing?.user_id || null;
+    const userId = eventUserId;
     const tier = tierFromSubscription(object, env) || existing?.tier || null;
     const autoRenew = !object.cancel_at_period_end && object.status !== "canceled";
     if (userId && tier) {
@@ -217,13 +277,14 @@ function processStripeEvent(event, env = process.env) {
         status: object.status || "unknown",
         renewsAt: isoFromUnix(subscriptionPeriodEnd(object)),
         autoRenew,
+        renewalMode: object.metadata?.renewal_mode,
       });
       affectedUserId = updated?.user_id || userId;
     }
   } else if (event.type === "customer.subscription.deleted") {
     const subscriptionId = normalizeId(object.id);
     const existing = existingBySubscription(subscriptionId);
-    const userId = userIdFromObject(object) || existing?.user_id || null;
+    const userId = eventUserId;
     const tier = tierFromSubscription(object, env) || existing?.tier || null;
     if (userId && tier) {
       upsertSupporter({
@@ -246,6 +307,13 @@ function processStripeEvent(event, env = process.env) {
   } else if (event.type === "invoice.paid") {
     const subscriptionId = invoiceSubscriptionId(object);
     if (subscriptionId) {
+      const existing = existingBySubscription(subscriptionId);
+      // A delayed paid invoice records history but cannot resurrect a
+      // subscription whose termination has already been confirmed by Stripe.
+      if (existing && ["canceled", "incomplete_expired"].includes(existing.stripe_status)) {
+        recordProcessed(event);
+        return { processed: true, userId: existing.user_id };
+      }
       const periodEnd = object.lines?.data?.reduce((latest, line) => {
         const end = Number(line?.period?.end) || 0;
         return Math.max(latest, end);
@@ -260,7 +328,7 @@ function processStripeEvent(event, env = process.env) {
     const subscriptionId = invoiceSubscriptionId(object);
     if (subscriptionId) {
       const existing = existingBySubscription(subscriptionId);
-      if (existing) {
+      if (existing && !["canceled", "incomplete_expired"].includes(existing.stripe_status)) {
         const updated = markBySubscription(subscriptionId, {
           status: "past_due",
         });
@@ -269,12 +337,24 @@ function processStripeEvent(event, env = process.env) {
     }
   }
 
+  if (affectedUserId && eventSubscriptionId && eventCreated > 0) {
+    db.prepare(`UPDATE supporter_subscriptions SET stripe_last_event_created = MAX(stripe_last_event_created, ?)
+      WHERE user_id = ? AND stripe_subscription_id = ?`).run(eventCreated, affectedUserId, eventSubscriptionId);
+  }
   recordProcessed(event);
-  return { processed: true, userId: affectedUserId };
+  return { processed: true, userId: affectedUserId, ...(duplicate ? { duplicate: true } : {}) };
 }
 
-function isEntitled(status) {
-  return ACTIVE_STATUSES.has(status);
+function isEntitled(status, now = Date.now()) {
+  if (typeof status === "string") return ACTIVE_STATUSES.has(status);
+  const until = require("./membershipEntitlements").timestamp(status?.renews_at);
+  return Boolean(status && status.stripe_status === "active" && until !== null && until > now);
+}
+
+// Renewal preference does not shorten paid access. Coin rewards follow the
+// same active-subscription and paid-period boundary as other subscriber perks.
+function isCoinBonusEligible(row, now = Date.now()) {
+  return Boolean(row && typeof row === "object" && isEntitled(row, now));
 }
 
 module.exports = {
@@ -282,8 +362,10 @@ module.exports = {
   processStripeEvent,
   tierFromSubscription,
   isEntitled,
+  isCoinBonusEligible,
   upsertSupporter,
   subscriptionPeriodEnd,
+  resolveUser,
   _test: {
     parseStripeSignature,
     isoFromUnix,

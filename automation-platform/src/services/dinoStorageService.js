@@ -127,6 +127,17 @@ async function listStoredDinos(steamId) {
   }
 }
 
+// Admission decisions must not reuse a cached or already-in-flight snapshot
+// captured before a different storage write completed.
+async function listStoredDinosFresh(steamId) {
+  const steam = validateSteamId(steamId);
+  const dinos = commandBridge.getTransport() === 'http_pull'
+    ? await listStoredDinosViaCommandBridge(steam)
+    : await listStoredDinosViaFiles(steam, { requireComplete: true });
+  cacheStoredDinos(steam, dinos);
+  return dinos;
+}
+
 async function listStoredDinosViaCommandBridge(steamId) {
   const command = commandBridge.buildCommand('dino_list', validateSteamId(steamId), []);
   await commandBridge.queueCommand(command);
@@ -165,7 +176,7 @@ async function listStoredDinosViaCommandBridge(steamId) {
   throw new Error('DinoStorage list timed out waiting for a matching DinoStorage result');
 }
 
-async function listStoredDinosViaFiles(steamId) {
+async function listStoredDinosViaFiles(steamId, { requireComplete = false } = {}) {
   const directory = storedDirectory(steamId);
   return fileBridge.withClient(async (client) => {
     try {
@@ -176,6 +187,10 @@ async function listStoredDinosViaFiles(steamId) {
     }
 
     const entries = await client.list();
+    if (requireComplete && entries.some((entry) => entry.isFile && entry.name.endsWith('.json') &&
+        (!SLOT_RE.test(entry.name.slice(0, -5)) || !Number.isFinite(Number(entry.size)) || Number(entry.size) > MAX_STORED_DINO_BYTES))) {
+      throw new Error('The complete stored dinosaur list could not be verified for capacity. Existing files were preserved.');
+    }
     const files = entries
       .filter((entry) => entry.isFile && entry.name.endsWith('.json') && Number(entry.size) <= MAX_STORED_DINO_BYTES)
       .map((entry) => ({ entry, slot: entry.name.slice(0, -5) }))
@@ -476,15 +491,37 @@ async function requestDinoStorageAction({ action, steamId, slot = 'default' }) {
   }
 
   const command = commandBridge.buildCommand(verbs[action], steam, [selectedSlot]);
-  const request = store.createRequest({
-    id: command.id,
-    kind: 'dinostorage',
-    steamId: steam,
-    status: 'preparing',
-    commandId: command.id,
-    details: { action, slot: selectedSlot, command },
-    message: `DinoStorage ${action} accepted for background publication. Do not retry this request.`,
-  });
+  const capacity = require('./dinoStorageCapacityService');
+  let admission = null;
+  if (action === 'store' && capacity.enabled()) {
+    admission = await capacity.reserveIncoming({ steamId: steam, slot: selectedSlot, operation: `command:${command.id}`, commandId: command.id });
+    // The quota lookup yields to I/O. Another accepted request must not sneak
+    // through the existing per-player command protection during that time.
+    const pendingAfterCheck = latestPending(steam);
+    if (pendingAfterCheck) {
+      capacity.releaseReservation(admission.operation);
+      const error = new Error(`DinoStorage request ${pendingAfterCheck.id} is still awaiting reconciliation`);
+      error.code = 'DINOSTORAGE_PENDING';
+      error.request = pendingAfterCheck;
+      throw error;
+    }
+  }
+  let request;
+  try {
+    request = store.createRequest({
+      id: command.id,
+      kind: 'dinostorage',
+      steamId: steam,
+      status: 'preparing',
+      commandId: command.id,
+      details: { action, slot: selectedSlot, command },
+      message: `DinoStorage ${action} accepted for background publication. Do not retry this request.`,
+    });
+  } catch (error) {
+    // No command was published if durable request creation failed.
+    if (admission?.enabled) capacity.releaseReservation(admission.operation);
+    throw error;
+  }
 
   invalidateStoredDinoCache(steam);
   scheduleDinoStoragePublication(command.id);
@@ -604,6 +641,7 @@ module.exports = {
   validateSlot,
   normalizeStoredDino,
   listStoredDinos,
+  listStoredDinosFresh,
   getCachedStoredDinos,
   invalidateStoredDinoCache,
   listCacheMs,

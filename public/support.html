@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en"><head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Hollow Valley private website support tickets, dinosaur recovery enquiries, wallet help and community guidance.">
+  <title>Player Support | Hollow Valley</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=38">
+  <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
+  <link rel="stylesheet" href="/assets/snapshot-ui.css?v=5">
+  <link rel="stylesheet" href="/assets/support-hub.css?v=1">
+</head><body>
+  <div class="app-shell"><div id="nav-slot"></div>
+    <main class="hv-support-main">
+      <header class="hv-support-hero">
+        <p class="hv-support-eyebrow">HOLLOW VALLEY · PLAYER SUPPORT</p>
+        <h1>Support from the Valley.</h1>
+        <p>Need help with a dinosaur, your Valley Wallet, membership or a technical issue?
+          Create a private website ticket and follow its status. Staff responses stay between you and the authorised team.</p>
+        <div class="hv-support-top-links">
+          <a href="/help">Help centre ↗</a>
+          <a href="https://discord.gg/herbydeathsquadgames" rel="noopener noreferrer" target="_blank">Speak to staff on Discord ↗</a>
+        </div>
+      </header>
+      <section class="hv-support-quick" aria-label="Popular support categories">
+        <a href="/dinostorage/"><span aria-hidden="true">▣</span><strong>Dino Storage</strong><small>Parked, lost or redeeming dinosaurs</small></a>
+        <a href="/wallet"><span aria-hidden="true">V</span><strong>Valley Wallet</strong><small>Balance and rewards</small></a>
+        <a href="/supporter"><span aria-hidden="true">◆</span><strong>Membership</strong><small>Steam, Discord and subscription links</small></a>
+        <a href="/rules"><span aria-hidden="true">?</span><strong>Rules & Packs</strong><small>Approved grouping and conduct rules</small></a>
+      </section>
+
+      <section id="hv-support-guest" class="hv-support-panel" hidden>
+        <h2>Sign in with Steam</h2>
+        <p>Private support tickets require a Steam-linked Hollow Valley account. Public rules, Help Centre and Discord remain available to guests.</p>
+        <a href="/auth/steam?returnTo=/support">Sign in with Steam ↗</a>
+      </section>
+
+      <section id="hv-support-app" hidden>
+        <div id="hv-support-disabled" class="hv-support-panel" hidden>
+          <h2>New website tickets are not open yet</h2>
+          <p>The support portal is preparing its private ticket queue. Contact staff through Discord in the meantime. Existing tickets remain visible below.</p>
+        </div>
+        <section class="hv-support-panel" id="hv-support-create-panel" hidden>
+          <h2>Open a private support ticket</h2>
+          <p>Describe what happened, approximately when and any evidence links. Submitting a ticket does not trigger DinoStorage, Valley Coin payments or automatic dinosaur restoration.</p>
+          <form id="hv-support-create" class="hv-support-form">
+            <label>What do you need help with?
+              <select id="hv-ticket-category" required>
+                <option value="technical">Website or game technical issue</option>
+                <option value="dinostorage">Dinosaur parking or recovery</option>
+                <option value="valley-coins">Valley Coins or rewards</option>
+                <option value="membership">Supporter membership</option>
+                <option value="account">Steam or Discord account links</option>
+                <option value="rules">Rules or moderation enquiry</option>
+                <option value="other">Something else</option>
+              </select>
+            </label>
+            <label>Ticket subject
+              <input id="hv-ticket-subject" maxlength="110" minlength="8" required placeholder="Briefly describe the problem">
+            </label>
+            <label class="hv-support-wide">Details
+              <textarea id="hv-ticket-body" maxlength="3500" minlength="30" rows="6" required
+                placeholder="Explain what you need help with, including dates or the name of your dinosaur when relevant."></textarea>
+            </label>
+            <label class="hv-support-wide">Evidence URL (optional, HTTPS media link)
+              <input id="hv-ticket-evidence" type="url" maxlength="400" placeholder="https://">
+            </label>
+            <button type="submit" id="hv-ticket-create-btn">Submit private ticket</button>
+          </form>
+          <p id="hv-ticket-create-status" aria-live="polite"></p>
+        </section>
+        <section class="hv-support-panel" aria-labelledby="hv-support-mine-title">
+          <div class="hv-support-heading">
+            <h2 id="hv-support-mine-title">My support tickets</h2>
+            <button type="button" id="hv-support-refresh">Refresh</button>
+          </div>
+          <p>Your tickets are private. Staff-only notes and actions are never shown to players.</p>
+          <p id="hv-support-list-status" aria-live="polite">Loading your tickets…</p>
+          <div id="hv-support-list" class="hv-support-ticket-list"></div>
+        </section>
+        <section class="hv-support-panel" id="hv-support-thread" hidden>
+          <h2 id="hv-support-thread-title">Ticket conversation</h2>
+          <p id="hv-support-thread-sub"></p>
+          <div id="hv-support-messages" class="hv-support-messages"></div>
+          <form id="hv-support-reply" class="hv-support-form">
+            <label>Reply to staff
+              <textarea id="hv-support-reply-body" rows="4" required minlength="2" maxlength="3500" placeholder="Add information or answer a staff question"></textarea>
+            </label>
+            <label>Evidence URL (optional)
+              <input id="hv-support-reply-link" type="url" maxlength="400" placeholder="https://">
+            </label>
+            <button type="submit" id="hv-support-reply-btn">Send reply</button>
+          </form>
+          <p id="hv-support-thread-status" aria-live="polite"></p>
+        </section>
+      </section>
+      <section class="hv-support-panel">
+        <h2>Player reports</h2>
+        <p>Formal player reports and their evidence review are a separate Hollow Valley development feature. Until that system is approved and activated, contact an admin on Discord about urgent conduct or safety concerns.</p>
+      </section>
+    </main>
+    <footer><span>© 2026 Hollow Valley</span><span>PRIVATE SUPPORT PORTAL</span><a href="/help">Help Centre ↑</a></footer>
+  </div>
+  <script src="/assets/common.js?v=22"></script>
+  <script src="/assets/support-hub.js?v=1"></script>
+</body></html>

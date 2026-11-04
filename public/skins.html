@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="assets/styles.css?v=45">
   <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=4">
+  <link rel="stylesheet" href="/assets/premium-skins.css?v=1">
 </head>
 <body class="has-my-stuff-rail">
   <div class="app-shell">
@@ -26,6 +27,7 @@
         <div class="skin-tabs" role="tablist" aria-label="Skin Studio sections">
           <button class="skin-tab active" type="button" data-skin-tab="studio">Skin Studio</button>
           <button class="skin-tab" type="button" data-skin-tab="store">Skin Shop</button>
+          <button class="skin-tab" type="button" data-skin-tab="premium">Premium collections</button>
           <button class="skin-tab" type="button" data-skin-tab="mine">My Skins</button>
           <button class="skin-tab" id="skin-library-tab" type="button" data-skin-tab="library" hidden>External Library</button>
           <button class="skin-tab" type="button" data-skin-tab="share">Share / Import</button>
@@ -88,7 +90,25 @@
                   <span>ADMIN · ZONE CALIBRATION</span>
                   <span id="skin-calibration-species">Select a shape model</span>
                 </div>
-                <p class="skin-calibration-help">Paint the website model's UV regions once, then export the compact mask used by Skin Studio. This is calibration tooling only; players never see these controls.</p>
+                <p class="skin-calibration-help">Use <strong>Auto-map zones</strong> to refresh automatic UV regions from the 3D model. Brush edits and erasures are preserved across reloads. Older or imported masks are protected; Rebuild all zones replaces them with fresh suggestions and can be undone. Body, flank, underside and dorsal markings are approximate geometry-based proposals, <em>not</em> verified EVRIMA patterns. Eye materials are coloured separately. Players never see these admin tools.</p>
+                <div class="skin-calibration-controls" role="group" aria-label="Private local model preview">
+                  <label for="skin-local-model-file">PRIVATE MODEL PREVIEW · GLB
+                    <input id="skin-local-model-file" type="file" accept=".glb,model/gltf-binary" multiple>
+                  </label>
+                  <button class="small-button" id="skin-local-model-reset" type="button">Use website model</button>
+                </div>
+                <p class="skin-calibration-help" id="skin-local-model-status" role="status">Models are loaded only in your browser. Select all 20 converted GLBs at once. Auto-map will create a separate provisional colour-zone mask for every model in your browser, preserving any hand-painted areas. Nothing is sent to the website or saved with player skins.</p>
+                <div class="skin-calibration-controls">
+                  <label class="skin-calibration-check">
+                    <input id="skin-auto-on-upload" type="checkbox" checked>
+                    Auto-map every selected model immediately
+                  </label>
+                </div>
+                <div class="skin-calibration-actions">
+                  <button class="small-button green" id="skin-calibration-batch" type="button">Auto-map all loaded models</button>
+                  <button class="small-button" id="skin-calibration-batch-download" type="button" disabled>Export all masks</button>
+                </div>
+                <p class="skin-calibration-help" id="skin-calibration-batch-status" role="status">Model and UV masks stay on this device. Auto-mapping creates approximate Body, Flank, Underbelly and dorsal Markings zones; pattern textures still need in-game verification.</p>
                 <div class="skin-calibration-controls">
                   <label>Zone
                     <select id="skin-calibration-zone">
@@ -115,6 +135,8 @@
                   </label>
                 </div>
                 <div class="skin-calibration-actions">
+                  <button class="small-button" id="skin-calibration-auto" type="button" disabled>Auto-map zones</button>
+                  <button class="small-button" id="skin-calibration-rebuild" type="button">Rebuild all zones</button>
                   <button class="small-button" id="skin-calibration-toggle" type="button">Start mapping</button>
                   <button class="small-button" id="skin-calibration-island-fill" type="button" disabled>Island fill: off</button>
                   <button class="small-button" id="skin-calibration-undo" type="button" disabled>Undo</button>
@@ -222,6 +244,32 @@
           <div id="skin-store-grid" class="skin-card-grid"><p class="section-intro">Loading skin shop…</p></div>
         </section>
 
+        <section class="skin-panel" id="premium-collection" data-skin-panel="premium">
+          <div class="skin-toolbar">
+            <div>
+              <p class="overline premium-accent">THE MEMBERSHIP COLLECTION</p>
+              <h2>Choose a new favourite.</h2>
+              <p class="section-intro">Curated Hollow Valley palettes. Claimed skins stay in My Skins after your membership ends.</p>
+            </div>
+            <button class="small-button" id="premium-refresh" type="button">Refresh collection</button>
+          </div>
+          <div id="premium-membership-status" class="premium-membership-status" role="status">Loading your monthly choices…</div>
+          <p class="premium-preview-note">Colour swatches show the palette. In-game appearance varies by species and pattern; each published skin lists the species checked in-game.</p>
+          <div id="premium-skin-grid" class="premium-skin-grid"></div>
+          <section id="premium-admin" class="premium-admin" hidden>
+            <p class="overline premium-accent">ADMIN · COLLECTION WORKSHOP</p>
+            <h3>Prepare, verify, then publish.</h3>
+            <p>Build from your own saved designs or prepare the three starter palettes. Drafts stay private until you record an in-game check and publish them.</p>
+            <div class="premium-admin-controls">
+              <button class="small-button" id="premium-seed-drafts" type="button">Prepare starter palettes</button>
+              <label>Your saved design<select id="premium-source-preset"><option value="">Select a design</option></select></label>
+              <label>Collection key<input id="premium-collection-key" value="valley-origins" maxlength="60" pattern="[a-z0-9-]+"></label>
+              <button class="small-button" id="premium-create-draft" type="button">Create premium draft</button>
+            </div>
+            <div id="premium-admin-grid" class="premium-skin-grid"></div>
+          </section>
+        </section>
+
         <section class="skin-panel" data-skin-panel="mine">
           <div class="skin-toolbar">
             <div>
@@ -324,12 +372,16 @@
   <script src="assets/common.js?v=21"></script>
   <script src="assets/external-skin-import.js?v=4"></script>
   <script src="/assets/skin-studio-model-registry.js?v=6"></script>
-  <script src="assets/skins.js?v=24"></script>
+  <script src="/assets/skin-studio-extracted-registry.js?v=1"></script>
+  <script src="assets/skins.js?v=26"></script>
+  <script src="assets/premium-skins.js?v=1"></script>
   <script src="assets/hollow-valley-skin-pack.js?v=1"></script>
   <script src="/assets/skin-studio-rex-mask-rle.js?v=1"></script>
   <script type="importmap">
     {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}
   </script>
-  <script type="module" src="/assets/skin-studio-3d.js?v=18"></script>
+  <script src="/assets/skin-studio-auto-map.js?v=2"></script>
+  <script src="/assets/skin-studio-batch-map.js?v=1"></script>
+  <script type="module" src="/assets/skin-studio-3d.js?v=25"></script>
 </body>
 </html>

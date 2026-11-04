@@ -1,0 +1,36 @@
+name: Timed Dinosaur Coin Events Tests
+
+on:
+  pull_request:
+    paths:
+      - 'automation-platform/src/services/speciesCoinEventService.js'
+      - 'automation-platform/src/services/playerPresenceService.js'
+      - 'automation-platform/src/routes/adminRoutes.js'
+      - 'automation-platform/test/speciesCoinEvents.test.js'
+      - 'automation-platform/test/speciesCoinPingMigration.test.js'
+      - 'automation-platform/src/services/eventTimeFormatter.js'
+      - 'automation-platform/test/eventTimeFormatter.test.js'
+      - 'automation-platform/test/speciesCoinEventRoutes.test.js'
+      - 'server/routes/adminOperations.js'
+      - 'server/routes/events.js'
+      - 'server/services/automationWebsiteClient.js'
+      - 'public/adminoperations.html'
+      - 'public/assets/species-events-admin.js'
+      - 'public/events.html'
+      - 'public/assets/events-species-bonuses.js'
+      - 'test/speciesCoinEventsWebsite.test.js'
+      - '.github/workflows/timed-species-events-tests.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test-coin-events:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node --test automation-platform/test/eventTimeFormatter.test.js automation-platform/test/speciesCoinPingMigration.test.js automation-platform/test/speciesCoinEvents.test.js automation-platform/test/speciesCoinEventRoutes.test.js test/speciesCoinEventsWebsite.test.js test/adminOperationsRoute.test.js automation-platform/test/playerPresence.test.js automation-platform/test/questSync.test.js

@@ -24,6 +24,7 @@ function reset() {
   insertMembership.run(41, "member", "active");
   insertMembership.run(42, "elite", "trialing");
   insertMembership.run(43, "legend", "past_due");
+  db.exec("UPDATE supporter_subscriptions SET renews_at = '2099-01-01T00:00:00.000Z'");
 }
 
 function listen() {
@@ -68,7 +69,7 @@ test("internal supporter lookup is token protected and returns only entitled tie
   assert.deepEqual(await response.json(), {
     memberships: [
       { steamId: "76561198000000041", entitled: true, tier: "supporter" },
-      { steamId: "76561198000000042", entitled: true, tier: "guardian" },
+      { steamId: "76561198000000042", entitled: false, tier: null },
       { steamId: "76561198000000043", entitled: false, tier: null },
       { steamId: "76561198000000044", entitled: false, tier: null },
     ],
@@ -89,4 +90,32 @@ test("internal supporter lookup rejects malformed Steam IDs", async (t) => {
     body: JSON.stringify({ steamIds: ["not-a-steam-id"] }),
   });
   assert.equal(response.status, 400);
+});
+
+test("scheduled cancellation keeps game coins while expiry and immediate cancellation remove them", async (t) => {
+  reset();
+  const insert = db.prepare("INSERT INTO users (id, steam_id, username) VALUES (?, ?, ?)");
+  insert.run(44, "76561198000000044", "scheduled-cancellation");
+  insert.run(45, "76561198000000045", "already-cancelled");
+  insert.run(46, "76561198000000046", "expired");
+  db.prepare("INSERT INTO supporter_subscriptions (user_id, tier, auto_renew, stripe_status, cancelled_at) VALUES (?, ?, ?, ?, ?)").run(44, "member", 0, "active", "2026-10-31");
+  db.prepare("INSERT INTO supporter_subscriptions (user_id, tier, auto_renew, stripe_status, cancelled_at) VALUES (?, ?, ?, ?, ?)").run(45, "legend", 1, "active", "2026-10-31");
+  db.prepare("INSERT INTO supporter_subscriptions (user_id, tier, auto_renew, stripe_status, cancelled_at) VALUES (?, ?, ?, ?, ?)").run(46, "elite", 0, "canceled", "2026-10-31");
+
+  db.exec("UPDATE supporter_subscriptions SET renews_at='2099-01-01T00:00:00Z' WHERE user_id IN (44,46); UPDATE supporter_subscriptions SET renews_at='2020-01-01T00:00:00Z' WHERE user_id=45;");
+  const server = await listen();
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const response = await fetch(`http://127.0.0.1:${server.address().port}/api/internal/supporter-memberships`, {
+    method: "POST",
+    headers: { Authorization: "Bearer supporter-internal-secret", "Content-Type": "application/json" },
+    body: JSON.stringify({ steamIds: ["76561198000000041", "76561198000000044", "76561198000000045", "76561198000000046"] }),
+  });
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("cache-control") || "", /no-store/);
+  assert.deepEqual((await response.json()).memberships, [
+    { steamId: "76561198000000041", entitled: true, tier: "supporter" },
+    { steamId: "76561198000000044", entitled: true, tier: "supporter" },
+    { steamId: "76561198000000045", entitled: false, tier: null },
+    { steamId: "76561198000000046", entitled: false, tier: null },
+  ]);
 });

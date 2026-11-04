@@ -42,6 +42,7 @@ for (const tier of Object.keys(TIERS)) {
         client_reference_id: '42',
         'metadata[user_id]': '42', 'metadata[tier]': tier,
         'subscription_data[metadata][user_id]': '42', 'subscription_data[metadata][tier]': tier,
+        'metadata[renewal_mode]': 'auto_renew', 'subscription_data[metadata][renewal_mode]': 'auto_renew',
         success_url: `${env.RENDER_EXTERNAL_URL}/supporter?checkout=success`,
         cancel_url: `${env.RENDER_EXTERNAL_URL}/supporter?checkout=cancelled`,
       });
@@ -123,7 +124,7 @@ test('HTTP routes enforce auth, ignore browser price/user fields, and preserve c
           active: true,
           currency: 'aud',
           unit_amount: unitAmount,
-          recurring: { interval: 'month' },
+          recurring: { interval: 'month', interval_count: 1 },
         }),
       };
     }
@@ -137,6 +138,7 @@ test('HTTP routes enforce auth, ignore browser price/user fields, and preserve c
   assert.equal(checkoutCalls, 0);
   const tiers = await (await originalFetch(base + '/tiers')).json();
   assert.deepEqual(tiers.tiers, TIERS);
+  assert.deepEqual(tiers.monthlyCoinBonuses, require('../server/services/supporterCoinBonus').MONTHLY_SUPPORTER_BONUS);
   assert.equal(tiers.checkoutConfigured, true);
   assert.equal(tiers.stripeHealth.configured, true);
   assert.equal(tiers.stripeHealth.live, false);
@@ -148,6 +150,17 @@ test('HTTP routes enforce auth, ignore browser price/user fields, and preserve c
   assert.deepEqual(await success.json(), { url: session.url });
   assert.equal(checkoutCalls, 1);
   assert.equal(db.prepare('SELECT count(*) AS n FROM supporter_subscriptions').get().n, 0);
+  let submittedMode;
+  const checkoutFetch = global.fetch;
+  global.fetch = async (url, options) => {
+    if (String(url).endsWith('/checkout/sessions')) submittedMode = options.body.get('subscription_data[metadata][renewal_mode]');
+    return checkoutFetch(url, options);
+  };
+  assert.equal((await request('/supporter/checkout', true, { renewalMode: 'one_month', user_id: 99 })).status, 200);
+  assert.equal(submittedMode, 'one_month');
+  assert.equal((await request('/supporter/checkout', true, { renewalMode: 'auto_renew' })).status, 200);
+  assert.equal(submittedMode, 'auto_renew');
+  assert.equal((await request('/supporter/checkout', true, { renewalMode: 'bad' })).status, 400);
   assert.equal((await request('/constructor/checkout')).status, 404);
   global.fetch = async () => { throw new Error('secret'); };
   assert.equal((await request('/supporter/checkout')).status, 502);

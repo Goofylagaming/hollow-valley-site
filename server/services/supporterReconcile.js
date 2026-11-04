@@ -1,5 +1,6 @@
 const { configuration, stableIdentityRequired } = require("./supporterCheckout");
 const { tierFromSubscription, upsertSupporter, subscriptionPeriodEnd } = require("./supporterWebhook");
+const { ensureOneMonthEnd, serializeMembershipOperation } = require("./supporterRenewal");
 
 class ReconcileError extends Error {
   constructor(status, message) {
@@ -130,7 +131,7 @@ async function reconcileCurrentUser({
   const match = eligible[0];
   if (!match) return { recovered: false };
 
-  const subscription = match.subscription;
+  const subscription = await ensureOneMonthEnd(match.subscription, { secret: configuration(env).secret, fetchImpl });
   const autoRenew = !subscription.cancel_at_period_end && subscription.status !== "canceled";
   const status = upsertSupporter({
     userId,
@@ -143,6 +144,7 @@ async function reconcileCurrentUser({
       return unix ? new Date(unix * 1000).toISOString() : null;
     })(),
     autoRenew,
+    renewalMode: subscription.metadata?.renewal_mode,
   });
 
   if (status && steamId) {
@@ -158,6 +160,6 @@ async function reconcileCurrentUser({
 
 module.exports = {
   ReconcileError,
-  reconcileCurrentUser,
+  reconcileCurrentUser: options => serializeMembershipOperation(() => reconcileCurrentUser(options)),
   _test: { isRecoverableSubscription, scoreSubscription },
 };

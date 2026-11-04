@@ -187,3 +187,35 @@ test("legacy member and elite membership records normalize to official multiplie
   assert.equal(supporter.membershipForSteamId(eliteId).tier, "guardian");
   assert.equal(supporter.membershipForSteamId(eliteId).multiplier, 3);
 });
+
+test("supporter multipliers fail closed after cache expires or refresh reports cancellation", async (t) => {
+  const prev = process.env.SUPPORTER_COIN_BONUSES_ENABLED;
+  process.env.SUPPORTER_COIN_BONUSES_ENABLED = "true";
+  const modulePath = require.resolve("../src/services/supporterBonusService");
+  delete require.cache[modulePath];
+  const bonuses = require(modulePath);
+  const id = "76561198000000073";
+  t.after(() => {
+    bonuses._test.clearCache();
+    delete require.cache[modulePath];
+    if (prev === undefined) delete process.env.SUPPORTER_COIN_BONUSES_ENABLED;
+    else process.env.SUPPORTER_COIN_BONUSES_ENABLED = prev;
+  });
+
+  const realNow = Date.now;
+  const originalTime = realNow();
+  try {
+    Date.now = () => originalTime;
+    bonuses.replaceMemberships([id], [{ steamId: id, entitled: true, tier: "legend" }]);
+    assert.equal(bonuses.applyBonus(100, id).payoutCoins, 500);
+
+    // Even if the website is unreachable and cannot refresh, stale entitlement
+    // must not indefinitely grant a paid boost to a cancelled account.
+    Date.now = () => originalTime + 91_000;
+    assert.equal(bonuses.applyBonus(100, id).payoutCoins, 100);
+    bonuses.replaceMemberships([id], [{ steamId: id, entitled: false, tier: null }]);
+    assert.equal(bonuses.applyBonus(100, id).payoutCoins, 100);
+  } finally {
+    Date.now = realNow;
+  }
+});

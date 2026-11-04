@@ -1,0 +1,18 @@
+.hv-management { display: grid; gap: 1.3rem; }
+.hv-management-toolbar { display: flex; gap: 1rem; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+.hv-management-toolbar strong { font-size: 1.1rem; }
+.hv-muted { color: var(--muted, #a7b0a8); margin: .4rem 0; line-height: 1.55; }
+.hv-management-error { padding: .8rem 1rem; border: 1px solid #bd5858; border-radius: .7rem; color: #f4b6b6; }
+.hv-management-kpis { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 1rem; }
+.hv-management-panel { border: 1px solid rgba(161, 195, 163, .24); border-radius: .9rem; padding: 1rem; background: rgba(20, 35, 27, .22); }
+.hv-management-panel h2 { margin: 0 0 .4rem; font-size: 1.15rem; }
+.hv-management-table-wrap { width: 100%; overflow-x: auto; }
+.hv-management-table { width: 100%; border-collapse: collapse; text-align: left; min-width: 570px; }
+.hv-management-table th, .hv-management-table td { border-bottom: 1px solid rgba(161,195,163,.19); padding: .8rem .6rem; vertical-align: top; overflow-wrap: anywhere; }
+.hv-management-table th { color: var(--muted,#a7b0a8); font-size: .8rem; letter-spacing: .04em; text-transform: uppercase; }
+.hv-management-table button:disabled { opacity: .45; cursor: not-allowed; }
+.hv-management-log-grid { display: grid; gap: 1rem; }
+.hv-management-log-grid h3 { font-size: 1rem; margin: .4rem 0; }
+.hv-management-log-grid pre { max-height: 240px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 1rem; border-radius: .5rem; background: rgba(0,0,0,.25); font-size: .8rem; line-height: 1.4; color: #d3dcd5; }
+.hv-management-footnote { font-size: .85rem; }
+@media (max-width: 720px) { .hv-management-kpis { grid-template-columns: 1fr; } .hv-management-panel { padding: .75rem; } }

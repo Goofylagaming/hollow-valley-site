@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Browse official Hollow Valley Isle server rules and previously published revisions.">
+  <title>Server Rules | Hollow Valley</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=38">
+  <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
+  <link rel="stylesheet" href="/assets/snapshot-ui.css?v=5">
+  <link rel="stylesheet" href="/assets/community-guides.css?v=1">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main class="hv-guide-main">
+      <section class="hv-guide-hero">
+        <p class="hv-guide-eyebrow">HOLLOW VALLEY · COMMUNITY GUIDE</p>
+        <h1>Server rules.</h1>
+        <p>Search Hollow Valley's published community policies. Only administrator-approved entries appear below; planned rules and species reference data are not automatically server rules.</p>
+        <div class="hv-guide-hero-links">
+          <a href="/packs">Explore pack limits →</a>
+          <a href="https://discord.gg/herbydeathsquadgames" target="_blank" rel="noopener noreferrer">Discord rules and support ↗</a>
+        </div>
+      </section>
+      <section class="hv-guide-status" id="hv-rules-status" role="status" aria-live="polite">Checking published rules…</section>
+      <section class="hv-guide-panel" aria-labelledby="hv-rules-heading">
+        <div class="hv-guide-section-header">
+          <div><p class="hv-guide-eyebrow">OFFICIAL POLICY</p><h2 id="hv-rules-heading">Find a rule.</h2></div>
+          <span id="hv-rules-version" class="hv-guide-version">Publication not verified</span>
+        </div>
+        <div class="hv-guide-filters">
+          <label>Search rules
+            <input id="hv-rules-search" type="search" autocomplete="off" maxlength="120" placeholder="e.g. nesting, combat, events">
+          </label>
+          <label>Category
+            <select id="hv-rules-category">
+              <option value="">All categories</option>
+              <option value="general">General</option>
+              <option value="conduct">Player conduct</option>
+              <option value="combat">Combat</option>
+              <option value="grouping">Groups & packs</option>
+              <option value="nesting">Nesting</option>
+              <option value="events">Events</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+        </div>
+        <p id="hv-rules-count" class="hv-guide-count" aria-live="polite">Loading…</p>
+        <div id="hv-rules-list" class="hv-guide-list">
+          <p class="hv-guide-empty">Loading rules…</p>
+        </div>
+      </section>
+      <section class="hv-guide-panel">
+        <div class="hv-guide-section-header">
+          <div><p class="hv-guide-eyebrow">TRANSPARENCY</p><h2>Publication history.</h2></div>
+        </div>
+        <p>Each published change receives a new version. Historical versions remain recorded for admins to audit.</p>
+        <div id="hv-rules-history" class="hv-guide-history">Checking rule history…</div>
+      </section>
+    </main>
+    <footer><span>© 2026 Hollow Valley</span><span>HOME OF THE HERBY DEATH SQUAD</span><a href="/help">Help centre ↗</a></footer>
+  </div>
+  <script src="/assets/common.js?v=22"></script>
+  <script src="/assets/community-rules.js?v=1"></script>
+</body>
+</html>

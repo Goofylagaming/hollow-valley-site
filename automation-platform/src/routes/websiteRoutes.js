@@ -27,6 +27,7 @@ const progression = require('../services/progressionService');
 
 const router = express.Router();
 router.use(requireWebsiteToken);
+router.use('/premium-skins', require('./premiumSkinsRoutes'));
 
 function validateSteamId(value) {
   const steamId = String(value || '').trim();
@@ -119,6 +120,26 @@ router.get('/quests/:steamId', (req, res) => {
     });
   } catch (error) {
     res.status(400).json({ error: error.message || 'Unable to read playtime quests.' });
+  }
+});
+
+router.post('/prime/:steamId/reset-zones', (req, res) => {
+  res.set('Cache-Control', 'private, no-store');
+  try {
+    const steamId = validateSteamId(req.params.steamId);
+    const result = primeTracker.resetZoneVisits({
+      steamId,
+      lifeId: req.body?.lifeId,
+      requestId: req.body?.requestId,
+      confirm: req.body?.confirm,
+    });
+    return res.json(result);
+  } catch (error) {
+    const status = Number.isInteger(error.status) ? error.status : 500;
+    return res.status(status).json({
+      error: status >= 500 ? 'Prime Tracker reset is temporarily unavailable.' : error.message,
+      code: error.code || 'RESET_UNAVAILABLE',
+    });
   }
 });
 
@@ -325,7 +346,7 @@ router.post('/marketplace/catalog/:catalogId/buy', async (req, res) => {
     const result = await audit.run('website', 'marketplace_purchase', {
       catalogId,
       steamId,
-    }, async () => marketplace.purchaseCatalogItem({
+    }, async () => marketplace.purchaseCatalogItemWithCapacity({
       steamId,
       catalogId,
       idempotencyKey,
@@ -348,7 +369,7 @@ router.post('/marketplace/catalog/:catalogId/buy', async (req, res) => {
     if (error.code === 'CATALOG_ITEM_UNAVAILABLE') {
       return res.status(404).json({ error: error.message });
     }
-    res.status(400).json({ error: error.message || 'Marketplace purchase failed.' });
+    res.status(Number.isInteger(error.status) ? error.status : 400).json({ error: error.message || 'Marketplace purchase failed.', code: error.code || null });
   }
 });
 
@@ -419,7 +440,7 @@ router.post('/marketplace/listings/:listingId/buy', async (req, res) => {
     }));
     res.status(result.duplicate ? 200 : 201).json({ ok: true, ...result });
   } catch (error) {
-    const status = error.code === 'MARKETPLACE_WRITE_DISABLED' ? 503 :
+    const status = Number.isInteger(error.status) ? error.status : error.code === 'MARKETPLACE_WRITE_DISABLED' ? 503 :
       error.code === 'INSUFFICIENT_FUNDS' ? 402 :
       error.code === 'LISTING_NOT_FOUND' ? 404 :
       error.code === 'TRANSFER_UNCERTAIN' ? 409 : 400;
@@ -949,7 +970,7 @@ async function dinoAction(req, res, action) {
     if (error.code === 'DINOSTORAGE_PENDING') {
       return res.status(409).json({ error: error.message, request: error.request });
     }
-    res.status(502).json({ error: error.message || `DinoStorage ${action} failed.` });
+    res.status(Number.isInteger(error.status) ? error.status : 502).json({ error: error.message || `DinoStorage ${action} failed.`, code: error.code || null });
   }
 }
 
