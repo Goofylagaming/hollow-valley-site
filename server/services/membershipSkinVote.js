@@ -114,6 +114,7 @@ function ballotOptions(ballotId) {
 }
 
 function latestWinner() {
+  ensureSchema();
   const ballot = db.prepare(`
     SELECT * FROM membership_skin_vote_ballots
     WHERE status='closed'
