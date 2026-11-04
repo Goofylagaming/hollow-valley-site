@@ -4,20 +4,17 @@ const membershipEntitlements = require("./membershipEntitlements");
 const { getSkinStudioSafety } = require("../middleware/skinStudioSafety");
 
 const ROLE_NAMES = Object.freeze({
-  supporter: "Valley Supporter",
+  supporter: "Valley Member",
   guardian: "Valley Guardian",
   legend: "Valley Legend",
 });
-const LEGACY_ROLE_NAMES = new Set(["Valley Member", "Valley Elite"]);
+const ROLE_IDS = Object.freeze({
+  supporter: "1550695486464204810",
+  guardian: "1550695581373042688",
+  legend: "1550695426456555551",
+});
 
-function configuredRoleIds(env = process.env) {
-  const ids = {
-    supporter: String(env.DISCORD_ROLE_SUPPORTER_ID || "").trim(),
-    guardian: String(env.DISCORD_ROLE_GUARDIAN_ID || "").trim(),
-    legend: String(env.DISCORD_ROLE_LEGEND_ID || "").trim(),
-  };
-  return Object.fromEntries(Object.entries(ids).filter(([, id]) => /^\d{15,22}$/.test(id)));
-}
+function configuredRoleIds() { return { ...ROLE_IDS }; }
 
 class DiscordMembershipError extends Error {
   constructor(status, message) {
@@ -81,27 +78,6 @@ async function discordRequest(path, { method = "GET", body = null } = {}, env = 
   return response.json();
 }
 
-async function listRoles(env, fetchImpl) {
-  const config = configuration(env);
-  return discordRequest(`/guilds/${config.guildId}/roles`, {}, env, fetchImpl);
-}
-
-async function ensureRoleForTier(tier, env, fetchImpl) {
-  if (!ROLE_NAMES[tier]) return null;
-  const config = configuration(env);
-  let roles = await listRoles(env, fetchImpl);
-  let role = roles.find((item) => item?.name === ROLE_NAMES[tier]);
-  if (role) return { role, roles };
-  role = await discordRequest(
-    `/guilds/${config.guildId}/roles`,
-    { method: "POST", body: { name: ROLE_NAMES[tier], hoist: false, mentionable: false } },
-    env,
-    fetchImpl
-  );
-  roles = [...roles, role];
-  return { role, roles };
-}
-
 async function syncDiscordMembershipForUser(userId, { env = process.env, fetchImpl = globalThis.fetch, now = Date.now() } = {}) {
   const gate = syncGate(env);
   if (gate) return gate;
@@ -128,26 +104,8 @@ async function syncRolesForDiscord(discordId, targetTier, { env, fetchImpl }) {
   const config = configuration(env);
 
   const exactRoleIds = configuredRoleIds(env);
-  const hasAllExactRoleIds = Object.keys(ROLE_NAMES).every((tier) => exactRoleIds[tier]);
-  let membershipRoles;
-  let targetRole = null;
-
-  if (hasAllExactRoleIds) {
-    membershipRoles = Object.entries(ROLE_NAMES).map(([tier, name]) => ({ id: exactRoleIds[tier], name, tier }));
-    targetRole = targetTier ? membershipRoles.find((role) => role.tier === targetTier) || null : null;
-  } else {
-    let roles;
-    if (targetTier) {
-      const ensured = await ensureRoleForTier(targetTier, env, fetchImpl);
-      targetRole = ensured.role;
-      roles = ensured.roles;
-    } else {
-      roles = await listRoles(env, fetchImpl);
-    }
-    membershipRoles = roles.filter(
-      (role) => Object.values(ROLE_NAMES).includes(role?.name) || LEGACY_ROLE_NAMES.has(role?.name)
-    );
-  }
+  const membershipRoles = Object.entries(ROLE_NAMES).map(([tier, name]) => ({ id: exactRoleIds[tier], name, tier }));
+  const targetRole = membershipRoles.find((role) => role.tier === targetTier) || null;
 
   const member = await discordRequest(`/guilds/${config.guildId}/members/${discordId}`, {}, env, fetchImpl);
   const currentRoleIds = new Set(Array.isArray(member?.roles) ? member.roles.map((roleId) => String(roleId)) : []);
@@ -175,6 +133,7 @@ async function syncRolesForDiscord(discordId, targetTier, { env, fetchImpl }) {
 
 module.exports = {
   ROLE_NAMES,
+  ROLE_IDS,
   DiscordMembershipError,
   configuration,
   configuredRoleIds,
@@ -182,5 +141,5 @@ module.exports = {
   targetTierForStatus,
   syncDiscordMembershipForUser,
   removeMembershipRolesForDiscord,
-  _test: { ensureRoleForTier, discordRequest },
+  _test: { discordRequest },
 };
