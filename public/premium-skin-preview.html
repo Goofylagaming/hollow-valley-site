@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Premium palette drafts | Hollow Valley</title>
   <link rel="stylesheet" href="/assets/styles.css">
+  <link rel="stylesheet" href="/assets/skin-studio.css">
   <style>
     main { max-width: 1100px; margin: 3rem auto; padding: 1.5rem; }
     #drafts { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 1.5rem; margin: 2rem 0; }
@@ -14,16 +15,36 @@
     figcaption { font-size: .85rem; margin-top: .3rem; } figure { margin: 0; }
   </style>
   <script src="/assets/skin-studio-core.js" defer></script>
+  <script src="/assets/skin-studio-model-registry.js?v=6" defer></script>
+  <script src="/assets/skin-studio-rex-mask-rle.js?v=1" defer></script>
   <script src="/assets/premium-skin-preview.js" defer></script>
 </head>
 <body><main>
-  <h1>Premium palette drafts</h1>
+  <h1>Skin Studio · Premium T-rex drafts</h1>
   <p>Ashfall, Moonlit Marsh and Valley Royalty. Unpublished and awaiting in-game verification.</p>
-  <p>These are colour swatches, not in-game renders. They use only Skin Studio's ten colour channels and existing native controls. No custom artwork, glow, metallic effects or new patterns are included.</p>
+  <p>Try all three palettes on Skin Studio's existing T-rex reference model. This is a fixed-pattern colour guide, not an in-game render. No custom artwork, glow, metallic effects or new patterns are included.</p>
   <p>Pattern 0 · Theme 0 · Variation 0. Universal is a compatibility setting, not proof that every species looks correct. Colour placement and male display visibility depend on the dinosaur and sex.</p>
   <p id="status" role="status">Loading draft palettes…</p>
+  <section class="hv-preview-panel" aria-label="Skin Studio T-rex preview">
+    <div id="premium-draft-choices" class="hv-action-group" aria-label="Choose a draft"></div>
+    <div class="hv-preview-selectors"><label for="premium-preview-sex">Display<select id="premium-preview-sex"><option value="male">Male</option><option value="female">Female</option></select></label></div>
+    <div class="hv-preview-heading"><strong id="premium-preview-name">Ashfall</strong><span id="hv-viewer-status" role="status">Preparing preview</span></div>
+    <div class="hv-viewer-stage">
+      <canvas id="hv-viewer-canvas" aria-label="T-rex reference. Drag to rotate and scroll to zoom." tabindex="0"></canvas>
+      <div id="hv-viewer-empty" class="hv-viewer-empty" role="status">Loading T-rex reference…</div>
+    </div>
+    <div class="hv-viewer-controls">
+      <button id="hv-viewer-reset" class="hv-button" type="button">Reset view</button>
+      <button id="hv-viewer-rotate" class="hv-button" type="button" aria-pressed="false">Auto rotate</button>
+      <label for="hv-viewer-light">Light <input id="hv-viewer-light" type="range" min="35" max="180" value="105"></label>
+    </div>
+    <div class="hv-preview-disclosure"><div><strong id="hv-viewer-title">Tyrannosaurus rex</strong><p id="hv-viewer-detail">Fixed-pattern reference only; verify the final appearance in game.</p><a id="hv-viewer-credit" href="#" target="_blank" rel="noopener noreferrer" hidden>Model credits</a></div></div>
+  </section>
   <section id="drafts" aria-label="Draft palettes"></section>
   <p>This page only reads the draft file. It cannot save, publish, grant, purchase or apply skins.</p>
   <p><a href="/assets/premium-skin-drafts.json" download>Download draft JSON pack</a> · <a href="/skins">Skin Studio</a></p>
-</main></body>
+</main>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
+<script type="module" src="/assets/skin-studio-viewer.js?v=1"></script>
+</body>
 </html>

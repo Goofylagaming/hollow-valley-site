@@ -32,6 +32,32 @@
       return card;
     });
     document.getElementById('drafts').replaceChildren(...cards);
+    const choices = document.getElementById('premium-draft-choices');
+    if (choices) {
+      let selected = 0;
+      const sex = document.getElementById('premium-preview-sex');
+      const buttons = [];
+      const show = (index) => {
+        selected = index;
+        const entry = pack.skins[index];
+        const detail = { name: entry.name, species: 'tyrannosaurus', sex: sex.value === 'female' ? 'female' : 'male', skin: { ...entry.colors } };
+        window.__HV_STUDIO_PREVIEW = detail;
+        document.getElementById('premium-preview-name').textContent = entry.name;
+        buttons.forEach((button, i) => button.setAttribute('aria-pressed', String(i === index)));
+        document.dispatchEvent(new CustomEvent('hds:skin-preview-change', { detail }));
+      };
+      pack.skins.forEach((entry, index) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'hv-button';
+        button.textContent = entry.name;
+        button.addEventListener('click', () => show(index));
+        buttons.push(button);
+        choices.append(button);
+      });
+      sex.addEventListener('change', () => show(selected));
+      show(0);
+    }
     status.textContent = 'Three palette drafts loaded. In-game appearance has not been verified.';
   } catch (error) {
     status.textContent = `Could not load draft palettes: ${error.message}`;

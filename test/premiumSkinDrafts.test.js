@@ -87,3 +87,34 @@ test('existing pack importer accepts the drafts and only creates new unpublished
     core.validateDocument(core.createDocument(payload));
   }
 });
+
+test('T-rex draft switching updates only the viewer and preserves native palettes', async () => {
+  const nodes = Object.fromEntries(['status', 'drafts', 'premium-draft-choices', 'premium-preview-sex', 'premium-preview-name'].map(id => [id, element()]));
+  nodes['premium-preview-sex'].value = 'male';
+  nodes['premium-preview-sex'].addEventListener = function(type, fn) { this[type] = fn; };
+  const events = [];
+  const window = { HVSkinStudioCore: core };
+  const requests = [];
+  await vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../public/assets/premium-skin-preview.js'), 'utf8'), {
+    window,
+    CustomEvent: function(type, options) { this.type = type; this.detail = options.detail; },
+    document: { getElementById: id => nodes[id], dispatchEvent: e => events.push(e), createElement: () => ({ ...element(), setAttribute(key, value) { this[key] = value; }, addEventListener(type, fn) { this[type] = fn; } }) },
+    fetch: async url => { requests.push(url); return { ok: true, json: async () => pack }; },
+  });
+  const buttons = nodes['premium-draft-choices'].children;
+  assert.equal(buttons.length, 3);
+  for (let i = 0; i < 3; i++) {
+    buttons[i].click();
+    const preview = window.__HV_STUDIO_PREVIEW;
+    assert.equal(preview.name, pack.skins[i].name);
+    assert.equal(preview.species, 'tyrannosaurus');
+    assert.equal(JSON.stringify(preview.skin), JSON.stringify(pack.skins[i].colors));
+    assert.equal(buttons[i]['aria-pressed'], 'true');
+  }
+  nodes['premium-preview-sex'].value = 'female';
+  nodes['premium-preview-sex'].change();
+  assert.equal(window.__HV_STUDIO_PREVIEW.sex, 'female');
+  assert.equal(window.__HV_STUDIO_PREVIEW.name, 'Valley Royalty');
+  assert.deepEqual(requests, ['/assets/premium-skin-drafts.json']);
+  assert.ok(events.every(e => e.type === 'hds:skin-preview-change'));
+});
