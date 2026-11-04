@@ -1,0 +1,26 @@
+name: HVS Desktop Read-Only Management Gate
+on:
+  push:
+    branches:
+      - hvs-desktop-readonly-management-v1-20261104
+    paths:
+      - 'server/routes/desktopReadOnlyManagement.js'
+      - 'server/routes/serverManagement.js'
+      - 'server/services/serverManagement.js'
+      - 'server/index.js'
+      - 'test/desktopReadOnlyManagement.test.js'
+      - '.github/workflows/hvs-desktop-readonly-gate.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated-auth-boundary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --no-audit --no-fund
+      - run: node --check server/routes/desktopReadOnlyManagement.js
+      - run: node --test test/desktopReadOnlyManagement.test.js

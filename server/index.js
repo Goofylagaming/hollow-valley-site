@@ -54,6 +54,7 @@ const adminSupportersRouter = require("./routes/adminSupporters");
 const adminFinanceRouter = require("./routes/adminFinance");
 const { createSubscriberFundingRouters } = require("./routes/subscriberFunding");
 const { ownerRouter: ownerServerManagementRouter, agentRouter: binaryLaneManagementRouter } = require("./routes/serverManagement");
+const { router: desktopReadOnlyManagementRouter } = require("./routes/desktopReadOnlyManagement");
 const adminBodyDropResetRouter = require("./routes/adminBodyDropReset");
 const serverStatusService = require("./services/serverStatus");
 const automationWebsiteClient = require("./services/automationWebsiteClient");
@@ -308,6 +309,7 @@ function createApp() {
   // Owner-only UI; agent uses a separate bearer-authenticated outbound HTTPS channel.
   app.use("/api/admin/server-management", requireFinanceOwner, ownerServerManagementRouter);
   app.use("/api/binarylane-management", binaryLaneManagementRouter);
+  app.use("/api/hvs-desktop-readonly", desktopReadOnlyManagementRouter);
   app.use("/api/admin-bodydrop-reset", adminBodyDropResetRouter);
   app.use("/api/mapdata", mapdataRouter);
 

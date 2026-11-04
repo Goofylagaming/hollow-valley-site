@@ -220,6 +220,6 @@ function completeJob({ id, leaseToken, state, message }) {
 
 module.exports = {
   TASKS, ACTION_TARGETS, enabled, tokenConfigured, writesEnabled,
-  receiveHeartbeat, ownerOverview, queueAction, leaseNextJob, completeJob,
+  receiveHeartbeat, heartbeat, ownerOverview, queueAction, leaseNextJob, completeJob,
   normalizeHeartbeat,
 };
