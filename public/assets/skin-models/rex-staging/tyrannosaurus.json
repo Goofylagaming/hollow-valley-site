@@ -1,0 +1,29 @@
+{
+  "species": "Tyrannosaurus",
+  "points": 9648,
+  "uv_wedges": 11095,
+  "triangles": 18800,
+  "bones_in_psk": 65,
+  "uv_sets": 1,
+  "materials": [
+    "MI_Tyrannosaurus_Body",
+    "MI_Tyrannosaurus_Eye",
+    "HV_Teeth"
+  ],
+  "face_winding_flipped": true,
+  "converted_bytes": 469996,
+  "bounds_min_m": [
+    -0.9522999572753906,
+    -0.004054301381111145,
+    -7.3488006591796875
+  ],
+  "bounds_max_m": [
+    0.9523000335693359,
+    4.1721215820312505,
+    4.872799072265625
+  ],
+  "notes": "Static reference-pose preview only: no exported skeleton, animations, original shaders, game skin textures or colour-zone masks.",
+  "source_sha256": "47208def239a5c1cce66f4645a8e68a4cbed0360d901a5f368cf736296d7ab45",
+  "converted_sha256": "9a91a8a50d690483f085261d52c830d67927b069e5bcc060095fd433d5da6ab8",
+  "purpose": "User-authorized staging preview only; no original game texture maps supplied"
+}

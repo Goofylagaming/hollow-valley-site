@@ -7,7 +7,13 @@
   <link rel="stylesheet" href="/assets/styles.css">
   <link rel="stylesheet" href="/assets/skin-studio.css">
   <style>
-    main { max-width: 1100px; margin: 3rem auto; padding: 1.5rem; }
+    main { max-width: 1400px; margin: 1rem auto; padding: 1.5rem; }
+    h1 { font-size: clamp(24px, 3vw, 40px); margin: 0 0 .6rem; }
+    .hv-viewer-stage { height: min(62vh, 620px); min-height: 370px; background: radial-gradient(ellipse at 50% 50%, #53605d55, #0e151400 75%); }
+    .hv-preview-panel { padding: 16px; background: #17201e; }
+    .hv-preview-heading { padding: 10px 4px; }
+    #premium-draft-choices { gap: 10px; }
+    #premium-draft-choices [aria-pressed="true"] { background: #c6df9e; color: #17201e; }
     #drafts { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 1.5rem; margin: 2rem 0; }
     article { border: 1px solid #657367; border-radius: 12px; padding: 1.2rem; }
     .palette { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; }
@@ -20,14 +26,12 @@
   <script src="/assets/premium-skin-preview.js" defer></script>
 </head>
 <body class="hv-studio-page"><main>
-  <h1>Skin Studio · Premium T-rex drafts</h1>
+  <h1>Tyrannosaurus · Skin Studio</h1>
   <p>Ashfall, Moonlit Marsh and Valley Royalty. Unpublished and awaiting in-game verification.</p>
-  <p>Try all three palettes on Skin Studio's existing T-rex reference model. This is a fixed-pattern colour guide, not an in-game render. No custom artwork, glow, metallic effects or new patterns are included.</p>
-  <p>Pattern 0 · Theme 0 · Variation 0. Universal is a compatibility setting, not proof that every species looks correct. Colour placement and male display visibility depend on the dinosaur and sex.</p>
-  <p id="status" role="status">Loading draft palettes…</p>
+  <p id="status" role="status" style="font-size:12px;color:#a2afa4">Loading draft palettes…</p>
   <section class="hv-preview-panel" aria-label="Skin Studio T-rex preview">
     <div id="premium-draft-choices" class="hv-action-group" aria-label="Choose a draft"></div>
-    <div class="hv-preview-selectors"><label for="premium-preview-sex">Display<select id="premium-preview-sex"><option value="male">Male</option><option value="female">Female</option></select></label></div>
+    <div class="hv-preview-selectors"><label for="premium-material-mode">Surface<select id="premium-material-mode"><option value="palette">Palette + scale detail</option><option value="clay">Neutral material study</option></select></label><label for="premium-preview-sex">Display<select id="premium-preview-sex"><option value="male">Male</option><option value="female">Female</option></select></label></div>
     <div class="hv-preview-heading"><strong id="premium-preview-name">Ashfall</strong><span id="hv-viewer-status" role="status">Preparing preview</span></div>
     <div class="hv-viewer-stage">
       <canvas id="hv-viewer-canvas" aria-label="T-rex reference. Drag to rotate and scroll to zoom." tabindex="0"></canvas>
@@ -40,12 +44,12 @@
     </div>
     <div class="hv-preview-disclosure"><div><strong id="hv-viewer-title">Tyrannosaurus rex</strong><p id="hv-viewer-detail">Fixed-pattern reference only; verify the final appearance in game.</p><a id="hv-viewer-credit" href="#" target="_blank" rel="noopener noreferrer" hidden>Model credits</a></div></div>
   </section>
-  <section id="drafts" aria-label="Draft palettes"></section>
+  <details><summary>Palette values and draft descriptions</summary><section id="drafts" aria-label="Draft palettes"></section></details>
   <p>This page only reads the draft file. It cannot save, publish, grant, purchase or apply skins.</p>
   <p><a href="/assets/premium-skin-drafts.json" download>Download draft JSON pack</a> · <a href="/skins">Skin Studio</a></p>
 </main>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
-<script type="module" src="/assets/skin-studio-viewer.js?v=1"></script>
+<script type="module" src="/assets/rex-staging-viewer.js?v=1"></script>
 </body>
 </html>
 
