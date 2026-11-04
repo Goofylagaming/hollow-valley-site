@@ -160,6 +160,7 @@ function updatePreview() {
       name,
       species,
       sex: previewSex,
+      patternIndex: skin.patternIndex,
       skin: Object.fromEntries(Object.entries(skin).map(([key, value]) => [key, colorToHex(value)])),
     },
   }));

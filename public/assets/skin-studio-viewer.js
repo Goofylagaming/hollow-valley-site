@@ -1,3 +1,4 @@
+import { installExtractedMaterial, fitExtractedCamera } from './skin-studio-extracted-material.js?v=1';
 /* Hollow Valley Skin Studio · independent, optional 3D reference viewer.
  * The editor owns the original floating-point skin data. This viewer receives
  * display HEX values only and never writes to a skin, a preset, or an API.
@@ -79,6 +80,11 @@ function setControls(enabled) {
 function updateMetadata(definition, capability) {
   if (elements.title) elements.title.textContent = definition?.displayName || latest.species || "Choose a preview species";
   if (elements.canvas) elements.canvas.setAttribute("aria-label", `${definition?.displayName || latest.species || "Dinosaur"} 3D reference. Drag to rotate and scroll to zoom.`);
+  if(definition?.extracted){
+    if(elements.detail)elements.detail.textContent=definition.key==='tyrannosaurus'?'Adult Rex patterns checked in game. Lighting, growth and sex differences remain approximate.':'Adult default-pattern colour preview using this species mesh and extracted textures. In-game colour mapping, special surfaces and lighting remain unverified.';
+    if(elements.credit)elements.credit.hidden=true;
+    return;
+  }
   if (elements.detail) {
     elements.detail.textContent = capability === "guide"
       ? "Colour guide on a licensed reference model. The pattern is fixed; in-game colours, markings and growth can look different."
@@ -121,6 +127,7 @@ function disposeObject(root, extraMaterials = [], extraTextures = []) {
 
 function clearModel() {
   if (!engine) return;
+  engine.extracted?.dispose();engine.extracted=null;
   if (engine.model) {
     engine.scene.remove(engine.model);
     disposeObject(engine.model, engine.sourceMaterials, engine.maskTextures);
@@ -267,6 +274,7 @@ function linearColour(hex, target) {
 function updateGuidePalette() {
   if (!engine) return;
   const colours = palette();
+  engine.extracted?.setPalette(colours);engine.extracted?.setSex(latest.sex);engine.extracted?.setPattern(Number(latest.patternIndex)||0);
   for (const uniforms of engine.paletteUniforms) {
     for (const zone of ZONES) linearColour(colours[zone], uniforms[`hv_${zone}`].value);
     uniforms.hv_maleVisible.value = latest.sex === "female" ? 0 : 1;
@@ -453,19 +461,25 @@ async function refreshPreview() {
     if (thisLoad !== loadNumber) return;
     const gltf = await loadAsset(definition, requestController.signal);
     if (thisLoad !== loadNumber) { disposeObject(gltf.scene); return; }
+    if(definition.extracted){
+      const binding=await installExtractedMaterial(gltf.scene,definition.extracted,engine.renderer);
+      if(thisLoad!==loadNumber){binding.dispose();disposeObject(gltf.scene);return;}
+      engine.extracted=binding;
+    }
     engine.model = gltf.scene;
     engine.model.traverse((child) => {
       if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; }
     });
-    const guide = definition.key === "tyrannosaurus" && installRexGuide(engine.model, definition);
+    const guide = !definition.extracted && definition.key === "tyrannosaurus" && installRexGuide(engine.model, definition);
     engine.scene.add(engine.model);
     resize();
     frameModel(engine.model, definition);
+    if(definition.extracted)engine.home=fitExtractedCamera(engine.THREE,engine.model,engine.camera,engine.controls,definition.key);
     updateGuidePalette();
     if (elements.empty) elements.empty.hidden = true;
     setControls(true);
     updateMetadata(definition, guide ? "guide" : "shape");
-    showStatus("ready", guide ? "guide" : "shape", guide ? "Colour guide · fixed pattern" : "Shape reference · original colours");
+    showStatus("ready", guide ? "guide" : "shape", definition.extracted?"Textured colour preview · approximate":guide ? "Colour guide · fixed pattern" : "Shape reference · original colours");
     resumeAnimation();
   } catch (error) {
     if (thisLoad !== loadNumber || error?.name === "AbortError") return;
