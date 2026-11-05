@@ -33,6 +33,7 @@ const RANKS = Object.freeze([
 ]);
 
 const ACHIEVEMENTS = Object.freeze([
+  { id: 'skins-10', title: 'Valley Collector', description: 'Own 10 distinct active skins through creation, purchase or a personal grant.', type: 'owned_skins', threshold: 10 },
   { id: 'first-level', title: 'Moving Up', description: 'Reach level 2.', type: 'level', threshold: 2 },
   { id: 'level-10', title: 'Valley Regular', description: 'Reach level 10.', type: 'level', threshold: 10 },
   { id: 'level-25', title: 'Valley Tracker', description: 'Reach level 25.', type: 'level', threshold: 25 },
@@ -210,6 +211,16 @@ function countersFor(steamId) {
     playtime_minutes: Number(player.playtime_intervals || 0) * 5,
     quests: countQuestCompletions(steamId),
     events: countConfirmedEvents(steamId),
+    // Catalog availability (including shared premium presets) is not ownership.
+    // EXISTS prevents multiple entitlement paths from counting a preset twice.
+    owned_skins: Number(store.db.prepare(`
+      SELECT COUNT(*) AS count FROM economy_skin_presets p
+      WHERE p.active = 1 AND (
+        p.owner_steam_id = ? OR
+        EXISTS (SELECT 1 FROM economy_skin_unlocks u WHERE u.preset_id = p.id AND u.steam_id = ?) OR
+        EXISTS (SELECT 1 FROM economy_skin_grants g WHERE g.preset_id = p.id AND g.steam_id = ? AND g.revoked_at IS NULL)
+      )
+    `).get(steamId, steamId, steamId).count),
   };
 }
 

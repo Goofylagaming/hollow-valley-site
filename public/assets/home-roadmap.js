@@ -3,6 +3,7 @@
   // Update this release register whenever a roadmap item ships. Dates are the
   // verified production release date in Brisbane, never the date of a draft.
   const releases = {
+    2: { status: 'building', note: 'The ten-skin collector badge is in development using distinct owned, purchased or personally granted skins. Lifetime survival, Prime, Territory wins, species kills, hatch-to-adult and biome badges remain pending verified evidence integrations. Production delivery is not yet verified.' },
     1: { status: 'building', note: 'Earned profile title selection from verified account achievements is in development. Reputation from combat, helping players and Territory Wars, plus leaderboard, Discord and overlay title display, remain pending. Production delivery is not yet verified.' },
     22: { status: 'building', note: 'Membership skin collections, permanent monthly choices and verified-species publication are in development behind rollout flags. Starter palettes require in-game review. Broader rarity tiers and profile collection displays remain planned; production delivery is not yet verified.' },
     15: { status: 'partial', note: 'Admin-confirmed event announcements use HerbyBot. Opt-in experimental growth requests are available to admins; gameplay effect and recovery remain unverified. Automatic events, species bonuses and private in-game delivery remain pending.' },
