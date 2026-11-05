@@ -47,3 +47,7 @@
 .hv-report-item, .hv-reports-review > label { min-width:0; }
 .hv-report-meta { overflow-wrap:anywhere; }
 .hv-reports-main .hv-reports-review input, .hv-reports-main .hv-reports-review select, .hv-reports-main .hv-reports-review button { font-size:16px !important; }
+
+.context-save-area, .context-saved-area { border-top:1px solid #47634c; margin-top:16px; padding-top:12px; }
+.context-save-area button, .context-saved-area button, .context-review-save { font-size:16px !important; min-height:44px; margin:4px 8px 4px 0; }
+.context-save-area button, .context-saved-area button, .context-review-save { max-width:100%; white-space:normal; overflow-wrap:anywhere; }

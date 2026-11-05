@@ -14,7 +14,7 @@ function createReportContextSnapshots({db,env=process.env,now=Date.now}={}){
  function exists(){return Boolean(db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='player_report_context_snapshots'").get());}
  function schema(){db.exec(`CREATE TABLE IF NOT EXISTS player_report_context_snapshots(id TEXT PRIMARY KEY,report_id TEXT NOT NULL,actor_id INTEGER NOT NULL,actor_steam TEXT NOT NULL,context_json TEXT NOT NULL,context_digest TEXT NOT NULL,report_fingerprint TEXT NOT NULL,captured_at INTEGER NOT NULL,expires_at INTEGER NOT NULL,retention_days INTEGER NOT NULL,request_key TEXT NOT NULL,request_hash TEXT NOT NULL,UNIQUE(actor_id,request_key));CREATE INDEX IF NOT EXISTS idx_report_context_snapshot_report ON player_report_context_snapshots(report_id,captured_at DESC);CREATE INDEX IF NOT EXISTS idx_report_context_snapshot_expiry ON player_report_context_snapshots(expires_at);`);}
  function metadata(row){if(!uuid(row.id)||!uuid(row.report_id)||!Number.isSafeInteger(row.actor_id)||row.actor_id<=0||!/^\d{17}$/.test(row.actor_steam)||!Number.isSafeInteger(row.captured_at)||row.captured_at<0||![30,90,365].includes(row.retention_days)||row.expires_at!==row.captured_at+row.retention_days*DAY_MS||!(/^[a-f0-9]{64}$/).test(row.context_digest))fail(503,'Saved context metadata failed its integrity check.');return {id:row.id,reportId:row.report_id,capturedAt:new Date(row.captured_at).toISOString(),expiresAt:new Date(row.expires_at).toISOString(),retentionDays:row.retention_days,capturedByUserId:row.actor_id,contextDigest:row.context_digest};}
- function capabilities(getUser,binding){actor(getUser,binding);const p=policy();return {saveEnabled:p.enabled&&p.configured,retentionDays:p.configured?p.days:null,reviewLifetimeSeconds:REVIEW_MS/1000};}
+ function capabilities(getUser,binding){actor(getUser,binding);const p=policy();return {saveEnabled:p.enabled&&p.configured,savedReadEnabled:exists(),retentionDays:p.configured?p.days:null,reviewLifetimeSeconds:REVIEW_MS/1000};}
  function offer(getUser,id,binding,context){
   const user=actor(getUser,binding),p=policy();if(!p.enabled||!p.configured)return null;const saved=report(id),at=clock(),clean=project(context,saved,at);
   if(!clean.combat.events.length&&!clean.chat.messages.length)return null;
@@ -25,9 +25,10 @@ function createReportContextSnapshots({db,env=process.env,now=Date.now}={}){
  function save(getUser,id,binding,body){
   if(!body||Object.keys(body).some(key=>!['context','review','requestKey'].includes(key))||!uuid(body.requestKey))fail(400,'A prepared context review and request key are required.');
   db.exec('BEGIN IMMEDIATE');try{
-   const user=actor(getUser,binding),saved=report(id),at=clock(),clean=project(body.context,saved,at),review=body.review;
+   const user=actor(getUser,binding),saved=report(id),at=clock(),review=body.review;
    if(!review||Object.keys(review).sort().join(',')!=='contextDigest,expiresAt,issuedAt,reportFingerprint,reportId,retentionDays,reviewerBinding,signature,version')fail(400,'Invalid context review.');
    if(review.reportId!==id||review.reviewerBinding!==binding)fail(403,'The prepared reviewer binding changed.');
+   if(review.reportFingerprint!==digest(saved))fail(409,'The saved report changed. Load and review context again.');const clean=project(body.context,saved,at);
    const requestHash=digest({reportId:id,context:clean,review});
    if(exists()){
     const previous=db.prepare('SELECT * FROM player_report_context_snapshots WHERE actor_id=? AND request_key=?').get(user.id,body.requestKey);

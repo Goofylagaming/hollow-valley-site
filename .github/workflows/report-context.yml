@@ -20,6 +20,7 @@ on:
       - 'public/assets/report-context.js'
       - 'public/assets/player-reports.css'
       - 'scripts/verify-report-context.cjs'
+      - 'scripts/verify-report-snapshots.cjs'
       - '.github/workflows/report-context.yml'
 permissions:
   contents: read
@@ -43,3 +44,4 @@ jobs:
       - run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.62.1
       - run: npx playwright install --with-deps chromium
       - run: node scripts/verify-report-context.cjs
+      - run: node scripts/verify-report-snapshots.cjs

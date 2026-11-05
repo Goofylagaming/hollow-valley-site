@@ -274,3 +274,35 @@ recovery UI, retention selection, scheduled physical cleanup, authenticated stag
 and production verification remain unfinished. No live feature flag, key, retained
 report data, push, merge or deployment changed. The separate status publication
 candidate remains fixed at e9fb72c4.
+
+## Staff preservation controls (homepage v148)
+
+The private staff page now requires a separate review and confirmation before
+preserving the exact displayed context. It displays the configured duration and
+prepared-review expiry, supports cancellation without a write, and preserves the
+same request key and payload for an explicit retry after an uncertain response.
+No automatic save or browser-storage copy is made. Hiding, reloading, or changing
+accounts clears private in-memory context and prepared requests. After a cleared
+or interrupted request, staff can inspect saved copies before preparing a new one.
+
+Saved copies can be listed and opened independently of the source buffer, including
+while new saving is paused. Current moderator/account checks run before and after
+private operations; delayed replies cannot populate a replacement account's queue.
+The UI prevents a new source preparation while a save result remains uncertain.
+A changed retention configuration invalidates confirmation before a POST is sent.
+
+All 58 affected local tests pass. Both existing source-context and new preservation
+browser fixtures pass at desktop 1440 and phone 390. Preservation fixtures exercise
+review/cancel, explicit save, literal text, no browser storage, source failure,
+unreadable success-response recovery using the exact same request, paused recovery,
+retention changes, account switches during save/read, expiry, and unconfigured
+retention. The browser can transparently retry a disconnected request; the fixture
+uses a committed save with unreadable JSON to exercise the explicit uncertain-result
+control deterministically. Phone layout was visually checked. CI now includes both
+browser fixtures.
+
+The duration of 90 days and signing secret used in fixtures are synthetic only.
+Production retention selection, scheduling physical cleanup, authenticated staging,
+and production verification remain unfinished. Saving remains disabled by default;
+no production key or retained report data was created. No push, merge, deployment,
+or live setting changed. The status publication candidate remains e9fb72c4.
