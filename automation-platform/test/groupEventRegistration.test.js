@@ -26,6 +26,11 @@ function fixture(){
    registrations:()=>db.prepare('SELECT * FROM economy_group_event_registrations WHERE group_id=?').all(groupId)};
 }
 const code=value=>error=>error.code===value;
+test('event descriptors validate full canonical identity, schedule and fingerprint without depending on field order',()=>{
+ const f=fixture(),validate=require('../src/services/groupEventRegistration').validateDescriptor;
+ assert.deepEqual(validate(Object.fromEntries(Object.entries(f.input.event).reverse())),f.input.event);
+ for(const change of [{revision:'0'.repeat(64)},{extra:true},{eventName:'Unsafe\nname'},{eventId:'unknown'},{startTime:'2099-01-01'},{endTime:'2000-01-01T00:00:00.000Z'}])assert.throws(()=>validate({...f.input.event,...change}),code('GROUP_EVENT_CHANGED'));
+});
 async function rpc(action,body,token=process.env.HOLLOW_VALLEY_API_TOKEN){const response=await fetch(base+'/api/website/group-treasury/'+action,{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+token},body:JSON.stringify(body)});return {status:response.status,body:await response.json()};}
 test('group registration requires fresh explicit scheduled status; old unknown, active and hidden events cannot authorize entry',()=>{
  const f=fixture();assert.equal(events.preview(f.eventId).eventId,f.eventId);

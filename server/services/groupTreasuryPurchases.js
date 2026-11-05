@@ -1,6 +1,6 @@
 const {randomUUID}=require('node:crypto');
 const fail=(code,message,status=400)=>Object.assign(new Error(message),{code,status});
-function createGroupTreasuryPurchases(db,groups,client,{enabled=()=>process.env.GROUP_TREASURY_ENABLED==='1'&&process.env.GROUP_TREASURY_SPEND_ENABLED==='1',territory=null}={}){
+function createGroupTreasuryPurchases(db,groups,client,{enabled=()=>process.env.GROUP_TREASURY_ENABLED==='1'&&process.env.GROUP_TREASURY_SPEND_ENABLED==='1',territory=null,eventsEnabled=()=>process.env.GROUP_TREASURY_EVENT_ENABLED==='1'}={}){
   const lifecycle=require('./groupTreasuryLifecycle').createGroupTreasuryLifecycle(db);
   db.exec(`CREATE TABLE IF NOT EXISTS hv_group_treasury_purchases (
     request_id TEXT PRIMARY KEY,group_id INTEGER NOT NULL,client_key TEXT NOT NULL,created_by TEXT NOT NULL,
@@ -28,7 +28,7 @@ function createGroupTreasuryPurchases(db,groups,client,{enabled=()=>process.env.
   function writable(){if(!enabled())throw fail('TREASURY_SPENDING_DISABLED','New Treasury spending is not enabled',503);}
   function quote(value){
     try{const item=require('../../automation-platform/src/services/groupTreasuryCatalog').validateItem(value);
-      if(['group_cosmetic','territory_entry'].includes(item.purpose))return item;
+      if(['group_cosmetic','territory_entry','event_registration'].includes(item.purpose))return item;
     }catch{}
     throw fail('UNSUPPORTED_FULFILLMENT','This Treasury item does not have an available website fulfillment path',503);
   }
@@ -46,7 +46,7 @@ function createGroupTreasuryPurchases(db,groups,client,{enabled=()=>process.env.
     const current=groups.getState(actor).current;if(!current)throw fail('PURCHASE_UNAVAILABLE','Active group membership is required',404);group(actor,current.id);
     const result=await client.overview({groupId:current.id});group(actor,current.id);
     if(result?.groupId!==current.id||!Array.isArray(result.catalog)||result.catalog.length>100||!Array.isArray(result.cosmetics)||result.cosmetics.length>3||result.cosmetics.some(value=>!['fern','sandstone','night'].includes(value?.frame)||typeof value.grantedAt!=='string'))throw fail('SPEND_RESPONSE_MISMATCH','Treasury purchase data could not be verified',502);
-    return {groupId:current.id,catalog:result.catalog.filter(value=>value.purpose==='group_cosmetic'||(value.purpose==='territory_entry'&&territory?.ready())).map(quote),cosmetics:result.cosmetics.map(value=>({frame:value.frame,grantedAt:value.grantedAt}))};
+    return {groupId:current.id,catalog:result.catalog.filter(value=>value.purpose==='group_cosmetic'||(value.purpose==='territory_entry'&&territory?.ready())||(value.purpose==='event_registration'&&eventsEnabled()&&result.eventRegistrationEnabled===true)).map(quote),cosmetics:result.cosmetics.map(value=>({frame:value.frame,grantedAt:value.grantedAt}))};
   }
   async function prepare(actor,{expectedGroupId,itemId,revision,expectedCost,requestId}={}){
     writable();positive(expectedGroupId);positive(revision);positive(expectedCost);key(requestId);group(actor,expectedGroupId,true);
@@ -57,22 +57,28 @@ function createGroupTreasuryPurchases(db,groups,client,{enabled=()=>process.env.
     if(available?.groupId!==expectedGroupId||!Array.isArray(available.catalog))throw fail('SPEND_RESPONSE_MISMATCH','Treasury item group could not be verified',502);
     const selected=available?.catalog?.find(value=>value.id===itemId&&value.revision===revision);
     if(!selected)throw fail('ITEM_UNAVAILABLE','The reviewed Treasury item is no longer available',409);
-    const item=quote(selected);if(item.purpose==='territory_entry'&&!territory?.ready())throw fail('UNSUPPORTED_FULFILLMENT','Territory entry is not enabled',503);if(item.cost!==expectedCost)throw fail('PRICE_CHANGED','The listed price changed. Review the current Treasury item.',409);
+    const item=quote(selected);if(item.purpose==='territory_entry'&&!territory?.ready())throw fail('UNSUPPORTED_FULFILLMENT','Territory entry is not enabled',503);if(item.purpose==='event_registration'&&!eventsEnabled())throw fail('UNSUPPORTED_FULFILLMENT','Group event registration is not enabled',503);if(item.cost!==expectedCost)throw fail('PRICE_CHANGED','The listed price changed. Review the current Treasury item.',409);
+    const event=item.purpose==='event_registration'?require('../../automation-platform/src/services/groupEventRegistration').validateDescriptor(await client.eventPreview({eventId:item.target.eventId})):null;
+    if(event&&event.eventId!==item.target.eventId)throw fail('SPEND_RESPONSE_MISMATCH','The reviewed event could not be verified',502);
     return atomic(()=>{
-      group(actor,expectedGroupId,true);lifecycle.assertOpen(expectedGroupId);const duplicate=existing();if(duplicate)return duplicate;
+      group(actor,expectedGroupId,true);lifecycle.assertOpen(expectedGroupId);if(event&&!eventsEnabled())throw fail('GROUP_EVENT_DISABLED','New group event registration is not enabled',503);const duplicate=existing();if(duplicate)return duplicate;
       if(db.prepare("SELECT request_id FROM hv_group_treasury_purchases WHERE group_id=? AND state IN('draft','submitted','reserved')").get(expectedGroupId))throw fail('PURCHASE_PENDING','Resolve the existing group purchase before starting another',409);
-      const fulfillment=item.purpose==='territory_entry'?territory.preview(actor,{expectedGroupId,item}):null;
+      const fulfillment=item.purpose==='territory_entry'?territory.preview(actor,{expectedGroupId,item}):event;
       const id=randomUUID();db.prepare("INSERT INTO hv_group_treasury_purchases(request_id,group_id,client_key,created_by,item_json,state,fulfillment_json) VALUES(?,?,?,?,?,'draft',?)").run(id,expectedGroupId,requestId,actor,JSON.stringify(item),fulfillment?JSON.stringify(fulfillment):null);audit(id,'draft',actor);return project(row(actor,id,expectedGroupId,true));
     });
   }
-  const payload=(value,actor)=>{const item=JSON.parse(value.item_json);return {groupId:value.group_id,requestId:value.request_id,actorSteamId:actor,itemId:item.id,revision:item.revision,expectedCost:item.cost};};
+  const payload=(value,actor)=>{const item=JSON.parse(value.item_json);return {groupId:value.group_id,requestId:value.request_id,actorSteamId:actor,itemId:item.id,revision:item.revision,expectedCost:item.cost,...(item.purpose==='event_registration'?{event:JSON.parse(value.fulfillment_json)}:{})};};
   function settle(actor,id,expectedGroupId,result){return atomic(()=>{
     const current=row(actor,id,expectedGroupId,true);
     let remoteItem;try{remoteItem=quote(result?.item);}catch{throw fail('SPEND_RESPONSE_MISMATCH','The purchase receipt could not be verified',502);}
     if(!result||result.requestId!==id||result.groupId!==expectedGroupId||!['reserved','fulfilling','committed','released'].includes(result.state)||JSON.stringify(remoteItem)!==current.item_json)throw fail('SPEND_RESPONSE_MISMATCH','The purchase receipt could not be verified',502);
     if(result.state==='fulfilling'&&remoteItem.purpose!=='territory_entry')throw fail('SPEND_RESPONSE_MISMATCH','Unexpected cosmetic dispatch state',502);
+    if(remoteItem.purpose==='event_registration'&&!(result.state==='released'&&result.event===null)){
+      let event;try{event=require('../../automation-platform/src/services/groupEventRegistration').validateDescriptor(result.event);}catch{throw fail('SPEND_RESPONSE_MISMATCH','The event registration receipt could not be verified',502);}
+      if(JSON.stringify(event)!==current.fulfillment_json)throw fail('SPEND_RESPONSE_MISMATCH','The event registration receipt has different details',502);
+    }
     const localState=result.state==='fulfilling'?'reserved':result.state;
-    const receipt=JSON.stringify({requestId:id,groupId:expectedGroupId,item:remoteItem,state:result.state,createdAt:result.createdAt,resolvedAt:result.resolvedAt});
+    const receipt=JSON.stringify({requestId:id,groupId:expectedGroupId,item:remoteItem,state:result.state,createdAt:result.createdAt,resolvedAt:result.resolvedAt,...(remoteItem.purpose==='event_registration'?{event:result.event}:{})});
     if(['committed','released'].includes(current.state)){
       if(current.state!==result.state||current.remote_json!==receipt)throw fail('SPEND_RESPONSE_MISMATCH','Purchase outcomes disagree',502);return project(current);
     }
@@ -86,7 +92,7 @@ function createGroupTreasuryPurchases(db,groups,client,{enabled=()=>process.env.
     // Authority can change while the remote request is in flight. Preserve the
     // group request for its new owner, but return no management data to the old one.
     row(actor,id,expectedGroupId,true);
-    const allowed=['INSUFFICIENT_TREASURY','ITEM_UNAVAILABLE','TREASURY_SPENDING_DISABLED','GROUP_CLOSING','SPEND_RESPONSE_MISMATCH','TREASURY_INTEGRITY_ERROR','PRICE_CHANGED','ENTRY_LINK_CHANGED','ENTRY_EVENT_UNAVAILABLE','ENTRY_LEADER_REQUIRED','ENTRY_LINK_REQUIRED','ENTRY_TEST_RESTRICTED','ENTRY_EVIDENCE_INCOMPLETE','ENTRY_PROOF_NOT_CONFIGURED'];
+    const allowed=['INSUFFICIENT_TREASURY','ITEM_UNAVAILABLE','TREASURY_SPENDING_DISABLED','GROUP_CLOSING','SPEND_RESPONSE_MISMATCH','TREASURY_INTEGRITY_ERROR','PRICE_CHANGED','ENTRY_LINK_CHANGED','ENTRY_EVENT_UNAVAILABLE','ENTRY_LEADER_REQUIRED','ENTRY_LINK_REQUIRED','ENTRY_TEST_RESTRICTED','ENTRY_EVIDENCE_INCOMPLETE','ENTRY_PROOF_NOT_CONFIGURED','GROUP_EVENT_DISABLED','GROUP_EVENT_CHANGED','GROUP_EVENT_NOT_OPEN','GROUP_EVENT_UNAVAILABLE','GROUP_EVENT_FEED_UNAVAILABLE'];
     db.prepare("UPDATE hv_group_treasury_purchases SET last_error_code=? WHERE request_id=? AND group_id=? AND state IN('submitted','reserved')").run(allowed.includes(error.code)?error.code:'SPEND_OUTCOME_UNCERTAIN',id,expectedGroupId);
     return project(row(actor,id,expectedGroupId,true));
   }
@@ -96,6 +102,7 @@ function createGroupTreasuryPurchases(db,groups,client,{enabled=()=>process.env.
       const value=row(actor,id,expectedGroupId,true);
       if(value.state==='draft'){writable();lifecycle.assertOpen(expectedGroupId);
         if(JSON.parse(value.item_json).purpose==='territory_entry'&&!territory?.ready())throw fail('TREASURY_SPENDING_DISABLED','New Territory entry is not enabled',503);
+        if(JSON.parse(value.item_json).purpose==='event_registration'&&!eventsEnabled())throw fail('GROUP_EVENT_DISABLED','New group event registration is not enabled',503);
         db.prepare("UPDATE hv_group_treasury_purchases SET state='submitted',authorized_at=datetime('now') WHERE request_id=?").run(id);audit(id,'submitted',actor);}
       return row(actor,id,expectedGroupId,true);
     });
@@ -106,12 +113,14 @@ function createGroupTreasuryPurchases(db,groups,client,{enabled=()=>process.env.
       writable();group(actor,expectedGroupId,true);lifecycle.assertOpen(expectedGroupId);
       if(!result){
         if(JSON.parse(current.item_json).purpose==='territory_entry'&&!territory?.ready())throw fail('TREASURY_SPENDING_DISABLED','New Territory entry is not enabled',503);
+        if(JSON.parse(current.item_json).purpose==='event_registration'&&!eventsEnabled())throw fail('GROUP_EVENT_DISABLED','New group event registration is not enabled',503);
         result=await client.reserve(payload(current,actor));settle(actor,id,expectedGroupId,result);if(result.state!=='reserved')return project(row(actor,id,expectedGroupId,true));}
       group(actor,expectedGroupId,true);lifecycle.assertOpen(expectedGroupId);
       if(JSON.parse(current.item_json).purpose==='territory_entry'){
         if(!territory)throw fail('UNSUPPORTED_FULFILLMENT','Territory entry is unavailable',503);
         return settle(actor,id,expectedGroupId,await territory.finish(actor,project(row(actor,id,expectedGroupId,true)),result));
       }
+      if(JSON.parse(current.item_json).purpose==='event_registration'&&!eventsEnabled())throw fail('GROUP_EVENT_DISABLED','New group event registration is not enabled',503);
       return settle(actor,id,expectedGroupId,await client.commit({groupId:expectedGroupId,requestId:id,actorSteamId:actor}));
     }catch(error){return pending(actor,id,expectedGroupId,error);}
   }
@@ -134,6 +143,16 @@ function createGroupTreasuryPurchases(db,groups,client,{enabled=()=>process.env.
       return settle(actor,id,expectedGroupId,result);}
     catch(error){return pending(actor,id,expectedGroupId,error);}
   }
+  async function registrations(actor){
+    const current=groups.getState(actor).current;if(!current)throw fail('PURCHASE_UNAVAILABLE','Active group membership is required',404);group(actor,current.id);
+    const result=await client.eventRegistrations({groupId:current.id});group(actor,current.id);
+    if(result?.groupId!==current.id||!Array.isArray(result.registrations)||result.registrations.length>50)throw fail('SPEND_RESPONSE_MISMATCH','Group event registrations could not be verified',502);
+    const registrations=result.registrations.map(row=>{
+      let event;try{event=require('../../automation-platform/src/services/groupEventRegistration').validateDescriptor(row.event);key(row.requestId);}catch{throw fail('SPEND_RESPONSE_MISMATCH','Group event registration could not be verified',502);}
+      if(event.eventId!==row.eventId||typeof row.registeredAt!=='string'||!Number.isFinite(Date.parse(row.registeredAt)))throw fail('SPEND_RESPONSE_MISMATCH','Group event registration could not be verified',502);
+      return {eventId:event.eventId,event,requestId:row.requestId,registeredAt:row.registeredAt};
+    });return {groupId:current.id,registrations};
+  }
   async function selectFrame(actor,{expectedGroupId,frame,expectedRevision}={}){
     positive(expectedGroupId);group(actor,expectedGroupId,true);
     if(!['none','fern','sandstone','night'].includes(frame)||!Number.isSafeInteger(expectedRevision)||expectedRevision<0)throw fail('INVALID_COSMETIC','Choose an owned group frame and a valid revision');
@@ -149,6 +168,6 @@ function createGroupTreasuryPurchases(db,groups,client,{enabled=()=>process.env.
       return {groupId:expectedGroupId,frame,revision};
     });
   }
-  return {overview,catalog,prepare,confirm,reconcile,release,selectFrame,read:(actor,id,expectedGroupId)=>project(row(actor,id,positive(expectedGroupId)))};
+  return {overview,catalog,prepare,confirm,reconcile,release,registrations,selectFrame,read:(actor,id,expectedGroupId)=>project(row(actor,id,positive(expectedGroupId)))};
 }
 module.exports={createGroupTreasuryPurchases};

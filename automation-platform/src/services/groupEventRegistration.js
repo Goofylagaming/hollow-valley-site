@@ -1,5 +1,17 @@
 const { createHash } = require('node:crypto');
 const fail = (code, message, status = 409) => Object.assign(new Error(message), { code, status });
+function validateDescriptor(input) {
+  const fields=['eventId','guildId','eventName','startTime','endTime','revision'];
+  if(!input||typeof input!=='object'||Array.isArray(input)||Object.keys(input).length!==fields.length||Object.keys(input).some(key=>!fields.includes(key))||
+    typeof input.eventId!=='string'||!/^\d{10,24}$/.test(input.eventId)||typeof input.guildId!=='string'||!/^\d{10,24}$/.test(input.guildId)||
+    typeof input.eventName!=='string'||!input.eventName.trim()||input.eventName.length>120||/[\x00-\x1f\x7f]/.test(input.eventName)||typeof input.startTime!=='string'||
+    !Number.isFinite(Date.parse(input.startTime))||new Date(input.startTime).toISOString()!==input.startTime||
+    (input.endTime!==null&&(typeof input.endTime!=='string'||!Number.isFinite(Date.parse(input.endTime))||new Date(input.endTime).toISOString()!==input.endTime||Date.parse(input.endTime)<Date.parse(input.startTime))))throw fail('GROUP_EVENT_CHANGED','The reviewed event details could not be verified');
+  const value={eventId:input.eventId,guildId:input.guildId,eventName:input.eventName,startTime:input.startTime,endTime:input.endTime};
+  const revision=createHash('sha256').update(JSON.stringify(value)).digest('hex');
+  if(input.revision!==revision)throw fail('GROUP_EVENT_CHANGED','The reviewed event details could not be verified');
+  return {...value,revision};
+}
 function createGroupEventRegistration(db, { enabled = () => process.env.GROUP_TREASURY_EVENT_ENABLED === '1', now = Date.now } = {}) {
   db.exec(`CREATE TABLE IF NOT EXISTS economy_group_event_registrations (
     event_id TEXT NOT NULL,group_id INTEGER NOT NULL,request_id TEXT NOT NULL UNIQUE,
@@ -32,7 +44,7 @@ function createGroupEventRegistration(db, { enabled = () => process.env.GROUP_TR
     const actual = preview(eventId);
     // The full canonical event snapshot is consent data; a changed title/time
     // requires reviewing a new request rather than silently retargeting one.
-    if (JSON.stringify(expected) !== JSON.stringify(actual)) throw fail('GROUP_EVENT_CHANGED', 'The event changed; review its current details before registering');
+    if (JSON.stringify(validateDescriptor(expected)) !== JSON.stringify(actual)) throw fail('GROUP_EVENT_CHANGED', 'The event changed; review its current details before registering');
     return actual;
   }
   // Caller holds the accounting write transaction. No independent commit is
@@ -61,4 +73,4 @@ function createGroupEventRegistration(db, { enabled = () => process.env.GROUP_TR
   }
   return { enabled, preview, reviewed, fulfill, verify, list };
 }
-module.exports = { createGroupEventRegistration };
+module.exports = { createGroupEventRegistration, validateDescriptor };

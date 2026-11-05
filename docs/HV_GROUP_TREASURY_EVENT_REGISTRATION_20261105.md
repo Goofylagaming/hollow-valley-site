@@ -24,16 +24,27 @@ Receipt verification requires the matching registration, group ledger debit and 
 
 ## Gates and remaining work
 
-`GROUP_TREASURY_EVENT_ENABLED=0` defaults off in automation, in addition to the general donation/spending gates. The current website purchase controls still reject group-event items, and the catalog operator tool still refuses their activation. This backend integration is not a player-facing release.
+`GROUP_TREASURY_EVENT_ENABLED=0` defaults off on both website and automation, in addition to the general donation/spending gates. The existing Groups purchase controls now support reviewed group-event items when both service gates permit them. The catalog operator tool still refuses group-event activation pending host roster integration and rollout review. This remains local development, not a production release.
+
+## Owner review and member history
+
+Draft preparation fetches the authoritative event descriptor through the private accounting API and validates its full schema/fingerprint before saving it with the reviewed price and group. Membership/ownership is rechecked after the event read, and a changing owner cannot create a stale draft. The browser cannot supply or overwrite the event descriptor, actor identity or confirmation price. Confirmation requires the saved request's group and explicit consent, with origin, linked Steam and preview/read-only protections inherited from Treasury purchase routes.
+
+The Groups review shows the saved event name, start/end time and a link derived from the verified Discord guild/event IDs. It explains that group registration does not confirm individual attendance or rewards. Unknown end times remain unset. Event and group names are rendered as text. A changed event leaves the original request pending for cancellation rather than replacing the reviewed schedule; rescheduled receipts cannot be accepted as the original purchase.
+
+Confirmation forwards only the saved descriptor to accounting. Reserved/committed replies must return that same descriptor, or the local request remains pending until matching status is read. A release-before-reserve tombstone may have no event descriptor; it cannot create a registration or debit. Lost reservation/commit replies recover under the same immutable request. A successor owner can resolve an uncommitted request; former owners cannot manage or redirect it.
+
+Current group members can read up to 50 verified registrations through `GET /api/group-treasury/event-registrations`, scoped to their current website group rather than a caller-supplied group ID. The website checks membership before and after the remote read and strips actor identities. Responses are private/no-store. The Groups panel loads registration history independently from catalog availability, labels an unavailable history as unverified and clears private data when session/group context changes. Paused purchases retain history and existing-request recovery.
 
 Before accepting real group event purchases:
 
-- Connect durable owner review/consent, event descriptors, group registration history and the existing purchase controls.
-- Add reviewed operator activation only after the website flow and host registration roster are connected.
+- Add host registration roster controls and reviewed operator activation. The owner review/consent and private member history are implemented locally.
 - Verify the deployed trusted producer's explicit event lifecycle status, cancellation/removal behavior, guild identity and freshness.
 - Approve actual prices and fee policy; registration does not currently impose a general event participation fee.
 - Verify authenticated staging, concurrent/restart recovery, privacy, backups and hosted checks. Obtain separate publication/merge/deployment approval where required.
 
 ## Local evidence
 
-Eleven dedicated tests use synthetic coins, the real event normalizer/cache, temporary economy databases and real private HTTP routes. They cover scheduled/unknown/hidden/stale/future-clock status, immutable event review, atomic charge/registration, reschedule/start/rename rejection, failed-audit rollback, duplicate benefits, missing receipt evidence, paused rollout, independent commit/cancellation processes, token protection and lost commit replies. Existing event-feed regression tests also pass. These checks do not prove live producer behavior, the unfinished owner/host UI or staging delivery.
+Twelve accounting/descriptor tests use synthetic coins, the real event normalizer/cache, temporary economy databases and real private HTTP routes. They cover scheduled/unknown/hidden/stale/future-clock status, immutable event review, descriptor fingerprints/schema, atomic charge/registration, reschedule/start/rename rejection, failed-audit rollback, duplicate benefits, missing receipt evidence, paused rollout, independent commit/cancellation processes, token protection and lost commit replies.
+
+Nine website HTTP tests cover owner consent, forged fields, changed schedules before/after reservation, lost commit replies, receipt mismatches, private member history, delayed-read membership changes, owner succession during commit/preview and paused rollout. The Groups browser fixture passes at 1440px and 390px for schedule review, lost-reply recovery, reschedule rejection/cancellation, member history, safe text, existing Territory/cosmetic flows and session loss. Existing event-feed regressions pass. These checks do not prove live producer behavior, unfinished host controls or staging delivery.
