@@ -1,0 +1,38 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { DatabaseSync } = require('node:sqlite');
+const { createDeathRecapService } = require('../src/services/deathRecapService');
+test('recaps disclose delayed victim-owned events and preserve unknown historical fields', () => {
+  const db = new DatabaseSync(':memory:'), now = Date.now(), steam = '76561198000000801', other = '76561198000000802';
+  try {
+    const service = createDeathRecapService(db, { now: () => now, enabled: () => true });
+    assert.deepEqual(service.list(steam), { recaps: [] });
+    db.exec('CREATE TABLE combat_events(id TEXT PRIMARY KEY,occurred_at TEXT,killer_name TEXT,killer_steam_id TEXT,victim_steam_id TEXT)');
+    const insert = db.prepare('INSERT INTO combat_events VALUES (?,?,?,?,?)');
+    insert.run('owned', new Date(now - 300001).toISOString(), 'Attacker', other, steam);
+    insert.run('recent', new Date(now - 1000).toISOString(), 'Recent', other, steam);
+    insert.run('foreign', new Date(now - 300001).toISOString(), 'Foreign', steam, other);
+    insert.run('old', new Date(now - 31 * 86400000).toISOString(), 'Expired', other, steam);
+    const result = service.list(steam);
+    assert.equal(result.recaps.length, 1); assert.equal(result.recaps[0].id, 'owned');
+    assert.equal(result.recaps[0].attackerName, 'Attacker'); assert.equal(result.recaps[0].location, null);
+    assert.equal(result.recaps[0].attackerSpecies, null); assert.equal(JSON.stringify(result).includes(other), false);
+    assert.equal(result.recaps[0].recentCombat.length,1);
+    assert.equal(result.recaps[0].recentCombat[0].type,'kill');
+    insert.run('unrelated',new Date(now-400000).toISOString(),'Someone',other,'76561198000000803');
+    insert.run('too-early',new Date(now-1000000).toISOString(),'Earlier',steam,other);
+    insert.run('in-window',new Date(now-400000).toISOString(),'Recorded',steam,other);
+    assert.equal(service.list(steam).recaps[0].recentCombat.length,2);
+    db.exec('ALTER TABLE combat_events ADD COLUMN victim_species TEXT');
+    db.prepare('UPDATE combat_events SET victim_species=? WHERE id=?').run('rex', 'owned');
+    assert.equal(service.list(steam).recaps[0].victimSpecies, 'rex');
+    db.exec('ALTER TABLE combat_events ADD COLUMN killer_species TEXT; ALTER TABLE combat_events ADD COLUMN victim_growth REAL');
+    db.prepare('UPDATE combat_events SET killer_species=?,victim_growth=? WHERE id=?').run('triceratops',0,'owned');
+    assert.equal(service.list(steam).recaps[0].attackerSpecies,'triceratops');
+    assert.equal(service.list(steam).recaps[0].growth,0);
+    db.exec('ALTER TABLE combat_events ADD COLUMN event_location TEXT');
+    db.prepare('UPDATE combat_events SET event_location=? WHERE id=?').run(JSON.stringify({x:0,y:-1000}),'owned');
+    assert.deepEqual(service.list(steam).recaps[0].eventLocation,{x:0,y:-1000});
+    assert.throws(() => service.list('invalid'), { status: 400 });
+  } finally { db.close(); }
+});

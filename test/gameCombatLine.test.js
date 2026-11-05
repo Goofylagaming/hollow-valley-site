@@ -9,6 +9,9 @@ test('combat parser uses outer Unreal UTC timestamp before daylight saving', () 
   assert.equal(event.killerSteamId, '76561198038977506');
   assert.equal(event.victimSteamId, '76561197998095210');
   assert.equal(event.victimSpecies, 'Diabloceratops');
+  assert.equal(event.killerSpecies, 'Tyrannosaurus');
+  assert.equal(event.victimGrowth, 0.256452);
+  assert.deepEqual(event.eventLocation,{x:75005.663,y:-61468.513});
 });
 
 test('combat parser stays correct when Windows local log time advances to UTC+11 for DST', () => {
@@ -26,6 +29,14 @@ test('natural deaths also use outer UTC timestamp', () => {
   assert.equal(event.occurredAt, '2026-10-04T03:27:10.456Z');
   assert.equal(event.killerSteamId, null);
   assert.equal(event.victimName, 'DreamWolfer12');
+  assert.equal(event.victimSpecies, 'Gallimimus');
+  assert.equal(event.victimGrowth, 0.5);
+});
+
+test('combat parser preserves zero growth and leaves missing or malformed growth unknown', () => {
+  const prefix='[2026.10.04-03.26.00:123][101]LogTheIsleKillData: [2026.10.04-14.26.00] Player [76561198000000001] Dino: Tyrannosaurus, Female, 0.8 - Killed the following player: Victim, [76561198000000002], Dino: Omniraptor, Gender: Male';
+  assert.equal(parseCombatLine(prefix+', Growth: 0, at: X=1').victimGrowth,0);
+  for(const suffix of ['', ', Growth: 1.5', ', Growth: 0.5garbage', ', Growth: -1', ', Growth: NaN'])assert.equal(parseCombatLine(prefix+suffix).victimGrowth,null);
 });
 
 test('outer Unreal timestamp parser accepts millisecond precision', () => {

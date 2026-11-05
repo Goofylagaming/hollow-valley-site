@@ -30,10 +30,11 @@ function parseCombatLine(line) {
   if (!text.includes('LogTheIsleKillData:')) return null;
 
   const payload = text.split('LogTheIsleKillData:').slice(1).join('LogTheIsleKillData:').trim();
-  const actor = /^\[([^\]]+)\]\s*(.*?)\s*\[(\d{17})\]\s+Dino:\s*.*?\s+-\s+(.*)$/.exec(payload);
+  const actor = /^\[([^\]]+)\]\s*(.*?)\s*\[(\d{17})\]\s+Dino:\s*(.*?)\s+-\s+(.*)$/.exec(payload);
   if (!actor) return null;
 
-  const [, rawTime, actorName, actorSteamId, outcome] = actor;
+  const [, rawTime, actorName, actorSteamId, actorDino, outcome] = actor;
+  const actorFields = actorDino.split(',').map(value => value.trim());
   const occurredAt = parseUnrealUtcTimestamp(text) || parseIsleLocalTimestamp(rawTime);
   if (!occurredAt) return null;
 
@@ -46,6 +47,9 @@ function parseCombatLine(line) {
       victimSteamId: kill[2],
       victimName: cleanName(kill[1]),
       victimSpecies: outcome.slice(kill[0].length).split(',')[0].trim() || null,
+      killerSpecies: actorFields[0] || null,
+      victimGrowth: parseGrowth(/,\s*Growth:\s*([^,]+)/i.exec(outcome)?.[1]),
+      eventLocation: parseEventLocation(outcome),
     };
   }
 
@@ -56,10 +60,25 @@ function parseCombatLine(line) {
       killerName: null,
       victimSteamId: actorSteamId,
       victimName: cleanName(actorName),
+      victimSpecies: actorFields[0] || null,
+      victimGrowth: parseGrowth(actorFields[2]),
     };
   }
 
   return null;
+}
+
+function parseGrowth(value) {
+  if (typeof value !== 'string' || !/^(?:0(?:\.\d+)?|1(?:\.0+)?)$/.test(value.trim())) return null;
+  return Number(value.trim());
+}
+
+function parseEventLocation(value) {
+  const match = /\bat:\s*X=([+-]?\d+(?:\.\d+)?)\s+Y=([+-]?\d+(?:\.\d+)?)(?:\s|$)/i.exec(value);
+  if (!match) return null;
+  const x = Number(match[1]), y = Number(match[2]);
+  if (![x, y].every(number => Number.isFinite(number) && Math.abs(number) <= 1e7)) return null;
+  return { x, y };
 }
 
 module.exports = { parseUnrealUtcTimestamp, parseIsleLocalTimestamp, parseCombatLine };

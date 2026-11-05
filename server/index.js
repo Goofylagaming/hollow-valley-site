@@ -265,6 +265,7 @@ function createApp() {
   app.use("/api/legacy", require("./routes/valleyLegacy"));
   app.use("/api/journeys", require("./routes/journeys"));
   app.use("/api/discovery", require("./routes/discovery"));
+  app.use("/api/death-recaps", require("./routes/deathRecaps"));
   app.use("/api/roster", rosterRouter);
   app.use("/api/leaderboards", leaderboardsRouter);
   app.use("/api/map", mapRouter);
@@ -321,7 +322,7 @@ function createApp() {
   app.use("/api/dinostorage", legacyDirectGameApiRetired);
   app.all(["/api/park", "/api/playerdata", "/api/redeem", "/api/parked", "/api/admin"], legacyDirectGameApiRetired);
 
-  const PAGE_ROUTES = ["journeys", "skin-gifts", "skin-codes", "gallery", "legacy", "dashboard", "wallet", "quests", "profile", "mydinos", "bodydrop", "friends", "groups", "marketplace", "livemap", "leaderboard", "supporter", "events", "help", "rules", "packs", "updates", "support", "community", "recruitment", "activity", "status", "reports"];
+  const PAGE_ROUTES = ["death-recaps", "journeys", "skin-gifts", "skin-codes", "gallery", "legacy", "dashboard", "wallet", "quests", "profile", "mydinos", "bodydrop", "friends", "groups", "marketplace", "livemap", "leaderboard", "supporter", "events", "help", "rules", "packs", "updates", "support", "community", "recruitment", "activity", "status", "reports"];
   for (const page of PAGE_ROUTES) {
     app.get(`/${page}`, (req, res) => {
       res.sendFile(path.join(__dirname, "..", "public", `${page}.html`));

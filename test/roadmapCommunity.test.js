@@ -61,8 +61,8 @@ test("roadmap ballot limits voting to three idea-stage features per Steam identi
   const initial = voting.voteSummary(steam1);
   assert.equal(initial.maxVotes, 3);
   assert.equal(initial.myVotes.length, 0);
-  assert.equal(initial.eligibleFeatureIds.length, 15);
-  assert.equal(new Set(initial.eligibleFeatureIds).size, 15, "No duplicate roadmap feature IDs");
+  assert.equal(initial.eligibleFeatureIds.length, 14);
+  assert.equal(new Set(initial.eligibleFeatureIds).size, 14, "No duplicate roadmap feature IDs");
 
   for (const id of [3, 4, 5]) voting.setVote(steam1, id, true);
   voting.setVote(steam1, 5, true); // idempotent repeated request
@@ -70,7 +70,7 @@ test("roadmap ballot limits voting to three idea-stage features per Steam identi
   assert.equal(voting.voteSummary(steam1).counts[5], 1);
   assert.throws(() => voting.setVote(steam1, 6, true), { code: "VOTE_LIMIT" });
 
-  for (const id of [1, 2, 7, 8, 9, 10, 11, 13, 15, 22, 23, 24, 31, 0, 100]) {
+  for (const id of [1, 2, 7, 8, 9, 10, 11, 12, 13, 15, 22, 23, 24, 31, 0, 100]) {
     assert.throws(() => voting.setVote(steam1, id, true), { code: "FEATURE_NOT_VOTABLE" });
   }
   assert.throws(() => voting.setVote("not-steam", 1, true), { code: "STEAM_REQUIRED" });
@@ -186,12 +186,12 @@ test("website routes enforce linked Steam, same-origin JSON requests and admin m
     const publicBody = await publicResult.json();
     assert.equal(publicBody.requiresSteam, true);
 
-    assert.equal((await post("/api/roadmap/votes", { featureId: 12, selected: true })).status, 401);
-    assert.equal((await post("/api/roadmap/votes", { featureId: 12, selected: true }, { "X-Test-Steam": "nope" })).status, 403);
-    assert.equal((await post("/api/roadmap/votes", { featureId: 12, selected: true }, { "X-Test-Steam": steam2, Origin: "https://evil.example" })).status, 403);
-    const okay = await post("/api/roadmap/votes", { featureId: 12, selected: true }, { "X-Test-Steam": steam2 });
+    assert.equal((await post("/api/roadmap/votes", { featureId: 14, selected: true })).status, 401);
+    assert.equal((await post("/api/roadmap/votes", { featureId: 14, selected: true }, { "X-Test-Steam": "nope" })).status, 403);
+    assert.equal((await post("/api/roadmap/votes", { featureId: 14, selected: true }, { "X-Test-Steam": steam2, Origin: "https://evil.example" })).status, 403);
+    const okay = await post("/api/roadmap/votes", { featureId: 14, selected: true }, { "X-Test-Steam": steam2 });
     assert.equal(okay.status, 200);
-    assert.ok((await okay.json()).myVotes.includes(12));
+    assert.ok((await okay.json()).myVotes.includes(14));
     assert.equal((await post("/api/roadmap/votes", { featureId: 31, selected: true }, { "X-Test-Steam": steam2 })).status, 400);
     assert.equal((await fetch(base + "/api/roadmap/admin/suggestions")).status, 401);
     assert.equal((await fetch(base + "/api/roadmap/admin/suggestions", { headers: { "X-Test-Steam": steam1 } })).status, 403);
