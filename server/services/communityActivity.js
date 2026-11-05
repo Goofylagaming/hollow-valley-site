@@ -8,18 +8,7 @@ const automation=require("./automationWebsiteClient");
 const guides=require("./communityGuides");
 const groups=require("../groupsStore");
 
-db.exec([
-  "CREATE TABLE IF NOT EXISTS hv_event_results_public (",
-  " event_key TEXT PRIMARY KEY,",
-  " title TEXT NOT NULL,",
-  " event_at TEXT NOT NULL,",
-  " summary TEXT NOT NULL,",
-  " winners_json TEXT NOT NULL DEFAULT '[]',",
-  " published_at TEXT NOT NULL,",
-  " published_by_steam_id TEXT NOT NULL",
-  ");",
-  "CREATE INDEX IF NOT EXISTS hv_event_results_latest ON hv_event_results_public (published_at DESC);",
-].join("\n"));
+const publications=require('./eventResultPublicStore').createPublicResultStore(db);
 
 function problem(code,message){const e=new Error(message);e.code=code;return e;}
 function safeText(value,max) {
@@ -104,14 +93,7 @@ function sanitizeEvents(raw,nowMs=Date.now()){
   return {available:true,stale:false,syncedAt,upcoming:rows};
 }
 function publicResults(limit=12){
-  const cap=Number.isSafeInteger(Number(limit))?Math.max(1,Math.min(25,Number(limit))):12;
-  return db.prepare("SELECT event_key,title,event_at,summary,winners_json,published_at FROM hv_event_results_public ORDER BY event_at DESC,published_at DESC LIMIT ?")
-    .all(cap).map(row=>({
-      eventKey:row.event_key,title:row.title,eventAt:row.event_at,
-      summary:row.summary,winners:JSON.parse(row.winners_json||"[]"),
-      publishedAt:row.published_at,
-      source:"staff-published",automaticallyVerified:false,automaticPayout:false,
-    }));
+  return publications.list(limit);
 }
 async function overview({hours=24,nowMs=Date.now()}={}){
   const requested=Number(hours),windowHours=[24,72,168].includes(requested)?requested:24;
@@ -154,39 +136,30 @@ function packContext(user){
   };
 }
 function validateEventResult(value,nowMs=Date.now()){
-  if(!value||typeof value!=="object"||Array.isArray(value))throw problem("INVALID_EVENT_RESULT","Invalid event result.");
-  const key=safeText(value.eventKey,60);
-  const title=safeText(value.title,120),summary=safeText(value.summary,1000);
-  const time=iso(value.eventAt);
-  if(!/^[a-zA-Z0-9][a-zA-Z0-9_-]{5,59}$/.test(key)||
-    title.length<8 || title.length>120 || summary.length<40 || summary.length>1000 ||
-    /\b\d{17}\b/.test(title) || /\b\d{17}\b/.test(summary) ||
-    !time || Date.parse(time)>nowMs+60000 || Date.parse(time)<nowMs-366*86400000) {
-    throw problem("INVALID_EVENT_RESULT","Enter a unique event key, title, 40–1,000 character summary and a completed event date within the past year.");
-  }
-  if(!Array.isArray(value.winners)||value.winners.length>5)
-    throw problem("INVALID_EVENT_RESULT","Enter at most five winner display names.");
-  const winners=value.winners.map(x=>safeText(x,80));
-  if(winners.some(x=>x.length<2||x.length>80||/\b\d{17}\b/.test(x)))
-    throw problem("INVALID_EVENT_RESULT","Use winner display names without Steam IDs (2–80 characters).");
-  return {key,title,summary,time,winners};
+  return require('./eventResultValidation').validateEventResult(value,nowMs);
 }
 function publishResult(user,value){
-  if(!user?.is_admin || !/^\d{17}$/.test(String(user.steam_id||"")))
+  if(!user?.is_admin || !/^\d{17}$/.test(String(user.steam_id||""))||!Number.isSafeInteger(user.id)||!db.prepare('SELECT 1 FROM users WHERE id=? AND steam_id=? AND is_admin=1').get(user.id,user.steam_id))
     throw problem("ADMIN_REQUIRED","A Steam-linked administrator is required.");
+  if(require('../middleware/skinStudioSafety').getSkinStudioSafety().readOnly)throw problem('READ_ONLY','This preview cannot publish event results.');
   if(value?.confirm!=="PUBLISH")throw problem("CONFIRM_REQUIRED",'Type "PUBLISH" to release the event result.');
   const event=validateEventResult(value);
   const at=new Date().toISOString();
+  db.exec('BEGIN IMMEDIATE');
   try{
+    if(!db.prepare('SELECT 1 FROM users WHERE id=? AND steam_id=? AND is_admin=1').get(user.id,user.steam_id))throw problem('ADMIN_REQUIRED','Current staff access is required.');
+    if(require('../middleware/skinStudioSafety').getSkinStudioSafety().readOnly)throw problem('READ_ONLY','This preview cannot publish event results.');
     db.prepare(
       "INSERT INTO hv_event_results_public (event_key,title,event_at,summary,winners_json,published_at,published_by_steam_id) VALUES(?,?,?,?,?,?,?)"
     ).run(event.key,event.title,event.time,event.summary,JSON.stringify(event.winners),at,user.steam_id);
+    db.exec('COMMIT');
   }catch(error){
+    db.exec('ROLLBACK');
     if(/UNIQUE|PRIMARY KEY|constraint/i.test(error.message))
       throw problem("EVENT_ALREADY_PUBLISHED","This event already has a published result. Publish a correction as a separate event note.");
     throw error;
   }
-  return publicResults(25).find(item=>item.eventKey===event.key)||null;
+  return publications.get(event.key);
 }
 module.exports={
   verifiedServer,sanitizeActivity,sanitizeEvents,overview,packContext,

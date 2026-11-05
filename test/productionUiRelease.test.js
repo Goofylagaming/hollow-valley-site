@@ -133,6 +133,7 @@ test("all production wallet, marketplace, storage, admin and other page scripts 
       const schedules="assets/event-schedules.js";
       const registrations="assets/event-registrations.js";
       const teams="assets/event-teams.js";
+      const results="assets/event-results.js";
       assert.equal(actual.filter(src => src === randomEvents).length, 1,
         "Random event display script must be loaded exactly once");
       assert.ok(actual.indexOf(randomEvents) > actual.indexOf("assets/events.js"),
@@ -151,7 +152,9 @@ test("all production wallet, marketplace, storage, admin and other page scripts 
       assert.equal(actual.indexOf(registrations),actual.indexOf(schedules)+1,"Registration follows the public schedule controls");
       assert.equal(actual.filter(src=>src===teams).length,1,"Staff team controls must load exactly once");
       assert.equal(actual.indexOf(teams),actual.indexOf(registrations)+1,"Staff teams follow the private registration controls");
-      assert.deepEqual(actual.filter(src => src !== randomEvents && src !== groupRoster && src !== attendanceEvidence && src !== templates && src !== schedules && src !== registrations && src !== teams), baseline,
+      assert.equal(actual.filter(src=>src===results).length,1,"Event report controls must load exactly once");
+      assert.equal(actual.indexOf(results),actual.indexOf(teams)+1,"Event reports follow existing team controls");
+      assert.deepEqual(actual.filter(src => src !== randomEvents && src !== groupRoster && src !== attendanceEvidence && src !== templates && src !== schedules && src !== registrations && src !== teams && src !== results), baseline,
         "All existing Events page scripts must retain their original order");
     } else {
       assert.deepEqual(actual, baseline, page + ": feature scripts were dropped or reordered");
