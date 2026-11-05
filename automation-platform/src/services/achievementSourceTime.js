@@ -71,7 +71,8 @@ function createAchievementSourceTimeStore(db, { now = Date.now, initialize = tru
           db.prepare(`SELECT 1 FROM ${table} WHERE steam_id=? AND achievement_id=? AND ${condition} LIMIT 1`).get(steamId, achievementId)) return { available: false };
     }
     if (saved.source_at > now()) return { available: false };
-    return { available: true, sourceAt: saved.source_at, basis: saved.basis, recordedAt: saved.recorded_at, position: saved.position };
+    return { available: true, sourceAt: saved.source_at, basis: saved.basis, recordedAt: saved.recorded_at, position: saved.position,
+      awardDigest: saved.award_digest, evidenceDigest: saved.evidence_digest };
   }
   return { recordNewAward, read };
 }

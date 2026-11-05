@@ -1,6 +1,7 @@
 "use strict";
 const { createHash } = require('node:crypto');
 const { parseSourceTimestamp } = require('./progressionSourceTime');
+const { CONTRACTS, createAchievementSourceTimeStore } = require('./achievementSourceTime');
 
 const SOURCES = Object.freeze({
   playtime: { reference: 'playtime_interval', basis: 'playtime-observation', policy: 'interval-end' },
@@ -28,14 +29,27 @@ function steam(value) {
 }
 function describe(input) {
   const retentionProvided = input && Object.hasOwn(input, 'retainUntil');
-  fields(input, ['id', 'title', 'startsAt', 'endsAt', 'settlesAt', 'free', 'sources', 'tiers', ...(retentionProvided ? ['retainUntil'] : [])]);
+  const achievementsProvided = input && Object.hasOwn(input, 'achievementPoints');
+  fields(input, ['id', 'title', 'startsAt', 'endsAt', 'settlesAt', 'free', 'sources', 'tiers', ...(retentionProvided ? ['retainUntil'] : []), ...(achievementsProvided ? ['achievementPoints'] : [])]);
   if (input.free !== true) fail('Season enrollment and progression must be free');
   const startsAt = parseSourceTimestamp(input.startsAt), endsAt = parseSourceTimestamp(input.endsAt), settlesAt = parseSourceTimestamp(input.settlesAt);
   if (startsAt === null || endsAt === null || settlesAt === null || endsAt <= startsAt ||
       endsAt - startsAt > 366 * 86400000 || settlesAt < endsAt || settlesAt - endsAt > 30 * 86400000) fail('Invalid season or delayed-grant window');
   const retainUntil = retentionProvided ? parseSourceTimestamp(input.retainUntil) : null;
   if (retentionProvided && (retainUntil === null || retainUntil <= settlesAt || retainUntil - settlesAt > 366 * 86400000)) fail('Review a retention date after settlement and within 366 days');
-  if (!Array.isArray(input.sources) || !input.sources.length || input.sources.length > 3) fail('Review at least one supported XP source');
+  let achievementPoints;
+  if (achievementsProvided) {
+    fields(input.achievementPoints, ['policy','awards']);
+    if (input.achievementPoints.policy !== 'qualifying-source-time' || !Array.isArray(input.achievementPoints.awards) || !input.achievementPoints.awards.length || input.achievementPoints.awards.length > 6) fail('Review a supported achievement point policy');
+    const ids = new Set();
+    const awards = input.achievementPoints.awards.map(award => {
+      fields(award, ['id','xp']);
+      if (typeof award.id !== 'string' || !Object.hasOwn(CONTRACTS, award.id) || ids.has(award.id) || !Number.isSafeInteger(award.xp) || award.xp < 1 || award.xp > 1000000) fail('Choose unique supported achievements and positive whole seasonal points');
+      ids.add(award.id); return { id: award.id, xp: award.xp };
+    }).sort((a,b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+    achievementPoints = { policy: 'qualifying-source-time', awards };
+  }
+  if (!Array.isArray(input.sources) || (!input.sources.length && !achievementPoints) || input.sources.length > 3) fail('Review at least one supported XP source');
   const seen = new Set();
   const sources = input.sources.map(source => {
     fields(source, ['source', 'policy']);
@@ -57,6 +71,7 @@ function describe(input) {
     startsAt: new Date(startsAt).toISOString(), endsAt: new Date(endsAt).toISOString(),
     settlesAt: new Date(settlesAt).toISOString(), free: true, sources, tiers };
   if (retentionProvided) definition.retainUntil = new Date(retainUntil).toISOString();
+  if (achievementsProvided) definition.achievementPoints = achievementPoints;
   const json = JSON.stringify(definition);
   return { definition, digest: createHash('sha256').update(json).digest('hex') };
 }
@@ -79,6 +94,12 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
     CREATE TABLE IF NOT EXISTS progression_season_enrollments (
       season_id TEXT NOT NULL, steam_id TEXT NOT NULL, enrolled_at INTEGER NOT NULL,
       cursor INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(season_id,steam_id));
+    CREATE TABLE IF NOT EXISTS progression_season_achievement_cursors (
+      season_id TEXT NOT NULL,steam_id TEXT NOT NULL,source_floor INTEGER NOT NULL,PRIMARY KEY(season_id,steam_id));
+    CREATE TABLE IF NOT EXISTS progression_season_achievement_evidence (
+      season_id TEXT NOT NULL,steam_id TEXT NOT NULL,achievement_id TEXT NOT NULL,xp INTEGER NOT NULL,
+      source_position INTEGER NOT NULL,source_at INTEGER NOT NULL,recorded_at INTEGER NOT NULL,basis TEXT NOT NULL,
+      award_digest TEXT NOT NULL,evidence_digest TEXT NOT NULL,PRIMARY KEY(season_id,steam_id,achievement_id));
     CREATE TABLE IF NOT EXISTS progression_season_choices (
       season_id TEXT NOT NULL,steam_id TEXT NOT NULL,revision INTEGER NOT NULL,
       selected INTEGER NOT NULL,changed_at INTEGER NOT NULL,PRIMARY KEY(season_id,steam_id));
@@ -106,6 +127,10 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
     catch (error) { db.exec('ROLLBACK'); throw error; }
   }
   const find = id => db.prepare('SELECT * FROM progression_seasons WHERE id=?').get(identity(id));
+  function achievementStore() {
+    if (!['progression_achievements','progression_achievement_sources'].every(table => db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(table))) fail('Achievement source evidence is unavailable', 503);
+    return createAchievementSourceTimeStore(db, { initialize: false, now });
+  }
   function checked(id) {
     const row = find(id);
     if (!row) fail('Season not found', 404);
@@ -137,6 +162,7 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
         return { ...current, duplicate: true };
       }
       if (!value.definition.retainUntil) fail('Review an explicit season retention date before staging');
+      if (value.definition.achievementPoints) achievementStore();
       if (Date.parse(value.definition.startsAt) <= now()) fail('Stage a future season; retroactive seasons are not supported');
       db.prepare('INSERT INTO progression_seasons VALUES(?,?,?,?,?,?,?)')
         .run(value.definition.id, JSON.stringify(value.definition), digest, reviewer, now(), 'staged', 1);
@@ -151,6 +177,7 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
     const row = checked(id);
     if (row.digest !== digest || row.revision !== expectedRevision) fail('Season changed; inspect the current review');
     if (action === 'publish') {
+      if (row.definition.achievementPoints) achievementStore();
       if (!row.definition.retainUntil) fail('Review retention in a new season definition before publishing');
       if (row.state !== 'staged' || now() >= Date.parse(row.definition.startsAt)) fail('Only a future staged season can be published');
       const others = db.prepare("SELECT id FROM progression_seasons WHERE state='published'").all();
@@ -181,7 +208,14 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
       // Bind consent to the source ledger position too: same-millisecond delete /
       // rejoin and small future clock skew cannot resurrect pre-consent grants.
       const cursor = db.prepare('SELECT coalesce(max(position),0) n FROM progression_season_source_positions WHERE steam_id=?').get(steamId).n;
-      db.prepare('INSERT OR IGNORE INTO progression_season_enrollments(season_id,steam_id,enrolled_at,cursor) VALUES(?,?,?,?)').run(id, steamId, at, cursor);
+      const created = db.prepare('INSERT OR IGNORE INTO progression_season_enrollments(season_id,steam_id,enrolled_at,cursor) VALUES(?,?,?,?)').run(id, steamId, at, cursor).changes;
+      if (row.definition.achievementPoints) {
+        achievementStore();
+        if (created) {
+          const floor = db.prepare('SELECT coalesce(max(position),0) n FROM progression_achievement_sources WHERE steam_id=?').get(steamId).n;
+          db.prepare('INSERT INTO progression_season_achievement_cursors VALUES(?,?,?)').run(id, steamId, floor);
+        } else if (!db.prepare('SELECT 1 FROM progression_season_achievement_cursors WHERE season_id=? AND steam_id=?').get(id, steamId)) fail('Season achievement consent evidence is unavailable', 503);
+      }
       return enrollment(id, steamId);
   }
   function enroll(id, steamId) { steam(steamId); return atomic(() => enrollRaw(id, steamId)); }
@@ -189,6 +223,8 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
   function eraseRaw(id, steamId) {
       writable();
       db.prepare('DELETE FROM progression_season_evidence WHERE season_id=? AND steam_id=?').run(id, steamId);
+      db.prepare('DELETE FROM progression_season_achievement_evidence WHERE season_id=? AND steam_id=?').run(id, steamId);
+      db.prepare('DELETE FROM progression_season_achievement_cursors WHERE season_id=? AND steam_id=?').run(id, steamId);
       return { erased: Boolean(db.prepare('DELETE FROM progression_season_enrollments WHERE season_id=? AND steam_id=?').run(id, steamId).changes) };
   }
   function erase(id, steamId) {
@@ -248,7 +284,7 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
       if (expectedRevision !== undefined && (!Number.isSafeInteger(expectedRevision) || expectedRevision !== choice(id, steamId).revision || seasonDigest !== row.digest)) fail('Participation or season rules changed; refresh before updating progress', 409);
       if (!participant) fail('Enroll before collecting seasonal progress');
       if (!['published', 'closed'].includes(row.state)) fail('Season has not been published');
-      const rows = db.prepare(`SELECT p.position,l.*,t.source_at,t.basis FROM progression_season_source_positions p
+      const rows = !row.definition.sources.length ? [] : db.prepare(`SELECT p.position,l.*,t.source_at,t.basis FROM progression_season_source_positions p
         LEFT JOIN progression_xp_ledger l ON l.id=p.ledger_id AND l.steam_id=p.steam_id
         LEFT JOIN progression_xp_source_times t ON t.ledger_id=l.id
         WHERE p.steam_id=? AND p.position>? ORDER BY p.position LIMIT ?`).all(steamId, participant.cursor, limit + 1);
@@ -266,8 +302,26 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
           .run(id, steamId, grant.id, grant.amount, grant.source, grant.reference_type, grant.source_at, grant.basis, grant.created_at, at).changes;
       }
       if (batch.length) db.prepare('UPDATE progression_season_enrollments SET cursor=? WHERE season_id=? AND steam_id=?').run(batch.at(-1).position, id, steamId);
-      return { accepted, scanned: batch.length, more: rows.length > limit };
+      const result = { accepted, scanned: batch.length, more: rows.length > limit };
+      if (row.definition.achievementPoints) {
+        result.achievementAccepted = 0;
+        for (const award of row.definition.achievementPoints.awards) {
+          const source = eligibleAchievement(row, participant, steamId, award.id);
+          if (!source) continue;
+          result.achievementAccepted += db.prepare('INSERT OR IGNORE INTO progression_season_achievement_evidence VALUES(?,?,?,?,?,?,?,?,?,?)')
+            .run(id, steamId, award.id, award.xp, source.position, source.sourceAt, source.recordedAt, source.basis, source.awardDigest, source.evidenceDigest).changes;
+        }
+      }
+      return result;
     });
+  }
+  function eligibleAchievement(row, participant, steamId, achievementId) {
+    const floor = db.prepare('SELECT source_floor FROM progression_season_achievement_cursors WHERE season_id=? AND steam_id=?').get(row.id, steamId);
+    if (!floor) fail('Season achievement consent evidence is unavailable', 503);
+    const source = achievementStore().read(steamId, achievementId);
+    if (!source?.available || source.position <= floor.source_floor || source.sourceAt < Math.max(participant.enrolledAt, Date.parse(row.definition.startsAt)) ||
+        source.sourceAt >= Date.parse(row.definition.endsAt) || source.recordedAt < participant.enrolledAt || source.recordedAt >= Date.parse(row.definition.settlesAt)) return null;
+    return source;
   }
   function progress(id, steamId) {
     steam(steamId); const row = checked(id), participant = enrollment(id, steamId), at = now();
@@ -283,11 +337,25 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
       FROM progression_season_evidence e LEFT JOIN progression_xp_ledger l ON l.id=e.ledger_id
       LEFT JOIN progression_xp_source_times t ON t.ledger_id=e.ledger_id WHERE e.season_id=? AND e.steam_id=?`).get(at, id, steamId);
     if (!Number.isSafeInteger(totals.xp)) fail('Season progress exceeds supported range');
-    const pending = Boolean(db.prepare('SELECT 1 FROM progression_season_source_positions WHERE steam_id=? AND position>? LIMIT 1').get(steamId, participant.cursor));
+    let pending = Boolean(row.definition.sources.length && db.prepare('SELECT 1 FROM progression_season_source_positions WHERE steam_id=? AND position>? LIMIT 1').get(steamId, participant.cursor));
+    let achievementXp = 0, achievementInvalid = false;
+    if (row.definition.achievementPoints) {
+      for (const award of row.definition.achievementPoints.awards) {
+        const saved = db.prepare('SELECT * FROM progression_season_achievement_evidence WHERE season_id=? AND steam_id=? AND achievement_id=?').get(id, steamId, award.id);
+        const source = eligibleAchievement(row, participant, steamId, award.id);
+        if (!saved) { pending ||= Boolean(source); continue; }
+        if (!source || saved.xp !== award.xp || saved.source_position !== source.position || saved.source_at !== source.sourceAt || saved.recorded_at !== source.recordedAt ||
+            saved.basis !== source.basis || saved.award_digest !== source.awardDigest || saved.evidence_digest !== source.evidenceDigest) { achievementInvalid = true; continue; }
+        achievementXp += award.xp;
+      }
+    }
+    totals.xp += achievementXp;
+    if (!Number.isSafeInteger(totals.xp)) fail('Season progress exceeds supported range');
     const tier = row.definition.tiers.filter(t => t.xp <= totals.xp).length;
     return { season: read(id), enrolled: true, enrolledAt: participant.enrolledAt, xp: totals.xp, tier,
       nextTier: row.definition.tiers[tier] || null, pending,
-      evidenceUnavailable: Boolean(totals.invalid), collectionClosed: row.state === 'closed' || at >= Date.parse(row.definition.settlesAt) };
+      ...(row.definition.achievementPoints ? { achievementXp } : {}),
+      evidenceUnavailable: Boolean(totals.invalid) || achievementInvalid, collectionClosed: row.state === 'closed' || at >= Date.parse(row.definition.settlesAt) };
   }
   function catalog({ before = null } = {}) {
     if (before !== null && (!Number.isSafeInteger(before) || before < 1)) fail('Invalid season page');
@@ -310,7 +378,7 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
         try { row = checked(candidate.season_id); } catch { unavailable++; continue; }
         if (!expired(row)) { unavailable++; continue; }
         let hasRows = false;
-        for (const table of ['progression_season_evidence','progression_season_enrollments','progression_season_requests','progression_season_choices']) {
+        for (const table of ['progression_season_evidence','progression_season_achievement_evidence','progression_season_achievement_cursors','progression_season_enrollments','progression_season_requests','progression_season_choices']) {
           if (remaining) {
             const count = db.prepare(`DELETE FROM ${table} WHERE rowid IN (SELECT rowid FROM ${table} WHERE season_id=? LIMIT ?)`).run(row.id, remaining).changes;
             removed += count; remaining -= count;

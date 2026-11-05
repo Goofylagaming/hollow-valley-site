@@ -53,7 +53,7 @@ reward. Existing paid quest/level behavior is regression-tested with synthetic d
 - Review the prepared privacy/retention maintenance against real operational
   policies and the source reconciliation cadence. The player-triggered update is bounded and never
   manufactures permanent XP or level coins; it is not a background collector.
-- Achievement XP and trustworthy achievement/event source integration. The existing
+- Additional achievement families and real achievement/event source verification. The existing
   permanent ledger currently grants XP from playtime, quests and paid event records;
   it is not a complete season implementation.
 - Approved cosmetic/reward policy and any separately authorized payout behavior.
@@ -63,7 +63,7 @@ reward. Existing paid quest/level behavior is regression-tested with synthetic d
 
 Original #4 wording and historical votes remain. The feature leaves the active
 ballot during development, freeing its old votes without deleting them. Eight
-ideas remain eligible. Homepage planning asset version is 122. No production
+ideas remain eligible. Homepage planning asset version is 123. No production
 completion date is assigned.
 
 ## Local verification
@@ -118,7 +118,8 @@ even if their source clock is slightly ahead or consent is repeated in the same
 millisecond. Eligible
 source clocks are at or after enrollment and season start, and strictly before
 season end. Unknown legacy clocks, mismatched source/reference/basis, invalid
-amounts and unsupported sources never count. Achievement XP is still unsupported.
+amounts and unsupported sources never count. Optional quest/event-count achievement
+points are now supported through a separate explicitly reviewed policy below.
 Original XP amounts become seasonal points; no extra permanent award is requested.
 
 The ledger receipt's strict UTC `created_at` must precede `settlesAt`, even when
@@ -254,7 +255,7 @@ session loss, safe text and no horizontal overflow. The existing dynamic-challen
 browser fixture also passes at both widths. Desktop/mobile screenshots were
 inspected. The dedicated workflow includes these checks but is still unpublished.
 
-Remaining season work includes achievement XP evidence, real source timing/payload
+Remaining season work includes further achievement evidence families, real source timing/payload
 review, operational retention review and recovery, approved reward policy,
 hosted checks and authenticated staging. Roadmap #4 remains Building / Testing;
 the full season and 31-feature roadmap are not complete.
@@ -322,8 +323,8 @@ remain unverified; rollout and the full roadmap remain unfinished.
 `achievementSourceTime.js` now retains timing for newly unlocked `quest-1`,
 `quest-25`, `quest-100`, `event-1`, `event-10` and `event-25` achievements. It does
 not add permanent XP, seasonal points, coins or a new reward rule. The season
-catalog still rejects an achievement source; reviewed seasonal point definitions
-and consumption remain the next integration step. Other achievement families
+catalog rejected achievement points at that prerequisite commit; the reviewed
+season integration is documented below. Other achievement families
 still require suitable original source evidence and timing contracts.
 
 Permanent achievement `unlocked_at` is a reconciliation date and is never used
@@ -374,3 +375,87 @@ achievement and season hosted workflows include the new tests but remain local.
 This addition has no new player UI; the homepage planning note is asset v122.
 Nothing has been pushed, deployed or enabled, and no real data was inspected or
 altered. Roadmap #4 and the full roadmap remain unfinished.
+
+## Reviewed seasonal achievement points — 6 November 2026
+
+Season definitions can now optionally include this exact shape:
+
+```json
+{
+  "achievementPoints": {
+    "policy": "qualifying-source-time",
+    "awards": [{ "id": "quest-1", "xp": 25 }]
+  }
+}
+```
+
+This fragment is illustrative synthetic policy, not a configured live amount.
+No default point amounts are installed. An operator must review the complete
+season artifact and its new digest, then separately stage/publish it. Each of the
+six supported quest/event-count achievement IDs may appear once, with an integer
+award from 1 to 1,000,000 seasonal XP. Unknown policies/IDs, duplicates, prices,
+currency fields and malformed values are rejected. Awards are canonically ordered.
+Definitions without the optional field retain their exact prior digest and behavior.
+Achievement-only plans may explicitly leave the regular `sources` array empty.
+
+The source collector and permanent achievement schema must exist before staging
+these rules, including in an operator dry run. Visiting the page or setting runtime
+flags never installs them. Source timing contracts remain limited to quest-count
+and paid-event-count achievements; other families remain unsupported until their
+qualifying evidence can be verified. A paid event confirmation is not a claim of
+automatically verified actual attendance or an event victory.
+
+Enrollment atomically records an achievement source-position floor alongside the
+existing permanent-XP consent position. Already present receipts cannot count,
+including same-millisecond rejoin or small future source-clock skew. Retries retain
+the original floor; missing consent evidence is unavailable rather than silently
+repaired. Eligible achievements require an intact currently supported timing
+receipt after that floor, an original qualifying source clock at/after joining and
+season start but before season end, and a receiving clock after enrollment and
+strictly before settlement. Legacy unknown timing, late receipts and future clocks
+cannot bypass these rules. An offline player may reconcile timely receipts after
+season closure but before the reviewed retention expiry.
+
+One explicit progress update checks at most six configured achievement awards in
+addition to the existing bounded XP batch. A separate seasonal evidence table
+copies only the configured point amount, achievement identity, source position,
+timing/basis and binding hashes. Its season/player/achievement key prevents duplicate
+points. Copied achievement points and the permanent-XP batch/cursor share the same
+transaction; failed copies roll everything back. The update never calls permanent
+`awardXp`, unlocks an achievement, touches a wallet or fulfils a reward.
+
+Every progress read revalidates the original achievement and its qualifying source
+records/review state through the read-only timing helper. A missing/withdrawn/pending
+achievement, changed threshold evidence, source mutation or mismatched saved binding
+stops contributing immediately and is labelled unavailable. Restoring the exact
+valid original evidence can restore its existing seasonal contribution without a
+new grant. Eligibility and configured amounts are never taken from a player request.
+Totals include a separate `achievementXp` breakdown, and eligible uncopied receipts
+make progress pending without causing a GET to write anything.
+
+Participation deletion removes both copied achievement points and their consent
+floor. Rejoining starts fresh and cannot reclaim an earlier receipt. Reviewed expiry
+hides personal progress before cleanup; bounded retention cleanup removes the new
+tables together with the older season copies. Permanent achievements and their
+source receipts follow their original permanent retention policy and are preserved
+by seasonal erasure. Preview/read-only, same-origin, current-account and token
+boundaries continue to apply without new mutation endpoints.
+
+The Quests screen displays each configured achievement and amount before enrollment,
+explains qualifying completion/confirmation dates and shows the achievement portion
+of total season XP. Its review binds the immutable season digest already used by
+participation requests. Player asset v3 and homepage planning asset v123 are local.
+No actual season, point policy, reward, flag, database or producer has been enabled.
+
+**113 affected checks pass** across reviewed rules, operator readiness/dry runs,
+source timing, consent boundaries, immutable copies, withdrawal/revalidation,
+receipt/XP cursor rollback, after-closure settlement, deletion/rejoin, retention and
+the existing season/progression/quest/achievement paths. The real two-layer Quests
+browser fixture passes at 1440px and 390px, including consent amounts, 10 existing
+XP plus 25 synthetic achievement XP, source invalidation/restoration, safe rendering,
+lost-reply retry, account changes, pause/preview and expiry. Screenshots were inspected.
+
+Remaining full scope includes other achievement families, real producer/source
+review, chosen live point/season rules, approved cosmetic/reward fulfillment,
+operational recovery/retention review, hosted checks and authenticated staging.
+This is not production completion of #4 or the full 31-feature roadmap.

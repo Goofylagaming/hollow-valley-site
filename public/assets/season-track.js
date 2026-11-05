@@ -5,13 +5,15 @@
   const message = text => { $('season-status').textContent = text; };
   const identity = me => me?.loggedIn && Number.isSafeInteger(me.user?.id) && /^\d{17}$/.test(me.user?.steam_id || '') ? `${me.user.id}:${me.user.steam_id}` : null;
   const definition = () => model?.progress?.season?.definition;
+  const achievementTitle = id => ({ 'quest-1':'First quest', 'quest-25':'25 quests', 'quest-100':'100 quests', 'event-1':'First paid event confirmation', 'event-10':'10 paid event confirmations', 'event-25':'25 paid event confirmations' }[id] || 'Achievement');
+  const achievementRules = points => points.awards.map(award => `${achievementTitle(award.id)}: ${award.xp.toLocaleString('en-AU')} season XP`).join('; ');
   const canWrite = () => actor && !caps.readOnly && (caps.enabled || caps.managementAvailable);
   const joinOpen = () => caps.enabled && model?.progress?.season?.state === 'published' &&
     model.serverTime >= Date.parse(definition()?.startsAt) && model.serverTime < Date.parse(definition()?.endsAt);
   function clear() {
     actor = null; catalog = []; next = null; selected = null; model = null; review = null;
     $('season-catalog').replaceChildren(); $('season-tiers').replaceChildren();
-    for (const id of ['season-title','season-dates','season-retention','season-participation','season-points','season-evidence','season-review-text']) $(id).textContent = '';
+    for (const id of ['season-title','season-dates','season-retention','season-achievement-rules','season-participation','season-points','season-evidence','season-review-text']) $(id).textContent = '';
   }
   function render() {
     $('season-track').hidden = !caps.enabled && !caps.managementAvailable;
@@ -34,8 +36,10 @@
       $('season-title').textContent = def.title;
       $('season-dates').textContent = `${date(def.startsAt)} to ${date(def.endsAt)} Brisbane time. Delayed activity receipts accepted until ${date(def.settlesAt)}.`;
       $('season-retention').textContent = def.retainUntil ? `Your season participation, copied progress and saved requests expire ${date(def.retainUntil)} Brisbane time. Permanent XP stays separate.` : 'These older rules have no automatic expiry date. You can delete your participation and copied progress.';
+      $('season-achievement-rules').hidden = !def.achievementPoints;
+      $('season-achievement-rules').textContent = def.achievementPoints ? 'Reviewed achievement points: ' + achievementRules(def.achievementPoints) + '. Qualifying completion or paid-confirmation dates count; a later badge unlock does not move earlier activity into this season.' : '';
       $('season-participation').textContent = model.progress.retentionExpired ? 'Personal participation records have expired.' : model.participating ? (caps.enabled ? 'You have joined this season.' : 'Season tracking is paused. You can delete your participation.') : 'You have not joined this season.';
-      $('season-points').textContent = model.progress.retentionExpired ? 'Personal progress has expired.' : `${model.progress.xp.toLocaleString('en-AU')} season XP · ${model.progress.tier} of ${def.tiers.length} milestones reached.`;
+      $('season-points').textContent = model.progress.retentionExpired ? 'Personal progress has expired.' : `${model.progress.xp.toLocaleString('en-AU')} season XP · ${model.progress.tier} of ${def.tiers.length} milestones reached.` + (def.achievementPoints ? ` ${(model.progress.achievementXp || 0).toLocaleString('en-AU')} XP comes from reviewed achievements.` : '');
       $('season-evidence').textContent = model.progress.retentionExpired ? 'The retention period has ended. Personal season progress is no longer available.' : model.progress.evidenceUnavailable ? 'Some earlier activity is no longer supported by its source evidence and is excluded.' :
         model.progress.pending ? 'New receipts have not all been checked. Update saved progress to check the next batch.' : 'All currently available receipts have been checked. Milestones do not grant rewards.';
       const tiers = $('season-tiers'); tiers.replaceChildren();
@@ -48,10 +52,11 @@
     $('season-choice').disabled = busy || Boolean(review) || !canWrite() || !model || (!model.participating && !joinOpen());
     $('season-review').hidden = !review;
     if (review) {
-      const sources = review.sources.map(source => ({ playtime: 'playing, counted at the end of each observed XP interval', quest: 'quests, counted when completed', event: 'paid event attendance, counted when staff confirm it' }[source.source])).join('; ');
+      const sources = review.sources.map(source => ({ playtime: 'playing, counted at the end of each observed XP interval', quest: 'quests, counted when completed', event: 'paid event attendance, counted when staff confirm it' }[source.source])).join('; ') || 'the reviewed achievements below';
       $('season-review-text').textContent = (review.body.selected ?
         `Join ${review.title} for free. Count new eligible XP after you join from ${sources}. Earlier activity does not count. Season milestones issue no rewards. Your account’s season choice, copied XP evidence and saved-request history are retained; you can delete participation and its copied progress. Permanent XP and minimal request history remain.` :
         `Delete your participation and copied progress for ${review.title}. Rejoining starts fresh. Permanent XP, existing quest rewards and minimal request history remain.`) +
+        (review.achievementPoints ? ` Additional seasonal achievement points: ${achievementRules(review.achievementPoints)}. Only qualifying source dates after joining count; these points never add permanent XP or coin rewards.` : '') +
         (review.retainUntil ? ` Participation, copied progress and saved requests expire ${new Date(review.retainUntil).toLocaleString('en-AU', { timeZone: 'Australia/Brisbane' })} Brisbane time.` : '') +
         (review.uncertain ? ' The reply was not confirmed. Refresh or explicitly retry this saved request.' : review.body.expectedRevision !== model?.revision ? ' Your choice changed elsewhere. Cancel and review the latest state.' : '');
     }
@@ -101,7 +106,7 @@
   $('season-more').addEventListener('click', () => run(token => read(token, true)));
   $('season-choice').addEventListener('click', () => {
     if (busy || review || !model || !canWrite() || (!model.participating && !joinOpen())) return;
-    review = { actor, title: definition().title, sources: definition().sources, retainUntil: definition().retainUntil, uncertain: false,
+    review = { actor, title: definition().title, sources: definition().sources, retainUntil: definition().retainUntil, achievementPoints: definition().achievementPoints, uncertain: false,
       body: { id: selected, selected: !model.participating, expectedRevision: model.revision, seasonDigest: model.progress.season.digest, requestKey: crypto.randomUUID() } };
     render();
   });

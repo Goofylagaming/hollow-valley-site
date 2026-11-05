@@ -43,7 +43,8 @@ function main(args) {
     db.exec('PRAGMA busy_timeout=5000');
     const tables = new Set(db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(row => row.name));
     if (!['economy_wallets', 'progression_xp_ledger', 'progression_xp_source_times'].every(name => tables.has(name))) throw new Error('Choose an initialized progression/source-time automation database');
-    const ready = ['progression_seasons', 'progression_season_audit', 'progression_season_enrollments', 'progression_season_evidence', 'progression_season_source_positions', 'progression_season_choices', 'progression_season_requests', 'progression_season_retention', 'progression_season_maintenance'].every(name => tables.has(name));
+    if (reviewed?.definition.achievementPoints && !['progression_achievements','progression_achievement_sources'].every(name => tables.has(name))) throw new Error('Prepare achievement source collection before staging achievement points');
+    const ready = ['progression_seasons', 'progression_season_audit', 'progression_season_enrollments', 'progression_season_evidence', 'progression_season_source_positions', 'progression_season_choices', 'progression_season_requests', 'progression_season_retention', 'progression_season_maintenance', 'progression_season_achievement_cursors', 'progression_season_achievement_evidence'].every(name => tables.has(name));
     if (!ready && command !== 'stage') {
       if (command === 'inspect') return { database, schemaReady: false, season: null, written: false };
       throw new Error('Stage a reviewed season first');

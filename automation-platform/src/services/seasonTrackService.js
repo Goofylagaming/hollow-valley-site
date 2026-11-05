@@ -8,7 +8,8 @@ function open() {
   const { db } = require('./economyStore');
   const tables = new Set(db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(row => row.name));
   if (!['progression_seasons', 'progression_season_audit', 'progression_season_enrollments', 'progression_season_evidence',
-    'progression_season_source_positions', 'progression_season_choices', 'progression_season_requests', 'progression_season_retention', 'progression_season_maintenance', 'progression_xp_source_times'].every(name => tables.has(name)) ||
+    'progression_season_source_positions', 'progression_season_choices', 'progression_season_requests', 'progression_season_retention', 'progression_season_maintenance',
+    'progression_season_achievement_cursors', 'progression_season_achievement_evidence', 'progression_xp_source_times'].every(name => tables.has(name)) ||
       !db.prepare("SELECT 1 FROM sqlite_master WHERE type='trigger' AND name='progression_season_source_insert'").get()) {
     throw Object.assign(new Error('Reviewed season tracking is not ready'), { status: 503 });
   }
