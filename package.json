@@ -19,6 +19,7 @@
     "express": "^4.19.2",
     "express-session": "^1.18.0",
     "rcon": "^1.1.0",
+    "sharp": "0.35.5",
     "ssh2-sftp-client": "^11.0.0"
   }
 }

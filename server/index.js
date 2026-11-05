@@ -299,6 +299,7 @@ function createApp() {
   app.use("/api/admin-operations", adminOperationsRouter);
   app.use("/api/admin-incidents", adminIncidentsRouter);
   app.use("/api/reports", playerReportsRouter);
+  app.use('/api/gallery',require('./routes/gallery'));
   app.use("/api/admin-combat", adminCombatRouter);
   app.use("/api/admin-player-directory", adminPlayerDirectoryRouter);
   app.use("/api/admin-safelog-recovery", adminSafeLogRecoveryRouter);
