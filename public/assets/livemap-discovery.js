@@ -2,7 +2,7 @@
   const { api, loadMe } = window.HDS;
   const get = id => document.getElementById(id);
   const status = get('discovery-status');
-  let settings, writable = false, busy = false;
+  let settings, writable = false, busy = false, data = null;
   const post = (path, body) => api('/api/discovery' + path, { method: 'POST', body: JSON.stringify(body) });
   function controls() {
     get('discovery-optin').disabled = busy || !writable;
@@ -13,10 +13,17 @@
   async function refresh() {
     settings = await api('/api/discovery/settings');
     get('discovery-optin').checked = settings.enabled;
-    const data = await api('/api/discovery/points');
+    data = await api('/api/discovery/points');
+    render();
+  }
+  function render() {
+    if (!data || !settings) return;
     const layer = get('tracker-discoveries');
     layer.replaceChildren();
-    for (const point of data.points) {
+    const map = window.HVLiveMapData;
+    const aligned = map?.mapVersion === data.mapVersion &&
+      ['minX', 'maxX', 'minY', 'maxY'].every(key => Number.isFinite(data.bounds?.[key]) && data.bounds[key] === map.bounds?.[key]);
+    for (const point of aligned ? data.points : []) {
       const left = (point.y - data.bounds.minY) / (data.bounds.maxY - data.bounds.minY);
       const top = (point.x - data.bounds.minX) / (data.bounds.maxX - data.bounds.minX);
       if (![left, top].every(value => Number.isFinite(value) && value >= 0 && value <= 1)) continue;
@@ -26,7 +33,9 @@
       marker.append(label); layer.append(marker);
     }
     status.textContent = `${data.points.length} of ${data.total} locations discovered. ${settings.enabled ? 'Discovery recording is on.' : 'Discovery recording is off.'}${writable ? '' : ' This preview is read-only.'}`;
+    if (!aligned) status.textContent += ' Discovery markers are waiting for matching map data.';
   }
+  window.addEventListener('hv:mapdata', render);
   async function action(operation) {
     if (busy) return;
     busy = true; controls();

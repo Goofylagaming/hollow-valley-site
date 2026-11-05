@@ -4,7 +4,8 @@ const identifier=value=>{if(typeof value!=='string'||! /^[a-z0-9][a-z0-9_-]{0,79
 const label=value=>{if(typeof value!=='string'||!value.trim()||value.length>120||/[\x00-\x1f]/.test(value))fail('Invalid discovery label');return value.trim();};
 function validateCatalog(input) {
   if(!input||typeof input!=='object')fail('Discovery catalog required');
-  const version=identifier(input.version),mapVersion=identifier(input.mapVersion);
+  const version=identifier(input.version),mapVersion=input.mapVersion;
+  if(typeof mapVersion!=='string'||!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$/.test(mapVersion))fail('Invalid discovery map version');
   const bounds={};
   for(const key of ['minX','maxX','minY','maxY']) {
     const value=input.bounds?.[key];

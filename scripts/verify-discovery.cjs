@@ -11,7 +11,7 @@ const fs = require('node:fs'), path = require('node:path'), assert = require('no
         const url = new URL(route.request().url());
         if (url.origin !== 'http://localhost') return route.abort();
         const json = body => route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) });
-        if (url.pathname === '/assets/common.js') return route.fulfill({ contentType: 'text/javascript', body: `window.HDS={api:async(u,o={})=>(await fetch(u,{headers:{'Content-Type':'application/json'},...o})).json(),loadMe:async()=>({user:{steam_id:'76561198000000801'}})};` });
+        if (url.pathname === '/assets/common.js') return route.fulfill({ contentType: 'text/javascript', body: `window.HVLiveMapData={mapVersion:'Gateway_v0.21',bounds:{minX:-100,maxX:100,minY:-100,maxY:100}};window.HDS={api:async(u,o={})=>(await fetch(u,{headers:{'Content-Type':'application/json'},...o})).json(),loadMe:async()=>({user:{steam_id:'76561198000000801'}})};` });
         if (url.pathname.endsWith('/capabilities')) return json({ enabled: true, readOnly });
         if (url.pathname.endsWith('/settings') && route.request().method() === 'GET') return json(settings);
         if (url.pathname.endsWith('/settings') || url.pathname.endsWith('/delete')) {
@@ -20,7 +20,7 @@ const fs = require('node:fs'), path = require('node:path'), assert = require('no
           if (url.pathname.endsWith('/delete')) cleared = true;
           return json(settings);
         }
-        if (url.pathname.endsWith('/points')) return json({ total: 2, bounds: { minX: -100, maxX: 100, minY: -100, maxY: 100 }, points: cleared ? [] : [{ name: 'Cave <img src=x>', x: 0, y: 0 }] });
+        if (url.pathname.endsWith('/points')) return json({ total: 2, mapVersion: 'Gateway_v0.21', bounds: { minX: -100, maxX: 100, minY: -100, maxY: 100 }, points: cleared ? [] : [{ name: 'Cave <img src=x>', x: 0, y: 0 }] });
         if (url.pathname.endsWith('.js') && !url.pathname.includes('livemap-discovery')) return route.fulfill({ contentType: 'text/javascript', body: '' });
         const file = path.join(__dirname, '../public', url.pathname === '/livemap' ? 'livemap.html' : url.pathname.slice(1));
         if (!fs.existsSync(file)) return route.abort();
@@ -30,6 +30,13 @@ const fs = require('node:fs'), path = require('node:path'), assert = require('no
       await page.goto('http://localhost/livemap');
       await page.getByText('1 of 2 locations discovered. Discovery recording is off.', { exact: true }).waitFor();
       assert.equal(await page.locator('#tracker-discoveries img').count(), 0);
+      assert.equal(await page.locator('#tracker-discoveries .poi').count(), 1);
+      await page.evaluate(() => { window.HVLiveMapData.mapVersion='other'; window.dispatchEvent(new Event('hv:mapdata')); });
+      assert.equal(await page.locator('#tracker-discoveries .poi').count(), 0);
+      await page.evaluate(() => { window.HVLiveMapData.mapVersion='Gateway_v0.21';window.HVLiveMapData.bounds.maxX=200; window.dispatchEvent(new Event('hv:mapdata')); });
+      assert.equal(await page.locator('#tracker-discoveries .poi').count(), 0);
+      await page.evaluate(() => { window.HVLiveMapData.bounds.maxX=100; window.dispatchEvent(new Event('hv:mapdata')); });
+      assert.equal(await page.locator('#tracker-discoveries .poi').count(), 1);
       await page.check('#discovery-mode');
       for (const id of ['tracker-pois', 'tracker-labels', 'tracker-shapes', 'territory-war-shapes', 'territory-war-overlay-slot']) assert.equal(await page.locator('#' + id).evaluate(element => getComputedStyle(element).display), 'none');
       assert.equal(await page.locator('#tracker-discoveries').evaluate(element => getComputedStyle(element).display), 'block');
