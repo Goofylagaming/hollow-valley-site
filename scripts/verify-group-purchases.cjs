@@ -2,15 +2,21 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),os=require('nod
 const {chromium}=require('playwright');
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'hv-purchase-browser-'));
 process.env.DB_PATH=path.join(temp,'website.sqlite');process.env.AUTOMATION_DB_PATH=path.join(temp,'economy.sqlite');
+process.env.GROUP_TREASURY_TERRITORY_ENABLED='1';process.env.TERRITORY_WARS_ADMIN_TEST_ENABLED='1';process.env.GROUP_TREASURY_TERRITORY_PROOF_SECRET='synthetic-browser-entry-proof-key-0000000';
 process.env.GROUP_TREASURY_ENABLED='1';process.env.GROUP_TREASURY_SPEND_ENABLED='1';process.env.GROUP_HQ_ENABLED='0';process.env.HOLLOW_VALLEY_API_TOKEN='synthetic-purchase-browser-token';
 for(const key of ['GROUP_TREASURY_READ_ONLY','SKIN_STUDIO_READ_ONLY','RENDER_SERVICE_ID','RENDER_EXTERNAL_URL','PUBLIC_SITE_URL','STEAM_REALM','STEAM_RETURN_URL'])delete process.env[key];
 const {db}=require('../server/db'),groups=require('../server/groupsStore'),economy=require('../automation-platform/src/services/economyStore');
 const spending=require('../automation-platform/src/services/groupTreasurySpending').createGroupTreasurySpending(economy);
+db.exec(fs.readFileSync(path.join(__dirname,'../server/routes/territoryWars.js'),'utf8').match(/db\.exec\(`([\s\S]*?)`\);/)[1]);db.exec('ALTER TABLE territory_events ADD COLUMN live_test_mode INTEGER NOT NULL DEFAULT 0');
+const links=require('../server/services/groupTerritoryLinks').createGroupTerritoryLinks(db,groups);
+let dropDispatch=false,holdDispatch=false,heldDispatch=null;
 let dropReserve=false,dropCommit=false,holdReserve=false,heldReserve=null,failCatalog=false;
 const calls={reserve:0,commit:0};
 const auto=express();auto.use(express.json());auto.use('/api/website/group-treasury',(req,res,next)=>{
   const action=req.path.slice(1).replace('spend-','');if(action in calls)calls[action]++;
   if(req.path==='/spending-read'&&failCatalog)return res.status(503).json({error:'Synthetic cosmetic outage'});
+  if(action==='dispatch-territory'&&holdDispatch){holdDispatch=false;heldDispatch=()=>next();return;}
+  if(action==='dispatch-territory'&&dropDispatch){dropDispatch=false;res.json=()=>{res.destroy();return res;};}
   if(action==='reserve'&&holdReserve){holdReserve=false;heldReserve=()=>next();return;}
   if((action==='reserve'&&dropReserve)||(action==='commit'&&dropCommit)){dropReserve=false;dropCommit=false;res.json=()=>{res.destroy();return res;};}
   next();
@@ -37,6 +43,12 @@ async function until(fn){for(let i=0;i<300;i++){if(fn())return;await new Promise
       for(const [id,title,frame,cost]of[['browser-fern','Fern <img src=x>','fern',80],['browser-night','Night frame','night',50]]){
         spending.register({id,revision:1,title,description:'Synthetic test item only',cost,purpose:'group_cosmetic',target:{kind:'profile_frame',value:frame}},A);spending.setEnabled(id,1,true,A);
       }
+      const userId=db.prepare('SELECT id FROM users WHERE steam_id=?').get(A).id;
+      const territoryGroupId=Number(db.prepare('INSERT INTO territory_groups(name,leader_user_id) VALUES(?,?)').run('Linked Territory '+n,userId).lastInsertRowid);
+      db.prepare("INSERT INTO territory_group_members(group_id,user_id,role) VALUES(?,?,'leader')").run(territoryGroupId,userId);links.set(A,{expectedGroupId:groupId,expectedRevision:0,territoryGroupId});
+      const eventId=Number(db.prepare('INSERT INTO territory_events(name) VALUES(?)').run('Browser Entry '+n).lastInsertRowid);
+      const secondEventId=Number(db.prepare('INSERT INTO territory_events(name) VALUES(?)').run('Cancelled Entry '+n).lastInsertRowid);
+      for(const [id,event,cost]of[['browser-entry-'+n,eventId,20],['browser-cancel-entry-'+n,secondEventId,10]]){spending.register({id,revision:1,title:id,description:'Synthetic entry',cost,purpose:'territory_entry',target:{eventId:event}},A);spending.setEnabled(id,1,true,A);}
       const context=await browser.newContext({viewport:{width,height:1000}});
       await context.addInitScript(()=>document.addEventListener('DOMContentLoaded',()=>{document.body.dataset.suppressDailyClaim='true';}));
       await context.addCookies([{name:'fixture-account',value:A,url:base}]);await context.route('**/*',route=>new URL(route.request().url()).origin===base?route.continue():route.abort());
@@ -56,6 +68,14 @@ async function until(fn){for(let i=0;i<300;i++){if(fn())return;await new Promise
       await page.waitForFunction(()=>document.getElementById('groups-current-panel').dataset.groupFrame==='fern');await idle();
       assert.equal(await page.locator('#groups-current-panel').evaluate(el=>getComputedStyle(el).borderTopColor),'rgb(85, 191, 145)');
       await page.reload();await page.waitForFunction(()=>document.getElementById('groups-current-panel').dataset.groupFrame==='fern');await idle();
+      await prepare('browser-entry-'+n);assert.match(await page.locator('#treasury-purchase-pending').innerText(),new RegExp('Linked Territory '+n));
+      dropDispatch=true;await confirm('Confirm purchase');await page.getByRole('button',{name:'Check purchase status',exact:true}).waitFor();await idle();
+      const entry=()=>db.prepare('SELECT 1 FROM territory_event_registrations WHERE event_id=? AND group_id=?').get(eventId,territoryGroupId);
+      assert.equal(entry(),undefined);await page.getByRole('button',{name:'Check purchase status',exact:true}).click();await idle();assert.equal(entry(),undefined);
+      await confirm('Finish same purchase');await page.waitForFunction(()=>!document.querySelector('#treasury-purchase-pending h4'));await idle();assert.ok(entry());await balance(100);
+      await prepare('browser-cancel-entry-'+n);holdDispatch=true;await confirm('Confirm purchase');await until(()=>heldDispatch);
+      await page.getByRole('button',{name:'Release uncommitted funds',exact:true}).click();await idle();heldDispatch();heldDispatch=null;
+      assert.equal(db.prepare('SELECT 1 FROM territory_event_registrations WHERE event_id=? AND group_id=?').get(secondEventId,territoryGroupId),undefined);await balance(100);
       await prepare('browser-night');await context.addCookies([{name:'fixture-account',value:B,url:base}]);await page.reload();
       await page.getByText('The current group owner can manage this purchase.',{exact:true}).waitFor();await idle();
       assert.equal(await page.locator('#treasury-shop-form').isVisible(),false);assert.equal(await page.locator('#treasury-frame-form').isVisible(),false);assert.equal(await page.locator('#treasury-purchase-pending button').count(),0);
@@ -64,10 +84,10 @@ async function until(fn){for(let i=0;i<300;i++){if(fn())return;await new Promise
       page.once('dialog',dialog=>dialog.accept());await page.click('#groups-leave');await page.locator('#groups-create-panel').waitFor();assert.equal(await page.locator('#treasury-shop').isVisible(),false);
       await context.addCookies([{name:'fixture-account',value:B,url:base}]);await page.reload();await page.getByRole('button',{name:'Release uncommitted funds',exact:true}).waitFor();await idle();
       await page.getByRole('button',{name:'Release uncommitted funds',exact:true}).click();await idle();heldReserve();heldReserve=null;
-      await page.waitForTimeout(100);assert.equal(spending.cosmetics(groupId).length,1);await balance(120);
+      await page.waitForTimeout(100);assert.equal(spending.cosmetics(groupId).length,1);await balance(100);
       await prepare('browser-night');dropCommit=true;await confirm('Confirm purchase');await page.getByRole('button',{name:'Check purchase status',exact:true}).waitFor();await idle();
-      const paid=calls.commit;await page.getByRole('button',{name:'Check purchase status',exact:true}).click();await idle();await balance(70);assert.equal(calls.commit,paid);
-      failCatalog=true;await page.click('#treasury-shop-refresh');await page.getByText('The cosmetic catalog is unavailable. Saved requests can still be checked or released.',{exact:true}).waitFor();await idle();
+      const paid=calls.commit;await page.getByRole('button',{name:'Check purchase status',exact:true}).click();await idle();await balance(50);assert.equal(calls.commit,paid);
+      failCatalog=true;await page.click('#treasury-shop-refresh');await page.getByText('The purchase catalog is unavailable. Saved requests can still be checked or released.',{exact:true}).waitFor();await idle();
       await page.selectOption('#treasury-frame-choice','none');await page.click('#treasury-frame-save');await page.waitForFunction(()=>document.getElementById('groups-current-panel').dataset.groupFrame==='none');await idle();
       failCatalog=false;process.env.GROUP_TREASURY_SPEND_ENABLED='0';await page.reload();await page.getByText('New purchases are unavailable. Existing group purchases and frames remain accessible.',{exact:true}).waitFor();await idle();
       assert.equal(await page.locator('#treasury-shop-form').isVisible(),false);await page.selectOption('#treasury-frame-choice','night');await page.click('#treasury-frame-save');
@@ -75,10 +95,10 @@ async function until(fn){for(let i=0;i<300;i++){if(fn())return;await new Promise
       assert.equal(await page.locator('#treasury-shop img').count(),0);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);
       await context.clearCookies();await page.click('#treasury-shop-refresh');await page.waitForFunction(()=>document.getElementById('treasury-shop').hidden);
       assert.equal(await page.locator('#treasury-purchase-history').textContent(),'No group purchases yet.');assert.deepEqual(errors,[]);assert.deepEqual(unexpected,[]);
-      console.log(`PASS ${width}px owner purchases, consent, lost acknowledgments, paid frame rendering, member access, ownership succession, outages and disabled recovery`);await context.close();
+      console.log(`PASS ${width}px owner cosmetic/Territory purchases, frozen entry review, lost dispatch replies, cancellation races, paid frames, membership and disabled recovery`);await context.close();
     }
   }finally{
-    if(heldReserve)heldReserve();if(browser)await browser.close();await Promise.all([website,accounting].filter(Boolean).map(server=>new Promise(resolve=>server.close(resolve))));
+    if(heldReserve)heldReserve();if(heldDispatch)heldDispatch();if(browser)await browser.close();await Promise.all([website,accounting].filter(Boolean).map(server=>new Promise(resolve=>server.close(resolve))));
     db.close();economy.db.close();const target=path.resolve(temp);assert.ok(target.startsWith(path.resolve(os.tmpdir())+path.sep));fs.rmSync(target,{recursive:true,force:true});
   }
 })().catch(error=>{console.error(error);process.exitCode=1;});

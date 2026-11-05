@@ -4,12 +4,15 @@ const {getSkinStudioSafety}=require('../middleware/skinStudioSafety');
 const automation=require('../services/automationWebsiteClient');
 const client=Object.fromEntries(['get','outcome','donate','cancel'].map(action=>[action,body=>automation.groupTreasuryRequest(action==='get'?'read':action,body)]));
 const service=require('../services/groupTreasury').createGroupTreasury(require('../db').db,require('../groupsStore'),client);
-const purchases=require('../services/groupTreasuryPurchases').createGroupTreasuryPurchases(require('../db').db,require('../groupsStore'),Object.fromEntries([
+const purchaseClient=Object.fromEntries([
  ['overview','spending-read'],['status','spend-status'],['reserve','spend-reserve'],['commit','spend-commit'],['release','spend-release'],
-].map(([name,action])=>[name,body=>automation.groupTreasuryRequest(action,body)])));
+ ['dispatchTerritory','spend-dispatch-territory'],['settleTerritory','spend-settle-territory'],
+].map(([name,action])=>[name,body=>automation.groupTreasuryRequest(action,body)]));
+const territory=require('../services/groupTreasuryTerritoryCoordinator').createGroupTreasuryTerritoryCoordinator(require('../db').db,require('../groupsStore'),purchaseClient);
+const purchases=require('../services/groupTreasuryPurchases').createGroupTreasuryPurchases(require('../db').db,require('../groupsStore'),purchaseClient,{territory});
 const readOnly=()=>process.env.GROUP_TREASURY_READ_ONLY==='1'||getSkinStudioSafety().readOnly;
 router.use((_req,res,next)=>{res.set('Cache-Control','private, no-store');next();});
-router.get('/capabilities',(_req,res)=>res.json({enabled:process.env.GROUP_TREASURY_ENABLED==='1',spendingEnabled:process.env.GROUP_TREASURY_ENABLED==='1'&&process.env.GROUP_TREASURY_SPEND_ENABLED==='1',readOnly:readOnly()}));
+router.get('/capabilities',(_req,res)=>res.json({enabled:process.env.GROUP_TREASURY_ENABLED==='1',spendingEnabled:process.env.GROUP_TREASURY_ENABLED==='1'&&process.env.GROUP_TREASURY_SPEND_ENABLED==='1',territoryEntryEnabled:territory.ready(),readOnly:readOnly()}));
 router.use(requireAuth);
 router.use((req,res,next)=>/^\d{17}$/.test(String(req.user?.steam_id||''))?next():res.status(403).json({error:'A linked Steam account is required'}));
 router.use((req,res,next)=>{

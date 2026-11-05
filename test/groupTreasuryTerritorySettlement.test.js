@@ -4,6 +4,7 @@ const {spawn}=require('node:child_process');
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'hv-territory-settlement-'));
 process.env.DB_PATH=path.join(temp,'website.sqlite');process.env.AUTOMATION_DB_PATH=path.join(temp,'economy.sqlite');
 process.env.GROUP_TREASURY_ENABLED='1';process.env.GROUP_TREASURY_SPEND_ENABLED='1';
+process.env.GROUP_TREASURY_TERRITORY_ENABLED='1';
 process.env.GROUP_TREASURY_TERRITORY_PROOF_SECRET='synthetic-test-only-proof-key-000000000000';
 process.env.HOLLOW_VALLEY_API_TOKEN='synthetic-territory-accounting-token';
 const proof=require('../automation-platform/src/services/groupTreasuryTerritoryProof');

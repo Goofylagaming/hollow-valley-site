@@ -52,7 +52,9 @@ function createGroupTreasurySpending(store,{enabled=()=>process.env.GROUP_TREASU
       if(review){
         const active=db.prepare('SELECT revision FROM economy_group_treasury_catalog WHERE item_id=? AND enabled=1').get(id)?.revision??null;
         if(digest(JSON.parse(row.item_json))!==review.digest||active!==review.activeRevision)throw error('CATALOG_REVIEW_STALE','Catalog changed. Inspect and review the current revision again.',409);
-        if(value&&JSON.parse(row.item_json).purpose!=='group_cosmetic')throw error('FULFILLMENT_NOT_CONFIGURED','External entry items require an implemented delivery adapter',503);
+        const purpose=JSON.parse(row.item_json).purpose;
+        const territoryReady=process.env.GROUP_TREASURY_TERRITORY_ENABLED==='1'&&require('./groupTreasuryTerritoryProof').configured(process.env.GROUP_TREASURY_TERRITORY_PROOF_SECRET);
+        if(value&&purpose!=='group_cosmetic'&&!(purpose==='territory_entry'&&territoryReady))throw error('FULFILLMENT_NOT_CONFIGURED','External entry items require an implemented delivery adapter',503);
       }
       if(Boolean(row.enabled)===value)return;
       if(value){for(const previous of db.prepare('SELECT revision FROM economy_group_treasury_catalog WHERE item_id=? AND enabled=1').all(id)){

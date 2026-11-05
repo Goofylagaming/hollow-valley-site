@@ -34,10 +34,11 @@
     const container=get('treasury-purchase-pending');container.replaceChildren();
     if(open){
       const title=document.createElement('h4');title.textContent=`Review ${open.item.title} for ${money(open.item.cost)} from ${group.name}`;container.append(title);
+      if(open.fulfillment){const target=document.createElement('p');target.textContent=`Territory group: ${open.fulfillment.territoryGroupName} · Event: ${open.fulfillment.eventName} (#${open.fulfillment.eventId}). This saved purchase uses the reviewed group link.`;container.append(target);}
       const note=document.createElement('p');note.textContent=open.state==='draft'?'No coins are reserved by this draft.':'The final outcome needs checking. Check status or release the uncommitted request.';container.append(note);
-      const cancellation=document.createElement('p');cancellation.textContent='Releasing an uncommitted request frees its reservation. A completed purchase stays paid.';container.append(cancellation);
+      const cancellation=document.createElement('p');cancellation.textContent=open.item.purpose==='territory_entry'?'Cancellation keeps coins reserved until non-delivery is verified. A registered entry stays paid.':'Releasing an uncommitted request frees its reservation. A completed purchase stays paid.';container.append(cancellation);
       if(model.canManage){
-        const canConfirm=caps.spendingEnabled&&!group.closing&&Boolean(assets)&&!['SPEND_RESPONSE_MISMATCH','TREASURY_INTEGRITY_ERROR','ITEM_UNAVAILABLE','PRICE_CHANGED','GROUP_CLOSING'].includes(open.lastErrorCode);
+        const canConfirm=caps.spendingEnabled&&(open.item.purpose!=='territory_entry'||caps.territoryEntryEnabled)&&!group.closing&&Boolean(assets)&&!['SPEND_RESPONSE_MISMATCH','TREASURY_INTEGRITY_ERROR','ITEM_UNAVAILABLE','PRICE_CHANGED','GROUP_CLOSING','ENTRY_LINK_CHANGED','ENTRY_EVENT_UNAVAILABLE','ENTRY_LEADER_REQUIRED','ENTRY_LINK_REQUIRED','ENTRY_TEST_RESTRICTED','ENTRY_EVIDENCE_INCOMPLETE'].includes(open.lastErrorCode);
         if(canConfirm){const label=document.createElement('label'),checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.id='treasury-purchase-consent';
           label.append(checkbox,document.createTextNode(` I confirm spending ${money(open.item.cost)} from ${group.name} on ${open.item.title}.`));container.append(label);checkbox.addEventListener('change',controls);}
         function button(kind,label){const element=document.createElement('button');element.type='button';element.className='small-button';element.textContent=label;element.dataset.action=kind;
@@ -65,9 +66,9 @@
     try{
       const result=await api(`${base}/spending`);if(epoch!==generation)return;
       if(result.groupId!==model.group.id)throw new Error('Group membership changed. Refresh purchases.');assets=result;render();
-      if(!assets.catalog.length&&caps.spendingEnabled)get('treasury-shop-status').textContent='No reviewed group cosmetics are available.';
+      if(!assets.catalog.length&&caps.spendingEnabled)get('treasury-shop-status').textContent='No reviewed group purchases are available.';
     }catch(error){if(epoch===generation){if([401,403,404].includes(error.status)){forget();throw error;}
-      assets=null;render();get('treasury-shop-status').textContent='The cosmetic catalog is unavailable. Saved requests can still be checked or released.';}}
+      assets=null;render();get('treasury-shop-status').textContent='The purchase catalog is unavailable. Saved requests can still be checked or released.';}}
   }
   async function act(kind,mutation){
     if(busy&&!((kind==='release'&&['confirm','refresh'].includes(busy))||(kind==='check'&&busy==='refresh')))return;
