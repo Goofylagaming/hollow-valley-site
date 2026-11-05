@@ -1,0 +1,25 @@
+const router=require('express').Router();
+const {requireAuth}=require('../middleware/requireAuth');
+const {getSkinStudioSafety}=require('../middleware/skinStudioSafety');
+const automation=require('../services/automationWebsiteClient');
+const client=Object.fromEntries(['get','outcome','donate','cancel'].map(action=>[action,body=>automation.groupTreasuryRequest(action==='get'?'read':action,body)]));
+const service=require('../services/groupTreasury').createGroupTreasury(require('../db').db,require('../groupsStore'),client);
+const readOnly=()=>process.env.GROUP_TREASURY_READ_ONLY==='1'||getSkinStudioSafety().readOnly;
+router.use((_req,res,next)=>{res.set('Cache-Control','private, no-store');next();});
+router.get('/capabilities',(_req,res)=>res.json({enabled:process.env.GROUP_TREASURY_ENABLED==='1',readOnly:readOnly()}));
+router.use(requireAuth);
+router.use((req,res,next)=>/^\d{17}$/.test(String(req.user?.steam_id||''))?next():res.status(403).json({error:'A linked Steam account is required'}));
+router.use((req,res,next)=>{
+  if(req.method==='GET')return next();
+  if(readOnly())return res.status(403).json({error:'This preview cannot change Group Treasury'});
+  if(req.get('origin')!==`${req.protocol}://${req.get('host')}`||!req.is('application/json'))return res.status(403).json({error:'Use the website to manage Treasury donations'});
+  next();
+});
+const run=fn=>async(req,res)=>{try{res.json(await fn(req));}catch(error){res.status(error.status||502).json({error:error.status?error.message:'Group Treasury is temporarily unavailable',code:error.status?error.code:'TREASURY_UNAVAILABLE'});}};
+router.get('/',run(req=>service.current(req.user.steam_id)));
+router.get('/donations/:id',run(req=>service.read(req.user.steam_id,req.params.id)));
+router.post('/donations',run(req=>service.prepare(req.user.steam_id,{expectedGroupId:req.body?.expectedGroupId,amount:req.body?.amount,requestId:req.body?.requestId})));
+router.post('/donations/:id/confirm',run(req=>service.confirm(req.user.steam_id,req.params.id,{confirmed:req.body?.confirmed,expectedGroupId:req.body?.expectedGroupId})));
+router.post('/donations/:id/reconcile',run(req=>service.reconcile(req.user.steam_id,req.params.id)));
+router.post('/donations/:id/cancel',run(req=>service.cancel(req.user.steam_id,req.params.id)));
+module.exports=router;

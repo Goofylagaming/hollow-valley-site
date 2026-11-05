@@ -16,10 +16,10 @@ function fixture(t){
   return {store,db:store.db,service,fund,donate,disable:()=>{enabled=false;}};
 }
 function code(fn,value){assert.throws(fn,error=>error.code===value);}
-function child(dbPath,input){
+function child(dbPath,input,action='donate'){
   const source=`const store=require(${JSON.stringify(require.resolve('../src/services/economyStore'))});
     const s=require(${JSON.stringify(require.resolve('../src/services/groupTreasuryService'))}).createGroupTreasury(store);
-    try{process.stdout.write(JSON.stringify(s.donate(${JSON.stringify(input)})));}
+    try{process.stdout.write(JSON.stringify(s[${JSON.stringify(action)}](${JSON.stringify(input)})));}
     catch(e){process.stdout.write(JSON.stringify({code:e.code,message:e.message}));}
     finally{store.db.close();}`;
   return new Promise((resolve,reject)=>{
@@ -100,4 +100,35 @@ test('disabled donations make no coin changes and the default service remains of
   const previous=process.env.GROUP_TREASURY_ENABLED;delete process.env.GROUP_TREASURY_ENABLED;
   try{code(()=>createGroupTreasury(store).donate({groupId:1,steamId:A,amount:1,requestId:'default_0001'}),'GROUP_TREASURY_DISABLED');}
   finally{if(previous===undefined)delete process.env.GROUP_TREASURY_ENABLED;else process.env.GROUP_TREASURY_ENABLED=previous;}
+});
+test('cancellation persists across processes and prevents a late donation even after writes resume',async t=>{
+  const {store,service,fund,disable}=fixture(t);fund(A,1000);disable();
+  const input={groupId:1,steamId:A,amount:100,requestId:'cancelled_0001'};
+  const first=service.cancel(input);assert.equal(first.state,'cancelled');assert.deepEqual(service.cancel(input),first);
+  assert.equal((await child(store.dbPath,input)).code,'DONATION_CANCELLED');
+  assert.deepEqual(service.outcome({steamId:A,requestId:input.requestId}),first);
+  assert.equal(service.outcome({steamId:B,requestId:input.requestId}),null);
+  code(()=>service.cancel({...input,groupId:2}),'DONATION_CONFLICT');
+  assert.equal(store.getWallet(A).balance,1000);assert.equal(service.get(1).balance,0);
+});
+test('cancellation after commitment returns the immutable receipt and never refunds',t=>{
+  const {store,service,fund,donate}=fixture(t);fund(A,1000);const original=donate();
+  const result=service.cancel({groupId:1,steamId:A,amount:100,requestId:'donation_0001'});
+  assert.equal(result.state,'confirmed');assert.equal(result.donation.id,original.donation.id);
+  assert.equal(store.getWallet(A).balance,900);assert.equal(service.get(1).balance,100);
+});
+test('competing donation and cancellation processes settle to one durable accounting outcome',async t=>{
+  const {store,service,fund}=fixture(t);fund(A,1000);
+  const input={groupId:1,steamId:A,amount:100,requestId:'competing_0001'};
+  const [donation,cancelled]=await Promise.all([child(store.dbPath,input),child(store.dbPath,input,'cancel')]);
+  const outcome=service.outcome({steamId:A,requestId:input.requestId});assert.equal(cancelled.state,outcome.state);
+  if(outcome.state==='cancelled'){assert.equal(donation.code,'DONATION_CANCELLED');assert.equal(service.get(1).balance,0);assert.equal(store.getWallet(A).balance,1000);}
+  else{assert.equal(donation.donation.id,outcome.donation.id);assert.equal(service.get(1).balance,100);assert.equal(store.getWallet(A).balance,900);}
+});
+test('failed cancellation audit cannot report a cancellation that was not stored',t=>{
+  const {db,service,fund,donate}=fixture(t);fund(A,1000);
+  db.exec("CREATE TRIGGER fail_cancellation BEFORE INSERT ON economy_group_treasury_requests WHEN NEW.outcome='cancelled' BEGIN SELECT RAISE(ABORT,'fixture cancellation failure'); END");
+  assert.throws(()=>service.cancel({groupId:1,steamId:A,amount:100,requestId:'donation_0001'}),/fixture cancellation failure/);
+  assert.equal(service.outcome({steamId:A,requestId:'donation_0001'}),null);
+  db.exec('DROP TRIGGER fail_cancellation');assert.equal(donate().duplicate,false);
 });

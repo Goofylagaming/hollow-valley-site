@@ -1,0 +1,11 @@
+const router=require('express').Router();
+router.use(require('../middleware/websiteAuth').requireWebsiteToken);
+router.use((_req,res,next)=>{res.set('Cache-Control','private, no-store');next();});
+let service;
+const get=()=>service||(service=require('../services/groupTreasuryService').createGroupTreasury(require('../services/economyStore')));
+const run=fn=>(req,res)=>{try{res.json(fn(req));}catch(error){res.status(error.status||500).json({error:error.status?error.message:'Group Treasury is temporarily unavailable',code:error.status?error.code:'TREASURY_UNAVAILABLE'});}};
+router.post('/read',run(req=>get().get(req.body?.groupId)));
+router.post('/outcome',run(req=>get().outcome({steamId:req.body?.steamId,requestId:req.body?.requestId})));
+router.post('/donate',run(req=>get().donate({steamId:req.body?.steamId,groupId:req.body?.groupId,amount:req.body?.amount,requestId:req.body?.requestId})));
+router.post('/cancel',run(req=>get().cancel({steamId:req.body?.steamId,groupId:req.body?.groupId,amount:req.body?.amount,requestId:req.body?.requestId})));
+module.exports=router;
