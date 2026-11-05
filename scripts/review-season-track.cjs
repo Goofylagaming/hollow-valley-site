@@ -42,7 +42,7 @@ function main(args) {
     db.exec('PRAGMA busy_timeout=5000');
     const tables = new Set(db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(row => row.name));
     if (!['economy_wallets', 'progression_xp_ledger', 'progression_xp_source_times'].every(name => tables.has(name))) throw new Error('Choose an initialized progression/source-time automation database');
-    const ready = ['progression_seasons', 'progression_season_audit', 'progression_season_enrollments', 'progression_season_evidence', 'progression_season_source_positions'].every(name => tables.has(name));
+    const ready = ['progression_seasons', 'progression_season_audit', 'progression_season_enrollments', 'progression_season_evidence', 'progression_season_source_positions', 'progression_season_choices', 'progression_season_requests'].every(name => tables.has(name));
     if (!ready && command !== 'stage') {
       if (command === 'inspect') return { database, schemaReady: false, season: null, written: false };
       throw new Error('Stage a reviewed season first');

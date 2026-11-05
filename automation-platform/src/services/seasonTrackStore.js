@@ -7,7 +7,7 @@ const SOURCES = Object.freeze({
   quest: { reference: 'quest', basis: 'quest-achievement', policy: 'achievement-time' },
   event: { reference: 'event', basis: 'event-confirmation', policy: 'confirmation-time' },
 });
-const fail = message => { throw new Error(message); };
+const fail = (message, status = 400) => { throw Object.assign(new Error(message), { status }); };
 function fields(value, keys) {
   if (!value || typeof value !== 'object' || Array.isArray(value) ||
       Object.keys(value).length !== keys.length || keys.some(key => !Object.hasOwn(value, key))) {
@@ -72,6 +72,14 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
     CREATE TABLE IF NOT EXISTS progression_season_enrollments (
       season_id TEXT NOT NULL, steam_id TEXT NOT NULL, enrolled_at INTEGER NOT NULL,
       cursor INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(season_id,steam_id));
+    CREATE TABLE IF NOT EXISTS progression_season_choices (
+      season_id TEXT NOT NULL,steam_id TEXT NOT NULL,revision INTEGER NOT NULL,
+      selected INTEGER NOT NULL,changed_at INTEGER NOT NULL,PRIMARY KEY(season_id,steam_id));
+    CREATE TABLE IF NOT EXISTS progression_season_requests (
+      steam_id TEXT NOT NULL,request_key TEXT NOT NULL,season_id TEXT NOT NULL,
+      payload_json TEXT NOT NULL,result_json TEXT NOT NULL,at INTEGER NOT NULL,
+      PRIMARY KEY(steam_id,request_key));
+    CREATE INDEX IF NOT EXISTS progression_season_request_rate ON progression_season_requests(steam_id,at);
     CREATE TABLE IF NOT EXISTS progression_season_evidence (
       season_id TEXT NOT NULL, steam_id TEXT NOT NULL, ledger_id TEXT NOT NULL,
       amount INTEGER NOT NULL, source TEXT NOT NULL, reference_type TEXT NOT NULL,
@@ -92,12 +100,12 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
   const find = id => db.prepare('SELECT * FROM progression_seasons WHERE id=?').get(identity(id));
   function checked(id) {
     const row = find(id);
-    if (!row) fail('Season not found');
+    if (!row) fail('Season not found', 404);
     const reviewed = describe(JSON.parse(row.definition_json));
     const audit = db.prepare('SELECT * FROM progression_season_audit WHERE season_id=? AND revision=?').get(id, row.revision);
     if (reviewed.definition.id !== id || reviewed.digest !== row.digest ||
         !audit || audit.digest !== row.digest || audit.action !== row.state ||
-        !['staged', 'published', 'closed'].includes(row.state)) fail('Season review evidence is unavailable');
+        !['staged', 'published', 'closed'].includes(row.state)) fail('Season review evidence is unavailable', 503);
     return { ...row, definition: reviewed.definition };
   }
   function read(id) {
@@ -154,9 +162,7 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
       return read(id);
     });
   }
-  function enroll(id, steamId) {
-    steam(steamId);
-    return atomic(() => {
+  function enrollRaw(id, steamId) {
       writable(); const row = checked(id), at = now();
       if (row.state !== 'published' || at < Date.parse(row.definition.startsAt) || at >= Date.parse(row.definition.endsAt)) fail('Season enrollment is not open');
       // Bind consent to the source ledger position too: same-millisecond delete /
@@ -164,23 +170,55 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
       const cursor = db.prepare('SELECT coalesce(max(position),0) n FROM progression_season_source_positions WHERE steam_id=?').get(steamId).n;
       db.prepare('INSERT OR IGNORE INTO progression_season_enrollments(season_id,steam_id,enrolled_at,cursor) VALUES(?,?,?,?)').run(id, steamId, at, cursor);
       return enrollment(id, steamId);
-    });
   }
+  function enroll(id, steamId) { steam(steamId); return atomic(() => enrollRaw(id, steamId)); }
   const enrollment = (id, steamId) => db.prepare('SELECT enrolled_at AS enrolledAt,cursor FROM progression_season_enrollments WHERE season_id=? AND steam_id=?').get(id, steamId) || null;
-  function erase(id, steamId) {
-    steam(steamId); identity(id);
-    // Recovery/privacy action stays available even if catalog evidence is corrupt.
-    return atomic(() => {
+  function eraseRaw(id, steamId) {
       writable();
       db.prepare('DELETE FROM progression_season_evidence WHERE season_id=? AND steam_id=?').run(id, steamId);
       return { erased: Boolean(db.prepare('DELETE FROM progression_season_enrollments WHERE season_id=? AND steam_id=?').run(id, steamId).changes) };
+  }
+  function erase(id, steamId) {
+    steam(steamId); identity(id);
+    // Recovery/privacy action stays available even if catalog evidence is corrupt.
+    return atomic(() => eraseRaw(id, steamId));
+  }
+  const choice = (id, steamId) => ({ revision: db.prepare('SELECT revision FROM progression_season_choices WHERE season_id=? AND steam_id=?').get(id, steamId)?.revision || 0,
+    participating: Boolean(enrollment(id, steamId)) });
+  function changeParticipation(id, steamId, { selected, expectedRevision, requestKey, seasonDigest } = {}) {
+    steam(steamId); identity(id);
+    if (typeof selected !== 'boolean' || !Number.isSafeInteger(expectedRevision) || expectedRevision < 0 || expectedRevision >= Number.MAX_SAFE_INTEGER ||
+        typeof requestKey !== 'string' || !/^[-a-zA-Z0-9_]{16,80}$/.test(requestKey) || typeof seasonDigest !== 'string' || !/^[a-f0-9]{64}$/.test(seasonDigest)) fail('Review a complete season participation choice');
+    const payload = JSON.stringify({ id, selected, expectedRevision, seasonDigest });
+    return atomic(() => {
+      writable();
+      const receipt = db.prepare('SELECT * FROM progression_season_requests WHERE steam_id=? AND request_key=?').get(steamId, requestKey);
+      if (receipt) {
+        if (receipt.payload_json !== payload) fail('Saved request conflicts with this choice', 409);
+        return { saved: JSON.parse(receipt.result_json), current: choice(id, steamId), duplicate: true };
+      }
+      if (!find(id)) fail('Season not found', 404);
+      const current = choice(id, steamId);
+      if (current.revision !== expectedRevision || current.participating === selected) fail('Participation changed; review the current choice', 409);
+      if (selected) {
+        if (checked(id).digest !== seasonDigest) fail('Season rules changed; review them again', 409);
+        if (db.prepare('SELECT count(*) n FROM progression_season_requests WHERE steam_id=? AND at>?').get(steamId, now() - 60000).n >= 20 ||
+            db.prepare('SELECT count(*) n FROM progression_season_requests WHERE steam_id=? AND season_id=?').get(steamId, id).n >= 1000) fail('Too many participation choices; try again later', 429);
+        enrollRaw(id, steamId);
+      } else eraseRaw(id, steamId);
+      const saved = { revision: current.revision + 1, participating: selected };
+      db.prepare('INSERT INTO progression_season_choices VALUES(?,?,?,?,?) ON CONFLICT(season_id,steam_id) DO UPDATE SET revision=excluded.revision,selected=excluded.selected,changed_at=excluded.changed_at')
+        .run(id, steamId, saved.revision, Number(selected), now());
+      db.prepare('INSERT INTO progression_season_requests VALUES(?,?,?,?,?,?)').run(steamId, requestKey, id, payload, JSON.stringify(saved), now());
+      return { saved, current: saved, duplicate: false };
     });
   }
-  function reconcile(id, steamId, { limit = 500 } = {}) {
+  function reconcile(id, steamId, { limit = 500, expectedRevision, seasonDigest } = {}) {
     steam(steamId);
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > 1000) fail('Invalid season evidence batch size');
     return atomic(() => {
       writable(); const row = checked(id), participant = enrollment(id, steamId), at = now();
+      if (expectedRevision !== undefined && (!Number.isSafeInteger(expectedRevision) || expectedRevision !== choice(id, steamId).revision || seasonDigest !== row.digest)) fail('Participation or season rules changed; refresh before updating progress', 409);
       if (!participant) fail('Enroll before collecting seasonal progress');
       if (!['published', 'closed'].includes(row.state)) fail('Season has not been published');
       const rows = db.prepare(`SELECT p.position,l.*,t.source_at,t.basis FROM progression_season_source_positions p
@@ -224,6 +262,16 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
       nextTier: row.definition.tiers[tier] || null, pending,
       evidenceUnavailable: Boolean(totals.invalid), collectionClosed: row.state === 'closed' || at >= Date.parse(row.definition.settlesAt) };
   }
-  return { stage, read, reviewStateChange, changeState, enroll, erase, reconcile, progress };
+  function catalog({ before = null } = {}) {
+    if (before !== null && (!Number.isSafeInteger(before) || before < 1)) fail('Invalid season page');
+    const rows = db.prepare("SELECT rowid AS position,id FROM progression_seasons WHERE state IN ('published','closed') AND (? IS NULL OR rowid<?) ORDER BY rowid DESC LIMIT 26").all(before, before);
+    return { items: rows.slice(0,25).map(row => read(row.id)), next: rows.length > 25 ? rows[24].position : null };
+  }
+  function status(id, steamId) {
+    steam(steamId);
+    if (!['published','closed'].includes(checked(id).state)) fail('Published season not found', 404);
+    return { ...choice(id, steamId), progress: progress(id, steamId), serverTime: now() };
+  }
+  return { stage, read, reviewStateChange, changeState, enroll, erase, reconcile, progress, catalog, status, changeParticipation };
 }
 module.exports = { describe, createSeasonTrackStore, SOURCES };

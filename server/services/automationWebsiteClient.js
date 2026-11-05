@@ -932,6 +932,10 @@ module.exports = {
 };
 
 module.exports.legacyRequest = (path, options) => call(`/legacy${path}`, options);
+module.exports.seasonTrackRequest = (action, body) => {
+  if (!['catalog','status','participation','sync'].includes(action)) throw new Error('Unsupported season request');
+  return call(`/season-track/${action}`, { method: 'POST', body });
+};
 module.exports.postTerritoryVictory = payload => call('/territory-results', {method:'POST',body:payload});
 module.exports.groupTreasuryRequest=(action,body)=>{
   if(!['read','outcome','donate','cancel','closure-begin','closure-abort','closure-complete','spending-read','spend-status','spend-reserve','spend-commit','spend-release','spend-dispatch-territory','spend-settle-territory','group-event-preview','group-event-registrations','group-event-index','group-event-roster'].includes(action))throw new Error('Unsupported Group Treasury action');

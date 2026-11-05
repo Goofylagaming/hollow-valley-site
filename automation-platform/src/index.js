@@ -208,6 +208,7 @@ app.use('/api/website/legacy', require('./routes/valleyLegacyRoutes'));
 app.use('/api/website/territory-results', require('./routes/websiteTerritoryResultRoutes'));
 app.use('/api/website/group-treasury', require('./routes/websiteGroupTreasuryRoutes'));
 app.use('/api/website/title-evidence', require('./routes/websiteTitleEvidenceRoutes'));
+app.use('/api/website/season-track', require('./routes/websiteSeasonTrackRoutes'));
 app.use('/api/admin/achievement-reviews', require('./routes/achievementReviewRoutes'));
 app.use('/api/admin/challenge-attendance', require('./routes/challengeAttendanceAdminRoutes'));
 

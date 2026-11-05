@@ -1,0 +1,9 @@
+#season-track {margin:2rem 0;padding:1.25rem;border:1px solid var(--border,#355246);border-radius:12px;background:rgba(3,24,17,.92);}
+#season-track[hidden],#season-track [hidden] {display:none!important;}
+#season-track p,#season-track h3 {overflow-wrap:anywhere;}
+#season-track button {white-space:normal;max-width:100%;margin:.3rem .3rem .3rem 0;}
+#season-catalog {display:flex;flex-wrap:wrap;gap:.4rem;margin:.75rem 0;}
+#season-catalog [aria-pressed="true"] {outline:2px solid #91cda3;outline-offset:2px;}
+#season-details {margin-top:1.25rem;}
+#season-tiers {border-left:2px solid #829b60;padding-left:1rem;}
+#season-review {padding:1rem;border:1px solid #829b60;margin-top:1rem;border-radius:8px;}

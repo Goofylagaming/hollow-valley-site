@@ -4,7 +4,8 @@ Roadmap #4 remains Building / Testing. This local branch starts from Event Engin
 `e9556c42` and does not change the three prepared publication heads. No season,
 player season UI, reward catalog or new payout has been enabled. The source-time
 collector is the only addition called by the existing progression service. The
-new season store and operator tool are not wired into live producers or HTTP routes.
+season store is now reachable through default-off private HTTP routes after
+explicit operator initialization. No active producer or reward rule is installed.
 
 ## Why the permanent XP write date is insufficient
 
@@ -43,14 +44,15 @@ reward. Existing paid quest/level behavior is regression-tested with synthetic d
 
 ## Remaining full season-track requirements
 
-- Expose reviewed season identity, schedule, free enrollment/progression and tiers
-  through currently authorized private APIs and a player UI. The domain core below
-  is prepared, but there is no public enrollment or actual season installed.
+- Validate the prepared private APIs and Quests-page enrollment/progress screen
+  against real authenticated staging. They remain disabled, with no actual season
+  installed and no public rollout.
 - Review actual season dates, thresholds and attribution choices with operators.
   The proposed eight-to-twelve-week duration is not activated. Store contracts
   below constrain explicit choices; they do not establish an approved real season.
-- Connect bounded progress reconciliation and privacy/retention maintenance to
-  the authorized runtime without manufacturing permanent XP or level coins.
+- Complete privacy/retention maintenance and review the real source reconciliation
+  cadence. The prepared player-triggered progress update is bounded and never
+  manufactures permanent XP or level coins; it is not a background collector.
 - Achievement XP and trustworthy achievement/event source integration. The existing
   permanent ledger currently grants XP from playtime, quests and paid event records;
   it is not a complete season implementation.
@@ -61,7 +63,7 @@ reward. Existing paid quest/level behavior is regression-tested with synthetic d
 
 Original #4 wording and historical votes remain. The feature leaves the active
 ballot during development, freeing its old votes without deleting them. Eight
-ideas remain eligible. Homepage planning asset version is 119. No production
+ideas remain eligible. Homepage planning asset version is 120. No production
 completion date is assigned.
 
 ## Local verification
@@ -73,7 +75,7 @@ these runs cover 123 distinct passing tests. Source-time cases cover UTC/offset 
 calendar validation, incompatible bases, bounded clock skew, delayed reconciliation,
 immutable legacy retries, failed-receipt rollback and unchanged existing level rewards.
 
-There is no new player UI to render in this prerequisite. The homepage retains its
+The initial source-clock prerequisite had no new player UI. The homepage retains its
 original descriptions and updated planning/voting state. The prepared season-source
 workflow and expanded achievement workflow include these checks. Hosted execution,
 real producer review and staging remain unverified. `git diff --check` passes.
@@ -81,11 +83,11 @@ real producer review and staging remain unverified. `git diff --check` passes.
 ## Prepared immutable season rules and separate evidence
 
 `automation-platform/src/services/seasonTrackStore.js` adds a separate domain
-store. Creating it initializes additive tables, a source-cursor index and an XP
-insert trigger; no production caller currently creates it. It does not import a wallet, permanent
+store. Initializing it creates additive tables, a source-cursor index and an XP
+insert trigger; no runtime route initializes it. It does not import a wallet, permanent
 XP writer, command sender or reward fulfiller. API authorization is deliberately
-not inferred from the module's Steam-ID validation: future routes must bind the
-current authenticated account before calling it.
+not inferred from the module's Steam-ID validation. The website routes now bind
+the current database user's integer ID and Steam identity before forwarding it.
 
 A complete reviewed definition contains `id`, `title`, `startsAt`, `endsAt`,
 `settlesAt`, `free: true`, `sources` and ascending `tiers` (`xp`, `title`). Unknown
@@ -176,7 +178,7 @@ does not deploy code, switch runtime flags, enroll players or issue rewards.
 No operator command has been run against a real database. Automated CLI fixtures
 use disposable synthetic databases and verify unchanged bytes for dry runs.
 
-## Current local verification
+## Prior core verification
 
 79 combined checks pass across season rules/evidence/operator commands, original
 source clocks, existing permanent XP and 100-coin level rewards, paid fixed quests,
@@ -184,5 +186,74 @@ telemetry, retired voting, title reads, homepage/navigation and production guard
 They cover exact reviews, immutable IDs, atomic audit rollback, overlap/lifecycle
 rules, enrollment and source boundaries, delayed and after-closure reconciliation,
 future skew, bounded retries, deleted/changed evidence, privacy erasure and dry-run
-database preservation. No new player UI exists yet; browser verification is required
-when that UI is added. Hosted checks and authenticated staging remain unverified.
+database preservation. This core suite was run before the player UI was added;
+current UI/API verification is described below. Hosted checks and authenticated
+staging remain unverified.
+
+## Private player API and Quests screen — 6 November 2026
+
+The website mounts `/api/season-track`; the automation service mounts its
+token-protected counterpart at `/api/website/season-track`. The website exposes
+capabilities, a paged published/closed season catalog, own-account status,
+reviewed participation changes and one bounded progress update per explicit
+request. Staged plans are excluded from the catalog and guessed staged IDs return
+not found. Neither GETs nor catalog/status reads reconcile XP or install schema.
+
+Current website account ID and Steam binding are rechecked in the users database.
+Request-supplied account identities are ignored. Mutation requests require the
+same website origin, JSON and a non-cross-site fetch; deployment preview/read-only
+guards apply independently. The automation side requires the integration token,
+validates the Steam identity and repeats rollout/read-only checks. No admin token
+or operator catalog mutation is exposed through this player boundary. Errors and
+private responses use no-store caching, and unexpected service errors are sanitized.
+
+Player enrollment/deletion binds the exact season digest, current consent revision
+and request identity. The choice and its receipt commit with enrollment/deletion.
+Failed receipts roll everything back. An exact retry reports both its saved result
+and the actual current choice: replaying an old join after deletion cannot rejoin.
+Conflicting keys and stale revisions fail. Minimal choice revisions and request
+receipts survive deletion; copied seasonal progress and enrollment do not. Join
+rate/history bounds still allow an enrolled player's deletion. A progress update
+checks the consent revision and season digest within its transaction.
+
+The Quests page shows optional seasons, Brisbane dates and delayed-record cutoff,
+participation, saved XP, milestone thresholds and pending/unavailable evidence.
+Joining/deletion needs an explicit review and confirmation. New activity is checked
+with a separate bounded button; refreshes never silently POST. Lost participation
+replies retain the exact request for explicit retry, including malformed successful
+replies. Account/session changes clear private state and stale responses cannot
+populate a replacement account. Catalog pages are bounded, safe text is rendered
+without HTML, and reviews are kept in memory only. Existing quests and dynamic
+challenges retain their original controllers and ordering.
+
+Both services default off. Before any rollout, explicitly prepare the automation
+database using the reviewed operator workflow. A runtime flag cannot create the
+schema/trigger: missing initialized tables or source trigger returns unavailable.
+The automation runtime uses the existing economy database with `initialize:false`.
+
+| Setting on website and automation service | Meaning |
+| --- | --- |
+| `SEASON_TRACK_ENABLED=1` | Allow private season enrollment and explicit progress updates after operator setup |
+| `SEASON_TRACK_MANAGEMENT_ENABLED=1` | Keep catalog/status and existing participant deletion available while tracking is paused |
+| `SEASON_TRACK_READ_ONLY=1` | Block mutations, including deletion, for a read-only deployment |
+
+Keep the management setting enabled when pausing tracking so players can recover
+and delete participation. Website preview restrictions apply in addition to these
+settings. No flags, real database, dates, thresholds, rewards or external messages
+have been configured by this local implementation.
+
+Final affected suite: **79 passing checks** across store/runtime/operator APIs,
+current-account and token guards, consent rollback/replay, source clocks, existing
+permanent progression and paid quests, challenge APIs, voting/navigation and
+production page-script preservation. `verify-season-track.cjs` passes on the actual
+Quests page at 1440px and 390px with both real HTTP layers and synthetic accounts:
+join review, lost reply and exact retry, explicit XP update, tier rendering,
+preview, paused deletion/blocked join, stale revision, delayed read/account switch,
+session loss, safe text and no horizontal overflow. The existing dynamic-challenge
+browser fixture also passes at both widths. Desktop/mobile screenshots were
+inspected. The dedicated workflow includes these checks but is still unpublished.
+
+Remaining season work includes achievement XP evidence, real source timing/payload
+review, retention/maintenance and operational recovery, approved reward policy,
+hosted checks and authenticated staging. Roadmap #4 remains Building / Testing;
+the full season and 31-feature roadmap are not complete.

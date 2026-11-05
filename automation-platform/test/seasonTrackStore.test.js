@@ -177,3 +177,46 @@ test('initialized source indexing shares the real permanent grant transaction an
   assert.equal(economy.db.prepare('SELECT count(*) n FROM progression_season_source_positions').get().n, 1);
   assert.equal(economy.db.prepare('SELECT count(*) n FROM progression_season_enrollments').get().n, 0);
 });
+test('reviewed participation retries preserve current choice and cannot resurrect a deleted enrollment', t => {
+  const f = fixture(t); f.publish(); f.clock(START);
+  const join = { selected: true, expectedRevision: 0, requestKey: 'synthetic-join-request', seasonDigest: f.digest };
+  assert.equal(f.store.changeParticipation(f.def.id, A, join).current.revision, 1);
+  f.grant('new-grant'); f.store.reconcile(f.def.id, A, { expectedRevision: 1, seasonDigest: f.digest });
+  const leave = { selected: false, expectedRevision: 1, requestKey: 'synthetic-leave-request', seasonDigest: f.digest };
+  f.store.changeParticipation(f.def.id, A, leave);
+  const replay = f.store.changeParticipation(f.def.id, A, join);
+  assert.equal(replay.duplicate, true); assert.equal(replay.saved.participating, true); assert.equal(replay.current.participating, false);
+  assert.equal(f.store.status(f.def.id, A).revision, 2); assert.equal(f.store.progress(f.def.id, A).xp, 0);
+  assert.throws(() => f.store.changeParticipation(f.def.id, A, { ...join, selected: false }), { status: 409 });
+  assert.throws(() => f.store.changeParticipation(f.def.id, A, { ...join, requestKey: 'synthetic-stale-request' }), { status: 409 });
+  assert.throws(() => f.store.reconcile(f.def.id, A, { expectedRevision: 1, seasonDigest: f.digest }), { status: 409 });
+});
+test('a failed participation receipt rolls back enrollment and deletion; deletion survives damaged review evidence', t => {
+  const f = fixture(t); f.publish(); f.clock(START);
+  const join = { selected: true, expectedRevision: 0, requestKey: 'synthetic-join-receipt', seasonDigest: f.digest };
+  f.db.exec("CREATE TRIGGER refuse_choice_receipt BEFORE INSERT ON progression_season_requests BEGIN SELECT RAISE(ABORT,'receipt unavailable'); END");
+  assert.throws(() => f.store.changeParticipation(f.def.id, A, join), /receipt unavailable/);
+  assert.equal(f.store.status(f.def.id, A).revision, 0); assert.equal(f.store.status(f.def.id, A).participating, false);
+  f.db.exec('DROP TRIGGER refuse_choice_receipt'); f.store.changeParticipation(f.def.id, A, join);
+  f.grant('retained'); f.store.reconcile(f.def.id, A);
+  const leave = { selected: false, expectedRevision: 1, requestKey: 'synthetic-leave-receipt', seasonDigest: f.digest };
+  f.db.exec("CREATE TRIGGER refuse_delete_receipt BEFORE INSERT ON progression_season_requests BEGIN SELECT RAISE(ABORT,'receipt unavailable'); END");
+  assert.throws(() => f.store.changeParticipation(f.def.id, A, leave), /receipt unavailable/);
+  assert.equal(f.store.status(f.def.id, A).progress.xp, 10); assert.equal(f.store.status(f.def.id, A).revision, 1);
+  f.db.exec('DROP TRIGGER refuse_delete_receipt; DELETE FROM progression_season_audit');
+  assert.equal(f.store.changeParticipation(f.def.id, A, leave).current.participating, false);
+  assert.equal(f.db.prepare('SELECT count(*) n FROM progression_season_evidence').get().n, 0);
+  assert.equal(f.db.prepare('SELECT count(*) n FROM progression_season_requests').get().n, 2);
+});
+test('player catalog pages omit staged plans and private evidence; guessed staged identities remain unavailable', t => {
+  const f = fixture(t); f.stage();
+  assert.equal(f.store.catalog().items.length, 0); assert.throws(() => f.store.status(f.def.id, A), { status: 404 });
+  for (let i = 0; i < 26; i++) {
+    const start = START + i * 57 * 86400000;
+    const def = { ...definition('page-' + i), startsAt: iso(start), endsAt: iso(start + 56 * 86400000), settlesAt: iso(start + 57 * 86400000) }, digest = describe(def).digest;
+    f.store.stage(def, { reviewer: A, digest }); f.store.changeState(def.id, { reviewer: A, digest, action: 'publish', expectedRevision: 1 });
+  }
+  const first = f.store.catalog(), last = f.store.catalog({ before: first.next });
+  assert.equal(first.items.length, 25); assert.equal(last.items.length, 1); assert.equal(last.next, null);
+  assert.equal(JSON.stringify(first).includes(A), false); assert.throws(() => f.store.catalog({ before: [] }));
+});

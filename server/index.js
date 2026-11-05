@@ -272,6 +272,7 @@ function createApp() {
   app.use("/api/legacy", require("./routes/valleyLegacy"));
   app.use("/api/journeys", require("./routes/journeys"));
   app.use("/api/dynamic-challenges", require("./routes/dynamicChallenges"));
+  app.use("/api/season-track", require("./routes/seasonTrack"));
   app.use("/api/admin/challenge-attendance", require("./routes/challengeAttendance").createRouter());
   app.use("/api/discovery", require("./routes/discovery"));
   app.use("/api/death-recaps", require("./routes/deathRecaps"));
