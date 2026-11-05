@@ -1,7 +1,7 @@
 (() => {
   const {api,loadMe}=window.HDS,$=id=>document.getElementById(id);
   const form=$('gift-offer'),status=$('gift-status'),list=$('gift-list');
-  let user=null,writable=false,attempt=null,busy=false,sequence=0,recoveryCursor=0;
+  let user=null,writable=false,attempt=null,busy=false,sequence=0,recoveryCursor=0,parkedCursor=0;
   const node=(tag,text)=>{const el=document.createElement(tag);el.textContent=text;return el;};
   const post=(path,body)=>api('/api/skins/gifts'+path,{method:'POST',body:JSON.stringify(body)});
   function controls(){$('gift-reconcile').disabled=!writable;form.querySelector('fieldset').disabled=!writable||busy;form.querySelector('button').disabled=!writable||busy||form.elements.presetId.options.length<2;}
@@ -42,10 +42,11 @@
     catch(e){status.textContent=e.message;}finally{busy=false;controls();}
   });
   $('gift-reconcile').addEventListener('click',async()=>{if(!writable)return;$('gift-reconcile').disabled=true;try{
-    const result=await post('/reconcile',{cursor:recoveryCursor});recoveryCursor=result.nextCursor??0;
+    const result=await post('/reconcile',{cursor:recoveryCursor,parkedCursor});recoveryCursor=result.nextCursor??0;parkedCursor=result.nextParkedCursor??0;
     status.textContent=result.pending?`${result.pending} skin application(s) still awaiting confirmation. No edit was resent.`:'No skin applications are waiting for confirmation.';
-    if(result.nextCursor!=null)status.textContent+=' Select Check more applications to continue.';
-    $('gift-reconcile').textContent=result.nextCursor!=null?'Check more applications':'Check pending skin applications';
+    const more=result.nextCursor!=null||result.nextParkedCursor!=null;
+    if(more)status.textContent+=' Select Check more applications to continue.';
+    $('gift-reconcile').textContent=more?'Check more applications':'Check pending skin applications';
     await refresh();
   }catch(e){status.textContent=e.message;}finally{$('gift-reconcile').disabled=!writable;}});
   $('gift-refresh').addEventListener('click',()=>refresh().catch(e=>{status.textContent=e.message;}));

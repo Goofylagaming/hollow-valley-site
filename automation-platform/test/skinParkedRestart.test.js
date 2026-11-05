@@ -41,7 +41,7 @@ test('parked holds survive process exit and release only after a matching defini
       assert.deepEqual(run({action:'accept',giftId}),{status:409});
     }
     const before=run({action:'inspect'});assert.equal(before.sender,true);assert.equal(before.recipient,false);assert.equal(before.unlocks,1);
-    assert.deepEqual(run({action:'reconcile',state:'confirmed'}),{checked:1,resolved:1,pending:0,reads:['fixture-original-command']});
+    assert.deepEqual(run({action:'reconcile',state:'confirmed'}),{checked:1,resolved:1,pending:0,nextCursor:null,reads:['fixture-original-command']});
     assert.equal(run({action:'accept',giftId}).duplicate,false);
     assert.equal(run({action:'accept',giftId}).duplicate,true);
     const after=run({action:'inspect'});assert.equal(after.sender,false);assert.equal(after.recipient,true);assert.equal(after.unlocks,1);

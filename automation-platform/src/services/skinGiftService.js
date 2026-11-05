@@ -84,9 +84,11 @@ function createSkinGiftService(store,{now=Date.now,enabled=()=>process.env.SKIN_
   }
   return {offer,decide,list,eligible,reconcile:async(user,options={})=>{
     gate();const steam=store.validateSteamId(user?.steam_id);
-    const liveResult=await live.reconcile(steam,options),parkedResult=await parked.reconcile(steam);
+    const parkedCursor=options.parkedCursor??0;
+    if(!Number.isSafeInteger(parkedCursor)||parkedCursor<0)fail('Invalid parked application cursor');
+    const liveResult=await live.reconcile(steam,options),parkedResult=await parked.reconcile(steam,{cursor:parkedCursor});
     return {checked:liveResult.checked+parkedResult.checked,resolved:liveResult.resolved+parkedResult.resolved,
-      pending:liveResult.pending+parkedResult.pending,nextCursor:liveResult.nextCursor};
+      pending:liveResult.pending+parkedResult.pending,nextCursor:liveResult.nextCursor,nextParkedCursor:parkedResult.nextCursor};
   }};
 }
 module.exports={createSkinGiftService};

@@ -20,16 +20,17 @@ function createSkinParkedApplicationService(store,{readOutcome=command=>require(
     if(!['confirmed','failed','not_published'].includes(state))return false;
     return db.prepare("UPDATE economy_skin_parked_applications SET status=?,completed_at=? WHERE id=? AND status='pending'").run(state,now(),id).changes===1;
   }
-  async function reconcile(steamId) {
+  async function reconcile(steamId,{cursor=0}={}) {
     const steam=store.validateSteamId(steamId);
-    const rows=db.prepare("SELECT id,command_json FROM economy_skin_parked_applications WHERE steam_id=? AND status='pending' ORDER BY created_at LIMIT 25").all(steam);
+    if(!Number.isSafeInteger(cursor)||cursor<0)throw Object.assign(new Error('Invalid parked application cursor'),{status:400});
+    const rows=db.prepare("SELECT rowid AS cursor,id,command_json FROM economy_skin_parked_applications WHERE steam_id=? AND status='pending' AND rowid>? ORDER BY rowid LIMIT 26").all(steam,cursor);
     let resolved=0;
-    for(const row of rows){
+    for(const row of rows.slice(0,25)){
       try{const outcome=await readOutcome(JSON.parse(row.command_json));if(['confirmed','failed'].includes(outcome?.state)&&complete(row.id,outcome.state))resolved++;}
       catch{/* Unreachable or ambiguous outcomes retain the durable hold. */}
     }
     const remaining=db.prepare("SELECT COUNT(*) n FROM economy_skin_parked_applications WHERE steam_id=? AND status='pending'").get(steam).n;
-    return {checked:rows.length,resolved,pending:remaining};
+    return {checked:Math.min(rows.length,25),resolved,pending:remaining,nextCursor:rows.length>25?rows[24].cursor:null};
   }
   return {reserve,pending,complete,reconcile};
 }
