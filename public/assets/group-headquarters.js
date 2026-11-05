@@ -8,6 +8,9 @@
     get('hq-save').disabled = busy || !writable || !profile?.canEdit;
     get('hq-refresh').disabled = busy;
     get('hq-ranks').querySelectorAll('select,button').forEach(element => { element.disabled = busy || !writable || !profile?.canEdit; });
+    get('hq-image-choice').disabled = busy || !writable;
+    get('hq-share').disabled = busy || !writable || !profile?.screenshotChoices?.length;
+    get('hq-screenshots').querySelectorAll('button').forEach(button => { button.disabled = busy || !writable; });
   }
   async function refresh() {
     profile = await api('/api/group-headquarters');
@@ -43,6 +46,17 @@
     for (const edit of profile.rankEdits || []) {
       const item=document.createElement('li'); item.textContent=`${edit.memberName} · ${edit.rank} · ${edit.createdAt}`; rankHistory.append(item);
     }
+    const choices=get('hq-image-choice'); choices.replaceChildren();
+    for(const image of profile.screenshotChoices||[])choices.add(new Option(image.title,image.id));
+    const screenshots=get('hq-screenshots'); screenshots.replaceChildren();
+    for(const image of profile.screenshots||[]){
+      const card=document.createElement('figure'),caption=document.createElement('figcaption');
+      caption.textContent=image.title+(image.author?` · ${image.author}`:'');card.append(caption);
+      if(image.available){const picture=document.createElement('img');picture.src='/api/gallery/'+encodeURIComponent(image.id)+'/image';picture.alt=image.title;picture.loading='lazy';picture.style.maxWidth='100%';card.append(picture);}
+      if(image.canRemove){const button=document.createElement('button');button.type='button';button.className='small-button';button.textContent='Remove screenshot';
+        button.addEventListener('click',()=>{if(writable)action(()=>api('/api/group-headquarters/screenshots',{method:'POST',body:JSON.stringify({imageId:image.id,remove:true})}));});card.append(button);}
+      screenshots.append(card);
+    }
     get('hq-status').textContent = writable ? (profile.canEdit ? 'You can edit your group description.' : 'The group owner can edit this description.') : 'This preview is read-only.';
     controls();
   }
@@ -56,18 +70,20 @@
     } catch (error) {
       // Recover ownership and revision after a response is lost or membership changes.
       try { await refresh(); }
-      catch { profile = null; get('hq-current').textContent = ''; get('hq-emblem').textContent = ''; get('hq-description').value = ''; get('hq-history').replaceChildren(); get('hq-ranks').replaceChildren(); get('hq-rank-history').replaceChildren(); get('hq-editor').hidden = true; }
+      catch { profile = null; get('hq-current').textContent = ''; get('hq-emblem').textContent = ''; get('hq-description').value = ''; get('hq-history').replaceChildren(); get('hq-ranks').replaceChildren(); get('hq-rank-history').replaceChildren(); get('hq-screenshots').replaceChildren(); get('hq-image-choice').replaceChildren(); get('hq-editor').hidden = true; }
       get('hq-status').textContent = error.message;
     } finally { busy = false; controls(); }
   }
   get('hq-form').addEventListener('submit', event => { event.preventDefault(); if (writable && profile?.canEdit) action(true); });
   get('hq-refresh').addEventListener('click', () => action());
+  get('hq-share-form').addEventListener('submit',event=>{event.preventDefault();if(writable&&get('hq-image-choice').value)action(()=>api('/api/group-headquarters/screenshots',{method:'POST',body:JSON.stringify({imageId:get('hq-image-choice').value})}));});
   window.addEventListener('hv:group-state', event => {
     if (!active) return;
     if (profile?.groupId !== event.detail?.groupId) {
       profile = null; get('hq-current').textContent = ''; get('hq-description').value = '';
       get('hq-emblem').textContent = '';
       get('hq-ranks').replaceChildren(); get('hq-rank-history').replaceChildren();
+      get('hq-screenshots').replaceChildren(); get('hq-image-choice').replaceChildren();
       get('hq-history').replaceChildren(); get('hq-editor').hidden = true;
     } else if (get('hq-description').value !== profile.description || get('hq-emblem-choice').value !== profile.emblem) return;
     action();

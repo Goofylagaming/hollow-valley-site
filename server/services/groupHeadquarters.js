@@ -15,11 +15,20 @@ function createGroupHeadquarters(db, groups) {
     CREATE TABLE IF NOT EXISTS hv_group_screenshot_edits (
     id INTEGER PRIMARY KEY,group_id INTEGER NOT NULL,image_id TEXT NOT NULL,actor TEXT NOT NULL,
     action TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT(datetime('now')));`);
-  function screenshots(groupId) {
+  function screenshots(groupId, steamId, owner) {
     if(process.env.HV_GALLERY_ENABLED!=='1'||!db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='gallery_images'").get())return [];
-    return db.prepare(`SELECT i.id,i.title,i.author,s.shared_at AS sharedAt FROM hv_group_screenshots s
-      JOIN gallery_images i ON i.id=s.image_id WHERE s.group_id=? AND i.status='approved' AND i.image IS NOT NULL
-      ORDER BY s.shared_at DESC,s.image_id LIMIT 50`).all(groupId);
+    return db.prepare(`SELECT s.image_id AS id,i.title,i.author,s.shared_by,s.shared_at AS sharedAt,
+      (i.status='approved' AND i.image IS NOT NULL) AS available FROM hv_group_screenshots s
+      LEFT JOIN gallery_images i ON i.id=s.image_id WHERE s.group_id=?
+      ORDER BY s.shared_at DESC,s.image_id LIMIT 50`).all(groupId).filter(row=>row.available||owner||row.shared_by===steamId)
+      .map(row=>({id:row.id,title:row.available?row.title:'Unavailable screenshot',author:row.available?row.author:null,
+        sharedAt:row.sharedAt,available:Boolean(row.available),canRemove:owner||row.shared_by===steamId}));
+  }
+  function screenshotChoices(groupId, steamId) {
+    if(process.env.HV_GALLERY_ENABLED!=='1'||!db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='gallery_images'").get())return [];
+    return db.prepare(`SELECT id,title FROM gallery_images i WHERE owner_steam_id=? AND status='approved' AND image IS NOT NULL
+      AND NOT EXISTS(SELECT 1 FROM hv_group_screenshots s WHERE s.group_id=? AND s.image_id=i.id)
+      ORDER BY id LIMIT 50`).all(steamId,groupId);
   }
   db.exec(`CREATE TABLE IF NOT EXISTS hv_group_member_ranks (
     group_id INTEGER NOT NULL, steam_id TEXT NOT NULL, rank TEXT NOT NULL,
@@ -44,7 +53,8 @@ function createGroupHeadquarters(db, groups) {
       groupId: group.id, name: group.name, canEdit: group.ownerSteamId === steamId,
       description: profile?.description || '', revision: profile?.revision || 0,
       emblem: profile?.emblem || 'leaf',
-      screenshots: screenshots(group.id),
+      screenshots: screenshots(group.id,steamId,group.ownerSteamId===steamId),
+      screenshotChoices: screenshotChoices(group.id,steamId),
       rankEdits: db.prepare(`SELECT e.revision,e.rank,e.created_at AS createdAt,
         COALESCE(u.username,'Former member') AS memberName
         FROM hv_group_rank_edits e LEFT JOIN users u ON u.steam_id=e.steam_id

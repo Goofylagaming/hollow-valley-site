@@ -76,7 +76,7 @@ test('Headquarters screenshots require owned approved images and follow moderati
   hq.shareScreenshot(B,{imageId:'approved'});
   assert.equal(db.prepare('SELECT COUNT(*) n FROM hv_group_screenshot_edits').get().n,1);
   db.prepare("UPDATE gallery_images SET status='withdrawn',image=NULL WHERE id='approved'").run();
-  assert.equal(hq.get(A).screenshots.length,0);
+  assert.equal(hq.get(A).screenshots[0].available,false);assert.equal(hq.get(A).screenshots[0].title,'Unavailable screenshot');
   hq.shareScreenshot(A,{imageId:'approved',remove:true});
   assert.equal(db.prepare('SELECT COUNT(*) n FROM hv_group_screenshot_edits').get().n,2);
  }finally{if(saved===undefined)delete process.env.HV_GALLERY_ENABLED;else process.env.HV_GALLERY_ENABLED=saved;}
