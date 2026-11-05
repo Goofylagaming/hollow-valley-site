@@ -148,13 +148,9 @@ async function retryLastWear(steamId) {
     throw error;
   }
   if (latest.status !== 'failed') {
-    const updatedAt = Date.parse(String(latest.updated_at || latest.created_at || '').replace(' ', 'T') + 'Z');
-    const stale = Number.isFinite(updatedAt) && Date.now() - updatedAt > 60000;
-    if (!stale) {
-      const error = new Error('Your Wear Live request is still pending. Refresh the status before retrying.');
-      error.code = 'SKIN_WEAR_STILL_PENDING';
-      throw error;
-    }
+    const error = new Error('Your Wear Live request is still pending. Refresh the status before retrying.');
+    error.code = 'SKIN_WEAR_STILL_PENDING';
+    throw error;
   }
   return wearPreset({ steamId, presetId: latest.preset_id });
 }
@@ -226,25 +222,37 @@ async function wearPreset({ steamId, presetId }) {
     capturedAt: new Date().toISOString(),
   };
 
-  const command = bridge.buildCommand('skin_apply', steamId, buildWearTokens(preset, targetSpecies));
-  store.createSkinApplyJob({
-    id: command.id,
-    steamId,
-    presetId: preset.id,
-    species: resolvedSpecies,
-    skin: safeSkin,
-    lifeMarker,
-  });
+  let command;
+  // Serialize the final ownership check and queued job with gift acceptance.
+  // No network operation is performed while this write lock is held.
+  store.db.exec('BEGIN IMMEDIATE');
+  try {
+    const current = skinPresets.getPresetForPlayer(steamId, presetId);
+    if (current.species !== preset.species || JSON.stringify(current.skin) !== JSON.stringify(preset.skin)) {
+      throw Object.assign(new Error('This skin changed while loading your dinosaur. Please try again.'), {code:'SKIN_PRESET_CHANGED'});
+    }
+    if (current.membershipPremium) skinPresets.assertMembershipSpecies(current, steamId, resolvedSpecies);
+    command = bridge.buildCommand('skin_apply', steamId, buildWearTokens(current, targetSpecies));
+    store.createSkinApplyJob({id:command.id,steamId,presetId:current.id,species:resolvedSpecies,skin:safeSkin,lifeMarker});
+    store.db.exec('COMMIT');
+  } catch (error) {
+    store.db.exec('ROLLBACK');
+    throw error;
+  }
 
   try {
     await bridge.queueCommand(command);
   } catch (error) {
+    // A publisher can accept the command before its response is lost. Only a
+    // proven pre-publication rejection may release the gifting hold.
+    const notPublished = error.commandNotPublished === true;
     store.updateSkinApplyJob({
       id: command.id,
-      status: 'failed',
+      status: notPublished ? 'failed' : 'awaiting_confirmation',
       error: error.message || 'Could not queue Skin Studio command',
-      completed: true,
+      completed: notPublished,
     });
+    error.requestId = command.id;
     throw error;
   }
 

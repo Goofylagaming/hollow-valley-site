@@ -66,19 +66,25 @@ function assertPublisherReady() {
 }
 
 async function queueCommand(command) {
-  assertPublisherReady();
-
-  if (getTransport() === 'http_pull') {
-    if (!transportConfigured()) {
+  let transport;
+  try {
+    assertPublisherReady();
+    transport = getTransport();
+    if (transport === 'http_pull' && !transportConfigured()) {
       throw new Error('BINARYLANE_COMMAND_TOKEN must be configured for COMMAND_BRIDGE_TRANSPORT=http_pull');
     }
     await require('./dinoStorageCapacityService').guardCommand(command);
-    httpBridge.enqueue(command, SOURCES[command.verb]);
-    return command;
+  } catch (error) {
+    // Neither publisher has been invoked. Callers may resolve a reservation
+    // created for this fresh command without treating a timeout as a failure.
+    error.commandNotPublished = true;
+    throw error;
   }
-
-  await require('./dinoStorageCapacityService').guardCommand(command);
-  await fileBridge.publishCommandLine(JSON.stringify(command));
+  if (transport === 'http_pull') {
+    httpBridge.enqueue(command, SOURCES[command.verb]);
+  } else {
+    await fileBridge.publishCommandLine(JSON.stringify(command));
+  }
   return command;
 }
 

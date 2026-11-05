@@ -1,0 +1,23 @@
+const test=require('node:test'),assert=require('node:assert/strict');
+process.env.AUTOMATION_DB_PATH=':memory:';
+const bridge=require('../src/services/commandBridgeService'),file=require('../src/adapters/fileBridge'),http=require('../src/services/commandBridgeHttpService'),capacity=require('../src/services/dinoStorageCapacityService');
+test('only failures before publisher invocation carry proof of non-publication',async t=>{
+  const keys=['COMMAND_BRIDGE_ENABLED','COMMAND_BRIDGE_SINGLE_PUBLISHER_ACK','COMMAND_BRIDGE_TRANSPORT','BINARYLANE_COMMAND_TOKEN'];
+  const previous=Object.fromEntries(keys.map(k=>[k,process.env[k]]));t.after(()=>{for(const [k,v]of Object.entries(previous)){if(v===undefined)delete process.env[k];else process.env[k]=v;}});
+  let guardFail=false,published=0;
+  t.mock.method(capacity,'guardCommand',async()=>{if(guardFail)throw new Error('fixture capacity rejected');});
+  t.mock.method(file,'publishCommandLine',async()=>{published++;throw new Error('fixture uncertain file write');});
+  t.mock.method(http,'enqueue',()=>{published++;throw new Error('fixture uncertain enqueue');});
+  const command=bridge.buildCommand('dino_edit','76561198000000901',['fixture','skin']);
+  process.env.COMMAND_BRIDGE_ENABLED='false';
+  await assert.rejects(bridge.queueCommand(command),e=>e.commandNotPublished===true);assert.equal(published,0);
+  process.env.COMMAND_BRIDGE_ENABLED='true';process.env.COMMAND_BRIDGE_SINGLE_PUBLISHER_ACK=bridge.PUBLISHER_ACK;
+  process.env.COMMAND_BRIDGE_TRANSPORT='http_pull';delete process.env.BINARYLANE_COMMAND_TOKEN;
+  await assert.rejects(bridge.queueCommand(command),e=>e.commandNotPublished===true);assert.equal(published,0);
+  process.env.BINARYLANE_COMMAND_TOKEN='fixture-token';guardFail=true;
+  await assert.rejects(bridge.queueCommand(command),e=>e.commandNotPublished===true);assert.equal(published,0);
+  guardFail=false;
+  await assert.rejects(bridge.queueCommand(command),e=>e.commandNotPublished!==true&&/enqueue/.test(e.message));assert.equal(published,1);
+  process.env.COMMAND_BRIDGE_TRANSPORT='file';
+  await assert.rejects(bridge.queueCommand(command),e=>e.commandNotPublished!==true&&/file write/.test(e.message));assert.equal(published,2);
+});

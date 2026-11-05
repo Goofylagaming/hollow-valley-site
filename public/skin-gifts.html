@@ -1,0 +1,13 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Skin Gifts | Hollow Valley</title>
+<link rel="stylesheet" href="/assets/styles.css?v=38"><link rel="stylesheet" href="/assets/skin-codes.css?v=1"></head><body><div class="app-shell"><div id="nav-slot"></div><main class="promo-page">
+<h1>Skin gifts</h1><p>Offer an owned skin to another player. You keep it until they accept. Acceptance moves your unlock to them; it does not make another copy. Already applied dinosaur appearances are unchanged.</p>
+<a href="/skins">Back to Skin Studio</a><p id="gift-status" role="status" aria-live="polite">Loading…</p><p id="gift-signin" hidden><a href="/auth/steam">Sign in with Steam</a> to manage gifts.</p>
+<section id="gift-account" hidden><form id="gift-offer"><h2>Offer a skin</h2><fieldset disabled>
+<label>Skin <select name="presetId" required><option value="">Choose a skin</option></select></label>
+<p>Only transferable permanent unlocks appear. Membership skins, creator-owned designs, borrowed grants and freely available skins cannot be gifted.</p>
+<label>Recipient’s Steam ID <input name="recipientSteamId" required pattern="[0-9]{17}" inputmode="numeric" maxlength="17" autocomplete="off"></label>
+<label>Message (optional) <textarea name="note" maxlength="240"></textarea></label>
+<label><input name="confirmed" type="checkbox" required style="width:auto;display:inline"> I checked the recipient’s 17-digit Steam ID.</label>
+<p>They have seven days to accept. You can cancel before acceptance. Up to ten offers per day.</p></fieldset><button type="submit" disabled>Send gift offer</button></form>
+<h2>Your offers and gifts</h2><p>Latest 100 offers involving your account.</p><button id="gift-refresh">Refresh</button><button id="gift-reconcile" disabled>Check pending skin applications</button><div id="gift-list"></div></section>
+</main></div><script src="/assets/common.js?v=30"></script><script src="/assets/skin-gifts.js?v=4"></script></body></html>

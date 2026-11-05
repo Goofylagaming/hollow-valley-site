@@ -44,7 +44,7 @@
   });
   redeem.addEventListener('submit',async event=>{
     event.preventDefault();if(!writable)return;const button=redeem.querySelector('button');button.disabled=true;
-    try{const data=await post('/redeem',{code:redeem.elements.code.value.trim()});status.textContent=data.alreadyOwned?'You already own this skin. The code has not been used.':'Skin unlocked. Open My Skins in Skin Studio to find it.';redeem.reset();}
+    try{const data=await post('/redeem',{code:redeem.elements.code.value.trim()});status.textContent=data.stillOwned===false?'This code was previously redeemed by your account, but you no longer own that skin.':data.alreadyOwned?'You already own this skin. The code has not been used.':'Skin unlocked. Open My Skins in Skin Studio to find it.';redeem.reset();}
     catch(e){status.textContent=e.message;}finally{button.disabled=false;}
   });
   $('promo-refresh').addEventListener('click',()=>history().catch(e=>{status.textContent=e.message;}));

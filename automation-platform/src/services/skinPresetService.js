@@ -1,6 +1,7 @@
 const { randomBytes, randomUUID } = require('node:crypto');
 const store = require('./economyStore');
 const dinoStorage = require('./dinoStorageService');
+const parkedApplications = require('./skinParkedApplicationService').createSkinParkedApplicationService(store);
 
 const COLOR_KEYS = Object.freeze([
   'body',
@@ -579,8 +580,14 @@ async function applyPreset({ steamId, slot, presetId }) {
   const selectedSlot = dinoStorage.validateSlot(slot);
   const preset = getPresetForPlayer(steam, presetId);
   const state = await dinoStorage.getStoredDino(steam, selectedSlot);
+  // Storage reads can await remote state. Do not use ownership or palette data
+  // captured before that wait if a gift or an edit has since changed it.
+  const current = getPresetForPlayer(steam, presetId);
+  if (current.species !== preset.species || JSON.stringify(current.skin) !== JSON.stringify(preset.skin)) {
+    throw Object.assign(new Error('This skin changed while loading your stored dinosaur. Please try again.'), {code:'SKIN_PRESET_CHANGED'});
+  }
   const targetSpecies = speciesFromClassPath(state.classPath);
-  assertMembershipSpecies(preset, steam, targetSpecies);
+  assertMembershipSpecies(current, steam, targetSpecies);
 
   if (String(preset.species).toLowerCase() !== 'universal' &&
       targetSpecies.toLowerCase() !== String(preset.species).toLowerCase()) {
@@ -590,12 +597,26 @@ async function applyPreset({ steamId, slot, presetId }) {
   }
 
   const skin = sanitizeSkin(preset.skin);
-  await dinoStorage.editStoredDino({
-    steamId: steam,
-    slot: selectedSlot,
-    mode: 'skin',
-    values: parkedSkinTokens(skin),
-  });
+  await parkedApplications.reconcile(steam);
+  try {
+    const result = await dinoStorage.editStoredDino({
+      steamId: steam, slot: selectedSlot, mode: 'skin', values: parkedSkinTokens(skin),
+      beforePublish: command => parkedApplications.reserve({command,steamId:steam,presetId:preset.id,slot:selectedSlot,
+        validate: () => {
+          const latest = getPresetForPlayer(steam, preset.id);
+          if (latest.species !== preset.species || JSON.stringify(latest.skin) !== JSON.stringify(preset.skin))
+            throw Object.assign(new Error('This skin changed before publication. Please try again.'), {code:'SKIN_PRESET_CHANGED'});
+          assertMembershipSpecies(latest, steam, targetSpecies);
+        }}),
+    });
+    if (result?.command?.id) parkedApplications.complete(result.command.id, result.outcome?.state);
+  } catch (error) {
+    if (error.commandNotPublished === true && error.requestId) parkedApplications.complete(error.requestId, 'not_published');
+    else if (error.code === 'DINOSTORAGE_COMMAND_FAILED' && error.requestId) parkedApplications.complete(error.requestId, 'failed');
+    // Timeouts and publication errors may still have reached the game. Retain
+    // the hold until the original command has a definitive outcome.
+    throw error;
+  }
 
   return {
     preset,

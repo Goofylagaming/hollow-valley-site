@@ -29,6 +29,7 @@ const router = express.Router();
 router.use(requireWebsiteToken);
 router.use('/premium-skins', require('./premiumSkinsRoutes'));
 router.use('/skin-promos', require('./skinPromoRoutes'));
+router.use('/skin-gifts', require('./skinGiftRoutes'));
 
 function validateSteamId(value) {
   const steamId = String(value || '').trim();
