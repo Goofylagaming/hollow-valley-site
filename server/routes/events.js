@@ -6,6 +6,19 @@ const eventAdmin = require("../services/eventAdminClient");
 
 const router = express.Router();
 const EVENT_CACHE_CONTROL = "public, max-age=30, stale-while-revalidate=120";
+const groupHost=require('../services/groupEventHost').createGroupEventHost(require('../db').db,{
+  index:body=>automation.groupTreasuryRequest('group-event-index',body),roster:body=>automation.groupTreasuryRequest('group-event-roster',body),
+});
+const privateHost=(_req,res,next)=>{res.set('Cache-Control','private, no-store');next();};
+const pageNumber=(value,fallback)=>value===undefined?fallback:/^\d+$/.test(String(value))&&Number.isSafeInteger(Number(value))?Number(value):NaN;
+router.get('/admin/group-registrations/events',privateHost,requireAdmin,async(req,res)=>{
+  try{res.json(await groupHost.index(req.user,{afterEventId:req.query.afterEventId??'',limit:pageNumber(req.query.limit,50)}));}
+  catch(error){proxyError(res,error,'Group event list could not be loaded.');}
+});
+router.get('/admin/group-registrations',privateHost,requireAdmin,async(req,res)=>{
+  try{res.json(await groupHost.roster(req.user,{eventId:req.query.eventId,afterGroupId:pageNumber(req.query.afterGroupId,0),limit:pageNumber(req.query.limit,50)}));}
+  catch(error){proxyError(res,error,'Group event roster could not be loaded.');}
+});
 
 function actorSteamId(req) {
   const steamId = String(req.user?.steam_id || "").trim();

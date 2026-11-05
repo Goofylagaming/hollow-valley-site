@@ -24,6 +24,8 @@ router.post('/closure-abort',run(req=>getClosure().abort(ticket(req))));
 router.post('/closure-complete',run(req=>getClosure().complete(ticket(req))));
 const purchase=req=>({groupId:req.body?.groupId,requestId:req.body?.requestId,actorSteamId:req.body?.actorSteamId,itemId:req.body?.itemId,revision:req.body?.revision,expectedCost:req.body?.expectedCost,event:req.body?.event});
 router.post('/group-event-preview',run(req=>getGroupEvents().preview(req.body?.eventId)));
+router.post('/group-event-index',run(req=>{getSpending();return getGroupEvents().eventIndex({afterEventId:req.body?.afterEventId??'',limit:req.body?.limit??50});}));
+router.post('/group-event-roster',run(req=>{getSpending();return getGroupEvents().roster(req.body?.eventId,{afterGroupId:req.body?.afterGroupId??0,limit:req.body?.limit??50});}));
 router.post('/group-event-registrations',run(req=>{
  getSpending();
  const rows=getGroupEvents().list(req.body?.groupId);

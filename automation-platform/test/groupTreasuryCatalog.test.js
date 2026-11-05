@@ -97,7 +97,7 @@ test('competing operator processes cannot replace the same reviewed active revis
   assert.match(outputs.find(value => value.status !== 0).stderr, /changed/);
   assert.equal(db.prepare("SELECT COUNT(*) n FROM economy_group_treasury_catalog WHERE enabled=1").get().n, 1);
 });
-test('reviewed Territory activation requires its own flag and proof key; group event registration remains unavailable', t => {
+test('reviewed Territory activation requires its own flag/key; group events require a separate gate', t => {
   const { service, item, args } = fixture(t);
   const entry={...item,id:'entry-reviewed',purpose:'territory_entry',target:{eventId:5}};
   service.register(entry,A);
@@ -113,4 +113,20 @@ test('reviewed Territory activation requires its own flag and proof key; group e
     if(oldFlag===undefined)delete process.env.GROUP_TREASURY_TERRITORY_ENABLED;else process.env.GROUP_TREASURY_TERRITORY_ENABLED=oldFlag;
     if(oldKey===undefined)delete process.env.GROUP_TREASURY_TERRITORY_PROOF_SECRET;else process.env.GROUP_TREASURY_TERRITORY_PROOF_SECRET=oldKey;
   }
+});
+test('operator group-event activation requires its flag and a fresh scheduled event; retiring remains possible when paused',t=>{
+  const {service,item,args,db}=fixture(t),eventId='1540359454627780001';
+  const value={...item,id:'reviewed-group-event',purpose:'event_registration',target:{eventId}};service.register(value,A);
+  const oldFlag=process.env.GROUP_TREASURY_EVENT_ENABLED;
+  try{
+    process.env.GROUP_TREASURY_EVENT_ENABLED='0';assert.throws(()=>main(args('enable',value)),/delivery adapter/);
+    process.env.GROUP_TREASURY_EVENT_ENABLED='1';assert.throws(()=>main(args('enable',value)),/fresh event snapshot/);
+    db.exec('CREATE TABLE IF NOT EXISTS automation_state(key TEXT PRIMARY KEY,value_json TEXT,updated_at TEXT)');
+    const event={id:eventId,guildId:'1540359454627725387',title:'Reviewed fixture event',status:'scheduled',startTime:new Date(Date.now()+3600000).toISOString(),endTime:null};
+    const update=status=>db.prepare('INSERT OR REPLACE INTO automation_state(key,value_json) VALUES(?,?)').run('discord:scheduled-events',JSON.stringify({guildId:event.guildId,syncedAt:new Date().toISOString(),events:[{...event,status}]}));
+    update('unknown');assert.throws(()=>main(args('enable',value)),/could not be verified/);
+    update('scheduled');assert.equal(main(args('enable',value)).enabled,true);
+    process.env.GROUP_TREASURY_EVENT_ENABLED='0';assert.equal(main(args('disable',value,1)).enabled,false);
+    assert.equal(db.prepare('SELECT COUNT(*) n FROM economy_group_event_registrations').get().n,0);
+  }finally{if(oldFlag===undefined)delete process.env.GROUP_TREASURY_EVENT_ENABLED;else process.env.GROUP_TREASURY_EVENT_ENABLED=oldFlag;}
 });

@@ -2,9 +2,9 @@ const { randomUUID } = require('node:crypto');
 const { validateItem } = require('../../automation-platform/src/services/groupTreasuryCatalog');
 const fail = (code, message, status = 409) => Object.assign(new Error(message), { code, status });
 
-// Internal delivery adapter only. The future spending coordinator must record
-// dispatch before calling deliver and verify this database's final evidence
-// before accounting commits. No browser-supplied reservation/proof is accepted.
+// The owner coordinator records dispatch before delivery; accounting verifies
+// this database's signed final evidence before committing a charge. No
+// browser-supplied reservation/proof is accepted by this internal adapter.
 function createGroupTreasuryTerritoryDelivery(db, groups, accounting, { enabled = () => false, proofSecret = () => process.env.GROUP_TREASURY_TERRITORY_PROOF_SECRET } = {}) {
   const links = require('./groupTerritoryLinks').createGroupTerritoryLinks(db, groups);
   const lifecycle = require('./groupTreasuryLifecycle').createGroupTreasuryLifecycle(db);

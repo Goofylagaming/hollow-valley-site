@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="assets/styles.css?v=22">
   <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=4">
+  <link rel="stylesheet" href="/assets/events-group-roster.css?v=1">
 </head>
 <body>
   <div class="app-shell">
@@ -53,6 +54,23 @@
           </div>
         </section>
 
+        <section class="event-admin-panel" id="event-group-roster" hidden aria-labelledby="group-roster-heading">
+          <h2 id="group-roster-heading">Registered groups</h2>
+          <p>Staff view of group registrations. Individual attendance and rewards are managed separately.</p>
+          <p>Group names are current; schedules reflect each saved registration.</p>
+          <button class="small-button" type="button" id="group-roster-refresh-events">Refresh event list</button>
+          <label for="group-roster-events">Events with recorded registrations</label>
+          <select id="group-roster-events"><option value="">Choose a recorded event</option></select>
+          <button class="small-button" type="button" id="group-roster-more-events" hidden>More events</button>
+          <form id="group-roster-form">
+            <label for="group-roster-event-id">Discord event ID</label>
+            <input id="group-roster-event-id" inputmode="numeric" pattern="[0-9]{10,24}" maxlength="24" required>
+            <button class="small-button" id="group-roster-load" type="submit">View registrations</button>
+          </form>
+          <p id="group-roster-status" role="status" aria-live="polite"></p>
+          <ul id="group-roster-list"></ul>
+          <button class="small-button" id="group-roster-more" type="button" hidden>More groups</button>
+        </section>
         <section class="event-admin-panel" id="event-admin-panel" hidden>
           <div class="section-top">
             <div>
@@ -153,5 +171,6 @@
   <script src="assets/events.js?v=5"></script>
   <script src="assets/events-species-bonuses.js?v=2"></script>
   <script src="assets/events-admin-delete.js?v=1"></script>
+  <script src="/assets/events-group-roster.js?v=1"></script>
 </body>
 </html>

@@ -29,6 +29,7 @@ function createGroupTreasurySpending(store,{enabled=()=>process.env.GROUP_TREASU
     granted_at TEXT NOT NULL DEFAULT(datetime('now')),PRIMARY KEY(group_id,frame));`);
   if(!db.prepare('PRAGMA table_info(economy_group_treasury_ledger)').all().some(row=>row.name==='spend_request_id'))db.exec('ALTER TABLE economy_group_treasury_ledger ADD COLUMN spend_request_id TEXT');
   if(!db.prepare('PRAGMA table_info(economy_group_treasury_spends)').all().some(row=>row.name==='event_json'))db.exec('ALTER TABLE economy_group_treasury_spends ADD COLUMN event_json TEXT');
+  db.exec("CREATE INDEX IF NOT EXISTS group_treasury_event_roster ON economy_group_treasury_spends(target_key,group_id) WHERE purpose='event_registration' AND event_json IS NOT NULL AND state='committed'");
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS group_treasury_spend_ledger ON economy_group_treasury_ledger(spend_request_id) WHERE spend_request_id IS NOT NULL');
   if(!db.prepare('PRAGMA table_info(economy_group_treasury_spends)').all().some(row=>row.name==='fulfillment_proof_id'))db.exec('ALTER TABLE economy_group_treasury_spends ADD COLUMN fulfillment_proof_id TEXT');
   for(const row of db.prepare('SELECT request_key,proof_json FROM economy_group_treasury_spends WHERE proof_json IS NOT NULL AND fulfillment_proof_id IS NULL').all())db.prepare('UPDATE economy_group_treasury_spends SET fulfillment_proof_id=? WHERE request_key=?').run(JSON.parse(row.proof_json).id,row.request_key);
@@ -56,7 +57,9 @@ function createGroupTreasurySpending(store,{enabled=()=>process.env.GROUP_TREASU
         if(digest(JSON.parse(row.item_json))!==review.digest||active!==review.activeRevision)throw error('CATALOG_REVIEW_STALE','Catalog changed. Inspect and review the current revision again.',409);
         const purpose=JSON.parse(row.item_json).purpose;
         const territoryReady=process.env.GROUP_TREASURY_TERRITORY_ENABLED==='1'&&require('./groupTreasuryTerritoryProof').configured(process.env.GROUP_TREASURY_TERRITORY_PROOF_SECRET);
-        if(value&&purpose!=='group_cosmetic'&&!(purpose==='territory_entry'&&territoryReady))throw error('FULFILLMENT_NOT_CONFIGURED','External entry items require an implemented delivery adapter',503);
+        const eventReady=purpose==='event_registration'&&process.env.GROUP_TREASURY_EVENT_ENABLED==='1';
+        if(value&&purpose!=='group_cosmetic'&&!(purpose==='territory_entry'&&territoryReady)&&!eventReady)throw error('FULFILLMENT_NOT_CONFIGURED','External entry items require an implemented delivery adapter',503);
+        if(value&&eventReady)require('./groupEventRegistration').createGroupEventRegistration(db).preview(JSON.parse(row.item_json).target.eventId);
       }
       if(Boolean(row.enabled)===value)return;
       if(value){for(const previous of db.prepare('SELECT revision FROM economy_group_treasury_catalog WHERE item_id=? AND enabled=1').all(id)){
