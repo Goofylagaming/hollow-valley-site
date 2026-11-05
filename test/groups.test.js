@@ -120,6 +120,32 @@ test("groups routes require sessions and Steam identities",async()=>{
    assert.equal((await res.json()).current.name,"New Group");
  }finally{await new Promise(resolve=>server.close(resolve));}
 });
+test('Headquarters HTTP binds actors and follows membership succession',async()=>{
+ const keys=['GROUP_HQ_ENABLED','GROUP_HQ_READ_ONLY','SKIN_STUDIO_READ_ONLY','RENDER_SERVICE_ID','RENDER_EXTERNAL_URL','PUBLIC_SITE_URL','STEAM_REALM','STEAM_RETURN_URL'];
+ const saved=Object.fromEntries(keys.map(key=>[key,process.env[key]]));for(const key of keys)delete process.env[key];
+ const express=require('express'),app=express();app.use(express.json());
+ app.use((req,_res,next)=>{if(req.get('x-user'))req.user={steam_id:req.get('x-user')};next();});app.use('/hq',require('../server/routes/groupHeadquarters'));
+ const server=await new Promise(resolve=>{const s=app.listen(0,'127.0.0.1',()=>resolve(s));});const base='http://127.0.0.1:'+server.address().port;
+ const read=user=>fetch(base+'/hq',{headers:{'x-user':user||''}});
+ const write=(user,body,origin=base)=>fetch(base+'/hq',{method:'POST',headers:{'x-user':user,Origin:origin,'Content-Type':'application/json'},body:JSON.stringify(body)});
+ try{
+  assert.equal((await read(B)).status,503);process.env.GROUP_HQ_ENABLED='1';
+  assert.equal((await read()).status,401);assert.equal((await read('bad')).status,403);assert.equal((await read(A)).status,404);
+  groups.invite(B,C);groups.actOnInvite(C,groups.getState(C).incoming[0].id,'accept');
+  const response=await read(C);assert.equal(response.headers.get('cache-control'),'private, no-store');assert.equal((await response.json()).canEdit,false);
+  assert.equal((await write(C,{description:'Forbidden',expectedRevision:0,steamId:B})).status,403);
+  assert.equal((await write(B,{description:'Wrong origin',expectedRevision:0},'https://other.invalid')).status,403);
+  assert.equal((await write(B,{description:'Our Headquarters',expectedRevision:0,steamId:D})).status,200);
+  process.env.GROUP_HQ_READ_ONLY='1';assert.equal((await write(B,{description:'Blocked',expectedRevision:1})).status,403);delete process.env.GROUP_HQ_READ_ONLY;
+  assert.equal((await write(B,{description:'Stale',expectedRevision:0})).status,409);
+  groups.exitGroup(B);assert.equal((await read(B)).status,404);
+  assert.equal((await write(C,{description:'New owner',expectedRevision:1})).status,200);
+  assert.equal((await (await read(D)).json()).description,'');const profile=await (await read(C)).json();assert.equal(profile.revision,2);assert.equal(profile.edits.length,2);
+  groups.disband(C);assert.equal((await read(C)).status,404);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM hv_group_profile_edits WHERE group_id=?').get(profile.groupId).n,2);
+ }finally{await new Promise(resolve=>server.close(resolve));for(const[key,value]of Object.entries(saved))if(value===undefined)delete process.env[key];else process.env[key]=value;}
+});
+
 test("no Territory Wars dependency exists in website Groups",()=>{
  const source=fs.readFileSync(path.join(__dirname,"../server/groupsStore.js"),"utf8");
  const routes=fs.readFileSync(path.join(__dirname,"../server/routes/groups.js"),"utf8");
