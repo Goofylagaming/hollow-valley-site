@@ -16,10 +16,12 @@ db.exec('CREATE TABLE progression_achievements(steam_id TEXT,achievement_id TEXT
 db.exec('CREATE TABLE vl_lives(id TEXT PRIMARY KEY,steam_id TEXT,species TEXT,started_at INTEGER,last_at INTEGER,ended_at INTEGER);CREATE TABLE vl_events(id TEXT PRIMARY KEY,payload TEXT,occurred_at INTEGER);CREATE TABLE vl_parents(child TEXT,parent TEXT);CREATE TABLE vl_growth_milestones(life_id TEXT,juvenile_at INTEGER,adult_at INTEGER);CREATE TABLE combat_events(id TEXT PRIMARY KEY,victim_steam_id TEXT,occurred_at TEXT)');
 const achievementSources = require('../automation-platform/src/services/achievementSourceTime').createAchievementSourceTimeStore(db, { now: () => now });
 const territorySources = require('../automation-platform/src/services/territoryVictoryStore').createTerritoryVictoryStore(db, { now: () => now });
+db.exec('CREATE TABLE prime_tracker_lives(id TEXT PRIMARY KEY,steam_id TEXT,species TEXT,started_at TEXT,last_seen_at TEXT,ended_at TEXT,is_prime INTEGER,prime_started_at TEXT,prime_preexisting INTEGER)');
+const primeObservations = require('../automation-platform/src/services/primeObservationStore').createPrimeObservationStore(db);
 const store = createSeasonTrackStore(db, { now: () => now }); service.get = () => store;
 const definition = { id: 'synthetic-browser-season', title: 'Synthetic <Valley> season', startsAt: new Date(START).toISOString(), endsAt: new Date(START + 56 * 86400000).toISOString(), settlesAt: new Date(START + 57 * 86400000).toISOString(), retainUntil: new Date(START + 147 * 86400000).toISOString(), free: true,
   sources: [{ source: 'quest', policy: 'achievement-time' }], tiers: [{ xp: 10, title: 'First <milestone>' }, { xp: 100, title: 'Valley explorer' }],
-  achievementPoints: { policy: 'qualifying-source-time', awards: [{ id:'quest-1', xp:25 }, {id:'nested-adult',xp:50}, {id:'territory-victory',xp:75}, {id:'first-level',xp:40}, {id:'playtime-1h',xp:30}] } };
+  achievementPoints: { policy: 'qualifying-source-time', awards: [{ id:'quest-1', xp:25 }, {id:'nested-adult',xp:50}, {id:'territory-victory',xp:75}, {id:'first-level',xp:40}, {id:'playtime-1h',xp:30}, {id:'prime-observed',xp:60}] } };
 const digest = describe(definition).digest;
 store.stage(definition, { reviewer: '76561198000000401', digest }); store.changeState(definition.id, { reviewer: '76561198000000401', digest, action: 'publish', expectedRevision: 1 }); now = START;
 let writes = 0, drop = false, hold = false, held = null;
@@ -65,6 +67,7 @@ async function until(fn) { for (let i = 0; i < 300; i++) { if (fn()) return; awa
       assert.match(await page.locator('#season-review-text').textContent(), /Verified Territory capture participation: 75 season XP/);
       assert.match(await page.locator('#season-review-text').textContent(), /Reach level 2: 40 season XP/);assert.match(await page.locator('#season-review-text').textContent(), /One verified hour: 30 season XP/);
       assert.match(await page.locator('#season-review-text').textContent(), /original activity date behind the XP grant/);assert.match(await page.locator('#season-review-text').textContent(), /numbered five-minute intervals/);
+      assert.match(await page.locator('#season-review-text').textContent(),/First recorded Prime observation: 60 season XP/);assert.match(await page.locator('#season-review-text').textContent(),/does not establish when or how Prime was attained/);
       const before = writes; drop = true; await confirm(); await page.getByRole('button', { name: 'Retry saved season request', exact: true }).waitFor();
       assert.equal(writes, before + 1); assert.equal(store.status(definition.id, steamA).revision, 1);
       await confirm(); assert.equal(writes, before + 2); assert.equal(store.status(definition.id, steamA).revision, 1);
@@ -82,19 +85,25 @@ async function until(fn) { for (let i = 0; i < 300; i++) { if (fn()) return; awa
       achievementSources.recordNewAward(steamA,'nested-adult'); db.exec('COMMIT');
       territorySources.ingest({version:1,attackId:width,eventId:width,startedAt:now-60000,resolvedAt:now,outcome:'capture',provenance:'recorded-live',winners:[steamA,steamB]});
       db.exec('BEGIN IMMEDIATE');db.prepare('INSERT INTO progression_achievements VALUES(?,?,?,?)').run(steamA,'territory-victory',JSON.stringify({type:'territory_victories',threshold:1,value:1}),new Date(now).toISOString());achievementSources.recordNewAward(steamA,'territory-victory');db.exec('COMMIT');
+      const primeLife='browser-prime-'+width;
+      db.exec('BEGIN IMMEDIATE');db.prepare('INSERT INTO prime_tracker_lives VALUES(?,?,?,?,?,NULL,1,NULL,1)').run(primeLife,steamA,'Rex',new Date(now).toISOString(),new Date(now).toISOString());
+      primeObservations.record(db.prepare('SELECT * FROM prime_tracker_lives WHERE id=?').get(primeLife),{observedAt:now,receivedAt:now,kind:'first-seen-prime'});
+      db.prepare('INSERT INTO progression_achievements VALUES(?,?,?,?)').run(steamA,'prime-observed',JSON.stringify({type:'prime_observed',threshold:1,value:1}),new Date(now).toISOString());achievementSources.recordNewAward(steamA,'prime-observed');db.exec('COMMIT');
       await refresh(); assert.match(await page.locator('#season-points').textContent(), /^0 season XP/);
-      await page.click('#season-sync'); await idle(); assert.match(await page.locator('#season-points').textContent(), /^160 season XP/);
-      assert.match(await page.locator('#season-points').textContent(), /150 XP comes from reviewed achievements/);
+      await page.click('#season-sync'); await idle(); assert.match(await page.locator('#season-points').textContent(), /^220 season XP/);
+      assert.match(await page.locator('#season-points').textContent(), /210 XP comes from reviewed achievements/);
       db.prepare('UPDATE economy_quest_achievements SET achieved_at=? WHERE steam_id=?').run(new Date(now-1).toISOString(), steamA);
-      await refresh(); assert.match(await page.locator('#season-points').textContent(), /^135 season XP/); assert.match(await page.locator('#season-evidence').textContent(), /excluded/);
+      await refresh(); assert.match(await page.locator('#season-points').textContent(), /^195 season XP/); assert.match(await page.locator('#season-evidence').textContent(), /excluded/);
       db.prepare('UPDATE economy_quest_achievements SET achieved_at=? WHERE steam_id=?').run(new Date(now).toISOString(), steamA); await refresh();
       db.prepare('INSERT INTO combat_events VALUES(?,?,?)').run('nested-death-'+width,steamA,new Date(now-15000).toISOString());
-      await refresh(); assert.match(await page.locator('#season-points').textContent(), /^110 season XP/); assert.match(await page.locator('#season-evidence').textContent(), /excluded/);
-      db.prepare('DELETE FROM combat_events WHERE id=?').run('nested-death-'+width); await refresh(); assert.match(await page.locator('#season-points').textContent(), /^160 season XP/);
+      await refresh(); assert.match(await page.locator('#season-points').textContent(), /^170 season XP/); assert.match(await page.locator('#season-evidence').textContent(), /excluded/);
+      db.prepare('DELETE FROM combat_events WHERE id=?').run('nested-death-'+width); await refresh(); assert.match(await page.locator('#season-points').textContent(), /^220 season XP/);
       const frozenResult=db.prepare('SELECT payload_json FROM progression_territory_results WHERE attack_id=?').get(width).payload_json;
       db.prepare('UPDATE progression_territory_results SET payload_json=? WHERE attack_id=?').run(JSON.stringify({...JSON.parse(frozenResult),provenance:'simulated'}),width);
-      await refresh();assert.match(await page.locator('#season-points').textContent(),/^85 season XP/);
-      db.prepare('UPDATE progression_territory_results SET payload_json=? WHERE attack_id=?').run(frozenResult,width);await refresh();assert.match(await page.locator('#season-points').textContent(),/^160 season XP/);
+      await refresh();assert.match(await page.locator('#season-points').textContent(),/^145 season XP/);
+      db.prepare('UPDATE progression_territory_results SET payload_json=? WHERE attack_id=?').run(frozenResult,width);await refresh();assert.match(await page.locator('#season-points').textContent(),/^220 season XP/);
+      db.prepare('UPDATE prime_tracker_prime_observations SET first_observed_at=? WHERE life_id=?').run(now-1,primeLife);await refresh();assert.match(await page.locator('#season-points').textContent(),/^160 season XP/);
+      db.prepare('UPDATE prime_tracker_prime_observations SET first_observed_at=? WHERE life_id=?').run(now,primeLife);await refresh();assert.match(await page.locator('#season-points').textContent(),/^220 season XP/);
       assert.match(await page.locator('#season-tiers').textContent(), /✓ First <milestone>/);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
       const output = process.env.HV_TEST_ARTIFACT_DIR || path.join(os.tmpdir(), 'hv-season-track-browser'); fs.mkdirSync(output, { recursive: true });

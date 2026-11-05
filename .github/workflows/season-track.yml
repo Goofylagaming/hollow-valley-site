@@ -8,6 +8,15 @@ on:
       - 'automation-platform/test/achievementProgressionSource.test.js'
       - 'automation-platform/src/services/progressionSourceTime.js'
       - 'automation-platform/src/services/achievementSourceTime.js'
+      - 'automation-platform/src/services/primeObservationStore.js'
+      - 'automation-platform/src/services/playerPresenceService.js'
+      - 'automation-platform/test/primeObservationSource.test.js'
+      - 'automation-platform/test/primeZoneReset.test.js'
+      - 'automation-platform/test/playerPresence.test.js'
+      - 'automation-platform/test/presenceFeedEndpoint.test.js'
+      - 'test/primePresenceClock.test.js'
+      - 'automation-platform/src/services/primeTrackerService.js'
+      - 'automation-platform/test/primeAchievement.test.js'
       - 'automation-platform/src/services/achievementLifeSource.js'
       - 'automation-platform/src/services/achievementBattleSource.js'
       - 'automation-platform/test/achievementBattleSource.test.js'
@@ -51,6 +60,7 @@ jobs:
       - run: node --test automation-platform/test/achievementProgressionSource.test.js
       - run: node --test automation-platform/test/achievementBattleSource.test.js
       - run: node --test automation-platform/test/achievementLifeSource.test.js
+      - run: node --test automation-platform/test/primeObservationSource.test.js automation-platform/test/primeAchievement.test.js automation-platform/test/primeZoneReset.test.js automation-platform/test/playerPresence.test.js automation-platform/test/presenceFeedEndpoint.test.js test/primePresenceClock.test.js
       - run: node --test automation-platform/test/seasonAchievementPoints.test.js automation-platform/test/achievementSourceTime.test.js automation-platform/test/seasonTrackService.test.js test/seasonTrackRoutes.test.js automation-platform/test/seasonTrackStore.test.js test/seasonTrackOperator.test.js automation-platform/test/progressionSourceTime.test.js automation-platform/test/progressionService.test.js automation-platform/test/questBoosts.test.js automation-platform/test/questChallengeExpansion.test.js test/valleyLegacyTelemetry.test.js test/roadmapCommunity.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js test/questPolling.test.js
       - run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.62.1
       - run: npx playwright install --with-deps chromium

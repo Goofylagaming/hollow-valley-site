@@ -63,7 +63,7 @@ reward. Existing paid quest/level behavior is regression-tested with synthetic d
 
 Original #4 wording and historical votes remain. The feature leaves the active
 ballot during development, freeing its old votes without deleting them. Eight
-ideas remain eligible. Homepage planning asset version is 126. No production
+ideas remain eligible. Homepage planning asset version is 127. No production
 completion date is assigned.
 
 ## Local verification
@@ -672,3 +672,46 @@ Prime/skin qualifying clocks, approved reward fulfillment, real season/point
 choices, operational review/recovery, hosted checks and authenticated staging remain
 unfinished. No branch was pushed, no deployment or flag was changed, and no real
 player data or funds were accessed. The full roadmap remains active and incomplete.
+
+
+## First recorded Prime observation points — 6 November 2026
+
+The optional reviewed point catalog now supports 21 achievement contracts, including
+`prime-observed`. No point amounts or live policy are installed. Skin ownership
+source clocks remain unfinished. The season script is v7 and homepage roadmap v127;
+#4 remains Building/Testing with its original feature number and description.
+
+An additive Prime observation audit binds a life's identity, owner, normalized
+species, start, first positive source clock, receiving clock and observation kind.
+It records either a first-seen-already-Prime dinosaur or an observed transition.
+This is observation evidence; it does not establish when or how Prime was attained.
+The Quests policy and enrollment review explicitly disclose that distinction.
+The first positive receipt commits atomically with the tracker snapshot and zones;
+a receipt write failure rolls back that player snapshot, allowing a safe retry.
+No location or player name is copied into this audit.
+
+Old Prime lives and badges are never backfilled. Every positive historical life
+must have compatible evidence before its first observation can date a new award;
+an undated older life cannot be silently replaced by a later dated one. Reads are
+bounded to 10,001 candidate lives, preserve the earliest observation across later
+lives and re-observations, and withhold copied points after source mutation or
+removal. Existing badges remain permanent. Operator review requires the prepared
+audit schema; private reads do not initialize it.
+
+Prime tracking now rejects missing, malformed and future source clocks rather
+than substituting the current time. External presence intake uses the same strict
+source parser. Fresh RCON observations preserve rich character facts and use their
+check clock for Prime, Legacy and playtime progression. Cached, stale and already
+ingested external snapshots cannot be polled again as fresh progression evidence.
+The minimal presence analytics DTO remains unchanged. Existing XP formulas, level
+thresholds, paid quests and 100-coin level rewards are unchanged.
+
+**138 affected checks pass**, including the real tracker-to-achievement-to-season
+pipeline, first-seen and transition evidence, legacy exclusions, rollback/retry,
+changed/deleted sources, operator readiness, external-feed deduplication and fresh
+versus cached presence clocks. Desktop/mobile season fixtures pass at 1440px and
+390px; the phone screenshot was inspected for the new disclosure. CI workflows
+include the new source and presence checks. Hosted checks and authenticated staging
+have not run for this local branch. Real producer cadence, season/point choices,
+reward fulfillment and operational recovery still require review. No branch was
+pushed, no merge/deployment occurred, and no rollout or real player data changed.

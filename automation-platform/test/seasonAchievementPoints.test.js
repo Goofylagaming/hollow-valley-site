@@ -41,7 +41,7 @@ test('achievement rules require explicit bounded amounts and source policy, pres
   const def = definition(), value = describe(def);
   assert.deepEqual(describe({ ...def, achievementPoints: { ...def.achievementPoints, awards: [...def.achievementPoints.awards].reverse() } }), value);
   for (const achievementPoints of [null, { policy: 'unlock-date', awards: def.achievementPoints.awards },
-    { policy: 'qualifying-source-time', awards: [] }, { policy: 'qualifying-source-time', awards: [{ id: 'prime-observed', xp: 1 }] },
+    { policy: 'qualifying-source-time', awards: [] }, { policy: 'qualifying-source-time', awards: [{ id: 'skins-10', xp: 1 }] },
     { policy: 'qualifying-source-time', awards: [{ id: '__proto__', xp: 1 }] }, { policy: 'qualifying-source-time', awards: [{ id: 'quest-1', xp: 0 }] },
     { policy: 'qualifying-source-time', awards: [{ id: 'quest-1', xp: 1000001 }] }, { policy: 'qualifying-source-time', awards: [{ id: 'quest-1', xp: 1, coins: 1 }] },
     { policy: 'qualifying-source-time', awards: [{ id: 'quest-1', xp: 1 }, { id: 'quest-1', xp: 2 }] }]) assert.throws(() => describe({ ...def, achievementPoints }));
