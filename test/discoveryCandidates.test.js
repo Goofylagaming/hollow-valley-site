@@ -2,6 +2,13 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { buildCandidates } = require('../scripts/build-discovery-candidates.cjs');
 const bounds = { minX: -10000, maxX: 10000, minY: -10000, maxY: 10000 };
+test('territory candidates use shared exclusions and retain explicit geometry review', () => {
+  const result = buildCandidates({ territories: [{ name: 'Delta', lat: 1, long: 2 }, { name: 'Spiky Isle', lat: 2, long: 3 }] }, bounds);
+  assert.equal(result.candidates.length, 1);
+  const candidate = result.candidates[0];
+  assert.equal(candidate.name, 'Delta'); assert.equal(candidate.category, 'territory');
+  assert.equal(candidate.enabled, false); assert.equal(candidate.radiusMetres, null);
+});
 test('candidate import preserves distinct entrances, rejects malformed coordinates and leaves gameplay decisions for review', () => {
   const a = { name: 'Same cave', lat: 1, long: 2 }, b = { name: 'Same cave', lat: 2, long: 3 };
   const first = buildCandidates({ caves: [a, b, a], water: [{ name: 'Bad', lat: '', long: 1 }] }, bounds);

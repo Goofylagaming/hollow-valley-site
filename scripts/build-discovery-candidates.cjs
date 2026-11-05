@@ -1,14 +1,16 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
+const { isRemovedTerritory } = require('../server/services/territoryAreas');
 
 // Produce a review document. Runtime catalog registration requires explicit
 // region, category, visit radius and version decisions after review.
 function buildCandidates(source, bounds) {
   const candidates = new Map();
   const rejected = [];
-  for (const layer of ['water', 'land', 'caves']) {
+  for (const layer of ['water', 'land', 'caves', 'territories']) {
     for (const point of source[layer] || []) {
+      if (layer === 'territories' && isRemovedTerritory(point.name)) continue;
       const x = point.lat * 1000;
       const y = point.long * 1000;
       if (typeof point.lat !== 'number' || typeof point.long !== 'number' ||
@@ -21,7 +23,7 @@ function buildCandidates(source, bounds) {
       const id = 'candidate-' + createHash('sha256').update(identity).digest('hex').slice(0, 24);
       candidates.set(id, {
         id, name: point.name, sourceLayer: layer, x, y, enabled: false,
-        category: layer === 'caves' ? 'cave' : null,
+        category: layer === 'caves' ? 'cave' : layer === 'territories' ? 'territory' : null,
         regionId: null, radiusMetres: null,
         reviewRequired: ['Verify in-game location and accessibility', 'Assign catalog region', 'Define visit area', ...(layer === 'caves' ? [] : ['Confirm discovery category'])]
       });
@@ -39,7 +41,13 @@ if (require.main === module) {
   const input = path.join(__dirname, '../public/assets/map-data.json');
   const raw = fs.readFileSync(input);
   const source = JSON.parse(raw);
-  const result = buildCandidates(source, require('../server/evrimaMap').BOUNDS);
+  const map = require('../server/evrimaMap');
+  source.territories = map.REGIONS.map(([name, lat, long]) => ({ name, lat, long }));
+  const result = buildCandidates(source, map.BOUNDS);
+  result.territorySources = ['server/evrimaMap.js', 'server/services/territoryAreas.js'].map(relative => ({
+    path: relative,
+    sha256: createHash('sha256').update(fs.readFileSync(path.join(__dirname, '..', relative))).digest('hex')
+  }));
   result.source = { path: 'public/assets/map-data.json', sha256: createHash('sha256').update(raw).digest('hex'), map: source.map, attribution: source.attribution, generated: source.generated };
   fs.writeFileSync(path.join(__dirname, '../docs/HV_DISCOVERY_CANDIDATES.json'), JSON.stringify(result, null, 2) + '\n');
   console.log(`Prepared ${result.candidates.length} disabled discovery candidates; ${result.rejected.length} rejected source points.`);

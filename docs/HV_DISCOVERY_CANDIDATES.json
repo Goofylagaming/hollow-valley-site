@@ -8,6 +8,23 @@
   },
   "candidates": [
     {
+      "id": "candidate-02a36d6a4f98b53a435b84bf",
+      "name": "Delta",
+      "sourceLayer": "territories",
+      "x": 33000,
+      "y": 177000,
+      "enabled": false,
+      "category": "territory",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
       "id": "candidate-072eb1c4fd9c8c2f9e8d7cf7",
       "name": "Gate I18",
       "sourceLayer": "land",
@@ -174,6 +191,23 @@
       ]
     },
     {
+      "id": "candidate-15b3ae39e9748532e5ac6ff9",
+      "name": "The Pit",
+      "sourceLayer": "territories",
+      "x": 329000,
+      "y": -394000,
+      "enabled": false,
+      "category": "territory",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
       "id": "candidate-164738c1358d38e50c2acb34",
       "name": "Verdant Pond",
       "sourceLayer": "water",
@@ -181,6 +215,23 @@
       "y": 156000,
       "enabled": false,
       "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-168e75595ef2664e7abe2276",
+      "name": "Eastern Jungle",
+      "sourceLayer": "territories",
+      "x": -157000,
+      "y": 398000,
+      "enabled": false,
+      "category": "territory",
       "regionId": null,
       "radiusMetres": null,
       "reviewRequired": [
@@ -214,6 +265,23 @@
       "y": 47000,
       "enabled": false,
       "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-1efd7c12eb7526dee51d6dee",
+      "name": "West Rail",
+      "sourceLayer": "territories",
+      "x": -4000,
+      "y": -238000,
+      "enabled": false,
+      "category": "territory",
       "regionId": null,
       "radiusMetres": null,
       "reviewRequired": [
@@ -292,6 +360,23 @@
       ]
     },
     {
+      "id": "candidate-2dbc694aedc1fa950c657ad5",
+      "name": "East Coast",
+      "sourceLayer": "territories",
+      "x": -131000,
+      "y": 564000,
+      "enabled": false,
+      "category": "territory",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
       "id": "candidate-2e1ae9c65f07cd3a0f782c7e",
       "name": "Port Tunnel",
       "sourceLayer": "land",
@@ -342,6 +427,23 @@
       ]
     },
     {
+      "id": "candidate-328fc7fbfbed7f82769925d6",
+      "name": "Northern Jungle",
+      "sourceLayer": "territories",
+      "x": -321000,
+      "y": 166000,
+      "enabled": false,
+      "category": "territory",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
       "id": "candidate-33a3d15d1ccb520859b45f7c",
       "name": "Swamp Tunnel",
       "sourceLayer": "land",
@@ -359,6 +461,23 @@
       ]
     },
     {
+      "id": "candidate-3643a4cc8438eda0491ff865",
+      "name": "NE. Cape",
+      "sourceLayer": "territories",
+      "x": -460000,
+      "y": 433000,
+      "enabled": false,
+      "category": "territory",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
       "id": "candidate-3669a81e78de82ac775378de",
       "name": "Gate L12",
       "sourceLayer": "land",
@@ -366,6 +485,23 @@
       "y": 65000,
       "enabled": false,
       "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-366dfd38113f8edba4b0f211",
+      "name": "Southern Beach",
+      "sourceLayer": "territories",
+      "x": 397000,
+      "y": 130000,
+      "enabled": false,
+      "category": "territory",
       "regionId": null,
       "radiusMetres": null,
       "reviewRequired": [
@@ -406,6 +542,23 @@
         "Verify in-game location and accessibility",
         "Assign catalog region",
         "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-3744bb29d2890b891d577c81",
+      "name": "Southern Strait",
+      "sourceLayer": "territories",
+      "x": 238000,
+      "y": -211000,
+      "enabled": false,
+      "category": "territory",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
       ]
     },
     {
@@ -457,6 +610,23 @@
       ]
     },
     {
+      "id": "candidate-3b7a189f81008c6df15462aa",
+      "name": "Water Access",
+      "sourceLayer": "territories",
+      "x": -214000,
+      "y": 87000,
+      "enabled": false,
+      "category": "territory",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
       "id": "candidate-3c038d82493494dd186b8930",
       "name": "Site C14 (Derelict Base)",
       "sourceLayer": "land",
@@ -464,6 +634,23 @@
       "y": 201000,
       "enabled": false,
       "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-3e81e534ede5e601dc633b5d",
+      "name": "Highland",
+      "sourceLayer": "territories",
+      "x": -127000,
+      "y": -80000,
+      "enabled": false,
+      "category": "territory",
       "regionId": null,
       "radiusMetres": null,
       "reviewRequired": [
@@ -487,6 +674,23 @@
         "Verify in-game location and accessibility",
         "Assign catalog region",
         "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-45bd9cfeea44adfd3fbb296a",
+      "name": "Forks Plains",
+      "sourceLayer": "territories",
+      "x": -119000,
+      "y": 246000,
+      "enabled": false,
+      "category": "territory",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
       ]
     },
     {
@@ -580,6 +784,23 @@
       "y": 386000,
       "enabled": false,
       "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-537575110ee1462192ef7ffa",
+      "name": "Swamps",
+      "sourceLayer": "territories",
+      "x": 273000,
+      "y": 74000,
+      "enabled": false,
+      "category": "territory",
       "regionId": null,
       "radiusMetres": null,
       "reviewRequired": [
@@ -1028,6 +1249,23 @@
       ]
     },
     {
+      "id": "candidate-88d51ef95020857947b897db",
+      "name": "Lagoon",
+      "sourceLayer": "territories",
+      "x": 334000,
+      "y": -87000,
+      "enabled": false,
+      "category": "territory",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
       "id": "candidate-8b5c0dcbec6147196d60f88b",
       "name": "Verdant Pool",
       "sourceLayer": "caves",
@@ -1167,6 +1405,23 @@
       "y": 245000,
       "enabled": false,
       "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-9d9cdbdf7fe83d353b23394d",
+      "name": "North Plains",
+      "sourceLayer": "territories",
+      "x": -345000,
+      "y": 353000,
+      "enabled": false,
+      "category": "territory",
       "regionId": null,
       "radiusMetres": null,
       "reviewRequired": [
@@ -1395,6 +1650,40 @@
       ]
     },
     {
+      "id": "candidate-c0a1b2f17927e49793eca9c3",
+      "name": "Port",
+      "sourceLayer": "territories",
+      "x": -308000,
+      "y": 548000,
+      "enabled": false,
+      "category": "territory",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-c0a5a1a9977df055e60ddafe",
+      "name": "West Bay",
+      "sourceLayer": "territories",
+      "x": 101000,
+      "y": -394000,
+      "enabled": false,
+      "category": "territory",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
       "id": "candidate-c36e1c5153bbfbf71223c29d",
       "name": "Gate D18",
       "sourceLayer": "land",
@@ -1535,6 +1824,23 @@
       "y": 230000,
       "enabled": false,
       "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-d831a933af6c33ec86c234a7",
+      "name": "South Plains",
+      "sourceLayer": "territories",
+      "x": 250000,
+      "y": -302000,
+      "enabled": false,
+      "category": "territory",
       "regionId": null,
       "radiusMetres": null,
       "reviewRequired": [
@@ -1712,6 +2018,23 @@
       ]
     },
     {
+      "id": "candidate-f0dd479e0bd0a4fca03dcb95",
+      "name": "Central Jungle",
+      "sourceLayer": "territories",
+      "x": -49000,
+      "y": 71000,
+      "enabled": false,
+      "category": "territory",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
       "id": "candidate-f13043c86a85d537912d3b44",
       "name": "Swamp East",
       "sourceLayer": "water",
@@ -1829,6 +2152,16 @@
     }
   ],
   "rejected": [],
+  "territorySources": [
+    {
+      "path": "server/evrimaMap.js",
+      "sha256": "cce5ddb5f60277394f830adb14ba0824793521079706943f8447c91e998feec1"
+    },
+    {
+      "path": "server/services/territoryAreas.js",
+      "sha256": "bba960d044f38b8e8480047ed34f2acc39b63d97431203b7f4f8deca45bb0fb9"
+    }
+  ],
   "source": {
     "path": "public/assets/map-data.json",
     "sha256": "5b90dcd0ece4417f0f65898daab0c8c70c3056a93a624638527e209feabb2288",
