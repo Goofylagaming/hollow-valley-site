@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="/assets/styles.css?v=22">
   <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=4">
-  <link rel="stylesheet" href="/assets/groups.css?v=4">
+  <link rel="stylesheet" href="/assets/groups.css?v=5">
 </head>
 <body class="has-my-stuff-rail groups-page">
   <div class="app-shell">
@@ -29,6 +29,7 @@
           <div class="summary-tile"><small>INVITES</small><b id="groups-invite-count">0</b><span>Invitations for you</span></div>
           <div class="summary-tile"><small>PREVIOUS GROUPS</small><b id="groups-history-count">0</b><span>Your completed group memberships</span></div>
         </section>
+        <div id="groups-closure-recovery" class="groups-rows" hidden></div>
         <section id="groups-progress-panel" class="panel groups-card" hidden>
           <div class="groups-panel-head">
             <div><p class="overline green">GROUP PROGRESSION</p><h2>Achievements &amp; Quests</h2><p class="section-intro">Build your group together. Progress and badges are shared across the whole roster.</p></div>
@@ -55,6 +56,8 @@
             <div><p class="overline green">CURRENT GROUP</p><h2 id="groups-name-title">Your group</h2><p class="section-intro" id="groups-created"> </p></div>
             <button id="groups-leave" type="button" class="small-button">Leave group</button>
           </div>
+          <p id="groups-closure-status" role="status" hidden></p>
+          <button id="groups-cancel-closure" type="button" class="small-button" hidden>Cancel closure check</button>
           <div class="list-heading"><span>MEMBERS</span><span id="groups-capacity"></span></div>
           <div id="groups-members" class="groups-rows"></div>
           <section id="groups-owner-panel" class="groups-owner" hidden>
@@ -137,9 +140,9 @@
     <footer><span>© 2026 Hollow Valley</span><span>AUSTRALIAN ISLE SERVER</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="/assets/common.js?v=22"></script>
-  <script src="/assets/groups.js?v=4"></script>
+  <script src="/assets/groups.js?v=5"></script>
   <script src="/assets/group-headquarters.js?v=5"></script>
   <script src="/assets/group-territory.js?v=1"></script>
-  <script src="/assets/group-treasury.js?v=2"></script>
+  <script src="/assets/group-treasury.js?v=3"></script>
 </body>
 </html>

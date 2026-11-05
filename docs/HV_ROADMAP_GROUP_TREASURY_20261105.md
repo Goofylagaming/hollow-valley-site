@@ -14,7 +14,7 @@ Amounts and balances must remain whole, nonnegative safe integers. Insufficient 
 
 New donations default off behind `GROUP_TREASURY_ENABLED=1` on both services. The accounting API, website proxy and Groups-page donation controls are implemented locally. Local tests use synthetic balances only and exercise actual new-process retries plus competing independent processes sharing SQLite. Existing wallet/marketplace test cleanup now closes SQLite handles before verified temporary-directory deletion, allowing those regressions to run on Windows.
 
-Roadmap #17 has left the idea-stage ballot while historical votes remain recorded and free active slots. The homepage release register uses asset version 88. A dedicated hosted test workflow is prepared but has not been published.
+Roadmap #17 has left the idea-stage ballot while historical votes remain recorded and free active slots. The homepage release register uses asset version 89. A dedicated hosted test workflow is prepared but has not been published.
 
 ## Durable website consent and recovery
 
@@ -26,7 +26,7 @@ Cancellation before submission is local and permanently blocks confirmation. Can
 
 The automation endpoints require the private website integration token and trust the website's membership/consent authorization. They do not expose a browser credential. New request-outcome records, website intents and their audit events are additive. No automatic retry scheduler, automatic refund, payout or game command is installed.
 
-78 local checks cover accounting, wallet/marketplace regressions, website-to-automation HTTP authorization, lost responses, coordinator reinitialization, immutable consent, membership replacement, donation and purchase races across processes, reviewed catalog validation, reservations, cosmetic entitlement accounting, delivery proof verification, failed audits, retained votes, homepage integration and website startup. These use temporary databases and synthetic balances. Production Steam sign-in and hosted behavior remain unverified.
+122 local checks cover accounting, wallet/marketplace regressions, website-to-automation HTTP authorization, lost responses, coordinator reinitialization, immutable consent, membership replacement, donation and purchase races across processes, reviewed catalog validation, reservations, cosmetic entitlement accounting, delivery proof verification, closure protection, failed audits, existing membership/recruitment/progression, retained votes, homepage integration and website startup. These use temporary databases and synthetic balances. Production Steam sign-in and hosted behavior remain unverified.
 
 ## Donation controls
 
@@ -48,10 +48,12 @@ External dispatch must be recorded before accepting a delivery result. Dispatch 
 
 ## Accepted closure policy
 
-The user selected blocking group closure while coins or unresolved requests remain. This covers disbanding and the last member leaving. Ordinary membership departures/owner succession must remain available outside a pending closure operation. No automatic refunds are authorized. The required distributed gate and race/recovery cases are documented in `HV_GROUP_TREASURY_CLOSURE_PROTOCOL_20261105.md`; enforcement is not implemented yet.
+The user selected blocking group closure while coins or unresolved requests remain. Local enforcement now covers disbanding and the last member leaving, including direct Groups-store calls. Unresolved donation requests are checked within the website transaction. Accounting must freeze a zero-balance, zero-hold group before a financially active group can close. An uncertain reply retains the gate; a matching abort is required to reopen funding. Membership history and the local terminal ticket commit together. Lost final acknowledgments expose an actor-scoped finish action, including after the actor has joined a replacement group.
+
+Ordinary membership departures/owner succession remain available outside a pending closure operation. Groups with no authorized financial activity while rollout is off retain their established behavior without a new remote dependency; this exemption is rechecked in the closing transaction. Funded groups still require accounting when donations are disabled. No automatic refunds or expiry-based reopening are installed. The protocol and local evidence are documented in `HV_GROUP_TREASURY_CLOSURE_PROTOCOL_20261105.md`.
 
 ## Required integration before rollout
 
-- Implement the accepted closure-blocking policy with authoritative accounting freezes and recoverable website gates before accepting real coins.
+- Rehearse the implemented closure policy, including unavailable-accounting recovery, against authenticated staging before accepting real coins.
 - Add current-owner spending authorization/controls, reviewed live prices, cosmetic rendering and real Territory/event fulfillment evidence. The internal reservation layer alone does not complete those integrations.
 - Verify UI, privacy, concurrency, group transitions, backups, hosted CI and authenticated staging. Obtain separate merge/deployment approval before production. Original roadmap #17 remains Building / Testing, with no release date.

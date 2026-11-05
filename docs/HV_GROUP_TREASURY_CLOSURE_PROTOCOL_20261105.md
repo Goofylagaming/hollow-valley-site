@@ -1,6 +1,6 @@
 # Treasury closure protection — accepted policy and implementation contract
 
-On 5 November 2026 the user selected: **Block closing until the funds and pending requests are resolved.** Automatic refunds are not authorized. This policy is accepted; the protection described below is not implemented yet.
+On 5 November 2026 the user selected: **Block closing until the funds and pending requests are resolved.** Automatic refunds are not authorized. The protocol below is now implemented locally, with isolated HTTP, concurrency, restart and browser evidence. Production rollout and authenticated staging remain unverified.
 
 ## Required behavior
 
@@ -32,3 +32,11 @@ Definitive nonzero-fund rejection should safely cancel the closure ticket so the
 ## Required evidence
 
 Use actual Groups-store transitions and separate website/accounting databases. Cover disband, sole-owner departure, normal owner succession, unresolved drafts/submissions, funded and fully spent groups, disabled rollout, service outage, stale group ID, owner change, concurrent donation versus freeze, cancellation versus late freeze/clearance, failed group history writes, response loss, process restart, retained historical records and no automatic payouts. Verify desktop/mobile recovery before enabling real donations.
+
+## Current local evidence
+
+`test/groupTreasuryClosure.test.js` exercises both actual website Groups routes and the private accounting routes. It verifies funded and pending-request refusal, last-member closure, ordinary ownership transfer, the never-authorized/offline-rollout exemption, outage cancellation, delayed request and delayed response cancellation, mismatched ticket replies, history-write and terminal-audit rollback, missing completion/abort acknowledgments and retained paid records. A fresh Node process resumes a ticket after a lost freeze response. Independent processes race donation against freeze under the accounting lock.
+
+Groups-store guards recheck a supplied ticket even when rollout is disabled, so a cancelled older request cannot fall through to a legacy close. New donation authorization, membership additions and membership transitions are blocked while a local closure gate is active. The accounting freeze blocks new group credits and spending reservations. Final receipt reads/cancellations remain available. A completed group cannot be reopened through abort.
+
+The full Treasury browser fixture passes at 1440px and 390px for funded-group refusal, visible cancellation/retry controls, withheld new-donation controls while closure is pending and finishing a closed group's accounting check after a lost acknowledgment. Hidden recovery controls remain hidden. These tests use synthetic identities/coins and do not independently validate hosted Steam authentication or production operation.

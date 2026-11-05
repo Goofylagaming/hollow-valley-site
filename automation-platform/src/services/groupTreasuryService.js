@@ -7,6 +7,7 @@ function failure(code,message,status=400){return Object.assign(new Error(message
 // require the private website token; new donations default off.
 function createGroupTreasury(store,{writesEnabled=()=>process.env.GROUP_TREASURY_ENABLED==='1'}={}) {
   const db=store.db;
+  require('./groupTreasuryClosure').initialize(db);
   db.exec(`CREATE TABLE IF NOT EXISTS economy_group_treasuries (
     group_id INTEGER PRIMARY KEY CHECK(group_id>0 AND group_id<=${MAX}),
     balance INTEGER NOT NULL DEFAULT 0 CHECK(typeof(balance)='integer' AND balance>=0 AND balance<=${MAX}),
@@ -101,6 +102,7 @@ function createGroupTreasury(store,{writesEnabled=()=>process.env.GROUP_TREASURY
           throw failure('DONATION_CONFLICT','Donation request already has different details',409);
         verifyReceipt(donation);
       }else{
+        require('./groupTreasuryClosure').assertOpen(db,gid);
         const walletKey=`group-treasury-donation:${key}`;
         if(db.prepare('SELECT id FROM economy_wallet_ledger WHERE idempotency_key=?').get(walletKey))
           throw failure('DONATION_CONFLICT','Donation wallet reference already exists',409);

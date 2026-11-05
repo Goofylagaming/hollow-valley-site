@@ -7,11 +7,13 @@ process.env.GROUP_TREASURY_ENABLED='1';process.env.GROUP_HQ_ENABLED='0';process.
 for(const key of ['GROUP_TREASURY_READ_ONLY','SKIN_STUDIO_READ_ONLY','RENDER_SERVICE_ID','RENDER_EXTERNAL_URL','PUBLIC_SITE_URL','STEAM_REALM','STEAM_RETURN_URL'])delete process.env[key];
 const {db}=require('../server/db'),groups=require('../server/groupsStore'),economy=require('../automation-platform/src/services/economyStore');
 const spending=require('../automation-platform/src/services/groupTreasurySpending').createGroupTreasurySpending(economy,{enabled:()=>true});
-let dropCoinReply=false,dropPrepareReply=false,failDonation=false,holdDonation=false,heldDonation=null,holdBalance=false,heldBalance=null,failBalance=false;
+let dropCoinReply=false,dropPrepareReply=false,failDonation=false,holdDonation=false,heldDonation=null,holdBalance=false,heldBalance=null,failBalance=false,failClosureBegin=false,dropClosureComplete=false;
 let donationPosts=0;
 const unexpected=[];
 const auto=express();auto.use(express.json());
 auto.use('/api/website/group-treasury',(req,res,next)=>{
+  if(req.path==='/closure-begin'&&failClosureBegin){failClosureBegin=false;return res.status(503).json({error:'Synthetic closure outage'});}
+  if(req.path==='/closure-complete'&&dropClosureComplete){dropClosureComplete=false;res.json=()=>{res.destroy();return res;};}
   if(req.path==='/read'&&failBalance)return res.status(503).json({error:'Synthetic balance outage'});
   if(req.path==='/donate'){
     donationPosts++;
@@ -61,6 +63,7 @@ async function until(fn){for(let i=0;i<300;i++){if(fn())return;await new Promise
       const prepare=async amount=>{await idle();await page.fill('#treasury-amount',String(amount));await page.click('#treasury-review');await page.getByText(`Review ${amount} Valley Coins to Pack ${n} <img src=x>`,{exact:true}).waitFor();await idle();};
       const confirm=async()=>{await page.check('#treasury-consent');await page.getByRole('button',{name:'Confirm donation',exact:true}).click();};
       await page.goto(base+'/groups');await balance(0);await idle();assert.equal(donationPosts,(n-1)*3);
+      assert.equal(await page.locator('#groups-cancel-closure').isVisible(),false);
       assert.equal(await page.locator('#group-treasury img').count(),0);
       await prepare(100);assert.equal(economy.getWallet(A).balance,1000);
       assert.equal(await page.getByRole('button',{name:'Confirm donation',exact:true}).isDisabled(),true);
@@ -73,6 +76,14 @@ async function until(fn){for(let i=0;i<300;i++){if(fn())return;await new Promise
       const hold={groupId,actorSteamId:A,itemId:cosmetic.id,revision:1,expectedCost:60,requestId:'browser_hold_'+n};spending.reserve(hold);
       await page.click('#treasury-refresh');await page.getByText('Available to spend: 40 Valley Coins · Reserved: 60 Valley Coins',{exact:true}).waitFor();await idle();
       spending.release(hold);await page.click('#treasury-refresh');await idle();assert.equal(await page.locator('#treasury-reserved').isVisible(),false);
+      page.once('dialog',dialog=>dialog.accept());await page.click('#groups-disband');
+      await page.getByText('Resolve Treasury funds and reserved spending before closing the group',{exact:true}).waitFor();await idle();
+      assert.equal(groups.getState(A).current.id,groupId);assert.equal(economy.getWallet(A).balance,900);
+      failClosureBegin=true;page.once('dialog',dialog=>dialog.accept());await page.click('#groups-disband');
+      await page.locator('#groups-cancel-closure').waitFor();await page.getByText('A Treasury closure check is pending. Finish or cancel it in Groups.',{exact:true}).waitFor();await idle();
+      assert.equal(await page.locator('#groups-leave').isDisabled(),true);assert.equal(await page.locator('#treasury-form').isVisible(),false);
+      await page.click('#groups-cancel-closure');await page.waitForFunction(()=>document.getElementById('groups-cancel-closure').hidden);await idle();await page.locator('#treasury-form').waitFor();
+      assert.equal(await page.locator('#groups-cancel-closure').isVisible(),false);
       await prepare(200);await page.getByRole('button',{name:'Cancel request',exact:true}).click();await idle();
       assert.equal(economy.getWallet(A).balance,900);
       await prepare(50);holdDonation=true;heldDonation=null;await confirm();await until(()=>heldDonation);
@@ -103,6 +114,11 @@ async function until(fn){for(let i=0;i<300;i++){if(fn())return;await new Promise
       await page.waitForTimeout(100);assert.equal(await page.locator('#treasury-balance').textContent(),'Unavailable');
       assert.equal(await page.getByRole('button',{name:'Confirm donation',exact:true}).count(),0);
       await page.getByRole('button',{name:'Cancel request',exact:true}).click();await idle();assert.equal(economy.getWallet(A).balance,900);
+      await page.fill('#groups-name','Empty Closure Pack '+n);await page.locator('#groups-create-form button').click();await balance(0);await idle();
+      dropClosureComplete=true;page.once('dialog',dialog=>dialog.accept());await page.click('#groups-disband');
+      await page.getByRole('button',{name:'Finish closure check',exact:true}).waitFor();assert.equal(groups.getState(A).current,null);
+      await page.getByRole('button',{name:'Finish closure check',exact:true}).click();await page.waitForFunction(()=>document.getElementById('groups-closure-recovery').hidden);await idle();
+      assert.equal(await page.locator('#groups-closure-recovery').isVisible(),false);
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);
       assert.equal(await page.locator('#group-treasury img').count(),0);
       await context.clearCookies();await page.click('#treasury-refresh');
@@ -110,7 +126,7 @@ async function until(fn){for(let i=0;i<300;i++){if(fn())return;await new Promise
       assert.equal(await page.locator('#treasury-history').textContent(),'No donation requests yet.');
       await page.reload();await page.locator('#groups-signin').waitFor();assert.equal(await page.locator('#group-treasury').isVisible(),false);
       assert.deepEqual(errors,[]);assert.deepEqual(unexpected,[]);
-      console.log(`PASS ${width}px real Treasury controls: immutable review, consent, lost replies, cancellation race, outage recovery, disabled/member/preview states and membership loss`);
+      console.log(`PASS ${width}px real Treasury controls: consent, recovery, closure blocking/cancellation/completion, disabled/member/preview states and membership loss`);
       await context.close();
     }
   }finally{
