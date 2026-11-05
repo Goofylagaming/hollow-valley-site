@@ -112,6 +112,11 @@ function recordSnapshot(players, at) {
   }
 }
 function maintain() {
+  try {
+    get().discoveries.prune();
+  } catch (e) {
+    console.error('[valley-legacy] discovery cleanup failed:', e.message);
+  }
   // Retention must not depend on incoming snapshots or successful event import.
   try {
     get().journeys.prune();

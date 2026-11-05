@@ -9,11 +9,18 @@ test('startup and scheduled retention remove expired routes despite stopped snap
     const now=Date.now(),old=now-31*86400000,steam='76561198000000801';
     const insert=store.db.prepare('INSERT INTO journey_points VALUES (?,?,?,?,?,?)');
     insert.run(steam,'old',old,1,2,1);insert.run(steam,'recent',now-1000,3,4,1);
+    const discoverySample=store.db.prepare('INSERT INTO discovery_last_samples VALUES (?,?,?,?,?,?)');
+    discoverySample.run(steam,'fixture','life',now-121000,1,2);
+    store.db.prepare('INSERT INTO discovery_visits VALUES (?,?,?,?)').run(steam,'fixture','cave',old);
     // A malformed source fixture deliberately causes import to fail each tick.
     store.db.exec('CREATE TABLE combat_events(id TEXT)');
     service.start();assert.equal(delay,15000);assert.equal(unref,true);
+    assert.equal(store.db.prepare('SELECT COUNT(*) n FROM discovery_last_samples').get().n,0);
+    discoverySample.run(steam,'fixture','life',now-121000,1,2);
     assert.equal(store.db.prepare('SELECT COUNT(*) n FROM journey_points').get().n,1);
     insert.run(steam,'old-again',old+1,5,6,1);callback();
+    assert.equal(store.db.prepare('SELECT COUNT(*) n FROM discovery_last_samples').get().n,0);
+    assert.equal(store.db.prepare('SELECT COUNT(*) n FROM discovery_visits').get().n,1);
     assert.equal(store.db.prepare('SELECT COUNT(*) n FROM journey_points').get().n,1);
     assert.equal(store.db.prepare('SELECT life_id FROM journey_points').get().life_id,'recent');
     assert.equal(errors.filter(e=>String(e[0]).includes('reconciliation failed')).length,2);
