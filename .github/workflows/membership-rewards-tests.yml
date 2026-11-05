@@ -2,7 +2,7 @@ name: Membership Rewards Tests
 
 on:
   pull_request:
-    branches: [master]
+    branches: [master, 'feature/hv-roadmap-*']
     paths:
       - 'server/**'
       - 'automation-platform/src/**'
