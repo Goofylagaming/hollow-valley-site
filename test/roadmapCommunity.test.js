@@ -15,6 +15,16 @@ const router = require("../server/routes/roadmapCommunity");
 const steam1 = "76561198000000001";
 const steam2 = "76561198000000002";
 
+test('journey votes remain historical while development frees active slots',()=>{
+  const steam='76561198000000011';
+  db.prepare('INSERT INTO roadmap_votes (steam_id,feature_id) VALUES (?,11)').run(steam);
+  for(const id of [3,4,5])voting.setVote(steam,id,true);
+  const result=voting.voteSummary(steam);
+  assert.equal(result.counts[11],1);assert.deepEqual(result.myVotes,[3,4,5]);
+  assert.throws(()=>voting.setVote(steam,11,true),{code:'FEATURE_NOT_VOTABLE'});
+  db.prepare('DELETE FROM roadmap_votes WHERE steam_id=?').run(steam);
+});
+
 test('gallery votes remain historical while development frees the active slots',()=>{
   const steam='76561198000000024';
   db.prepare('INSERT INTO roadmap_votes (steam_id,feature_id) VALUES (?,24)').run(steam);
@@ -44,8 +54,8 @@ test("roadmap ballot limits voting to three idea-stage features per Steam identi
   const initial = voting.voteSummary(steam1);
   assert.equal(initial.maxVotes, 3);
   assert.equal(initial.myVotes.length, 0);
-  assert.equal(initial.eligibleFeatureIds.length, 17);
-  assert.equal(new Set(initial.eligibleFeatureIds).size, 17, "No duplicate roadmap feature IDs");
+  assert.equal(initial.eligibleFeatureIds.length, 16);
+  assert.equal(new Set(initial.eligibleFeatureIds).size, 16, "No duplicate roadmap feature IDs");
 
   for (const id of [3, 4, 5]) voting.setVote(steam1, id, true);
   voting.setVote(steam1, 5, true); // idempotent repeated request
@@ -53,7 +63,7 @@ test("roadmap ballot limits voting to three idea-stage features per Steam identi
   assert.equal(voting.voteSummary(steam1).counts[5], 1);
   assert.throws(() => voting.setVote(steam1, 6, true), { code: "VOTE_LIMIT" });
 
-  for (const id of [1, 2, 7, 8, 9, 13, 15, 22, 23, 24, 31, 0, 100]) {
+  for (const id of [1, 2, 7, 8, 9, 11, 13, 15, 22, 23, 24, 31, 0, 100]) {
     assert.throws(() => voting.setVote(steam1, id, true), { code: "FEATURE_NOT_VOTABLE" });
   }
   assert.throws(() => voting.setVote("not-steam", 1, true), { code: "STEAM_REQUIRED" });

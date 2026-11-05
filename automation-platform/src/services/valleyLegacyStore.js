@@ -53,6 +53,7 @@ function createLegacyStore(db, { now = Date.now } = {}) {
     CREATE TABLE IF NOT EXISTS vl_requests (id TEXT PRIMARY KEY, nest TEXT NOT NULL, player TEXT NOT NULL, name TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', created_at INTEGER NOT NULL, UNIQUE(nest,player));
     CREATE TABLE IF NOT EXISTS vl_state (key TEXT PRIMARY KEY, value TEXT NOT NULL);
     COMMIT;`);
+  const journeys = require('./journeyStore').createJourneyStore(db,{now});
   const initial = now();
   db.prepare("INSERT OR IGNORE INTO vl_state VALUES ('started', ?)").run(
     String(initial),
@@ -241,6 +242,10 @@ function createLegacyStore(db, { now = Date.now } = {}) {
             id,
           );
         }
+      }
+      journeys.prune();
+      for(const row of db.prepare('SELECT id,steam_id,location FROM vl_lives WHERE last_at=? AND ended_at IS NULL').all(at)) {
+        journeys.record({steamId:row.steam_id,lifeId:row.id,at,location:JSON.parse(row.location||'null')});
       }
       // Record growth evidence only from accepted samples within the same observed
       // life. No historical first-growth inference or cross-life accumulation.
@@ -642,6 +647,7 @@ function createLegacyStore(db, { now = Date.now } = {}) {
   }
   return {
     snapshot,
+    journeys,
     ingest,
     rotate,
     overview,
