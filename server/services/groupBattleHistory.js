@@ -30,6 +30,20 @@ function createGroupBattleHistory(db) {
       ORDER BY b.closed_at DESC,b.attack_id DESC LIMIT 50`).all(groupId)
       .map(row=>({...row,result:(row.outcome==='capture')===(row.side==='attacker')?'win':'loss'}));
   }
-  return {freeze,list};
+  function versus(groupId,otherId){
+    if(![groupId,otherId].every(id=>Number.isSafeInteger(id)&&id>0)||groupId===otherId)throw Object.assign(new Error('Two different website groups are required'),{status:400});
+    if(!exists('territory_battle_provenance'))return {available:false,totals:null,battles:[]};
+    const from=`FROM hv_group_battle_identity own JOIN hv_group_battle_identity peer ON peer.attack_id=own.attack_id
+      AND peer.side<>own.side AND peer.side IN('attacker','defender')
+      JOIN territory_battle_provenance b ON b.attack_id=own.attack_id
+      WHERE own.group_id=? AND peer.group_id=? AND own.side IN('attacker','defender')
+      AND b.closed_at IS NOT NULL AND b.live_observed=1 AND b.disqualified_reason IS NULL AND b.outcome IN('capture','defence')`;
+    const won="((b.outcome='capture' AND own.side='attacker') OR (b.outcome='defence' AND own.side='defender'))";
+    const totals=db.prepare(`SELECT COUNT(*) AS battles,COALESCE(SUM(CASE WHEN ${won} THEN 1 ELSE 0 END),0) AS wins ${from}`).get(groupId,otherId);
+    const rows=db.prepare(`SELECT b.attack_id AS attackId,b.event_id AS eventId,b.started_at AS startedAt,b.closed_at AS resolvedAt,
+      own.side,CASE WHEN ${won} THEN 'win' ELSE 'loss' END AS result ${from} ORDER BY b.closed_at DESC,b.attack_id DESC LIMIT 50`).all(groupId,otherId);
+    return {available:true,totals:{...totals,losses:totals.battles-totals.wins},battles:rows};
+  }
+  return {freeze,list,versus};
 }
 module.exports={createGroupBattleHistory};

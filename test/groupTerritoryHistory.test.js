@@ -21,6 +21,17 @@ function fixture(t) {
   const fails=(fn,status)=>assert.throws(fn,error=>error.status===status);
   return {db,links,territory,fails};
 }
+test('head-to-head totals use both frozen identities, all eligible history and no fighter/live-location data',t=>{
+ const {db,links,territory}=fixture(t);territory();links.set(A,{expectedGroupId:1,territoryGroupId:10,expectedRevision:0});links.set(C,{expectedGroupId:2,territoryGroupId:11,expectedRevision:0});
+ const battle=createBattleProvenance(db),history=createGroupBattleHistory(db);
+ const begin=(id,options={})=>battle.begin(id,7,id*100,{attackerGroupId:10,defenderGroupId:11,...options});
+ const finish=(id,outcome='capture',options={})=>{battle.observe(id,{usable:true},id*100+10);battle.finish(id,id*100+20,outcome,options);};
+ for(let index=1;index<=55;index++){begin(index);finish(index,index%2?'capture':'defence');}
+ begin(56);battle.finish(56,5620,'capture');begin(57,{testing:true});finish(57);begin(58);finish(58,'capture',{manual:true});begin(59);battle.observe(59,{usable:true,simulated:true},5910);battle.finish(59,5920,'capture');
+ links.set(A,{expectedGroupId:1,territoryGroupId:null,expectedRevision:1});begin(60);finish(60);links.set(A,{expectedGroupId:1,territoryGroupId:10,expectedRevision:2});begin(61);battle.observe(61,{usable:true},6110);
+ const result=history.versus(1,2);assert.deepEqual(result.totals,{battles:55,wins:28,losses:27});assert.equal(result.battles.length,50);assert.deepEqual(history.versus(2,1).totals,{battles:55,wins:27,losses:28});
+ assert.equal(JSON.stringify(result).includes(A),false);assert.equal(JSON.stringify(result).includes('location'),false);assert.throws(()=>history.versus(1,1),error=>error.status===400);
+});
 test('Territory links require both current authorities; names cannot establish identity',t=>{
   const {links,territory,fails}=fixture(t);
   assert.deepEqual(links.get(A).choices,[]);

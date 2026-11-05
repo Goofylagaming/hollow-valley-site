@@ -1,0 +1,23 @@
+const router=require('express').Router();
+const {requireAuth}=require('../middleware/requireAuth');
+const {getSkinStudioSafety}=require('../middleware/skinStudioSafety');
+const service=require('../services/groupDiplomacy').createGroupDiplomacy(require('../db').db,require('../groupsStore'));
+const enabled=()=>process.env.GROUP_DIPLOMACY_ENABLED==='1';
+const readOnly=()=>process.env.GROUP_DIPLOMACY_READ_ONLY==='1'||getSkinStudioSafety().readOnly;
+router.use((_req,res,next)=>{res.set('Cache-Control','private, no-store');next();});
+router.get('/capabilities',(_req,res)=>res.json({enabled:enabled(),readOnly:readOnly()}));
+router.use((_req,res,next)=>enabled()?next():res.status(503).json({error:'Group diplomacy is not enabled',code:'DIPLOMACY_DISABLED'}));
+router.use(requireAuth);
+router.use((req,res,next)=>/^\d{17}$/.test(String(req.user?.steam_id||''))?next():res.status(403).json({error:'A linked Steam account is required'}));
+router.use((req,res,next)=>{
+  if(req.method==='GET')return next();
+  if(readOnly())return res.status(403).json({error:'This preview cannot change group relationships'});
+  if(req.get('origin')!==`${req.protocol}://${req.get('host')}`||!req.is('application/json'))return res.status(403).json({error:'Use the website to manage group relationships'});
+  next();
+});
+const run=fn=>(req,res)=>{try{res.json(fn(req));}catch(error){res.status(error.status||500).json({error:error.status?error.message:'Group diplomacy is temporarily unavailable',code:error.code||null});}};
+router.get('/',run(req=>service.list(req.user.steam_id,{afterRelationId:req.query.afterRelationId===undefined?0:Number(req.query.afterRelationId)})));
+router.get('/groups',run(req=>service.search(req.user.steam_id,req.query.q)));
+router.get('/relations/:groupId',run(req=>service.detail(req.user.steam_id,Number(req.params.groupId))));
+router.post('/relations/:groupId',run(req=>service.change(req.user.steam_id,{expectedGroupId:req.body?.expectedGroupId,targetGroupId:Number(req.params.groupId),expectedRevision:req.body?.expectedRevision,action:req.body?.action,requestId:req.body?.requestId})));
+module.exports=router;
