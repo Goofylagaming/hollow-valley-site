@@ -838,6 +838,19 @@ fixtures pass at 1440px and 390px: the background copy appears on a subsequent
 read without a player POST; a later manual update does not duplicate points.
 The homepage planning asset is v129 and #4 remains Building/Testing.
 
-No branch was pushed, merged or deployed. Reward policy/fulfillment, actual season
+No branch was pushed, remotely merged or deployed. Reward policy/fulfillment, actual season
 choices, producer verification, operational recovery, hosted CI and authenticated
 staging remain required. The full 31-item roadmap remains active and incomplete.
+
+
+## Draft review base refreshed — 6 November 2026
+
+GitHub inspection confirms the earlier Diplomacy #308, Challenges #309 and Event
+Engine #310 were merged by another session into the roadmap integration history.
+The current review base is `feature/hv-roadmap-death-recaps-20261105` at
+`efcb9c5ab6bf5f044929221378f5e0cbfaf735c5`. Its history was merged locally
+without changing the tested implementation tree. This removes duplicated stack
+changes from the draft comparison and does not merge anything on GitHub. The
+separate master branch contains unrelated subsequent work; no master changes were
+imported into this season branch. Publication of this additional season work still
+requires its own approval.
