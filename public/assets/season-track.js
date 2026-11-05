@@ -5,7 +5,7 @@
   const message = text => { $('season-status').textContent = text; };
   const identity = me => me?.loggedIn && Number.isSafeInteger(me.user?.id) && /^\d{17}$/.test(me.user?.steam_id || '') ? `${me.user.id}:${me.user.steam_id}` : null;
   const definition = () => model?.progress?.season?.definition;
-  const achievementTitle = id => ({ 'quest-1':'First quest', 'quest-25':'25 quests', 'quest-100':'100 quests', 'event-1':'First paid event confirmation', 'event-10':'10 paid event confirmations', 'event-25':'25 paid event confirmations' }[id] || 'Achievement');
+  const achievementTitle = id => ({ 'quest-1':'First quest', 'quest-25':'25 quests', 'quest-100':'100 quests', 'event-1':'First paid event confirmation', 'event-10':'10 paid event confirmations', 'event-25':'25 paid event confirmations', 'nested-adult':'Verified nested adulthood', 'life-survival-10h':'Ten observed hours on one dinosaur' }[id] || 'Achievement');
   const achievementRules = points => points.awards.map(award => `${achievementTitle(award.id)}: ${award.xp.toLocaleString('en-AU')} season XP`).join('; ');
   const canWrite = () => actor && !caps.readOnly && (caps.enabled || caps.managementAvailable);
   const joinOpen = () => caps.enabled && model?.progress?.season?.state === 'published' &&
@@ -37,7 +37,7 @@
       $('season-dates').textContent = `${date(def.startsAt)} to ${date(def.endsAt)} Brisbane time. Delayed activity receipts accepted until ${date(def.settlesAt)}.`;
       $('season-retention').textContent = def.retainUntil ? `Your season participation, copied progress and saved requests expire ${date(def.retainUntil)} Brisbane time. Permanent XP stays separate.` : 'These older rules have no automatic expiry date. You can delete your participation and copied progress.';
       $('season-achievement-rules').hidden = !def.achievementPoints;
-      $('season-achievement-rules').textContent = def.achievementPoints ? 'Reviewed achievement points: ' + achievementRules(def.achievementPoints) + '. Qualifying completion or paid-confirmation dates count; a later badge unlock does not move earlier activity into this season.' : '';
+      $('season-achievement-rules').textContent = def.achievementPoints ? 'Reviewed achievement points: ' + achievementRules(def.achievementPoints) + '. Qualifying activity dates count; a later badge unlock does not move earlier activity into this season.' : '';
       $('season-participation').textContent = model.progress.retentionExpired ? 'Personal participation records have expired.' : model.participating ? (caps.enabled ? 'You have joined this season.' : 'Season tracking is paused. You can delete your participation.') : 'You have not joined this season.';
       $('season-points').textContent = model.progress.retentionExpired ? 'Personal progress has expired.' : `${model.progress.xp.toLocaleString('en-AU')} season XP · ${model.progress.tier} of ${def.tiers.length} milestones reached.` + (def.achievementPoints ? ` ${(model.progress.achievementXp || 0).toLocaleString('en-AU')} XP comes from reviewed achievements.` : '');
       $('season-evidence').textContent = model.progress.retentionExpired ? 'The retention period has ended. Personal season progress is no longer available.' : model.progress.evidenceUnavailable ? 'Some earlier activity is no longer supported by its source evidence and is excluded.' :

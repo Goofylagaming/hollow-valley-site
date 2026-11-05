@@ -2,6 +2,7 @@
 const { parseSourceTimestamp } = require('./progressionSourceTime');
 const { createHash } = require('node:crypto');
 const digest = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+const { deriveLifeSource } = require('./achievementLifeSource');
 const CONTRACTS = Object.freeze({
   'quest-1': { type: 'quests', threshold: 1, basis: 'quest-threshold' },
   'quest-25': { type: 'quests', threshold: 25, basis: 'quest-threshold' },
@@ -9,6 +10,8 @@ const CONTRACTS = Object.freeze({
   'event-1': { type: 'events', threshold: 1, basis: 'paid-confirmation-threshold' },
   'event-10': { type: 'events', threshold: 10, basis: 'paid-confirmation-threshold' },
   'event-25': { type: 'events', threshold: 25, basis: 'paid-confirmation-threshold' },
+  'nested-adult': { type: 'nested_adult', threshold: 1, basis: 'nested-adult-observation' },
+  'life-survival-10h': { type: 'life_survival_seconds', threshold: 36000, basis: 'life-survival-observation' },
 });
 function createAchievementSourceTimeStore(db, { now = Date.now, initialize = true } = {}) {
   if (initialize) db.exec(`CREATE TABLE IF NOT EXISTS progression_achievement_sources (
@@ -20,13 +23,18 @@ function createAchievementSourceTimeStore(db, { now = Date.now, initialize = tru
       DELETE FROM progression_achievement_sources WHERE steam_id=OLD.steam_id AND achievement_id=OLD.achievement_id;
     END;`);
   const award = (steamId, achievementId) => db.prepare('SELECT metadata_json,unlocked_at FROM progression_achievements WHERE steam_id=? AND achievement_id=?').get(steamId, achievementId);
-  function derive(steamId, achievementId) {
+  function derive(steamId, achievementId, options) {
     const contract = Object.hasOwn(CONTRACTS, achievementId) ? CONTRACTS[achievementId] : null;
     if (!contract) return null;
     const saved = award(steamId, achievementId);
     if (!saved) return null;
     let meta; try { meta = JSON.parse(saved.metadata_json); } catch { return null; }
-    if (meta?.type !== contract.type || meta.threshold !== contract.threshold || !Number.isSafeInteger(meta.value) || meta.value < contract.threshold) return null;
+    if (meta?.type !== contract.type || meta.threshold !== contract.threshold || !Number.isFinite(meta.value) || meta.value < contract.threshold) return null;
+    if (achievementId === 'nested-adult' || achievementId === 'life-survival-10h') {
+      const source = deriveLifeSource(db, steamId, achievementId, meta, { ...options, asOf: now() });
+      return source ? { awardDigest: digest(saved), basis: contract.basis, sourceAt: source.sourceAt, evidenceDigest: digest(source.evidence) } : null;
+    }
+    if (!Number.isSafeInteger(meta.value)) return null;
     const quest = contract.type === 'quests';
     const table = quest ? 'economy_quest_achievements' : 'event_attendance';
     const columns = new Set(db.prepare(`PRAGMA table_info(${table})`).all().map(row => row.name));
@@ -50,7 +58,7 @@ function createAchievementSourceTimeStore(db, { now = Date.now, initialize = tru
     if (!db.isTransaction) throw new Error('Achievement timing requires its unlock transaction');
     const existing = db.prepare('SELECT 1 FROM progression_achievement_sources WHERE steam_id=? AND achievement_id=?').get(steamId, achievementId);
     if (existing) return false;
-    const value = derive(steamId, achievementId), at = now();
+    const value = derive(steamId, achievementId, { capture: true }), at = now();
     if (!value || value.sourceAt > at + 120000) return false;
     const saved = award(steamId, achievementId), unlockedAt = parseSourceTimestamp(saved.unlocked_at);
     if (unlockedAt === null || value.sourceAt > unlockedAt + 120000) return false;

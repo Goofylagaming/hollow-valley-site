@@ -33,6 +33,7 @@ test('verified juvenile-to-adult life unlocks permanently, but reservations and 
   assert.equal(earned.title,'Valley Born');
   assert.equal(earned.metadata.evidence.lifeId,life);
   assert.ok(earned.metadata.evidence.adultAt>earned.metadata.evidence.juvenileAt);
+  assert.equal(require('../src/services/achievementSourceTime').createAchievementSourceTimeStore(store.db).read(a,'nested-adult').sourceAt,earned.metadata.evidence.adultAt);
   sample(a,0.1); // New life must not remove a permanent award.
   assert.deepEqual(badge(a),earned);
   assert.equal(store.getWallet(a).balance,0);
@@ -80,6 +81,7 @@ test('only death evidence inside the awarded growth interval flags a permanent n
   store.db.prepare('INSERT INTO combat_events VALUES (?,?,?)').run('later-life-death',id,new Date(adultAt+60000).toISOString());
   assert.equal(badge(id).verificationStatus,undefined);
   store.db.prepare('INSERT INTO combat_events VALUES (?,?,?)').run('late-growth-death',id,new Date(juvenileAt+1000).toISOString());
+  assert.equal(require('../src/services/achievementSourceTime').createAchievementSourceTimeStore(store.db).read(id,'nested-adult').available,false);
   assert.equal(badge(id).verificationStatus,'under-review');
   assert.equal(badge(id).unlockedAt,earned.unlockedAt);
 });

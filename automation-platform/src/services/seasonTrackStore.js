@@ -40,7 +40,7 @@ function describe(input) {
   let achievementPoints;
   if (achievementsProvided) {
     fields(input.achievementPoints, ['policy','awards']);
-    if (input.achievementPoints.policy !== 'qualifying-source-time' || !Array.isArray(input.achievementPoints.awards) || !input.achievementPoints.awards.length || input.achievementPoints.awards.length > 6) fail('Review a supported achievement point policy');
+    if (input.achievementPoints.policy !== 'qualifying-source-time' || !Array.isArray(input.achievementPoints.awards) || !input.achievementPoints.awards.length || input.achievementPoints.awards.length > Object.keys(CONTRACTS).length) fail('Review a supported achievement point policy');
     const ids = new Set();
     const awards = input.achievementPoints.awards.map(award => {
       fields(award, ['id','xp']);

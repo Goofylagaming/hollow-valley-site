@@ -63,7 +63,7 @@ reward. Existing paid quest/level behavior is regression-tested with synthetic d
 
 Original #4 wording and historical votes remain. The feature leaves the active
 ballot during development, freeing its old votes without deleting them. Eight
-ideas remain eligible. Homepage planning asset version is 123. No production
+ideas remain eligible. Homepage planning asset version is 124. No production
 completion date is assigned.
 
 ## Local verification
@@ -118,8 +118,8 @@ even if their source clock is slightly ahead or consent is repeated in the same
 millisecond. Eligible
 source clocks are at or after enrollment and season start, and strictly before
 season end. Unknown legacy clocks, mismatched source/reference/basis, invalid
-amounts and unsupported sources never count. Optional quest/event-count achievement
-points are now supported through a separate explicitly reviewed policy below.
+amounts and unsupported sources never count. Optional quest/event-count and life
+achievement points are supported through a separate explicitly reviewed policy below.
 Original XP amounts become seasonal points; no extra permanent award is requested.
 
 The ledger receipt's strict UTC `created_at` must precede `settlesAt`, even when
@@ -392,7 +392,7 @@ Season definitions can now optionally include this exact shape:
 This fragment is illustrative synthetic policy, not a configured live amount.
 No default point amounts are installed. An operator must review the complete
 season artifact and its new digest, then separately stage/publish it. Each of the
-six supported quest/event-count achievement IDs may appear once, with an integer
+supported achievement IDs may appear once (currently eight), with an integer
 award from 1 to 1,000,000 seasonal XP. Unknown policies/IDs, duplicates, prices,
 currency fields and malformed values are rejected. Awards are canonically ordered.
 Definitions without the optional field retain their exact prior digest and behavior.
@@ -400,9 +400,9 @@ Achievement-only plans may explicitly leave the regular `sources` array empty.
 
 The source collector and permanent achievement schema must exist before staging
 these rules, including in an operator dry run. Visiting the page or setting runtime
-flags never installs them. Source timing contracts remain limited to quest-count
-and paid-event-count achievements; other families remain unsupported until their
-qualifying evidence can be verified. A paid event confirmation is not a claim of
+flags never installs them. Source timing contracts cover quest-count,
+paid-event-count and the two life awards described below; other families remain
+unsupported until their qualifying evidence can be verified. A paid event confirmation is not a claim of
 automatically verified actual attendance or an event victory.
 
 Enrollment atomically records an achievement source-position floor alongside the
@@ -416,7 +416,7 @@ strictly before settlement. Legacy unknown timing, late receipts and future cloc
 cannot bypass these rules. An offline player may reconcile timely receipts after
 season closure but before the reviewed retention expiry.
 
-One explicit progress update checks at most six configured achievement awards in
+One explicit progress update checks at most eight configured achievement awards in
 addition to the existing bounded XP batch. A separate seasonal evidence table
 copies only the configured point amount, achievement identity, source position,
 timing/basis and binding hashes. Its season/player/achievement key prevents duplicate
@@ -444,7 +444,7 @@ boundaries continue to apply without new mutation endpoints.
 The Quests screen displays each configured achievement and amount before enrollment,
 explains qualifying completion/confirmation dates and shows the achievement portion
 of total season XP. Its review binds the immutable season digest already used by
-participation requests. Player asset v3 and homepage planning asset v123 are local.
+participation requests. Player asset v4 and homepage planning asset v124 are local.
 No actual season, point policy, reward, flag, database or producer has been enabled.
 
 **113 affected checks pass** across reviewed rules, operator readiness/dry runs,
@@ -459,3 +459,65 @@ Remaining full scope includes other achievement families, real producer/source
 review, chosen live point/season rules, approved cosmetic/reward fulfillment,
 operational recovery/retention review, hosted checks and authenticated staging.
 This is not production completion of #4 or the full 31-feature roadmap.
+
+## Life achievement timing and seasonal points — 6 November 2026
+
+The optional reviewed achievement-point policy now also accepts `nested-adult`
+and `life-survival-10h`, with no default amount. Existing definitions, digests,
+permanent eligibility thresholds and payment rules remain unchanged. The new
+`achievementLifeSource.js` supplies read-only, life-specific evidence to the
+existing new-award receipt collector and season projection.
+
+For nested adulthood, the source clock is the original recorded adult observation.
+The receipt binds the matching player's life identity, species/start, exact
+juvenile/adult milestones, one or two valid earlier same-species parent lives,
+immutable parent links and a matching verified hatch record. The hatch must name
+the same child/parents and retain a nonempty evidence reference; a future verification
+cannot authorize an earlier receipt. Missing/changed lineage, source identity or
+milestones make timing unavailable. Hatch references and parent identities are
+hashed into the receipt, not copied into player responses.
+
+For ten-hour survival, the source clock is the original achievement metadata's
+`observedThrough` endpoint. This is a qualifying observed record, not a guessed
+first threshold time calculated from life start or reconciliation. At capture,
+the record's time/value must exactly match the new award, the recorded duration
+must fit within that life and observation window, and the source must meet the
+existing 36,000-second threshold. Later legitimate record growth may continue
+supporting the captured earlier observation without changing its receipt/time.
+A reduced/incompatible record, changed life binding or an ending before that
+observation cannot preserve its seasonal contribution. Account-wide playtime is
+never used as lifetime evidence.
+
+Both life contracts directly check Legacy and combat death evidence for that
+player inside the original qualifying interval, inclusive at its endpoints. The
+check does not wait for a profile read, review creation or periodic importer. Late
+death evidence can therefore stop copied season points immediately, while a later
+death outside the qualifying interval leaves that earlier observation intact.
+Unknown/ambiguous death clocks or over-limit histories withhold timing rather than
+guessing continuity. Each death source is bounded to 10,001 inspected rows, using
+the existing player/time indexes in initialized production stores. Real source
+volumes and query performance still require authenticated staging review.
+
+Pending/withdrawn permanent awards independently withhold source timing. Upholding
+a badge does not itself override a still-contradictory underlying life/death record;
+the source evidence must again support the captured observation. These reads never
+repair a life, delete/rewrite a badge, create an admin review, add permanent XP or
+send a payment/game command. Existing unknown historical awards remain unbackfilled.
+
+The existing consent position, settlement cutoff, duplicate-copy, source revalidation,
+erasure/rejoin and reviewed-expiry rules apply to these two added point types. The
+Quests review gives them meaningful labels and uses the same immutable digest as
+the configured amounts. Other families—level/playtime, skins, combat species,
+Prime and Territory achievements—still need trustworthy qualifying-clock contracts
+before they can be selected for seasonal points. Real producer review, approved
+reward fulfillment, live season/point rules, hosted checks and staging remain gates.
+
+Current verification: **117 affected checks pass**. New cases exercise original
+observation dates, later legitimate life growth, source/lineage corruption, early
+life endings, unknown clocks, direct late combat/Legacy deaths and no read-time
+writes. Existing real Legacy/progression tests verify that newly unlocked life
+badges actually receive these receipts while permanent eligibility stays intact.
+The actual desktop/mobile Quests fixture passes at 1440px and 390px with reviewed
+life amounts, combined XP totals, late-death exclusion/restoration, consent/retry,
+pause/preview, account changes and expiry. The phone screenshot was inspected.
+All data and point amounts are synthetic; nothing was pushed, deployed or enabled.
