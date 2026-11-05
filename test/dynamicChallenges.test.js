@@ -163,3 +163,57 @@ test('rate limits do not prevent a participant opting out; invalid choices never
   assert.equal(x.db.prepare('SELECT count(*) n FROM dc_requests').get().n,21);
   x.advance(MIN+1);assert.equal(x.c.change(A,{selected:true,expectedRevision:21,requestKey:randomUUID()}).revision,22);
 });
+test('disabling tracking breaks survival continuity while preserving consent and earlier best progress',t=>{
+  const x=setup(t);x.c.participate(A,true);x.advance(MIN);x.snap([x.row()]);
+  x.advance(10*MIN);x.snap([x.row()]);assert.equal(x.daily().progress,600);
+  process.env.DYNAMIC_CHALLENGES_ENABLED='0';x.s.challenges.prune();
+  assert.equal(x.db.prepare('SELECT count(*) n FROM dc_cursor').get().n,0);
+  assert.equal(x.c.status(A).participating,true);assert.equal(x.c.status(A).revision,1);
+  x.advance(MIN);x.snap([x.row()]); // Legacy still observes; challenges do not.
+  process.env.DYNAMIC_CHALLENGES_ENABLED='1';x.advance(MIN);x.snap([x.row()]);
+  x.advance(10*MIN);x.snap([x.row()]);assert.equal(x.daily().progress,600);
+  assert.equal(x.weekly().progress,1);
+});
+test('juvenile evidence cannot bridge a disabled tracking interval',t=>{
+  const x=setup(t,'2026-11-06T00:00:00+10:00');x.c.participate(A,true);x.advance(MIN);x.snap([x.row('tenonto',0.5)]);
+  process.env.DYNAMIC_CHALLENGES_ENABLED='0';x.advance(MIN);x.snap([x.row('tenonto',0.75)]);
+  process.env.DYNAMIC_CHALLENGES_ENABLED='1';x.advance(MIN);x.snap([x.row('tenonto',1)]);
+  assert.equal(x.daily().progress,0);assert.equal(x.c.status(A).participating,true);
+});
+test('delayed observations from a disabled interval cannot backfill after restart',t=>{
+  const x=setup(t);x.c.participate(A,true);x.advance(MIN);x.snap([x.row()]);
+  process.env.DYNAMIC_CHALLENGES_ENABLED='0';x.s.challenges.prune();x.advance(MIN);
+  const disabledAt=x.at();x.advance(MIN);
+  process.env.DYNAMIC_CHALLENGES_ENABLED='1';x.s.challenges.prune();
+  x.s.snapshot([x.row('tenonto')],disabledAt);
+  assert.equal(x.weekly().progress,1);assert.equal(x.db.prepare('SELECT count(*) n FROM dc_cursor').get().n,0);
+  x.advance(MIN);x.snap([x.row('tenonto')]);assert.equal(x.weekly().progress,2);
+});
+test('a disabled restart breaks cursors even without any intervening snapshot',t=>{
+  const x=setup(t);x.c.participate(A,true);x.advance(MIN);x.snap([x.row()]);x.advance(10*MIN);x.snap([x.row()]);
+  createDynamicChallengeStore(x.db,{now:x.at,enabled:()=>false});
+  assert.equal(x.db.prepare('SELECT active FROM dc_runtime').get().active,0);
+  createDynamicChallengeStore(x.db,{now:x.at,enabled:()=>true});
+  x.advance(MIN);x.snap([x.row()]);x.advance(10*MIN);x.snap([x.row()]);
+  assert.equal(x.daily().progress,600);assert.equal(x.c.status(A).revision,1);
+});
+test('independent retention removes expired evidence during an outage, keeping consent and replay protection',t=>{
+  const x=setup(t);x.c.participate(A,true);x.advance(MIN);x.snap([x.row()]);
+  const before=x.db.prepare('SELECT count(*) n FROM dc_evidence').get().n;assert.ok(before>0);
+  x.advance(36*86400000);const removed=x.c.prune();assert.equal(removed.evidence,before);assert.equal(removed.cursors,1);
+  assert.equal(x.db.prepare('SELECT count(*) n FROM dc_evidence').get().n,0);
+  assert.equal(x.c.status(A).participating,true);assert.equal(x.c.status(A).revision,1);
+  assert.equal(x.db.prepare('SELECT count(*) n FROM dc_requests').get().n,1);
+});
+test('maintenance rollback retains consistent evidence, runtime and cursor after a storage error',t=>{
+  const x=setup(t);x.c.participate(A,true);x.advance(MIN);x.snap([x.row()]);
+  x.advance(36*86400000);process.env.DYNAMIC_CHALLENGES_ENABLED='0';
+  x.db.exec("CREATE TRIGGER fail_prune BEFORE DELETE ON dc_evidence BEGIN SELECT RAISE(ABORT,'cleanup unavailable'); END");
+  assert.throws(()=>x.s.challenges.prune(),/cleanup unavailable/);
+  assert.equal(x.db.prepare('SELECT count(*) n FROM dc_cursor').get().n,1);
+  assert.equal(x.db.prepare('SELECT active FROM dc_runtime').get().active,1);
+  x.db.exec('DROP TRIGGER fail_prune');x.s.challenges.prune();
+  assert.equal(x.db.prepare('SELECT count(*) n FROM dc_cursor').get().n,0);
+  assert.equal(x.db.prepare('SELECT count(*) n FROM dc_evidence').get().n,0);
+  assert.equal(x.db.prepare('SELECT active FROM dc_runtime').get().active,0);
+});

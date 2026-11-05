@@ -35,7 +35,8 @@ before that start do not contribute. Opt-out removes participation, progress and
 continuity cursors; rejoining cannot import that old evidence. Minimal choice
 revisions and request receipts remain to prevent replay restoring deleted
 participation. Challenge progress
-is retained for up to 35 days and cleaned on accepted enabled snapshots. Missed
+is retained for up to 35 days and cleaned on accepted enabled snapshots and
+independently at Legacy startup/every 15 seconds. Missed
 days create no debt. Reads return only the requested player's current periods;
 they contain no Steam identities, life IDs or positions.
 
@@ -43,6 +44,17 @@ they contain no Steam identities, life IDs or positions.
 `VALLEY_LEGACY_ENABLED=1`. The existing fixed challenge/quest reward service is
 unchanged. New tracking never accesses a wallet, ledger or game-command service,
 and explicitly reports rewards disabled.
+
+Tracking activation is durable. Observing a disabled flag clears challenge
+continuity cursors without changing consent or deleting valid earlier progress.
+Starting the service disabled does the same even without snapshots. Re-enabling
+starts new observation segments; delayed samples timestamped before the recorded
+activation cannot backfill a disabled interval. The weekly species already
+observed remain counted, and a previously completed valid segment stays complete.
+This does not combine separate survival segments or juvenile/adult evidence across
+the pause. The maintenance timer runs this check with tracking disabled and
+continues retention even if event reconciliation fails. If the entire Legacy
+service is disabled/stopped, startup performs overdue cleanup when it next runs.
 
 ## Private API and player controls
 
@@ -87,18 +99,19 @@ disabled, and no private data is retained on sign-out or failed authentication.
 - Define non-punishing streak bonuses and reward rules with approval. No new
   automatic coin payouts are authorized by the implementation plan. Nothing in
   this core installs rewards or treats future approval as granted.
-- Verify flag disable/re-enable and retained evidence policy, snapshot failure
-  recovery, authenticated staging, feed freshness and production release. Cleanup
-  currently depends on accepted snapshots and needs independent maintenance.
+- Verify authenticated staging, feed freshness and production release. Review
+  retention policy and deployment flag operation with actual host configuration.
+  Runtime toggles unseen by any running service cannot establish an exact pause
+  timestamp; configuration changes should use the normal restart lifecycle.
 
 The roadmap release register retains #3's original description and feature ID,
 marks development honestly and preserves historical vote counts while freeing
-retired active ballot slots. Homepage asset version is 102. Diplomacy publication
+retired active ballot slots. Homepage asset version is 103. Diplomacy publication
 approval remains separate and pending; its prepared branch is preserved.
 
 ## Local validation
 
-96 checks pass across dynamic challenge evidence, Legacy store/private HTTP and
+103 checks pass across dynamic challenge evidence, Legacy store/private HTTP and
 authenticated telemetry, roadmap ballots/homepage integration, existing quest
 boosts/challenge payouts, journeys and discovery. Tests cover repeated/stale
 samples, alias farming, midnight/Monday rollover, opt-out/rejoin, separated lives,
@@ -112,6 +125,11 @@ concurrent HTTP choices. The real Quests browser fixture passes at 1440px and
 quests, explicit reviews, lost replies, progress, preview, conflicts, account
 changes during delayed reads, sign-out and opt-out. Authenticated hosted staging
 remains unverified.
+
+Maintenance coverage adds disabled snapshots/restarts, delayed samples after
+activation, separated survival/growth evidence, no-feed retention, retained
+consent/receipts and storage-error rollback. A scheduled Legacy fixture proves
+cleanup continues while import fails and tracking remains disabled.
 
 The dedicated Dynamic challenge tracking workflow runs the affected checks and
 the real-page browser fixture on pull requests. Those hosted runs have not yet
