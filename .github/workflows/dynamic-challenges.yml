@@ -1,0 +1,34 @@
+name: Dynamic challenge tracking
+on:
+  pull_request:
+    paths:
+      - 'automation-platform/src/services/dynamicChallengeStore.js'
+      - 'automation-platform/src/services/valleyLegacyStore.js'
+      - 'automation-platform/src/routes/dynamicChallengeRoutes.js'
+      - 'automation-platform/src/routes/valleyLegacyRoutes.js'
+      - 'server/routes/dynamicChallenges.js'
+      - 'server/index.js'
+      - 'public/quests.html'
+      - 'public/assets/dynamic-challenges.*'
+      - 'public/assets/home-roadmap.js'
+      - 'test/dynamicChallenges*.test.js'
+      - 'scripts/verify-dynamic-challenges.cjs'
+      - '.github/workflows/dynamic-challenges.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node --test test/dynamicChallenges.test.js test/dynamicChallengesHttp.test.js test/valleyLegacy.test.js test/valleyLegacyTelemetry.test.js test/valleyLegacyHttp.test.js test/roadmapCommunity.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js test/questPolling.test.js automation-platform/test/walletQuestFrontend.test.js automation-platform/test/questChallengeExpansion.test.js automation-platform/test/questBoosts.test.js automation-platform/test/journeyStore.test.js automation-platform/test/discoveryVisitStore.test.js
+      - run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.62.1
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/verify-dynamic-challenges.cjs
