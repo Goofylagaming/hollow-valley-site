@@ -14,7 +14,7 @@ Amounts and balances must remain whole, nonnegative safe integers. Insufficient 
 
 New donations default off behind `GROUP_TREASURY_ENABLED=1` on both services. The accounting API, website proxy and Groups-page donation controls are implemented locally. Local tests use synthetic balances only and exercise actual new-process retries plus competing independent processes sharing SQLite. Existing wallet/marketplace test cleanup now closes SQLite handles before verified temporary-directory deletion, allowing those regressions to run on Windows.
 
-Roadmap #17 has left the idea-stage ballot while historical votes remain recorded and free active slots. The homepage release register uses asset version 91. A dedicated hosted test workflow is prepared but has not been published.
+Roadmap #17 has left the idea-stage ballot while historical votes remain recorded and free active slots. The homepage release register uses asset version 92. A dedicated hosted test workflow is prepared but has not been published.
 
 ## Durable website consent and recovery
 
@@ -26,7 +26,7 @@ Cancellation before submission is local and permanently blocks confirmation. Can
 
 The automation endpoints require the private website integration token and trust the website's membership/consent authorization. They do not expose a browser credential. New request-outcome records, website intents and their audit events are additive. No automatic retry scheduler, automatic refund, payout or game command is installed.
 
-145 local checks cover accounting, wallet/marketplace regressions, website-to-automation HTTP authorization, lost responses, coordinator reinitialization, immutable consent, membership replacement, donation and purchase races across processes, reviewed catalog validation, reservations, cosmetic entitlement accounting, delivery proof verification, closure protection, failed audits, existing membership/recruitment/progression, retained votes, homepage integration and website startup. These use temporary databases and synthetic balances. Production Steam sign-in and hosted behavior remain unverified.
+156 local checks cover accounting, wallet/marketplace regressions, website-to-automation HTTP authorization, lost responses, coordinator reinitialization, immutable consent, membership replacement, donation and purchase races across processes, reviewed catalog validation, reservations, cosmetic entitlement accounting, delivery proof verification, closure protection, failed audits, existing membership/recruitment/progression, retained votes, homepage integration and website startup. These use temporary databases and synthetic balances. Production Steam sign-in and hosted behavior remain unverified.
 
 ## Donation controls
 
@@ -48,6 +48,10 @@ External dispatch must be recorded before accepting a delivery result. Dispatch 
 
 `scripts/verify-group-purchases.cjs` exercises the real page scripts and local website/accounting routes at 1440px and 390px with synthetic accounts and prices. It covers consent, lost reserve/commit replies, owner succession, member read-only access, release, frame styling and reload persistence, catalog outages, paused spending and clearing private data on session loss. The existing Treasury and Groups browser fixtures cover regression behavior.
 
+## Territory entry delivery adapter
+
+A disabled, unmounted website-side adapter now registers the explicitly linked Territory group in the real registration table, with the registration log and final delivery outcome in one transaction. It freezes both separate group identities and the link revision, requires a matching dispatched reservation, checks current ownership/leadership, event availability and controlled-test access, and serializes cancellation against delivery. Prior free registration produces non-delivery instead of a second paid benefit. Pending entries block closure. Eleven local tests include independent-process delivery/cancellation and failed-audit rollback. The trusted cross-service dispatch/evidence connection and owner entry controls remain unfinished; no live entry is enabled. See `HV_GROUP_TREASURY_TERRITORY_DELIVERY_20261105.md`.
+
 ## Accepted closure policy
 
 The user selected blocking group closure while coins or unresolved requests remain. Local enforcement now covers disbanding and the last member leaving, including direct Groups-store calls. Unresolved donation and purchase requests are checked within the website transaction, including purchase drafts that have not reserved any funds. Accounting must freeze a zero-balance, zero-hold group before a financially active group can close. An uncertain reply retains the gate; a matching abort is required to reopen funding. Membership history and the local terminal ticket commit together. Lost final acknowledgments expose an actor-scoped finish action, including after the actor has joined a replacement group.
@@ -57,5 +61,5 @@ Ordinary membership departures/owner succession remain available outside a pendi
 ## Required integration before rollout
 
 - Rehearse the implemented closure policy, including unavailable-accounting recovery, against authenticated staging before accepting real coins.
-- Obtain approved live prices and rehearse the implemented operator catalog workflow, plus add real Territory/event fulfillment and verified receipt ingestion. Current-owner purchase controls and owned-frame rendering are implemented locally; these remaining integrations still block full delivery.
+- Obtain approved live prices and rehearse the implemented operator catalog workflow, plus connect the Territory delivery adapter to trusted dispatch/evidence verification and add actual group event registration. Current-owner purchase controls and owned-frame rendering are implemented locally; these remaining integrations still block full delivery.
 - Verify UI, privacy, concurrency, group transitions, backups, hosted CI and authenticated staging. Obtain separate merge/deployment approval before production. Original roadmap #17 remains Building / Testing, with no release date.
