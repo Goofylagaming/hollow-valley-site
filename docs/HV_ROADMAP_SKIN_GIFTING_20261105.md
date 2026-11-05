@@ -135,3 +135,5 @@ Fourteen bridge/parked tests pass, including both transports, preflight failure,
 uncertain publication, ownership checks and real process reopening. A process
 crash without a caught rejection still cannot be safely treated as unpublished;
 those holds remain unresolved pending authoritative evidence.
+
+Wear Live publication uncertainty: publishing errors now retain an awaiting-confirmation job unless the bridge explicitly proves the command was not published. The original request ID is retained on the error. Missing or acknowledged outcomes continue to block transfer; an explicit confirmed outcome resolves the hold without republishing. Local regression fixtures cover both uncertain publication and proven pre-publication rejection. Live game and staging verification remain pending.

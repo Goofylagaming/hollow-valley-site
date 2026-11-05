@@ -247,12 +247,16 @@ async function wearPreset({ steamId, presetId }) {
   try {
     await bridge.queueCommand(command);
   } catch (error) {
+    // A publisher can accept the command before its response is lost. Only a
+    // proven pre-publication rejection may release the gifting hold.
+    const notPublished = error.commandNotPublished === true;
     store.updateSkinApplyJob({
       id: command.id,
-      status: 'failed',
+      status: notPublished ? 'failed' : 'awaiting_confirmation',
       error: error.message || 'Could not queue Skin Studio command',
-      completed: true,
+      completed: notPublished,
     });
+    error.requestId = command.id;
     throw error;
   }
 

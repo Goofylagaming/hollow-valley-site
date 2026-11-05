@@ -2,9 +2,9 @@ const test=require('node:test'),assert=require('node:assert/strict'),{randomUUID
 process.env.AUTOMATION_DB_PATH=':memory:';process.env.SKIN_SYSTEM_ENABLED='true';process.env.SKIN_LIVE_WEAR_ENABLED='true';process.env.SKIN_PRESET_CREATE_COST='0';
 const stub=(name,exports)=>{const id=require.resolve('../src/services/'+name);require.cache[id]={id,filename:id,loaded:true,exports};};
 stub('dinoStorageService',{});
-const queued=[];let duringSnapshot=()=>{};
+const queued=[];let duringSnapshot=()=>{},publicationError=null,outcome={state:'confirmed'};
 stub('statusService',{getServerSnapshot:async()=>{duringSnapshot();return {online:true,characters:[]};}});
-stub('commandBridgeService',{buildCommand:()=>({id:randomUUID()}),queueCommand:async command=>queued.push(command),readOutcome:async()=>({state:'confirmed'})});
+stub('commandBridgeService',{buildCommand:()=>({id:randomUUID()}),queueCommand:async command=>{queued.push(command);if(publicationError)throw publicationError;},readOutcome:async()=>outcome});
 const store=require('../src/services/economyStore'),skins=require('../src/services/skinPresetService'),wear=require('../src/services/skinWearService');
 const gifts=require('../src/services/skinGiftService').createSkinGiftService(store,{enabled:()=>true});
 const creator={steam_id:'76561198000000301'},sender={steam_id:'76561198000000302'},recipient={steam_id:'76561198000000303'};
@@ -30,4 +30,37 @@ test('a queued application prevents acceptance until its outcome is terminal',as
   store.updateSkinApplyJob({id:job,status:'verified',completed:true});
   gifts.decide(recipient,{id,decision:'accepted',expectedRevision:0});assert.equal(store.hasSkinUnlock(recipient.steam_id,preset.id),true);
   assert.equal(queued.length,0);
+});
+
+test('uncertain Wear Live publication retains the gift hold until an explicit outcome',async()=>{
+  const {preset,id}=await fixture();
+  publicationError=new Error('Publisher response lost');
+  try {
+    await assert.rejects(wear.wearPreset({steamId:sender.steam_id,presetId:preset.id}),publicationError);
+    const job=store.getSkinApplyJob(publicationError.requestId);
+    assert.equal(job.status,'awaiting_confirmation');assert.equal(job.completed_at,null);
+    for(const state of [null,'acknowledged']) {
+      outcome=state?{state}:null;
+      await wear.reconcileWearState(sender.steam_id);
+      assert.throws(()=>gifts.decide(recipient,{id,decision:'accepted',expectedRevision:0}),{status:409});
+      assert.equal(store.hasSkinUnlock(sender.steam_id,preset.id),true);
+    }
+    const before=queued.length;outcome={state:'confirmed'};
+    await wear.reconcileWearState(sender.steam_id);
+    assert.equal(queued.length,before);
+    gifts.decide(recipient,{id,decision:'accepted',expectedRevision:0});
+    assert.equal(store.hasSkinUnlock(recipient.steam_id,preset.id),true);
+  } finally {publicationError=null;outcome={state:'confirmed'};}
+});
+
+test('proven pre-publication rejection releases the Wear Live gift hold',async()=>{
+  const {preset,id}=await fixture();
+  publicationError=Object.assign(new Error('Publisher disabled'),{commandNotPublished:true});
+  try {
+    await assert.rejects(wear.wearPreset({steamId:sender.steam_id,presetId:preset.id}),publicationError);
+    const job=store.getSkinApplyJob(publicationError.requestId);
+    assert.equal(job.status,'failed');assert.ok(job.completed_at);
+    gifts.decide(recipient,{id,decision:'accepted',expectedRevision:0});
+    assert.equal(store.hasSkinUnlock(recipient.steam_id,preset.id),true);
+  } finally {publicationError=null;}
 });
