@@ -10,6 +10,7 @@ process.env.AUTOMATION_DB_PATH = path.join(
   "automation.sqlite",
 );
 process.env.VALLEY_LEGACY_ENABLED = "1";
+process.env.DYNAMIC_CHALLENGES_ENABLED = "1";
 process.env.PLAYER_PRESENCE_ENABLED = "false";
 process.env.WALLET_PLAYTIME_REWARDS_ENABLED = "false";
 process.env.SUPPORTER_COIN_BONUSES_ENABLED = "false";
@@ -34,6 +35,7 @@ test("authenticated presence feed reaches Legacy once; duplicate and stale telem
   const url = `http://127.0.0.1:${server.address().port}/snapshot/snapshot`;
   const at = Date.now(),
     steamId = "76561198000000004";
+  store.challenges.participate(steamId,true);
   const body = {
     sampleId: "legacy-feed-one",
     sampledAt: new Date(at).toISOString(),
@@ -68,4 +70,6 @@ test("authenticated presence feed reaches Legacy once; duplicate and stale telem
   const stale = { ...body, sampleId: "legacy-feed-old" };
   assert.equal((await post(stale)).status, 202);
   assert.equal(store.mine(steamId).mastery[0].seconds, 60);
+  assert.equal(store.challenges.status(steamId).challenges[1].progress,1);
+  assert.equal(store.db.prepare('SELECT at FROM dc_cursor WHERE steam_id=?').get(steamId).at,at+60000);
 });
