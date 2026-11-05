@@ -9,7 +9,7 @@ function createRouter({db=require('../db').db,now=Date.now}={}){
     if(!enabled())return {enabled:false,events:[],next:null,checkedAt:now()};
     const supplied=req.query.afterTime!==undefined||req.query.afterId!==undefined;
     const after=supplied?{startsAt:/^\d+$/.test(req.query.afterTime||'')?Number(req.query.afterTime):NaN,id:req.query.afterId}:null;
-    return {enabled:true,...store.published({after})};
+    return {enabled:true,registrationEnabled:process.env.EVENT_ENGINE_REGISTRATION_ENABLED==='1',...store.published({after})};
   }));
   router.use((req,res,next)=>{try{store.admin(req.user);next();}catch(e){res.status(e.status).json({error:e.message});}});
   router.get('/capabilities',run(()=>({enabled:enabled(),readOnly:readOnly(),gameExecutionEnabled:false,rewardsEnabled:false})));

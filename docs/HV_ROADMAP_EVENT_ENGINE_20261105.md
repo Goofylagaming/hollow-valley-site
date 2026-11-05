@@ -40,7 +40,7 @@ All API responses are private/no-store. User text is rendered as text.
 
 The public release register retains the original #14 description and shows the
 unfinished scope. Historical votes remain stored and no longer consume active
-ballot slots; nine ideas remain eligible. Homepage planning asset version is 114.
+ballot slots; nine ideas remain eligible. Homepage planning asset version is 115.
 
 ## Reviewed website schedules
 
@@ -83,12 +83,58 @@ reload requires inspecting the saved list. No private browser storage, automatic
 POST retry, official Discord event, bot announcement, game action or wallet change
 is installed. The new Events scheduling assets are v1.
 
+## Steam-bound event registration
+
+`EVENT_ENGINE_REGISTRATION_ENABLED=0` independently gates new registration.
+When enabled along with templates and schedules, the public calendar offers
+registration management. Linked Steam players review the exact published event
+revision, times and rules before reserving a place. The private API rechecks the
+current website user ID/Steam binding, exact-origin JSON and preview protections;
+client-supplied player identities and additional mutation fields are rejected.
+
+Seats are reserved atomically in SQLite with consent revisions, immutable request
+receipts and private history. Concurrent independent workers cannot take the same
+last place. Full events reject new signups explicitly; this version has no
+waitlist, automatic enrollment or promotion. Actual attendance, group/individual
+Discord RSVPs and paid group-event registrations remain separate. No wallet,
+attendance evidence, reward or game command is changed by registration.
+
+A reschedule preserves a player's place and original accepted snapshot, then
+labels it as needing review. It does not silently accept the new time. Explicit
+reconfirmation accepts the current event revision without reserving another seat,
+including when capacity is full. Cancelled schedules are displayed as cancelled;
+stored signup history remains. Fresh signup/reconfirmation is blocked at the
+planned start and after cancellation. Players may still withdraw after a start,
+while rollout flags are paused, after cancellation or if source data is missing.
+Preview/read-only restrictions still block writes.
+
+Exact committed retries recover the saved result and current choice, even after
+rescheduling, cancellation, a later choice or rollout pause. They never overwrite
+that later choice. Thirty schedule edits and twenty player registration changes
+per minute have separate limits; a real withdrawal and exact receipt recovery are
+not blocked by the player change limit. Source/evidence, history and receipt
+failures roll back registration and seat changes together.
+
+Players see only their own registration list/history and aggregate reserved-place
+counts for a visible event. There is no public participant roster or endpoint for
+reading another player's history. Private APIs use no-store responses and bounded
+25-record pages. The screen shows recent history; older pages remain available
+through the private API. History and replay receipts remain after withdrawal, as
+stated in the confirmation review. No private browser storage is used; a lost
+mutation reply can be manually retried in the page. Reload requires reading the
+saved choice. Delayed replies cannot reveal a prior account's registration.
+Unhandled read/access failures clear private display data.
+
+The Events registration assets are v1 and public schedule script is v2. All flags
+remain off in example configuration. This is local development only.
+
 ## Remaining full Event Engine requirements
 
 - Verified event lifecycle beyond website plans, including actual start/end and
   outcome evidence, operational rehearsal and authenticated staging.
-- Registration, participant permission/eligibility, capacity and waitlist policy,
-  team allocation and countdowns.
+- Event-type-specific participant eligibility, staff roster/team allocation,
+  operational capacity review and any later waitlist policy. Website signup is
+  not proof that a player meets in-game event rules or is actually present.
 - Appropriate evidence and results for each event type, with staff review and
   contradiction/recovery handling. Registration is not attendance or victory.
 - Reward policy and authenticated staging. This roadmap does not authorize new
@@ -128,3 +174,14 @@ establish hosted/publication or real game behavior.
 The existing template and staff attendance browser fixtures also pass both widths
 with the schedule assets installed. The prepared workflow runs all three browser
 fixtures. No hosted run, merge, deployment or real schedule publication occurred.
+
+Registration raises the affected set to 71 passing tests, including two independent
+SQLite workers competing for the last place, failed-audit/receipt rollback,
+reconfirmation at full capacity, paused/cancelled/past-start withdrawal, bounded
+private pages and missing-source recovery. The actual Events registration screen
+passes at 1440px and 390px for explicit review, lost replies and exact retries,
+reschedule consent, preview restrictions, paused withdrawal, private history,
+account changes and text escaping. Schedule, template and staff attendance browser
+fixtures also pass both widths with registration installed. All identities/events
+and balances in these checks are synthetic. The workflow now includes all four
+browser fixtures. Real Steam sessions, hosted staging and production remain gates.
