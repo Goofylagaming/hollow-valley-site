@@ -233,6 +233,7 @@ function createApp() {
     res.json({
       loggedIn: Boolean(req.user),
       valleyLegacyEnabled: process.env.VALLEY_LEGACY_ENABLED === "1",
+      eventTemplateBuilderEnabled: process.env.EVENT_ENGINE_ENABLED === "1" && Boolean(req.user?.is_admin),
       user: req.user || null,
       territoryWarsAdminAccess: TERRITORY_WARS_ADMIN_TEST_ENABLED && isTerritoryAdmin(req.user),
       financeOwnerAccess: isFinanceOwner(req.user),
@@ -287,6 +288,7 @@ function createApp() {
   app.use("/api/bodydrop", bodydropRouter);
   app.use("/api/server-status", serverStatusRouter);
   app.use("/api/events", eventsRouter);
+  app.use("/api/event-templates", require("./routes/eventTemplates").createRouter());
   app.use("/api/friends", friendsRouter);
   app.use("/api/roadmap", roadmapCommunityRouter);
   app.use("/api/community-guides", communityGuidesRouter);

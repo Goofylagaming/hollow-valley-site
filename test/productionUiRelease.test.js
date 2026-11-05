@@ -129,6 +129,7 @@ test("all production wallet, marketplace, storage, admin and other page scripts 
       const randomEvents = "assets/events-species-bonuses.js";
       const groupRoster = "assets/events-group-roster.js";
       const attendanceEvidence="assets/challenge-attendance-admin.js";
+      const templates="assets/event-templates.js";
       assert.equal(actual.filter(src => src === randomEvents).length, 1,
         "Random event display script must be loaded exactly once");
       assert.ok(actual.indexOf(randomEvents) > actual.indexOf("assets/events.js"),
@@ -139,7 +140,9 @@ test("all production wallet, marketplace, storage, admin and other page scripts 
         "Staff group roster loads after the existing Events controls");
       assert.equal(actual.filter(src=>src===attendanceEvidence).length,1,"Staff attendance evidence controls must load exactly once");
       assert.equal(actual.indexOf(attendanceEvidence),actual.indexOf(groupRoster)+1,"Attendance evidence controls follow the existing roster");
-      assert.deepEqual(actual.filter(src => src !== randomEvents && src !== groupRoster && src !== attendanceEvidence), baseline,
+      assert.equal(actual.filter(src=>src===templates).length,1,"Event template controls must load exactly once");
+      assert.equal(actual.indexOf(templates),actual.indexOf(attendanceEvidence)+1,"Event templates follow existing attendance controls");
+      assert.deepEqual(actual.filter(src => src !== randomEvents && src !== groupRoster && src !== attendanceEvidence && src !== templates), baseline,
         "All existing Events page scripts must retain their original order");
     } else {
       assert.deepEqual(actual, baseline, page + ": feature scripts were dropped or reordered");
