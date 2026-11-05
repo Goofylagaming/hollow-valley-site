@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=4">
   <link rel="stylesheet" href="/assets/events-group-roster.css?v=1">
   <link rel="stylesheet" href="/assets/challenge-attendance-admin.css?v=1">
+  <link rel="stylesheet" href="/assets/event-templates.css?v=1">
 </head>
 <body>
   <div class="app-shell">
@@ -185,6 +186,29 @@
           <button id="attendance-evidence-cancel" class="small-button" type="button">Cancel evidence review</button>
         </div>
       </section>
+      <section id="event-template-panel" hidden aria-labelledby="event-template-heading">
+        <h2 id="event-template-heading">Event templates</h2>
+        <p>Prepare staff plans for community events. Templates stay private to staff. Scheduling, registrations, team assignment, results and rewards are not available through this builder yet.</p>
+        <p id="event-template-preview"></p><p id="event-template-status" role="status" aria-live="polite"></p>
+        <button id="event-template-refresh" class="small-button" type="button">Refresh templates</button>
+        <label><span>Include archived templates</span><input id="event-template-archived" type="checkbox"></label>
+        <ul id="event-template-list"></ul><button id="event-template-more" class="small-button" type="button" hidden>More templates</button>
+        <button id="event-template-new" class="small-button" type="button">New template</button>
+        <h3 id="event-template-selected">New template</h3>
+        <form id="event-template-form">
+          <label>Event type<select name="kind" required></select></label>
+          <label>Title<input name="title" required minlength="3" maxlength="120"></label>
+          <label>Description<textarea name="description" required minlength="10" maxlength="2000"></textarea></label>
+          <label>Rules and staff instructions<textarea name="rules" required minlength="10" maxlength="4000"></textarea></label>
+          <label>Duration in minutes<input name="durationMinutes" type="number" min="5" max="1440" step="1" value="60" required></label>
+          <label>Participant capacity<input name="capacity" type="number" min="2" max="500" step="1" value="32" required></label>
+          <label>Number of teams (1 for a single pool)<input name="teamCount" type="number" min="1" max="16" step="1" value="1" required></label>
+          <button class="small-button" type="submit">Review template</button>
+        </form>
+        <button id="event-template-archive" class="small-button" type="button" disabled>Review archiving template</button>
+        <div id="event-template-review" hidden><h3>Review before saving</h3><div id="event-template-summary"></div><button id="event-template-confirm" class="small-button" type="button">Confirm template change</button><button id="event-template-cancel" class="small-button" type="button">Cancel template review</button></div>
+        <h3>Saved revision history</h3><ul id="event-template-history"></ul><button id="event-template-history-more" class="small-button" type="button" hidden>Earlier template revisions</button>
+      </section>
     </main>
 
     <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
@@ -196,5 +220,6 @@
   <script src="assets/events-admin-delete.js?v=1"></script>
   <script src="/assets/events-group-roster.js?v=1"></script>
   <script src="/assets/challenge-attendance-admin.js?v=1"></script>
+  <script src="/assets/event-templates.js?v=1"></script>
 </body>
 </html>

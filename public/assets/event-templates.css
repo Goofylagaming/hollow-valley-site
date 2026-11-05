@@ -1,0 +1,7 @@
+#event-template-panel{margin:2rem 0;padding:1.25rem;border:1px solid #375947;border-radius:12px;max-width:100%;overflow-wrap:anywhere}
+#event-template-panel label{display:grid;gap:.35rem;margin:.8rem 0}
+#event-template-panel input:not([type=checkbox]),#event-template-panel select,#event-template-panel textarea{box-sizing:border-box;width:100%;max-width:100%;padding:.65rem;background:#10291e;color:#e7f1df;border:1px solid #55745c;border-radius:6px;font:inherit}
+#event-template-panel textarea{min-height:100px;resize:vertical}
+#event-template-panel button{white-space:normal;text-align:left;margin:.25rem 0}
+#event-template-panel ul{padding-left:1.3rem}#event-template-panel li{margin:.6rem 0}
+#event-template-summary p{white-space:pre-wrap}#event-template-review{border-top:1px solid #55745c;margin-top:1rem}

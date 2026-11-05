@@ -1,0 +1,35 @@
+name: Event Engine templates
+on:
+  pull_request:
+    paths:
+      - 'server/services/eventTemplateStore.js'
+      - 'server/routes/eventTemplates.js'
+      - 'server/index.js'
+      - 'server/services/roadmapCommunity.js'
+      - 'public/events.html'
+      - 'public/assets/event-templates.*'
+      - 'public/assets/home-roadmap.js'
+      - 'test/eventTemplates*.test.js'
+      - 'test/roadmapCommunity.test.js'
+      - 'test/productionUiRelease.test.js'
+      - 'scripts/verify-event-templates.cjs'
+      - '.github/workflows/event-engine.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node --test test/eventTemplates.test.js test/eventTemplatesHttp.test.js test/roadmapCommunity.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js test/challengeAttendanceHostHttp.test.js test/groupEventHost.test.js
+      - run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.62.1
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/verify-event-templates.cjs
+      - run: node scripts/verify-challenge-attendance-admin.cjs
