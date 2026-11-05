@@ -4,11 +4,14 @@ const {DatabaseSync}=require('node:sqlite'),{randomBytes,randomUUID}=require('no
 const A='76561198000000801',B='76561198000000802';
 const listen=app=>new Promise(resolve=>{const server=app.listen(0,'127.0.0.1',()=>resolve({server,url:`http://127.0.0.1:${server.address().port}`}));});
 test('challenge API binds Steam identity, protects consent and never accepts client progress',async()=>{
-  const keys=['DYNAMIC_CHALLENGES_ENABLED','DYNAMIC_CHALLENGES_READ_ONLY','VALLEY_LEGACY_ENABLED','HOLLOW_VALLEY_API_TOKEN','AUTOMATION_SERVICE_URL','SKIN_STUDIO_READ_ONLY','RENDER_SERVICE_ID','RENDER_EXTERNAL_URL','PUBLIC_SITE_URL','STEAM_REALM','STEAM_RETURN_URL'];
+  const keys=['DYNAMIC_CHALLENGES_ENABLED','DYNAMIC_CHALLENGES_READ_ONLY','DYNAMIC_CHALLENGES_LOCATION_ENABLED','DYNAMIC_CHALLENGES_LOCATION_MAP_VERSION','VALLEY_LEGACY_ENABLED','HOLLOW_VALLEY_API_TOKEN','AUTOMATION_SERVICE_URL','SKIN_STUDIO_READ_ONLY','RENDER_SERVICE_ID','RENDER_EXTERNAL_URL','PUBLIC_SITE_URL','STEAM_REALM','STEAM_RETURN_URL'];
   const saved=Object.fromEntries(keys.map(k=>[k,process.env[k]]));for(const k of keys)delete process.env[k];
   process.env.DYNAMIC_CHALLENGES_ENABLED='1';process.env.VALLEY_LEGACY_ENABLED='1';process.env.HOLLOW_VALLEY_API_TOKEN=randomBytes(32).toString('hex');
   let clock=Date.parse('2026-11-05T00:00:00+10:00');const db=new DatabaseSync(':memory:');
   const store=require('../automation-platform/src/services/valleyLegacyStore').createLegacyStore(db,{now:()=>clock});
+  process.env.DYNAMIC_CHALLENGES_LOCATION_ENABLED='1';process.env.DYNAMIC_CHALLENGES_LOCATION_MAP_VERSION='synthetic';
+  const catalog=store.challenges.locations.catalogs.register({version:'synthetic',mapVersion:'synthetic',units:'unreal-centimetres',bounds:{minX:-100000,maxX:100000,minY:-100000,maxY:100000},highlands:{polygon:[[-1000,-1000],[1000,-1000],[1000,1000],[-1000,1000]]},reviewNote:'Synthetic HTTP geometry only; not production map rules.'},A);
+  store.challenges.locations.catalogs.activate({...catalog,expectedVersion:null,actorSteamId:A});
   const legacy=require('../automation-platform/src/services/valleyLegacyService'),get=legacy.get;legacy.get=()=>store;
   let backend,website;
   try {
@@ -30,7 +33,15 @@ test('challenge API binds Steam identity, protects consent and never accepts cli
     assert.equal((await request('/participation',{body:enroll,headers:{'Content-Type':'text/plain'}})).status,403);
     const accepted=await request('/participation',{body:{...enroll,steamId:B,progress:999,completed:true}});assert.equal(accepted.status,200);assert.equal((await accepted.json()).revision,1);
     assert.equal(store.challenges.status(B).participating,false);assert.equal(store.challenges.status(A).challenges[1].progress,0);
-    clock+=60000;store.snapshot([{steamId:A,species:'rex',growth:0.5}],clock);
+    const locationChoice=choice(true,0);
+    assert.equal((await request('/location',{body:locationChoice,user:B})).status,409);
+    assert.equal((await request('/location',{body:{...locationChoice,steamId:B},origin:'https://evil.invalid'})).status,403);
+    assert.equal((await request('/location',{body:{...locationChoice,steamId:B}})).status,200);
+    assert.equal((await (await request('/location',{body:locationChoice})).json()).duplicate,true);
+    assert.equal(store.challenges.locations.status(B).enabled,false);
+    clock+=60000;store.snapshot([{steamId:A,species:'rex',growth:0.5,location:{x:0,y:0}}],clock);
+    clock+=30000;store.snapshot([{steamId:A,species:'rex',growth:0.5,location:{x:100,y:100}}],clock);
+    assert.equal((await (await request('/me')).json()).challenges.find(c=>c.id==='visit-highlands').completed,true);
     const mine=await (await request('/me?steamId='+B)).json();assert.equal(mine.challenges[1].progress,1);
     const other=await (await request('/me',{user:B})).json();assert.equal(other.challenges[1].progress,0);
     assert.equal(JSON.stringify(mine).includes(A),false);assert.equal(JSON.stringify(mine).includes('life_id'),false);
@@ -39,6 +50,7 @@ test('challenge API binds Steam identity, protects consent and never accepts cli
     const races=await Promise.all([request('/participation',{body:choice(false,1)}),request('/participation',{body:choice(false,1)})]);
     assert.deepEqual(races.map(r=>r.status).sort(),[200,409]);assert.equal(store.challenges.status(A).revision,2);
     assert.equal(store.challenges.status(A).participating,false);assert.equal(store.challenges.status(A).challenges[1].progress,0);
+    assert.equal(store.challenges.locations.status(A).enabled,false);assert.equal(db.prepare('SELECT count(*) n FROM dc_location_last').get().n,0);assert.equal(db.prepare('SELECT count(*) n FROM dc_location_receipts').get().n,0);
     assert.equal((await (await request('/participation',{body:enroll})).json()).participating,false);
     for(const body of [choice('true',2),choice(true,'2'),{selected:true,expectedRevision:2},choice(true,-1)])assert.equal((await request('/participation',{body})).status,400);
     process.env.DYNAMIC_CHALLENGES_READ_ONLY='1';assert.equal((await request('/participation',{body:choice(true,2)})).status,403);

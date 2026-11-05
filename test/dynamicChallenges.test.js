@@ -126,7 +126,7 @@ test('store reopening preserves progress without changing unrelated wallet data'
   const reopened=createDynamicChallengeStore(x.db,{now:x.at,enabled:()=>true});
   assert.equal(reopened.status(A).challenges[1].progress,1);
   assert.deepEqual({...x.db.prepare('SELECT * FROM economy_wallets').get()},{steam_id:'untouched',coins:123});
-  const view=JSON.stringify(reopened.status(A));assert.equal(view.includes(A),false);assert.equal(view.includes('location'),false);
+  const view=JSON.stringify(reopened.status(A));assert.equal(view.includes(A),false);assert.equal(view.includes('"x":'),false);assert.equal(view.includes('"y":'),false);
 });
 test('consent revisions reject stale changes while exact retries recover current state',t=>{
   const x=setup(t);

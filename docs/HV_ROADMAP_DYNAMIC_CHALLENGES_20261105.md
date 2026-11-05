@@ -8,8 +8,9 @@ private player controls. Nothing has been deployed or enabled.
 `dynamicChallengeStore` uses additive tables in the automation database. It is
 called inside the accepted Valley Legacy snapshot transaction, so failures roll
 back the snapshot and its challenge evidence together. It consumes accepted
-species, normalized growth and observed-life identity, never player names,
-coordinates, opt-in journey history or discovery receipts. The source remains the
+species, normalized growth and observed-life identity. That journal stores no
+player names or coordinates and does not read journey history or discovery
+receipts. Separate positional collection below requires its own consent. The source remains the
 authenticated automation presence feed/fresh RCON observation already used by
 Legacy; the website gains no game connectivity or progress-writing endpoint.
 
@@ -121,10 +122,12 @@ disabled, and no private data is retained on sign-out or failed authentication.
   existing immutable-season boundary is unchanged. Historical rejection review,
   missing/deleted source evidence and actual character identity remain delivery
   gates before guaranteed survival achievements or any rewards are authorized.
-- Add travel (12 km), Highlands visitation, confirmed event participation and
-  Territory battle survival only from reviewed map units/geometry, attendance
-  evidence and frozen participant-life/outcome evidence. An RSVP, registration,
-  group win, payout or current location alone cannot prove those requirements.
+- Review real map units and Highlands geometry, complete operator activation
+  tooling and verify source cadence before enabling the local travel/visit
+  implementation. Verify the completed-event producer before enabling attendance.
+  Add Territory battle survival from frozen participant-life/outcome evidence.
+  An RSVP, registration, group win, payout or one location alone cannot prove
+  these requirements.
 - Define non-punishing streak bonuses and reward rules with approval. No new
   automatic coin payouts are authorized by the implementation plan. Nothing in
   this core installs rewards or treats future approval as granted.
@@ -135,12 +138,12 @@ disabled, and no private data is retained on sign-out or failed authentication.
 
 The roadmap release register retains #3's original description and feature ID,
 marks development honestly and preserves historical vote counts while freeing
-retired active ballot slots. Homepage asset version is 107. Diplomacy publication
+retired active ballot slots. Homepage asset version is 108. Diplomacy publication
 approval remains separate and pending; its prepared branch is preserved.
 
 ## Local validation
 
-146 checks pass across dynamic challenge evidence, Legacy store/private HTTP and
+158 checks pass across dynamic challenge evidence, Legacy store/private HTTP and
 authenticated telemetry, roadmap ballots/homepage integration, existing quest
 boosts/challenge payouts, journeys and discovery. Tests cover repeated/stale
 samples, alias farming, midnight/Monday rollover, opt-out/rejoin, separated lives,
@@ -282,6 +285,65 @@ deleting an open database file on Windows. Consumer fixtures use increasing
 accepted timestamps and explicitly seed old/corrupt cache states for outage
 checks. Existing group-event roster and purchase browser fixtures pass at 1440px
 and 390px. No bot change, publication, payout or deployment occurred.
+
+## Separate positional consent and reviewed map goals
+
+The local location core has immutable operator-reviewed catalogs with explicit
+Unreal-centimetre units, map version, integer bounds, a simple Highlands polygon
+and review notes. Invalid/repeated/intersecting/zero-area geometry is rejected.
+Registration freezes a digest; activation requires that exact digest, the expected
+active version and an operator identity, with an atomic audit. No real map catalog
+or Highlands geometry is supplied or activated by this branch.
+
+`DYNAMIC_CHALLENGES_LOCATION_ENABLED=0` is the default.
+`DYNAMIC_CHALLENGES_LOCATION_MAP_VERSION` must match the active reviewed catalog.
+The player also explicitly opts in through the separate private `/location` API
+and Quests review controls. General challenge participation never implies location
+consent. Exact retries, choice revisions, same-origin JSON, session Steam binding
+and preview/read-only guards protect this choice. Twenty choices per minute are
+allowed; an actual stop remains available at that limit. Consent revisions and
+minimal choice receipts remain to prevent replay after deletion/rejoining.
+
+Only current accepted Legacy snapshots are used. The collector retains one last
+position per participating player, not a trail. It expires after 120 seconds;
+normal Legacy maintenance removes expired rows on its next 15-second pass, or at
+startup if the service was stopped. Missing positions, changed lives/catalogs,
+paused tracking, map mismatches, gaps over 120 seconds and displacement over
+40 m/s break continuity. Samples must be fresh (within 30 seconds), after consent
+and after the recorded activation. A source with longer gaps cannot progress
+these goals; actual telemetry cadence and units remain staging gates.
+
+Accepted pairs produce coordinate-free distance/Highlands receipts, expiring
+after 35 days and removed by maintenance. Distances use observed straight-line
+displacement in metres, capped at the 12 km display target. Highlands requires
+both consecutive points inside the reviewed polygon; a line crossing the region
+does not count. Only pairs wholly inside the current Brisbane day contribute,
+with no invented cross-midnight position/time interpolation. Accepted late deaths
+invalidate receipts crossing their timestamp and clear the position baseline;
+unrelated valid movement is retained.
+
+These are observed displacement receipts, not proof of continuous ground travel
+or absence of teleportation. Validate actual gameplay movement/teleport signals
+and anti-farming rules before authorizing rewards or guaranteed achievements.
+No new reward or game command is installed. Journey/discovery preferences and
+their saved private data remain independent.
+
+Stopping location tracking erases its position and progress receipts. Stopping
+all challenges does the same and advances the separate consent revision so a
+delayed old opt-in cannot restore collection after rejoining. Location can also
+be stopped while its map rules are unavailable, subject to the existing website
+write guards. Player responses expose consent/catalog metadata and capped
+progress only, with no coordinates, geometry, operator notes or private route.
+
+Twelve additional core tests cover map validation/activation rollback, explicit
+consent, accepted displacement, two-point visits, gaps/jumps/life changes, deletion,
+replay, activation/map changes, late deaths, snapshot rollback, independent raw
+retention and Brisbane rollover. The actual private HTTP fixture checks Steam
+binding and location deletion on general opt-out. The desktop/mobile Quests
+fixture uses an explicitly synthetic catalog to verify review, lost replies,
+explicit retry, 12 km/Highlands rendering and deletion while tracking is paused.
+The affected combined set has 158 passing checks. Operator tooling, real geometry,
+real map/feed verification and authenticated staging remain unfinished.
 
 The dedicated Dynamic challenge tracking workflow runs the affected checks and
 the real-page browser fixture on pull requests. Those hosted runs have not yet

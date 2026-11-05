@@ -23,6 +23,7 @@ const run=fn=>async(req,res)=>{
 };
 const call=(req,path,body={})=>automation.legacyRequest('/challenges/'+path,{method:'POST',body:{...body,steamId:req.user.steam_id}});
 router.get('/me',run(req=>call(req,'status')));
+router.post('/location',run(req=>call(req,'location',{selected:req.body?.selected,expectedRevision:req.body?.expectedRevision,requestKey:req.body?.requestKey})));
 router.post('/participation',run(req=>call(req,'change',{
   selected:req.body?.selected,expectedRevision:req.body?.expectedRevision,requestKey:req.body?.requestKey,
 })));
