@@ -107,6 +107,26 @@ test("late combat deaths recompute streaks and close observed life", (t) => {
   assert.equal(record(s, "kill_streak"), 2);
   assert.ok(s.mine(A).lives[0].ended_at);
 });
+
+test('life closure provenance distinguishes missing observations from supported combat deaths',t=>{
+  const {s,p,at,advance}=setup(t);
+  s.snapshot([p()],at());const first=s.mine(A).lives[0].id;
+  advance(1000);s.snapshot([],at());
+  assert.equal(s.mine(A).lives.find(l=>l.id===first).closure.reason,'not_observed');
+  advance(1000);s.snapshot([p()],at());const second=s.mine(A).lives[0].id;
+  advance(1000);s.ingest({id:'supported-death',type:'combat_death',steamId:A,at:at()});
+  assert.deepEqual({...s.mine(A).lives.find(l=>l.id===second).closure},{reason:'combat_death',at:at(),eventId:'supported-death'});
+});
+
+test('contradicted or distant deaths retain events without ending the currently observed life',t=>{
+  const {s,p,at,advance,db}=setup(t);
+  s.snapshot([p()],at());const start=at();advance(10000);s.snapshot([p()],at());
+  s.ingest({id:'contradicted-death',type:'combat_death',steamId:A,at:start+1000});
+  assert.equal(s.mine(A).lives[0].ended_at,null);assert.equal(s.mine(A).lives[0].closure,null);
+  advance(121000);s.ingest({id:'distant-death',type:'combat_death',steamId:A,at:at()});
+  assert.equal(s.mine(A).lives[0].ended_at,null);
+  assert.equal(db.prepare("SELECT COUNT(*) n FROM vl_events WHERE id IN ('contradicted-death','distant-death')").get().n,2);
+});
 test("season reset retains all-time records and freezes Hall of Fame", (t) => {
   const { s, at, advance } = setup(t);
   const start = at();
