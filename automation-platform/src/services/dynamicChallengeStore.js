@@ -74,7 +74,7 @@ function createDynamicChallengeStore(db, {now=Date.now, enabled=()=>process.env.
   prune();
   function change(id, {selected,expectedRevision,requestKey}={}) {
     steam(id);
-    if (!enabled()) fail('Dynamic challenges are disabled',503);
+    if (!enabled() && selected!==false) fail('Dynamic challenges are disabled',503);
     if (typeof selected !== 'boolean') fail('Explicit participation choice required');
     if(!Number.isSafeInteger(expectedRevision)||expectedRevision<0) fail('Invalid participation revision');
     if(typeof requestKey!=='string'||!/^[-a-zA-Z0-9_]{16,80}$/.test(requestKey)) fail('Invalid participation request key');
@@ -197,12 +197,12 @@ function createDynamicChallengeStore(db, {now=Date.now, enabled=()=>process.env.
   }
   function status(id) {
     steam(id);
-    if(!enabled()) return {enabled:false};
     return transaction(()=>statusView(id));
   }
   function statusView(id) {
     const participating=Boolean(db.prepare('SELECT 1 FROM dc_participants WHERE steam_id=?').get(id));
     const revision=db.prepare('SELECT revision FROM dc_settings WHERE steam_id=?').get(id)?.revision||0;
+    if(!enabled())return {enabled:false,participating,revision,timezone:'Australia/Brisbane',rewardsEnabled:false,location:locations.status(id),challenges:[]};
     const challenges=periods(now()).map(p=>{
       const rows=db.prepare(`SELECT amount FROM dc_evidence e WHERE steam_id=? AND cadence=? AND period_start=? AND challenge_id=?
         AND (challenge_id='species-three' OR EXISTS (SELECT 1 FROM dc_observations o WHERE o.steam_id=e.steam_id AND o.segment=e.subject))`)
