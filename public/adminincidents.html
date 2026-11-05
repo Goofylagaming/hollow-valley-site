@@ -11,7 +11,6 @@
   <link rel="stylesheet" href="/assets/admin-incidents.css?v=1">
 </head>
 <body class="has-my-stuff-rail">
-<body>
   <div class="app-shell">
     <div id="nav-slot"></div>
     <main class="hv-incidents">
@@ -55,6 +54,10 @@
           </table>
         </div>
         <p class="hv-incidents-disclaimer">This is a recent activity window, not a complete forensic record. Old records and unconnected game logs may be unavailable. Status and actor identities are shown only when the source recorded them. Automatic chat/combat correlation is still planned.</p>
+        <section class="hv-incidents-panel" aria-labelledby="incident-public-title">
+          <h2 id="incident-public-title">Public status reports</h2>
+          <p>Prepare staff-reviewed incident summaries separately from the private automation timeline.</p><a href="/adminstatus">Manage public status reports →</a>
+        </section>
         <section class="hv-incidents-panel" aria-labelledby="incident-next-title">
           <h2 id="incident-next-title">Next: Player Reports</h2>
           <p>HV-W01.3 provides private reports, evidence links, a review queue and admin decision history when enabled.</p><a href="/adminreports">Open admin reports →</a>

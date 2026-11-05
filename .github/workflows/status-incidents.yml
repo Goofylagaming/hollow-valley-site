@@ -6,6 +6,10 @@ on:
       - 'server/routes/statusIncidents.js'
       - 'server/index.js'
       - 'public/status.html'
+      - 'public/adminstatus.html'
+      - 'public/adminincidents.html'
+      - 'public/partials/nav.html'
+      - 'public/assets/status-editor.*'
       - 'public/assets/status-incidents.js'
       - 'public/assets/status-page.*'
       - 'public/assets/home-roadmap.js'
@@ -13,6 +17,7 @@ on:
       - 'test/statusPage.test.js'
       - 'test/incidentTimeline.test.js'
       - 'scripts/verify-status-incidents.cjs'
+      - 'scripts/verify-status-editor.cjs'
       - '.github/workflows/status-incidents.yml'
 permissions:
   contents: read
@@ -32,3 +37,4 @@ jobs:
       - run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.62.1
       - run: npx playwright install --with-deps chromium
       - run: node scripts/verify-status-incidents.cjs
+      - run: node scripts/verify-status-editor.cjs

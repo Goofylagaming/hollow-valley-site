@@ -366,6 +366,7 @@ function createApp() {
     admin: "admin.html",
     adminoperations: "adminoperations.html",
     adminincidents: "adminincidents.html",
+    adminstatus: "adminstatus.html",
     adminreports: "adminreports.html",
     admincomms: "admincomms.html",
     adminrestore: "adminrestore.html",

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Status Reports | Hollow Valley Admin</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=38">
+  <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
+  <link rel="stylesheet" href="/assets/snapshot-ui.css?v=5">
+  <link rel="stylesheet" href="/assets/status-editor.css?v=1">
+</head>
+<body>
+ <div class="app-shell">
+  <div id="nav-slot"></div>
+  <main class="status-editor">
+   <header><p class="status-editor-kicker">ADMIN · SERVICE REPORTS</p><h1>Public status reports.</h1><p>Prepare an incident draft, check its evidence, then review exactly what to publish. Private notes and evidence links stay with staff.</p><a href="/adminincidents">Private incident timeline</a> · <a href="/status">Public status page</a></header>
+   <p id="status-editor-message" role="status">Checking staff access…</p>
+   <button id="status-editor-refresh" type="button">Refresh reports</button>
+   <section id="status-editor-panel" hidden>
+    <p id="status-editor-policy"></p>
+    <div class="status-editor-toolbar"><button id="status-editor-new" type="button">New incident draft</button></div>
+    <details id="status-editor-picker" open><summary>Saved incidents</summary><div id="status-editor-list"></div><button id="status-editor-more" type="button" hidden>Load older incidents</button></details>
+    <section id="status-editor-selected" hidden>
+     <h2 id="status-editor-title" tabindex="-1">Incident draft</h2><p id="status-editor-state"></p><button id="status-editor-reload" type="button">Reload saved version</button>
+     <form id="status-editor-form">
+      <fieldset><legend>Affected services</legend><div id="status-editor-components" class="status-editor-components"></div></fieldset>
+      <div class="status-editor-grid">
+       <label>Severity<select id="status-editor-severity"><option value="degraded">Degraded service</option><option value="outage">Outage</option></select></label>
+       <label>Report status<select id="status-editor-status"><option value="investigating">Investigating</option><option value="identified">Cause identified</option><option value="monitoring">Monitoring recovery</option><option value="resolved">Resolved</option></select></label>
+      </div>
+      <label>Public title<input id="status-editor-public-title" required minlength="3" maxlength="120"></label>
+      <label>Public summary<textarea id="status-editor-summary" required minlength="10" maxlength="1200" rows="4"></textarea></label>
+      <p>Use public wording only. Keep player identifiers, links and server addresses in private evidence.</p>
+      <div class="status-editor-grid">
+       <label>Incident began · Brisbane time<input id="status-editor-started" type="datetime-local" step="0.001" required></label>
+       <label>Staff verified · Brisbane time<input id="status-editor-verified" type="datetime-local" step="0.001" required></label>
+       <label>Resolved · Brisbane time<input id="status-editor-ended" type="datetime-local" step="0.001"></label>
+      </div>
+      <label>Private evidence message links · one per line<textarea id="status-editor-evidence" required rows="3"></textarea></label>
+      <label>Private evidence explanation<textarea id="status-editor-note" required minlength="20" maxlength="2000" rows="4"></textarea></label>
+      <button id="status-editor-save" type="submit">Review saving draft</button>
+     </form>
+     <label>Private reason for this change<textarea id="status-editor-reason" minlength="5" maxlength="1000" rows="2"></textarea></label>
+     <div class="status-editor-toolbar"><button id="status-editor-publish" type="button">Review public report</button><button id="status-editor-withdraw" type="button">Review withdrawal</button></div>
+     <p id="status-editor-draft-hint"></p>
+     <section id="status-editor-review" class="status-editor-review" aria-labelledby="status-editor-review-heading" hidden>
+      <h2 id="status-editor-review-heading">Review this change</h2><p id="status-editor-review-action"></p>
+      <h3>Public wording</h3><div id="status-editor-review-public"></div>
+      <h3>Private evidence · staff only</h3><div id="status-editor-review-private"></div>
+      <p id="status-editor-review-reason"></p>
+      <div class="status-editor-toolbar"><button id="status-editor-confirm" type="button">Confirm reviewed change</button><button id="status-editor-cancel" type="button">Close review</button></div>
+     </section>
+     <section><h2>Private change history</h2><ul id="status-editor-history"></ul><button id="status-editor-history-more" type="button" hidden>Load older changes</button></section>
+    </section>
+   </section>
+  </main>
+  <footer><span>© 2026 Hollow Valley</span><span>STAFF ONLY · STATUS REPORTS</span></footer>
+ </div>
+ <script src="/assets/common.js?v=22"></script>
+ <script src="/assets/status-editor.js?v=1"></script>
+</body>
+</html>

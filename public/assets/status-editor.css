@@ -1,0 +1,29 @@
+.status-editor { max-width: 1100px; min-height: 80vh; padding: 120px 24px 64px; margin: auto; color: #ece8d7; }
+.status-editor h1 { font-size: clamp(2rem,5vw,3.5rem); margin: 12px 0; }
+.status-editor h2 { margin-top: 26px; }
+.status-editor p { line-height: 1.7; color: #c2cfbd; }
+.status-editor a { color: #ecd18b; overflow-wrap: anywhere; }
+.status-editor-kicker { font-size: .8rem; letter-spacing: .18em; }
+.status-editor button { padding: 12px 18px; min-height: 44px; border: 1px solid #b49c5e; border-radius: 8px; color: #f2e8c6; background: #263b2e; cursor: pointer; font: inherit; }
+.status-editor button:disabled { opacity: .5; cursor: default; }
+.status-editor :focus-visible { outline: 3px solid #e0ba59; outline-offset: 3px; }
+.status-editor label { display: grid; gap: 8px; margin: 16px 0; }
+.status-editor input, .status-editor select, .status-editor textarea { box-sizing: border-box; min-width: 0; width: 100%; min-height: 44px; padding: 12px; border: 1px solid #71816c; border-radius: 7px; background: #0e1b14; color: #f1edde; font: inherit; }
+/* The shared snapshot theme sets form text to 9px with !important. */
+.status-editor input, .status-editor select, .status-editor textarea { font-size: 16px !important; }
+.status-editor textarea { resize: vertical; }
+.status-editor fieldset { margin: 18px 0; border: 1px solid #71816c; border-radius: 7px; }
+.status-editor-components { display: flex; gap: 16px; flex-wrap: wrap; }
+.status-editor-components label { display: flex; gap: 8px; align-items: center; margin: 6px 0; }
+.status-editor-components input { width: 22px; min-height: 22px; height: 22px; padding: 0; flex: 0 0 22px; }
+#status-editor-picker > summary { cursor: pointer; font-size: 1.3rem; padding: 18px 0; }
+#status-editor-selected, #status-editor-review { scroll-margin-top: 110px; }
+.status-editor-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 0 18px; }
+.status-editor-toolbar { display: flex; flex-wrap: wrap; gap: 12px; margin: 18px 0; }
+#status-editor-list { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+#status-editor-list button { text-align: left; overflow-wrap: anywhere; }
+#status-editor-selected, .status-editor-review { border: 1px solid #71816c; border-radius: 12px; padding: 22px; margin-top: 24px; background: #101c15; overflow-wrap: anywhere; }
+.status-editor-review { border-color: #c9ad6b; }
+.status-editor-review h3 { color: #ecd18b; }
+#status-editor-history li { padding: 16px 0; border-bottom: 1px solid #3b4c39; overflow-wrap: anywhere; }
+@media(max-width:600px){.status-editor{padding:100px 16px 40px}.status-editor-grid,#status-editor-list{grid-template-columns:1fr}#status-editor-selected,.status-editor-review{padding:16px}}

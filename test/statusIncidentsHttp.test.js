@@ -9,10 +9,11 @@ test('incident routes separate public reports from current staff proof and enfor
  try{
   assert.equal((await (await call('/api/status-incidents/capabilities')).json()).available,false);assert.equal((await call('/api/status-incidents')).status,503);
   assert.equal((await call('/api/admin/status-incidents/capabilities')).status,401);assert.equal((await call('/api/admin/status-incidents/capabilities',null,{'x-fixture-user':'2'})).status,403);
-  const staff={'x-fixture-user':'1'};assert.equal((await (await call('/api/admin/status-incidents/capabilities',null,staff)).json()).enabled,false);
+  const staff={'x-fixture-user':'1','x-status-reviewer':'1:76561198000000001'};assert.equal((await (await call('/api/admin/status-incidents/capabilities',null,staff)).json()).enabled,false);
   process.env.STATUS_INCIDENTS_ENABLED='1';process.env.STATUS_INCIDENTS_PUBLIC_ENABLED='1';process.env.STATUS_INCIDENTS_EVIDENCE_GUILD_ID='111122223333444455';
   const id=randomUUID(),route='/api/admin/status-incidents/'+id,now=Date.now(),body={action:'save',expectedRevision:0,requestKey:randomUUID(),reason:'Reviewed source evidence',details:{components:['website'],severity:'degraded',status:'investigating',title:'Website interruption',summary:'Staff are checking reports of interrupted page loads.',startedAt:now-60000,endedAt:null,verifiedAt:now-1000,evidenceUrls:['https://discord.com/channels/111122223333444455/222233334444555566/333344445555666677'],evidenceNote:'Private staff proof and account 76561198000000002.'}};
   assert.equal((await call(route,body,{...staff,origin:'https://elsewhere.invalid'})).status,403);assert.equal((await call(route,body,{...staff,'Sec-Fetch-Site':'cross-site'})).status,403);
+  assert.equal((await call(route,body,{...staff,'x-status-reviewer':'2:76561198000000002'})).status,403);assert.equal((await call(route,body,{'x-fixture-user':'1'})).status,403);
   process.env.STATUS_INCIDENTS_READ_ONLY='1';assert.equal((await call(route,body,staff)).status,403);delete process.env.STATUS_INCIDENTS_READ_ONLY;
   const draft=await (await call(route,body,staff)).json();assert.equal(draft.current.revision,1);assert.equal((await (await call('/api/status-incidents')).json()).items.length,0);
   const publish={action:'publish',expectedRevision:1,requestKey:randomUUID(),reason:'Reviewed public wording',reviewDigest:draft.current.reviewDigest};assert.equal((await call(route,publish,staff)).status,200);assert.equal((await (await call(route,publish,staff)).json()).duplicate,true);

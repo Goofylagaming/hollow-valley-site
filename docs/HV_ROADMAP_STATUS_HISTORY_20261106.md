@@ -67,7 +67,8 @@ Current-admin routes:
 
 Reads are bounded to 25 incidents/history revisions, with opaque keyset cursors.
 All responses disable caching; private responses use `private, no-store`.
-Writes require same-origin JSON, current staff access and a writable deployment.
+Writes require same-origin JSON, current staff access, a writable deployment and
+an `X-Status-Reviewer` binding matching the current account ID and Steam identity.
 Preview/read-only checks apply before accepting an action.
 
 All rollout settings default off in `.env.example`:
@@ -114,7 +115,7 @@ withdrawal visibility, failure clearing, disabled rollout and horizontal overflo
 The phone rendering was inspected. The dedicated workflow runs these checks and
 the browser fixture, but hosted execution has not run for this unpublished branch.
 
-Still required: accessible staff editing/review controls; official operational
+Still required: official operational
 verification and private-evidence retention policy; concurrency/performance and
 recovery review; independent Bridge/Discord/Marketplace/Steam/Live Map probes;
 authenticated staging and approved deployment. This work creates no automatic
@@ -122,3 +123,69 @@ health claims. No live incident or alert was published in this session, and no
 payout, restore or game command was issued.
 Nothing was pushed, remotely merged, enabled or deployed. The full 31-item roadmap
 remains active and incomplete.
+
+
+## Staff editor and account-bound confirmations — 6 November 2026
+
+The protected `/adminstatus` and `/adminstatus.html` page now provides staff
+editing and review controls. It is linked from the private incident timeline and
+admin navigation. Both HTML forms of the route use the existing admin-page guard;
+private API permissions independently recheck current database staff access.
+The timeline remains read-only. Its duplicate body tag was corrected while adding
+the separate management link; no timeline source or data was republished.
+
+Staff can choose saved incidents, page older records/change history or start a new
+unsaved draft. Recorded times are explicitly entered in Brisbane time; no event or
+verification timestamp defaults to now. Form parsing round-trips calendar values
+and preserves millisecond precision. Saving, publishing and withdrawing each have
+an explicit review panel and separate confirmation. Public wording and private
+proof are displayed separately with text nodes; withdrawal previews the actual
+published wording rather than an unrelated edited draft. Private notes/reasons
+never enter the public projection.
+
+Edited drafts must be saved before their public report can be reviewed. Preparing
+or closing a review makes no write. The confirmation freezes its request identity,
+action, payload, saved revision, draft digest and staff-account binding. A dropped
+reply offers an explicit retry of the identical request; it does not generate a
+replacement key or submit again automatically. Staff can instead check the current
+saved version. Conflicting edits load the newer saved version for another review.
+Rejected fields leave the current draft available to fix; an unverified staff
+account clears all private form, evidence, history, list and review data.
+
+The private POST route now requires the `X-Status-Reviewer` header to match both
+current request account ID and Steam identity. This prevents a review prepared
+under one admin from being submitted under another account if the session switches
+between the final browser check and the write. Fresh identity/capability reads
+also bracket private reads and successful or unconfirmed responses. Idle identity
+polling clears data after an account change, and backend database checks remain
+authoritative if permissions change while the page is open.
+
+Preview/read-only mode disables all changes. A publishing pause disables new saves
+and publications while keeping permitted withdrawals available. Current public
+history visibility is shown separately from publishing permission. The form and
+frozen review stay in page memory only; no draft/evidence is persisted to browser
+storage. Page reload recovery uses the server's saved versions/history.
+
+The incident picker collapses after selection and focus moves to the selected
+editor. Review panels have a separate focus target. At phone widths the fields
+stack and long evidence links wrap. A scoped 16px form-text override fixes the
+shared snapshot theme's 9px important rule for this page; the browser fixture checks
+actual computed text size and horizontal overflow.
+
+**55 affected local tests still pass**, including reviewer-header mismatch/missing
+checks and the existing service, HTTP, timeline, status, roadmap/voting and
+production-preservation suite. Both real API/browser fixtures pass at 1440px and
+390px. Editor scenarios cover 25-item incident/history pagination, no writes during
+review, rejected-field preservation, lost-response retry with one saved outcome,
+private/public separation, saved corrections, competing staff edits, read-only
+changes before confirmation, paused withdrawal, a session switch immediately
+before a POST, a switch during a dropped reply, a switch during a held private
+read, and revoked staff permissions. The phone rendering was inspected.
+
+The dedicated workflow includes both browser fixtures. Homepage roadmap asset is
+v132; the new editor stylesheet/controller are v1. Rollout defaults remain off.
+Neither this branch nor any live incident was published or deployed. The season
+candidate `708b2c8a` and its operations follow-up `2ef0562d` remain unchanged.
+Independent component probes, private-evidence retention policy, operational
+concurrency/recovery measurements, hosted checks and authenticated staging are
+still required. Roadmap #29 and the full roadmap remain incomplete.
