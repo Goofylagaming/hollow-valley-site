@@ -6,9 +6,12 @@ const path = require('node:path');
 
 test('optional recap evidence preserves original values across mixed-version retries and rejects contradictions', t => {
   const service = loadService(t);
-  const input = { ...event(), killerSpecies:'triceratops', victimGrowth:0 };
+  const input = { ...event(), killerSpecies:'triceratops', victimGrowth:0, eventLocation:{x:0,y:-1000} };
   const first = service.ingestEvent(input).event;
   assert.equal(first.killer_species,'triceratops'); assert.equal(first.victim_growth,0);
+  assert.deepEqual(JSON.parse(first.event_location),{x:0,y:-1000});
+  assert.throws(()=>service.ingestEvent({...input,eventLocation:{x:1,y:-1000}}),{code:'COMBAT_EVENT_CONFLICT'});
+  assert.throws(()=>service.ingestEvent({...input,eventLocation:{x:'0',y:0}}),{code:'COMBAT_EVENT_INVALID'});
   assert.equal(service.ingestEvent(event()).duplicate,true);
   assert.throws(()=>service.ingestEvent({...input,victimGrowth:0.5}),{code:'COMBAT_EVENT_CONFLICT'});
   assert.throws(()=>service.ingestEvent({...input,killerSpecies:'tyrannosaurus'}),{code:'COMBAT_EVENT_CONFLICT'});

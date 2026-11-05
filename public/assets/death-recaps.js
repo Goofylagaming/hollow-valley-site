@@ -23,6 +23,7 @@
           ['Attacker species', recap.attackerSpecies || 'Unknown'],
           ['Growth', recap.growth == null ? 'Unknown' : String(recap.growth)],
           ['Location', recap.location || 'Unknown'],
+          ['Recorded combat location', recap.eventLocation ? `Lat ${(recap.eventLocation.x / 1000).toFixed(1)}, Long ${(recap.eventLocation.y / 1000).toFixed(1)}` : 'Unknown'],
           ['Dinosaur age', recap.dinosaurAge == null ? 'Unknown' : String(recap.dinosaurAge)],
           ['Survival time', recap.survivalSeconds == null ? 'Unknown' : `${recap.survivalSeconds} seconds`]
         ];

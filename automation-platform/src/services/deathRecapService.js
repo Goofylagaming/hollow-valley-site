@@ -10,7 +10,8 @@ function createDeathRecapService(db, { now = Date.now, enabled = () => process.e
     const rows = db.prepare(`SELECT id,occurred_at,killer_name,killer_steam_id,
       ${speciesAvailable ? 'victim_species' : 'NULL AS victim_species'},
       ${columns.has('killer_species') ? 'killer_species' : 'NULL AS killer_species'},
-      ${columns.has('victim_growth') ? 'victim_growth' : 'NULL AS victim_growth'}
+      ${columns.has('victim_growth') ? 'victim_growth' : 'NULL AS victim_growth'},
+      ${columns.has('event_location') ? 'event_location' : 'NULL AS event_location'}
       FROM combat_events WHERE victim_steam_id=? AND julianday(occurred_at)<=julianday(?)
       AND julianday(occurred_at)>=julianday(?)
       ORDER BY julianday(occurred_at) DESC,id DESC LIMIT 20`)
@@ -20,7 +21,9 @@ function createDeathRecapService(db, { now = Date.now, enabled = () => process.e
       occurredAt: row.occurred_at,
       attackerName: row.killer_steam_id ? String(row.killer_name || '').replace(/[\x00-\x1f\x7f]/g, '').trim().slice(0, 80) || null : null,
       victimSpecies: row.victim_species || null,
-      attackerSpecies: row.killer_species || null, growth: row.victim_growth ?? null, location: null, dinosaurAge: null, survivalSeconds: null
+      attackerSpecies: row.killer_species || null, growth: row.victim_growth ?? null, location: null,
+      eventLocation: row.event_location ? JSON.parse(row.event_location) : null,
+      dinosaurAge: null, survivalSeconds: null
     })) };
   }
   return { list };

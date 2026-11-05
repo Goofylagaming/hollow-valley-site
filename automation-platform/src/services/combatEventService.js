@@ -51,7 +51,7 @@ if (!db.prepare('PRAGMA table_info(combat_events)').all().some(c => c.name === '
   db.exec('ALTER TABLE combat_events ADD COLUMN victim_species TEXT');
 }
 const DAY_MS = 24 * HOUR_MS;
-for (const [name, type] of [['killer_species', 'TEXT'], ['victim_growth', 'REAL']]) {
+for (const [name, type] of [['killer_species', 'TEXT'], ['victim_growth', 'REAL'], ['event_location', 'TEXT']]) {
   if (!db.prepare('PRAGMA table_info(combat_events)').all().some(column => column.name === name)) db.exec(`ALTER TABLE combat_events ADD COLUMN ${name} ${type}`);
 }
 const BRISBANE_OFFSET_MS = 10 * HOUR_MS;
@@ -111,6 +111,12 @@ function validateOccurredAt(value) {
 }
 
 function normalizeEvent(input = {}, env = process.env) {
+  let eventLocation = null;
+  if (input.eventLocation != null) {
+    const { x, y } = input.eventLocation;
+    if (![x, y].every(value => typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= 1e7)) throw feedError('COMBAT_EVENT_INVALID', 'Combat event location requires finite world coordinates.');
+    eventLocation = JSON.stringify({ x, y });
+  }
   if (input.victimGrowth != null && (typeof input.victimGrowth !== 'number' || !Number.isFinite(input.victimGrowth) || input.victimGrowth < 0 || input.victimGrowth > 1)) {
     throw feedError('COMBAT_EVENT_INVALID', 'Victim growth must be a number from zero to one.');
   }
@@ -126,6 +132,7 @@ function normalizeEvent(input = {}, env = process.env) {
     victimSpecies: canonicalCombatSpecies(input.victimSpecies),
     killerSpecies: killerSteamId ? canonicalCombatSpecies(input.killerSpecies) : null,
     victimGrowth: input.victimGrowth ?? null,
+    eventLocation,
     source: sourceName(env),
   };
 }
@@ -171,7 +178,8 @@ function compatibleSpecies(row, event) {
   // original evidence. Two contradictory known species still fail closed.
   return (!row.victim_species || !event.victimSpecies || row.victim_species === event.victimSpecies) &&
     (!row.killer_species || !event.killerSpecies || row.killer_species === event.killerSpecies) &&
-    (row.victim_growth == null || event.victimGrowth == null || row.victim_growth === event.victimGrowth);
+    (row.victim_growth == null || event.victimGrowth == null || row.victim_growth === event.victimGrowth) &&
+    (!row.event_location || !event.eventLocation || row.event_location === event.eventLocation);
 }
 
 function upsertPlayer(steamId, displayName) {
@@ -240,8 +248,8 @@ function ingestEvent(input, { env = process.env } = {}) {
 
     db.prepare(`
       INSERT INTO combat_events
-        (id, occurred_at, killer_steam_id, killer_name, victim_steam_id, victim_name, source, victim_species, killer_species, victim_growth)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (id, occurred_at, killer_steam_id, killer_name, victim_steam_id, victim_name, source, victim_species, killer_species, victim_growth, event_location)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       event.id,
       event.occurredAt,
@@ -252,7 +260,8 @@ function ingestEvent(input, { env = process.env } = {}) {
       event.source,
       event.victimSpecies,
       event.killerSpecies,
-      event.victimGrowth
+      event.victimGrowth,
+      event.eventLocation
     );
 
     upsertPlayer(event.victimSteamId, event.victimName);

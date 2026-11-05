@@ -49,6 +49,7 @@ function parseCombatLine(line) {
       victimSpecies: outcome.slice(kill[0].length).split(',')[0].trim() || null,
       killerSpecies: actorFields[0] || null,
       victimGrowth: parseGrowth(/,\s*Growth:\s*([^,]+)/i.exec(outcome)?.[1]),
+      eventLocation: parseEventLocation(outcome),
     };
   }
 
@@ -70,6 +71,14 @@ function parseCombatLine(line) {
 function parseGrowth(value) {
   if (typeof value !== 'string' || !/^(?:0(?:\.\d+)?|1(?:\.0+)?)$/.test(value.trim())) return null;
   return Number(value.trim());
+}
+
+function parseEventLocation(value) {
+  const match = /\bat:\s*X=([+-]?\d+(?:\.\d+)?)\s+Y=([+-]?\d+(?:\.\d+)?)(?:\s|$)/i.exec(value);
+  if (!match) return null;
+  const x = Number(match[1]), y = Number(match[2]);
+  if (![x, y].every(number => Number.isFinite(number) && Math.abs(number) <= 1e7)) return null;
+  return { x, y };
 }
 
 module.exports = { parseUnrealUtcTimestamp, parseIsleLocalTimestamp, parseCombatLine };

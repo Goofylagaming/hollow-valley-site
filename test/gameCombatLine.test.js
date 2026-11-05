@@ -11,6 +11,7 @@ test('combat parser uses outer Unreal UTC timestamp before daylight saving', () 
   assert.equal(event.victimSpecies, 'Diabloceratops');
   assert.equal(event.killerSpecies, 'Tyrannosaurus');
   assert.equal(event.victimGrowth, 0.256452);
+  assert.deepEqual(event.eventLocation,{x:75005.663,y:-61468.513});
 });
 
 test('combat parser stays correct when Windows local log time advances to UTC+11 for DST', () => {

@@ -16,7 +16,7 @@ const fs = require('node:fs'), path = require('node:path'), assert = require('no
         if(url.pathname==='/api/death-recaps'){
           requests.push(route.request().method());
           if(failed)return json({error:'Fixture unavailable'},503);
-          return json({recaps:empty?[]:[{id:'fixture',occurredAt:new Date().toISOString(),attackerName:'<img src=x onerror=alert(1)> '+'W'.repeat(80),victimSpecies:'rex',attackerSpecies:null,growth:null,location:null,dinosaurAge:null,survivalSeconds:null}]});
+          return json({recaps:empty?[]:[{id:'fixture',occurredAt:new Date().toISOString(),attackerName:'<img src=x onerror=alert(1)> '+'W'.repeat(80),victimSpecies:'rex',attackerSpecies:null,growth:null,location:null,eventLocation:{x:0,y:-1000},dinosaurAge:null,survivalSeconds:null}]});
         }
         const file=path.join(__dirname,'../public',url.pathname==='/death-recaps'?'death-recaps.html':url.pathname.slice(1));
         if(!fs.existsSync(file))return route.abort();
