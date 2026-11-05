@@ -27,6 +27,10 @@
     $('journey-summary').textContent=rows.length?`${rows.length} loaded observations in this segment; ${(metres/1000).toFixed(2)} km between connected samples. ${rows.length-drawn} point(s) outside map bounds are not drawn.`:'No recorded observations yet.';
     const life=lives.get(select.value),reason={combat_death:'Combat death recorded',not_observed:'No longer present in the observed snapshot',species_changed:'Observation ended after a species change',growth_reset:'Observation ended after a growth reset',observation_gap:'Observation ended after a long gap'};
     $('journey-life-summary').textContent=life?`${life.species} · First observed ${new Date(life.firstObservedAt).toLocaleString()} · Last observed ${new Date(life.lastObservedAt).toLocaleString()}. ${reason[life.closureReason]||(life.endedAt?'Observation ended; cause unknown':'No ending recorded')}. Observation dates do not establish birth time or continuous survival.`:'';
+    const combat=$('journey-combat');combat.replaceChildren();
+    for(const event of life?.combatEvents||[]){const item=document.createElement('li');item.textContent=`Kill recorded · ${new Date(event.at).toLocaleString()}`;combat.append(item);}
+    if(!combat.childElementCount){const item=document.createElement('li');item.textContent='No matched combat records in retained observations.';combat.append(item);}
+    if(life?.combatEventsLimited){const item=document.createElement('li');item.textContent='Showing the latest 20 matched records.';combat.append(item);}
     $('journey-more').hidden=cursor===null;
   }
   async function history(older=false){

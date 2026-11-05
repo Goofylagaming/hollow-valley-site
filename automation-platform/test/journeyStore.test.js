@@ -1,6 +1,27 @@
 const test=require('node:test'),assert=require('node:assert/strict'),{DatabaseSync}=require('node:sqlite');
 const {createJourneyStore}=require('../src/services/journeyStore');
 const steam='76561198000000801',other='76561198000000802';
+test('journey combat matches only connected retained samples and omits other players and gaps',()=>{
+  const previous=process.env.JOURNEY_HISTORY_ENABLED;process.env.JOURNEY_HISTORY_ENABLED='1';
+  const db=new DatabaseSync(':memory:');let clock=5000000;
+  try {
+    const legacy=require('../src/services/valleyLegacyStore').createLegacyStore(db,{now:()=>clock});
+    legacy.journeys.change(steam,{enabled:true,expectedRevision:0});
+    const snapshot=location=>legacy.snapshot([{steamId:steam,species:'Rex',growth:0.5,location}],clock);
+    clock+=15000;snapshot({x:0,y:0});const first=clock;
+    clock+=15000;snapshot({x:100,y:0});
+    for(let i=1;i<=22;i++)legacy.ingest({id:'matched-'+i,type:'combat_kill',steamId:steam,at:first+i});
+    legacy.ingest({id:'other-player',type:'combat_kill',steamId:other,at:first+1});
+    clock+=15000;snapshot(null);const missing=clock;
+    clock+=15000;snapshot({x:200,y:0});legacy.ingest({id:'gap-kill',type:'combat_kill',steamId:steam,at:missing+1});
+    const life=legacy.journeys.points(steam).lives[0];
+    assert.equal(life.combatEvents.length,20);assert.equal(life.combatEventsLimited,true);
+    assert.ok(life.combatEvents.every(e=>e.at>first&&e.at<=first+22&&e.type==='combat_kill'));
+    assert.equal(JSON.stringify(life).includes(other),false);
+    legacy.journeys.change(steam,{enabled:false,expectedRevision:1,erase:true});
+    assert.deepEqual(legacy.journeys.points(steam).lives,[]);
+  }finally{db.close();if(previous===undefined)delete process.env.JOURNEY_HISTORY_ENABLED;else process.env.JOURNEY_HISTORY_ENABLED=previous;}
+});
 test('missing positions persist a trail break and late samples cannot fill the gap',()=>{
   const db=new DatabaseSync(':memory:');let clock=4000000;
   try {

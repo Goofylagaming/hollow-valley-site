@@ -58,8 +58,18 @@ function createLegacyStore(db, { now = Date.now } = {}) {
     const row=db.prepare(`SELECT id,species,started_at,last_at,ended_at FROM vl_lives WHERE steam_id=? AND id=?`).get(steamId,lifeId);
     if(!row)return null;
     const closure=db.prepare('SELECT reason,at FROM vl_life_closures WHERE life_id=?').get(lifeId);
+    // Only events bracketed by connected, retained samples are attributed to
+    // this observation segment. Gaps and deleted/expired points cannot qualify.
+    const combat=db.prepare(`WITH samples AS (
+      SELECT at,break_before,LAG(at) OVER (ORDER BY at) AS previous_at
+      FROM journey_points WHERE steam_id=? AND life_id=? AND at>=?
+    ) SELECT occurred_at AS at FROM vl_events
+      WHERE json_extract(payload,'$.steamId')=? AND json_extract(payload,'$.type')='combat_kill'
+      AND EXISTS(SELECT 1 FROM samples WHERE break_before=0 AND previous_at<occurred_at AND at>=occurred_at)
+      ORDER BY occurred_at DESC,id DESC LIMIT 21`).all(steamId,lifeId,now()-30*86400000,steamId);
     return {id:row.id,species:row.species,firstObservedAt:row.started_at,lastObservedAt:row.last_at,
-      endedAt:row.ended_at,closureReason:closure?.reason||null};
+      endedAt:row.ended_at,closureReason:closure?.reason||null,
+      combatEvents:combat.slice(0,20).map(event=>({type:'combat_kill',at:event.at})),combatEventsLimited:combat.length>20};
   }});
   const initial = now();
   db.prepare("INSERT OR IGNORE INTO vl_state VALUES ('started', ?)").run(
