@@ -1,3 +1,4 @@
+process.env.GROUP_DIPLOMACY_ENABLED='0';
 // Local synthetic identities and databases only; no remote account or game access.
 const assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 const {chromium}=require('playwright');
@@ -30,6 +31,7 @@ app.use('/api/group-headquarters',(req,res,next)=>{
 app.use('/api/group-headquarters',require('../server/routes/groupHeadquarters'));
 app.use('/api/groups',require('../server/routes/groups'));
 app.use('/api/group-treasury',require('../server/routes/groupTreasury'));
+app.use('/api/group-diplomacy',require('../server/routes/groupDiplomacy'));
 app.get('/api/gallery/:id/image',(req,res)=>{
   const image=db.prepare("SELECT image FROM gallery_images WHERE id=? AND status='approved'").get(req.params.id);
   if(!image?.image)return res.sendStatus(404);res.type('png').send(Buffer.from(image.image));

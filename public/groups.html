@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=4">
   <link rel="stylesheet" href="/assets/groups.css?v=6">
+  <link rel="stylesheet" href="/assets/group-diplomacy.css?v=1">
 </head>
 <body class="has-my-stuff-rail groups-page">
   <div class="app-shell">
@@ -146,6 +147,34 @@
             <h4>Recent group purchases</h4><ol id="treasury-purchase-history"></ol>
           </section>
         </section>
+        <section id="group-diplomacy" class="panel groups-card" hidden aria-labelledby="diplomacy-heading">
+          <h2 id="diplomacy-heading">Alliances &amp; rivalries</h2>
+          <p>Alliances require both group owners. Rivalry declarations are one-sided. Relationships record group intentions; in-game rules stay separate.</p>
+          <p id="diplomacy-status" role="status" aria-live="polite"></p>
+          <button id="diplomacy-refresh" class="small-button" type="button">Refresh relationships</button>
+          <form id="diplomacy-search-form" class="groups-form">
+            <label for="diplomacy-search">Find another group</label>
+            <input id="diplomacy-search" minlength="2" maxlength="80" required autocomplete="off">
+            <button id="diplomacy-search-submit" class="small-button">Find group</button>
+          </form>
+          <ul id="diplomacy-search-results" class="diplomacy-list"></ul>
+          <h3>Your relationships</h3><ul id="diplomacy-relations" class="diplomacy-list"></ul>
+          <button id="diplomacy-more" type="button" class="small-button" hidden>More relationships</button>
+          <section id="diplomacy-detail" hidden>
+            <h3 id="diplomacy-peer"></h3><p id="diplomacy-alliance"></p><p id="diplomacy-rivalry"></p><p id="diplomacy-authority"></p>
+            <form id="diplomacy-action-form" class="groups-form" hidden>
+              <label for="diplomacy-action">Relationship change</label><select id="diplomacy-action"></select>
+              <button id="diplomacy-review-button" class="small-button">Review change</button>
+            </form>
+            <section id="diplomacy-review" hidden>
+              <p id="diplomacy-review-text"></p>
+              <button id="diplomacy-confirm" type="button" class="small-button">Confirm relationship change</button>
+              <button id="diplomacy-discard" type="button" class="small-button">Discard review</button>
+            </section>
+            <h4>Verified Territory record</h4><p id="diplomacy-score"></p><ol id="diplomacy-battles"></ol>
+            <h4>Recent relationship history</h4><ol id="diplomacy-history"></ol>
+          </section>
+        </section>
         <section class="panel groups-card">
           <div class="list-heading"><span>GROUP INVITATIONS</span><span>Accept or decline</span></div>
           <div id="groups-incoming" class="groups-rows"></div>
@@ -164,5 +193,6 @@
   <script src="/assets/group-territory.js?v=1"></script>
   <script src="/assets/group-treasury.js?v=4"></script>
   <script src="/assets/group-treasury-shop.js?v=3"></script>
+  <script src="/assets/group-diplomacy.js?v=1"></script>
 </body>
 </html>
