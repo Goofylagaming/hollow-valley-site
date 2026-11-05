@@ -34,17 +34,23 @@ function validate(input){
   if(typeof input.reviewNote!=='string'||input.reviewNote.trim().length<20||input.reviewNote.length>2000||/[\x00-\x1f]/.test(input.reviewNote))fail('Map review evidence is required');
   return {version,mapVersion,units:'unreal-centimetres',bounds,highlands:{name:'Highlands',polygon:polygon.map(p=>[...p])},reviewNote:input.reviewNote.trim()};
 }
-function createChallengeLocationCatalog(db,{now=Date.now}={}){
-  db.exec(`CREATE TABLE IF NOT EXISTS dc_location_catalogs(version TEXT PRIMARY KEY,digest TEXT NOT NULL,payload TEXT NOT NULL,reviewed_by TEXT NOT NULL,created_at INTEGER NOT NULL);
+function describe(input){const catalog=validate(input);return {catalog,digest:createHash('sha256').update(JSON.stringify(catalog)).digest('hex')};}
+function createChallengeLocationCatalog(db,{now=Date.now,initialize=true}={}){
+  if(initialize){db.exec(`CREATE TABLE IF NOT EXISTS dc_location_catalogs(version TEXT PRIMARY KEY,digest TEXT NOT NULL,payload TEXT NOT NULL,reviewed_by TEXT NOT NULL,created_at INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS dc_location_active(id INTEGER PRIMARY KEY CHECK(id=1),version TEXT NOT NULL);
-    CREATE TABLE IF NOT EXISTS dc_location_catalog_audit(id INTEGER PRIMARY KEY,version TEXT NOT NULL,digest TEXT NOT NULL,previous_version TEXT,actor TEXT NOT NULL,at INTEGER NOT NULL);`);
+    CREATE TABLE IF NOT EXISTS dc_location_catalog_audit(id INTEGER PRIMARY KEY,version TEXT NOT NULL,digest TEXT NOT NULL,previous_version TEXT,actor TEXT NOT NULL,at INTEGER NOT NULL,action TEXT NOT NULL DEFAULT 'activate');`);
+    if(!db.prepare('PRAGMA table_info(dc_location_catalog_audit)').all().some(c=>c.name==='action'))db.exec("ALTER TABLE dc_location_catalog_audit ADD COLUMN action TEXT NOT NULL DEFAULT 'activate'");
+  }
   const actor=id=>{if(typeof id!=='string'||!/^\d{17}$/.test(id))fail('A reviewing operator Steam identity is required');};
-  function register(input,reviewedBy){actor(reviewedBy);const rules=validate(input),payload=JSON.stringify(rules),digest=createHash('sha256').update(payload).digest('hex');
+  function register(input,reviewedBy){actor(reviewedBy);const {catalog:rules,digest}=describe(input),payload=JSON.stringify(rules);
     db.exec('BEGIN IMMEDIATE');try{const old=db.prepare('SELECT digest FROM dc_location_catalogs WHERE version=?').get(rules.version);if(old&&old.digest!==digest)fail('Catalog rules changed; use a new version',409);if(!old)db.prepare('INSERT INTO dc_location_catalogs VALUES (?,?,?,?,?)').run(rules.version,digest,payload,reviewedBy,now());db.exec('COMMIT');return {version:rules.version,digest,duplicate:Boolean(old)};}catch(error){db.exec('ROLLBACK');throw error;}}
-  function get(version){identifier(version);const row=db.prepare('SELECT digest,payload FROM dc_location_catalogs WHERE version=?').get(version);return row?{...JSON.parse(row.payload),digest:row.digest}:null;}
-  function active(){const row=db.prepare('SELECT version FROM dc_location_active WHERE id=1').get();return row?get(row.version):null;}
+  function get(version){identifier(version);const row=db.prepare('SELECT digest,payload FROM dc_location_catalogs WHERE version=?').get(version);if(!row)return null;const saved=describe(JSON.parse(row.payload));if(saved.catalog.version!==version||saved.digest!==row.digest)fail('Saved map catalog failed its integrity check',409);return {...saved.catalog,digest:row.digest};}
+  function active(){const row=db.prepare('SELECT version FROM dc_location_active WHERE id=1').get();if(!row)return null;const saved=get(row.version);if(!saved)fail('The active map catalog is missing',409);return saved;}
+  function breakContinuity(){for(const table of ['dc_location_last','dc_location_runtime'])if(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(table))db.prepare(`DELETE FROM ${table}`).run();}
   function activate({version,digest,expectedVersion,actorSteamId}){actor(actorSteamId);identifier(version);if(expectedVersion!==null)identifier(expectedVersion);const rules=get(version);if(!rules||rules.digest!==digest)fail('Review the exact catalog digest before activation',409);
-    db.exec('BEGIN IMMEDIATE');try{const previous=active()?.version||null;if(previous!==expectedVersion)fail('Active map rules changed; review again',409);if(previous!==version){db.prepare('INSERT INTO dc_location_active VALUES (1,?) ON CONFLICT(id) DO UPDATE SET version=excluded.version').run(version);db.prepare('INSERT INTO dc_location_catalog_audit(version,digest,previous_version,actor,at) VALUES (?,?,?,?,?)').run(version,digest,previous,actorSteamId,now());}db.exec('COMMIT');return {version,digest,duplicate:previous===version};}catch(error){db.exec('ROLLBACK');throw error;}}
-  return {register,get,active,activate};
+    db.exec('BEGIN IMMEDIATE');try{const previous=active()?.version||null;if(previous!==expectedVersion)fail('Active map rules changed; review again',409);if(previous!==version){db.prepare('INSERT INTO dc_location_active VALUES (1,?) ON CONFLICT(id) DO UPDATE SET version=excluded.version').run(version);breakContinuity();db.prepare('INSERT INTO dc_location_catalog_audit(version,digest,previous_version,actor,at) VALUES (?,?,?,?,?)').run(version,digest,previous,actorSteamId,now());}db.exec('COMMIT');return {version,digest,duplicate:previous===version};}catch(error){db.exec('ROLLBACK');throw error;}}
+  function deactivate({expectedVersion,digest,actorSteamId}){actor(actorSteamId);identifier(expectedVersion);
+    db.exec('BEGIN IMMEDIATE');try{const previous=db.prepare('SELECT version FROM dc_location_active WHERE id=1').get()?.version;const saved=previous&&db.prepare('SELECT digest FROM dc_location_catalogs WHERE version=?').get(previous);if(previous!==expectedVersion||!saved||saved.digest!==digest)fail('Active map rules changed; inspect the exact version and digest again',409);db.prepare('DELETE FROM dc_location_active WHERE id=1').run();breakContinuity();db.prepare("INSERT INTO dc_location_catalog_audit(version,digest,previous_version,actor,at,action) VALUES (?,?,?,?,?,'deactivate')").run(previous,digest,previous,actorSteamId,now());db.exec('COMMIT');return {activeVersion:null,stoppedVersion:previous,digest};}catch(error){db.exec('ROLLBACK');throw error;}}
+  return {register,get,active,activate,deactivate};
 }
-module.exports={validate,inside,createChallengeLocationCatalog};
+module.exports={validate,describe,inside,createChallengeLocationCatalog};
