@@ -531,3 +531,54 @@ actual RCON owner, real authenticated RCON/player-data/command verification,
 Discord observation, incident retention, hosted CI, staging and the wider #29 and
 31-feature release gates remain unfinished. No flags, push, merge, deployment,
 player data, game configuration or running producer changed.
+
+
+## Passive RCON collection and public display — 6 November 2026
+
+The website's new STATUS_COMPONENTS_RCON_ENABLED flag defaults off. Its monitor
+fetches only the passive /api/website/rcon/health endpoint, no more than once per
+minute with one active request and a five-second deadline. It never requests a
+server refresh or calls the game adapter. The automation source flag and existing
+integration URL/token are separate requirements. Missing sources remain unknown;
+there is no fallback to a presence snapshot, socket ownership or worker task as
+proof of an RCON read.
+
+The collector validates version, exact scope, explicit false command/player-data
+verification and bounded source states. Completed reads require explicit original
+UTC clocks. Missing/future/ambiguous clocks, older facts and conflicting equal-time
+outcomes are rejected. Exact retries retain both original source and first local
+check-start clocks. Source-derived expiry of the same prior observation is allowed
+only when its original time has actually expired; it does not become a new fact.
+Both source age and locally cached observation age are limited to six minutes.
+
+Disabled, unconfigured, not-yet-observed and source-clock-unverified states carry
+no invented RCON timestamp. Transport failures, deadlines and invalid observations
+also carry no RCON date. A stale unknown observation can remain undated, since
+there was no verified source read to timestamp. Configuration changes discard
+stored facts and suppress pending old-source replies. Shutdown cancels requests
+and clears local state; restart begins without an observation. No database or
+private provider body is retained by the website collector.
+
+The separate public RCON card reports Status read returned, Status read failed,
+Read source disabled, No observed read or a scoped unknown/delayed state. Its
+successful scope is the existing automation status read. It explicitly does not
+verify complete player data, game commands, the BinaryLane local worker connection
+or universal RCON availability. A failed read does not alter the independent game
+online summary. The browser rejects stale/future/bad-clock cached successes and
+upgraded verification claims. Older frames without this component show unknown.
+
+152 affected local checks pass. The actual token-protected source/client/collector/
+public-route fixture proves that repeated public reads make one source fetch and
+no additional adapter calls. Source/collector tests cover six-minute expiry,
+nullable unknown timestamps, exact retries, conflicts, source-derived stale facts,
+clock rollback, cadence, deadlines, late results, disabled/configuration changes
+and existing status regressions. Desktop1440/phone390 fixtures cover success,
+read failure, disabled/absent states, timeouts, dated/undated expiry, future/invalid
+clocks and invalid execution claims without changing the game summary. The phone
+card was visually inspected. Homepage is v140, status CSS v7 and component
+controller v5. No live flags, RCON commands, player records, pushes, merges or
+deployments were changed.
+
+Still required: source deployment at the actual RCON owner, live clock/cadence
+review, authenticated staging, real local-worker/command/player-data verification,
+Discord monitoring, incident retention and the remaining #29/full-roadmap gates.

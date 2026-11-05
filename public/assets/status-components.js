@@ -87,6 +87,33 @@
   document.getElementById('status-marketplace-state').textContent=label;document.getElementById('status-marketplace-detail').textContent=detail;
   document.getElementById('status-marketplace-time').textContent=at!==null?'Catalog observation: '+new Date(at).toLocaleString('en-AU',{timeZone:'Australia/Brisbane',dateStyle:'medium',timeStyle:'short'})+' AEST':'No verified catalog observation yet';
  }
+ const rconMessages={
+  'read-returned':['ok','Status read returned','An existing RCON status read returned. Command execution and complete player data are not verified.'],
+  'read-failed':['attention','Status read failed','The last observed RCON status read failed. This does not establish that the game is offline.'],
+  'rcon-disabled':['unknown','Read source disabled','This RCON read source is disabled. The local game worker connection is not checked here.'],
+  'connection-not-configured':['unknown','Read source not configured','No RCON connection is configured for this read source.'],
+  'invalid-observation':['unknown','Observation unverified','The RCON observation or its timestamp could not be verified.'],
+  'timed-out':['delayed','Observation fetch timed out','The observation source did not respond in time. No new RCON query was requested.'],
+  stale:['delayed','Delayed','The RCON observation has expired. Current read connectivity is unverified.'],
+  'not-configured':['unknown','Not monitored','The RCON observation is not enabled.'],
+  'integration-not-configured':['unknown','Not configured','The observation source connection is not configured.'],
+  'no-observation':['unknown','No observed read','No timestamped RCON status read has been observed in the source process yet.'],
+  'unverified-clock':['unknown','Clock unverified','The RCON observation time cannot be verified.'],
+  unavailable:['unknown','Unknown','The observation source could not be checked. This is not a game-server verdict.']
+ };
+ function renderRcon(value){
+  const card=document.getElementById('status-rcon-card');if(!card)return;
+  let code='unavailable',at=null;
+  if(value?.scope==='automation-rcon-status-read'&&value.commandExecutionVerified===false&&value.playerDataVerified===false&&Object.hasOwn(rconMessages,value.code)){
+   code=value.code;
+   if(value.observedAt!==null){at=Date.parse(value.observedAt);if(typeof value.observedAt!=='string'||!Number.isSafeInteger(at)||at<0||new Date(at).toISOString()!==value.observedAt){code='unavailable';at=null;}}
+   if(['read-returned','read-failed'].includes(code)&&at===null)code='unavailable';
+   if(at!==null)code=at>Date.now()?'unverified-clock':Date.now()-at>360000?'stale':code;
+  }
+  const [state,label,detail]=rconMessages[code];card.dataset.state=state;
+  document.getElementById('status-rcon-state').textContent=label;document.getElementById('status-rcon-detail').textContent=detail;
+  document.getElementById('status-rcon-time').textContent=at!==null?'RCON read observation: '+new Date(at).toLocaleString('en-AU',{timeZone:'Australia/Brisbane',dateStyle:'medium',timeStyle:'short'})+' AEST':'No timestamped RCON read observed';
+ }
  let controller=null,generation=0;
  function show(code,at=null){const [state,label,detail]=messages[code]||messages.unavailable;document.getElementById('status-worker-card').dataset.state=state;$('state').textContent=label;$('detail').textContent=detail;$('time').textContent=at?'Agent snapshot: '+new Date(at).toLocaleString('en-AU',{timeZone:'Australia/Brisbane',dateStyle:'medium',timeStyle:'short'})+' AEST':'No verified worker observation yet';}
  function renderWorker(value){
@@ -100,10 +127,10 @@
   const current=++generation;if(controller)controller.abort();controller=new AbortController();const active=controller,timer=setTimeout(()=>active.abort(),8000);
   try{
    const response=await fetch('/api/component-status',{cache:'no-store',credentials:'same-origin',signal:active.signal});if(!response.ok)throw new Error();const body=await response.json();if(current!==generation)return;
-   if(body?.available===false){show('not-configured');renderMarketplace({scope:'official-catalog-read',checkoutVerified:false,fulfillmentVerified:false,code:'not-configured',observedAt:null});renderSteam({scope:'provider-discovery-http',linkingVerified:false,code:'not-configured',observedAt:null});renderMap({scope:'cached-position-source',renderingVerified:false,code:'not-configured',observedAt:null});return;}
-   if(body?.available!==true||!Array.isArray(body.components)||body.components.length<1||body.components.length>4)throw new Error();if(new Set(body.components.map(v=>v?.id)).size!==body.components.length||body.components.some(v=>!['map-source','bridge-worker','steam-openid','marketplace-catalog'].includes(v?.id)))throw new Error();renderMarketplace(body.components.find(v=>v?.id==='marketplace-catalog'));renderSteam(body.components.find(v=>v?.id==='steam-openid'));renderMap(body.components.find(v=>v?.id==='map-source'));const value=body.components.find(v=>v?.id==='bridge-worker');
+   if(body?.available===false){show('not-configured');renderRcon({scope:'automation-rcon-status-read',commandExecutionVerified:false,playerDataVerified:false,code:'not-configured',observedAt:null});renderMarketplace({scope:'official-catalog-read',checkoutVerified:false,fulfillmentVerified:false,code:'not-configured',observedAt:null});renderSteam({scope:'provider-discovery-http',linkingVerified:false,code:'not-configured',observedAt:null});renderMap({scope:'cached-position-source',renderingVerified:false,code:'not-configured',observedAt:null});return;}
+   if(body?.available!==true||!Array.isArray(body.components)||body.components.length<1||body.components.length>5)throw new Error();if(new Set(body.components.map(v=>v?.id)).size!==body.components.length||body.components.some(v=>!['map-source','bridge-worker','steam-openid','marketplace-catalog','rcon-read'].includes(v?.id)))throw new Error();renderRcon(body.components.find(v=>v?.id==='rcon-read'));renderMarketplace(body.components.find(v=>v?.id==='marketplace-catalog'));renderSteam(body.components.find(v=>v?.id==='steam-openid'));renderMap(body.components.find(v=>v?.id==='map-source'));const value=body.components.find(v=>v?.id==='bridge-worker');
    renderWorker(value);
-  }catch{if(current===generation){show('unavailable');renderMap(null);renderSteam(null);renderMarketplace(null);}}
+  }catch{if(current===generation){show('unavailable');renderMap(null);renderSteam(null);renderMarketplace(null);renderRcon(null);}}
   finally{clearTimeout(timer);if(current===generation)controller=null;}
  }
  function init(){if(!$('state'))return;document.getElementById('status-refresh')?.addEventListener('click',refresh);refresh();setInterval(()=>{if(!document.hidden)refresh();},30000);}

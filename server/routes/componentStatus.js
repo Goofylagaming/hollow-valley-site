@@ -1,6 +1,6 @@
 "use strict";
 const {createBridgeWorkerHealthStore}=require('../services/bridgeWorkerHealth');
-function createRouter({db,env=process.env,now=Date.now,getMapState,getSteamHealth,getMarketplaceHealth}={}){
+function createRouter({db,env=process.env,now=Date.now,getMapState,getSteamHealth,getMarketplaceHealth,getRconHealth}={}){
  const router=require('express').Router();
  router.get('/',(_req,res)=>{
   res.set('Cache-Control','no-store');
@@ -14,7 +14,9 @@ function createRouter({db,env=process.env,now=Date.now,getMapState,getSteamHealt
   if(env.STATUS_COMPONENTS_STEAM_ENABLED==='1'){try{steam=(getSteamHealth||(()=>require('../services/steamProviderHealth').getDefaultService().read()))();}catch{steam={...steam,code:'unavailable'};}}
   let marketplace={id:'marketplace-catalog',scope:'official-catalog-read',code:'not-configured',observedAt:null,checkoutVerified:false,fulfillmentVerified:false};
   if(env.STATUS_COMPONENTS_MARKETPLACE_ENABLED==='1'){try{marketplace=(getMarketplaceHealth||(()=>require('../services/marketplaceHealth').getDefaultService().read()))();}catch{marketplace={...marketplace,code:'unavailable'};}}
-  return res.json({available:true,components:[worker,map,steam,marketplace]});
+  let rcon={id:'rcon-read',scope:'automation-rcon-status-read',code:'not-configured',observedAt:null,commandExecutionVerified:false,playerDataVerified:false};
+  if(env.STATUS_COMPONENTS_RCON_ENABLED==='1'){try{rcon=(getRconHealth||(()=>require('../services/rconHealth').getDefaultService().read()))();}catch{rcon={...rcon,code:'unavailable'};}}
+  return res.json({available:true,components:[worker,map,steam,marketplace,rcon]});
  });return router;
 }
 module.exports={createRouter};
