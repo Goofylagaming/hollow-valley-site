@@ -167,3 +167,63 @@ Persistent attachment/retention rules, broader historical coverage, real source
 provenance, authenticated staging and production verification remain open. These
 controls show read-only retained context; they do not automatically preserve it
 on a report or complete the original #26/full-roadmap goal.
+
+## Reviewed preservation core — 6 November 2026
+
+A separate snapshot core is implemented locally but is not connected to HTTP or
+staff save/read controls yet. New settings all default disabled/unconfigured:
+PLAYER_REPORT_CONTEXT_SNAPSHOTS_ENABLED=0, RETENTION_DAYS=0, REVIEW_SECRET empty,
+and RETENTION_CLEANUP_ENABLED=0 (each with the PLAYER_REPORT_CONTEXT_ prefix).
+The retention preference has been requested from the user; no duration has been
+selected or activated in a running environment. Supported configured durations
+are 30, 90 or 365 days from capture. Test fixtures use an explicitly synthetic
+90-day policy and key; that does not establish the user's production policy.
+
+The core can issue a ten-minute, HMAC-signed review of a strictly projected
+context, report identity/time fingerprint, current moderator binding and selected
+retention duration. Offering a review is read-only and creates no table or private
+server-side draft copy. Empty context cannot receive a preservation offer. The
+signature binds exactly what was reviewed; changed content, report fields, policy,
+moderator or signing key cannot save under the old review. A future/expired review
+fails closed. No signing secret is generated, exposed or included in the review.
+
+A valid explicit save uses BEGIN IMMEDIATE and rechecks current linked moderator
+permission against the database inside the transaction. One immutable application
+row holds projected context, its digest, report fingerprint, capture actor/time,
+fixed expiry and a request-key/hash receipt. No duplicate full request payload is
+stored. A unique moderator/request key prevents duplicate captures. Exact verified
+retries recover the original metadata even after new saving is paused or the
+signing key rotates, provided permission, report/account binding and saved bytes
+remain valid. Changed requests fail instead of updating the old artifact.
+Storage failures roll back the snapshot and receipt together. There is a limit
+of 50 active snapshots per report.
+
+The additive snapshot table/indexes are created only during an enabled, validated
+save, not on reads or disabled calls. This module does not modify reports, review
+history, wallets, sources, messages or game state. Read/list operations are current-
+moderator-only. Saved bytes are projected again and digest-checked before reading;
+corruption is withheld. If current report participants/time differ from capture,
+the stored context cannot be silently relabelled under the new report fields.
+
+Expiry is fixed at capture and does not extend on retries or reads. Expired data
+is excluded from lists and reads, and its receipt cannot authorize a new capture.
+An explicitly gated host cleanup method deletes only expired rows in the owned
+snapshot table, including their payload, actor and receipt fields. It does not
+remove reports, chat/combat source records or unrelated audit data. Automatic
+cleanup scheduling and operator policy/configuration are still unfinished; no
+claim of automatic physical erasure is made for this unconnected core. The in-
+application digest is an integrity check, not an external forensic attestation.
+
+57 affected local checks pass. New tests cover disabled/no-schema behavior,
+read-only reviews, exact preserved bytes, signed review tampering, source/report/
+policy/key/account changes, review expiry and clock rollback, receipt reuse,
+permission revocation, corrupt storage, report rebinding, retained expiry,
+explicit cleanup isolation and transaction rollback. Two independent Node/SQLite
+processes race the same signed request and produce exactly one snapshot; one
+worker recovers the same receipt. All fixtures are local and synthetic.
+
+Homepage roadmap is v146. API integration, explicit save review UI, saved-context
+reads, late/lost-reply browser recovery, retention selection and scheduled cleanup,
+authenticated staging and production verification remain open. Snapshot saving
+is not available on the website yet. The status publication candidate remains
+fixed at e9fb72c4; no live flag, record, secret, push, merge or deployment changed.
