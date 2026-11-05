@@ -43,3 +43,36 @@ test('accepted Legacy snapshots collect only opted-in private history behind the
     assert.equal(db.prepare('SELECT COUNT(*) n FROM journey_points').get().n,1);
   } finally {db.close();if(previous===undefined)delete process.env.JOURNEY_HISTORY_ENABLED;else process.env.JOURNEY_HISTORY_ENABLED=previous;}
 });
+
+test('Legacy rejects coercible non-coordinate values instead of recording a false origin',()=>{
+  const previous=process.env.JOURNEY_HISTORY_ENABLED;process.env.JOURNEY_HISTORY_ENABLED='1';
+  const db=new DatabaseSync(':memory:');let clock=3000000;
+  try {
+    const legacy=require('../src/services/valleyLegacyStore').createLegacyStore(db,{now:()=>clock});
+    legacy.journeys.change(steam,{enabled:true,expectedRevision:0});
+    for(const x of ['', '  ',null,false,true,[],{},Infinity]) {
+      clock+=15000;legacy.snapshot([{steamId:steam,species:'Triceratops',growth:0.5,location:{x,y:0}}],clock);
+    }
+    assert.equal(legacy.journeys.points(steam).points.length,0);
+    clock+=15000;legacy.snapshot([{steamId:steam,species:'Triceratops',growth:0.5,location:{x:'0',y:'10'}}],clock);
+    assert.equal(legacy.journeys.points(steam).points[0].x,0);
+  }finally{db.close();if(previous===undefined)delete process.env.JOURNEY_HISTORY_ENABLED;else process.env.JOURNEY_HISTORY_ENABLED=previous;}
+});
+
+test('history pages have no duplicates and storage cap preserves the newest points and other accounts',()=>{
+  const f=fixture(),s=f.store;
+  try {
+    s.change(steam,{enabled:true,expectedRevision:0});
+    const insert=f.db.prepare('INSERT INTO journey_points VALUES (?,?,?,?,?,?)');
+    f.db.exec('BEGIN');
+    for(let i=1;i<=10000;i++)insert.run(steam,'life',f.now()+i,0,0,i===1?1:0);
+    insert.run(other,'other-life',f.now()+1,1,1,1);f.db.exec('COMMIT');
+    f.tick(30000);s.record({steamId:steam,lifeId:'life',at:f.now(),location:{x:0,y:0}});
+    assert.equal(f.db.prepare('SELECT COUNT(*) n FROM journey_points WHERE steam_id=?').get(steam).n,10000);
+    const seen=[];let before;
+    do{const page=s.points(steam,before?{before}:{});assert.ok(page.points.length<=500);seen.push(...page.points.map(p=>p.at));before=page.nextBefore;}while(before);
+    assert.equal(seen.length,10000);assert.equal(new Set(seen).size,10000);assert.equal(seen[0],f.now());
+    assert.equal(s.points(other).points.length,1);
+    assert.throws(()=>s.points(steam,{before:'1'}),{status:400});
+  }finally{f.db.close();}
+});

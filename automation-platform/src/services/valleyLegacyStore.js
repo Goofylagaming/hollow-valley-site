@@ -154,7 +154,7 @@ function createLegacyStore(db, { now = Date.now } = {}) {
         const loc =
           p.location &&
           [p.location.x, p.location.y].every(
-            (v) => v != null && Number.isFinite(Number(v)),
+            (v) => ['number','string'].includes(typeof v) && String(v).trim()!=='' && Number.isFinite(Number(v)),
           )
             ? { x: Number(p.location.x), y: Number(p.location.y) }
             : null;
