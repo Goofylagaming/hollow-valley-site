@@ -17,6 +17,7 @@ router.use((req,res,next)=>{
 });
 const run=fn=>async(req,res)=>{try{res.json(await fn(req));}catch(error){res.status(error.status||502).json({error:error.status?error.message:'Group Treasury is temporarily unavailable',code:error.status?error.code:'TREASURY_UNAVAILABLE'});}};
 router.get('/',run(req=>service.current(req.user.steam_id)));
+router.get('/donations',run(req=>service.overview(req.user.steam_id)));
 router.get('/donations/:id',run(req=>service.read(req.user.steam_id,req.params.id)));
 router.post('/donations',run(req=>service.prepare(req.user.steam_id,{expectedGroupId:req.body?.expectedGroupId,amount:req.body?.amount,requestId:req.body?.requestId})));
 router.post('/donations/:id/confirm',run(req=>service.confirm(req.user.steam_id,req.params.id,{confirmed:req.body?.confirmed,expectedGroupId:req.body?.expectedGroupId})));

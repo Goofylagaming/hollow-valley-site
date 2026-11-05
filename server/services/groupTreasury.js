@@ -7,6 +7,8 @@ function createGroupTreasury(db,groups,client,{now=()=>new Date().toISOString(),
     created_at TEXT NOT NULL,authorized_at TEXT,resolved_at TEXT,receipt_json TEXT,last_error_code TEXT,
     UNIQUE(steam_id,client_key));
     CREATE UNIQUE INDEX IF NOT EXISTS hv_group_treasury_active_donor ON hv_group_treasury_intents(steam_id) WHERE state IN('draft','submitted');
+    CREATE INDEX IF NOT EXISTS hv_group_treasury_donor_history ON hv_group_treasury_intents(steam_id);
+    CREATE INDEX IF NOT EXISTS hv_group_treasury_group_activity ON hv_group_treasury_intents(group_id,state);
     CREATE TABLE IF NOT EXISTS hv_group_treasury_intent_events (
     id INTEGER PRIMARY KEY,intent_id TEXT NOT NULL,state TEXT NOT NULL,created_at TEXT NOT NULL);`);
   const atomic=fn=>{db.exec('BEGIN IMMEDIATE');try{const result=fn();db.exec('COMMIT');return result;}catch(error){db.exec('ROLLBACK');throw error;}};
@@ -88,14 +90,19 @@ function createGroupTreasury(db,groups,client,{now=()=>new Date().toISOString(),
     if(row.state!=='submitted')return project(row);
     try{return settle(steam,id,await client.cancel(payload(row)));}catch(error){return pendingError(steam,id,error);}
   }
-  async function current(steam){
+  function overview(steam){
     steamId(steam);const group=groups.getState(steam).current;
-    const donations=db.prepare('SELECT * FROM hv_group_treasury_intents WHERE steam_id=? ORDER BY rowid DESC LIMIT 20').all(steam).map(project);
+    return {group:group?{id:group.id,name:group.name}:null,
+      donations:db.prepare('SELECT * FROM hv_group_treasury_intents WHERE steam_id=? ORDER BY rowid DESC LIMIT 20').all(steam).map(project),
+      hasGroupActivity:Boolean(group&&db.prepare("SELECT id FROM hv_group_treasury_intents WHERE group_id=? AND state IN('submitted','confirmed') LIMIT 1").get(group.id))};
+  }
+  async function current(steam){
+    const {group,donations}=overview(steam);
     if(!group)return {group:null,treasury:null,donations};
     const treasury=await client.get({groupId:group.id});membership(steam,group.id);
     if(treasury?.groupId!==group.id||!Number.isSafeInteger(treasury.balance)||treasury.balance<0||!Array.isArray(treasury.transactions)||treasury.transactions.length>50)throw failure('TREASURY_RESPONSE_MISMATCH','Group Treasury balance requires review',502);
     return {group:{id:group.id,name:group.name},treasury:{groupId:group.id,balance:treasury.balance,transactions:treasury.transactions.map(row=>({id:row.id,amount:row.amount,kind:row.kind,createdAt:row.createdAt}))},donations};
   }
-  return {prepare,confirm,cancel,reconcile,current,read:(steam,id)=>project(own(steam,id))};
+  return {prepare,confirm,cancel,reconcile,current,overview,read:(steam,id)=>project(own(steam,id))};
 }
 module.exports={createGroupTreasury};
