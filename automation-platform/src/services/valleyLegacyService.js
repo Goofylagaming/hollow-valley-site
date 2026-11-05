@@ -111,16 +111,24 @@ function recordSnapshot(players, at) {
     console.error("[valley-legacy] snapshot failed:", e.message);
   }
 }
+function maintain() {
+  // Retention must not depend on incoming snapshots or successful event import.
+  try {
+    get().journeys.prune();
+  } catch (e) {
+    console.error('[valley-legacy] journey cleanup failed:',e.message);
+  }
+  try {
+    reconcile();
+  } catch (e) {
+    console.error('[valley-legacy] reconciliation failed:',e.message);
+  }
+}
 function start() {
   if (!enabled()) return;
   get();
-  const timer = setInterval(() => {
-    try {
-      reconcile();
-    } catch (e) {
-      console.error("[valley-legacy] reconciliation failed:", e.message);
-    }
-  }, 15000);
+  maintain();
+  const timer = setInterval(maintain, 15000);
   timer.unref();
   return timer;
 }
