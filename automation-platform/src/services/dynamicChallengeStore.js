@@ -35,9 +35,12 @@ function createDynamicChallengeStore(db, {now=Date.now, enabled=()=>process.env.
     CREATE TABLE IF NOT EXISTS dc_requests(steam_id TEXT NOT NULL, request_key TEXT NOT NULL, expected_revision INTEGER NOT NULL,
       selected INTEGER NOT NULL, revision INTEGER NOT NULL, accepted_at INTEGER NOT NULL, PRIMARY KEY(steam_id,request_key));
     CREATE TABLE IF NOT EXISTS dc_runtime(id INTEGER PRIMARY KEY CHECK(id=1),active INTEGER NOT NULL,resumed_at INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS dc_observations(steam_id TEXT NOT NULL,segment TEXT NOT NULL,at INTEGER NOT NULL,species TEXT NOT NULL,growth REAL,
+      PRIMARY KEY(steam_id,segment,at));
     CREATE INDEX IF NOT EXISTS dc_requests_recent ON dc_requests(steam_id,accepted_at);
     CREATE INDEX IF NOT EXISTS dc_evidence_retention ON dc_evidence(period_start);
-    CREATE INDEX IF NOT EXISTS dc_cursor_age ON dc_cursor(at);`);
+    CREATE INDEX IF NOT EXISTS dc_cursor_age ON dc_cursor(at);
+    CREATE INDEX IF NOT EXISTS dc_observation_retention ON dc_observations(at);`);
   function transaction(fn,write=false) {
     db.exec(write?'BEGIN IMMEDIATE':'SAVEPOINT dynamic_challenges');
     try { const result=fn(); db.exec(write?'COMMIT':'RELEASE dynamic_challenges'); return result; }
@@ -59,7 +62,8 @@ function createDynamicChallengeStore(db, {now=Date.now, enabled=()=>process.env.
       synchronizeTracking();
       const evidence=db.prepare('DELETE FROM dc_evidence WHERE period_start<?').run(now()-35*DAY).changes;
       const cursors=db.prepare('DELETE FROM dc_cursor WHERE at<?').run(now()-900000).changes;
-      return {evidence:Number(evidence),cursors:Number(cursors)};
+      const observations=db.prepare('DELETE FROM dc_observations WHERE at<?').run(now()-35*DAY).changes;
+      return {evidence:Number(evidence),cursors:Number(cursors),observations:Number(observations)};
     });
   }
   // Starting with tracking disabled must durably break continuity even if no
@@ -87,7 +91,7 @@ function createDynamicChallengeStore(db, {now=Date.now, enabled=()=>process.env.
         fail('Too many participation changes. Try again shortly.',429);
       if(selected) db.prepare('INSERT OR IGNORE INTO dc_participants VALUES (?,?)').run(id,now());
       else {
-        for(const table of ['dc_evidence','dc_cursor','dc_participants']) db.prepare(`DELETE FROM ${table} WHERE steam_id=?`).run(id);
+        for(const table of ['dc_evidence','dc_cursor','dc_observations','dc_participants']) db.prepare(`DELETE FROM ${table} WHERE steam_id=?`).run(id);
       }
       db.prepare('INSERT INTO dc_settings VALUES (?,?) ON CONFLICT(steam_id) DO UPDATE SET revision=excluded.revision').run(id,revision+1);
       db.prepare('INSERT INTO dc_requests VALUES (?,?,?,?,?,?)').run(id,requestKey,expectedRevision,Number(selected),revision+1,at);
@@ -107,8 +111,11 @@ function createDynamicChallengeStore(db, {now=Date.now, enabled=()=>process.env.
       if(!joined || at<=joined.joined_at) continue;
       const old=db.prepare('SELECT * FROM dc_cursor WHERE steam_id=?').get(row.steam_id);
       if(old && at<=old.at) continue;
-      const connected=old && old.life_id===row.id && old.species===row.species && at-old.at<=900000;
+      const connected=old && old.life_id===row.id && old.species===row.species && at-old.at<=900000 &&
+        db.prepare('SELECT 1 FROM dc_observations WHERE steam_id=? AND segment=? AND at=?').get(row.steam_id,old.segment,old.at) &&
+        !deaths(row.steam_id,old.at,at).length;
       const segment=connected?old.segment:`${row.id}:${at}`;
+      db.prepare('INSERT INTO dc_observations VALUES (?,?,?,?,?)').run(row.steam_id,segment,at,species,row.growth);
       for(const period of periods(at)) {
         const {definition:d}=period;
         const subject=d.id==='species-three'?species:segment;
@@ -135,6 +142,50 @@ function createDynamicChallengeStore(db, {now=Date.now, enabled=()=>process.env.
     db.prepare('DELETE FROM dc_cursor WHERE at<>?').run(at);
     // Progress is private and short-lived; missed days never create a debt.
     db.prepare('DELETE FROM dc_evidence WHERE period_start<?').run(now()-35*DAY);
+    db.prepare('DELETE FROM dc_observations WHERE at<?').run(now()-35*DAY);
+  }
+  function deaths(id,from,to) {
+    return db.prepare(`SELECT occurred_at AS at FROM vl_events WHERE json_extract(payload,'$.steamId')=?
+      AND json_extract(payload,'$.type')='combat_death' AND occurred_at>=? AND occurred_at<=? ORDER BY occurred_at,id`).all(id,from,to);
+  }
+  // Called after trusted Legacy event insertion, in that same transaction.
+  // A death splits observation continuity; it does not invent a game-life link.
+  function reconcileDeath(event) {
+    const id=steam(event.steamId),at=event.at;
+    if(!Number.isFinite(at)||!db.prepare('SELECT 1 FROM dc_participants WHERE steam_id=? AND joined_at<=?').get(id,at))return;
+    const segments=db.prepare(`SELECT segment,MIN(at) AS first_at,MAX(at) AS last_at FROM dc_observations
+      WHERE steam_id=? GROUP BY segment HAVING MIN(at)<=? AND MAX(at)>=?`).all(id,at,at);
+    for(const segment of segments) {
+      const samples=db.prepare('SELECT at,species,growth FROM dc_observations WHERE steam_id=? AND segment=? ORDER BY at').all(id,segment.segment);
+      const boundaries=deaths(id,segment.first_at,segment.last_at).map(row=>row.at);
+      const totals=new Map();let previous=null;
+      for(const sample of samples) {
+        if(boundaries.includes(sample.at)){previous=null;continue;}
+        const connected=previous && sample.at-previous.at<=900000 && !boundaries.some(time=>time>=previous.at&&time<=sample.at);
+        for(const period of periods(sample.at).filter(p=>p.cadence==='daily')) {
+          const d=period.definition,key=period.start+':'+d.id;
+          const state=totals.get(key)||{period,amount:0,run:0,juvenile:0};
+          if(!connected){state.run=0;state.juvenile=0;}
+          if(d.id==='survival-90' && connected) {
+            state.run+=Math.floor((sample.at-Math.max(previous.at,period.start))/1000);
+            state.amount=Math.max(state.amount,Math.min(d.target,state.run));
+          } else if(d.id==='herbivore-adult' && HERBIVORES.has(sample.species) && typeof sample.growth==='number' && sample.growth>=0 && sample.growth<=1) {
+            if(sample.growth<1)state.juvenile=1;
+            else if(state.juvenile)state.amount=1;
+          }
+          totals.set(key,state);
+        }
+        previous=sample;
+      }
+      db.prepare("DELETE FROM dc_evidence WHERE steam_id=? AND subject=? AND challenge_id IN ('survival-90','herbivore-adult')").run(id,segment.segment);
+      for(const state of totals.values()) {
+        if(state.period.start<now()-35*DAY)continue;
+        db.prepare('INSERT INTO dc_evidence VALUES (?,?,?,?,?,?,?)').run(id,'daily',state.period.start,state.period.definition.id,segment.segment,state.amount,state.juvenile);
+      }
+      // Future observations start a fresh segment even when Legacy cannot
+      // associate the delayed death with its currently observed life identity.
+      db.prepare('DELETE FROM dc_cursor WHERE steam_id=? AND segment=?').run(id,segment.segment);
+    }
   }
   function status(id) {
     steam(id);
@@ -145,12 +196,13 @@ function createDynamicChallengeStore(db, {now=Date.now, enabled=()=>process.env.
     const participating=Boolean(db.prepare('SELECT 1 FROM dc_participants WHERE steam_id=?').get(id));
     const revision=db.prepare('SELECT revision FROM dc_settings WHERE steam_id=?').get(id)?.revision||0;
     return {enabled:true,participating,revision,timezone:'Australia/Brisbane',rewardsEnabled:false,challenges:periods(now()).map(p=>{
-      const rows=db.prepare('SELECT amount FROM dc_evidence WHERE steam_id=? AND cadence=? AND period_start=? AND challenge_id=?')
+      const rows=db.prepare(`SELECT amount FROM dc_evidence e WHERE steam_id=? AND cadence=? AND period_start=? AND challenge_id=?
+        AND (challenge_id='species-three' OR EXISTS (SELECT 1 FROM dc_observations o WHERE o.steam_id=e.steam_id AND o.segment=e.subject))`)
         .all(id,p.cadence,p.start,p.definition.id);
       const amount=p.definition.id==='species-three'?rows.length:rows.reduce((best,r)=>Math.max(best,r.amount),0);
       return {...p.definition,cadence:p.cadence,startsAt:p.start,endsAt:p.end,progress:Math.min(p.definition.target,amount),completed:amount>=p.definition.target};
     })};
   }
-  return {change,observe,status,prune};
+  return {change,observe,status,prune,reconcileDeath};
 }
 module.exports={createDynamicChallengeStore,periods};

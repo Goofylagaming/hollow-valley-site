@@ -44,6 +44,10 @@ async function until(fn){for(let n=0;n<300;n++){if(fn())return;await new Promise
     assert.equal(writes,before+2);assert.equal(store.challenges.status(A).revision,1);assert.equal(store.challenges.status(A).participating,true);
     clock+=60000;store.snapshot([{steamId:A,species:'tyrannosaurus',growth:0.5}],clock);
     await page.click('#dynamic-refresh');await idle();assert.match(await page.locator('#dynamic-list').textContent(),/1 \/ 3 species observed/);
+    const first=clock;for(let n=0;n<9;n++){clock+=600000;store.snapshot([{steamId:A,species:'tyrannosaurus',growth:0.5}],clock);}
+    await page.click('#dynamic-refresh');await idle();assert.match(await page.locator('#dynamic-list').textContent(),/90 \/ 90 observed minutes/);
+    store.ingest({id:'browser-late-death-'+width,type:'combat_death',steamId:A,at:first+45*60000});
+    await page.click('#dynamic-refresh');await idle();assert.match(await page.locator('#dynamic-list').textContent(),/40 \/ 90 observed minutes/);
     await review();assert.match(await page.locator('#dynamic-review-text').textContent(),/delete its saved gameplay progress/);
     store.challenges.change(A,{selected:false,expectedRevision:1,requestKey:randomUUID()});
     await confirm();assert.equal(await page.locator('#dynamic-review').isVisible(),false);assert.match(await page.locator('#dynamic-status').textContent(),/changed/);
