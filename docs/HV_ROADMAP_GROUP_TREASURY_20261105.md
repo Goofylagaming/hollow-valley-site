@@ -14,7 +14,7 @@ Amounts and balances must remain whole, nonnegative safe integers. Insufficient 
 
 New donations default off behind `GROUP_TREASURY_ENABLED=1` on both services. The accounting API, website proxy and Groups-page donation controls are implemented locally. Local tests use synthetic balances only and exercise actual new-process retries plus competing independent processes sharing SQLite. Existing wallet/marketplace test cleanup now closes SQLite handles before verified temporary-directory deletion, allowing those regressions to run on Windows.
 
-Roadmap #17 has left the idea-stage ballot while historical votes remain recorded and free active slots. The homepage release register uses asset version 90. A dedicated hosted test workflow is prepared but has not been published.
+Roadmap #17 has left the idea-stage ballot while historical votes remain recorded and free active slots. The homepage release register uses asset version 91. A dedicated hosted test workflow is prepared but has not been published.
 
 ## Durable website consent and recovery
 
@@ -26,7 +26,7 @@ Cancellation before submission is local and permanently blocks confirmation. Can
 
 The automation endpoints require the private website integration token and trust the website's membership/consent authorization. They do not expose a browser credential. New request-outcome records, website intents and their audit events are additive. No automatic retry scheduler, automatic refund, payout or game command is installed.
 
-138 local checks cover accounting, wallet/marketplace regressions, website-to-automation HTTP authorization, lost responses, coordinator reinitialization, immutable consent, membership replacement, donation and purchase races across processes, reviewed catalog validation, reservations, cosmetic entitlement accounting, delivery proof verification, closure protection, failed audits, existing membership/recruitment/progression, retained votes, homepage integration and website startup. These use temporary databases and synthetic balances. Production Steam sign-in and hosted behavior remain unverified.
+145 local checks cover accounting, wallet/marketplace regressions, website-to-automation HTTP authorization, lost responses, coordinator reinitialization, immutable consent, membership replacement, donation and purchase races across processes, reviewed catalog validation, reservations, cosmetic entitlement accounting, delivery proof verification, closure protection, failed audits, existing membership/recruitment/progression, retained votes, homepage integration and website startup. These use temporary databases and synthetic balances. Production Steam sign-in and hosted behavior remain unverified.
 
 ## Donation controls
 
@@ -38,7 +38,7 @@ Saved requests load through a donor-scoped website-only overview independent of 
 
 ## Spending foundation
 
-`createGroupTreasurySpending` adds reviewed-catalog and reservation accounting. Private spending APIs are mounted behind the website integration token; browser credentials never reach them. No live catalog or prices are configured. Catalog registration remains an internal trusted-review operation without an operator review workflow. Revisions are immutable, registration defaults disabled, and activation retains an audit. Only cosmetic profile frames, Territory entry and event registration targets are accepted internally; the website exposes only cosmetics with an implemented fulfillment path. Extra combat/stat fields and unsupported purposes fail validation. Test prices are synthetic and do not establish live prices.
+`createGroupTreasurySpending` adds reviewed-catalog and reservation accounting. Private spending APIs are mounted behind the website integration token; browser credentials never reach them. No live catalog or prices are configured. A host-operator review tool now validates exact item content, stages disabled revisions and requires a matching digest plus unchanged active revision for audited activation/retirement. Its inspection command is read-only, uses an explicit existing economy database and does not enable rollout. See `HV_GROUP_TREASURY_CATALOG_REVIEW_20261105.md`. Revisions are immutable, registration defaults disabled, and activation retains an audit. Only cosmetic profile frames, Territory entry and event registration targets are accepted internally; the website exposes only cosmetics with an implemented fulfillment path. Extra combat/stat fields and unsupported purposes fail validation. Test prices are synthetic and do not establish live prices.
 
 Reservations freeze the accepted item, revision, cost, purpose and target. The balance API and Groups page distinguish total, reserved and available coins. An active or completed benefit cannot be purchased twice under another item ID. Late reservations under a released request remain released. Independent processes cannot reserve the same coins twice. Cosmetic charges and group-scoped entitlement records commit atomically with a single group-ledger debit and audit. Owners can select verified owned fern, sandstone or night frames for the current group card. Selection uses a revision check and atomic audit, persists across reloads and can be cleared without contacting accounting.
 
@@ -57,5 +57,5 @@ Ordinary membership departures/owner succession remain available outside a pendi
 ## Required integration before rollout
 
 - Rehearse the implemented closure policy, including unavailable-accounting recovery, against authenticated staging before accepting real coins.
-- Add an operator catalog review workflow and approved live prices, plus real Territory/event fulfillment and verified receipt ingestion. Current-owner purchase controls and owned-frame rendering are implemented locally; these remaining integrations still block full delivery.
+- Obtain approved live prices and rehearse the implemented operator catalog workflow, plus add real Territory/event fulfillment and verified receipt ingestion. Current-owner purchase controls and owned-frame rendering are implemented locally; these remaining integrations still block full delivery.
 - Verify UI, privacy, concurrency, group transitions, backups, hosted CI and authenticated staging. Obtain separate merge/deployment approval before production. Original roadmap #17 remains Building / Testing, with no release date.

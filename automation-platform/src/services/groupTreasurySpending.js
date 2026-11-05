@@ -1,7 +1,7 @@
 const {randomUUID}=require('node:crypto');
 const {balances}=require('./groupTreasuryAccounting');
 const error=(code,message,status=400)=>Object.assign(new Error(message),{code,status});
-const FRAMES=['fern','sandstone','night'];
+const {validateItem:item,digest}=require('./groupTreasuryCatalog');
 // Trusted catalog review and current website-group owner authority are checked
 // by callers. Private purchase RPCs bind cosmetic requests; external delivery
 // dispatch and proof ingestion still require their dedicated verified adapter.
@@ -35,22 +35,6 @@ function createGroupTreasurySpending(store,{enabled=()=>process.env.GROUP_TREASU
   function steam(value){if(typeof value!=='string'||!/^\d{17}$/.test(value))throw error('INVALID_ACTOR','A linked acting account is required');return value;}
   function positive(value){if(!Number.isSafeInteger(value)||value<1)throw error('INVALID_SPEND','Positive whole values are required');return value;}
   function key(value){if(typeof value!=='string'||!/^[A-Za-z0-9_-]{8,128}$/.test(value))throw error('INVALID_REQUEST','A valid spending request ID is required');return value;}
-  function exact(object,keys){if(!object||typeof object!=='object'||Array.isArray(object)||Object.keys(object).some(name=>!keys.includes(name)))throw error('INVALID_CATALOG','Unsupported Treasury item fields');}
-  function item(input){
-    exact(input,['id','revision','title','description','cost','purpose','target']);
-    if(typeof input.id!=='string'||!/^[a-z0-9][a-z0-9_-]{0,79}$/.test(input.id)||typeof input.title!=='string'||!input.title.trim()||input.title.length>100||typeof input.description!=='string'||input.description.length>500||/[\x00-\x1f\x7f]/.test(input.title+input.description))throw error('INVALID_CATALOG','Valid item identity and text are required');
-    positive(input.revision);positive(input.cost);
-    let target;
-    if(input.purpose==='group_cosmetic'){
-      exact(input.target,['kind','value']);if(input.target.kind!=='profile_frame'||!FRAMES.includes(input.target.value))throw error('INVALID_CATALOG','Choose an available cosmetic profile frame');
-      target={kind:'profile_frame',value:input.target.value};
-    }else if(input.purpose==='territory_entry'){
-      exact(input.target,['eventId']);positive(input.target.eventId);target={eventId:input.target.eventId};
-    }else if(input.purpose==='event_registration'){
-      exact(input.target,['eventId']);if(typeof input.target.eventId!=='string'||!/^[A-Za-z0-9_-]{1,100}$/.test(input.target.eventId))throw error('INVALID_CATALOG','A reviewed event identity is required');target={eventId:input.target.eventId};
-    }else throw error('INVALID_CATALOG','Treasury purchases support cosmetics and reviewed event entry only');
-    return {id:input.id,revision:input.revision,title:input.title.trim(),description:input.description,cost:input.cost,purpose:input.purpose,target};
-  }
   const targetKey=value=>value.purpose==='group_cosmetic'?`profile_frame:${value.target.value}`:String(value.target.eventId);
   function catalogRow(id,revision){const row=db.prepare('SELECT * FROM economy_group_treasury_catalog WHERE item_id=? AND revision=?').get(id,revision);if(!row)throw error('ITEM_UNAVAILABLE','Reviewed Treasury item unavailable',404);return row;}
   function register(input,reviewerSteamId){
@@ -61,10 +45,16 @@ function createGroupTreasurySpending(store,{enabled=()=>process.env.GROUP_TREASU
       db.prepare("INSERT INTO economy_group_treasury_catalog_audit(item_id,revision,action,actor) VALUES(?,?,'register',?)").run(value.id,value.revision,actor);return value;
     });
   }
-  function setEnabled(id,revision,value,reviewerSteamId){
+  function setEnabled(id,revision,value,reviewerSteamId,review=null){
     if(typeof value!=='boolean')throw error('INVALID_CATALOG','An explicit item availability is required');const actor=steam(reviewerSteamId);
     return atomic(()=>{
-      const row=catalogRow(id,positive(revision));if(Boolean(row.enabled)===value)return;
+      const row=catalogRow(id,positive(revision));
+      if(review){
+        const active=db.prepare('SELECT revision FROM economy_group_treasury_catalog WHERE item_id=? AND enabled=1').get(id)?.revision??null;
+        if(digest(JSON.parse(row.item_json))!==review.digest||active!==review.activeRevision)throw error('CATALOG_REVIEW_STALE','Catalog changed. Inspect and review the current revision again.',409);
+        if(value&&JSON.parse(row.item_json).purpose!=='group_cosmetic')throw error('FULFILLMENT_NOT_CONFIGURED','External entry items require an implemented delivery adapter',503);
+      }
+      if(Boolean(row.enabled)===value)return;
       if(value){for(const previous of db.prepare('SELECT revision FROM economy_group_treasury_catalog WHERE item_id=? AND enabled=1').all(id)){
         db.prepare('UPDATE economy_group_treasury_catalog SET enabled=0 WHERE item_id=? AND revision=?').run(id,previous.revision);
         db.prepare("INSERT INTO economy_group_treasury_catalog_audit(item_id,revision,action,actor) VALUES(?,?,'disable',?)").run(id,previous.revision,actor);
