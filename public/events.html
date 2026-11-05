@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="/assets/challenge-attendance-admin.css?v=1">
   <link rel="stylesheet" href="/assets/event-templates.css?v=1">
   <link rel="stylesheet" href="/assets/event-schedules.css?v=1">
+  <link rel="stylesheet" href="/assets/event-registrations.css?v=1">
 </head>
 <body>
   <div class="app-shell">
@@ -191,6 +192,14 @@
         <h2 id="event-schedule-calendar-heading">Website event schedules</h2>
         <p id="event-schedule-calendar-status" role="status"></p><button id="event-schedule-calendar-refresh" class="small-button" type="button">Refresh website schedules</button><div id="event-schedule-calendar-list"></div><button id="event-schedule-calendar-more" class="small-button" type="button" hidden>More website schedules</button>
       </section>
+      <section id="event-registration-panel" hidden aria-labelledby="event-registration-heading">
+        <h2 id="event-registration-heading">My event registrations</h2><p>Reserve a place with your linked Steam account. Registration does not confirm attendance, assign a team, charge coins or issue rewards.</p>
+        <p id="event-registration-preview"></p><p id="event-registration-status" role="status" aria-live="polite"></p><a id="event-registration-signin" href="/auth/steam" hidden>Sign in with Steam</a>
+        <button id="event-registration-refresh" class="small-button" type="button">Refresh my registrations</button><ul id="event-registration-list"></ul><button id="event-registration-more" class="small-button" type="button" hidden>More of my registrations</button>
+        <div id="event-registration-details"></div><button id="event-registration-join" class="small-button" type="button" disabled>Review reserving a place</button><button id="event-registration-leave" class="small-button" type="button" disabled>Review withdrawing registration</button>
+        <div id="event-registration-review" hidden><h3>Review before confirming</h3><div id="event-registration-summary"></div><button id="event-registration-confirm" class="small-button" type="button">Confirm registration choice</button><button id="event-registration-cancel" class="small-button" type="button">Close registration review</button></div>
+        <h3>Recent registration history</h3><ul id="event-registration-history"></ul>
+      </section>
       <section id="event-schedule-panel" hidden aria-labelledby="event-schedule-heading">
         <h2 id="event-schedule-heading">Plan a website event</h2>
         <p>Save a private draft from a template, then separately review publishing its schedule and rules on this website. This does not start a game event or post to Discord.</p>
@@ -243,6 +252,7 @@
   <script src="/assets/events-group-roster.js?v=1"></script>
   <script src="/assets/challenge-attendance-admin.js?v=1"></script>
   <script src="/assets/event-templates.js?v=1"></script>
-  <script src="/assets/event-schedules.js?v=1"></script>
+  <script src="/assets/event-schedules.js?v=2"></script>
+  <script src="/assets/event-registrations.js?v=1"></script>
 </body>
 </html>
