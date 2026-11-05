@@ -1,6 +1,6 @@
 # Treasury Territory entry delivery — local adapter
 
-`server/services/groupTreasuryTerritoryDelivery.js` implements the website-side registration effect for roadmap #17 using the existing `territory_event_registrations` and `territory_event_log` tables. It is an internal adapter, disabled by default and not mounted to an HTTP route or browser control. No live entries, catalog items, prices or coin movements were created while developing it.
+`server/services/groupTreasuryTerritoryDelivery.js` implements the website-side registration effect for roadmap #17 using the existing `territory_event_registrations` and `territory_event_log` tables. It is now connected through the durable owner purchase coordinator and existing Groups purchase endpoints. The rollout defaults off. No live entries, catalog items, prices or coin movements were created while developing it.
 
 ## Identity and delivery
 
@@ -26,13 +26,24 @@ HMAC-SHA256 covers a fixed protocol domain and a canonical exact field set, incl
 
 The private website-token API now exposes `spend-dispatch-territory` and `spend-settle-territory`. Dispatch requires configured proof verification and supports only Territory entry. Settlement independently verifies the signed final outcome and checks the stored purchase identity, price and target, including terminal retries. A delivered outcome commits the held charge; a not-delivered outcome releases the accepted hold without a debit or refund. A verified accepted delivery can settle when new spending is paused. Missing, unsigned, altered or unverifiable evidence leaves the hold unresolved. Existing general commit/release APIs continue to ignore caller-supplied fulfillment proof.
 
-These are internal service capabilities, not player purchase endpoints. The signing key is a service trust boundary; host operators and website server code with this key are trusted issuers. Browser users and possession of the separate private API token alone cannot forge outcome signatures. Retain the same permanent receipt during lost replies and restarts. Status reads do not dispatch, register or debit coins.
+The private dispatch and settlement endpoints remain internal service capabilities. The signing key is a service trust boundary; host operators and website server code with this key are trusted issuers. Browser users and possession of the separate private API token alone cannot forge outcome signatures. Retain the same permanent receipt during lost replies and restarts. Status checks never dispatch or register an entry; when a final local outcome already exists, they can finish its verified accounting settlement.
+
+## Owner purchase coordinator
+
+The existing Groups purchase flow supports a reviewed Territory entry item behind `GROUP_TREASURY_TERRITORY_ENABLED=0` on both services. Website availability additionally requires the existing `TERRITORY_WARS_ADMIN_TEST_ENABLED=1` runtime gate, both general Treasury rollout flags, the proof key and existing Territory tables. Historical tables alone cannot enable entry. Keep all rollout switches off until pricing, policy and staging review are complete. Controlled-test allowlists continue to apply.
+
+Review stores the exact item revision/price, website group, linked Territory group and name, link revision, and target event/name. No coins are held yet. Explicit unchecked-by-default consent authorizes that saved request. Confirmation checks its accounting status before any reservation, prepares the frozen binding, records dispatch, registers the entry and settles its signed final outcome. Retries reuse the same immutable ID. The public response contains purchase/binding details without the signing key, signed evidence or actor Steam IDs.
+
+A lost dispatch reply leaves the hold unresolved. Checking status does not create the entry; explicit finish can resume that same dispatched request. A lost settlement reply can recover the committed receipt without another registration or charge. If the local final outcome exists but accounting has not accepted it, status recovery can complete only that signed settlement. Pausing entry blocks new reservations/delivery while keeping final-outcome recovery and cancellation available.
+
+Cancellation first persists a bound non-delivery record, including when it overtakes reservation or preparation, before contacting accounting. Late preparation returns that terminal outcome; late dispatch cannot deliver. If delivery already won, cancellation returns the delivered outcome and completes its accepted charge instead of revoking/refunding the registration. A successor website owner can cancel the saved request without assuming the former owner's Territory leadership. Former owners cannot manage it or receive its management response after authority changes.
+
+The Groups review shows the saved Territory group and event and explains that cancellation retains held coins until non-delivery is verified. Cosmetic selection remains available independently. A changed link/event leaves the original request recoverable rather than redirecting it. Entry does not replace existing free registration or impose a general event fee; choosing the live fee policy remains a review requirement.
 
 ## Remaining integration
 
-- Connect a durable owner-authorized purchase coordinator to reservation, prepared binding, recorded dispatch and this delivery adapter.
-- Wire the owner coordinator to database signing and the implemented accounting settlement API. Keep unavailable-website requests and uncertain dispatched holds retained until the persisted final outcome can be signed and verified. The internal proof/settlement connection is locally tested, but no player coordinator is mounted yet.
-- Add reviewed entry catalog activation and owner controls only after the full effect/charge/recovery path is connected. The operator tool currently rejects external-item activation.
+- Rehearse the implemented owner coordinator and database signing/settlement against authenticated staging. Keep unavailable-website requests and uncertain dispatched holds retained until the final outcome can be verified.
+- Review actual entry prices and policy before activating an entry catalog. The operator tool permits reviewed Territory activation only with its dedicated rollout flag and proof key configured; it still rejects unsupported group-event activation.
 - Implement a separate actual group event-registration path; the current Discord RSVP system records individual attendance and is not group paid registration.
 - Review live prices/policy and rehearse authenticated staging, backups, failure recovery and hosted checks before separately approved production rollout.
 
@@ -40,4 +51,6 @@ These are internal service capabilities, not player purchase endpoints. The sign
 
 Eleven delivery tests use temporary website databases, synthetic accounting responses and the actual Territory registration schema. They cover the registration effect and log, request replay/reinitialization, dispatch requirement, owner/leader checks, frozen link revisions, ended/test events, prior free entry, failed-audit rollback, cancellation during a delayed read, disabled/missing accounting, group closure, membership loss during a read and independent delivery/cancellation processes.
 
-Seven additional settlement tests use real local private HTTP routes, separate temporary website/economy databases and synthetic coins. They cover signed delivery-to-charge and cancellation-to-release, every signed field, wrong keys and tokens, ignored proof injection on older endpoints, missing local effect/audit, lost settlement replies, reissuing receipts from a fresh process, paused spending and prior free registration. They prove the internal cross-service connection locally, not the remaining owner coordinator, live catalog policy or authenticated staging behavior.
+Seven additional settlement tests use real local private HTTP routes, separate temporary website/economy databases and synthetic coins. They cover signed delivery-to-charge and cancellation-to-release, every signed field, wrong keys and tokens, ignored proof injection on older endpoints, missing local effect/audit, lost settlement replies, reissuing receipts from a fresh process, paused spending and prior free registration.
+
+Ten owner-coordinator HTTP tests cover consent/authority, immutable review, lost dispatch/settlement replies, cancellation before preparation and during dispatch, owner succession, link/event changes, paused entry, parallel confirmations and dormant Territory runtime. The real Groups browser fixture passes at 1440px and 390px with saved target display, lost dispatch recovery, cancellation races and the existing cosmetic/member/session checks. This evidence uses synthetic prices and local accounts; live policy, authenticated staging and production remain unverified.

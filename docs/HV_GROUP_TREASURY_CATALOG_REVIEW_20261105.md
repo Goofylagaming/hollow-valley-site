@@ -8,7 +8,7 @@ Access to the automation host/database is the authorization boundary. The suppli
 
 Supply an operator-approved JSON file with exactly `id`, `revision`, `title`, `description`, `cost`, `purpose` and `target`. `revision` and `cost` must be positive safe whole integers; cost is in Valley Coins. Cosmetic purpose is `group_cosmetic`, with target `{ "kind": "profile_frame", "value": "fern" }` (also `sandstone` or `night`). Prices are a product decision and must be reviewed separately; the tool supplies no default prices. Extra combat/stat fields are rejected.
 
-Territory/event targets can be staged for review but this operator tool refuses to activate them until a real delivery adapter is implemented. Browser purchases currently support cosmetic frames only.
+Territory targets can be staged for review. Activation additionally requires automation GROUP_TREASURY_TERRITORY_ENABLED=1 and a configured dedicated proof key. Website entry also requires its matching flag, proof key and existing Territory runtime flag. Leave them off until approved policy/prices and staging evidence are ready. Group event-registration targets remain unavailable because their fulfillment path is unfinished.
 
 ## Review, stage and inspect
 
@@ -43,4 +43,4 @@ Keep the review output with the change record. Confirm only the intended revisio
 
 ## Local evidence
 
-Seven dedicated tests use synthetic prices and temporary databases. They cover read-only review, exact content matching, no accidental database creation, wrong-database rejection, immutable revisions, activation/retirement audits, stale reviews, rollback on failed audit, external activation rejection, independent-process persistence and competing operator activation. These checks do not constitute live price approval or authenticated staging evidence.
+Eight dedicated tests use synthetic prices and temporary databases. They cover read-only review, exact content matching, no accidental database creation, wrong-database rejection, immutable revisions, activation/retirement audits, stale reviews, rollback on failed audit, gated Territory activation and unsupported group-event rejection, independent-process persistence and competing operator activation. These checks do not constitute live price approval or authenticated staging evidence.

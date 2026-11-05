@@ -26,6 +26,7 @@ router.post('/spend-reserve',run(req=>getSpending().reserve(purchase(req))));
 router.post('/spend-commit',run(req=>getSpending().commit({groupId:req.body?.groupId,requestId:req.body?.requestId,actorSteamId:req.body?.actorSteamId})));
 router.post('/spend-release',run(req=>getSpending().release(purchase(req))));
 router.post('/spend-dispatch-territory',run(req=>{
+ if(process.env.GROUP_TREASURY_TERRITORY_ENABLED!=='1')throw Object.assign(new Error('New Territory spending is not enabled'),{status:503,code:'TREASURY_SPENDING_DISABLED'});
  if(!territoryProof.configured(process.env.GROUP_TREASURY_TERRITORY_PROOF_SECRET))throw Object.assign(new Error('Territory evidence verification is not configured'),{status:503,code:'FULFILLMENT_NOT_CONFIGURED'});
  const order=getSpending().read(req.body?.groupId,req.body?.requestId);
  if(order.item.purpose!=='territory_entry')throw Object.assign(new Error('Only Territory entry dispatch is available'),{status:409,code:'INVALID_SPEND'});

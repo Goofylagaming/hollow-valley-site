@@ -97,3 +97,20 @@ test('competing operator processes cannot replace the same reviewed active revis
   assert.match(outputs.find(value => value.status !== 0).stderr, /changed/);
   assert.equal(db.prepare("SELECT COUNT(*) n FROM economy_group_treasury_catalog WHERE enabled=1").get().n, 1);
 });
+test('reviewed Territory activation requires its own flag and proof key; group event registration remains unavailable', t => {
+  const { service, item, args } = fixture(t);
+  const entry={...item,id:'entry-reviewed',purpose:'territory_entry',target:{eventId:5}};
+  service.register(entry,A);
+  const oldFlag=process.env.GROUP_TREASURY_TERRITORY_ENABLED,oldKey=process.env.GROUP_TREASURY_TERRITORY_PROOF_SECRET;
+  try {
+    process.env.GROUP_TREASURY_TERRITORY_ENABLED='1';delete process.env.GROUP_TREASURY_TERRITORY_PROOF_SECRET;
+    assert.throws(()=>main(args('enable',entry)),/delivery adapter/);
+    process.env.GROUP_TREASURY_TERRITORY_PROOF_SECRET='synthetic-catalog-entry-key-000000000';
+    assert.equal(main(args('enable',entry)).enabled,true);
+    const event={...entry,id:'event-entry',purpose:'event_registration',target:{eventId:'reviewed-event'}};service.register(event,A);
+    assert.throws(()=>main(args('enable',event)),/delivery adapter/);
+  } finally {
+    if(oldFlag===undefined)delete process.env.GROUP_TREASURY_TERRITORY_ENABLED;else process.env.GROUP_TREASURY_TERRITORY_ENABLED=oldFlag;
+    if(oldKey===undefined)delete process.env.GROUP_TREASURY_TERRITORY_PROOF_SECRET;else process.env.GROUP_TREASURY_TERRITORY_PROOF_SECRET=oldKey;
+  }
+});

@@ -72,7 +72,15 @@ function createGroupTreasuryTerritoryDelivery(db, groups, accounting, { enabled 
     if (!event || !['scheduled', 'live', 'paused'].includes(event.status)) throw fail('ENTRY_EVENT_UNAVAILABLE', 'The Territory event is not open for entry');
     if (event.live_test_mode && !db.prepare('SELECT 1 FROM territory_live_test_groups WHERE event_id=? AND group_id=?').get(eventId, territoryGroupId)) throw fail('ENTRY_TEST_RESTRICTED', 'The linked group is not allowed in this controlled test', 403);
   }
-  async function prepare(actor, { expectedGroupId, requestId } = {}) {
+  function preview(actor, { expectedGroupId, item } = {}) {
+    owner(actor, expectedGroupId); const value = validateItem(item);
+    if (value.purpose !== 'territory_entry') throw fail('INVALID_ENTRY_REQUEST', 'A Territory entry item is required', 400);
+    const link = activeLink(actor, expectedGroupId); availableEvent(value.target.eventId, link.territoryGroupId);
+    return { territoryGroupId: link.territoryGroupId, linkRevision: link.revision, eventId: value.target.eventId,
+      territoryGroupName: db.prepare('SELECT name FROM territory_groups WHERE id=?').get(link.territoryGroupId).name,
+      eventName: db.prepare('SELECT name FROM territory_events WHERE id=?').get(value.target.eventId).name };
+  }
+  async function prepare(actor, { expectedGroupId, requestId, binding } = {}) {
     if (!enabled()) throw fail('ENTRY_DELIVERY_DISABLED', 'Treasury Territory delivery is not enabled', 503);
     const item = await reservation(actor, expectedGroupId, requestId, ['reserved']);
     return atomic(() => {
@@ -84,6 +92,7 @@ function createGroupTreasuryTerritoryDelivery(db, groups, accounting, { enabled 
         return project(old);
       }
       const link = activeLink(actor, expectedGroupId); availableEvent(item.target.eventId, link.territoryGroupId);
+      if (binding && (binding.territoryGroupId !== link.territoryGroupId || binding.linkRevision !== link.revision || binding.eventId !== item.target.eventId)) throw fail('ENTRY_LINK_CHANGED', 'The reviewed Territory entry changed; resolve this saved request');
       db.prepare(`INSERT INTO hv_treasury_territory_delivery(request_id,proof_id,group_id,territory_group_id,link_revision,event_id,item_json,created_by,outcome)
         VALUES(?,?,?,?,?,?,?,?,'pending')`).run(requestId, randomUUID(), expectedGroupId, link.territoryGroupId, link.revision, item.target.eventId, JSON.stringify(item), actor);
       audit(requestId, actor, 'pending'); return project(read(actor, expectedGroupId, requestId));
@@ -115,6 +124,23 @@ function createGroupTreasuryTerritoryDelivery(db, groups, accounting, { enabled 
   function cancel(actor, { expectedGroupId, requestId } = {}) {
     return atomic(() => { const row = read(actor, expectedGroupId, requestId); return row.outcome === 'pending' ? finish(row, actor, 'not_delivered', 'CANCELLED_BEFORE_DELIVERY') : project(row); });
   }
+  function cancelSaved(actor, { expectedGroupId, requestId, item, binding } = {}) {
+    const value = validateItem(item); key(requestId);
+    if (value.purpose !== 'territory_entry' || !binding || !Number.isSafeInteger(binding.territoryGroupId) || binding.territoryGroupId < 1 || !Number.isSafeInteger(binding.linkRevision) || binding.linkRevision < 1 || binding.eventId !== value.target.eventId) throw fail('INVALID_ENTRY_REQUEST', 'Saved Territory entry details are required', 400);
+    return atomic(() => {
+      owner(actor, expectedGroupId);
+      const old = db.prepare('SELECT * FROM hv_treasury_territory_delivery WHERE request_id=?').get(requestId);
+      if (old) {
+        if (old.group_id !== expectedGroupId || old.item_json !== JSON.stringify(value) || old.territory_group_id !== binding.territoryGroupId || old.link_revision !== binding.linkRevision) throw fail('ENTRY_REQUEST_CONFLICT', 'Saved entry has different details');
+        return old.outcome === 'pending' ? finish(old, actor, 'not_delivered', 'CANCELLED_BEFORE_DELIVERY') : project(old);
+      }
+      // A cancellation may overtake reservation/preparation. Keep its binding
+      // and terminal outcome before any remote call so late work cannot deliver.
+      db.prepare(`INSERT INTO hv_treasury_territory_delivery(request_id,proof_id,group_id,territory_group_id,link_revision,event_id,item_json,created_by,outcome,reason,resolved_at)
+        VALUES(?,?,?,?,?,?,?,?,'not_delivered','CANCELLED_BEFORE_DELIVERY',datetime('now'))`).run(requestId, randomUUID(), expectedGroupId, binding.territoryGroupId, binding.linkRevision, binding.eventId, JSON.stringify(value), actor);
+      audit(requestId, actor, 'not_delivered'); return project(read(actor, expectedGroupId, requestId));
+    });
+  }
   function signedEvidence(actor, { expectedGroupId, requestId } = {}) {
     return atomic(() => {
       const row = read(actor, expectedGroupId, requestId);
@@ -131,6 +157,6 @@ function createGroupTreasuryTerritoryDelivery(db, groups, accounting, { enabled 
       return proof.sign(project(row).evidence, proofSecret());
     });
   }
-  return { prepare, deliver, cancel, signedEvidence, read: (actor, { expectedGroupId, requestId } = {}) => project(read(actor, expectedGroupId, requestId)) };
+  return { preview, prepare, deliver, cancel, cancelSaved, signedEvidence, read: (actor, { expectedGroupId, requestId } = {}) => project(read(actor, expectedGroupId, requestId)) };
 }
 module.exports = { createGroupTreasuryTerritoryDelivery };
