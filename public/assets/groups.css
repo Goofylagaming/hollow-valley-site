@@ -9,6 +9,9 @@
 .groups-form{margin:14px 0;display:grid;gap:8px;max-width:760px}
 .groups-form[hidden]{display:none}
 .groups-page footer{width:auto;margin-right:12px}
+#group-treasury{overflow-wrap:anywhere}
+#treasury-amount{min-width:0;max-width:100%;padding:10px;background:#061914;color:#f1f7f4;border:1px solid rgba(72,125,103,.4);border-radius:8px;font:inherit}
+#treasury-pending button{margin:8px 8px 8px 0}
 .groups-form label{font-weight:600;color:#b1d7ca}
 .groups-form small,.groups-person small,.groups-row small,.groups-history-card small{display:block;color:#9dafaa;font-size:12px}
 .groups-inline{display:flex;gap:10px}

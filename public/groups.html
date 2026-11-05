@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="/assets/styles.css?v=22">
   <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=4">
-  <link rel="stylesheet" href="/assets/groups.css?v=3">
+  <link rel="stylesheet" href="/assets/groups.css?v=4">
 </head>
 <body class="has-my-stuff-rail groups-page">
   <div class="app-shell">
@@ -108,6 +108,21 @@
             <ol id="hq-battles"></ol><a href="/territory-wars">Open Territory Wars</a>
           </section>
         </section>
+        <section class="panel groups-card" id="group-treasury" hidden>
+          <h2>Group Treasury</h2>
+          <p>Voluntary member donations stay in the group wallet. Group XP is a separate score.</p>
+          <p id="treasury-group"></p><p>Group balance: <strong id="treasury-balance">Unavailable</strong></p>
+          <p id="treasury-availability"></p><p id="treasury-status" role="status" aria-live="polite"></p>
+          <button id="treasury-refresh" class="small-button" type="button">Refresh Treasury</button>
+          <form id="treasury-form" class="groups-form" hidden>
+            <label for="treasury-amount">Valley Coins to donate</label>
+            <input id="treasury-amount" type="text" inputmode="numeric" pattern="[0-9]+" maxlength="16" required autocomplete="off">
+            <button id="treasury-review" class="small-button" disabled>Review donation</button>
+          </form>
+          <div id="treasury-pending"></div>
+          <details><summary>Recent group transactions</summary><ol id="treasury-transactions"></ol></details>
+          <h3>Your recent donation requests</h3><ol id="treasury-history"></ol>
+        </section>
         <section class="panel groups-card">
           <div class="list-heading"><span>GROUP INVITATIONS</span><span>Accept or decline</span></div>
           <div id="groups-incoming" class="groups-rows"></div>
@@ -124,5 +139,6 @@
   <script src="/assets/groups.js?v=4"></script>
   <script src="/assets/group-headquarters.js?v=5"></script>
   <script src="/assets/group-territory.js?v=1"></script>
+  <script src="/assets/group-treasury.js?v=1"></script>
 </body>
 </html>

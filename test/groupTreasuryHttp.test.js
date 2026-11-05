@@ -131,3 +131,11 @@ test('a pending group balance read is rejected after membership ends',async()=>{
   groups.exitGroup(f.A);heldRead();heldRead=null;const result=await pending;
   assert.equal(result.status,409);assert.equal(result.body.treasury,undefined);
 });
+test('saved request recovery is donor-scoped and does not depend on an accounting balance read',async()=>{
+  const f=seed(),id=(await prepare(f)).body.id,before=calls.read;
+  const own=await request(f.A,'/donations?steamId='+f.B+'&groupId=999');
+  assert.equal(own.status,200);assert.equal(own.cache,'private, no-store');assert.equal(own.body.group.id,f.groupId);
+  assert.equal(own.body.donations[0].id,id);assert.equal(own.body.hasGroupActivity,false);
+  const other=await request(f.B,'/donations?steamId='+f.A);
+  assert.deepEqual(other.body.donations,[]);assert.equal(other.body.group,null);assert.equal(calls.read,before);
+});
