@@ -333,3 +333,13 @@ exact expiry, and preservation of reports and active copies. Server entrypoint
 syntax also passes. Hosted startup/shutdown and staging cleanup have not been
 verified. Production retention configuration, staging, and production delivery
 remain pending. No live flag, key, retained data, push, merge or deployment changed.
+
+## Retention decision received
+
+The user approved 90 days from capture on 6 November 2026. The current decision is
+recorded in HV_REPORT_CONTEXT_RETENTION_POLICY.md and .env.example now specifies
+90 days while the save/context/cleanup rollout flags remain disabled and the
+review key remains empty. Earlier chronological notes describing a pending
+retention choice are superseded by this decision. No existing expiry, production
+environment setting or retained data changed. Host cleanup/backup verification,
+key configuration, authenticated staging and production verification remain open.

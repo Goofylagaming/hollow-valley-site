@@ -209,6 +209,7 @@ app.use('/api/website/territory-results', require('./routes/websiteTerritoryResu
 app.use('/api/website/group-treasury', require('./routes/websiteGroupTreasuryRoutes'));
 app.use('/api/website/title-evidence', require('./routes/websiteTitleEvidenceRoutes'));
 app.use('/api/admin/achievement-reviews', require('./routes/achievementReviewRoutes'));
+app.use('/api/admin/incident-marketplace', require('./routes/incidentMarketplaceAdminRoutes').createIncidentMarketplaceRouter({db:require('./services/economyStore').db}));
 app.use('/api/admin/challenge-attendance', require('./routes/challengeAttendanceAdminRoutes'));
 
 app.use('/api/website/admin-wallet', (_req, res, next) => {

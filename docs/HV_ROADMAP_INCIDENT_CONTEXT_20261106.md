@@ -123,3 +123,52 @@ Authenticated staging, real-source validation, connection/dinosaur-action/
 marketplace-specific sources, and complete historical search remain unfinished.
 The production retention decision and separately prepared publication candidates
 are unchanged. No live flag, key, report data, push, merge or deployment changed.
+
+## Optional official marketplace records (homepage v152)
+
+A separate default-off source now reads official marketplace order timestamps
+for the selected player and the same bounded incident window. Both website and
+automation have INCIDENT_MARKETPLACE_CONTEXT_ENABLED=0 by default. The automation
+GET /api/admin/incident-marketplace/context requires the admin token, accepts only
+steamId and occurredAt, and receives the existing economy DB handle at startup.
+Its source query does not initialize schema, seed a catalog, parse fulfillment
+JSON, call a reconciler, purchase, refund, publish commands or touch wallets.
+
+The source selects only order IDs and stored creation/update/fulfillment timestamp
+fields, plus the current stored status for a latest-update entry. SQL scopes each
+branch to the exact player/window and returns at most 51 rows; output is capped
+at 50 and discloses truncation. SQLite UTC-second and canonical UTC-millisecond
+timestamps are normalized without local timezone inference. Creation and
+fulfillment-timestamp entries have status recorded; the latest stored status is
+not retroactively applied to creation. Unknown statuses remain unknown. These
+records neither verify in-game delivery nor reconstruct a full status history.
+Peer-to-peer marketplace listings and trades are not included.
+
+The website's fixed admin API client and strict projection bind the response to
+the selected player/time, validate all IDs/kinds/statuses/windows, strip extra
+fields and reject duplicate or oversized payloads. Marketplace errors/malformed
+replies are marked partial without suppressing other available sources. A disabled
+source is labelled disabled, not a successful empty history. Turning off its flag
+while a reply is pending withholds those rows. The combined view still caps total
+output at 200 and uses existing post-read account/permission/report checks.
+No retained source order, wallet, report or evidence snapshot is changed.
+
+90 distinct local checks pass across the report and incident workflows. Added
+fixtures cover bounded exact-player SQL, UTC normalization, read-only DB mode,
+no schema creation, no retroactive status inference, admin-token/private HTTP
+reads, the real website API client, invalid projections and runtime disabling.
+A two-service local HTTP test follows the website route through the real client
+and admin-token source, with both DBs in query-only mode. Actual-page desktop1440
+and phone390 fixtures render all three order timestamp types, disclose missing/
+invalid/disabled sources, preserve other sources and confirm no DB writes. The
+phone layout was visually checked. The existing linked-report, account-switch,
+role-revocation and literal-chat browser flows continue to pass in that fixture.
+CI now includes the source, client/integration tests and affected path triggers.
+
+The user has separately selected saved report context retention of 90 days from
+capture. That policy applies to explicitly preserved chat/combat context; the
+marketplace timeline source adds no persistence or retention changes. See
+HV_REPORT_CONTEXT_RETENTION_POLICY.md. Real-source semantics, authenticated
+staging, connection/dinosaur-action sources, P2P marketplace records, complete
+historical search and production delivery remain pending. No live flags, key,
+production data, push, merge or deployment changed.

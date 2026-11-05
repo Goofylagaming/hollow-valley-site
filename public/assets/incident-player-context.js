@@ -49,8 +49,10 @@
     panel.append(node('h3','Player incident context'), node('p','Player '+query.steamId+' · '+time(result.windowStart)+' — '+time(result.windowEnd)),
       node('p','Time and player matches are context, not proof. This is a bounded recent-history search, not a complete record. No report or moderation decision was changed.'));
     if (result.partialSources.length) panel.append(node('p','Unavailable sources: '+result.partialSources.join(', ')+'.'));
+    if (result.disabledSources?.length) panel.append(node('p','Disabled sources: '+result.disabledSources.join(', ')+'.'));
     if (result.hasMoreUnloaded) panel.append(node('p','Results or source history are limited; additional matching records may be missing.'));
     panel.append(node('p','Operator audits and requests search only their newest 200 and 100 entries. Chat searches at most 500 retained messages. Combat and chat each return at most 50 matches; the combined view shows at most 200.'));
+    panel.append(node('p','The optional official marketplace source returns up to 50 stored order timestamps. A current order update is not a complete status history, and a fulfillment timestamp does not verify delivery in the game.'));
     if (!result.events.length) panel.append(node('p','No matching retained records were returned. This does not establish that nothing happened.'));
     const list = node('ol',''); list.className = 'hv-incident-context-events';
     for (const event of result.events) {

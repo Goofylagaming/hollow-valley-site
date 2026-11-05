@@ -9,7 +9,7 @@ function fixture(t) {
   const db = new DatabaseSync(':memory:'); t.after(() => db.close());
   db.exec('CREATE TABLE users(id INTEGER PRIMARY KEY,steam_id TEXT,is_admin INTEGER)');
   db.prepare('INSERT INTO users VALUES(3,?,1),(4,?,1),(1,?,0)').run(MOD,OTHER,PLAYER);
-  let user = {id:3,steam_id:MOD}, enabled = true, clock = AT;
+  let user = {id:3,steam_id:MOD}, enabled = true, clock = AT, marketplace = false;
   const calls = [], text = 'Recorded <img src=x> statement.';
   const raw = {version:1,scope:'report-participant-context',reportedTime:iso(AT-60000),windowStart:iso(AT-960000),windowEnd:iso(AT),associationOnly:true,complete:false,retainedChatLimit:500,
     combat:{available:true,truncated:false,events:[{id:'combat-one',at:iso(AT-30000),attacker:null,victim:'reporter',otherPlayerIdentityWithheld:true,location:'PRIVATE'}]},
@@ -21,9 +21,9 @@ function fixture(t) {
     getAdminRequests: async args => {calls.push(['requests',args]);return {requests:[request]};},
     getAdminReportContext: async args => {calls.push(['context',args]);return raw;},
   };
-  const reader = createIncidentPlayerContext({db,automation,enabled:()=>enabled,now:()=>clock});
+  const reader = createIncidentPlayerContext({db,automation,enabled:()=>enabled,marketplaceEnabled:()=>marketplace,now:()=>clock});
   const input = {steamId:PLAYER,occurredAt:iso(AT-60000)}, binding = '3:'+MOD;
-  return {db,reader,automation,raw,audit,request,calls,input,binding,getUser:()=>user,user:value=>{user=value;},enable:value=>{enabled=value;},time:value=>{clock=value;},read:()=>reader.read(()=>user,binding,input)};
+  return {db,reader,automation,raw,audit,request,calls,input,binding,getUser:()=>user,user:value=>{user=value;},enable:value=>{enabled=value;},enableMarketplace:value=>{marketplace=value;},time:value=>{clock=value;},read:()=>reader.read(()=>user,binding,input)};
 }
 
 test('one player/time window merges four read-only sources without forwarding raw details or third-party game identities',async t=>{
@@ -105,4 +105,22 @@ test('report detail reads require current linked admin binding and enabled rollo
   assert.throws(()=>f.reader.reportDetails(f.getUser,f.binding,'20000000-0000-4000-8000-000000000002'),{status:404});
   f.db.prepare('UPDATE player_reports SET reported_steam_id=?').run(PLAYER);assert.throws(f.details,{status:409});
   f.user({id:1,steam_id:PLAYER,is_admin:1});assert.throws(f.details,{status:403});assert.equal(f.calls.length,0);
+});
+
+function marketplaceFixture(t){
+ const f=fixture(t),orderId='10000000-0000-4000-8000-000000000004';
+ f.marketplace={version:1,scope:'official-order-records',steamId:PLAYER,occurredAt:f.input.occurredAt,windowStart:iso(AT-960000),windowEnd:iso(AT),complete:false,gameDeliveryVerified:false,truncated:false,events:[{id:orderId+':latest-update',orderId,at:iso(AT-5000),kind:'latest-update',status:'failed',payload:'PRIVATE'}],error:'PRIVATE'};
+ f.automation.getAdminIncidentMarketplaceContext=async input=>{f.calls.push(['marketplace',input]);return f.marketplace;};return f;
+}
+test('marketplace reads require their separate flag and project only bounded order facts without claiming game delivery',async t=>{
+ const f=marketplaceFixture(t);let result=await f.read();assert.deepEqual(result.disabledSources,['marketplace']);assert.equal(f.calls.some(([name])=>name==='marketplace'),false);
+ f.enableMarketplace(true);result=await f.read();assert.deepEqual(result.disabledSources,[]);const event=result.events.find(row=>row.source==='marketplace');assert.equal(event.status,'failed');assert.equal(event.action,'Latest recorded order update');assert.equal(event.gameDeliveryVerified,false);assert.deepEqual(f.calls.at(-1),['marketplace',f.input]);assert.doesNotMatch(JSON.stringify(result),/PRIVATE|payload|error/);
+});
+test('wrong-player/time, duplicate, excessive or invalid marketplace payloads are withheld and marked partial',async t=>{
+ for(const change of [f=>{f.marketplace.steamId=OTHER;},f=>{f.marketplace.occurredAt=iso(AT);},f=>{f.marketplace.gameDeliveryVerified=true;},f=>{f.marketplace.events.push(f.marketplace.events[0]);},f=>{f.marketplace.events=Array(51).fill(f.marketplace.events[0]);},f=>{f.marketplace.events[0].status='PRIVATE';},f=>{f.marketplace.events[0].kind=['latest-update'];},f=>{f.marketplace.events[0].at=iso(AT+1);},f=>{f.automation.getAdminIncidentMarketplaceContext=async()=>{throw Error('PRIVATE');};}]){
+  const f=marketplaceFixture(t);f.enableMarketplace(true);change(f);const result=await f.read();assert.deepEqual(result.partialSources,['marketplace']);assert.equal(result.events.some(row=>row.source==='marketplace'),false);assert.doesNotMatch(JSON.stringify(result),/PRIVATE/);
+ }
+});
+test('disabling marketplace collection while its reply is pending withholds that reply while retaining other sources',async t=>{
+ const f=marketplaceFixture(t);f.enableMarketplace(true);let release;const hold=new Promise(r=>{release=r;});f.automation.getAdminIncidentMarketplaceContext=async()=>{await hold;return f.marketplace;};const pending=f.read();await Promise.resolve();f.enableMarketplace(false);release();const result=await pending;assert.deepEqual(result.disabledSources,['marketplace']);assert.equal(result.events.some(row=>row.source==='marketplace'),false);assert.equal(result.events.length,4);
 });

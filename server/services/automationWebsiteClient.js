@@ -662,6 +662,9 @@ function getAdminReportContext({reporterSteamId,reportedSteamId,occurredAt}) {
   if(reportedSteamId)params.set('reportedSteamId',String(reportedSteamId));
   return callAdmin('/combat/report-context?'+params.toString());
 }
+function getAdminIncidentMarketplaceContext({steamId,occurredAt}) {
+  return callAdmin('/incident-marketplace/context?'+new URLSearchParams({steamId:validateSteamId(steamId),occurredAt:String(occurredAt||'')}));
+}
 
 function getAdminOperationsStatus({ force = false } = {}) {
   return callAdmin(`/status${force ? '?force=1' : ''}`);
@@ -923,6 +926,7 @@ module.exports = {
   confirmAllAdminEventAttendance,
   awardAdminEventBonus,
   getAdminReportContext,
+  getAdminIncidentMarketplaceContext,
   getAdminOperationsStatus,
   getAdminAudit,
   getAdminRequests,
