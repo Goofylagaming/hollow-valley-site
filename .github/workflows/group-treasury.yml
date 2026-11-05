@@ -7,6 +7,13 @@ on:
       - 'automation-platform/test/groupTreasury.test.js'
       - 'automation-platform/test/economyWallet.test.js'
       - 'automation-platform/test/marketplaceEconomy.test.js'
+      - 'automation-platform/src/routes/websiteGroupTreasuryRoutes.js'
+      - 'server/routes/groupTreasury.js'
+      - 'server/services/groupTreasury.js'
+      - 'server/services/automationWebsiteClient.js'
+      - 'server/index.js'
+      - 'automation-platform/src/index.js'
+      - 'test/groupTreasuryHttp.test.js'
       - 'server/services/roadmapCommunity.js'
       - 'test/roadmapCommunity.test.js'
       - '.github/workflows/group-treasury.yml'
@@ -22,4 +29,4 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: node --test automation-platform/test/groupTreasury.test.js automation-platform/test/economyWallet.test.js automation-platform/test/marketplaceEconomy.test.js test/roadmapCommunity.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js
+      - run: node --test automation-platform/test/groupTreasury.test.js automation-platform/test/economyWallet.test.js automation-platform/test/marketplaceEconomy.test.js test/groupTreasuryHttp.test.js test/roadmapCommunity.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js
