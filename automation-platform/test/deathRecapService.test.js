@@ -17,6 +17,12 @@ test('recaps disclose delayed victim-owned events and preserve unknown historica
     assert.equal(result.recaps.length, 1); assert.equal(result.recaps[0].id, 'owned');
     assert.equal(result.recaps[0].attackerName, 'Attacker'); assert.equal(result.recaps[0].location, null);
     assert.equal(result.recaps[0].attackerSpecies, null); assert.equal(JSON.stringify(result).includes(other), false);
+    assert.equal(result.recaps[0].recentCombat.length,1);
+    assert.equal(result.recaps[0].recentCombat[0].type,'kill');
+    insert.run('unrelated',new Date(now-400000).toISOString(),'Someone',other,'76561198000000803');
+    insert.run('too-early',new Date(now-1000000).toISOString(),'Earlier',steam,other);
+    insert.run('in-window',new Date(now-400000).toISOString(),'Recorded',steam,other);
+    assert.equal(service.list(steam).recaps[0].recentCombat.length,2);
     db.exec('ALTER TABLE combat_events ADD COLUMN victim_species TEXT');
     db.prepare('UPDATE combat_events SET victim_species=? WHERE id=?').run('rex', 'owned');
     assert.equal(service.list(steam).recaps[0].victimSpecies, 'rex');

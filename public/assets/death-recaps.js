@@ -28,7 +28,13 @@
           ['Survival time', recap.survivalSeconds == null ? 'Unknown' : `${recap.survivalSeconds} seconds`]
         ];
         for (const [label, value] of fields) details.append(node('dt', label), node('dd', value));
-        article.append(details); list.append(article);
+        article.append(details);
+        article.append(node('h3','Recent recorded combat'));
+        article.append(node('p','Up to 10 recorded events involving your account in the preceding 10 minutes.'));
+        const timeline = document.createElement('ul');
+        for (const event of recap.recentCombat || []) timeline.append(node('li',`${event.type === 'kill' ? 'Kill' : 'Death'} recorded · ${new Date(event.occurredAt).toLocaleString()}`));
+        if (!timeline.childElementCount) timeline.append(node('li','No other matching combat records.'));
+        article.append(timeline); list.append(article);
       }
       if (!data.recaps.length) list.append(node('p', 'No eligible death records are available yet.'));
       status.textContent = 'Showing your recorded events. Unknown values were absent from the event evidence.';

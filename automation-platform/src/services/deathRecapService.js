@@ -23,7 +23,13 @@ function createDeathRecapService(db, { now = Date.now, enabled = () => process.e
       victimSpecies: row.victim_species || null,
       attackerSpecies: row.killer_species || null, growth: row.victim_growth ?? null, location: null,
       eventLocation: row.event_location ? JSON.parse(row.event_location) : null,
-      dinosaurAge: null, survivalSeconds: null
+      dinosaurAge: null, survivalSeconds: null,
+      recentCombat: db.prepare(`SELECT id,occurred_at,victim_steam_id FROM combat_events
+        WHERE (victim_steam_id=? OR killer_steam_id=?) AND id<>?
+        AND julianday(occurred_at)<=julianday(?) AND julianday(occurred_at)>=julianday(?)
+        ORDER BY julianday(occurred_at) DESC,id DESC LIMIT 10`)
+        .all(steamId,steamId,row.id,row.occurred_at,new Date(Date.parse(row.occurred_at)-600000).toISOString())
+        .map(event=>({type:event.victim_steam_id===steamId?'death':'kill',occurredAt:event.occurred_at}))
     })) };
   }
   return { list };
