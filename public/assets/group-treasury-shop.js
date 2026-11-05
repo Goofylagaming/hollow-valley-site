@@ -2,7 +2,7 @@
   const {api,loadMe}=window.HDS,get=id=>document.getElementById(id),base='/api/group-treasury';
   const frames={none:'Standard',fern:'Fern',sandstone:'Sandstone',night:'Night'},money=value=>`${Number(value).toLocaleString()} Valley Coins`;
   const pending=row=>['draft','submitted','reserved'].includes(row.state);
-  let model=null,assets=null,caps={},ready=false,active=false,busy=null,generation=0,expectedGroup;
+  let model=null,assets=null,registrations=null,caps={},ready=false,active=false,busy=null,generation=0,expectedGroup;
   const manage=()=>ready&&model?.canManage&&!caps.readOnly;
   function controls(){
     get('treasury-shop-refresh').disabled=Boolean(busy);
@@ -31,14 +31,18 @@
     const history=get('treasury-purchase-history');history.replaceChildren();
     for(const value of purchases){const li=document.createElement('li');li.textContent=`${value.item.title} · ${money(value.item.cost)} · ${{draft:'Awaiting confirmation',submitted:'Outcome pending',reserved:'Reservation recorded; check outcome',committed:'Purchased',released:'Released'}[value.state]||'Unknown'}`;history.append(li);}
     if(!purchases.length){const li=document.createElement('li');li.textContent='No group purchases yet.';history.append(li);}
+    const registrationList=get('treasury-event-registrations');registrationList.replaceChildren();
+    get('treasury-event-registration-status').textContent=registrations===null?'Registrations have not been verified.':registrations.length?'Registration covers the group; individual attendance and rewards are separate.':'No recorded group event registrations.';
+    for(const row of registrations||[]){const li=document.createElement('li');li.textContent=`${row.event.eventName} · ${new Date(row.event.startTime).toLocaleString()} · Registered`;registrationList.append(li);}
     const container=get('treasury-purchase-pending');container.replaceChildren();
     if(open){
       const title=document.createElement('h4');title.textContent=`Review ${open.item.title} for ${money(open.item.cost)} from ${group.name}`;container.append(title);
-      if(open.fulfillment){const target=document.createElement('p');target.textContent=`Territory group: ${open.fulfillment.territoryGroupName} · Event: ${open.fulfillment.eventName} (#${open.fulfillment.eventId}). This saved purchase uses the reviewed group link.`;container.append(target);}
+      if(open.fulfillment){const target=document.createElement('p');target.textContent=open.item.purpose==='event_registration'?`Event: ${open.fulfillment.eventName} · ${new Date(open.fulfillment.startTime).toLocaleString()} – ${open.fulfillment.endTime?new Date(open.fulfillment.endTime).toLocaleString():'end time not set'}. Registration covers this group; it does not confirm members' attendance or rewards.`:`Territory group: ${open.fulfillment.territoryGroupName} · Event: ${open.fulfillment.eventName} (#${open.fulfillment.eventId}). This saved purchase uses the reviewed group link.`;container.append(target);
+        if(open.item.purpose==='event_registration'){const link=document.createElement('a');link.href=`https://discord.com/events/${open.fulfillment.guildId}/${open.fulfillment.eventId}`;link.textContent='View this Discord event';link.target='_blank';link.rel='noopener noreferrer';container.append(link);}}
       const note=document.createElement('p');note.textContent=open.state==='draft'?'No coins are reserved by this draft.':'The final outcome needs checking. Check status or release the uncommitted request.';container.append(note);
       const cancellation=document.createElement('p');cancellation.textContent=open.item.purpose==='territory_entry'?'Cancellation keeps coins reserved until non-delivery is verified. A registered entry stays paid.':'Releasing an uncommitted request frees its reservation. A completed purchase stays paid.';container.append(cancellation);
       if(model.canManage){
-        const canConfirm=caps.spendingEnabled&&(open.item.purpose!=='territory_entry'||caps.territoryEntryEnabled)&&!group.closing&&Boolean(assets)&&!['SPEND_RESPONSE_MISMATCH','TREASURY_INTEGRITY_ERROR','ITEM_UNAVAILABLE','PRICE_CHANGED','GROUP_CLOSING','ENTRY_LINK_CHANGED','ENTRY_EVENT_UNAVAILABLE','ENTRY_LEADER_REQUIRED','ENTRY_LINK_REQUIRED','ENTRY_TEST_RESTRICTED','ENTRY_EVIDENCE_INCOMPLETE'].includes(open.lastErrorCode);
+        const canConfirm=caps.spendingEnabled&&(open.item.purpose!=='territory_entry'||caps.territoryEntryEnabled)&&(open.item.purpose!=='event_registration'||caps.eventRegistrationEnabled)&&!group.closing&&Boolean(assets)&&!['SPEND_RESPONSE_MISMATCH','TREASURY_INTEGRITY_ERROR','ITEM_UNAVAILABLE','PRICE_CHANGED','GROUP_CLOSING','ENTRY_LINK_CHANGED','ENTRY_EVENT_UNAVAILABLE','ENTRY_LEADER_REQUIRED','ENTRY_LINK_REQUIRED','ENTRY_TEST_RESTRICTED','ENTRY_EVIDENCE_INCOMPLETE','GROUP_EVENT_CHANGED','GROUP_EVENT_NOT_OPEN','GROUP_EVENT_UNAVAILABLE'].includes(open.lastErrorCode);
         if(canConfirm){const label=document.createElement('label'),checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.id='treasury-purchase-consent';
           label.append(checkbox,document.createTextNode(` I confirm spending ${money(open.item.cost)} from ${group.name} on ${open.item.title}.`));container.append(label);checkbox.addEventListener('change',controls);}
         function button(kind,label){const element=document.createElement('button');element.type='button';element.className='small-button';element.textContent=label;element.dataset.action=kind;
@@ -50,25 +54,31 @@
         if(open.state!=='draft')button('check','Check purchase status');
         button('release',open.state==='draft'?'Cancel purchase':'Release uncommitted funds');
       }else{const text=document.createElement('p');text.textContent='The current group owner can manage this purchase.';container.append(text);}
-      if(open.lastErrorCode){const error=document.createElement('p');error.textContent={INSUFFICIENT_TREASURY:'Not enough available group coins.',ITEM_UNAVAILABLE:'This reviewed item is no longer available. Release the request before choosing another.',TREASURY_SPENDING_DISABLED:'New spending is unavailable. You can check status or release an uncommitted request.',SPEND_RESPONSE_MISMATCH:'The receipt could not be verified. Check status or contact support.',TREASURY_INTEGRITY_ERROR:'This purchase needs staff review.'}[open.lastErrorCode]||'The service could not confirm the outcome. Check status or release the uncommitted request.';container.append(error);}
+      if(open.lastErrorCode){const error=document.createElement('p');error.textContent={GROUP_EVENT_CHANGED:'The event schedule or details changed. Release this request and review a new one.',GROUP_EVENT_NOT_OPEN:'This event is no longer open for group registration. Release the uncommitted request.',GROUP_EVENT_FEED_UNAVAILABLE:'A fresh event update is unavailable. Check again or release the request.',GROUP_EVENT_DISABLED:'New event registrations are unavailable. Existing requests can still be checked or released.',INSUFFICIENT_TREASURY:'Not enough available group coins.',ITEM_UNAVAILABLE:'This reviewed item is no longer available. Release the request before choosing another.',TREASURY_SPENDING_DISABLED:'New spending is unavailable. You can check status or release an uncommitted request.',SPEND_RESPONSE_MISMATCH:'The receipt could not be verified. Check status or contact support.',TREASURY_INTEGRITY_ERROR:'This purchase needs staff review.'}[open.lastErrorCode]||'The service could not confirm the outcome. Check status or release the uncommitted request.';container.append(error);}
     }
     controls();
   }
-  function forget(){model=null;assets=null;ready=false;render();get('treasury-shop').hidden=true;}
+  function forget(){model=null;assets=null;registrations=null;ready=false;render();get('treasury-shop').hidden=true;}
   async function load(epoch){
     ready=false;controls();const [capability,state]=await Promise.all([api(`${base}/capabilities`),api(`${base}/purchases`)]);
     if(epoch!==generation)return;caps=capability;
     if(!state.group||(expectedGroup!==undefined&&state.group.id!==expectedGroup)){forget();return;}
-    model=state;assets=null;ready=true;render();
+    model=state;assets=null;registrations=null;ready=true;render();
     get('treasury-shop').hidden=!caps.spendingEnabled&&!model.purchases.length&&model.selection.frame==='none';
     get('treasury-shop-status').textContent=caps.readOnly?'This preview is read-only.':caps.spendingEnabled?'':'New purchases are unavailable. Existing group purchases and frames remain accessible.';
     if(get('treasury-shop').hidden)return;
+    const registrationRead=api(`${base}/event-registrations`).then(result=>{
+      if(epoch!==generation)return;
+      if(result.groupId!==model.group.id)throw new Error('Group membership changed. Refresh registrations.');
+      registrations=result.registrations;render();
+    }).catch(error=>{if(epoch!==generation)return;if([401,403,404].includes(error.status))forget();else{registrations=null;render();get('treasury-event-registration-status').textContent='Registrations are unavailable. Refresh to verify them.';}});
     try{
       const result=await api(`${base}/spending`);if(epoch!==generation)return;
       if(result.groupId!==model.group.id)throw new Error('Group membership changed. Refresh purchases.');assets=result;render();
       if(!assets.catalog.length&&caps.spendingEnabled)get('treasury-shop-status').textContent='No reviewed group purchases are available.';
     }catch(error){if(epoch===generation){if([401,403,404].includes(error.status)){forget();throw error;}
       assets=null;render();get('treasury-shop-status').textContent='The purchase catalog is unavailable. Saved requests can still be checked or released.';}}
+    await registrationRead;
   }
   async function act(kind,mutation){
     if(busy&&!((kind==='release'&&['confirm','refresh'].includes(busy))||(kind==='check'&&busy==='refresh')))return;

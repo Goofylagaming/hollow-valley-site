@@ -30,7 +30,7 @@ router.post('/group-event-registrations',run(req=>{
  for(const row of rows)getSpending().read(req.body?.groupId,row.requestId);
  return {groupId:req.body?.groupId,registrations:rows};
 }));
-router.post('/spending-read',run(req=>({groupId:req.body?.groupId,catalog:getSpending().list(),cosmetics:getSpending().cosmetics(req.body?.groupId)})));
+router.post('/spending-read',run(req=>({groupId:req.body?.groupId,catalog:getSpending().list(),cosmetics:getSpending().cosmetics(req.body?.groupId),eventRegistrationEnabled:getGroupEvents().enabled()})));
 router.post('/spend-status',run(req=>{try{return getSpending().read(req.body?.groupId,req.body?.requestId);}catch(error){if(error.code==='SPEND_UNAVAILABLE')return null;throw error;}}));
 router.post('/spend-reserve',run(req=>getSpending().reserve(purchase(req))));
 router.post('/spend-commit',run(req=>getSpending().commit({groupId:req.body?.groupId,requestId:req.body?.requestId,actorSteamId:req.body?.actorSteamId})));

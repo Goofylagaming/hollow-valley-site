@@ -36,6 +36,7 @@ on:
       - 'server/services/groupTreasury.js'
       - 'server/services/groupTreasuryPurchases.js'
       - 'test/groupTreasuryPurchases.test.js'
+      - 'test/groupTreasuryEventPurchases.test.js'
       - 'public/assets/group-treasury-shop.js'
       - 'scripts/verify-group-purchases.cjs'
       - 'server/services/automationWebsiteClient.js'
@@ -61,4 +62,4 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: node --test automation-platform/test/groupEventRegistration.test.js automation-platform/test/discordEventService.test.js test/groupTreasuryTerritoryCoordinator.test.js test/groupTreasuryTerritorySettlement.test.js test/groupTreasuryTerritoryDelivery.test.js automation-platform/test/groupTreasuryCatalog.test.js test/groupTreasuryPurchases.test.js test/groupTreasuryClosure.test.js test/groups.test.js test/groupProgress.test.js test/groupRecruitment.test.js automation-platform/test/groupTreasurySpending.test.js automation-platform/test/groupTreasury.test.js automation-platform/test/economyWallet.test.js automation-platform/test/marketplaceEconomy.test.js test/groupTreasuryHttp.test.js test/roadmapCommunity.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/territoryAdminHttp.test.js
+      - run: node --test test/groupTreasuryEventPurchases.test.js automation-platform/test/groupEventRegistration.test.js automation-platform/test/discordEventService.test.js test/groupTreasuryTerritoryCoordinator.test.js test/groupTreasuryTerritorySettlement.test.js test/groupTreasuryTerritoryDelivery.test.js automation-platform/test/groupTreasuryCatalog.test.js test/groupTreasuryPurchases.test.js test/groupTreasuryClosure.test.js test/groups.test.js test/groupProgress.test.js test/groupRecruitment.test.js automation-platform/test/groupTreasurySpending.test.js automation-platform/test/groupTreasury.test.js automation-platform/test/economyWallet.test.js automation-platform/test/marketplaceEconomy.test.js test/groupTreasuryHttp.test.js test/roadmapCommunity.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/territoryAdminHttp.test.js
