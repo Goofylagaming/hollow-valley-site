@@ -1,7 +1,7 @@
 # Roadmap #23 — player skin gifting
 
 Local branch: `feature/hv-roadmap-gifting-20261105`, following the prepared
-collections branch. Service only so far; no deployed routes or UI enable gifting.
+collections branch. Authenticated APIs and website controls are locally implemented; no deployed settings enable gifting.
 The default gate requires `SKIN_GIFTING_ENABLED=1` and the skin-system flag.
 
 A sender offers a permanent non-membership unlock to a particular Steam account.
@@ -29,6 +29,25 @@ recipient ownership, rollback and eligibility. Replaying a promotional code afte
 gifting cannot regrant the skin; its response/UI now distinguishes previous
 redemption from current ownership. Five existing promotion tests also pass.
 
-Remaining: API and website controls, recipient selection/confirmation, concurrent
-worker races, live-skin lifecycle review, authenticated staging and production
+Remaining: concurrent worker races, live-skin lifecycle review, authenticated staging and production
 verification. The full roadmap remains unfinished.
+
+## Website/API integration
+
+`/skin-gifts` is linked from profile collections. The sender chooses an eligible
+permanent unlock, enters a 17-digit recipient Steam ID and confirms they checked
+it. Only that recipient can accept or decline; acceptance asks for confirmation.
+Senders can cancel. Exact request retries retain the original request ID, and
+failed offers retain their form fields. Text is rendered without HTML injection.
+
+Private APIs bind every read/write actor to the authenticated session, ignoring
+forged body/query identities. Same-origin JSON, linked Steam and the existing
+read-only preview guard protect writes. A read-only eligible-skin endpoint omits
+pending gifts and returns only name/species/ID summaries for up to 500 recent
+unreserved unlocks. No automatic friends or recipient-directory lookup is added.
+
+Eight service/HTTP tests pass. Isolated browser fixtures pass at 1440px and 390px
+for offer retry, cancellation, recipient acceptance, safe text, preview/guest/
+disabled states and layout. These do not substitute for authenticated staging or
+real game verification. `SKIN_GIFTING_ENABLED` remains off by default on both
+website and automation services.

@@ -90,3 +90,15 @@ test('a promotional redemption receipt cannot regrant a skin after gifting',asyn
   const retry=promo.redeem(sender,{code});assert.equal(retry.duplicate,true);assert.equal(retry.stillOwned,false);
   assert.equal(store.hasSkinUnlock(sender.steam_id,preset.id),false);assert.equal(store.hasSkinUnlock(recipient.steam_id,preset.id),true);
 });
+
+test('eligible skins are private read-only summaries and omit reserved gifts',async()=>{
+  const {preset,input}=await fixture();
+  const changes=store.db.prepare('SELECT total_changes() n').get().n;
+  const eligible=gifts.eligible(sender).skins.find(s=>s.id===preset.id);
+  assert.deepEqual(eligible,{id:preset.id,name:preset.name,species:preset.species});
+  assert.equal(store.db.prepare('SELECT total_changes() n').get().n,changes);
+  assert.equal(gifts.eligible(other).skins.some(s=>s.id===preset.id),false);
+  const {id}=gifts.offer(sender,input);assert.equal(gifts.eligible(sender).skins.some(s=>s.id===preset.id),false);
+  gifts.decide(sender,{id,decision:'cancelled',expectedRevision:0});
+  assert.equal(gifts.eligible(sender).skins.some(s=>s.id===preset.id),true);
+});

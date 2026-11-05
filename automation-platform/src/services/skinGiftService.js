@@ -66,6 +66,18 @@ function createSkinGiftService(store,{now=Date.now,enabled=()=>process.env.SKIN_
       return {id:row.id,presetId:row.preset_id,name:preset?.name||'Unavailable skin',sender:row.sender,recipient:row.recipient,note:JSON.parse(row.payload).note,createdAt:row.created_at,expiresAt:row.expires_at,state,revision:state==='pending'?0:1};
     })};
   }
-  return {offer,decide,list};
+  function eligible(user) {
+    gate();const steam=store.validateSteamId(user?.steam_id);
+    const rows=db.prepare(`SELECT u.preset_id FROM economy_skin_unlocks u WHERE u.steam_id=?
+      AND NOT EXISTS (SELECT 1 FROM economy_skin_gifts g WHERE g.sender=u.steam_id AND g.preset_id=u.preset_id AND g.state='pending' AND g.expires_at>?)
+      ORDER BY u.unlocked_at DESC,u.preset_id LIMIT 501`).all(steam,now());
+    const skins=[];
+    for(const row of rows.slice(0,500)){
+      try{const {preset}=transferable(steam,row.preset_id);skins.push({id:preset.id,name:preset.name,species:preset.species});}
+      catch(e){if(e.status!==409)throw e;}
+    }
+    return {skins,limited:rows.length>500};
+  }
+  return {offer,decide,list,eligible};
 }
 module.exports={createSkinGiftService};

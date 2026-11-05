@@ -1,0 +1,16 @@
+const router=require('express').Router();
+const {requireAuth}=require('../middleware/requireAuth');
+const {skinMutationGuard,getSkinStudioSafety}=require('../middleware/skinStudioSafety');
+const client=require('../services/skinGiftClient');
+router.get('/capabilities',(_req,res)=>res.set('Cache-Control','private, no-store').json({enabled:process.env.SKIN_GIFTING_ENABLED==='1',readOnly:getSkinStudioSafety().readOnly}));
+router.use((_req,res,next)=>{res.set('Cache-Control','private, no-store');if(process.env.SKIN_GIFTING_ENABLED!=='1')return res.status(503).json({error:'Skin gifting is not enabled'});next();});
+router.use(requireAuth);
+router.use((req,res,next)=>{if(!/^\d{17}$/.test(String(req.user?.steam_id||'')))return res.status(403).json({error:'A linked Steam account is required'});next();});
+router.use(skinMutationGuard);
+router.use((req,res,next)=>{if(req.method!=='GET'&&(req.get('origin')!==`${req.protocol}://${req.get('host')}`||!req.is('application/json')))return res.status(403).json({error:'Use the website to manage skin gifts'});next();});
+const run=fn=>async(req,res)=>{try{res.json(await fn(req));}catch(e){res.status(e.status||502).json({error:e.message||'Skin gifts are temporarily unavailable'});}};
+router.get('/',run(req=>client.list({steamId:req.user.steam_id})));
+router.get('/eligible',run(req=>client.eligible({steamId:req.user.steam_id})));
+router.post('/offer',run(req=>client.offer({steamId:req.user.steam_id,presetId:req.body?.presetId,recipientSteamId:req.body?.recipientSteamId,requestId:req.body?.requestId,note:req.body?.note})));
+router.post('/decide',run(req=>client.decide({steamId:req.user.steam_id,id:req.body?.id,decision:req.body?.decision,expectedRevision:req.body?.expectedRevision})));
+module.exports=router;
