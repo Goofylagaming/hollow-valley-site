@@ -1,0 +1,7 @@
+# POI discovery — roadmap #10
+
+Local implementation starts with a catalog validator and additive immutable catalog store. Catalog versions identify a map version, explicit bounds, named regions and up to 500 stable POI IDs. Supported categories cover waterfalls, caves, nesting areas, landmarks and territories. Each entry must explicitly enable or disable a circular visit area defined in raw world coordinates and a radius in metres. This does not infer geometry from map labels or paths.
+
+Repeated registration of canonically equivalent rules is idempotent. Changing geometry, names, region assignments or enabled status under an existing version is rejected; a new version preserves the old definition. Different locations may share a display name but cannot share an ID.
+
+Tests use synthetic geometry only. No real location catalog, API, player discovery receipt, map filtering, reward or production rollout is connected yet. Remaining work includes reviewed community-map candidate import, authoritative sample continuity/visit matching, private discovered-only reads, Live Map controls, region completion, territory integration, staging and production validation. No currency payouts or fabricated biome boundaries are introduced.
