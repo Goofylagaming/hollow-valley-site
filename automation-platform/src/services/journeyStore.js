@@ -8,6 +8,7 @@ function createJourneyStore(db,{now=Date.now,enabled=()=>process.env.JOURNEY_HIS
     steam_id TEXT NOT NULL,life_id TEXT NOT NULL,at INTEGER NOT NULL,x REAL NOT NULL,y REAL NOT NULL,
     break_before INTEGER NOT NULL,PRIMARY KEY(steam_id,at));
     CREATE INDEX IF NOT EXISTS journey_points_age ON journey_points(at);
+    CREATE INDEX IF NOT EXISTS journey_points_life ON journey_points(steam_id,life_id,at);
     CREATE TABLE IF NOT EXISTS journey_gaps(steam_id TEXT PRIMARY KEY,at INTEGER NOT NULL);`);
   const steam=value=>{if(typeof value!=='string'||!/^\d{17}$/.test(value))fail('Linked Steam account required');return value;};
   const gate=()=>{if(!enabled())fail('Journey history is not enabled',503);};

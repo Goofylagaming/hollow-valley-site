@@ -1,6 +1,25 @@
 const test=require('node:test'),assert=require('node:assert/strict'),{DatabaseSync}=require('node:sqlite');
 const {createJourneyStore}=require('../src/services/journeyStore');
 const steam='76561198000000801',other='76561198000000802';
+test('full retained histories match recent combat without including events outside connected samples',()=>{
+  const previous=process.env.JOURNEY_HISTORY_ENABLED;process.env.JOURNEY_HISTORY_ENABLED='1';
+  const db=new DatabaseSync(':memory:');const clock=2000000000;
+  try {
+    const legacy=require('../src/services/valleyLegacyStore').createLegacyStore(db,{now:()=>clock});
+    db.prepare('INSERT INTO vl_lives(id,steam_id,name,species,started_at,last_at) VALUES (?,?,?,?,?,?)').run('full-life',steam,'Fixture','rex',clock-150000000,clock);
+    const point=db.prepare('INSERT INTO journey_points VALUES (?,?,?,?,?,?)'),event=db.prepare('INSERT INTO vl_events VALUES (?,?,?)');
+    db.exec('BEGIN');
+    for(let i=0;i<10000;i++)point.run(steam,'full-life',clock-150000000+i*15000,0,0,i===0?1:0);
+    for(let i=0;i<20000;i++)event.run('old-'+i,JSON.stringify({steamId:steam,type:'combat_kill'}),clock-200000000+i);
+    event.run('inside',JSON.stringify({steamId:steam,type:'combat_kill'}),clock-20000);
+    event.run('after-last-point',JSON.stringify({steamId:steam,type:'combat_kill'}),clock-1000);
+    db.exec('COMMIT');
+    const page=legacy.journeys.points(steam);
+    assert.equal(page.points.length,500);assert.ok(page.nextBefore);
+    assert.deepEqual(page.lives[0].combatEvents,[{type:'combat_kill',at:clock-20000}]);
+    assert.equal(page.lives[0].combatEventsLimited,false);
+  }finally{db.close();if(previous===undefined)delete process.env.JOURNEY_HISTORY_ENABLED;else process.env.JOURNEY_HISTORY_ENABLED=previous;}
+});
 test('journey combat matches only connected retained samples and omits other players and gaps',()=>{
   const previous=process.env.JOURNEY_HISTORY_ENABLED;process.env.JOURNEY_HISTORY_ENABLED='1';
   const db=new DatabaseSync(':memory:');let clock=5000000;
