@@ -40,7 +40,7 @@ All API responses are private/no-store. User text is rendered as text.
 
 The public release register retains the original #14 description and shows the
 unfinished scope. Historical votes remain stored and no longer consume active
-ballot slots; nine ideas remain eligible. Homepage planning asset version is 116.
+ballot slots; nine ideas remain eligible. Homepage planning asset version is 117.
 
 ## Reviewed website schedules
 
@@ -175,6 +175,62 @@ The staff team assets are v1 and private registration script is v2. All rollout
 flags remain off in example configuration. Hosted staging, real authentication
 and in-game validation remain unfinished.
 
+## Evidence-linked staff reports and shared public results
+
+`EVENT_ENGINE_RESULTS_ENABLED=0` separately gates new staff reports, corrections
+and restoration. `EVENT_ENGINE_RESULT_GUILD_ID` must identify the official Discord
+server before new evidence is accepted. Staff record actual start/end times, a
+public summary and up to five winner display names, alongside one to ten private
+official Discord message links, an evidence review and a reason. The links are
+validated as identifiers in the configured server; the website does not fetch
+their content or automatically verify the claimed outcome. Staff must actually
+review event-type-specific evidence. Neither a signup nor a planned team is proof.
+
+Reports bind the current published event revision and frozen title. Actual start
+must be at or after the planned start and saved plan update; actual end cannot be
+future and must be within the previous year. These are chronology constraints on a manual report,
+not a verified game lifecycle. A changed/cancelled/missing source blocks new full
+reports and suppresses existing Engine reports from current public reads. Staff
+may still withdraw an existing report after source loss or rollout pause.
+
+New reports reuse `hv_event_results_public`, so the existing Activity page and new
+Events result cards show the same publication. Old manual summaries remain
+unchanged. `engine-` keys are reserved for Engine records and cannot be replaced
+through the old free-form publisher. Public output has only reviewed display
+fields, event identity/revision and explicit `automaticallyVerified:false` and
+`automaticPayout:false`. Official message URLs, private evidence summaries,
+actor identities and audit reasons stay in staff-only reads. Display-name winners
+cannot contain private Discord message links; those links are also rejected from
+Engine public titles and summaries to prevent accidental evidence disclosure.
+Winner names are staff reports, not inferred registered players or award recipients.
+
+Current publication, source event and the matching immutable evidence audit must
+agree before an Engine report is shown. Changed public/private evidence is hidden
+without repair. Staff explicitly withdraw it, inspect the retained contradiction
+and review a replacement. Corrections preserve earlier report/evidence versions;
+withdrawal removes the public entry while retaining its history; restoration
+requires a full new review. Public row, private result, audit and receipt commit
+together. Exact request recovery returns original saved and current state without
+republishing after a later correction/withdrawal. An actual withdrawal and exact
+recovery remain possible at the thirty-change-per-minute write limit.
+
+The staff UI freezes exact public text, actual times and private evidence for
+review, supports manual lost-reply retry, and clears private fields after a
+delayed-read access change. Actual times support seconds/milliseconds and are
+reviewed explicitly in Brisbane time. Current staff authority is checked in the
+database for every private operation and again around browser reads. Preview and
+read-only writes remain blocked. Lists/history have bounded 25-record pages; the
+screen shows recent history and the API supplies older pages. Reload loses the
+in-memory review and requires inspecting saved state. No browser evidence storage,
+automatic POST retry, game command or wallet mutation is installed.
+
+The older manual result publisher now also rechecks current staff identity within
+its write transaction, respects shared preview restrictions, rejects cross-site
+requests/reserved Engine keys, and returns the exact saved publication even when
+its event date is outside the latest public page. Pausing the new report flag does
+not retract already published reports from Activity; use explicit withdrawal.
+The Events result assets are v1. No real evidence or report has been published.
+
 ## Remaining full Event Engine requirements
 
 - Verified event lifecycle beyond website plans, including actual start/end and
@@ -182,8 +238,9 @@ and in-game validation remain unfinished.
 - Event-type-specific participant eligibility, actual game-team integration,
   operational capacity review and any later waitlist policy. Website signup is
   not proof that a player meets in-game event rules or is actually present.
-- Appropriate evidence and results for each event type, with staff review and
-  contradiction/recovery handling. Registration is not attendance or victory.
+- Trusted event-type-specific outcome recognition and operational evidence review.
+  Staff report workflows are implemented locally; they do not supply automatic
+  proof of attendance, survival, kills, locations or victory.
 - Reward policy and authenticated staging. This roadmap does not authorize new
   automatic payouts, restores or game commands. Existing event rewards remain
   separate and unchanged.
@@ -246,3 +303,20 @@ Registration, schedule, template and existing staff attendance browser fixtures
 also pass both widths with team assets installed. The prepared workflow includes
 all five browser fixtures. All checks use synthetic accounts/events; no real
 players were assigned teams, and nothing was published, merged or deployed.
+
+Staff reports raise the affected set to 101 passing tests. They cover the real
+shared community-results API, public redaction, official message-link validation,
+actual-time/source bounds, correction/withdrawal/restoration, stale requests,
+current staff access, failed-audit/receipt rollback, contradictory public/private
+evidence, reserved identities, bounded pages and withdrawal at the write limit.
+Existing manual publication tests cover cached-role revocation, preview/cross-site
+restrictions and recovery of a result outside the latest public page.
+
+The actual Events report workflow passes at 1440px and 390px for private evidence
+review, shared public display, lost replies/retries, conflicting corrections,
+withdrawal/restoration, stale public replies, paused withdrawal, evidence privacy
+and delayed-read staff demotion. Existing team, registration, schedule, template
+and staff attendance browser fixtures also pass both widths. The prepared workflow
+includes all six browser fixtures. All evidence links, accounts and reports used
+here are synthetic; no real Discord evidence was fetched or real report published.
+Hosted CI, authenticated staging and production delivery remain unverified.

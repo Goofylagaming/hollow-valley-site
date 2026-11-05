@@ -238,6 +238,8 @@ function createApp() {
       eventSchedulesEnabled: process.env.EVENT_ENGINE_ENABLED === "1" && process.env.EVENT_ENGINE_SCHEDULES_ENABLED === "1",
       eventRegistrationManagementAvailable: Boolean(req.user?.steam_id),
       eventTeamManagementAvailable: Boolean(req.user?.is_admin),
+      eventResultsManagementAvailable: Boolean(req.user?.is_admin),
+      eventResultsAvailable: process.env.EVENT_ENGINE_RESULTS_ENABLED === "1",
       user: req.user || null,
       territoryWarsAdminAccess: TERRITORY_WARS_ADMIN_TEST_ENABLED && isTerritoryAdmin(req.user),
       financeOwnerAccess: isFinanceOwner(req.user),
@@ -296,6 +298,7 @@ function createApp() {
   app.use("/api/event-schedules", require("./routes/eventSchedules").createRouter());
   app.use("/api/event-registrations", require("./routes/eventRegistrations").createRouter());
   app.use("/api/event-teams", require("./routes/eventTeams").createRouter());
+  app.use("/api/event-results", require("./routes/eventResults").createRouter());
   app.use("/api/friends", friendsRouter);
   app.use("/api/roadmap", roadmapCommunityRouter);
   app.use("/api/community-guides", communityGuidesRouter);

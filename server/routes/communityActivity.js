@@ -8,13 +8,13 @@ function sameOriginJson(req,res,next){
   try{expected=process.env.PUBLIC_SITE_URL?new URL(process.env.PUBLIC_SITE_URL).origin:
     req.protocol+"://"+req.get("Host");}
   catch{return res.status(500).json({error:"Website origin is misconfigured."});}
-  if(!req.get("Origin")||req.get("Origin")!==expected)
+  if(!req.get("Origin")||req.get("Origin")!==expected||req.get('sec-fetch-site')==='cross-site')
     return res.status(403).json({error:"Publish through the Hollow Valley website."});
   if(!req.is("application/json"))return res.status(415).json({error:"JSON is required."});
   next();
 }
 function errorResult(res,e) {
-  const status=e.code==="ADMIN_REQUIRED"||e.code==="STEAM_REQUIRED"?403 :
+  const status=e.code==="ADMIN_REQUIRED"||e.code==="STEAM_REQUIRED"||e.code==='READ_ONLY'?403 :
     e.code==="EVENT_ALREADY_PUBLISHED"?409:
     ["INVALID_EVENT_RESULT","CONFIRM_REQUIRED"].includes(e.code)?400:500;
   if(status===500)console.error("[community-activity] failed",e);
