@@ -828,6 +828,8 @@ function uploadAdminRestore({ steamId, slot, restore, fullNutrients = false }) {
 }
 
 module.exports = {
+  getAchievementReviews: () => callAdmin('/achievement-reviews'),
+  decideAchievementReview: body => callAdmin('/achievement-reviews',{method:'POST',body}),
   publishTerritoryWarFeedEvent,
   getAdminChat: () => callAdmin('/chat'),
   getServerSnapshot,

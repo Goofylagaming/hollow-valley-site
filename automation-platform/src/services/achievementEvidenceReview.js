@@ -53,6 +53,8 @@ function createAchievementEvidenceReview(db,{now=Date.now}={}) {
       || !['nested-adult','life-survival-10h'].includes(achievementId) || !['uphold','withdraw'].includes(decision)
       || typeof reason!=='string' || reason.trim().length<10 || reason.length>500 || !Number.isSafeInteger(expectedRevision) || expectedRevision<0) fail('Valid identities, decision, revision and review reason are required');
     const payload=JSON.stringify({requestId,steamId,achievementId,actorSteamId,decision,reason:reason.trim(),expectedRevision});
+    // Check newly ingested evidence even when the player has not reopened their profile.
+    inspect(steamId);
     db.exec('BEGIN IMMEDIATE');
     try {
       const old=db.prepare('SELECT payload_json FROM progression_achievement_review_actions WHERE request_id=?').get(requestId);
@@ -83,7 +85,14 @@ function createAchievementEvidenceReview(db,{now=Date.now}={}) {
         ON s.steam_id=r.steam_id AND s.achievement_id=r.achievement_id
       GROUP BY r.steam_id,r.achievement_id
       ORDER BY pendingCount DESC,detectedAt DESC LIMIT 100`).all().map(row=>({...row,
-        evidence:db.prepare('SELECT evidence_kind AS kind,evidence_id AS id,detected_at AS detectedAt,status FROM progression_achievement_evidence_reviews WHERE steam_id=? AND achievement_id=? ORDER BY detected_at,evidence_kind,evidence_id').all(row.steamId,row.achievementId),
+        award:db.prepare('SELECT unlocked_at AS unlockedAt,metadata_json AS metadata FROM progression_achievements WHERE steam_id=? AND achievement_id=?').get(row.steamId,row.achievementId),
+        evidence:db.prepare('SELECT evidence_kind AS kind,evidence_id AS id,detected_at AS detectedAt,status FROM progression_achievement_evidence_reviews WHERE steam_id=? AND achievement_id=? ORDER BY detected_at,evidence_kind,evidence_id').all(row.steamId,row.achievementId).map(item=>{
+          let occurredAt=null;
+          if(item.kind==='combat-death'&&exists('combat_events')) occurredAt=db.prepare('SELECT occurred_at FROM combat_events WHERE id=? AND victim_steam_id=?').get(item.id,row.steamId)?.occurred_at??null;
+          if(item.kind==='legacy-death'&&exists('vl_events')) occurredAt=db.prepare('SELECT occurred_at FROM vl_events WHERE id=?').get(item.id)?.occurred_at??null;
+          if(item.kind==='life-ended-early'&&exists('vl_lives')) occurredAt=db.prepare('SELECT ended_at FROM vl_lives WHERE id=? AND steam_id=?').get(item.id,row.steamId)?.ended_at??null;
+          return {...item,occurredAt};
+        }),
         decisions:db.prepare("SELECT payload_json,created_at AS createdAt FROM progression_achievement_review_actions WHERE json_extract(payload_json,'$.steamId')=? AND json_extract(payload_json,'$.achievementId')=? ORDER BY created_at,request_id").all(row.steamId,row.achievementId).map(action=>({...JSON.parse(action.payload_json),createdAt:action.createdAt}))
       }));
   }

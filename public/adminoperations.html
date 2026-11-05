@@ -29,6 +29,19 @@
             <span id="ops-message"></span>
           </div>
 
+          <section class="ops-panel" id="achievement-review">
+            <h2>Achievement evidence reviews</h2>
+            <p>Inspect flagged life achievements before upholding or withdrawing them. Decisions preserve the original award and record your account and reason. Upholding a withdrawn award restores it.</p>
+            <button class="small-button" type="button" data-refresh>Load reviews</button>
+            <label style="display:block;margin-top:12px">Achievement <select aria-label="Achievement review" style="width:100%;min-width:0"><option value="">Load reviews to begin</option></select></label>
+            <div data-details style="overflow-wrap:anywhere;max-height:360px;overflow:auto">Select an achievement to inspect its evidence and decision history.</div>
+            <form style="display:grid;gap:12px;max-width:560px">
+              <label>Decision <select name="decision"><option value="uphold">Uphold / restore award</option><option value="withdraw">Withdraw award</option></select></label>
+              <label>Reason <textarea name="reason" required minlength="10" maxlength="500" style="display:block;width:100%;box-sizing:border-box"></textarea></label>
+              <button class="small-button" type="submit" disabled>Record decision</button>
+            </form>
+            <p role="status" aria-live="polite"></p>
+          </section>
           <div class="ops-summary-grid">
             <div class="summary-tile"><small>AUTOMATION</small><b id="ops-automation">Checking…</b><span id="ops-automation-detail">—</span></div>
             <div class="summary-tile"><small>ISLE SERVER</small><b id="ops-server">Checking…</b><span id="ops-server-detail">—</span></div>
@@ -281,5 +294,6 @@
   <script src="/assets/adminoperations.js?v=14"></script>
   <script src="/assets/species-events-admin.js?v=2"></script>
   <script src="/assets/omniraptor-growth-validation.js?v=1"></script>
+  <script src="/assets/achievement-review.js?v=1"></script>
 </body>
 </html>

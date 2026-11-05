@@ -119,3 +119,25 @@ counts; restoration preserves both decisions. The profile labels withdrawn award
 Nine targeted service/HTTP tests passed, including authentication, replay,
 withdrawal/restoration, unchanged award history and no wallet or XP changes.
 Website session-bound proxy and review controls remain to be implemented.
+
+
+### Website achievement review controls (local, not deployed)
+
+Operations now includes an achievement review panel with evidence references,
+recorded event times, qualifying-life milestones and prior decisions. The website
+proxy requires an authenticated admin, a linked Steam identity and same-origin
+JSON writes. It overwrites any client-supplied reviewer identity with the session
+account; the automation credential remains server-side. The list returns the
+first 100 reviews, prioritizing pending evidence.
+
+The form preserves the reason and request ID after an uncertain network failure,
+so retrying cannot create a second decision. A successful save remains reported
+as successful if refreshing the list fails. Evidence and reasons render as text.
+The decision service checks newly ingested contradictions before accepting a
+revision, without requiring another player profile visit.
+
+Verified with an actual local website-to-automation HTTP fixture, the backend
+review tests and isolated browser fixtures at 1440px and 390px. Browser checks
+cover text escaping, withdrawal selection, retained input on failure, identical
+retry requests, success feedback and viewport bounds. Authenticated staging and
+production deployment remain unverified.

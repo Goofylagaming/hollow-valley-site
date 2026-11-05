@@ -55,6 +55,10 @@ test('authenticated review preserves awards, supports restoration and rejects co
     assert.equal(review.list()[0].revision,3);
     review.inspect(steamId);assert.equal(review.list()[0].revision,3,'repeat detection does not change revision');
     assert.equal((await post({...payload,requestId:'decision-004',expectedRevision:2})).status,409,'new evidence invalidates an old admin view');
+    store.db.prepare('INSERT INTO combat_events VALUES (?,?,?)').run('newer-death',steamId,new Date(6000).toISOString());
+    assert.equal((await post({...payload,requestId:'decision-005',expectedRevision:3})).status,409,'decision checks fresh evidence without a profile visit');
+    assert.equal(review.list()[0].revision,4);
+    assert.equal(review.list()[0].evidence.find(e=>e.id==='newer-death').occurredAt,new Date(6000).toISOString());
     assert.throws(()=>review.decide(null),{status:400});
   } finally {await new Promise(resolve=>server.close(resolve));}
 });
