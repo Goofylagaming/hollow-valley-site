@@ -288,10 +288,43 @@ function appearanceFor(userId, active, { now = Date.now() } = {}) {
   };
 }
 
+function loyaltySchedule(userId, membership, active, months, next, now) {
+  const renewalAt = Date.parse(active.expiresAt);
+  const available = active.entitled && Number.isFinite(renewalAt) && renewalAt > now;
+  const autoRenew = available && Number(membership?.auto_renew) === 1;
+  const latest = db.prepare(`SELECT p.period_start,p.period_end FROM membership_reward_periods p
+    JOIN membership_paid_invoices i ON i.invoice_id=p.source_invoice_id
+    WHERE p.user_id=? AND p.subscription_id=? AND i.revoked=0
+    ORDER BY p.period_end DESC LIMIT 1`).get(userId, membership?.stripe_subscription_id || "");
+  const remaining = next ? next.months - months : 0;
+  let expectedUnlockAt = null;
+  // Only extrapolate from a verified monthly cycle matching the paid-access end.
+  if (available && remaining > 0 && latest?.period_end === renewalAt &&
+      (latest.period_end - latest.period_start) / 86400000 >= 27 &&
+      (latest.period_end - latest.period_start) / 86400000 <= 32) {
+    const boundary = new Date(renewalAt);
+    const anchorDay = Math.max(boundary.getUTCDate(), new Date(latest.period_start).getUTCDate());
+    const targetMonth = boundary.getUTCMonth() + remaining - 1;
+    const lastDay = new Date(Date.UTC(boundary.getUTCFullYear(), targetMonth + 1, 0)).getUTCDate();
+    const expected = new Date(renewalAt);
+    expected.setUTCDate(1);
+    expected.setUTCMonth(targetMonth);
+    expected.setUTCDate(Math.min(anchorDay, lastDay));
+    expectedUnlockAt = expected.toISOString();
+  }
+  return {
+    nextPaymentAt: autoRenew ? active.expiresAt : null,
+    renewalDueAt: available && !autoRenew ? active.expiresAt : null,
+    manualRenewalRequired: available && !autoRenew,
+    expectedUnlockAt,
+  };
+}
+
 function rewardSummary(user, { env = process.env, now = Date.now() } = {}) {
   if (!enabled(env)) return { enabled: false };
   ensureSchema();
-  const active = entitlement(getSupporterStatus(user.id), { env, now });
+  const membership = getSupporterStatus(user.id);
+  const active = entitlement(membership, { env, now });
   const period = currentPeriod(user.id, { env, now });
   const claims = db.prepare(`SELECT claim_id AS id, skin_id AS skinId, status, period_key FROM membership_skin_claims
     WHERE user_id = ? AND status != 'released' ORDER BY created_at DESC`).all(user.id);
@@ -300,6 +333,7 @@ function rewardSummary(user, { env = process.env, now = Date.now() } = {}) {
   const earned = db.prepare("SELECT months, earned_at FROM membership_loyalty_rewards WHERE user_id = ?").all(user.id);
   const milestones = MILESTONES.map(m => ({ ...m, earned: earned.some(e => e.months === m.months), earnedAt: earned.find(e => e.months === m.months)?.earned_at || null }));
   const history = db.prepare("SELECT synced_at, complete FROM membership_history_sync WHERE user_id = ?").get(user.id);
+  const nextMilestone = milestones.find(m => !m.earned) || null;
   return {
     enabled: true, tier: active.tier, tierLabel: active.tierLabel,
     entitled: active.entitled, benefitsUntil: active.expiresAt,
@@ -312,7 +346,8 @@ function rewardSummary(user, { env = process.env, now = Date.now() } = {}) {
       catalogueReady: false,
       claims: claims.map(({ period_key, ...claim }) => ({ ...claim, currentPeriod: period?.period_key === period_key })),
     },
-    loyalty: { paidMonths: months, milestones, nextMilestone: milestones.find(m => !m.earned) || null,
+    loyalty: { paidMonths: months, milestones, nextMilestone,
+      schedule: loyaltySchedule(user.id, membership, active, months, nextMilestone, now),
       historyVerified: months > 0 || Boolean(history?.complete), historySyncedAt: history?.synced_at || null,
       historyScope: "current-subscription-and-recorded-periods",
       canSyncHistory: Boolean(getSupporterStatus(user.id)?.stripe_subscription_id) },

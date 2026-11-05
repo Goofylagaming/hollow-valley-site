@@ -30,6 +30,57 @@ const record = value => rewards.recordPaidInvoice(value, { env, now });
 const summary = () => rewards.rewardSummary(user, { env, now });
 const catalogue = () => ({ enabled: true, skins: [{ id: "ashfall" }, { id: "moonlit" }, { id: "royalty" }] });
 
+test("loyalty dates distinguish automatic payments, manual renewal and expired access", () => {
+  reset();
+  record(invoice({ name: "october", start: "2026-10-01", end: "2026-11-01" }));
+  record(invoice());
+  assert.deepEqual(summary().loyalty.schedule, {
+    nextPaymentAt: "2026-12-01T00:00:00.000Z", renewalDueAt: null,
+    manualRenewalRequired: false, expectedUnlockAt: "2026-12-01T00:00:00.000Z",
+  });
+  db.exec("UPDATE supporter_subscriptions SET auto_renew=0");
+  assert.deepEqual(summary().loyalty.schedule, {
+    nextPaymentAt: null, renewalDueAt: "2026-12-01T00:00:00.000Z",
+    manualRenewalRequired: true, expectedUnlockAt: "2026-12-01T00:00:00.000Z",
+  });
+  db.exec("UPDATE supporter_subscriptions SET stripe_status='canceled'");
+  assert.equal(summary().loyalty.schedule.expectedUnlockAt, null);
+  assert.equal(summary().loyalty.schedule.nextPaymentAt, null);
+});
+
+test("unlock estimates handle month-end clamping and require a matching verified cycle", () => {
+  reset();
+  record(invoice({ start: "2026-10-31", end: "2026-11-30" }));
+  db.exec("UPDATE supporter_subscriptions SET renews_at='2026-11-30T00:00:00Z'");
+  assert.equal(summary().loyalty.schedule.expectedUnlockAt, "2026-12-31T00:00:00.000Z");
+  db.exec("UPDATE supporter_subscriptions SET renews_at='2026-12-02T00:00:00Z'");
+  assert.equal(summary().loyalty.schedule.expectedUnlockAt, null);
+  reset();
+  assert.equal(summary().loyalty.schedule.expectedUnlockAt, null);
+});
+
+test("unlock dates advance to six and twelve paid months and stop after the last milestone", () => {
+  reset();
+  for (let month = 0; month < 12; month++) {
+    const start = new Date(Date.UTC(2025, 11 + month, 1)).toISOString().slice(0, 10);
+    const end = new Date(Date.UTC(2025, 12 + month, 1)).toISOString().slice(0, 10);
+    record(invoice({ name: `date_${month}`, start, end }));
+    if (month === 4) {
+      db.prepare("UPDATE supporter_subscriptions SET renews_at=?").run(end + "T00:00:00Z");
+      const result = rewards.rewardSummary(user, { env, now: Date.parse(start + "T12:00:00Z") });
+      assert.equal(result.loyalty.nextMilestone.months, 6);
+      assert.equal(result.loyalty.schedule.expectedUnlockAt, end + "T00:00:00.000Z");
+    }
+    if (month === 10) {
+      db.prepare("UPDATE supporter_subscriptions SET renews_at=?").run(end + "T00:00:00Z");
+      const result = rewards.rewardSummary(user, { env, now: Date.parse(start + "T12:00:00Z") });
+      assert.equal(result.loyalty.nextMilestone.months, 12);
+      assert.equal(result.loyalty.schedule.expectedUnlockAt, end + "T00:00:00.000Z");
+    }
+  }
+  assert.equal(summary().loyalty.schedule.expectedUnlockAt, null);
+});
+
 test("paid period records once despite different webhook IDs or repeated history imports", () => {
   reset(); const bill = invoice(); record(bill); record(bill);
   rewards.processRewardEvent({ id:"evt_different", type:"invoice.paid", livemode:false, data:{object:bill} }, {env,now});
