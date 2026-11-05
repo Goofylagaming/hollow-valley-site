@@ -7,6 +7,14 @@
 .hv-incidents-panel { margin-top: 24px; padding: 22px; }
 .hv-incidents-panel h2 { margin: 0 0 12px; color: #eccb78; }
 .hv-incidents-panel p { margin: 0; }
+.hv-incidents [hidden] { display: none !important; }
+#incident-player-results { overflow-wrap: anywhere; }
+#incident-player-results p { margin: 12px 0; }
+.hv-incident-context-events { padding-left: 24px; }
+.hv-incident-context-events li { padding: 16px 0; border-bottom: 1px solid #3c463a; }
+.hv-incidents-filters input, .hv-incidents-filters select, .hv-incidents-filters button { font-size: 16px; max-width: 100%; }
+.hv-incidents-filters label { min-width: 0; max-width: 100%; }
+.hv-incidents-page footer { width: auto; max-width: 100%; box-sizing: border-box; flex-wrap: wrap; }
 .hv-incidents-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 15px; padding: 20px; }
 .hv-incidents-filters label { display: grid; gap: 7px; font-size: 13px; font-weight: 700; color: #d0d1bd; }
 .hv-incidents-filters input, .hv-incidents-filters select { min-height: 42px; padding: 10px; min-width: 175px; background: #171d19; border: 1px solid #667263; border-radius: 6px; color: #f0e8d3; font: inherit; }

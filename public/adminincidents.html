@@ -8,9 +8,9 @@
   <link rel="stylesheet" href="/assets/styles.css?v=38">
   <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=5">
-  <link rel="stylesheet" href="/assets/admin-incidents.css?v=1">
+  <link rel="stylesheet" href="/assets/admin-incidents.css?v=2">
 </head>
-<body class="has-my-stuff-rail">
+<body class="has-my-stuff-rail hv-incidents-page">
   <div class="app-shell">
     <div id="nav-slot"></div>
     <main class="hv-incidents">
@@ -21,6 +21,18 @@
       </header>
       <section id="incident-guard" class="hv-incidents-panel" hidden>Admin sign-in is required to inspect incident history.</section>
       <section id="incident-content" hidden>
+        <section class="hv-incidents-panel" aria-labelledby="incident-player-title">
+          <h2 id="incident-player-title">Investigate a player and time</h2>
+          <p>Combine retained chat, recorded combat, operator audits and request outcomes around an approximate incident time. Matches do not establish an allegation.</p>
+          <p id="incident-player-disabled">Checking player context availability…</p>
+          <form id="incident-player-form" class="hv-incidents-filters" hidden>
+            <label>Player Steam ID<input id="incident-player-id" inputmode="numeric" pattern="[0-9]{17}" minlength="17" maxlength="17" required autocomplete="off"></label>
+            <label>Approximate incident time (your device time)<input id="incident-player-time" type="datetime-local" required></label>
+            <button id="incident-player-load" type="submit">Load player context</button>
+            <button id="incident-player-hide" type="button">Hide player context</button>
+          </form>
+          <div id="incident-player-results" aria-live="polite"></div>
+        </section>
         <form class="hv-incidents-filters" id="incident-filters">
           <label>Search by Steam ID, action or reference
             <input id="incident-search" type="search" maxlength="120" placeholder="e.g. slay_player or 17-digit Steam ID" autocomplete="off">
@@ -53,7 +65,7 @@
             <tbody id="incident-records"><tr><td colspan="7">Loading records…</td></tr></tbody>
           </table>
         </div>
-        <p class="hv-incidents-disclaimer">This is a recent activity window, not a complete forensic record. Old records and unconnected game logs may be unavailable. Status and actor identities are shown only when the source recorded them. Automatic chat/combat correlation is still planned.</p>
+        <p class="hv-incidents-disclaimer">This is a recent activity window, not a complete forensic record. Old records and unconnected game logs may be unavailable. Status and actor identities are shown only when the source recorded them. The separate player investigation reads bounded retained chat/combat when enabled; long-term historical search remains planned.</p>
         <section class="hv-incidents-panel" aria-labelledby="incident-public-title">
           <h2 id="incident-public-title">Public status reports</h2>
           <p>Prepare staff-reviewed incident summaries separately from the private automation timeline.</p><a href="/adminstatus">Manage public status reports →</a>
@@ -67,6 +79,7 @@
     <footer><span>© 2026 Hollow Valley</span><span>ADMIN ONLY · INCIDENT LOGS</span><a href="/adminoperations">Operations</a></footer>
   </div>
   <script src="/assets/common.js?v=22"></script>
-  <script src="/assets/admin-incidents.js?v=1"></script>
+  <script src="/assets/incident-player-context.js?v=1"></script>
+  <script src="/assets/admin-incidents.js?v=2"></script>
 </body>
 </html>

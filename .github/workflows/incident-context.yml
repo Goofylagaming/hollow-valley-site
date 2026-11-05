@@ -1,0 +1,35 @@
+name: Private incident investigation
+on:
+  pull_request:
+    paths:
+      - '.env.example'
+      - 'server/services/incident*.js'
+      - 'server/services/reportContext.js'
+      - 'server/services/automationWebsiteClient.js'
+      - 'server/routes/incidentTimeline.js'
+      - 'public/adminincidents.html'
+      - 'public/assets/admin-incidents.*'
+      - 'public/assets/incident-player-context.js'
+      - 'public/assets/home-roadmap.js'
+      - 'test/incident*.test.js'
+      - 'scripts/verify-incident-context.cjs'
+      - '.github/workflows/incident-context.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      DB_PATH: ':memory:'
+      AUTOMATION_DB_PATH: ':memory:'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node --test test/incidentPlayerContext.test.js test/incidentPlayerContextHttp.test.js test/incidentTimeline.test.js test/reportContext.test.js test/reportContextHttp.test.js automation-platform/test/reportContext.test.js automation-platform/test/reportContextHttp.test.js test/serverEntrypointSyntax.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js
+      - run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.62.1
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/verify-incident-context.cjs

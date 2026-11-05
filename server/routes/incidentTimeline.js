@@ -5,7 +5,23 @@ const automation = require("../services/automationWebsiteClient");
 const timeline = require("../services/incidentTimeline");
 
 const router = express.Router();
+router.use((_req,res,next) => { res.set('Cache-Control', 'private, no-store'); next(); });
 router.use(requireAdmin);
+
+function contextError(res, error) {
+  const status = [400,403,503].includes(error.status) ? error.status : 502;
+  return res.status(status).json({error: status === 400 ? 'A valid player and approximate incident time are required.' : status === 403 ? 'Current linked admin access is required. Reload incident history.' : status === 503 ? 'Player incident context is not enabled.' : 'Player incident sources are unavailable.'});
+}
+router.get('/player-context-capabilities', (req,res) => {
+  res.set('Cache-Control', 'private, no-store');
+  try { return res.json(require('../services/incidentPlayerContext').getDefaultReader().capabilities(() => req.user)); }
+  catch (error) { return contextError(res,error); }
+});
+router.get('/player-context', async (req,res) => {
+  res.set('Cache-Control', 'private, no-store');
+  try { return res.json(await require('../services/incidentPlayerContext').getDefaultReader().read(() => req.user, req.get('X-Incident-Reviewer'), req.query)); }
+  catch (error) { return contextError(res,error); }
+});
 
 // Read-only, bounded and protected by the existing website admin session.
 // The automation API currently exposes only its newest 200 audit entries and
