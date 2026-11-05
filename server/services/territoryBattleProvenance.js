@@ -1,4 +1,5 @@
 // Internal evidence only. No player endpoint, badge, currency or game command.
+const {MAX_LIVE_SAMPLE_AGE_MS}=require('./liveSnapshotFreshness');
 function createBattleProvenance(db) {
   const outbox=require('./territoryVictoryOutbox').createVictoryOutbox(db);
   const groupHistory=require('./groupBattleHistory').createGroupBattleHistory(db);
@@ -15,6 +16,7 @@ function createBattleProvenance(db) {
   CREATE TABLE IF NOT EXISTS territory_battle_winners (
     attack_id INTEGER NOT NULL,steam_id TEXT NOT NULL,PRIMARY KEY(attack_id,steam_id)
   )`);
+  db.exec('CREATE TABLE IF NOT EXISTS territory_battle_sample_clock(attack_id INTEGER PRIMARY KEY,verified INTEGER NOT NULL)');
   const read = id => db.prepare('SELECT * FROM territory_battle_provenance WHERE attack_id=?').get(id) || null;
   function begin(attackId,eventId,at,{initialScore=-100,testing=false,attackerGroupId=null,defenderGroupId=null}={}) {
     if (![attackId,eventId,at].every(Number.isSafeInteger) || attackId<=0 || eventId<=0 || at<0) throw new Error('Invalid battle identity');
@@ -27,6 +29,7 @@ function createBattleProvenance(db) {
     try {
       db.prepare('INSERT INTO territory_battle_provenance(attack_id,event_id,started_at,disqualified_reason) VALUES (?,?,?,?)')
         .run(attackId,eventId,at,testing?'testing':initialScore!==-100?'nonstandard-start':null);
+      db.prepare('INSERT INTO territory_battle_sample_clock VALUES (?,1)').run(attackId);
       groupHistory.freeze(attackId,{attackerGroupId,defenderGroupId});
       db.exec('RELEASE battle_identity_begin');
     } catch(error) {
@@ -42,14 +45,18 @@ function createBattleProvenance(db) {
     if(!presence?.usable) return; // A pause alone is not a forged result.
     if(presence.simulated) return disqualify(id,'simulated');
     const row=read(id);
-    if(!row || row.closed_at!==null || !Number.isSafeInteger(at) || at<row.started_at) return;
+    const sampledAt=presence.sampledAt===undefined?at:presence.sampledAt;
+    if(!row || row.closed_at!==null || !Number.isSafeInteger(at) || !Number.isSafeInteger(sampledAt) || sampledAt>at || sampledAt<row.started_at || (presence.sampledAt!==undefined&&at-sampledAt>MAX_LIVE_SAMPLE_AGE_MS)) return;
+    // Existing history stays unknown, and one unstamped observation prevents
+    // later samples from retroactively upgrading that battle's clock evidence.
+    if(presence.sampledAt===undefined)db.prepare('UPDATE territory_battle_sample_clock SET verified=0 WHERE attack_id=?').run(id);
     const participants=presence.participants || [];
     if(!Array.isArray(participants) || participants.length>12 || participants.some(p=>!/^\d{17}$/.test(p.steamId) || !['attacker','defender'].includes(p.side))) {
       disqualify(id,'unavailable');return;
     }
     for(const p of participants) db.prepare(`INSERT INTO territory_battle_participants VALUES (?,?,?,?,?)
       ON CONFLICT(attack_id,steam_id,side) DO UPDATE SET last_seen=MAX(last_seen,excluded.last_seen)`)
-      .run(id,p.steamId,p.side,at,at);
+      .run(id,p.steamId,p.side,sampledAt,sampledAt);
     db.prepare('UPDATE territory_battle_provenance SET live_observed=1 WHERE attack_id=? AND closed_at IS NULL').run(id);
   }
   function finish(id,at,outcome,{manual=false}={}) {
@@ -81,6 +88,7 @@ function createBattleProvenance(db) {
       reason:result.disqualified_reason || (result.live_observed?'recorded-live':'no-live-evidence')};
   }
   const winners=id=>db.prepare('SELECT steam_id FROM territory_battle_winners WHERE attack_id=? ORDER BY steam_id').all(id).map(r=>r.steam_id);
-  return {begin,observe,disqualify,finish,read,winners};
+  const hasVerifiedSampleClock=id=>Boolean(db.prepare('SELECT 1 FROM territory_battle_sample_clock c JOIN territory_battle_provenance p ON p.attack_id=c.attack_id WHERE c.attack_id=? AND c.verified=1 AND p.live_observed=1').get(id));
+  return {begin,observe,disqualify,finish,read,winners,hasVerifiedSampleClock};
 }
 module.exports={createBattleProvenance};

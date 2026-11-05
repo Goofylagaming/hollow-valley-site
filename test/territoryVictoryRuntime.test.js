@@ -17,7 +17,8 @@ const geometry=territoryGeometry({territoryName:'South Plains'});
 const location={x:geometry.center.long*1000,y:geometry.center.lat*1000,z:0};
 let online=true;
 const originalState=status.getState;
-status.getState=()=>({configured:true,online,characters:online?[a,b,outsider].map(steamId=>({steamId,location})):[]});
+let sampleAge=0;
+status.getState=()=>({configured:true,online,lastChecked:Number.isFinite(sampleAge)?new OriginalDate(now-sampleAge).toISOString():null,characters:online?[a,b,outsider].map(steamId=>({steamId,location})):[]});
 test.after(()=>{status.getState=originalState;global.Date=OriginalDate;db.close();fs.rmSync(dir,{recursive:true,force:true});});
 
 test('real declaration and runtime capture freeze only observed lineup fighters; manual control cannot award',async()=>{
@@ -52,6 +53,15 @@ test('real declaration and runtime capture freeze only observed lineup fighters;
       online=false;now+=6*60000;router.tickRuntime();
       assert.equal(db.prepare('SELECT live_observed FROM territory_battle_provenance WHERE attack_id=?').get(attack.id).live_observed,0);
       online=true;
+      for(const age of [120001,-1,NaN]){
+        const score=db.prepare('SELECT control_score FROM territory_events WHERE id=?').get(eventId).control_score;
+        sampleAge=age;now+=60000;router.tickRuntime();
+        assert.equal(db.prepare('SELECT live_observed FROM territory_battle_provenance WHERE attack_id=?').get(attack.id).live_observed,0,'expired, future and timestamp-less positions cannot produce live evidence');
+        const state=await (await fetch(base+'/state')).json();assert.equal(state.presence.stale,true);assert.equal(state.presence.serverOnline,false);assert.equal(state.presence.playerCount,0);
+        assert.equal(db.prepare('SELECT control_score FROM territory_events WHERE id=?').get(eventId).control_score,score);
+        assert.equal(db.prepare('SELECT attack_id FROM territory_victory_outbox WHERE attack_id=?').get(attack.id),undefined);
+      }
+      sampleAge=0;
       for(let tick=0;tick<180;tick++) {
         now+=60000;router.tickRuntime();
         if(db.prepare('SELECT status FROM territory_attacks WHERE id=?').get(attack.id).status==='resolved') break;
@@ -60,6 +70,7 @@ test('real declaration and runtime capture freeze only observed lineup fighters;
       const queued=db.prepare('SELECT payload_json FROM territory_victory_outbox WHERE attack_id=?').get(attack.id);
       if(manual) assert.equal(queued,undefined);
       else {
+        assert.equal(require('../server/services/territoryBattleProvenance').createBattleProvenance(db).hasVerifiedSampleClock(attack.id),true);
         assert.equal(history.list(websiteGroupId)[0].attackId,attack.id);
         assert.equal(history.list(websiteGroupId)[0].result,'win');
         assert.deepEqual(JSON.parse(queued.payload_json).winners,[a,b]);
