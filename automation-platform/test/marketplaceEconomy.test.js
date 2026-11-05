@@ -26,6 +26,7 @@ function loadMarketplace() {
     store,
     marketplace,
     cleanup() {
+      store.db.close();
       delete require.cache[storePath];
       delete require.cache[marketPath];
       if (previous.db === undefined) delete process.env.AUTOMATION_DB_PATH;
@@ -34,7 +35,9 @@ function loadMarketplace() {
       else process.env.MARKETPLACE_WRITE_ENABLED = previous.write;
       if (previous.fulfillment === undefined) delete process.env.OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED;
       else process.env.OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED = previous.fulfillment;
-      fs.rmSync(dir, { recursive: true, force: true });
+      const target=path.resolve(dir);
+      assert.ok(target.startsWith(path.resolve(os.tmpdir())+path.sep));
+      fs.rmSync(target, { recursive: true, force: true });
     },
   };
 }
