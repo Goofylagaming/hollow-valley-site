@@ -10,14 +10,14 @@ const fs = require('node:fs'), path = require('node:path'), assert = require('no
       await context.route('**/*', async route => {
         const url = new URL(route.request().url());
         if (url.origin !== 'http://localhost') return route.abort();
-        const json = body => route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) });
-        if (url.pathname === '/assets/common.js') return route.fulfill({ contentType: 'text/javascript', body: `window.HVLiveMapData={mapVersion:'Gateway_v0.21',bounds:{minX:-100,maxX:100,minY:-100,maxY:100}};window.HDS={api:async(u,o={})=>(await fetch(u,{headers:{'Content-Type':'application/json'},...o})).json(),loadMe:async()=>({user:{steam_id:'76561198000000801'}})};` });
+        const json = (body, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+        if (url.pathname === '/assets/common.js') return route.fulfill({ contentType: 'text/javascript', body: `window.HVLiveMapData={mapVersion:'Gateway_v0.21',bounds:{minX:-100,maxX:100,minY:-100,maxY:100}};window.HDS={api:async(u,o={})=>{const r=await fetch(u,{headers:{'Content-Type':'application/json'},...o});const b=await r.json();if(!r.ok)throw new Error(b.error);return b;},loadMe:async()=>({user:{steam_id:'76561198000000801'}})};` });
         if (url.pathname.endsWith('/capabilities')) return json({ enabled: true, readOnly });
         if (url.pathname.endsWith('/settings') && route.request().method() === 'GET') return json(settings);
         if (url.pathname.endsWith('/settings') || url.pathname.endsWith('/delete')) {
           const body = route.request().postDataJSON(); writes.push(body);
           settings = { enabled: body.enabled ?? false, revision: settings.revision + 1 };
-          if (url.pathname.endsWith('/delete')) cleared = true;
+          if (url.pathname.endsWith('/delete')) { cleared = true; return json({error:'Fixture response lost after erasure'},503); }
           return json(settings);
         }
         if (url.pathname.endsWith('/points')) return json({ total: 2, regions: [{id:'north',name:'North <img src=x>',total:2,discovered:cleared?0:1,complete:false}], mapVersion: 'Gateway_v0.21', bounds: { minX: -100, maxX: 100, minY: -100, maxY: 100 }, points: cleared ? [] : [{ name: 'Cave <img src=x>', x: 0, y: 0 }] });
@@ -43,7 +43,9 @@ const fs = require('node:fs'), path = require('node:path'), assert = require('no
       await page.check('#discovery-optin'); await page.click('#discovery-save');
       await page.getByText('1 of 2 locations discovered. Discovery recording is on.', { exact: true }).waitFor();
       assert.deepEqual(writes[0], { enabled: true, expectedRevision: 0 });
-      await page.click('#discovery-delete'); await page.getByText('0 of 2 locations discovered. Discovery recording is off.', { exact: true }).waitFor();
+      await page.click('#discovery-delete'); await page.getByText(/0 of 2 locations discovered. Discovery recording is off.*Fixture response lost after erasure/).waitFor();
+      assert.equal(await page.locator('#discovery-optin').isChecked(),false);
+      assert.equal(writes.filter(body=>body.enabled===undefined).length,1);
       assert.equal(await page.locator('#tracker-discoveries .poi').count(), 0);
       readOnly = true; await page.reload(); await page.getByText(/This preview is read-only/).waitFor(); assert.equal(await page.locator('#discovery-save').isDisabled(), true);
       assert.deepEqual(errors, []); console.log(`PASS ${width}px discovery controls, layer filtering, safe text, clearing and read-only mode`);

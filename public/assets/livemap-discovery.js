@@ -48,7 +48,19 @@
     if (busy) return;
     busy = true; controls();
     try { await operation(); await refresh(); }
-    catch (error) { status.textContent = error.message; }
+    catch (error) {
+      // A lost response may follow a committed preference change or erasure.
+      // Recover the authoritative revision before another mutation is allowed.
+      try {
+        await refresh();
+        status.textContent += ` Last request reported: ${error.message}`;
+      } catch {
+        writable = false;
+        get('tracker-discoveries').replaceChildren();
+        get('discovery-regions').replaceChildren();
+        status.textContent = 'Discovery state could not be refreshed. Reload this page before changing progress.';
+      }
+    }
     finally { busy = false; controls(); }
   }
   get('discovery-mode').addEventListener('change', event => document.body.classList.toggle('discovery-mode', event.target.checked));
