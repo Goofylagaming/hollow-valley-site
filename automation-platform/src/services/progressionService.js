@@ -1,6 +1,7 @@
 const { randomUUID } = require('node:crypto');
 const store = require('./economyStore');
 const evidenceReview = require('./achievementEvidenceReview').createAchievementEvidenceReview(store.db);
+const sourceTimeEvidence = require('./progressionSourceTime');
 
 const PLAYTIME_XP_PER_5_MINUTES = 10;
 const LEVEL_REWARD_VC = 100;
@@ -102,6 +103,8 @@ store.db.exec(`
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 `);
+
+const sourceTimes=sourceTimeEvidence.createProgressionSourceTimeStore(store.db);
 
 function parseJson(value) {
   try { return JSON.parse(value || '{}'); } catch { return {}; }
@@ -374,6 +377,7 @@ function awardXp({
   referenceType = null,
   referenceId = null,
   metadata = {},
+  sourceTime = null,
 }) {
   const steam = store.validateSteamId(steamId);
   const xpAmount = Number(amount);
@@ -405,12 +409,13 @@ function awardXp({
     const nextXp = Number(before.xp || 0) + xpAmount;
     const newLevel = levelFromXp(nextXp);
 
+    const ledgerId=randomUUID();
     store.db.prepare(`
       INSERT INTO progression_xp_ledger
         (id, steam_id, amount, source, reason, idempotency_key, reference_type, reference_id, metadata_json)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      randomUUID(),
+      ledgerId,
       steam,
       xpAmount,
       xpSource,
@@ -420,6 +425,7 @@ function awardXp({
       referenceId ? String(referenceId) : null,
       JSON.stringify(metadata || {})
     );
+    sourceTimes.recordNewGrant(ledgerId,{source:xpSource,referenceType,sourceTime});
 
     store.db.prepare(`
       UPDATE progression_players
@@ -489,6 +495,7 @@ function trackOnlinePlayers(players, { nowMs = Date.now() } = {}) {
         referenceType: 'playtime_interval',
         referenceId: String(sequence),
         metadata: { intervalMinutes: 5, sequence },
+        sourceTime: {at:Number(nowMs),basis:'playtime-observation'},
       });
       if (!result.duplicate) {
         summary.intervalsAwarded += 1;
@@ -540,6 +547,7 @@ function syncQuestXp(steamId) {
       referenceType: 'quest',
       referenceId: `${row.quest_id}:${row.period_key}`,
       metadata: { questId: row.quest_id, periodKey: row.period_key, achievedAt: row.achieved_at },
+      sourceTime: {at:sourceTimeEvidence.parseSourceTimestamp(row.achieved_at),basis:'quest-achievement'},
     });
     if (!result.duplicate) awarded += amount;
   }
@@ -570,6 +578,7 @@ function syncEventXp(steamId) {
       referenceType: 'event',
       referenceId: row.event_id,
       metadata: { eventId: row.event_id, eventTitle: row.event_title, confirmedAt: row.confirmed_at },
+      sourceTime: {at:sourceTimeEvidence.parseSourceTimestamp(row.confirmed_at),basis:'event-confirmation'},
     });
     if (!result.duplicate) awarded += 1000;
   }
