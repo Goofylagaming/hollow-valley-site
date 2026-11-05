@@ -13,7 +13,12 @@
 .hv-incident-context-events { padding-left: 24px; }
 .hv-incident-context-events li { padding: 16px 0; border-bottom: 1px solid #3c463a; }
 .hv-incidents-filters input, .hv-incidents-filters select, .hv-incidents-filters button { font-size: 16px; max-width: 100%; }
+.hv-incidents-filters input, .hv-incidents-filters select { font-size: 16px !important; }
+#incident-manual-search { margin-top: 16px; }
+#incident-manual-search summary { padding: 12px 0; cursor: pointer; }
 .hv-incidents-filters label { min-width: 0; max-width: 100%; }
+#incident-report-section { border: 1px solid #4c4e3b; border-radius: 12px; padding: 16px; margin: 16px 0; overflow-wrap: anywhere; }
+#incident-report-reload { min-height: 44px; margin-top: 12px; padding: 10px 14px; font-size: 16px; color: #fff0c4; background: #554020; border: 1px solid #cfac59; border-radius: 6px; cursor: pointer; }
 .hv-incidents-page footer { width: auto; max-width: 100%; box-sizing: border-box; flex-wrap: wrap; }
 .hv-incidents-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 15px; padding: 20px; }
 .hv-incidents-filters label { display: grid; gap: 7px; font-size: 13px; font-weight: 700; color: #d0d1bd; }

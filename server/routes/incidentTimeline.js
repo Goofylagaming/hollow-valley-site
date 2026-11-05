@@ -9,9 +9,19 @@ router.use((_req,res,next) => { res.set('Cache-Control', 'private, no-store'); n
 router.use(requireAdmin);
 
 function contextError(res, error) {
-  const status = [400,403,503].includes(error.status) ? error.status : 502;
-  return res.status(status).json({error: status === 400 ? 'A valid player and approximate incident time are required.' : status === 403 ? 'Current linked admin access is required. Reload incident history.' : status === 503 ? 'Player incident context is not enabled.' : 'Player incident sources are unavailable.'});
+  const status = [400,403,404,409,503].includes(error.status) ? error.status : 502;
+  return res.status(status).json({error: status === 400 ? 'A valid player and approximate incident time are required.' : status === 403 ? 'Current linked admin access is required. Reload incident history.' : status === 404 ? 'Saved report not found.' : status === 409 ? 'The saved report changed or has no usable participant/time. Reload its details.' : status === 503 ? 'Player incident context is not enabled.' : 'Player incident sources are unavailable.'});
 }
+router.get('/reports/:id', (req,res) => {
+  try {
+    if (Object.keys(req.query).length) return res.status(400).json({error:'Saved report details do not accept query overrides.'});
+    return res.json(require('../services/incidentPlayerContext').getDefaultReader().reportDetails(() => req.user, req.get('X-Incident-Reviewer'), req.params.id));
+  } catch (error) { return contextError(res,error); }
+});
+router.get('/reports/:id/context', async (req,res) => {
+  try { return res.json(await require('../services/incidentPlayerContext').getDefaultReader().readReport(() => req.user, req.get('X-Incident-Reviewer'), req.params.id, req.query)); }
+  catch (error) { return contextError(res,error); }
+});
 router.get('/player-context-capabilities', (req,res) => {
   res.set('Cache-Control', 'private, no-store');
   try { return res.json(require('../services/incidentPlayerContext').getDefaultReader().capabilities(() => req.user)); }

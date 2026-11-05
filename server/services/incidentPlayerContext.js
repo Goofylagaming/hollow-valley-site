@@ -1,6 +1,7 @@
 'use strict';
 const timeline = require('./incidentTimeline');
 const {project} = require('./reportContext');
+const {createHash} = require('node:crypto');
 const WINDOW_MS = 900000, MAX_EVENTS = 200;
 const fail = (status, message) => { throw Object.assign(Error(message), {status}); };
 const steam = value => typeof value === 'string' && /^\d{17}$/.test(value);
@@ -21,6 +22,40 @@ function createIncidentPlayerContext({db, automation, enabled = () => process.en
   }
   function capabilities(getUser) {
     return {reviewerBinding: admin(getUser), enabled: Boolean(enabled()), windowMinutes: 15, complete: false};
+  }
+  function savedReport(id) {
+    if (typeof id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) fail(400, 'Invalid report reference.');
+    const row = db.prepare('SELECT id,reporter_steam_id,reported_steam_id,occurred_at FROM player_reports WHERE id=?').get(id);
+    if (!row) fail(404, 'Report not found.');
+    if (!steam(row.reporter_steam_id) || (row.reported_steam_id !== null && (!steam(row.reported_steam_id) || row.reported_steam_id === row.reporter_steam_id)) || (row.occurred_at !== null && stamp(row.occurred_at) === null)) fail(409, 'The saved report participants or time cannot be verified.');
+    return row;
+  }
+  const fingerprint = row => createHash('sha256').update(JSON.stringify(row)).digest('hex');
+  function reportDetails(getUser, binding, id) {
+    const actor = admin(getUser, binding);
+    if (binding !== actor) fail(403, 'Reload incident history for the current admin account.');
+    if (!enabled()) fail(503, 'Player incident context is not enabled.');
+    const row = savedReport(id), at = row.occurred_at === null ? null : stamp(row.occurred_at), clock = now();
+    if (!Number.isSafeInteger(clock) || clock < WINDOW_MS || clock > 8640000000000000 - WINDOW_MS) fail(502, 'The context observation time could not be verified.');
+    const reason = at === null ? 'time-required' : at < clock - 90 * 86400000 || at > clock + WINDOW_MS ? 'time-outside-source-window' : null;
+    return {version: 1, reviewerBinding: actor, report: {id: row.id, fingerprint: fingerprint(row), occurredAt: row.occurred_at,
+      participants: [{role: 'reporter', steamId: row.reporter_steam_id}, ...(row.reported_steam_id ? [{role: 'reported', steamId: row.reported_steam_id}] : [])],
+      canInvestigate: reason === null, reason}};
+  }
+  async function readReport(getUser, binding, id, input) {
+    const details = reportDetails(getUser, binding, id), saved = details.report;
+    if (!input || Array.isArray(input) || Object.keys(input).some(key => !['role','fingerprint'].includes(key)) || !['reporter','reported'].includes(input.role) || typeof input.fingerprint !== 'string' || !/^[a-f0-9]{64}$/.test(input.fingerprint)) fail(400, 'A reviewed saved-report participant is required.');
+    if (input.fingerprint !== saved.fingerprint) fail(409, 'The saved report changed. Reload its details before investigating.');
+    const participant = saved.participants.find(value => value.role === input.role);
+    if (!participant || !saved.canInvestigate) fail(409, 'The saved report has no usable participant or incident time.');
+    // Freeze the displayed participant/time; callers cannot supply replacement query fields.
+    const role = input.role, selected = {steamId: participant.steamId, occurredAt: saved.occurredAt};
+    let result, failed;
+    try { result = await read(getUser, binding, selected); } catch (error) { failed = error; }
+    const current = reportDetails(getUser, binding, id);
+    if (current.report.fingerprint !== saved.fingerprint || !current.report.canInvestigate) fail(409, 'The saved report changed while context was loading.');
+    if (failed) throw failed;
+    return {...result, report: {id, fingerprint: saved.fingerprint, role}};
   }
   async function read(getUser, binding, input) {
     const actor = admin(getUser, binding);
@@ -74,7 +109,7 @@ function createIncidentPlayerContext({db, automation, enabled = () => process.en
     return {version: 1, reviewerBinding: actor, query, windowStart: new Date(start).toISOString(), windowEnd: new Date(end).toISOString(), complete: false, associationOnly: true,
       events: events.slice(0, MAX_EVENTS), partialSources, sourceCounts: scanned, hasMoreUnloaded: hasMoreUnloaded || events.length > MAX_EVENTS, fetchedAt: new Date(finished).toISOString()};
   }
-  return {capabilities, read};
+  return {capabilities, read, reportDetails, readReport};
 }
 let reader;
 function getDefaultReader() {

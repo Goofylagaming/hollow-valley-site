@@ -69,3 +69,40 @@ test('oversized source arrays and final output stay bounded and disclose unloade
   f.automation.getAdminRequests=async()=>({requests:Array.from({length:200},(_,i)=>({...f.request,id:'request-'+i}))});
   const result=await f.read();assert.equal(result.events.length,200);assert.deepEqual(result.sourceCounts,{audit:200,requests:100});assert.equal(result.hasMoreUnloaded,true);
 });
+
+const REPORT = '10000000-0000-4000-8000-000000000001';
+function reportFixture(t) {
+  const f=fixture(t);f.db.exec('CREATE TABLE player_reports(id TEXT PRIMARY KEY,reporter_steam_id TEXT,reported_steam_id TEXT,occurred_at TEXT,description TEXT)');
+  f.db.prepare('INSERT INTO player_reports VALUES(?,?,?,?,?)').run(REPORT,PLAYER,OTHER,f.input.occurredAt,'PRIVATE explanation and evidence');
+  f.details=()=>f.reader.reportDetails(f.getUser,f.binding,REPORT);
+  f.reportRead=input=>f.reader.readReport(f.getUser,f.binding,REPORT,input);
+  return f;
+}
+test('saved-report details are read-only and bind exact participants/time without loading sources or exposing the explanation',async t=>{
+  const f=reportFixture(t);f.db.exec('PRAGMA query_only=ON');const before=f.db.prepare('SELECT total_changes() n').get().n;
+  const details=f.details();assert.deepEqual(details.report.participants,[{role:'reporter',steamId:PLAYER},{role:'reported',steamId:OTHER}]);
+  assert.equal(details.report.canInvestigate,true);assert.equal(details.report.occurredAt,f.input.occurredAt);assert.match(details.report.fingerprint,/^[a-f0-9]{64}$/);assert.equal(f.calls.length,0);
+  const result=await f.reportRead({role:'reported',fingerprint:details.report.fingerprint});assert.equal(result.query.steamId,OTHER);assert.deepEqual(result.report,{id:REPORT,role:'reported',fingerprint:details.report.fingerprint});
+  assert.deepEqual(f.calls[2][1],{reporterSteamId:OTHER,reportedSteamId:null,occurredAt:f.input.occurredAt});assert.doesNotMatch(JSON.stringify(details),/PRIVATE|explanation|evidence/);assert.equal(f.db.prepare('SELECT total_changes() n').get().n,before);
+});
+test('saved reports reject overrides, stale details, missing participants and missing/unsupported times without source reads',async t=>{
+  const f=reportFixture(t),fingerprint=f.details().report.fingerprint;
+  for(const input of [{role:'someone',fingerprint},{role:'reporter',fingerprint,steamId:OTHER},{role:'reporter',fingerprint,occurredAt:f.input.occurredAt},{role:'reported',fingerprint:'a'.repeat(64)},{role:'reporter'}])await assert.rejects(f.reportRead(input),e=>[400,409].includes(e.status));
+  f.db.exec('UPDATE player_reports SET reported_steam_id=NULL');let details=f.details();assert.equal(details.report.participants.length,1);await assert.rejects(f.reportRead({role:'reported',fingerprint:details.report.fingerprint}),{status:409});
+  f.db.exec('UPDATE player_reports SET occurred_at=NULL');details=f.details();assert.equal(details.report.canInvestigate,false);assert.equal(details.report.reason,'time-required');await assert.rejects(f.reportRead({role:'reporter',fingerprint:details.report.fingerprint}),{status:409});
+  f.db.prepare('UPDATE player_reports SET occurred_at=?').run(iso(AT-91*86400000));details=f.details();assert.equal(details.report.reason,'time-outside-source-window');await assert.rejects(f.reportRead({role:'reporter',fingerprint:details.report.fingerprint}),{status:409});
+  assert.equal(f.calls.length,0);
+});
+test('report investigation suppresses changed participants/time or deleted reports after delayed source success and failure',async t=>{
+  for(const change of [f=>f.db.prepare('UPDATE player_reports SET reported_steam_id=?').run(MOD),f=>f.db.prepare('UPDATE player_reports SET occurred_at=?').run(iso(AT-30000)),f=>f.db.exec('DELETE FROM player_reports')])for(const sourceFails of [false,true]){
+    const f=reportFixture(t),fingerprint=f.details().report.fingerprint;let release;const hold=new Promise(r=>{release=r;});f.automation.getAdminReportContext=async()=>{await hold;if(sourceFails)throw Error('PRIVATE');return f.raw;};
+    const pending=f.reportRead({role:'reporter',fingerprint});await Promise.resolve();change(f);release();await assert.rejects(pending,error=>[404,409].includes(error.status));
+  }
+});
+test('report detail reads require current linked admin binding and enabled rollout, and corrupt saved identities are withheld',t=>{
+  const f=reportFixture(t);f.enable(false);assert.throws(f.details,{status:503});f.enable(true);
+  assert.throws(()=>f.reader.reportDetails(f.getUser,undefined,REPORT),{status:403});assert.throws(()=>f.reader.reportDetails(f.getUser,f.binding,'bad'),{status:400});
+  assert.throws(()=>f.reader.reportDetails(f.getUser,f.binding,'20000000-0000-4000-8000-000000000002'),{status:404});
+  f.db.prepare('UPDATE player_reports SET reported_steam_id=?').run(PLAYER);assert.throws(f.details,{status:409});
+  f.user({id:1,steam_id:PLAYER,is_admin:1});assert.throws(f.details,{status:403});assert.equal(f.calls.length,0);
+});

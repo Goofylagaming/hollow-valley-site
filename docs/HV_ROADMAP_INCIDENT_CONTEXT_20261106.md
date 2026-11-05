@@ -75,3 +75,51 @@ marketplace-specific sources, complete historical search and report-linked
 navigation remain unfinished. Real game-source semantics and hosted delivery are
 unverified. Homepage release register v150 retains #25 in Building / Testing.
 No push, merge, deployment, live flag, signing key or production data changed.
+
+## Saved-report navigation (homepage v151)
+
+The private report queue now links to /adminincidents#report=<opaque report ID>.
+The fragment contains no Steam IDs, report text or incident time. On arrival the
+page fetches current, minimal saved-report details behind the same linked-admin
+binding and disabled-by-default rollout. This detail read loads no game sources.
+It shows the saved participants and approximate time; the reported player is the
+default selection when available, otherwise the reporter is selected. Staff must
+explicitly choose Investigate saved report. The independent player/time search
+is collapsed while reviewing a saved report, and linked results display directly
+below the saved-report controls.
+
+GET /api/admin-incidents/reports/:id returns only the ID, participants, saved time,
+supported-window state and an opaque digest of those exact fields. Report text,
+evidence links and moderation history are not returned. Missing saved incident
+times and unsupported old/future times disable linked investigation without
+substituting submission time or the current time. These metadata reads require
+an exact X-Incident-Reviewer binding and accept no query overrides.
+
+GET /api/admin-incidents/reports/:id/context accepts only a participant role and
+the digest of displayed report fields. It resolves the Steam ID and time from the
+saved report, rejects stale details before source calls, and rechecks the current
+report after delayed source success or failure. Changed participants/time,
+deleted reports, revoked admins, account changes and disabled rollout suppress
+pending results. Description or review-status changes do not alter the relevant
+participant/time binding. A returned result also binds the report ID/digest/role
+so the page cannot label an independent player query as report-linked context.
+This does not attach, preserve or save evidence; the separate preservation flow
+and its still-pending production retention policy are unchanged.
+
+81 distinct affected local tests pass across the incident and report workflows.
+Actual HTTP checks cover minimal metadata, permissions/binding, read-only DB mode,
+query overrides, exact saved fields and stale details. Service checks cover both
+participant roles, missing participants/time, unsupported times, corrupt saved
+fields and report edits/deletion during successful or failed source reads.
+Desktop1440/phone390 browser fixtures follow the real private queue link, verify
+metadata-only arrival, select either role, reject changed details before/during
+reads, handle missing time and reporter-only reports, and clear held metadata
+across account changes. Existing source-context and preservation browser fixtures
+also pass at both sizes; moderation and saved-copy recovery remain intact. The
+phone layout was visually checked and full participant IDs wrap outside the
+selector. CI paths now cover the queue link and report schema dependencies.
+
+Authenticated staging, real-source validation, connection/dinosaur-action/
+marketplace-specific sources, and complete historical search remain unfinished.
+The production retention decision and separately prepared publication candidates
+are unchanged. No live flag, key, report data, push, merge or deployment changed.

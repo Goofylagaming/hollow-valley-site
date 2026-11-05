@@ -27,6 +27,7 @@
         ' · Reference ' + esc(item.id) + '</p>' +
         '<p class="hv-report-description">' + esc(item.description) + '</p>' +
         (evidence.length ? '<div class="hv-report-evidence">' + links + '</div>' : '') +
+        '<p><a class="report-investigate-link" href="/adminincidents#report=' + encodeURIComponent(item.id) + '">Investigate this report in the timeline →</a></p>' +
         guard.controls() + '<div class="hv-reports-review"><label>Review status<select class="report-review-status">' +
           ["open", "reviewing", "resolved", "dismissed"].map(s =>
             '<option value="' + s + '"' + (s === safeStatus ? ' selected' : '') + '>' + s + '</option>'

@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="/assets/styles.css?v=38">
   <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=5">
-  <link rel="stylesheet" href="/assets/admin-incidents.css?v=2">
+  <link rel="stylesheet" href="/assets/admin-incidents.css?v=3">
 </head>
 <body class="has-my-stuff-rail hv-incidents-page">
   <div class="app-shell">
@@ -25,12 +25,27 @@
           <h2 id="incident-player-title">Investigate a player and time</h2>
           <p>Combine retained chat, recorded combat, operator audits and request outcomes around an approximate incident time. Matches do not establish an allegation.</p>
           <p id="incident-player-disabled">Checking player context availability…</p>
+          <section id="incident-report-section" hidden aria-labelledby="incident-report-title">
+            <h3 id="incident-report-title">Saved report investigation</h3>
+            <p id="incident-report-status" aria-live="polite">Loading saved report details…</p>
+            <div id="incident-report-details"></div>
+            <form id="incident-report-form" class="hv-incidents-filters" hidden>
+              <label>Saved report participant<select id="incident-report-participant" required></select></label>
+              <button id="incident-report-load" type="submit" disabled>Investigate saved report</button>
+              <button id="incident-report-hide" type="button">Hide investigation</button>
+            </form>
+            <button id="incident-report-reload" type="button">Reload saved report details</button>
+            <p><a href="/adminreports">Back to private reports →</a></p>
+          </section>
+          <details id="incident-manual-search" open>
+          <summary>Search a player and time</summary>
           <form id="incident-player-form" class="hv-incidents-filters" hidden>
             <label>Player Steam ID<input id="incident-player-id" inputmode="numeric" pattern="[0-9]{17}" minlength="17" maxlength="17" required autocomplete="off"></label>
             <label>Approximate incident time (your device time)<input id="incident-player-time" type="datetime-local" required></label>
             <button id="incident-player-load" type="submit">Load player context</button>
             <button id="incident-player-hide" type="button">Hide player context</button>
           </form>
+          </details>
           <div id="incident-player-results" aria-live="polite"></div>
         </section>
         <form class="hv-incidents-filters" id="incident-filters">
@@ -79,7 +94,7 @@
     <footer><span>© 2026 Hollow Valley</span><span>ADMIN ONLY · INCIDENT LOGS</span><a href="/adminoperations">Operations</a></footer>
   </div>
   <script src="/assets/common.js?v=22"></script>
-  <script src="/assets/incident-player-context.js?v=1"></script>
+  <script src="/assets/incident-player-context.js?v=2"></script>
   <script src="/assets/admin-incidents.js?v=2"></script>
 </body>
 </html>

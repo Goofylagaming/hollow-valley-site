@@ -3,17 +3,29 @@
   'use strict';
   const {api} = window.HDS, $ = id => document.getElementById(id);
   let actor = null, locked = false, epoch = 0, generation = 0, pending = null;
+  let reportState = null, reportGeneration = 0, reportPending = null;
+  const fragment = new URLSearchParams(location.hash.slice(1)), linkedReport = fragment.get('report');
+  const validReportLink = linkedReport && fragment.getAll('report').length === 1 && [...fragment.keys()].every(key => key === 'report') && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(linkedReport);
   const node = (tag,text) => { const value = document.createElement(tag); value.textContent = text; return value; };
   const time = value => new Date(value).toLocaleString('en-AU', {timeZone:'Australia/Brisbane',dateStyle:'medium',timeStyle:'short'}) + ' AEST';
   function clear() {
     generation++; pending?.abort(); pending = null;
     $('incident-player-results').replaceChildren();
+    $('incident-player-load').disabled = locked;
+    $('incident-report-load').disabled = locked || !reportState?.canInvestigate;
+  }
+  function clearReport(message = 'Reload saved report details before investigating.') {
+    reportGeneration++; reportPending?.abort(); reportPending = null; reportState = null;
+    $('incident-report-details').replaceChildren(); $('incident-report-participant').replaceChildren();
+    $('incident-report-form').hidden = true; $('incident-report-load').disabled = true;
+    $('incident-report-status').textContent = message;
   }
   function lock(message) {
-    locked = true; epoch++; clear();
+    locked = true; epoch++; clear(); clearReport();
     $('incident-records').replaceChildren(); $('incident-search').value = ''; $('incident-player-id').value = ''; $('incident-player-time').value = '';
     $('incident-content').hidden = true; $('incident-guard').hidden = false; $('incident-guard').textContent = message;
     $('incident-player-load').disabled = true;
+    $('incident-report-reload').disabled = true;
   }
   async function check(expected) {
     if (locked) throw Error('Reload incident history.');
@@ -52,25 +64,62 @@
     panel.append(list);
   }
   async function investigate(event) {
+    const fromReport = event.currentTarget.id === 'incident-report-form', saved = reportState;
+    const role = $('incident-report-participant').value;
+    if (fromReport && (!saved?.canInvestigate || !saved.participants.some(value => value.role === role))) {event.preventDefault();return;}
     event.preventDefault(); clear(); const current = generation, controller = new AbortController(); pending = controller;
-    const button = $('incident-player-load'); button.disabled = true;
+    const button = $(fromReport ? 'incident-report-load' : 'incident-player-load'); button.disabled = true;
     const date = new Date($('incident-player-time').value);
-    const query = {steamId:$('incident-player-id').value.trim(),occurredAt:Number.isFinite(date.getTime())?date.toISOString():''};
+    const query = fromReport ? {steamId:saved.participants.find(value => value.role === role).steamId,occurredAt:saved.occurredAt} : {steamId:$('incident-player-id').value.trim(),occurredAt:Number.isFinite(date.getTime())?date.toISOString():''};
     $('incident-player-results').append(node('p','Loading private player context…'));
     let ticket;
     try {
       ticket = await check(actor);
       if (current !== generation || controller.signal.aborted) return;
-      const result = await api('/api/admin-incidents/player-context?'+new URLSearchParams(query), {cache:'no-store',headers:{'X-Incident-Reviewer':ticket.binding},signal:controller.signal});
+      const path = fromReport ? '/api/admin-incidents/reports/'+encodeURIComponent(saved.id)+'/context?'+new URLSearchParams({role,fingerprint:saved.fingerprint}) : '/api/admin-incidents/player-context?'+new URLSearchParams(query);
+      const result = await api(path, {cache:'no-store',headers:{'X-Incident-Reviewer':ticket.binding},signal:controller.signal});
       await check(ticket.binding);
       if (current !== generation || controller.signal.aborted || !valid(ticket)) return;
       if (result.reviewerBinding !== ticket.binding) throw Error('Account changed');
+      if (fromReport && (reportState !== saved || result.report?.id !== saved.id || result.report?.fingerprint !== saved.fingerprint || result.report?.role !== role)) throw Object.assign(Error('Report changed'),{status:409});
       render(result,query);
+      if (fromReport) $('incident-player-results').prepend(node('p','Saved report '+saved.id+' · '+(role === 'reported' ? 'Reported player' : 'Reporter')+' · Participants and time are taken from the saved report.'));
     } catch (error) {
       if (locked || current !== generation || controller.signal.aborted) return;
       try { await check(ticket?.binding || actor); } catch { return; }
-      if (current === generation && valid(ticket)) $('incident-player-results').replaceChildren(node('p',error.status === 400 ? 'Check the player ID and approximate incident time. Supported times are within the last 90 days.' : error.status === 503 ? 'Player incident context is currently disabled.' : 'Player incident context could not be loaded. Retry explicitly when the sources are available.'));
-    } finally { if (current === generation) {pending = null; button.disabled = locked;} }
+      if (current === generation && valid(ticket)) {
+        if (fromReport && [404,409].includes(error.status)) clearReport('The saved report changed, is unavailable or has no usable participant/time. Reload its details.');
+        $('incident-player-results').replaceChildren(node('p',fromReport && [404,409].includes(error.status) ? 'Saved report context is unavailable. Reload the report details before investigating again.' : error.status === 400 ? 'Check the player ID and approximate incident time. Supported times are within the last 90 days.' : error.status === 503 ? 'Player incident context is currently disabled.' : 'Player incident context could not be loaded. Retry explicitly when the sources are available.'));
+      }
+    } finally { if (current === generation) {pending = null; button.disabled = locked || (fromReport && !reportState?.canInvestigate);} }
+  }
+  async function loadReport() {
+    clear(); clearReport('Loading saved report details…'); $('incident-player-load').disabled = locked;
+    if (!validReportLink || locked) return;
+    const current = reportGeneration, controller = new AbortController(); reportPending = controller;
+    try {
+      const ticket = await check(actor);
+      if (current !== reportGeneration || controller.signal.aborted) return;
+      const result = await api('/api/admin-incidents/reports/'+encodeURIComponent(linkedReport),{cache:'no-store',headers:{'X-Incident-Reviewer':ticket.binding},signal:controller.signal});
+      await check(ticket.binding);
+      if (!valid(ticket) || current !== reportGeneration || controller.signal.aborted) return;
+      const saved = result.report;
+      if (result.version !== 1 || result.reviewerBinding !== ticket.binding || saved?.id !== linkedReport || typeof saved.canInvestigate !== 'boolean' || !/^[a-f0-9]{64}$/.test(saved.fingerprint) || !Array.isArray(saved.participants) || saved.participants.length < 1 || saved.participants.length > 2 || saved.participants.some(value => !['reporter','reported'].includes(value.role) || !/^\d{17}$/.test(value.steamId))) throw Error('Invalid saved report');
+      reportState = saved; $('incident-report-details').append(node('p','Report reference: '+saved.id),node('p',saved.occurredAt ? 'Saved approximate incident time: '+time(saved.occurredAt) : 'No approximate incident time is saved.'));
+      const select = $('incident-report-participant');
+      for (const participant of saved.participants) {
+        const label = participant.role === 'reported' ? 'Reported player' : 'Reporter';
+        $('incident-report-details').append(node('p',label+': '+participant.steamId));
+        const option = node('option',label);option.value = participant.role;select.append(option);
+      }
+      select.value = saved.participants.some(value => value.role === 'reported') ? 'reported' : 'reporter';
+      $('incident-report-form').hidden = !saved.canInvestigate; $('incident-report-load').disabled = !saved.canInvestigate;
+      $('incident-report-status').textContent = saved.canInvestigate ? 'Choose a saved participant, then select Investigate saved report to load context.' : saved.reason === 'time-required' ? 'This report needs a saved approximate incident time before report-linked investigation is possible.' : 'This report’s saved time is outside the supported source window.';
+    } catch (error) {
+      if (controller.signal.aborted || locked || current !== reportGeneration) return;
+      try {await check(actor);} catch {return;}
+      if (current === reportGeneration) clearReport(error.status === 503 ? 'Player incident context is currently disabled.' : 'Saved report details could not be loaded. Reload them when available.');
+    } finally {if (current === reportGeneration) reportPending = null;}
   }
   async function initialize() {
     try {
@@ -81,17 +130,32 @@
       $('incident-player-form').hidden = caps.enabled !== true;
       $('incident-player-disabled').hidden = caps.enabled === true;
       $('incident-player-disabled').textContent = 'Player incident context is not enabled.';
+      if (linkedReport) {
+        $('incident-report-section').hidden = false;
+        $('incident-report-section').after($('incident-player-results'));
+        $('incident-manual-search').open = false;
+        $('incident-manual-search').querySelector('summary').textContent = 'Search a different player and time';
+        if (!validReportLink) clearReport('This saved report link is invalid. Open the report again from the private queue.');
+        else if (caps.enabled === true) await loadReport();
+        else clearReport('Player incident context is currently disabled.');
+        $('incident-report-reload').disabled = !validReportLink || caps.enabled !== true;
+      }
     } catch { if (!locked) $('incident-player-disabled').textContent = 'Player context availability could not be verified.'; }
   }
   $('incident-player-form').addEventListener('submit',investigate);
+  $('incident-report-form').addEventListener('submit',investigate);
+  $('incident-report-reload').addEventListener('click',loadReport);
+  $('incident-report-participant').addEventListener('change',() => {clear();$('incident-report-load').disabled=locked || !reportState?.canInvestigate;});
+  $('incident-report-hide').addEventListener('click',() => {clear();$('incident-report-load').disabled=locked || !reportState?.canInvestigate;});
   $('incident-player-hide').addEventListener('click',() => {clear();$('incident-player-load').disabled = locked;});
   async function focus() {
     if (!actor || locked) return;
-    epoch++; $('incident-content').hidden = true; clear(); $('incident-player-load').disabled = false; $('incident-records').replaceChildren();
+    epoch++; $('incident-content').hidden = true; clear(); clearReport(); $('incident-player-load').disabled = false; $('incident-records').replaceChildren();
     $('incident-feedback').textContent = 'Search records again to reload private history.';
     try { const ticket = await check(actor); if (valid(ticket) && !document.hidden) $('incident-content').hidden = false; } catch {}
   }
-  document.addEventListener('visibilitychange',() => {if (document.hidden) {epoch++;clear();$('incident-content').hidden=true;$('incident-records').replaceChildren();} else focus();});
+  document.addEventListener('visibilitychange',() => {if (document.hidden) {epoch++;clear();clearReport();$('incident-content').hidden=true;$('incident-records').replaceChildren();} else focus();});
+  window.addEventListener('hashchange',() => {clear();clearReport();location.reload();});
   window.addEventListener('focus',focus);
   setInterval(() => {if (actor && !locked && !document.hidden) check(actor).catch(()=>{});},15000);
   window.HVIncidentContext = {check,valid,lock};
