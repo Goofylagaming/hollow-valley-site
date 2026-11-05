@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Promotional Skin Codes | Hollow Valley</title>
+<link rel="stylesheet" href="/assets/styles.css?v=38"><link rel="stylesheet" href="/assets/skin-codes.css?v=1"></head>
+<body><div class="app-shell"><div id="nav-slot"></div><main class="promo-page">
+<h1>Promotional skin codes</h1><p>Redeem a single-use code from a Hollow Valley event or competition. Your unlocked skin will appear in My Skins.</p>
+<a href="/skins">Back to Skin Studio</a><p id="promo-status" role="status" aria-live="polite">Loading…</p>
+<p id="promo-signin" hidden><a href="/auth/steam">Sign in with Steam</a> to redeem a code.</p>
+<form id="promo-redeem" hidden><label>Promotional code <input name="code" required maxlength="68" autocomplete="off" spellcheck="false"></label><button type="submit" disabled>Redeem code</button></form>
+<section id="promo-admin" hidden><h2>Create a competition code</h2>
+<p>Choose one of your saved designs. Membership skins are excluded. Each code unlocks this design for one recipient; it does not transfer your own copy. Editing the palette or species before redemption invalidates the code.</p>
+<form id="promo-issue"><fieldset disabled><label>Skin <select name="presetId" required><option value="">Choose a skin</option></select></label>
+<label>Valid for <select name="days"><option value="1">1 day</option><option value="7" selected>7 days</option><option value="30">30 days</option><option value="90">90 days</option></select></label>
+<label>Reason <textarea name="reason" required minlength="10" maxlength="500"></textarea></label></fieldset><button type="submit" disabled>Create code</button></form>
+<div id="promo-secret" hidden><p id="promo-secret-status"></p><label>Single-use code <input id="promo-code" readonly autocomplete="off" spellcheck="false"></label>
+<p>Save this code before leaving. It is kept only on this page and cannot be recovered from the history. Share it privately with the intended recipient.</p><button id="promo-new" hidden>Code saved — create another</button></div>
+<h2>Your code history</h2><p>Latest 100 records. Codes and recipient identities are not shown.</p><button id="promo-refresh">Refresh history</button><div id="promo-history"></div>
+</section></main></div><script src="/assets/common.js?v=30"></script><script src="/assets/skin-codes.js?v=1"></script></body></html>

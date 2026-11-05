@@ -1,7 +1,8 @@
 const router=require('express').Router();
 const {requireAuth,requireAdmin}=require('../middleware/requireAuth');
-const {skinMutationGuard}=require('../middleware/skinStudioSafety');
+const {skinMutationGuard,getSkinStudioSafety}=require('../middleware/skinStudioSafety');
 const client=require('../services/skinPromoClient');
+router.get('/capabilities',(_req,res)=>res.set('Cache-Control','private, no-store').json({enabled:process.env.SKIN_PROMO_CODES_ENABLED==='1',readOnly:getSkinStudioSafety().readOnly}));
 router.use((_req,res,next)=>{res.set('Cache-Control','private, no-store');if(process.env.SKIN_PROMO_CODES_ENABLED!=='1')return res.status(503).json({error:'Promotional skin codes are not enabled'});next();});
 router.use(requireAuth);
 router.use((req,res,next)=>{if(!/^\d{17}$/.test(String(req.user?.steam_id||'')))return res.status(403).json({error:'A linked Steam account is required'});next();});

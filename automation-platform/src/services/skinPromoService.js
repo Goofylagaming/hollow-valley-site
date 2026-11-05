@@ -62,7 +62,7 @@ function createSkinPromoService(store,{now=Date.now,enabled=()=>process.env.SKIN
   }
   function list(user) {
     gate();const actor=admin(user);
-    return {codes:db.prepare('SELECT code_hash AS id,preset_id AS presetId,reason,created_at AS createdAt,expires_at AS expiresAt,redeemed_at AS redeemedAt,revoked_at AS revokedAt FROM economy_skin_promos WHERE actor=? ORDER BY created_at DESC,rowid DESC LIMIT 100').all(actor)};
+    return {codes:db.prepare('SELECT code_hash AS id,preset_id AS presetId,(SELECT name FROM economy_skin_presets WHERE id=economy_skin_promos.preset_id) AS name,reason,created_at AS createdAt,expires_at AS expiresAt,redeemed_at AS redeemedAt,revoked_at AS revokedAt FROM economy_skin_promos WHERE actor=? ORDER BY created_at DESC,rowid DESC LIMIT 100').all(actor)};
   }
   return {issue,redeem,revoke,list};
 }

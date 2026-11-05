@@ -30,7 +30,22 @@ covering ordinary skin access, duplicate redemption, conflicting requests,
 no currency changes, expiry, revocation, changed palettes, ownership, membership
 exclusion, session binding, admin permissions, origin and preview restrictions.
 
-Remaining: issuing/redeeming website controls with secure code generation and
-retry retention, broader concurrent-worker verification, player-to-player gifting,
+Remaining: broader concurrent-worker verification, player-to-player gifting,
 authenticated staging and production verification. #23 remains Building / Testing;
 its previous roadmap votes remain recorded while freeing active voting slots.
+
+## Website controls
+
+`/skin-codes`, linked from profile collections, supports Steam-authenticated
+redemption and admin creator issuance/history/revocation. The browser generates
+32 random bytes using Web Crypto. An issuance attempt locks its original fields
+and retries with the same code and request ID after a failed response. The code
+remains only in page memory, not local/session storage or URLs; leaving the page
+with an unsaved code triggers a browser warning. Only a confirmed code can be
+cleared to start another issuance. A failed redemption retains the input.
+
+Disabled rollout, signed-out and read-only preview states hide or disable writes.
+History renders names and reasons as text. Desktop/mobile fixtures at 1440px and
+390px pass issuance/retry, secret retention, revocation, redemption retry, escaping,
+no browser persistence, preview, guest, rollout-disabled and layout checks.
+These are isolated fixtures, not live account or staging verification.
