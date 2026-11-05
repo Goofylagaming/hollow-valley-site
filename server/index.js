@@ -293,6 +293,7 @@ function createApp() {
   app.use("/api/group-recruitment", groupRecruitmentRouter);
   app.use("/api/community-activity", communityActivityRouter);
   app.use("/api/groups", groupsRouter);
+  app.use("/api/group-headquarters", require("./routes/groupHeadquarters"));
   if (TERRITORY_WARS_ADMIN_TEST_ENABLED) {
     // Loading the module creates isolated territory_* tables: never load while disabled.
     app.use("/api/territory-wars", require("./routes/territoryWars"));

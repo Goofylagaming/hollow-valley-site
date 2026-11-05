@@ -1284,6 +1284,8 @@ router.post("/attack-declare", requireAuth, (req, res) => {
     battleProvenance.begin(attackId,event.id,Date.parse(declaredAt),{
       initialScore:-100,
       testing:Boolean(event.live_test_mode) || previewSimulationEnabled(),
+      attackerGroupId:access.group.id,
+      defenderGroupId:defender?.id||null,
     });
     return attackId;
   });

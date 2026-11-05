@@ -1,6 +1,7 @@
 // Internal evidence only. No player endpoint, badge, currency or game command.
 function createBattleProvenance(db) {
   const outbox=require('./territoryVictoryOutbox').createVictoryOutbox(db);
+  const groupHistory=require('./groupBattleHistory').createGroupBattleHistory(db);
   db.exec(`CREATE TABLE IF NOT EXISTS territory_battle_provenance (
     attack_id INTEGER PRIMARY KEY,event_id INTEGER NOT NULL,started_at INTEGER NOT NULL,
     live_observed INTEGER NOT NULL DEFAULT 0,disqualified_reason TEXT,
@@ -15,15 +16,22 @@ function createBattleProvenance(db) {
     attack_id INTEGER NOT NULL,steam_id TEXT NOT NULL,PRIMARY KEY(attack_id,steam_id)
   )`);
   const read = id => db.prepare('SELECT * FROM territory_battle_provenance WHERE attack_id=?').get(id) || null;
-  function begin(attackId,eventId,at,{initialScore=-100,testing=false}={}) {
+  function begin(attackId,eventId,at,{initialScore=-100,testing=false,attackerGroupId=null,defenderGroupId=null}={}) {
     if (![attackId,eventId,at].every(Number.isSafeInteger) || attackId<=0 || eventId<=0 || at<0) throw new Error('Invalid battle identity');
     const previous=read(attackId);
     if(previous) {
       if(previous.event_id!==eventId || previous.started_at!==at) throw new Error('Battle provenance conflict');
       return previous;
     }
-    db.prepare('INSERT INTO territory_battle_provenance(attack_id,event_id,started_at,disqualified_reason) VALUES (?,?,?,?)')
-      .run(attackId,eventId,at,testing?'testing':initialScore!==-100?'nonstandard-start':null);
+    db.exec('SAVEPOINT battle_identity_begin');
+    try {
+      db.prepare('INSERT INTO territory_battle_provenance(attack_id,event_id,started_at,disqualified_reason) VALUES (?,?,?,?)')
+        .run(attackId,eventId,at,testing?'testing':initialScore!==-100?'nonstandard-start':null);
+      groupHistory.freeze(attackId,{attackerGroupId,defenderGroupId});
+      db.exec('RELEASE battle_identity_begin');
+    } catch(error) {
+      db.exec('ROLLBACK TO battle_identity_begin');db.exec('RELEASE battle_identity_begin');throw error;
+    }
     return read(attackId);
   }
   function disqualify(id,reason) {

@@ -1,0 +1,38 @@
+name: Group Headquarters
+on:
+  pull_request:
+    paths:
+      - 'server/groupsStore.js'
+      - 'server/groupProgress.js'
+      - 'server/services/groupHeadquarters.js'
+      - 'server/services/groupTerritoryLinks.js'
+      - 'server/services/groupBattleHistory.js'
+      - 'server/services/territoryBattleProvenance.js'
+      - 'server/routes/groupHeadquarters.js'
+      - 'server/routes/territoryWars.js'
+      - 'public/groups.html'
+      - 'public/assets/groups.js'
+      - 'public/assets/groups.css'
+      - 'public/assets/home-roadmap.js'
+      - 'public/assets/group-headquarters.js'
+      - 'public/assets/group-territory.js'
+      - 'test/groups.test.js'
+      - 'test/groupProgress.test.js'
+      - 'test/groupTerritoryHistory.test.js'
+      - 'test/territoryVictoryRuntime.test.js'
+      - 'test/roadmapCommunity.test.js'
+      - 'server/services/roadmapCommunity.js'
+      - '.github/workflows/group-headquarters.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node --test test/groups.test.js test/groupProgress.test.js test/groupTerritoryHistory.test.js test/territoryBattleProvenance.test.js test/territoryVictoryRuntime.test.js test/territoryVictoryDelivery.test.js test/territoryVictoryReview.test.js test/territoryAdminHttp.test.js test/territoryAdminRelease.test.js test/territoryControl.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/roadmapCommunity.test.js
