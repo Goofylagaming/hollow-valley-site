@@ -45,7 +45,9 @@ const {db}=require('../server/db');
     await review.locator('.gallery-review input[type=checkbox]').first().check();
     await review.locator('.gallery-review button').first().click();await review.waitForFunction(()=>document.getElementById('gallery-message').textContent==='Decision recorded.');
     await review.getByRole('button',{name:'View decision history'}).first().click();await review.getByText(/approved: Reviewed community screenshot/).waitFor();
-    await page.click('[data-view=public]');await page.getByText('Featured screenshot').waitFor();
+    await review.selectOption('#gallery-status','pending');await review.getByText('No screenshots in this view yet.').waitFor();
+    await review.selectOption('#gallery-status','approved');await review.getByText('Featured screenshot').waitFor();
+    await page.click('[data-view=featured]');await page.getByText('Featured screenshot').waitFor();
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
     if(process.env.HV_TEST_OUTPUT){fs.mkdirSync(process.env.HV_TEST_OUTPUT,{recursive:true});await page.screenshot({path:path.join(process.env.HV_TEST_OUTPUT,`gallery-${width}.png`),fullPage:true});}
     const guest=await browser.newContext({viewport:{width,height:1000}}),guestPage=await guest.newPage();await guestPage.goto(base+'/gallery');await guestPage.getByText('Featured screenshot').waitFor();
@@ -53,7 +55,9 @@ const {db}=require('../server/db');
     await page.click('[data-view=mine]');page.on('dialog',dialog=>dialog.accept());
     await page.getByRole('button',{name:'Remove my screenshot'}).click();await page.waitForFunction(()=>document.getElementById('gallery-message').textContent==='Screenshot removed.');
     await guestPage.click('#gallery-refresh');await guestPage.getByText('No screenshots in this view yet.').waitFor();
-    assert.deepEqual(errors,[]);console.log(`PASS ${width}px: real upload/retry, private submission, moderation/history, public display, withdrawal, guest and layout`);
+    process.env.HV_GALLERY_ENABLED='0';await page.click('#gallery-refresh');await page.getByText('The gallery is not open yet. Check back after launch.').waitFor();
+    assert.equal(await page.locator('#gallery-upload').isVisible(),false);process.env.HV_GALLERY_ENABLED='1';
+    assert.deepEqual(errors,[]);console.log(`PASS ${width}px: real upload/retry, moderation/history/filters, featured display, withdrawal, guest, disabled rollout and layout`);
     await guest.close();await admin.close();await context.close();
   }}finally{await browser.close();await new Promise(resolve=>server.close(resolve));db.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

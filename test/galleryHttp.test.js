@@ -16,8 +16,10 @@ test('upload and image routes enforce rollout, identity, origin and moderation',
   const upload=extra=>fetch(base+'/gallery?title=Screenshot',{method:'POST',headers:{...headers,...extra},body:image});
   try{
     assert.equal((await upload()).status,503);
+    assert.equal((await (await fetch(base+'/gallery/capabilities')).json()).enabled,false);
     assert.equal(db.prepare("SELECT 1 FROM sqlite_master WHERE name='gallery_images'").get(),undefined);
     process.env.HV_GALLERY_ENABLED='1';
+    assert.equal((await (await fetch(base+'/gallery/capabilities')).json()).enabled,true);
     assert.equal((await upload({'x-test-user':''})).status,401);
     assert.equal((await upload({Origin:'https://untrusted.invalid'})).status,403);
     const response=await upload();assert.equal(response.status,201);const id=(await response.json()).image.id;
@@ -32,6 +34,9 @@ test('upload and image routes enforce rollout, identity, origin and moderation',
     assert.equal(history.reviews[0].reason,'Community screenshot reviewed');
     assert.equal(history.reviews[0].actorSteamId,other);
     assert.equal((await (await fetch(base+'/gallery')).json()).images.length,1);
+    assert.equal((await (await fetch(base+'/gallery?featured=1')).json()).images.length,0);
+    const filtered=await (await fetch(base+'/gallery/admin?status=pending',{headers:{'x-test-user':other,'x-test-admin':'1'}})).json();
+    assert.equal(filtered.images.length,0);
     assert.equal((await fetch(`${base}/gallery/${id}`,{method:'DELETE',headers:{Origin:base,'x-test-user':owner}})).status,200);
     assert.equal((await fetch(`${base}/gallery/${id}/image`)).status,404);
   }finally{delete process.env.HV_GALLERY_ENABLED;await new Promise(resolve=>server.close(resolve));}

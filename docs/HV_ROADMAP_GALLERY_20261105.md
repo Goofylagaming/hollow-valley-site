@@ -33,7 +33,7 @@ before enabling production.
 
 - Dinosaur-specific association beyond the implemented account gallery.
 - Authenticated staging verification of the implemented upload, owner-management and moderation screens.
-- Moderation status filters and featured-only browsing.
+- Community discovery/navigation polish after rollout approval.
 - Community voting and any separately approved reward rules.
 - Linux dependency/decoder validation in CI, authenticated staging and production verification.
 
@@ -69,3 +69,17 @@ approval/history, featured public display, guest access, text escaping, withdraw
 and viewport bounds. The mobile screenshot was visually inspected. Moderator
 history authorization also has an HTTP regression test. No production flag was
 enabled and the achievements review branch is unchanged.
+
+
+## Filtering and rollout-state checks
+
+Featured-only browsing now selects only approved, featured images server-side.
+Admins can filter pending, approved and rejected submissions. Status filters are
+validated and cannot expose private submissions through the public list. Cursor
+pagination is tested across 60 matching rows with no duplicates.
+
+A public capabilities read reports the rollout state without creating tables.
+The page rechecks it when changing views or refreshing, hides uploads and
+moderation controls while disabled, and shows a clear not-open-yet message.
+Five gallery service/HTTP tests and the real desktop/mobile browser workflows
+passed, including filter changes and disabling the rollout during an active page.

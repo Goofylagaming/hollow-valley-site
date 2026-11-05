@@ -35,12 +35,16 @@ function createGalleryStore(db,{now=Date.now}={}) {
       return {...card(row),status:row.status,duplicate:false};
     });
   }
-  function list(user,{mine=false,admin=false,before=Number.MAX_SAFE_INTEGER}={}) {
+  function list(user,{mine=false,admin=false,before=Number.MAX_SAFE_INTEGER,status='all',featured=false}={}) {
     if(!Number.isSafeInteger(before)||before<0)fail('Invalid page cursor');
+    if(!['all','pending','approved','rejected','withdrawn'].includes(status)||typeof featured!=='boolean')fail('Invalid gallery filter');
+    if(!mine&&!admin&&status!=='all')fail('Private status filters require owner or admin access',403);
     if(admin&&!user?.is_admin)fail('Admin access required',403);
     let where="status='approved'",args=[];
     if(mine){where='owner_steam_id=?';args=[identity(user)];}
     else if(admin){identity(user);where="status!='withdrawn'";}
+    if(status!=='all'){where+=' AND status=?';args.push(status);}
+    if(featured)where+=' AND featured=1';
     const rows=db.prepare(`SELECT rowid AS cursor,id,owner_steam_id,author,title,width,height,created_at,status,featured,revision FROM gallery_images WHERE ${where} AND rowid<? ORDER BY rowid DESC LIMIT 50`).all(...args,before);
     return {images:rows.map(row=>({...card(row),...(mine||admin?{status:row.status,revision:row.revision}:{}),...(admin?{ownerSteamId:row.owner_steam_id}:{} )})),nextCursor:rows.length===50?rows.at(-1).cursor:null};
   }

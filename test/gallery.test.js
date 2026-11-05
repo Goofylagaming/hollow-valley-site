@@ -46,3 +46,25 @@ test('withdrawals cannot bypass daily submission limits',async()=>{
     await assert.rejects(gallery.submit(a,{requestId:'upload-limit',title:'Screenshot',image}),{status:429});
   }finally{db.close();}
 });
+
+test('featured and moderation filters retain privacy and stable cursor pagination',()=>{
+  const db=new DatabaseSync(':memory:');try{
+    const gallery=createGalleryStore(db);
+    const insert=db.prepare('INSERT INTO gallery_images(id,owner_steam_id,author,title,image,width,height,content_hash,request_id,created_at,status,featured) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)');
+    for(let i=0;i<180;i++)insert.run(`image-${i}`,a.steam_id,'Fixture',`Image ${i}`,Buffer.from('fixture'),1,1,'fixture',`request-${i}`,i,['approved','pending','rejected'][i%3],Number(i%2===0));
+    const first=gallery.list(),next=gallery.list(null,{before:first.nextCursor});
+    assert.equal(first.images.length,50);assert.equal(next.images.length,10);assert.equal(next.nextCursor,null);
+    assert.equal(new Set([...first.images,...next.images].map(row=>row.id)).size,60);
+    assert.equal(first.images[0].id,'image-177');
+    const featured=gallery.list(null,{featured:true});assert.equal(featured.images.length,30);
+    assert.ok(featured.images.every(row=>row.featured));
+    const pending=gallery.list(admin,{admin:true,status:'pending'});
+    assert.equal(pending.images.length,50);assert.ok(pending.images.every(row=>row.status==='pending'));
+    assert.equal(gallery.list(admin,{admin:true,status:'pending',before:pending.nextCursor}).images.length,10);
+    assert.throws(()=>gallery.list(null,{status:'pending'}),{status:403});
+    assert.throws(()=>gallery.list(b,{admin:true,status:'pending'}),{status:403});
+    assert.throws(()=>gallery.list(admin,{admin:true,status:'injected'}),{status:400});
+    assert.throws(()=>gallery.list(null,{before:1.5}),{status:400});
+    assert.equal(JSON.stringify(featured).includes(a.steam_id),false);
+  }finally{db.close();}
+});
