@@ -3,6 +3,7 @@ const {DatabaseSync}=require('node:sqlite'),{randomBytes,randomUUID}=require('no
 const {chromium}=require('playwright');
 for(const name of ['DYNAMIC_CHALLENGES_READ_ONLY','SKIN_STUDIO_READ_ONLY','RENDER_SERVICE_ID','RENDER_EXTERNAL_URL','PUBLIC_SITE_URL','STEAM_REALM','STEAM_RETURN_URL'])delete process.env[name];
 process.env.DYNAMIC_CHALLENGES_ENABLED='1';process.env.VALLEY_LEGACY_ENABLED='1';process.env.HOLLOW_VALLEY_API_TOKEN=randomBytes(32).toString('hex');
+process.env.DYNAMIC_CHALLENGES_EVENTS_ENABLED='1';process.env.DYNAMIC_CHALLENGES_EVENT_GUILD_ID='10000000000001';
 const db=new DatabaseSync(':memory:');let clock=Date.parse('2026-11-05T10:00:00+10:00');
 const store=require('../automation-platform/src/services/valleyLegacyStore').createLegacyStore(db,{now:()=>clock});
 const legacy=require('../automation-platform/src/services/valleyLegacyService'),oldGet=legacy.get;legacy.get=()=>store;
@@ -42,6 +43,15 @@ async function until(fn){for(let n=0;n<300;n++){if(fn())return;await new Promise
     drop=true;await confirm();await page.getByRole('button',{name:'Retry saved request',exact:true}).waitFor();
     assert.equal(writes,before+1);assert.equal(store.challenges.status(A).revision,1);await confirm();
     assert.equal(writes,before+2);assert.equal(store.challenges.status(A).revision,1);assert.equal(store.challenges.status(A).participating,true);
+    // Synthetic host-internal confirmation checks the player read/render path;
+    // this does not stand in for the still-pending staff authorization screens.
+    const eventId=String(1000000000010n+BigInt(width)),guildId=process.env.DYNAMIC_CHALLENGES_EVENT_GUILD_ID;
+    const eventStart=clock+60000,eventEnd=clock+120000;clock+=180000;
+    db.exec('CREATE TABLE IF NOT EXISTS automation_state(key TEXT PRIMARY KEY,value_json TEXT)');
+    db.prepare("INSERT INTO automation_state VALUES ('discord:scheduled-events',?) ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json").run(JSON.stringify({guildId,syncedAt:new Date(clock).toISOString(),events:[{id:eventId,guildId,title:'Synthetic completed event',status:'completed',startTime:new Date(eventStart).toISOString(),endTime:new Date(eventEnd).toISOString()}]}));
+    const attendance={eventId,steamId:A,actorSteamId:B,action:'confirm',expectedRevision:0,eventRevision:store.challenges.attendance.preview(eventId).revision,occurredAt:eventStart+30000,evidenceUrl:`https://discord.com/channels/${guildId}/10000000000003/10000000000004`,reason:'Synthetic host attendance evidence',requestKey:randomUUID()};
+    store.challenges.attendance.change(attendance);await page.click('#dynamic-refresh');await idle();assert.match(await page.locator('#dynamic-list').textContent(),/1 \/ 1 event attendance confirmed by staff/);
+    store.challenges.attendance.change({...attendance,action:'revoke',expectedRevision:1,requestKey:randomUUID()});await page.click('#dynamic-refresh');await idle();assert.match(await page.locator('#dynamic-list').textContent(),/0 \/ 1 event attendance confirmed by staff/);
     clock+=60000;store.snapshot([{steamId:A,species:'tyrannosaurus',growth:0.5}],clock);
     await page.click('#dynamic-refresh');await idle();assert.match(await page.locator('#dynamic-list').textContent(),/1 \/ 3 species observed/);
     const first=clock;for(let n=0;n<9;n++){clock+=600000;store.snapshot([{steamId:A,species:'tyrannosaurus',growth:0.5}],clock);}

@@ -108,6 +108,12 @@ disabled, and no private data is retained on sign-out or failed authentication.
 
 ## Required remaining delivery
 
+- Connect the host-internal attendance attestation service to current staff
+  authorization and review/revocation screens. No attendance writer is exposed by
+  the player API. The current internal actor field is asserted by its trusted
+  caller, not independently authenticated by the evidence store. Review staff
+  self-attestation and correction policy before enabling it.
+
 - Review the deterministic schedule and supported pool, including canonical
   species aliases and growth evidence. Add operator-reviewed schedule versions
   before changing live definitions.
@@ -131,12 +137,12 @@ disabled, and no private data is retained on sign-out or failed authentication.
 
 The roadmap release register retains #3's original description and feature ID,
 marks development honestly and preserves historical vote counts while freeing
-retired active ballot slots. Homepage asset version is 104. Diplomacy publication
+retired active ballot slots. Homepage asset version is 105. Diplomacy publication
 approval remains separate and pending; its prepared branch is preserved.
 
 ## Local validation
 
-115 checks pass across dynamic challenge evidence, Legacy store/private HTTP and
+124 checks pass across dynamic challenge evidence, Legacy store/private HTTP and
 authenticated telemetry, roadmap ballots/homepage integration, existing quest
 boosts/challenge payouts, journeys and discovery. Tests cover repeated/stale
 samples, alias farming, midnight/Monday rollover, opt-out/rejoin, separated lives,
@@ -162,6 +168,45 @@ known deaths before future samples, restart recovery, unrelated accounts,
 disabled tracking, opt-out, unjournaled historical aggregates, transaction failure
 and actual combat-producer import retry. The real Quests browser fixture also
 checks progress changing from 90 to 40 observed minutes after a late death.
+
+## Reward-free event participation evidence core
+
+Existing RSVP times/titles are supplied by the RSVP request, and existing
+attendance confirmation issues coins. The new event challenge does not infer
+attendance from either that record, a reward transaction, registration or an
+RSVP. It does not invoke or change that payout workflow.
+
+`challengeAttendanceEvidence` is a host-internal service with a separate disabled
+`DYNAMIC_CHALLENGES_EVENTS_ENABLED=0` flag and an explicit
+`DYNAMIC_CHALLENGES_EVENT_GUILD_ID` allowlist. Confirmation requires a fresh
+five-minute official event snapshot, matching guild, exactly one visible completed
+event and a complete past start/end schedule. Review freezes its canonical
+descriptor/revision, participant, attendance time inside that event, asserted
+staff actor, reason and a Discord message link in the official guild. The message
+is supporting human evidence; the service does not fetch it or claim to verify
+its contents or actual in-game participation automatically.
+
+Expected revisions and exact request receipts protect confirmation/revocation.
+An altered saved request or changed official descriptor is rejected. State and
+the immutable audit entry (including the full frozen event descriptor) commit
+together. Revocation remains possible after the event disappears from the feed
+and cannot retarget the original attendance time. Retries return the latest state
+without restoring revoked credit. A source administrative attestation persists
+separately from optional challenge gameplay history.
+
+When explicitly enabled, Quests reads a weekly one-event goal from confirmed
+records in the current Brisbane week and strictly after that player's opt-in.
+Opt-out removes its challenge credit; rejoining cannot retroactively count earlier
+attendance. A later revocation removes credit on refresh. The player view exposes
+only progress, with no evidence URLs, staff identities, reasons or private event
+records. No wallet tables or payout hooks are installed by this source.
+
+Nine source tests cover review changes, stale/unknown/hidden/cancelled/duplicate
+events, wrong guilds, invalid proof/time, retries, revocation, failed-audit rollback,
+privacy, opt-in eligibility and default-off behavior. The desktop/mobile fixture
+adds synthetic host-internal evidence and verifies displayed credit and revocation;
+it does not establish the still-pending staff authorization workflow. Verify the
+real producer retains fresh completed events and actual end times before rollout.
 
 The dedicated Dynamic challenge tracking workflow runs the affected checks and
 the real-page browser fixture on pull requests. Those hosted runs have not yet

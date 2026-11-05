@@ -47,6 +47,7 @@ test('challenge API binds Steam identity, protects consent and never accepts cli
     assert.equal((await (await request('/capabilities')).json()).readOnly,true);assert.equal((await request('/participation',{body:choice(true,2)})).status,403);delete process.env.RENDER_SERVICE_ID;
     // A website token has no route for writing challenge evidence or awards.
     assert.equal((await direct('evidence',{steamId:A,progress:999})).status,404);
+    assert.equal((await direct('attendance',{steamId:A,eventId:'10000000000002',state:'confirmed'})).status,404);
     process.env.DYNAMIC_CHALLENGES_ENABLED='0';assert.equal((await request('/me')).status,503);assert.equal((await direct('status',{steamId:A})).status,503);
     assert.equal((await (await request('/capabilities',{user:''})).json()).enabled,false);
   } finally {
