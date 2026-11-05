@@ -57,6 +57,18 @@ function publish(actor, input, options = {}) {
   admin(actor);
   const now = options.now ?? Date.now();
   const kind = input?.kind;
+  if (kind === "digest") {
+    const month = funding.monthBounds(now).month;
+    return enqueue("digest:" + month, "perks-and-rewards",
+      "The " + month + " subscriber digest is ready. Open My Membership for your monthly rewards and community updates.", options);
+  }
+  if (kind === "suggestion") {
+    schema();
+    const suggestion = db.prepare("SELECT id FROM subscriber_suggestions WHERE id=? AND status='shortlisted'").get(Number(input.suggestionId));
+    if (!suggestion) fail(409, "Shortlist the suggestion before announcing it.");
+    return enqueue("suggestion:" + suggestion.id, "subscriber-suggestions",
+      "Community suggestion #" + suggestion.id + " has been shortlisted for review.", options);
+  }
   if (!["dev-preview", "support-update", "vote"].includes(kind)) fail(400, "Invalid post kind.");
   if (kind === "vote") {
     const vote = require("./membershipSkinVote").adminState(options).current;
