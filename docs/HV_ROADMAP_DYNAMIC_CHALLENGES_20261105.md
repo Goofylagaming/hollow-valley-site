@@ -1,7 +1,7 @@
 # Dynamic daily and weekly challenges — development
 
-Roadmap #3 remains Building / Testing. This branch begins the evidence layer;
-it is not a delivered player feature. Nothing has been deployed or enabled.
+Roadmap #3 remains Building / Testing. This branch has the evidence layer and
+private player controls. Nothing has been deployed or enabled.
 
 ## Implemented evidence core
 
@@ -32,7 +32,9 @@ minimum playtime requirement.
 Participation requires explicit opt-in at the store boundary; no one is enrolled
 automatically. Repeated enrollment retains the original start, and samples at or
 before that start do not contribute. Opt-out removes participation, progress and
-continuity cursors; rejoining cannot import that old evidence. Challenge progress
+continuity cursors; rejoining cannot import that old evidence. Minimal choice
+revisions and request receipts remain to prevent replay restoring deleted
+participation. Challenge progress
 is retained for up to 35 days and cleaned on accepted enabled snapshots. Missed
 days create no debt. Reads return only the requested player's current periods;
 they contain no Steam identities, life IDs or positions.
@@ -42,11 +44,35 @@ they contain no Steam identities, life IDs or positions.
 unchanged. New tracking never accesses a wallet, ledger or game-command service,
 and explicitly reports rewards disabled.
 
+## Private API and player controls
+
+`/api/dynamic-challenges/capabilities` exposes flags only. Authenticated `/me`
+and `/participation` bind the Steam identity from the session, ignoring client
+identity/progress fields. Reads are private/no-store. Writes require exact origin
+and JSON, reject cross-site context and enforce feature, explicit read-only and
+deployment-preview guards. Automation separately requires the website token,
+feature/read-only gates and the existing Legacy gate. It offers no challenge
+progress-writing endpoint to that token.
+
+Participation writes carry an expected revision and unique request key. A
+transaction acquires the SQLite write lock before reading the revision, saves
+the choice and receipt atomically and rejects stale/altered requests. Exact
+retries return current state without repeating the change, even if a newer
+choice has since stopped participation. A failed receipt rolls back deletion or
+enrollment. Twenty accepted changes per minute are allowed; an actual opt-out
+remains available at the limit. Successful repeated enrollment does not move
+the tracking start. Status reads use a consistent SQLite snapshot.
+
+The existing Quests board and its scripts remain in order. An independent panel
+shows the optional rotation, observed progress, Brisbane resets and no-reward
+policy. Joining and stopping require review and explicit confirmation. A lost
+reply only triggers reads; explicit retry reuses the saved key/body. Stale choices
+require a new review. Fresh identity checks before and after private reads and
+writes clear old account data after session changes. Preview controls are
+disabled, and no private data is retained on sign-out or failed authentication.
+
 ## Required remaining delivery
 
-- Steam-bound private API, strict same-origin JSON writes, preview/read-only
-  controls, request revision/recovery and player opt-in/progress controls on
-  Quests. Browser verification must cover both desktop and mobile.
 - Review the deterministic schedule and supported pool, including canonical
   species aliases and growth evidence. Add operator-reviewed schedule versions
   before changing live definitions.
@@ -67,16 +93,26 @@ and explicitly reports rewards disabled.
 
 The roadmap release register retains #3's original description and feature ID,
 marks development honestly and preserves historical vote counts while freeing
-retired active ballot slots. Homepage asset version is 101. Diplomacy publication
+retired active ballot slots. Homepage asset version is 102. Diplomacy publication
 approval remains separate and pending; its prepared branch is preserved.
 
 ## Local validation
 
-78 checks pass across dynamic challenge evidence, Legacy store/private HTTP and
+96 checks pass across dynamic challenge evidence, Legacy store/private HTTP and
 authenticated telemetry, roadmap ballots/homepage integration, existing quest
 boosts/challenge payouts, journeys and discovery. Tests cover repeated/stale
 samples, alias farming, midnight/Monday rollover, opt-out/rejoin, separated lives,
 invalid observations, adulthood qualification, evidence-failure rollback,
 reopening, private output and unchanged wallet data. The existing quest boost
 fixture now closes its database before removing its checked temporary directory
-on Windows. No browser/staging verification is claimed for the unfinished UI.
+on Windows. Subsequent API and consent coverage adds exact retries, stale and
+altered choices, receipt rollback, rate limits, private identity boundaries and
+concurrent HTTP choices. The real Quests browser fixture passes at 1440px and
+390px with synthetic accounts and an in-memory database, including original
+quests, explicit reviews, lost replies, progress, preview, conflicts, account
+changes during delayed reads, sign-out and opt-out. Authenticated hosted staging
+remains unverified.
+
+The dedicated Dynamic challenge tracking workflow runs the affected checks and
+the real-page browser fixture on pull requests. Those hosted runs have not yet
+been executed for this unpublished local branch.

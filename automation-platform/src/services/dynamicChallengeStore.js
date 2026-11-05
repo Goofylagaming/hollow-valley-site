@@ -21,31 +21,53 @@ function periods(at) {
   ];
 }
 function steam(value) {
-  if (typeof value !== 'string' || !/^\d{17}$/.test(value)) throw new Error('Linked Steam identity required');
+  if (typeof value !== 'string' || !/^\d{17}$/.test(value)) fail('Linked Steam identity required');
   return value;
 }
+function fail(message,status=400) {throw Object.assign(new Error(message),{status});}
 function createDynamicChallengeStore(db, {now=Date.now, enabled=()=>process.env.DYNAMIC_CHALLENGES_ENABLED==='1'}={}) {
   db.exec(`CREATE TABLE IF NOT EXISTS dc_participants(steam_id TEXT PRIMARY KEY, joined_at INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS dc_cursor(steam_id TEXT PRIMARY KEY, life_id TEXT NOT NULL, species TEXT NOT NULL, at INTEGER NOT NULL, segment TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS dc_evidence(steam_id TEXT NOT NULL, cadence TEXT NOT NULL, period_start INTEGER NOT NULL,
       challenge_id TEXT NOT NULL, subject TEXT NOT NULL, amount INTEGER NOT NULL, juvenile INTEGER NOT NULL DEFAULT 0,
-      PRIMARY KEY(steam_id,cadence,period_start,challenge_id,subject));`);
-  function transaction(fn) {
-    db.exec('SAVEPOINT dynamic_challenges');
-    try { const result=fn(); db.exec('RELEASE dynamic_challenges'); return result; }
-    catch(error) { db.exec('ROLLBACK TO dynamic_challenges; RELEASE dynamic_challenges'); throw error; }
+      PRIMARY KEY(steam_id,cadence,period_start,challenge_id,subject));
+    CREATE TABLE IF NOT EXISTS dc_settings(steam_id TEXT PRIMARY KEY, revision INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS dc_requests(steam_id TEXT NOT NULL, request_key TEXT NOT NULL, expected_revision INTEGER NOT NULL,
+      selected INTEGER NOT NULL, revision INTEGER NOT NULL, accepted_at INTEGER NOT NULL, PRIMARY KEY(steam_id,request_key));
+    CREATE INDEX IF NOT EXISTS dc_requests_recent ON dc_requests(steam_id,accepted_at);`);
+  function transaction(fn,write=false) {
+    db.exec(write?'BEGIN IMMEDIATE':'SAVEPOINT dynamic_challenges');
+    try { const result=fn(); db.exec(write?'COMMIT':'RELEASE dynamic_challenges'); return result; }
+    catch(error) { db.exec(write?'ROLLBACK':'ROLLBACK TO dynamic_challenges; RELEASE dynamic_challenges'); throw error; }
   }
-  function participate(id, selected) {
+  function change(id, {selected,expectedRevision,requestKey}={}) {
     steam(id);
-    if (!enabled()) throw Object.assign(new Error('Dynamic challenges are disabled'),{status:503});
-    if (typeof selected !== 'boolean') throw new Error('Explicit participation choice required');
+    if (!enabled()) fail('Dynamic challenges are disabled',503);
+    if (typeof selected !== 'boolean') fail('Explicit participation choice required');
+    if(!Number.isSafeInteger(expectedRevision)||expectedRevision<0) fail('Invalid participation revision');
+    if(typeof requestKey!=='string'||!/^[-a-zA-Z0-9_]{16,80}$/.test(requestKey)) fail('Invalid participation request key');
     return transaction(()=>{
+      const previous=db.prepare('SELECT * FROM dc_requests WHERE steam_id=? AND request_key=?').get(id,requestKey);
+      if(previous) {
+        if(previous.expected_revision!==expectedRevision || previous.selected!==Number(selected)) fail('Request key already used for a different choice',409);
+        return {...status(id),duplicate:true};
+      }
+      const revision=db.prepare('SELECT revision FROM dc_settings WHERE steam_id=?').get(id)?.revision||0;
+      if(revision!==expectedRevision) fail('Participation changed. Refresh before making another choice.',409);
+      if(revision>=Number.MAX_SAFE_INTEGER) fail('Participation revision limit reached',409);
+      const participating=Boolean(db.prepare('SELECT 1 FROM dc_participants WHERE steam_id=?').get(id));
+      const at=now();
+      // Always allow an actual opt-out; repeated no-op requests are rate limited.
+      if((selected||!participating) && db.prepare('SELECT count(*) n FROM dc_requests WHERE steam_id=? AND accepted_at>?').get(id,at-60000).n>=20)
+        fail('Too many participation changes. Try again shortly.',429);
       if(selected) db.prepare('INSERT OR IGNORE INTO dc_participants VALUES (?,?)').run(id,now());
       else {
         for(const table of ['dc_evidence','dc_cursor','dc_participants']) db.prepare(`DELETE FROM ${table} WHERE steam_id=?`).run(id);
       }
-      return status(id);
-    });
+      db.prepare('INSERT INTO dc_settings VALUES (?,?) ON CONFLICT(steam_id) DO UPDATE SET revision=excluded.revision').run(id,revision+1);
+      db.prepare('INSERT INTO dc_requests VALUES (?,?,?,?,?,?)').run(id,requestKey,expectedRevision,Number(selected),revision+1,at);
+      return {...status(id),duplicate:false};
+    },true);
   }
   // Only call inside the accepted Legacy snapshot transaction. No positions,
   // names, private journey receipts or inferred event attendance are consumed.
@@ -90,14 +112,18 @@ function createDynamicChallengeStore(db, {now=Date.now, enabled=()=>process.env.
   function status(id) {
     steam(id);
     if(!enabled()) return {enabled:false};
+    return transaction(()=>statusView(id));
+  }
+  function statusView(id) {
     const participating=Boolean(db.prepare('SELECT 1 FROM dc_participants WHERE steam_id=?').get(id));
-    return {enabled:true,participating,timezone:'Australia/Brisbane',rewardsEnabled:false,challenges:periods(now()).map(p=>{
+    const revision=db.prepare('SELECT revision FROM dc_settings WHERE steam_id=?').get(id)?.revision||0;
+    return {enabled:true,participating,revision,timezone:'Australia/Brisbane',rewardsEnabled:false,challenges:periods(now()).map(p=>{
       const rows=db.prepare('SELECT amount FROM dc_evidence WHERE steam_id=? AND cadence=? AND period_start=? AND challenge_id=?')
         .all(id,p.cadence,p.start,p.definition.id);
       const amount=p.definition.id==='species-three'?rows.length:rows.reduce((best,r)=>Math.max(best,r.amount),0);
       return {...p.definition,cadence:p.cadence,startsAt:p.start,endsAt:p.end,progress:Math.min(p.definition.target,amount),completed:amount>=p.definition.target};
     })};
   }
-  return {participate,observe,status};
+  return {change,observe,status};
 }
 module.exports={createDynamicChallengeStore,periods};

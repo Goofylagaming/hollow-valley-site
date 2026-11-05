@@ -35,7 +35,7 @@ test("authenticated presence feed reaches Legacy once; duplicate and stale telem
   const url = `http://127.0.0.1:${server.address().port}/snapshot/snapshot`;
   const at = Date.now(),
     steamId = "76561198000000004";
-  store.challenges.participate(steamId,true);
+  store.challenges.change(steamId,{selected:true,expectedRevision:0,requestKey:'telemetry-enroll-0001'});
   const body = {
     sampleId: "legacy-feed-one",
     sampledAt: new Date(at).toISOString(),

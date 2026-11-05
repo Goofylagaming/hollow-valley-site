@@ -4,6 +4,7 @@ const assert=require('node:assert/strict');
 const {DatabaseSync}=require('node:sqlite');
 const {createLegacyStore}=require('../automation-platform/src/services/valleyLegacyStore');
 const {createDynamicChallengeStore,periods}=require('../automation-platform/src/services/dynamicChallengeStore');
+const {randomUUID}=require('node:crypto');
 const A='76561198000000001', B='76561198000000002', MIN=60000;
 function setup(t,date='2026-11-05T00:00:00+10:00') {
   let at=Date.parse(date);
@@ -11,6 +12,7 @@ function setup(t,date='2026-11-05T00:00:00+10:00') {
   const s=createLegacyStore(db,{now:()=>at});
   const c=createDynamicChallengeStore(db,{now:()=>at,enabled:()=>true});
   t.after(()=>db.close());
+  c.participate=(id,selected)=>c.change(id,{selected,expectedRevision:c.status(id).revision||0,requestKey:randomUUID()});
   const row=(species='rex',growth=0.5)=>({steamId:A,species,growth});
   // Exercise the real snapshot hook without enabling other production features.
   const prior=process.env.DYNAMIC_CHALLENGES_ENABLED;
@@ -29,7 +31,7 @@ test('Brisbane midnight and Monday boundaries define stable daily/weekly rotatio
 test('default-off store rejects enrollment and collects no evidence',t=>{
   const db=new DatabaseSync(':memory:');t.after(()=>db.close());
   const c=createDynamicChallengeStore(db,{enabled:()=>false});
-  assert.throws(()=>c.participate(A,true),{status:503});
+  assert.throws(()=>c.change(A,{selected:true,expectedRevision:0,requestKey:randomUUID()}),{status:503});
   c.observe([{steam_id:A,id:'life',species:'rex'}],Date.now());
   assert.deepEqual(c.status(A),{enabled:false});
   assert.equal(db.prepare('SELECT count(*) n FROM dc_cursor').get().n,0);
@@ -125,4 +127,39 @@ test('store reopening preserves progress without changing unrelated wallet data'
   assert.equal(reopened.status(A).challenges[1].progress,1);
   assert.deepEqual({...x.db.prepare('SELECT * FROM economy_wallets').get()},{steam_id:'untouched',coins:123});
   const view=JSON.stringify(reopened.status(A));assert.equal(view.includes(A),false);assert.equal(view.includes('location'),false);
+});
+test('consent revisions reject stale changes while exact retries recover current state',t=>{
+  const x=setup(t);
+  const enroll={selected:true,expectedRevision:0,requestKey:randomUUID()};
+  const a=x.c.change(A,enroll);assert.equal(a.revision,1);assert.equal(a.duplicate,false);
+  const joined=x.db.prepare('SELECT joined_at FROM dc_participants').get().joined_at;
+  x.advance(MIN);assert.equal(x.c.change(A,enroll).duplicate,true);
+  assert.equal(x.db.prepare('SELECT joined_at FROM dc_participants').get().joined_at,joined);
+  assert.throws(()=>x.c.change(A,{...enroll,selected:false}),{status:409});
+  assert.throws(()=>x.c.change(A,{...enroll,requestKey:randomUUID()}),{status:409});
+  x.c.change(A,{selected:false,expectedRevision:1,requestKey:randomUUID()});
+  const retry=x.c.change(A,enroll);assert.equal(retry.participating,false);assert.equal(retry.revision,2);assert.equal(retry.duplicate,true);
+  assert.equal(x.db.prepare('SELECT count(*) n FROM dc_requests').get().n,2);
+  assert.throws(()=>x.c.change(A,{selected:true,expectedRevision:1,requestKey:randomUUID()}),{status:409});
+});
+test('failed consent receipt rolls back enrollment, deletion and revision',t=>{
+  const x=setup(t);x.c.participate(A,true);x.advance(MIN);x.snap([x.row()]);
+  x.db.exec("CREATE TRIGGER fail_consent BEFORE INSERT ON dc_requests BEGIN SELECT RAISE(ABORT,'receipt unavailable'); END");
+  const choice={selected:false,expectedRevision:1,requestKey:randomUUID()};
+  assert.throws(()=>x.c.change(A,choice),/receipt unavailable/);
+  assert.equal(x.c.status(A).participating,true);assert.equal(x.c.status(A).revision,1);assert.equal(x.weekly().progress,1);
+  x.db.exec('DROP TRIGGER fail_consent');assert.equal(x.c.change(A,choice).revision,2);
+  assert.equal(x.weekly().progress,0);
+});
+test('rate limits do not prevent a participant opting out; invalid choices never write receipts',t=>{
+  const x=setup(t);x.c.participate(A,true);
+  for(let revision=1;revision<20;revision++)x.c.change(A,{selected:true,expectedRevision:revision,requestKey:randomUUID()});
+  assert.throws(()=>x.c.change(A,{selected:true,expectedRevision:20,requestKey:randomUUID()}),{status:429});
+  assert.equal(x.c.change(A,{selected:false,expectedRevision:20,requestKey:randomUUID()}).participating,false);
+  assert.throws(()=>x.c.change(A,{selected:false,expectedRevision:21,requestKey:randomUUID()}),{status:429});
+  for(const expectedRevision of [null,-1,'21',1.5,Number.MAX_SAFE_INTEGER+1])
+    assert.throws(()=>x.c.change(A,{selected:false,expectedRevision,requestKey:randomUUID()}),{status:400});
+  assert.throws(()=>x.c.change(A,{selected:true,expectedRevision:21,requestKey:'short'}),{status:400});
+  assert.equal(x.db.prepare('SELECT count(*) n FROM dc_requests').get().n,21);
+  x.advance(MIN+1);assert.equal(x.c.change(A,{selected:true,expectedRevision:21,requestKey:randomUUID()}).revision,22);
 });
