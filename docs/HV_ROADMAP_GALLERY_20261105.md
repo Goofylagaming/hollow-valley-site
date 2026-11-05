@@ -34,7 +34,7 @@ before enabling production.
 - Dinosaur-specific association beyond the implemented account gallery.
 - Authenticated staging verification of the implemented upload, owner-management and moderation screens.
 - Community discovery/navigation polish after rollout approval.
-- Community voting and any separately approved reward rules.
+- Any separately approved reward rules and monthly results presentation.
 - Linux dependency/decoder validation in CI, authenticated staging and production verification.
 
 No production settings, uploads, rewards, wallets, game commands or existing
@@ -83,3 +83,25 @@ The page rechecks it when changing views or refreshing, hides uploads and
 moderation controls while disabled, and shows a clear not-open-yet message.
 Five gallery service/HTTP tests and the real desktop/mobile browser workflows
 passed, including filter changes and disabling the rollout during an active page.
+
+
+## Monthly community voting — local implementation
+
+Each linked Steam account has one changeable vote per Brisbane calendar month.
+Eligible entries are currently approved images uploaded during that same month;
+own images are excluded. Users can clear their choice. Rejected or withdrawn
+images cease contributing to visible tallies, while the private vote record stays
+intact. Past months are preserved in storage; this implementation presents the
+current month, not an automatically declared winner or historical prize ledger.
+
+The vote endpoint binds identity to the session, checks origin, validates the
+expected month and revision, and records idempotency keys. Replaying an old
+accepted request never overwrites a newer choice. Ten changes per rolling hour
+limit repeated writes; identical retries do not consume extra changes. Vote
+storage does not call progression, wallet, rewards or game services.
+
+Fixtures cover UTC-to-Brisbane month/year boundaries, invalid/self/private/old
+entries, changed and cleared choices, lost/stale request semantics, withdrawal,
+identity spoofing and private voter data. Real desktop/mobile browser flows also
+cast and clear a vote against the actual local API. Staging and production remain
+unverified and the rollout flag remains disabled outside fixtures.

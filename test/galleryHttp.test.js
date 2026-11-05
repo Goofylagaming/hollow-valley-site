@@ -34,6 +34,15 @@ test('upload and image routes enforce rollout, identity, origin and moderation',
     assert.equal(history.reviews[0].reason,'Community screenshot reviewed');
     assert.equal(history.reviews[0].actorSteamId,other);
     assert.equal((await (await fetch(base+'/gallery')).json()).images.length,1);
+    const month=(await (await fetch(base+'/gallery')).json()).voting.month;
+    const voteBody={month,imageId:id,requestId:'gallery-vote-http',expectedRevision:0,steamId:owner};
+    const vote=extra=>fetch(base+'/gallery/vote',{method:'POST',headers:{Origin:base,'Content-Type':'application/json','x-test-user':other,...extra},body:JSON.stringify(voteBody)});
+    assert.equal((await vote({'x-test-user':''})).status,401);
+    assert.equal((await vote({Origin:'https://other.invalid'})).status,403);
+    assert.equal((await vote({'x-test-user':owner})).status,400);
+    assert.equal((await vote()).status,200);
+    assert.equal(db.prepare('SELECT steam_id FROM gallery_monthly_votes').get().steam_id,other,'body identity cannot replace the session voter');
+    assert.equal((await (await fetch(base+'/gallery')).json()).images[0].votes,1);
     assert.equal((await (await fetch(base+'/gallery?featured=1')).json()).images.length,0);
     const filtered=await (await fetch(base+'/gallery/admin?status=pending',{headers:{'x-test-user':other,'x-test-admin':'1'}})).json();
     assert.equal(filtered.images.length,0);

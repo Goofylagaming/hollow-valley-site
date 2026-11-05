@@ -17,8 +17,45 @@ function createGalleryStore(db,{now=Date.now}={}) {
     CREATE TABLE IF NOT EXISTS gallery_reviews (
       request_id TEXT PRIMARY KEY,image_id TEXT NOT NULL,actor_steam_id TEXT NOT NULL,
       payload TEXT NOT NULL,created_at INTEGER NOT NULL);`);
+  db.exec(`CREATE TABLE IF NOT EXISTS gallery_monthly_votes (
+    month TEXT NOT NULL,steam_id TEXT NOT NULL,image_id TEXT,revision INTEGER NOT NULL,updated_at INTEGER NOT NULL,
+    PRIMARY KEY(month,steam_id));
+    CREATE INDEX IF NOT EXISTS gallery_vote_image ON gallery_monthly_votes(month,image_id);
+    CREATE TABLE IF NOT EXISTS gallery_vote_requests (
+      steam_id TEXT NOT NULL,request_id TEXT NOT NULL,payload TEXT NOT NULL,created_at INTEGER NOT NULL,
+      PRIMARY KEY(steam_id,request_id));`);
   const tx=fn=>{db.exec('BEGIN IMMEDIATE');try{const result=fn();db.exec('COMMIT');return result;}catch(e){db.exec('ROLLBACK');throw e;}};
   const card=row=>({id:row.id,author:row.author,title:row.title,width:row.width,height:row.height,createdAt:row.created_at,featured:Boolean(row.featured)});
+  function voting(user) {
+    const local=new Date(now()+36000000),year=local.getUTCFullYear(),month=local.getUTCMonth();
+    const period={month:`${year}-${String(month+1).padStart(2,'0')}`,startsAt:Date.UTC(year,month,1)-36000000,endsAt:Date.UTC(year,month+1,1)-36000000};
+    const saved=user?.steam_id?db.prepare('SELECT image_id,revision FROM gallery_monthly_votes WHERE month=? AND steam_id=?').get(period.month,user.steam_id):null;
+    const visible=saved?.image_id&&db.prepare("SELECT 1 FROM gallery_images WHERE id=? AND status='approved' AND created_at>=? AND created_at<?").get(saved.image_id,period.startsAt,period.endsAt);
+    return {...period,myVoteId:visible?saved.image_id:null,revision:saved?.revision||0};
+  }
+  function vote(user,input={}) {
+    const steam=identity(user),period=voting(user);
+    const {month,imageId,requestId,expectedRevision}=input||{};
+    if(month!==period.month)fail('The voting month has changed; refresh the gallery',409);
+    if((imageId!==null&&typeof imageId!=='string')||typeof requestId!=='string'||!/^[\w-]{8,128}$/.test(requestId)||!Number.isSafeInteger(expectedRevision)||expectedRevision<0)fail('Valid vote, request ID and revision required');
+    const payload=JSON.stringify({month,imageId,expectedRevision});
+    return tx(()=>{
+      const prior=db.prepare('SELECT payload FROM gallery_vote_requests WHERE steam_id=? AND request_id=?').get(steam,requestId);
+      if(prior){if(prior.payload!==payload)fail('Conflicting vote request',409);return {duplicate:true,voting:voting(user)};}
+      const latest=voting(user);
+      if(latest.month!==month||latest.revision!==expectedRevision)fail('Your vote or voting month changed; refresh the gallery',409);
+      if(imageId!==null){
+        const row=db.prepare("SELECT owner_steam_id FROM gallery_images WHERE id=? AND status='approved' AND created_at>=? AND created_at<?").get(imageId,period.startsAt,period.endsAt);
+        if(!row)fail('This screenshot is not eligible this month',400);
+        if(row.owner_steam_id===steam)fail('Choose another player’s screenshot',400);
+      }
+      if(db.prepare('SELECT COUNT(*) AS n FROM gallery_vote_requests WHERE steam_id=? AND created_at>?').get(steam,now()-3600000).n>=10)fail('Please wait before changing your vote again',429);
+      db.prepare(`INSERT INTO gallery_monthly_votes VALUES (?,?,?,?,?) ON CONFLICT(month,steam_id)
+        DO UPDATE SET image_id=excluded.image_id,revision=excluded.revision,updated_at=excluded.updated_at`).run(month,steam,imageId,expectedRevision+1,now());
+      db.prepare('INSERT INTO gallery_vote_requests VALUES (?,?,?,?)').run(steam,requestId,payload,now());
+      return {duplicate:false,voting:voting(user)};
+    });
+  }
   async function submit(user,{requestId,title,image}={}) {
     const steam=identity(user);
     if(typeof requestId!=='string'||!/^[\w-]{8,128}$/.test(requestId)||typeof title!=='string'||!title.trim()||title.trim().length>120)fail('A request ID and a title of 1–120 characters are required');
@@ -46,7 +83,13 @@ function createGalleryStore(db,{now=Date.now}={}) {
     if(status!=='all'){where+=' AND status=?';args.push(status);}
     if(featured)where+=' AND featured=1';
     const rows=db.prepare(`SELECT rowid AS cursor,id,owner_steam_id,author,title,width,height,created_at,status,featured,revision FROM gallery_images WHERE ${where} AND rowid<? ORDER BY rowid DESC LIMIT 50`).all(...args,before);
-    return {images:rows.map(row=>({...card(row),...(mine||admin?{status:row.status,revision:row.revision}:{}),...(admin?{ownerSteamId:row.owner_steam_id}:{} )})),nextCursor:rows.length===50?rows.at(-1).cursor:null};
+    const period=voting(user);
+    return {images:rows.map(row=>{
+      const eligible=row.status==='approved'&&row.created_at>=period.startsAt&&row.created_at<period.endsAt;
+      return {...card(row),votes:eligible?db.prepare('SELECT COUNT(*) AS n FROM gallery_monthly_votes WHERE month=? AND image_id=?').get(period.month,row.id).n:0,
+        canVote:eligible&&Boolean(user?.steam_id)&&row.owner_steam_id!==user.steam_id,
+        ...(mine||admin?{status:row.status,revision:row.revision}:{}),...(admin?{ownerSteamId:row.owner_steam_id}:{})};
+    }),voting:period,nextCursor:rows.length===50?rows.at(-1).cursor:null};
   }
   function image(id,user) {
     const row=db.prepare('SELECT * FROM gallery_images WHERE id=?').get(id);
@@ -81,6 +124,6 @@ function createGalleryStore(db,{now=Date.now}={}) {
     if(!db.prepare('SELECT id FROM gallery_images WHERE id=?').get(id))fail('Image not found',404);
     return db.prepare('SELECT actor_steam_id,created_at,payload FROM gallery_reviews WHERE image_id=? ORDER BY created_at,request_id').all(id).map(row=>({actorSteamId:row.actor_steam_id,createdAt:row.created_at,...JSON.parse(row.payload)}));
   }
-  return {submit,list,image,review,withdraw,history};
+  return {submit,list,image,review,withdraw,history,vote,voting};
 }
 module.exports={createGalleryStore};

@@ -11,7 +11,8 @@ function sameOrigin(req,res,next){
   if(req.get('origin')!==origin)return res.status(403).json({error:'Use the Hollow Valley website to change the gallery'});next();
 }
 function linked(req,res,next){if(!/^\d{17}$/.test(String(req.user?.steam_id||'')))return res.status(403).json({error:'A linked Steam account is required'});next();}
-router.get('/',run((req,res)=>res.json(get().list(null,{featured:req.query.featured==='1',before:req.query.before===undefined?undefined:Number(req.query.before)}))));
+router.get('/',run((req,res)=>res.json(get().list(req.user,{featured:req.query.featured==='1',before:req.query.before===undefined?undefined:Number(req.query.before)}))));
+router.post('/vote',requireAuth,linked,sameOrigin,express.json({limit:'4kb'}),run((req,res)=>res.json(get().vote(req.user,req.body))));
 router.get('/mine',requireAuth,linked,run((req,res)=>res.json(get().list(req.user,{mine:true,before:req.query.before===undefined?undefined:Number(req.query.before)}))));
 router.get('/admin',requireAdmin,linked,run((req,res)=>res.json(get().list(req.user,{admin:true,status:req.query.status||'all',before:req.query.before===undefined?undefined:Number(req.query.before)}))));
 router.get('/:id/history',requireAdmin,linked,run((req,res)=>res.json({reviews:get().history(req.user,req.params.id)})));

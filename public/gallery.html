@@ -14,6 +14,11 @@
     <p id="gallery-signin" hidden><a href="/auth/steam">Sign in with Steam</a> to submit screenshots and manage your images.</p>
     <nav class="filter-row" aria-label="Gallery views"><button class="filter active" data-view="public" aria-pressed="true">Community</button><button class="filter" data-view="featured" aria-pressed="false">Featured</button><button class="filter" data-view="mine" hidden aria-pressed="false">My screenshots</button><button class="filter" data-view="admin" hidden aria-pressed="false">Moderation</button><button class="small-button" id="gallery-refresh">Refresh</button></nav>
     <label id="gallery-filter" hidden>Moderation status <select id="gallery-status"><option value="all">All active submissions</option><option value="pending">Awaiting review</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select></label>
+    <section id="gallery-voting" hidden aria-label="Monthly community vote">
+      <h2>Community choice</h2><p id="gallery-voting-period"></p>
+      <p>One changeable vote per Steam account per Brisbane calendar month. Choose another player’s approved screenshot uploaded this month. Voting does not award coins.</p>
+      <button id="gallery-clear-vote" class="small-button" hidden>Clear my vote</button>
+    </section>
     <form id="gallery-upload" hidden>
       <h2>Submit a screenshot</h2><p>PNG, JPEG or WebP, up to 8 MB. Avoid private chats and personal information. Only upload images you have permission to share.</p>
       <label>Title <input name="title" required maxlength="120" autocomplete="off"></label>
@@ -24,5 +29,5 @@
     <button id="gallery-more" class="small-button" hidden>Load more</button>
   </section>
 </main><footer><span>HOLLOW VALLEY</span><a href="/">Home</a></footer></div>
-<script src="/assets/common.js?v=22"></script><script src="/assets/gallery.js?v=2"></script></body>
+<script src="/assets/common.js?v=22"></script><script src="/assets/gallery.js?v=3"></script></body>
 </html>
