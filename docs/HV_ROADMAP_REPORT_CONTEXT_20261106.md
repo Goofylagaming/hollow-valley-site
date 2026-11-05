@@ -227,3 +227,50 @@ reads, late/lost-reply browser recovery, retention selection and scheduled clean
 authenticated staging and production verification remain open. Snapshot saving
 is not available on the website yet. The status publication candidate remains
 fixed at e9fb72c4; no live flag, record, secret, push, merge or deployment changed.
+
+## Private preservation APIs — 6 November 2026
+
+The default website context reader now includes preservation capabilities and,
+only with enabled/configured snapshot policy and signing key, a signed review
+offer for the exact projected context. The existing GET remains read-only: it
+creates no table, snapshot or receipt. Disabled or unconfigured preservation
+returns no review offer. The current staff context panel still ignores the offer;
+explicit preservation/recovery controls are not connected yet.
+
+New current-moderator-bound endpoints under /api/reports/admin/:id provide
+GET context-snapshots (metadata only), GET context-snapshots/:snapshotId and
+POST context-snapshots (explicit save). They require linked current DB admin access
+and exact X-Report-Reviewer binding. All responses are private/no-store; query
+subject/time overrides are rejected. Saving also requires same-origin JSON and
+the signed context review/request key. A provided report/snapshot reference cannot
+read another report's artifact. New saves perform no source fetch or moderation
+review write. Existing saved reads/retry recovery remain available when new saving
+is paused, subject to permission, binding, integrity and fixed expiry.
+
+The source context, ten-minute signed offer and request key must travel together.
+The save path checks exact report/context/reviewer/policy binding before writing.
+A missing/rotated key or retention setting cannot silently activate saving, and
+key material is not sent to the browser. Existing successful request receipts
+recover their original artifact without another source call, even after the short
+live source buffer is unavailable. Metadata lists omit context bytes and private
+receipt/actor-Steam fields; player /mine responses receive neither saved payloads
+nor preservation metadata. Expired artifacts are unavailable before physical
+cleanup, which remains a separate unconnected host function.
+
+58 affected local checks pass. The new actual HTTP fixture covers disabled and
+unconfigured offers, schema-free/read-only review generation, wrong origins and
+content types, wrong reviewer/current-role bindings, invalid signatures, one
+explicit save with exact replay, saved reads after source loss, report isolation,
+shared authorized moderator reads, player exclusion, paused saving/recovery,
+expiry and revoked access. All duration/key configuration in this fixture is
+synthetic test data; production retention selection is still pending. Existing
+snapshot-core, source, report, chat, combat and production-preservation checks pass.
+The existing staff context browser fixtures pass at desktop1440/phone390 with the
+new optional offer response, preserving literal rendering, private read guards,
+error/retry behavior and existing review controls.
+
+Homepage roadmap is v147. Staff preservation review/confirm/read and lost-response
+recovery UI, retention selection, scheduled physical cleanup, authenticated staging
+and production verification remain unfinished. No live feature flag, key, retained
+report data, push, merge or deployment changed. The separate status publication
+candidate remains fixed at e9fb72c4.

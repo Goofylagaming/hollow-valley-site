@@ -53,4 +53,5 @@ function createReportContextSnapshots({db,env=process.env,now=Date.now}={}){
  function purgeExpired(){if(env.PLAYER_REPORT_CONTEXT_RETENTION_CLEANUP_ENABLED!=='1'||!exists())return {deleted:0};const at=clock();return {deleted:db.prepare('DELETE FROM player_report_context_snapshots WHERE expires_at<=?').run(at).changes};}
  return {capabilities,offer,save,list,read,purgeExpired};
 }
-module.exports={createReportContextSnapshots,canonical,digest,REVIEW_MS};
+let store;function getDefaultStore(){return store||(store=createReportContextSnapshots({db:require('../db').db}));}
+module.exports={createReportContextSnapshots,getDefaultStore,canonical,digest,REVIEW_MS};

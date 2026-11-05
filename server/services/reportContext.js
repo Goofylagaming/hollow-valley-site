@@ -22,14 +22,14 @@ function project(raw,report,clock){
  })};
  return {version:1,scope:'report-participant-context',reportedTime:report.occurred_at,windowStart:raw.windowStart,windowEnd:raw.windowEnd,associationOnly:true,complete:false,retainedChatLimit:500,combat,chat};
 }
-function createReportContextReader({db,fetchContext,enabled=()=>process.env.PLAYER_REPORT_CONTEXT_ENABLED==='1',now=Date.now}={}){
+function createReportContextReader({db,fetchContext,snapshots=null,enabled=()=>process.env.PLAYER_REPORT_CONTEXT_ENABLED==='1',now=Date.now}={}){
  function admin(user){
   if(!Number.isSafeInteger(user?.id)||!steam(user?.steam_id))fail(403,'Current linked admin access is required.');
   const current=db.prepare('SELECT id,steam_id,is_admin FROM users WHERE id=?').get(user.id);
   if(!current?.is_admin||current.steam_id!==user.steam_id)fail(403,'Current linked admin access is required.');return {id:current.id,steamId:current.steam_id,binding:current.id+':'+current.steam_id};
  }
  function report(id){if(!uuid(id))fail(400,'Invalid report reference.');const row=db.prepare('SELECT id,reporter_steam_id,reported_steam_id,occurred_at FROM player_reports WHERE id=?').get(id);if(!row)fail(404,'Report not found.');return row;}
- function capabilities(getUser){const actor=admin(getUser());return {enabled:Boolean(enabled()),reviewerBinding:actor.binding,associationOnly:true};}
+ function capabilities(getUser){const actor=admin(getUser());return {enabled:Boolean(enabled()),reviewerBinding:actor.binding,associationOnly:true,...(snapshots?snapshots.capabilities(getUser,actor.binding):{})};}
  async function read(getUser,id,expectedBinding){
   const actor=admin(getUser());if(expectedBinding!==actor.binding)fail(403,'Reload reports for the current admin account.');
   if(!enabled())fail(503,'Report context is not enabled.');const saved=report(id),at=stamp(saved.occurred_at),clock=now();
@@ -40,9 +40,10 @@ function createReportContextReader({db,fetchContext,enabled=()=>process.env.PLAY
   const current=admin(getUser());if(current.binding!==actor.binding)fail(403,'The admin account changed. Reload reports.');if(!enabled())fail(503,'Report context is not enabled.');
   if(JSON.stringify(report(id))!==JSON.stringify(saved))fail(409,'The saved report context changed. Reload reports.');
   if(failed)fail(502,'Recorded context is temporarily unavailable.');const finished=now();if(!Number.isSafeInteger(finished)||finished<clock)fail(502,'The context observation time cannot be verified.');
-  return {available:true,reportId:id,reviewerBinding:actor.binding,context:project(raw,saved,finished)};
+  const context=project(raw,saved,finished);
+  return {available:true,reportId:id,reviewerBinding:actor.binding,context,...(snapshots?{review:snapshots.offer(getUser,id,actor.binding,context)}:{})};
  }
  return {read,capabilities};
 }
-let reader;function getDefaultReader(){return reader||(reader=createReportContextReader({db:require('../db').db,fetchContext:args=>require('./automationWebsiteClient').getAdminReportContext(args)}));}
+let reader;function getDefaultReader(){return reader||(reader=createReportContextReader({db:require('../db').db,snapshots:require('./reportContextSnapshots').getDefaultStore(),fetchContext:args=>require('./automationWebsiteClient').getAdminReportContext(args)}));}
 module.exports={createReportContextReader,project,getDefaultReader};
