@@ -25,29 +25,6 @@ function validateSteamId(value) {
   return steamId;
 }
 
-router.post('/arcade/:action', (req,res) => {
-  if (process.env.VALLEY_ARCADE_ENABLED !== '1') return res.sendStatus(404);
-  const arcade=require('../services/valleyArcade');
-  const games=require('../services/valleyArcadeGames');
-  const body=req.body || {};
-  try {
-    switch(req.params.action) {
-      case 'settings': return res.json(arcade.settings());
-      case 'configure': return res.json(arcade.configure(body.actor,body));
-      case 'start': return res.json(games.start(body.steamId,body.game));
-      case 'answer': return res.json(games.answer(body.steamId,body.id,body.choice));
-      case 'leaderboard': {
-        const config=arcade.settings();
-        if (!config.enabled || config.emergency) return res.sendStatus(404);
-        const rows=economy.db.prepare(`SELECT sum(score) AS score FROM arcade_rounds
-          WHERE settled_day=? GROUP BY steam_id ORDER BY score DESC LIMIT 10`).all(arcade.dayKey(Date.now()));
-        return res.json(rows);
-      }
-      default: return res.sendStatus(404);
-    }
-  } catch { return res.status(409).json({error:'Round or settings unavailable.'}); }
-});
-
 router.post('/credit', async (req, res) => {
   try {
     const steamId = validateSteamId(req.body?.steamId);
@@ -137,6 +114,29 @@ router.post('/supporter-bonus', async (req, res) => {
   } catch (error) {
     return res.status(400).json({ error: error.message || 'Unable to credit monthly supporter bonus.' });
   }
+});
+
+router.post('/arcade/:action', (req,res) => {
+  if (process.env.VALLEY_ARCADE_ENABLED !== '1') return res.sendStatus(404);
+  const arcade=require('../services/valleyArcade');
+  const games=require('../services/valleyArcadeGames');
+  const body=req.body || {};
+  try {
+    switch(req.params.action) {
+      case 'settings': return res.json(arcade.settings());
+      case 'configure': return res.json(arcade.configure(body.actor,body));
+      case 'start': return res.json(games.start(body.steamId,body.game));
+      case 'answer': return res.json(games.answer(body.steamId,body.id,body.choice));
+      case 'leaderboard': {
+        const config=arcade.settings();
+        if (!config.enabled || config.emergency) return res.sendStatus(404);
+        const rows=economy.db.prepare(`SELECT sum(score) AS score FROM arcade_rounds
+          WHERE settled_day=? GROUP BY steam_id ORDER BY score DESC LIMIT 10`).all(arcade.dayKey(Date.now()));
+        return res.json(rows);
+      }
+      default: return res.sendStatus(404);
+    }
+  } catch { return res.status(409).json({error:'Round or settings unavailable.'}); }
 });
 
 module.exports = router;

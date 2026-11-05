@@ -828,6 +828,7 @@ function uploadAdminRestore({ steamId, slot, restore, fullNutrients = false }) {
 }
 
 module.exports = {
+  arcadeRequest: (action, body) => call("/admin-wallet/arcade/" + action, {method:"POST",body}),
   getTitleEvidence: steamIds => call('/title-evidence',{method:'POST',body:{steamIds}}),
   getAchievementReviews: () => callAdmin('/achievement-reviews'),
   decideAchievementReview: body => callAdmin('/achievement-reviews',{method:'POST',body}),
@@ -932,4 +933,3 @@ module.exports = {
 
 module.exports.legacyRequest = (path, options) => call(`/legacy${path}`, options);
 module.exports.postTerritoryVictory = payload => call('/territory-results', {method:'POST',body:payload});
-module.exports.arcadeRequest = (action, body) => call('/admin-wallet/arcade/' + action, {method:'POST',body});

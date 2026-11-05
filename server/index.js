@@ -257,6 +257,7 @@ function createApp() {
   app.use("/auth/owner", authOwnerRouter);
   app.use("/api/internal/commandbridge", legacyDirectGameApiRetired);
   app.use("/api/internal/supporter-memberships", supporterInternalRouter);
+  app.use("/api/valley-arcade", require("./routes/valleyArcade"));
   app.use("/api/internal/membership-rewards", require("./routes/membershipRewardsInternal"));
   app.use("/api/species", speciesRouter);
   app.use("/api/wallet", walletRouter);
@@ -273,7 +274,6 @@ function createApp() {
   app.use("/api/skins", skinShareCodeRedaction);
   app.use("/api/skins", skinsRouter);
   app.use("/api/supporter", require("./routes/membershipRewards"));
-  app.use("/api/valley-arcade", require("./routes/valleyArcade"));
   app.use("/api/subscriber-community", require("./routes/subscriberCommunity"));
   const subscriberFundingRouters = createSubscriberFundingRouters();
   app.use("/api/supporter/progress", subscriberFundingRouters.publicRouter);
