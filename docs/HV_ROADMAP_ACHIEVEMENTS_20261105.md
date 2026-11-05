@@ -97,3 +97,12 @@ contain named area labels and activity-zone layers. Repository searches found no
 canonical biome catalogue. Landmark names, region anchors and migration zones
 will not be substituted for verified biome boundaries. The biome unlock remains
 unimplemented until that versioned geographic source is established.
+
+Post-award evidence detection is now implemented for the two life-based badges.
+On a profile read, known deaths within the saved evidence interval, an earlier
+life end or mismatched life ownership create idempotent pending review records.
+The profile labels the affected badge Awaiting evidence review. The original
+achievement row, award timestamp and wallet history remain unchanged. A death
+after the qualifying interval does not invalidate it. This is detection and
+disclosure, not an admin resolution workflow; that workflow remains a rollout
+gate. Historical badge counts still count award records, including flagged ones.

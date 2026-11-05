@@ -5,6 +5,7 @@ on:
       - 'automation-platform/src/config/combatSpecies.js'
       - 'automation-platform/src/services/combatEventService.js'
       - 'automation-platform/src/services/progressionService.js'
+      - 'automation-platform/src/services/achievementEvidenceReview.js'
       - 'automation-platform/test/combat*.test.js'
       - 'automation-platform/test/progressionService.test.js'
       - 'automation-platform/test/primeAchievement.test.js'

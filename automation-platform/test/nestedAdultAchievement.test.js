@@ -73,3 +73,13 @@ test('a known combat death blocks the badge before Legacy imports it',()=>{
   store.db.prepare('INSERT INTO combat_events VALUES (?,?,?)').run('unimported-death',id,new Date(deathAt).toISOString());
   assert.equal(badge(id),undefined);
 });
+
+test('only death evidence inside the awarded growth interval flags a permanent nested badge',()=>{
+  const id='76561198000000701';const earned=badge(id);
+  const {juvenileAt,adultAt}=earned.metadata.evidence;
+  store.db.prepare('INSERT INTO combat_events VALUES (?,?,?)').run('later-life-death',id,new Date(adultAt+60000).toISOString());
+  assert.equal(badge(id).verificationStatus,undefined);
+  store.db.prepare('INSERT INTO combat_events VALUES (?,?,?)').run('late-growth-death',id,new Date(juvenileAt+1000).toISOString());
+  assert.equal(badge(id).verificationStatus,'under-review');
+  assert.equal(badge(id).unlockedAt,earned.unlockedAt);
+});

@@ -51,3 +51,15 @@ test('long unobserved gaps cannot turn short observations into a ten-hour life',
   now+=36000000;legacy.snapshot([p(id)],now);
   assert.equal(badge(id),undefined);
 });
+
+test('death evidence arriving after an award creates an idempotent review without deleting history',()=>{
+  const before=store.db.prepare("SELECT * FROM progression_achievements WHERE steam_id=? AND achievement_id='life-survival-10h'").get(a);
+  const evidence=JSON.parse(before.metadata_json).evidence;
+  const life=store.db.prepare('SELECT started_at FROM vl_lives WHERE id=?').get(evidence.lifeId);
+  store.db.prepare('INSERT INTO combat_events VALUES (?,?,?)').run('post-award-death',a,new Date(life.started_at+3600000).toISOString());
+  assert.equal(badge(a).verificationStatus,'under-review');
+  assert.equal(badge(a).verificationStatus,'under-review');
+  assert.deepEqual(store.db.prepare("SELECT * FROM progression_achievements WHERE steam_id=? AND achievement_id='life-survival-10h'").get(a),before);
+  assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM progression_achievement_evidence_reviews WHERE steam_id=?').get(a).n,1);
+  assert.equal(store.getWallet(a).balance,0);
+});

@@ -16,7 +16,7 @@ async function main() {
       const writes = [], errors = [];
       const achievements = [
         {id:'territory-victory',title:'Territory Victor',description:'Participate in a verified Territory War capture.'},
-        {id:'life-survival-10h',title:'Enduring Survivor',description:'Survive 10 recorded hours on one dinosaur life.'},
+        {id:'life-survival-10h',title:'Enduring Survivor',description:'Survive 10 recorded hours on one dinosaur life.',verificationStatus:'under-review'},
         {id:'nested-adult',title:'Valley Born',description:'Grow a verified nested dinosaur from juvenile to adult in one observed life.'},
         {id:'skins-10',title:'Valley Collector',description:'Own 10 distinct active skins through creation, purchase or a personal grant.'},
         {id:'combat-species-5',title:'Versatile Hunter',description:'Kill players of five different recorded dinosaur species.'},
@@ -56,6 +56,7 @@ async function main() {
       await page.waitForFunction(() => document.querySelectorAll('#profile-achievements article').length === 6);
       assert.deepEqual(await page.locator('#profile-achievements b').allTextContents(),achievements.map(a=>a.title));
       assert.equal(await page.locator('#profile-achievement-count').innerText(),'6');
+      assert.equal(await page.locator('#profile-achievements [role="status"]').innerText(),'Awaiting evidence review');
       assert.equal(await page.locator('#profile-achievements').evaluate(panel => {
         const box=panel.getBoundingClientRect();
         return [...panel.querySelectorAll('article')].some(card=>card.getBoundingClientRect().right > box.right+1);

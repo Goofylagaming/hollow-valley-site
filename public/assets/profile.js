@@ -106,6 +106,7 @@ function renderAchievements(profile) {
       <div>
         <b>${escapeHtml(achievement.title || achievement.id)}</b>
         <p>${escapeHtml(achievement.description || "")}</p>
+        ${achievement.verificationStatus === 'under-review' ? '<p role="status">Awaiting evidence review</p>' : ''}
         <small>${achievement.unlockedAt ? new Date(achievement.unlockedAt).toLocaleString() : "Unlocked"}</small>
       </div>
     </article>

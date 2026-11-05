@@ -1,5 +1,6 @@
 const { randomUUID } = require('node:crypto');
 const store = require('./economyStore');
+const evidenceReview = require('./achievementEvidenceReview').createAchievementEvidenceReview(store.db);
 
 const PLAYTIME_XP_PER_5_MINUTES = 10;
 const LEVEL_REWARD_VC = 100;
@@ -172,6 +173,7 @@ function latestPlayerName(steamId) {
 }
 
 function readAchievements(steamId) {
+  const pending = evidenceReview.inspect(steamId);
   return store.db.prepare(`
     SELECT achievement_id, metadata_json, unlocked_at
     FROM progression_achievements
@@ -184,6 +186,7 @@ function readAchievements(steamId) {
       title: definition?.title || row.achievement_id,
       description: definition?.description || '',
       unlockedAt: row.unlocked_at,
+      ...(pending.has(row.achievement_id) ? {verificationStatus:'under-review'} : {}),
       metadata: parseJson(row.metadata_json),
     };
   });
