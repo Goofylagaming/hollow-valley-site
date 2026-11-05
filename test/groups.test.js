@@ -34,6 +34,21 @@ test("only owner invites; recipient must exist and accepts their own invite",()=
  expectFail(()=>groups.createGroup(B,"Other"),409);
  expectFail(()=>groups.invite(B,C),403);
 });
+test('Headquarters descriptions enforce owner authority, stale revisions and atomic edit history',()=>{
+ const headquarters=require('../server/services/groupHeadquarters').createGroupHeadquarters(db,groups);
+ assert.equal(headquarters.get(A).revision,0);
+ expectFail(()=>headquarters.get(C),404);
+ expectFail(()=>headquarters.update(B,{description:'Unauthorized',expectedRevision:0}),403);
+ const saved=headquarters.update(A,{description:' Valley explorers ',expectedRevision:0});
+ assert.equal(saved.description,'Valley explorers');assert.equal(saved.revision,1);
+ assert.equal(headquarters.get(B).canEdit,false);assert.equal(headquarters.get(B).edits.length,1);
+ expectFail(()=>headquarters.update(A,{description:'Stale',expectedRevision:0}),409);
+ db.exec("CREATE TRIGGER fail_group_profile_edit BEFORE INSERT ON hv_group_profile_edits BEGIN SELECT RAISE(ABORT,'fixture audit failure'); END");
+ assert.throws(()=>headquarters.update(A,{description:'Rollback',expectedRevision:1}));
+ db.exec('DROP TRIGGER fail_group_profile_edit');
+ assert.equal(headquarters.get(A).description,'Valley explorers');assert.equal(headquarters.get(A).revision,1);
+});
+
 test("invites can be declined or cancelled with proper ownership checks",()=>{
  groups.invite(A,C);let inv=groups.getState(C).incoming[0];
  groups.actOnInvite(C,inv.id,"decline");

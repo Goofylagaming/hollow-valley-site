@@ -61,8 +61,8 @@ test("roadmap ballot limits voting to three idea-stage features per Steam identi
   const initial = voting.voteSummary(steam1);
   assert.equal(initial.maxVotes, 3);
   assert.equal(initial.myVotes.length, 0);
-  assert.equal(initial.eligibleFeatureIds.length, 14);
-  assert.equal(new Set(initial.eligibleFeatureIds).size, 14, "No duplicate roadmap feature IDs");
+  assert.equal(initial.eligibleFeatureIds.length, 13);
+  assert.equal(new Set(initial.eligibleFeatureIds).size, 13, "No duplicate roadmap feature IDs");
 
   for (const id of [3, 4, 5]) voting.setVote(steam1, id, true);
   voting.setVote(steam1, 5, true); // idempotent repeated request
@@ -70,7 +70,7 @@ test("roadmap ballot limits voting to three idea-stage features per Steam identi
   assert.equal(voting.voteSummary(steam1).counts[5], 1);
   assert.throws(() => voting.setVote(steam1, 6, true), { code: "VOTE_LIMIT" });
 
-  for (const id of [1, 2, 7, 8, 9, 10, 11, 12, 13, 15, 22, 23, 24, 31, 0, 100]) {
+  for (const id of [1, 2, 7, 8, 9, 10, 11, 12, 13, 15, 16, 22, 23, 24, 31, 0, 100]) {
     assert.throws(() => voting.setVote(steam1, id, true), { code: "FEATURE_NOT_VOTABLE" });
   }
   assert.throws(() => voting.setVote("not-steam", 1, true), { code: "STEAM_REQUIRED" });
