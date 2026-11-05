@@ -21,7 +21,7 @@ function eligibleTitles(steamId, result) {
       || !Array.isArray(result.profile.achievements)) {
     throw Object.assign(new Error('Fresh verified progression for your Steam account is required.'), { status: 503 });
   }
-  const earned = new Set(result.profile.achievements.map(item => item.id));
+  const earned = new Set(result.profile.achievements.filter(item=>!['withdrawn','under-review'].includes(item.verificationStatus)).map(item => item.id));
   return TITLES.map(title => ({ ...title, unlocked: earned.has(title.achievement) }));
 }
 
@@ -41,4 +41,29 @@ function chooseTitle(steamId, titleId, result) {
   return readTitles(steamId, result);
 }
 
-module.exports = { readTitles, chooseTitle };
+async function leaderboardTitles(boards,fetchEvidence) {
+  const ids=[...new Set(Object.values(boards).flat().map(row=>row.steamId||row.steam_id).filter(id=>typeof id==='string'&&/^\d{17}$/.test(id)))];
+  if(ids.length>800) throw new Error('Too many leaderboard identities');
+  const choices=new Map();
+  const query=db.prepare('SELECT title_id FROM profile_title_choices WHERE steam_id=?');
+  for(const id of ids) {
+    const choice=query.get(id)?.title_id;
+    const title=TITLES.find(t=>t.id===choice);
+    if(title) choices.set(id,title);
+  }
+  const verified=new Map();
+  if(choices.size) {
+    const evidence=await fetchEvidence([...choices.keys()]);
+    if(evidence?.stale||!Array.isArray(evidence?.players)) throw new Error('Fresh title evidence unavailable');
+    for(const player of evidence.players) {
+      if(verified.has(player.steamId)) throw new Error('Ambiguous title evidence');
+      if(!Array.isArray(player.achievementIds)) throw new Error('Invalid title evidence');
+      verified.set(player.steamId,new Set(player.achievementIds));
+    }
+  }
+  return Object.fromEntries(Object.entries(boards).map(([key,rows])=>[key,rows.map(row=>{
+    const id=row.steamId||row.steam_id,title=choices.get(id);
+    return {...row,selectedTitle:title&&verified.get(id)?.has(title.achievement)?{id:title.id,name:title.name}:null};
+  })]));
+}
+module.exports = { readTitles, chooseTitle, leaderboardTitles };

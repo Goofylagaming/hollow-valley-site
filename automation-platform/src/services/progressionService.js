@@ -687,6 +687,18 @@ function achievementDefinitions() {
   return ACHIEVEMENTS.map((item) => ({ ...item }));
 }
 
+// Public title decoration needs saved evidence, not profile synchronization or rewards.
+function getTitleEvidence(steamIds) {
+  if(!Array.isArray(steamIds)||steamIds.length>800||steamIds.some(id=>typeof id!=='string'||!/^\d{17}$/.test(id))) {
+    throw Object.assign(new Error('Up to 800 valid Steam identities are required'),{status:400});
+  }
+  const ids=[...new Set(steamIds)];
+  const query=store.db.prepare(`SELECT a.achievement_id FROM progression_achievements a WHERE a.steam_id=?
+    AND NOT EXISTS (SELECT 1 FROM progression_achievement_review_state s WHERE s.steam_id=a.steam_id AND s.achievement_id=a.achievement_id AND s.status='withdrawn')
+    AND NOT EXISTS (SELECT 1 FROM progression_achievement_evidence_reviews r WHERE r.steam_id=a.steam_id AND r.achievement_id=a.achievement_id AND r.status='pending')`);
+  return ids.map(steamId=>({steamId,achievementIds:query.all(steamId).map(a=>a.achievement_id)}));
+}
+
 module.exports = {
   PLAYTIME_XP_PER_5_MINUTES,
   LEVEL_REWARD_VC,
@@ -709,4 +721,5 @@ module.exports = {
   steamIdForDiscord,
   getLeaderboard,
   achievementDefinitions,
+  getTitleEvidence,
 };
