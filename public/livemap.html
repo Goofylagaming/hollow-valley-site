@@ -65,6 +65,7 @@
                   <svg class="map-layer" id="tracker-roads" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
                   <svg class="map-layer map-shapes" id="territory-war-shapes" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
                   <div class="map-layer" id="tracker-pois"></div>
+                  <div class="map-layer" id="tracker-discoveries"></div>
                   <div class="map-layer" id="tracker-wildlife"></div>
                   <div class="map-layer" id="tracker-labels"></div>
                   <svg class="map-layer" id="tracker-trails" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
@@ -78,6 +79,15 @@
             <p class="map-status" id="tracker-status">Checking live connection&hellip;</p>
           </div>
           <aside class="map-layers-panel">
+            <section id="discovery-controls" hidden>
+              <h3>My discoveries</h3>
+              <label><input type="checkbox" id="discovery-mode"> Show discovered locations only</label>
+              <label><input type="checkbox" id="discovery-optin" disabled> Record future discoveries</label>
+              <button type="button" id="discovery-save" disabled>Save preference</button>
+              <button type="button" id="discovery-refresh">Refresh discoveries</button>
+              <button type="button" id="discovery-delete" disabled>Clear progress and stop recording</button>
+              <p id="discovery-status" role="status" aria-live="polite">Loading discoveries…</p>
+            </section>
             <p class="overline green">MAP LAYERS</p>
             <label class="layer-toggle"><input type="checkbox" id="layer-players" checked><span class="layer-swatch player"></span>Player tracking</label>
             <label class="layer-toggle"><input type="checkbox" id="layer-trails" checked><span class="layer-swatch trail"></span>My dino trail</label>
@@ -149,6 +159,8 @@
   <script src="assets/livemap-heatmap.js?v=1"></script>
   <script src="assets/livemap-prime-summary.js?v=2"></script>
   <script src="assets/livemap-trail.js?v=2"></script>
+  <script src="assets/livemap-discovery.js?v=1"></script>
+  <link rel="stylesheet" href="/assets/livemap-discovery.css?v=1">
   <script src="assets/prime-zone-reset.js?v=1"></script>
 </body>
 </html>

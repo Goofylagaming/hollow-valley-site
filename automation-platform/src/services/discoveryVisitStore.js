@@ -80,7 +80,7 @@ function createDiscoveryVisitStore(db, { now = Date.now, enabled = () => process
     const rules = catalog(version);
     const receipts = new Map(db.prepare('SELECT point_id,discovered_at FROM discovery_visits WHERE steam_id=? AND version=?').all(steamId, version).map(row => [row.point_id, row.discovered_at]));
     const active = rules.points.filter(point => point.enabled);
-    return { version, total: active.length, points: active.filter(point => receipts.has(point.id)).map(point => ({ ...point, discoveredAt: receipts.get(point.id) })) };
+    return { version, mapVersion: rules.mapVersion, bounds: rules.bounds, total: active.length, points: active.filter(point => receipts.has(point.id)).map(point => ({ ...point, discoveredAt: receipts.get(point.id) })) };
   }
   function prune() { db.prepare('DELETE FROM discovery_last_samples WHERE at<?').run(now() - 120000); }
   return { observe, discovered, prune, settings, change };
