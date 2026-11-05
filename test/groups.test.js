@@ -62,6 +62,26 @@ test('Headquarters rank assignments enforce owner authority and revisions',()=>{
  expectFail(()=>groups.invite(B,C),403);
 });
 
+test('Headquarters screenshots require owned approved images and follow moderation visibility',()=>{
+ const saved=process.env.HV_GALLERY_ENABLED;process.env.HV_GALLERY_ENABLED='1';
+ const hq=require('../server/services/groupHeadquarters').createGroupHeadquarters(db,groups);
+ try{
+  db.exec('CREATE TABLE gallery_images(id TEXT PRIMARY KEY,owner_steam_id TEXT,author TEXT,title TEXT,status TEXT,image BLOB)');
+  const insert=db.prepare('INSERT INTO gallery_images VALUES (?,?,?,?,?,?)');
+  insert.run('approved',B,'Bravo','Shared picture','approved',Buffer.from('fixture'));
+  insert.run('pending',B,'Bravo','Pending picture','pending',Buffer.from('fixture'));
+  expectFail(()=>hq.shareScreenshot(A,{imageId:'approved'}),404);
+  expectFail(()=>hq.shareScreenshot(B,{imageId:'pending'}),404);
+  assert.equal(hq.shareScreenshot(B,{imageId:'approved'}).screenshots.length,1);
+  hq.shareScreenshot(B,{imageId:'approved'});
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM hv_group_screenshot_edits').get().n,1);
+  db.prepare("UPDATE gallery_images SET status='withdrawn',image=NULL WHERE id='approved'").run();
+  assert.equal(hq.get(A).screenshots.length,0);
+  hq.shareScreenshot(A,{imageId:'approved',remove:true});
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM hv_group_screenshot_edits').get().n,2);
+ }finally{if(saved===undefined)delete process.env.HV_GALLERY_ENABLED;else process.env.HV_GALLERY_ENABLED=saved;}
+});
+
 test("invites can be declined or cancelled with proper ownership checks",()=>{
  groups.invite(A,C);let inv=groups.getState(C).incoming[0];
  groups.actOnInvite(C,inv.id,"decline");

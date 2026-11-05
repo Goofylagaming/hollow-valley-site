@@ -9,6 +9,18 @@ function createGroupHeadquarters(db, groups) {
     if (!db.prepare(`PRAGMA table_info(${table})`).all().some(column => column.name === 'emblem')) db.exec(`ALTER TABLE ${table} ADD COLUMN emblem TEXT NOT NULL DEFAULT 'leaf'`);
   }
   const emblems = ['leaf', 'claw', 'mountain', 'sun'];
+  db.exec(`CREATE TABLE IF NOT EXISTS hv_group_screenshots (
+    group_id INTEGER NOT NULL,image_id TEXT NOT NULL,shared_by TEXT NOT NULL,
+    shared_at TEXT NOT NULL DEFAULT(datetime('now')),PRIMARY KEY(group_id,image_id));
+    CREATE TABLE IF NOT EXISTS hv_group_screenshot_edits (
+    id INTEGER PRIMARY KEY,group_id INTEGER NOT NULL,image_id TEXT NOT NULL,actor TEXT NOT NULL,
+    action TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT(datetime('now')));`);
+  function screenshots(groupId) {
+    if(process.env.HV_GALLERY_ENABLED!=='1'||!db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='gallery_images'").get())return [];
+    return db.prepare(`SELECT i.id,i.title,i.author,s.shared_at AS sharedAt FROM hv_group_screenshots s
+      JOIN gallery_images i ON i.id=s.image_id WHERE s.group_id=? AND i.status='approved' AND i.image IS NOT NULL
+      ORDER BY s.shared_at DESC,s.image_id LIMIT 50`).all(groupId);
+  }
   db.exec(`CREATE TABLE IF NOT EXISTS hv_group_member_ranks (
     group_id INTEGER NOT NULL, steam_id TEXT NOT NULL, rank TEXT NOT NULL,
     revision INTEGER NOT NULL, exit_id INTEGER NOT NULL, PRIMARY KEY(group_id,steam_id));
@@ -32,6 +44,7 @@ function createGroupHeadquarters(db, groups) {
       groupId: group.id, name: group.name, canEdit: group.ownerSteamId === steamId,
       description: profile?.description || '', revision: profile?.revision || 0,
       emblem: profile?.emblem || 'leaf',
+      screenshots: screenshots(group.id),
       rankEdits: db.prepare(`SELECT e.revision,e.rank,e.created_at AS createdAt,
         COALESCE(u.username,'Former member') AS memberName
         FROM hv_group_rank_edits e LEFT JOIN users u ON u.steam_id=e.steam_id
@@ -84,6 +97,28 @@ function createGroupHeadquarters(db, groups) {
       const result=get(steamId);db.exec('COMMIT');return result;
     }catch(error){db.exec('ROLLBACK');throw error;}
   }
-  return { get, update, setRank };
+  function shareScreenshot(steamId, { imageId, remove = false } = {}) {
+    if(process.env.HV_GALLERY_ENABLED!=='1')throw Object.assign(new Error('Gallery sharing is not enabled'),{status:503});
+    if(typeof imageId!=='string'||!imageId||imageId.length>160||typeof remove!=='boolean')throw Object.assign(new Error('Valid gallery image required'),{status:400});
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      const group=membership(steamId);
+      const old=db.prepare('SELECT shared_by FROM hv_group_screenshots WHERE group_id=? AND image_id=?').get(group.id,imageId);
+      let changed=false;
+      if(remove){
+        if(old&&old.shared_by!==steamId&&group.ownerSteamId!==steamId)throw Object.assign(new Error('Only the sharing member or group owner can remove this screenshot'),{status:403});
+        changed=db.prepare('DELETE FROM hv_group_screenshots WHERE group_id=? AND image_id=?').run(group.id,imageId).changes>0;
+      }else{
+        const available=db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='gallery_images'").get();
+        const image=available&&db.prepare("SELECT owner_steam_id FROM gallery_images WHERE id=? AND status='approved' AND image IS NOT NULL").get(imageId);
+        if(!image||image.owner_steam_id!==steamId)throw Object.assign(new Error('Choose one of your approved gallery screenshots'),{status:404});
+        if(!old&&db.prepare('SELECT COUNT(*) n FROM hv_group_screenshots WHERE group_id=?').get(group.id).n>=50)throw Object.assign(new Error('Group screenshot limit reached'),{status:409});
+        changed=db.prepare('INSERT OR IGNORE INTO hv_group_screenshots(group_id,image_id,shared_by) VALUES (?,?,?)').run(group.id,imageId,steamId).changes>0;
+      }
+      if(changed)db.prepare('INSERT INTO hv_group_screenshot_edits(group_id,image_id,actor,action) VALUES (?,?,?,?)').run(group.id,imageId,steamId,remove?'removed':'shared');
+      const result=get(steamId);db.exec('COMMIT');return result;
+    }catch(error){db.exec('ROLLBACK');throw error;}
+  }
+  return { get, update, setRank, shareScreenshot };
 }
 module.exports = { createGroupHeadquarters };
