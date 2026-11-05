@@ -273,6 +273,7 @@ function createApp() {
   app.use("/api/skins", skinShareCodeRedaction);
   app.use("/api/skins", skinsRouter);
   app.use("/api/supporter", require("./routes/membershipRewards"));
+  app.use("/api/valley-arcade", require("./routes/valleyArcade"));
   app.use("/api/subscriber-community", require("./routes/subscriberCommunity"));
   const subscriberFundingRouters = createSubscriberFundingRouters();
   app.use("/api/supporter/progress", subscriberFundingRouters.publicRouter);
