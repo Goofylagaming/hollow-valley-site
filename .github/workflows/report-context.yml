@@ -11,6 +11,8 @@ on:
       - 'server/services/automationWebsiteClient.js'
       - 'server/services/reportContext.js'
       - 'server/services/reportContextSnapshots.js'
+      - 'server/services/reportContextCleanup.js'
+      - 'server/index.js'
       - 'server/routes/playerReports.js'
       - 'test/reportContext*.test.js'
       - '.env.example'
@@ -39,7 +41,7 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: node --test test/reportContextSnapshotsHttp.test.js test/reportContextSnapshots.test.js test/reportContext.test.js test/reportContextHttp.test.js automation-platform/test/reportContext.test.js automation-platform/test/reportContextHttp.test.js automation-platform/test/chatFeed.test.js automation-platform/test/combatEventService.test.js test/playerReports.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js
+      - run: node --test test/reportContextCleanup.test.js test/reportContextSnapshotsHttp.test.js test/reportContextSnapshots.test.js test/reportContext.test.js test/reportContextHttp.test.js automation-platform/test/reportContext.test.js automation-platform/test/reportContextHttp.test.js automation-platform/test/chatFeed.test.js automation-platform/test/combatEventService.test.js test/playerReports.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js
 
       - run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.62.1
       - run: npx playwright install --with-deps chromium

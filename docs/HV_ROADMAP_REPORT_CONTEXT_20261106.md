@@ -306,3 +306,30 @@ Production retention selection, scheduling physical cleanup, authenticated stagi
 and production verification remain unfinished. Saving remains disabled by default;
 no production key or retained report data was created. No push, merge, deployment,
 or live setting changed. The status publication candidate remains e9fb72c4.
+
+## Expired-copy cleanup worker (homepage v149)
+
+The server now registers an independent cleanup worker on startup and stops its
+hourly timer when the server closes. It creates no timer or store when
+PLAYER_REPORT_CONTEXT_RETENTION_CLEANUP_ENABLED is unset or 0. Enabling requires
+a server restart; disabling the flag suppresses subsequent passes. The first pass
+runs at startup and each later pass runs hourly. Timers do not keep shutdown alive.
+Failures produce a fixed generic warning without report text, tokens, or database
+paths, and the next scheduled pass can retry.
+
+Each pass deletes at most 500 expired rows, oldest expiry first, from the dedicated
+saved-context table. Payload and request receipt occupy the same row and are
+removed together. It does not create schema, delete reports, or alter unexpired
+copies. A backlog drains over later passes; expired reads are already withheld
+independently of physical cleanup. The worker deliberately follows each copy's
+stored fixed expiry even when new saves are paused, the signing key changes, or
+the current duration is unconfigured. It does not select a retention policy.
+This removes database rows; backup retention and secure disk erasure are separate
+host responsibilities and have not been verified here.
+
+62 affected local tests pass, including default-off startup behavior, timer
+lifecycle, runtime disabling, failure recovery/private logging, 500-row batching,
+exact expiry, and preservation of reports and active copies. Server entrypoint
+syntax also passes. Hosted startup/shutdown and staging cleanup have not been
+verified. Production retention configuration, staging, and production delivery
+remain pending. No live flag, key, retained data, push, merge or deployment changed.

@@ -34,3 +34,21 @@ test('independent processes racing the same prepared save create one snapshot an
  const code="const {DatabaseSync}=require('node:sqlite');const {createReportContextSnapshots}=require(process.argv[1]);const [file,id,binding,body,env,user,at]=process.argv.slice(2).map(v=>JSON.parse(v));const db=new DatabaseSync(file);db.exec('PRAGMA busy_timeout=5000');try{const result=createReportContextSnapshots({db,env,now:()=>at}).save(()=>user,id,binding,body);process.stdout.write(JSON.stringify(result));}finally{db.close();}";
  const args=['-e',code,path.resolve(__dirname,'../server/services/reportContextSnapshots.js'),...[file,id,binding,body,env,user,AT].map(value=>JSON.stringify(value))];const results=await Promise.all([execute(process.execPath,args),execute(process.execPath,args)]);const values=results.map(result=>JSON.parse(result.stdout));assert.equal(values[0].id,values[1].id);assert.deepEqual(values.map(v=>v.replayed).sort(),[false,true]);const checked=new DatabaseSync(file);try{assert.equal(checked.prepare('SELECT COUNT(*) n FROM player_report_context_snapshots').get().n,1);}finally{checked.close();}
 });
+
+
+test('cleanup removes at most 500 expired copies per pass even with saving disabled and a rotated policy',t=>{
+ const f=fixture(t),saved=f.store.save(f.getUser,f.id,f.binding,f.prepare());
+ const original=f.db.prepare('SELECT * FROM player_report_context_snapshots WHERE id=?').get(saved.id);
+ const insert=f.db.prepare('INSERT INTO player_report_context_snapshots VALUES(?,?,?,?,?,?,?,?,?,?,?,?)');
+ f.db.exec('BEGIN');
+ for(let i=0;i<501;i++){const row={...original,id:randomUUID(),request_key:randomUUID()};insert.run(...Object.values(row));}
+ const active={...original,id:randomUUID(),request_key:randomUUID(),captured_at:AT+90*86400000,expires_at:AT+180*86400000};insert.run(...Object.values(active));
+ f.db.exec('COMMIT');f.time(AT+90*86400000);
+ f.env.PLAYER_REPORT_CONTEXT_ENABLED='0';f.env.PLAYER_REPORT_CONTEXT_SNAPSHOTS_ENABLED='0';f.env.PLAYER_REPORT_CONTEXT_RETENTION_DAYS='0';f.env.PLAYER_REPORT_CONTEXT_REVIEW_SECRET='';f.env.PLAYER_REPORT_CONTEXT_RETENTION_CLEANUP_ENABLED='1';
+ assert.deepEqual(f.store.purgeExpired(),{deleted:500});
+ assert.equal(f.db.prepare('SELECT count(*) n FROM player_report_context_snapshots').get().n,3);
+ assert.deepEqual(f.store.purgeExpired(),{deleted:2});
+ assert.equal(f.db.prepare('SELECT id FROM player_report_context_snapshots').get().id,active.id);
+ assert.equal(f.db.prepare('SELECT count(*) n FROM player_reports').get().n,1);
+ assert.deepEqual(f.store.purgeExpired(),{deleted:0});
+});

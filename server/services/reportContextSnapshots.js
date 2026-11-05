@@ -51,7 +51,7 @@ function createReportContextSnapshots({db,env=process.env,now=Date.now}={}){
   let context;try{context=project(JSON.parse(row.context_json),saved,at);if(digest(context)!==row.context_digest||canonical(context)!==row.context_json)fail(503,'Saved context failed its integrity check.');}catch{fail(503,'Saved context failed its integrity check.');}
   return {...metadata(row),context,reviewerBinding:binding};
  }
- function purgeExpired(){if(env.PLAYER_REPORT_CONTEXT_RETENTION_CLEANUP_ENABLED!=='1'||!exists())return {deleted:0};const at=clock();return {deleted:db.prepare('DELETE FROM player_report_context_snapshots WHERE expires_at<=?').run(at).changes};}
+ function purgeExpired(){if(env.PLAYER_REPORT_CONTEXT_RETENTION_CLEANUP_ENABLED!=='1'||!exists())return {deleted:0};const at=clock();return {deleted:db.prepare('DELETE FROM player_report_context_snapshots WHERE id IN (SELECT id FROM player_report_context_snapshots WHERE expires_at<=? ORDER BY expires_at,id LIMIT 500)').run(at).changes};}
  return {capabilities,offer,save,list,read,purgeExpired};
 }
 let store;function getDefaultStore(){return store||(store=createReportContextSnapshots({db:require('../db').db}));}
