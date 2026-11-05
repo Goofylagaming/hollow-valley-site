@@ -38,7 +38,7 @@ function createReportContextSource({combatDb,readChat,now=Date.now,enabled=()=>p
    }
    matches.sort((a,b)=>b.at.localeCompare(a.at)||b.id.localeCompare(a.id));chat={available:true,truncated:chat.truncated||matches.length>LIMIT,messages:matches.slice(0,LIMIT)};
   }catch{ /* A failed chat source must not hide available combat context. */ }
-  return {reportedTime:input.occurredAt,windowStart:from,windowEnd:until,associationOnly:true,complete:false,retainedChatLimit:CHAT_LIMIT,combat,chat};
+  return {version:1,scope:'report-participant-context',reportedTime:input.occurredAt,windowStart:from,windowEnd:until,associationOnly:true,complete:false,retainedChatLimit:CHAT_LIMIT,combat,chat};
  }
  return {read};
 }

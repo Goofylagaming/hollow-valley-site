@@ -57,6 +57,15 @@ router.get("/admin", requireAdmin, (req, res) => {
   try { res.json({ reports: reports.listAdmin({ status: req.query.status, q: req.query.q, limit: req.query.limit }) }); }
   catch (error) { respondError(res, error); }
 });
+router.get('/admin/context-capabilities', requireAuth, requireSteam, (req,res)=>{
+  try{return res.json(require('../services/reportContext').getDefaultReader().capabilities(()=>req.user));}
+  catch(error){return res.status(error.status===403?403:503).json({error:error.status===403?'Current linked admin access is required.':'Report context is unavailable.'});}
+});
+router.get('/admin/:id/context', requireAuth, requireSteam, async (req,res)=>{
+  if(Object.keys(req.query).length)return res.status(400).json({error:'Context uses the saved report only.'});
+  try{return res.json(await require('../services/reportContext').getDefaultReader().read(()=>req.user,req.params.id,req.get('X-Report-Reviewer')));}
+  catch(error){const status=[400,403,404,409,502,503].includes(error.status)?error.status:503;return res.status(status).json({error:status===503?'Report context is unavailable.':error.message});}
+});
 router.get("/admin/:id", requireAdmin, (req, res) => {
   try {
     const result = reports.adminDetail(req.params.id);

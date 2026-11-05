@@ -63,3 +63,55 @@ staff display and account-switch/recovery tests, explicit retention/attachment
 policy, real feed provenance/cadence, authenticated staging and production review.
 No rollout flag, live report, source, database, player data, push, merge or deployment
 was changed. The 31-feature objective remains incomplete.
+
+
+## Saved-report-bound website reader — 6 November 2026
+
+The website now has its own default-off PLAYER_REPORT_CONTEXT_ENABLED gate and
+moderator-only context capabilities/read routes. The automation source gate is
+separate. GET /api/reports/admin/:id/context takes only a saved report reference;
+query overrides are rejected. Reporter identity, optional reported identity and
+approximate time come exclusively from the report row. Missing or expired report
+times return an explicit unavailable reason without substituting submission/current
+time or querying a broader history. Context is never added to player /mine reads.
+
+The current account ID/Steam binding and current users-table admin permission are
+checked before a source request. X-Report-Reviewer must exactly match that current
+binding. After the asynchronous read (including after a source failure), the
+reader rechecks the request actor, current DB permission, rollout gate and saved
+report participant/time fields. Revocation, changed binding, report mutation or
+paused rollout suppress the response. These server checks do not independently
+track a parallel browser session switch; the forthcoming interface must also
+revalidate identity before displaying private responses and clear old context.
+
+The source now identifies protocol version 1 and report-participant-context scope.
+The website verifies them, the saved report time, exact bounded window start,
+nonfuture window end, source availability/truncation, record limits, unique source
+IDs, participant roles, timestamps and explicit associationOnly:true/complete:false.
+A report without an accused player cannot receive an invented reported-player role.
+Unknown extra fields are discarded. Invalid, duplicated, out-of-window, overclaimed
+or digest-inconsistent responses fail closed with generic errors. Source exceptions
+and raw provider payloads are not forwarded to the browser.
+
+The projection contains only bounded combat role/time records and participant
+chat context. Literal text is preserved for safe eventual rendering; obvious
+credential-like patterns are masked again and marked redacted. An unredacted
+source text must match its source digest; a redacted digest remains a source claim,
+not proof the website inspected the original. The existing note about incomplete
+personal-data masking still applies. No source attachment, decision, report edit,
+review, wallet or game action is written by these reads.
+
+48 affected local checks pass. New service/actual-route tests verify current DB
+permission rather than a stale admin flag, exact reviewer headers, saved-only
+source arguments, disabled/missing/old-time no-query behavior, held responses during
+permission/account/report/flag changes, strict source projection, duplicate/window/
+role/digest rejection, generic source errors and redaction marking. HTTP checks
+prove private/no-store responses, no query override, no data on player /mine and
+unchanged total_changes with query_only SQLite. Existing source, report, chat,
+combat, production UI and roadmap checks still pass. Homepage is v144.
+
+Staff display, fresh browser identity checks, held-response/account-switch and
+retry/recovery browser fixtures, source attachment/retention policy, authenticated
+staging and production verification remain unfinished. The original status branch
+stays fixed at e9fb72c4 and has not acquired this follow-up. No live flag, source,
+player report, moderation decision, push, merge or deployment changed.
