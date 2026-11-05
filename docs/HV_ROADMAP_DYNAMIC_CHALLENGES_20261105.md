@@ -122,8 +122,7 @@ disabled, and no private data is retained on sign-out or failed authentication.
   existing immutable-season boundary is unchanged. Historical rejection review,
   missing/deleted source evidence and actual character identity remain delivery
   gates before guaranteed survival achievements or any rewards are authorized.
-- Review real map units and Highlands geometry, complete operator activation
-  tooling and verify source cadence before enabling the local travel/visit
+- Review real map units and Highlands geometry and verify source cadence before enabling the local travel/visit
   implementation. Verify the completed-event producer before enabling attendance.
   Add Territory battle survival from frozen participant-life/outcome evidence.
   An RSVP, registration, group win, payout or one location alone cannot prove
@@ -138,12 +137,12 @@ disabled, and no private data is retained on sign-out or failed authentication.
 
 The roadmap release register retains #3's original description and feature ID,
 marks development honestly and preserves historical vote counts while freeing
-retired active ballot slots. Homepage asset version is 108. Diplomacy publication
+retired active ballot slots. Homepage asset version is 109. Diplomacy publication
 approval remains separate and pending; its prepared branch is preserved.
 
 ## Local validation
 
-158 checks pass across dynamic challenge evidence, Legacy store/private HTTP and
+165 checks pass across dynamic challenge evidence, Legacy store/private HTTP and
 authenticated telemetry, roadmap ballots/homepage integration, existing quest
 boosts/challenge payouts, journeys and discovery. Tests cover repeated/stale
 samples, alias farming, midnight/Monday rollover, opt-out/rejoin, separated lives,
@@ -342,8 +341,38 @@ retention and Brisbane rollover. The actual private HTTP fixture checks Steam
 binding and location deletion on general opt-out. The desktop/mobile Quests
 fixture uses an explicitly synthetic catalog to verify review, lost replies,
 explicit retry, 12 km/Highlands rendering and deletion while tracking is paused.
-The affected combined set has 158 passing checks. Operator tooling, real geometry,
-real map/feed verification and authenticated staging remain unfinished.
+The location implementation initially brought the affected set to 158 checks;
+the operator workflow below raises it to 165. Real geometry, real map/feed
+verification and authenticated staging remain unfinished.
+
+## Map operator review and activation workflow
+
+`scripts/review-challenge-map.cjs` supplies `review`, `stage`, `inspect`, `activate`
+and `deactivate` commands. Database writes require explicit `--write`; review can
+create a separate new offline HTML artifact but opens no database. Staging and
+inspection default to read-only connections and do not run schema migrations.
+Missing files, unrelated databases, changed digests and stale active versions
+fail before changing catalog selection. The tool never loads `.env`, guesses a
+database path, creates a new database file or toggles collection settings.
+
+The self-contained review artifact shows the canonical digest, map version/units,
+review evidence, bounds and numbered polygon vertices. Text is escaped and its
+content-security policy allows no scripts or external resources. A deliberately
+synthetic artifact was generated through the actual CLI and rendered/visually
+inspected. It is not a real Highlands boundary or production approval.
+
+Activation/deactivation and their audit entries atomically clear last-position
+and runtime baselines, including a pause/restart occurring between observations.
+Saved geometry is revalidated against its digest before use. Exact known active
+metadata can still be deactivated if the payload is damaged, without using or
+repairing that geometry. Older activation audit rows receive an additive action
+column; read-only inspection does not perform that migration.
+
+Seven operator tests cover read-only behavior/schema preservation, wrong files,
+changed rules, explicit writes, compare-and-swap, audit migration, baseline
+clearing and integrity failure while preserving unrelated wallet data. See
+`HV_CHALLENGE_MAP_OPERATOR_20261105.md` for the review/runbook and remaining release
+gates. No real catalog or live database was changed by this work.
 
 The dedicated Dynamic challenge tracking workflow runs the affected checks and
 the real-page browser fixture on pull requests. Those hosted runs have not yet
