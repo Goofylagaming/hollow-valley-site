@@ -1,8 +1,8 @@
 const test=require('node:test'),assert=require('node:assert/strict'),{randomUUID}=require('node:crypto');
 process.env.AUTOMATION_DB_PATH=':memory:';process.env.SKIN_SYSTEM_ENABLED='true';process.env.PARKED_DINO_EDIT_ENABLED='true';process.env.SKIN_PRESET_CREATE_COST='0';
-let duringRead=()=>{},timeout=false;const edits=[];
+let duringRead=()=>{},timeout=false,notPublished=false;const edits=[];
 const storagePath=require.resolve('../src/services/dinoStorageService');
-require.cache[storagePath]={id:storagePath,filename:storagePath,loaded:true,exports:{validateSlot:s=>s,getStoredDino:async()=>{duringRead();return {classPath:'/Game/BP_Triceratops.BP_Triceratops_C'};},editStoredDino:async input=>{const command={id:randomUUID(),verb:'dino_edit',steam:input.steamId};input.beforePublish?.(command);edits.push(command);if(timeout)throw Object.assign(new Error('fixture timeout'),{code:'DINOSTORAGE_COMMAND_TIMEOUT',requestId:command.id});return {command,outcome:{state:'confirmed'}};}}};
+require.cache[storagePath]={id:storagePath,filename:storagePath,loaded:true,exports:{validateSlot:s=>s,getStoredDino:async()=>{duringRead();return {classPath:'/Game/BP_Triceratops.BP_Triceratops_C'};},editStoredDino:async input=>{const command={id:randomUUID(),verb:'dino_edit',steam:input.steamId};input.beforePublish?.(command);if(notPublished)throw Object.assign(new Error('fixture pre-publication rejection'),{commandNotPublished:true,requestId:command.id});edits.push(command);if(timeout)throw Object.assign(new Error('fixture timeout'),{code:'DINOSTORAGE_COMMAND_TIMEOUT',requestId:command.id});return {command,outcome:{state:'confirmed'}};}}};
 const store=require('../src/services/economyStore'),skins=require('../src/services/skinPresetService');
 const gifts=require('../src/services/skinGiftService').createSkinGiftService(store,{enabled:()=>true});
 const creator={steam_id:'76561198000000401'},sender={steam_id:'76561198000000402'},recipient={steam_id:'76561198000000403'};
@@ -40,4 +40,13 @@ test('timeouts retain a durable transfer hold until the original command is conf
   assert.deepEqual(reads,[edits[0].id,edits[0].id]);assert.equal(edits.length,1);
   gifts.decide(recipient,{id,decision:'accepted',expectedRevision:0});assert.equal(store.hasSkinUnlock(recipient.steam_id,preset.id),true);
   timeout=false;
+});
+
+test('a proven pre-publication rejection resolves its hold without claiming a game edit',async()=>{
+  const preset=await fixture(),{id}=gifts.offer(sender,{presetId:preset.id,recipientSteamId:recipient.steam_id,requestId:randomUUID()});
+  const count=edits.length;notPublished=true;
+  await assert.rejects(skins.applyPreset({steamId:sender.steam_id,presetId:preset.id,slot:'fixture-slot'}),/pre-publication rejection/);
+  assert.equal(edits.length,count);
+  assert.equal(store.db.prepare('SELECT status FROM economy_skin_parked_applications WHERE preset_id=?').get(preset.id).status,'not_published');
+  gifts.decide(recipient,{id,decision:'accepted',expectedRevision:0});assert.equal(store.hasSkinUnlock(recipient.steam_id,preset.id),true);notPublished=false;
 });

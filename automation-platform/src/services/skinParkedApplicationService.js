@@ -17,7 +17,7 @@ function createSkinParkedApplicationService(store,{readOutcome=command=>require(
     }catch(e){db.exec('ROLLBACK');throw e;}
   }
   function complete(id,state) {
-    if(!['confirmed','failed'].includes(state))return false;
+    if(!['confirmed','failed','not_published'].includes(state))return false;
     return db.prepare("UPDATE economy_skin_parked_applications SET status=?,completed_at=? WHERE id=? AND status='pending'").run(state,now(),id).changes===1;
   }
   async function reconcile(steamId) {
@@ -25,7 +25,7 @@ function createSkinParkedApplicationService(store,{readOutcome=command=>require(
     const rows=db.prepare("SELECT id,command_json FROM economy_skin_parked_applications WHERE steam_id=? AND status='pending' ORDER BY created_at LIMIT 25").all(steam);
     let resolved=0;
     for(const row of rows){
-      try{const outcome=await readOutcome(JSON.parse(row.command_json));if(complete(row.id,outcome?.state))resolved++;}
+      try{const outcome=await readOutcome(JSON.parse(row.command_json));if(['confirmed','failed'].includes(outcome?.state)&&complete(row.id,outcome.state))resolved++;}
       catch{/* Unreachable or ambiguous outcomes retain the durable hold. */}
     }
     const remaining=db.prepare("SELECT COUNT(*) n FROM economy_skin_parked_applications WHERE steam_id=? AND status='pending'").get(steam).n;

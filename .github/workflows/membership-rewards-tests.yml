@@ -39,7 +39,7 @@ jobs:
         env:
           DB_PATH: ":memory:"
         run: >-
-          node --test test/skinGiftsRoute.test.js test/skinPromosRoute.test.js automation-platform/test/skinGift.test.js automation-platform/test/skinGiftConcurrency.test.js automation-platform/test/skinGiftWear.test.js automation-platform/test/skinGiftParked.test.js automation-platform/test/skinParkedPublish.test.js automation-platform/test/skinParkedRestart.test.js automation-platform/test/skinPromo.test.js automation-platform/test/skinPromoConcurrency.test.js test/membership*.test.js test/premiumSkinsRoute.test.js
+          node --test test/skinGiftsRoute.test.js test/skinPromosRoute.test.js automation-platform/test/skinGift.test.js automation-platform/test/skinGiftConcurrency.test.js automation-platform/test/skinGiftWear.test.js automation-platform/test/skinGiftParked.test.js automation-platform/test/commandBridgePublication.test.js automation-platform/test/skinParkedPublish.test.js automation-platform/test/skinParkedRestart.test.js automation-platform/test/skinPromo.test.js automation-platform/test/skinPromoConcurrency.test.js test/membership*.test.js test/premiumSkinsRoute.test.js
           test/subscriber*.test.js test/adminSupportGoalDraft.test.js test/financeOwner.test.js test/stripeFinance.test.js
           test/supporterWebhook.test.js test/supporterCoinBonus.test.js test/supporterInternalRoute.test.js
           test/supporterManageRoute.test.js test/discordMembership.test.js

@@ -611,7 +611,8 @@ async function applyPreset({ steamId, slot, presetId }) {
     });
     if (result?.command?.id) parkedApplications.complete(result.command.id, result.outcome?.state);
   } catch (error) {
-    if (error.code === 'DINOSTORAGE_COMMAND_FAILED' && error.requestId) parkedApplications.complete(error.requestId, 'failed');
+    if (error.commandNotPublished === true && error.requestId) parkedApplications.complete(error.requestId, 'not_published');
+    else if (error.code === 'DINOSTORAGE_COMMAND_FAILED' && error.requestId) parkedApplications.complete(error.requestId, 'failed');
     // Timeouts and publication errors may still have reached the game. Retain
     // the hold until the original command has a definitive outcome.
     throw error;

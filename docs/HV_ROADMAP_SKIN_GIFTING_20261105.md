@@ -120,3 +120,18 @@ the hold, then one acceptance transfers the existing unlock and a restarted retr
 is a duplicate. This test passes locally and is included in Membership Rewards CI.
 It does not contact a game server. Authenticated staging, live outcome behavior
 and operator handling of a never-published interrupted command remain unverified.
+
+## Proven pre-publication rejection
+
+CommandBridge now marks errors from publisher/configuration/capacity preflight
+with `commandNotPublished=true`, before either HTTP enqueue or file publication
+is invoked. Parked skin application resolves its newly reserved hold as
+`not_published` only on that explicit evidence. It does not label the skin applied.
+Errors after invoking either publisher remain uncertain and keep the hold.
+Reconciliation accepts only confirmed/failed game outcomes; it does not infer a
+not-published state from missing or unrecognized responses.
+
+Fourteen bridge/parked tests pass, including both transports, preflight failure,
+uncertain publication, ownership checks and real process reopening. A process
+crash without a caught rejection still cannot be safely treated as unpublished;
+those holds remain unresolved pending authoritative evidence.
