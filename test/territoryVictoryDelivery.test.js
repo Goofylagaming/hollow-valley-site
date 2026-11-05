@@ -14,7 +14,10 @@ const route=require('../automation-platform/src/routes/websiteTerritoryResultRou
 const economy=require('../automation-platform/src/services/economyStore');
 const progression=require('../automation-platform/src/services/progressionService');
 const client=require('../server/services/automationWebsiteClient');
-test.after(()=>{economy.db.close();fs.rmSync(dir,{recursive:true,force:true});});
+require('../automation-platform/src/services/valleyLegacyStore').createLegacyStore(economy.db,{now:()=>1000});
+process.env.VALLEY_LEGACY_ENABLED='1';
+const legacy=require('../automation-platform/src/services/valleyLegacyService');
+test.after(()=>{legacy.get().db.close();economy.db.close();fs.rmSync(dir,{recursive:true,force:true});});
 const a='76561198000000401',b='76561198000000402';
 
 test('capture queues atomically and survives lost acknowledgement/restart through authenticated receiver',async()=>{
@@ -44,6 +47,10 @@ test('capture queues atomically and survives lost acknowledgement/restart throug
     assert.equal(progression.getProfile(a).achievements.filter(x=>x.id==='territory-victory').length,1);
     assert.equal(progression.getProfile(b).achievements.some(x=>x.id==='territory-victory'),false);
     assert.equal(economy.getWallet(a).balance,0);
+    legacy.reconcile();legacy.reconcile();
+    const captures=economy.db.prepare("SELECT subject,value FROM vl_records WHERE scope='all' AND metric='territory_captures'").all();
+    assert.equal(captures.length,1);assert.equal(captures[0].subject,a);assert.equal(captures[0].value,1);
+    assert.equal(legacy.get().overview().rankings.all.find(r=>r.metric==='territory_captures').leaders[0].value,1);
     await retry.flush();
     assert.equal(db.prepare('SELECT attempts FROM territory_victory_outbox').get().attempts,2);
   } finally {await new Promise(resolve=>server.close(resolve));db.close();}

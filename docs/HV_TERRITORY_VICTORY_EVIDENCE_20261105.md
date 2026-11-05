@@ -127,3 +127,25 @@ status and time. Retrying only queues the unchanged result for the enabled relay
 Local HTTP tests cover access, CSRF, identity binding, immutable payloads and audit
 persistence. Isolated desktop/mobile panel fixtures cover selection and success/
 failure feedback; authenticated staging verification is still required.
+
+
+## Server Records connection — local implementation
+
+Roadmap #13 now imports authenticated immutable capture results through the
+existing enabled Valley Legacy reconciliation loop. Each frozen winning
+participant receives one capture contribution in the current season and all-time
+records. This measures participation in successful captures, not sole ownership
+or group-level victories. Losing-side and absent members receive no contribution.
+
+Stable event IDs and import markers prevent duplicate delivery, restarts and
+partial retries from inflating records. The original imported display name is
+retained on retries. Only results resolved after Legacy tracking began are
+eligible. Closed-season evidence remains recorded with an import error for
+explicit reconciliation; it does not rewrite Hall of Fame winners. No wallet,
+XP, game commands or production configuration changes are involved.
+
+Tests cover seasonal/all-time aggregation, historical exclusion, closed-season
+protection, failure recovery, changed display names and unsupported evidence.
+The delivery fixture also exercises the authenticated receiver followed by the
+real Legacy reconciliation entry point. Group-battle records, staging and
+production verification remain outstanding.

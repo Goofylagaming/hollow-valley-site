@@ -76,6 +76,8 @@
           "p",
           top
             ? top.name
+            : record.metric === "territory_captures" && overview.producers?.territoryCaptures && overview.producers.territoryCaptures !== "pending"
+              ? "Verified capture participation appears after recorded battle results arrive."
             : ["territory_captures", "group_battle"].includes(record.metric)
               ? "Awaiting an authoritative event connection."
               : "Your next journey could start the story.",

@@ -425,7 +425,7 @@ function createLegacyStore(db, { now = Date.now } = {}) {
       producers: {
         combat: "durable feed reconciliation",
         gameplayCoins: "playtime and event reward ledger",
-        territoryCaptures: "pending",
+        territoryCaptures: "verified capture participants; durable result reconciliation",
         groupBattles: "pending",
         hatches: "admin-verified evidence required",
       },
