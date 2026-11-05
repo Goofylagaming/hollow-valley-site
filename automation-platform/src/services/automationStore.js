@@ -428,6 +428,7 @@ function deleteState(key) {
 
 module.exports = {
   dbPath,
+  close: () => db.close(),
   createRequest,
   getRequest,
   updateRequest,

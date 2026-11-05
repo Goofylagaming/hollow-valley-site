@@ -932,3 +932,10 @@ module.exports = {
 
 module.exports.legacyRequest = (path, options) => call(`/legacy${path}`, options);
 module.exports.postTerritoryVictory = payload => call('/territory-results', {method:'POST',body:payload});
+module.exports.groupTreasuryRequest=(action,body)=>{
+  if(!['read','outcome','donate','cancel','closure-begin','closure-abort','closure-complete','spending-read','spend-status','spend-reserve','spend-commit','spend-release','spend-dispatch-territory','spend-settle-territory','group-event-preview','group-event-registrations','group-event-index','group-event-roster'].includes(action))throw new Error('Unsupported Group Treasury action');
+  return call(`/group-treasury/${action}`,{method:'POST',body}).catch(error=>{
+    if(typeof error.payload?.code==='string'&&/^[A-Z_]{1,80}$/.test(error.payload.code))error.code=error.payload.code;
+    throw error;
+  });
+};

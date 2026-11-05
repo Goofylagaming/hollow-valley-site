@@ -18,11 +18,14 @@ delete require.cache[servicePath];
 const service = require(servicePath);
 
 test.after(() => {
+  require(storePath).close();
   delete require.cache[storePath];
   delete require.cache[servicePath];
   if (oldDb === undefined) delete process.env.AUTOMATION_DB_PATH; else process.env.AUTOMATION_DB_PATH = oldDb;
   if (oldStale === undefined) delete process.env.DISCORD_EVENTS_STALE_SECONDS; else process.env.DISCORD_EVENTS_STALE_SECONDS = oldStale;
-  fs.rmSync(dir, { recursive: true, force: true });
+  const target = path.resolve(dir);
+  assert.ok(target.startsWith(path.resolve(os.tmpdir()) + path.sep));
+  fs.rmSync(target, { recursive: true, force: true });
 });
 
 test('Discord scheduled event snapshots persist and sort by start time', () => {
@@ -52,6 +55,7 @@ test('Discord scheduled event snapshots persist and sort by start time', () => {
 
   assert.equal(result.events.length, 2);
   assert.equal(result.events[0].title, 'Earlier Event');
+  assert.equal(result.events[0].status, 'unknown');
   assert.equal(result.events[0].location, 'Gateway');
   assert.equal(result.events[0].attendees, 12);
   assert.equal(result.events[0].url, `https://discord.com/events/${guildId}/1540359454627725398`);

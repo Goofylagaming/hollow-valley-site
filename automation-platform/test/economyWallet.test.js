@@ -16,10 +16,13 @@ function loadEconomy() {
   return {
     store,
     cleanup() {
+      store.db.close();
       delete require.cache[storePath];
       if (previous === undefined) delete process.env.AUTOMATION_DB_PATH;
       else process.env.AUTOMATION_DB_PATH = previous;
-      fs.rmSync(dir, { recursive: true, force: true });
+      const target=path.resolve(dir);
+      assert.ok(target.startsWith(path.resolve(os.tmpdir())+path.sep));
+      fs.rmSync(target, { recursive: true, force: true });
     },
   };
 }

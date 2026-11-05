@@ -55,6 +55,9 @@ function normalizeEvent(raw, guildId) {
     id,
     guildId: eventGuildId,
     title,
+    // Older producer snapshots remain readable, but cannot authorize paid group
+    // registration until they carry an explicit lifecycle status.
+    status: ['scheduled', 'active', 'completed', 'cancelled'].includes(raw?.status) ? raw.status : 'unknown',
     description: cleanText(raw?.description, 1000),
     startTime,
     endTime,

@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="/assets/styles.css?v=22">
   <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=4">
-  <link rel="stylesheet" href="/assets/groups.css?v=3">
+  <link rel="stylesheet" href="/assets/groups.css?v=6">
 </head>
 <body class="has-my-stuff-rail groups-page">
   <div class="app-shell">
@@ -29,6 +29,7 @@
           <div class="summary-tile"><small>INVITES</small><b id="groups-invite-count">0</b><span>Invitations for you</span></div>
           <div class="summary-tile"><small>PREVIOUS GROUPS</small><b id="groups-history-count">0</b><span>Your completed group memberships</span></div>
         </section>
+        <div id="groups-closure-recovery" class="groups-rows" hidden></div>
         <section id="groups-progress-panel" class="panel groups-card" hidden>
           <div class="groups-panel-head">
             <div><p class="overline green">GROUP PROGRESSION</p><h2>Achievements &amp; Quests</h2><p class="section-intro">Build your group together. Progress and badges are shared across the whole roster.</p></div>
@@ -55,6 +56,8 @@
             <div><p class="overline green">CURRENT GROUP</p><h2 id="groups-name-title">Your group</h2><p class="section-intro" id="groups-created"> </p></div>
             <button id="groups-leave" type="button" class="small-button">Leave group</button>
           </div>
+          <p id="groups-closure-status" role="status" hidden></p>
+          <button id="groups-cancel-closure" type="button" class="small-button" hidden>Cancel closure check</button>
           <div class="list-heading"><span>MEMBERS</span><span id="groups-capacity"></span></div>
           <div id="groups-members" class="groups-rows"></div>
           <section id="groups-owner-panel" class="groups-owner" hidden>
@@ -108,6 +111,41 @@
             <ol id="hq-battles"></ol><a href="/territory-wars">Open Territory Wars</a>
           </section>
         </section>
+        <section class="panel groups-card" id="group-treasury" hidden>
+          <h2>Group Treasury</h2>
+          <p>Voluntary member donations stay in the group wallet. Group XP is a separate score.</p>
+          <p id="treasury-group"></p><p>Group balance: <strong id="treasury-balance">Unavailable</strong></p>
+          <p id="treasury-reserved" hidden></p>
+          <p id="treasury-availability"></p><p id="treasury-status" role="status" aria-live="polite"></p>
+          <button id="treasury-refresh" class="small-button" type="button">Refresh Treasury</button>
+          <form id="treasury-form" class="groups-form" hidden>
+            <label for="treasury-amount">Valley Coins to donate</label>
+            <input id="treasury-amount" type="text" inputmode="numeric" pattern="[0-9]+" maxlength="16" required autocomplete="off">
+            <button id="treasury-review" class="small-button" disabled>Review donation</button>
+          </form>
+          <div id="treasury-pending"></div>
+          <details><summary>Recent group transactions</summary><ol id="treasury-transactions"></ol></details>
+          <h3>Your recent donation requests</h3><ol id="treasury-history"></ol>
+          <section id="treasury-shop" hidden>
+            <h3>Group cosmetics</h3><p>Only the current group owner can spend group coins. Frames change the appearance of your group card.</p>
+            <p id="treasury-shop-status" role="status" aria-live="polite"></p>
+            <button id="treasury-shop-refresh" type="button" class="small-button">Refresh purchases</button>
+            <h4>Group event registrations</h4>
+            <p id="treasury-event-registration-status" role="status"></p>
+            <ul id="treasury-event-registrations"></ul>
+            <form id="treasury-shop-form" class="groups-form" hidden>
+              <label for="treasury-shop-item">Reviewed group purchases</label><select id="treasury-shop-item"></select>
+              <button id="treasury-shop-review" class="small-button" disabled>Review purchase</button>
+            </form>
+            <div id="treasury-purchase-pending"></div>
+            <h4>Group frame</h4><p id="treasury-frame-current"></p>
+            <form id="treasury-frame-form" class="groups-form" hidden>
+              <label for="treasury-frame-choice">Owned group frames</label><select id="treasury-frame-choice"></select>
+              <button id="treasury-frame-save" class="small-button" disabled>Save group frame</button>
+            </form>
+            <h4>Recent group purchases</h4><ol id="treasury-purchase-history"></ol>
+          </section>
+        </section>
         <section class="panel groups-card">
           <div class="list-heading"><span>GROUP INVITATIONS</span><span>Accept or decline</span></div>
           <div id="groups-incoming" class="groups-rows"></div>
@@ -121,8 +159,10 @@
     <footer><span>© 2026 Hollow Valley</span><span>AUSTRALIAN ISLE SERVER</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="/assets/common.js?v=22"></script>
-  <script src="/assets/groups.js?v=4"></script>
+  <script src="/assets/groups.js?v=6"></script>
   <script src="/assets/group-headquarters.js?v=5"></script>
   <script src="/assets/group-territory.js?v=1"></script>
+  <script src="/assets/group-treasury.js?v=4"></script>
+  <script src="/assets/group-treasury-shop.js?v=3"></script>
 </body>
 </html>

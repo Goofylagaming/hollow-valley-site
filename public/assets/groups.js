@@ -66,10 +66,17 @@
     text("groups-history-count",history.length);
     show("groups-current-panel",!!g);show("groups-create-panel",!g);
     if(g){
-      const owner=g.ownerSteamId===steam;
+      $('groups-current-panel').dataset.groupFrame=g.cosmeticFrame||'none';
+      const owner=g.ownerSteamId===steam,closure=g.closure;
       text("groups-name-title",g.name);text("groups-created","Created "+date(g.createdAt)+" · Website group");
       text("groups-capacity",g.members.length+" / "+g.capacity);
-      text("groups-leave",owner?"Leave and transfer ownership":"Leave group");
+      text("groups-leave",owner?(g.members.length>1?"Leave and transfer ownership":"Leave and close group"):"Leave group");
+      if(closure?.action==='leave')text('groups-leave','Retry leaving and closing group');
+      text('groups-disband',closure?.action==='disband'?'Retry disbanding group':'Disband group');
+      $('groups-leave').disabled=Boolean(closure&&(closure.action!=='leave'||closure.state==='cancelling'));$('groups-disband').disabled=Boolean(closure&&(closure.action!=='disband'||closure.state==='cancelling'));
+      show('groups-closure-status',Boolean(closure));show('groups-cancel-closure',Boolean(closure)&&owner);
+      text('groups-closure-status',closure?.state==='cancelling'?'Closure cancellation is pending. Retry cancelling the check.':'A Treasury closure check is pending. Retry the closing action or cancel the check before making membership changes.');
+      $('groups-invite-form').querySelectorAll('input,button').forEach(element=>{element.disabled=Boolean(closure);});
       $("groups-members").innerHTML=g.members.map(u=>
         '<div class="groups-row">'+person(u)+(owner&&u.steamId!==steam?'<button type="button" class="small-button groups-danger" data-action="remove" data-steam="'+safe(u.steamId)+'">Remove</button>':"")+'</div>'
       ).join("");
@@ -87,6 +94,8 @@
     $("groups-history").innerHTML=history.length?history.map(entry=>
       '<article class="groups-history-card"><div><strong>'+safe(entry.groupName)+'</strong><small>'+safe(date(entry.joinedAt))+' – '+safe(date(entry.leftAt))+'</small></div><span class="groups-outcome">'+safe(outcomes[entry.outcome]||entry.outcome)+'</span><small class="groups-past-members">Previous members: '+safe((entry.members||[]).join(", ")||"Unavailable")+'</small></article>'
     ).join(""):empty("Your previous groups will appear here once you leave or a group disbands.");
+    const unfinished=state.closurePending||[];show('groups-closure-recovery',Boolean(unfinished.length));
+    $('groups-closure-recovery').innerHTML=unfinished.map(row=>'<div class="groups-row"><span>The group is closed. Finish the Treasury closure check for '+safe(row.groupName)+'.</span><button class="small-button" type="button" data-action="finish-closure" data-group-id="'+safe(row.groupId)+'">Finish closure check</button></div>').join('');
     void refreshProgress();
     window.dispatchEvent(new CustomEvent('hv:group-state', { detail: { groupId: state?.current?.id || null } }));
   }
@@ -99,7 +108,8 @@
     try{
       state=await api("/api/groups"+path,{method:"POST",body:JSON.stringify(body||{})});
       render();alert("Group updated.");
-    }catch(error){alert(error.message||"Could not update group.",true);}
+    }catch(error){if(['/leave','/disband','/closure/cancel','/closure/reconcile'].includes(path)){try{await refresh();}catch{}}
+      alert(error.message||"Could not update group.",true);}
   }
   function wire(){
     $("groups-create-form").addEventListener("submit",async event=>{
@@ -136,8 +146,9 @@
       if(!/^\d{17}$/.test(id)){alert("Enter a valid 17-digit Steam ID.",true);return;}
       await action("/invites",{steamId:id});
     });
-    $("groups-leave").addEventListener("click",()=>action("/leave",{},"Leave this group? If you're the owner, ownership transfers automatically."));
-    $("groups-disband").addEventListener("click",()=>action("/disband",{},"Disband this group for every member? This action cannot be undone."));
+    $("groups-leave").addEventListener("click",()=>action("/leave",{expectedGroupId:state?.current?.id},state?.current?.members?.length===1?"Leave and close this group? Treasury funds and pending requests must be resolved first.":"Leave this group? If you're the owner, ownership transfers automatically."));
+    $("groups-disband").addEventListener("click",()=>action("/disband",{expectedGroupId:state?.current?.id},"Disband this group for every member? This action cannot be undone."));
+    $('groups-cancel-closure').addEventListener('click',()=>action('/closure/cancel',{expectedGroupId:state?.current?.id,requestId:state?.current?.closure?.requestId}));
     $("groups-app").addEventListener("click",event=>{
       const target=event.target.closest("[data-action]");
       if(!target)return;
@@ -146,6 +157,7 @@
       if(kind==="cancel")action("/invites/"+encodeURIComponent(id)+"/cancel");
       if(kind==="remove")action("/remove",{steamId:target.dataset.steam},"Remove this player from your group?");
       if(kind==="invite-found")action("/invites",{steamId:target.dataset.steam});
+      if(kind==='finish-closure')action('/closure/reconcile',{expectedGroupId:Number(target.dataset.groupId)});
     });
   }
   async function init(){
@@ -158,5 +170,8 @@
     wire();
     try{await refresh();}catch(error){alert(error.message||"Groups could not load.",true);}
   }
+  window.addEventListener('hv:group-cosmetic',event=>{if(state?.current?.id===event.detail?.groupId&&['none','fern','sandstone','night'].includes(event.detail.frame)){
+    state.current.cosmeticFrame=event.detail.frame;$('groups-current-panel').dataset.groupFrame=event.detail.frame;
+  }});
   init();
 })();

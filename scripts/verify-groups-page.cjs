@@ -4,6 +4,8 @@ const {chromium}=require('playwright');
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'hv-groups-page-'));
 process.env.DB_PATH=path.join(temp,'website.sqlite');
 process.env.GROUP_HQ_ENABLED='1';process.env.HV_GALLERY_ENABLED='1';
+process.env.GROUP_TREASURY_ENABLED='0';
+process.env.GROUP_TREASURY_SPEND_ENABLED='0';
 for(const key of ['GROUP_HQ_READ_ONLY','SKIN_STUDIO_READ_ONLY','RENDER_SERVICE_ID','RENDER_EXTERNAL_URL','PUBLIC_SITE_URL','STEAM_REALM','STEAM_RETURN_URL'])delete process.env[key];
 const express=require('express'),{db}=require('../server/db'),groups=require('../server/groupsStore');
 const headquarters=require('../server/services/groupHeadquarters').createGroupHeadquarters(db,groups);
@@ -27,6 +29,7 @@ app.use('/api/group-headquarters',(req,res,next)=>{
 });
 app.use('/api/group-headquarters',require('../server/routes/groupHeadquarters'));
 app.use('/api/groups',require('../server/routes/groups'));
+app.use('/api/group-treasury',require('../server/routes/groupTreasury'));
 app.get('/api/gallery/:id/image',(req,res)=>{
   const image=db.prepare("SELECT image FROM gallery_images WHERE id=? AND status='approved'").get(req.params.id);
   if(!image?.image)return res.sendStatus(404);res.type('png').send(Buffer.from(image.image));
