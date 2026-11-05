@@ -657,6 +657,12 @@ function awardAdminEventBonus({
   });
 }
 
+function getAdminReportContext({reporterSteamId,reportedSteamId,occurredAt}) {
+  const params=new URLSearchParams({reporterSteamId:String(reporterSteamId||''),occurredAt:String(occurredAt||'')});
+  if(reportedSteamId)params.set('reportedSteamId',String(reportedSteamId));
+  return callAdmin('/combat/report-context?'+params.toString());
+}
+
 function getAdminOperationsStatus({ force = false } = {}) {
   return callAdmin(`/status${force ? '?force=1' : ''}`);
 }
@@ -916,6 +922,7 @@ module.exports = {
   confirmAdminEventAttendance,
   confirmAllAdminEventAttendance,
   awardAdminEventBonus,
+  getAdminReportContext,
   getAdminOperationsStatus,
   getAdminAudit,
   getAdminRequests,

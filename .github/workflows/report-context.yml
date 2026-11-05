@@ -1,0 +1,31 @@
+name: Private report context
+on:
+  pull_request:
+    paths:
+      - 'automation-platform/.env.example'
+      - 'automation-platform/src/services/reportContextService.js'
+      - 'automation-platform/src/services/combatEventService.js'
+      - 'automation-platform/src/services/chatFeedService.js'
+      - 'automation-platform/src/routes/combatAdminRoutes.js'
+      - 'automation-platform/test/reportContext*.test.js'
+      - 'server/services/automationWebsiteClient.js'
+      - 'public/assets/home-roadmap.js'
+      - '.github/workflows/report-context.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      AUTOMATION_DB_PATH: ':memory:'
+      DB_PATH: ':memory:'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node --test automation-platform/test/reportContext.test.js automation-platform/test/reportContextHttp.test.js automation-platform/test/chatFeed.test.js automation-platform/test/combatEventService.test.js test/playerReports.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js

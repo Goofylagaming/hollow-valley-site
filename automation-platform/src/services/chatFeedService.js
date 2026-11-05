@@ -40,9 +40,10 @@ function ingest(entries) {
   return { accepted };
 }
 
-function list() {
+function list({limit=150}={}) {
   const state = read();
-  return { messages: state.messages.slice(-150), lastReceivedAt: state.lastReceivedAt };
+  const count=Number.isSafeInteger(limit)?Math.max(1,Math.min(MAX_MESSAGES,limit)):150;
+  return { messages: state.messages.slice(-count), lastReceivedAt: state.lastReceivedAt };
 }
 
 module.exports = { ingest, list };

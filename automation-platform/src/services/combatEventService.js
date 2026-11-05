@@ -448,7 +448,12 @@ function leaderboard({ hours = 24 * 31, period = null, limit = 100, nowMs = Date
   };
 }
 
+function reportContext(input){
+  return require('./reportContextService').createReportContextSource({combatDb:db,readChat:()=>require('./chatFeedService').list({limit:500})}).read(input);
+}
+
 module.exports = {
+  reportContext,
   enabled,
   configured,
   sourceName,
