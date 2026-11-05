@@ -23,7 +23,8 @@ function createEventRegistrationStore(db,{now=Date.now,enabled=()=>true,writable
     return {event:current||accepted,sourceAvailable:Boolean(schedule),acceptedEvent:accepted,revision:registration?.revision||0,selected,
       state:!registration?'not-registered':!selected?'withdrawn':!schedule?'unavailable':schedule.state==='cancelled'?'event-cancelled':registration.event_revision!==schedule.revision?'review-new-time':'registered',
       canJoin:Boolean(enabled()&&schedule?.state==='scheduled'&&schedule.starts_at>now()),reservedPlaces:reserved,
-      placesAvailable:schedule?Math.max(0,JSON.parse(schedule.definition_json).capacity-reserved):null,rewardsEnabled:false,attendanceConfirmed:false};
+      placesAvailable:schedule?Math.max(0,JSON.parse(schedule.definition_json).capacity-reserved):null,
+      plannedTeam:selected?require('./eventTeamEvidence').playerTeam(db,id,steam):{state:'not-assigned',team:null},rewardsEnabled:false,attendanceConfirmed:false};
   }
   function snapshot(fn){db.exec('SAVEPOINT event_registration_read');try{const result=fn();db.exec('RELEASE event_registration_read');return result;}catch(e){db.exec('ROLLBACK TO event_registration_read; RELEASE event_registration_read');throw e;}}
   function current(user,id){return snapshot(()=>view(user,id));}

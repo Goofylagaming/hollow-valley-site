@@ -8,21 +8,27 @@ on:
       - 'server/routes/eventSchedules.js'
       - 'server/services/eventRegistrationStore.js'
       - 'server/routes/eventRegistrations.js'
+      - 'server/services/eventTeamStore.js'
+      - 'server/services/eventTeamEvidence.js'
+      - 'server/routes/eventTeams.js'
       - 'server/index.js'
       - 'server/services/roadmapCommunity.js'
       - 'public/events.html'
       - 'public/assets/event-templates.*'
       - 'public/assets/event-schedules.*'
       - 'public/assets/event-registrations.*'
+      - 'public/assets/event-teams.*'
       - 'public/assets/home-roadmap.js'
       - 'test/eventTemplates*.test.js'
       - 'test/eventSchedules*.test.js'
       - 'test/eventRegistrations*.test.js'
+      - 'test/eventTeams*.test.js'
       - 'test/roadmapCommunity.test.js'
       - 'test/productionUiRelease.test.js'
       - 'scripts/verify-event-templates.cjs'
       - 'scripts/verify-event-schedules.cjs'
       - 'scripts/verify-event-registrations.cjs'
+      - 'scripts/verify-event-teams.cjs'
       - '.github/workflows/event-engine.yml'
 permissions:
   contents: read
@@ -38,10 +44,11 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: node --test test/eventRegistrations.test.js test/eventRegistrationsHttp.test.js test/eventSchedules.test.js test/eventSchedulesHttp.test.js test/eventTemplates.test.js test/eventTemplatesHttp.test.js test/roadmapCommunity.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js test/challengeAttendanceHostHttp.test.js test/groupEventHost.test.js
+      - run: node --test test/eventTeams.test.js test/eventTeamsHttp.test.js test/eventRegistrations.test.js test/eventRegistrationsHttp.test.js test/eventSchedules.test.js test/eventSchedulesHttp.test.js test/eventTemplates.test.js test/eventTemplatesHttp.test.js test/roadmapCommunity.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js test/challengeAttendanceHostHttp.test.js test/groupEventHost.test.js
       - run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.62.1
       - run: npx playwright install --with-deps chromium
       - run: node scripts/verify-event-templates.cjs
       - run: node scripts/verify-event-schedules.cjs
       - run: node scripts/verify-event-registrations.cjs
+      - run: node scripts/verify-event-teams.cjs
       - run: node scripts/verify-challenge-attendance-admin.cjs
