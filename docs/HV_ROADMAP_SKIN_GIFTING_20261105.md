@@ -137,3 +137,5 @@ crash without a caught rejection still cannot be safely treated as unpublished;
 those holds remain unresolved pending authoritative evidence.
 
 Wear Live publication uncertainty: publishing errors now retain an awaiting-confirmation job unless the bridge explicitly proves the command was not published. The original request ID is retained on the error. Missing or acknowledged outcomes continue to block transfer; an explicit confirmed outcome resolves the hold without republishing. Local regression fixtures cover both uncertain publication and proven pre-publication rejection. Live game and staging verification remain pending.
+
+Wear Live retry no longer treats an unresolved request older than 60 seconds as safe to resend. A local fixture proves missing and acknowledged outcomes keep an old request pending, while explicit game rejection allows a fresh retry. Remaining recovery gap: Wear Live reconciliation currently checks only the latest request; older pending requests need a bounded, session-scoped recovery path before rollout. The gifting page currently reconciles parked applications only.

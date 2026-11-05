@@ -64,3 +64,25 @@ test('proven pre-publication rejection releases the Wear Live gift hold',async()
     assert.equal(store.hasSkinUnlock(recipient.steam_id,preset.id),true);
   } finally {publicationError=null;}
 });
+
+test('an old unresolved Wear Live request cannot be resent by retry',async()=>{
+  const {preset,id}=await fixture(),job=randomUUID();
+  store.createSkinApplyJob({id:job,steamId:sender.steam_id,presetId:preset.id,species:preset.species,skin:preset.skin});
+  store.db.prepare("UPDATE economy_skin_apply_jobs SET updated_at='2000-01-01 00:00:00' WHERE id=?").run(job);
+  const before=queued.length;
+  try {
+    for(const state of [null,'acknowledged']) {
+      outcome=state?{state}:null;
+      await assert.rejects(wear.retryLastWear(sender.steam_id),{code:'SKIN_WEAR_STILL_PENDING'});
+      assert.equal(queued.length,before);
+      assert.throws(()=>gifts.decide(recipient,{id,decision:'accepted',expectedRevision:0}),{status:409});
+    }
+    outcome={state:'failed',message:'Explicit game rejection'};
+    await wear.reconcileWearState(sender.steam_id);
+    assert.equal(store.getSkinApplyJob(job).status,'failed');
+    outcome={state:'confirmed'};
+    await wear.retryLastWear(sender.steam_id);
+    assert.equal(queued.length,before+1);
+    assert.notEqual(queued.at(-1).id,job);
+  } finally {outcome={state:'confirmed'};}
+});

@@ -148,13 +148,9 @@ async function retryLastWear(steamId) {
     throw error;
   }
   if (latest.status !== 'failed') {
-    const updatedAt = Date.parse(String(latest.updated_at || latest.created_at || '').replace(' ', 'T') + 'Z');
-    const stale = Number.isFinite(updatedAt) && Date.now() - updatedAt > 60000;
-    if (!stale) {
-      const error = new Error('Your Wear Live request is still pending. Refresh the status before retrying.');
-      error.code = 'SKIN_WEAR_STILL_PENDING';
-      throw error;
-    }
+    const error = new Error('Your Wear Live request is still pending. Refresh the status before retrying.');
+    error.code = 'SKIN_WEAR_STILL_PENDING';
+    throw error;
   }
   return wearPreset({ steamId, presetId: latest.preset_id });
 }
