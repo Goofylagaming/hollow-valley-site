@@ -57,7 +57,7 @@ router.post("/founding", requireAuth, (req,res) => {
   const cutoff = Date.parse(process.env.FOUNDING_SUBSCRIBER_CUTOFF || "");
   if (!Number.isFinite(cutoff)) return res.sendStatus(503);
   const verified = db.prepare("SELECT 1 FROM membership_paid_invoices WHERE user_id=? AND revoked=0 AND counts_month=1 AND paid_at<=? LIMIT 1")
-    .get(req.user.id,cutoff);
+    .get(req.user.id,new Date(cutoff).toISOString());
   if (!verified) return res.sendStatus(403);
   db.prepare("INSERT OR IGNORE INTO membership_collectibles(slug,name,kind) VALUES ('founding-subscriber','Founding Subscriber','title')").run();
   db.prepare("INSERT OR IGNORE INTO membership_user_collectibles(user_id,slug) VALUES (?,'founding-subscriber')").run(req.user.id);
