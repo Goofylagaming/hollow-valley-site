@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const root = path.join(__dirname, "..");
-const read = p => fs.readFileSync(path.join(root,p), "utf8");
+const read = p => fs.readFileSync(path.join(root,p), "utf8").replace(/\r\n/g, "\n");
 const { ALLOWED_STEAM_IDS, isAuthorized, requireTerritoryAdmin } = require("../server/middleware/requireTerritoryAdmin");
 
 function send() { return { code: 0, body: null, status(code) { this.code = code; return this; }, json(data) { this.body=data; return this; } }; }

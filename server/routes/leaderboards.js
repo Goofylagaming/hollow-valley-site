@@ -1,6 +1,7 @@
 const express = require("express");
 const automation = require("../services/automationWebsiteClient");
 const combat = require("../services/combatControlClient");
+const {leaderboardTitles}=require('../services/profileTitles');
 
 const router = express.Router();
 
@@ -74,6 +75,11 @@ router.get("/", async (_req, res) => {
     console.warn("[leaderboards] permanent progression unavailable:", error.message);
   }
 
+  const keys=['dailyKills','dailyKd','dailyDeaths','weeklyKills','weeklyKd','weeklyDeaths','mostPlaytime','mostLevels'];
+  const boards=Object.fromEntries(keys.map(key=>[key,response[key].map(row=>({...row,selectedTitle:null}))]));
+  try {Object.assign(response,await leaderboardTitles(boards,automation.getTitleEvidence));}
+  catch(error){Object.assign(response,boards);console.warn('[leaderboards] title evidence unavailable');}
+  res.set('Cache-Control','no-store');
   res.json(response);
 });
 

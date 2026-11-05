@@ -32,6 +32,7 @@ function reconcile() {
   if (!enabled()) return;
   const s = get(),
     db = s.db;
+  require('./territoryLegacyRecords').reconcileTerritoryCaptures(s);
   for (const table of ["combat_events", "economy_wallet_ledger"]) {
     if (
       !db

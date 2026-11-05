@@ -14,6 +14,14 @@ async function main() {
       const context = await browser.newContext({ viewport: { width, height: 900 } });
       let selected = null, failSave = false, failRead = false, loggedIn = true;
       const writes = [], errors = [];
+      const achievements = [
+        {id:'territory-victory',title:'Territory Victor',description:'Participate in a verified Territory War capture.'},
+        {id:'life-survival-10h',title:'Enduring Survivor',description:'Survive 10 recorded hours on one dinosaur life.',verificationStatus:'under-review'},
+        {id:'nested-adult',title:'Valley Born',description:'Grow a verified nested dinosaur from juvenile to adult in one observed life.'},
+        {id:'skins-10',title:'Valley Collector',description:'Own 10 distinct active skins through creation, purchase or a personal grant.'},
+        {id:'combat-species-5',title:'Versatile Hunter',description:'Kill players of five different recorded dinosaur species.'},
+        {id:'prime-observed',title:'Prime Survivor',description:'Have a dinosaur observed as Prime by the server.'},
+      ].map(a => ({...a,unlockedAt:'2026-11-05T00:00:00.000Z'}));
       const titles = [
         { id: 'quest-master', name: 'Quest Master', requirement: 'Complete 100 verified quests.', unlocked: true },
         { id: 'valley-veteran', name: 'Valley Veteran', requirement: 'Log 100 verified hours in Hollow Valley.', unlocked: false },
@@ -31,7 +39,7 @@ async function main() {
           } else if (failRead) return json({ error: 'Unavailable' }, 503);
           return json({ titles, selectedTitleId: selected });
         }
-        if (url.pathname === '/api/progression') return json({ profile: { steamId: '76561198000000001', level: 10, achievements: [], rank: { name: 'Beipiaosaurus' } } });
+        if (url.pathname === '/api/progression') return json({ profile: { steamId: '76561198000000001', level: 10, achievements, achievementCount:achievements.length, rank: { name: 'Beipiaosaurus' } } });
         if (url.pathname.startsWith('/api/')) return json({});
         let relative = decodeURIComponent(url.pathname).replace(/^\/+/, '');
         if (relative === 'profile') relative = 'profile.html';
@@ -45,6 +53,15 @@ async function main() {
       page.on('pageerror', error => errors.push(error.message));
       await page.goto('http://hv.test/profile');
       await page.waitForFunction(() => !document.getElementById('profile-title-choice').disabled);
+      await page.waitForFunction(() => document.querySelectorAll('#profile-achievements article').length === 6);
+      assert.deepEqual(await page.locator('#profile-achievements b').allTextContents(),achievements.map(a=>a.title));
+      assert.equal(await page.locator('#profile-achievement-count').innerText(),'6');
+      assert.equal(await page.locator('#profile-achievements [role="status"]').innerText(),'Awaiting evidence review');
+      assert.equal(await page.locator('#profile-achievements').evaluate(panel => {
+        const box=panel.getBoundingClientRect();
+        return [...panel.querySelectorAll('article')].some(card=>card.getBoundingClientRect().right > box.right+1);
+      }),false,`Badge layout overflow at ${width}px`);
+      if (output) await page.locator('#profile-achievements').screenshot({path:path.join(output,`profile-badges-${width}.png`)});
       assert.deepEqual(await page.locator('#profile-title-choice option').evaluateAll(nodes => nodes.map(n => n.value)), ['', 'quest-master']);
       assert.match(await page.locator('#profile-title-catalog').innerText(), /LOCKED/);
       await page.selectOption('#profile-title-choice', 'quest-master');
@@ -81,7 +98,7 @@ async function main() {
       await page.waitForFunction(() => !document.getElementById('profile-guard').hidden);
       assert.equal(await page.locator('#profile-title-form').isVisible(), false);
       assert.deepEqual(errors, []);
-      console.log(`PASS ${width}px: unlocks, save/reload, failure/retry, clear, outage, guest, bounds, no page errors`);
+      console.log(`PASS ${width}px: six badges, unlocks, save/reload, failure/retry, clear, outage, guest, bounds, no page errors`);
       await context.close();
     }
   } finally { await browser.close(); }

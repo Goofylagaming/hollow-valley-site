@@ -35,7 +35,8 @@ test("shared navigation always loads fresh Primalbound URL even if old partial i
   const server = fs.readFileSync(path.resolve(__dirname, "../server/index.js"), "utf8");
   assert.match(common, /\/partials\/nav\.html\?v=primalbound6/);
   assert.match(common, /primalboundLink\.setAttribute\("href", "\/primalbound\/"\)/);
-  assert.match(home, /\/assets\/common\.js\?v=22/);
+  const commonVersion = home.match(/\/assets\/common\.js\?v=(\d+)/);
+  assert.ok(commonVersion && Number(commonVersion[1]) >= 22, "Shared navigation must retain the cache invalidation introduced in version 22");
   assert.match(server, /app\.get\("\/partials\/nav\.html"/);
   assert.match(server, /no-store, max-age=0, must-revalidate/);
 });

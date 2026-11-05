@@ -8,6 +8,7 @@ test('combat parser uses outer Unreal UTC timestamp before daylight saving', () 
   assert.equal(event.occurredAt, '2026-10-02T20:45:11.960Z');
   assert.equal(event.killerSteamId, '76561198038977506');
   assert.equal(event.victimSteamId, '76561197998095210');
+  assert.equal(event.victimSpecies, 'Diabloceratops');
 });
 
 test('combat parser stays correct when Windows local log time advances to UTC+11 for DST', () => {
@@ -16,6 +17,7 @@ test('combat parser stays correct when Windows local log time advances to UTC+11
   assert.equal(event.occurredAt, '2026-10-04T03:26:00.123Z');
   assert.equal(event.killerName, 'Stressed_');
   assert.equal(event.victimName, 'Joeyy');
+  assert.equal(event.victimSpecies, 'Omniraptor');
 });
 
 test('natural deaths also use outer UTC timestamp', () => {

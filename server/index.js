@@ -405,6 +405,8 @@ function startServer() {
         catch (error) { console.warn("[territory-wars] admin-test runtime warning:", error.message); }
       }, 15_000);
       runtimeTimer.unref?.();
+      const victoryTimer = require('./services/territoryVictoryOutbox').start();
+      server.once('close', () => { if(victoryTimer) clearInterval(victoryTimer); });
       // Combat ingestion is a separate rollout; do not assume automation has its endpoint.
       if (process.env.TERRITORY_WARS_COMBAT_SYNC_ENABLED === "1") {
         require("./services/territoryCombatSync").start();

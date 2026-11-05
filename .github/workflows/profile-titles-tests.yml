@@ -1,7 +1,7 @@
 name: Earned profile titles
 on:
   pull_request:
-    paths: ['server/services/profileTitles.js', 'server/routes/progression.js', 'public/assets/profile.js', 'public/profile.html', 'server/services/roadmapCommunity.js', 'public/assets/home-roadmap.js', 'test/profileTitles.test.js', '.github/workflows/profile-titles-tests.yml']
+    paths: ['server/routes/leaderboards.js', 'server/services/automationWebsiteClient.js', 'automation-platform/src/index.js', 'automation-platform/src/services/progressionService.js', 'automation-platform/src/routes/websiteTitleEvidenceRoutes.js', 'automation-platform/test/titleEvidence.test.js', 'test/leaderboardTitles.test.js', 'public/assets/leaderboard.js', 'public/leaderboard.html', 'server/services/profileTitles.js', 'server/routes/progression.js', 'public/assets/profile.js', 'public/profile.html', 'server/services/roadmapCommunity.js', 'public/assets/home-roadmap.js', 'test/profileTitles.test.js', '.github/workflows/profile-titles-tests.yml']
   push:
     branches: ['feature/hv-roadmap-progression-20261105']
 permissions:
@@ -16,4 +16,4 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: node --test test/profileTitles.test.js test/roadmapCommunity.test.js test/roadmapFrontend.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js
+      - run: node --test test/leaderboardTitles.test.js automation-platform/test/titleEvidence.test.js test/profileTitles.test.js test/roadmapCommunity.test.js test/roadmapFrontend.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js
