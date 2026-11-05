@@ -7,7 +7,7 @@ const { db } = require("../db");
 const MAX_VOTES = 3;
 const VOTABLE_FEATURE_IDS = Object.freeze([
   // Features already in development leave the voting pool; all historical votes remain stored.
-  3, 4, 5, 6, 12, 14, 16, 17,
+  3, 4, 5, 6, 14, 16, 17,
   18, 19, 20, 21, 27, 28, 30,
 ]);
 const eligible = new Set(VOTABLE_FEATURE_IDS);
