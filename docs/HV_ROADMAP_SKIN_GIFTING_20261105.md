@@ -67,3 +67,17 @@ until terminal status. The existing seven Wear Live tests still pass. These use
 a mocked command bridge and do not prove in-game application/reconciliation.
 Parked-dinosaur skin editing has a separate async flow and still requires review
 before gifting is enabled. No production feature flags were changed.
+
+## Parked storage-read ownership check
+
+Parked skin application now rechecks ownership and palette after the asynchronous
+stored-dinosaur lookup. Tests simulate gift acceptance and palette modification
+during that lookup and verify that neither sends an edit. The 24 targeted parked,
+preset and membership-skin checks pass.
+
+This closes only the lookup gap. Parked `runImmediateCommand` currently publishes
+and then waits for an outcome without a skin-specific durable reservation. A
+timeout is uncertain, not proof of failure. Before enabling gifting, the
+publication phase still needs a durable command/ownership reservation and
+reconciliation that does not release a transfer hold merely because time elapsed.
+No actual game commands or runtime flag changes were made during these tests.

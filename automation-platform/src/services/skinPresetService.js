@@ -579,8 +579,14 @@ async function applyPreset({ steamId, slot, presetId }) {
   const selectedSlot = dinoStorage.validateSlot(slot);
   const preset = getPresetForPlayer(steam, presetId);
   const state = await dinoStorage.getStoredDino(steam, selectedSlot);
+  // Storage reads can await remote state. Do not use ownership or palette data
+  // captured before that wait if a gift or an edit has since changed it.
+  const current = getPresetForPlayer(steam, presetId);
+  if (current.species !== preset.species || JSON.stringify(current.skin) !== JSON.stringify(preset.skin)) {
+    throw Object.assign(new Error('This skin changed while loading your stored dinosaur. Please try again.'), {code:'SKIN_PRESET_CHANGED'});
+  }
   const targetSpecies = speciesFromClassPath(state.classPath);
-  assertMembershipSpecies(preset, steam, targetSpecies);
+  assertMembershipSpecies(current, steam, targetSpecies);
 
   if (String(preset.species).toLowerCase() !== 'universal' &&
       targetSpecies.toLowerCase() !== String(preset.species).toLowerCase()) {
