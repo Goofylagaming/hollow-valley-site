@@ -12,7 +12,7 @@ const db = new DatabaseSync(':memory:');
 db.exec('CREATE TABLE progression_xp_ledger(id TEXT PRIMARY KEY,steam_id TEXT,amount INTEGER,source TEXT,reference_type TEXT,created_at TEXT);CREATE TABLE progression_xp_source_times(ledger_id TEXT PRIMARY KEY,source_at INTEGER,basis TEXT)');
 const START = Date.parse('2027-01-01T00:00:00Z'); let now = START - 1000;
 const store = createSeasonTrackStore(db, { now: () => now }); service.get = () => store;
-const definition = { id: 'synthetic-browser-season', title: 'Synthetic <Valley> season', startsAt: new Date(START).toISOString(), endsAt: new Date(START + 56 * 86400000).toISOString(), settlesAt: new Date(START + 57 * 86400000).toISOString(), free: true,
+const definition = { id: 'synthetic-browser-season', title: 'Synthetic <Valley> season', startsAt: new Date(START).toISOString(), endsAt: new Date(START + 56 * 86400000).toISOString(), settlesAt: new Date(START + 57 * 86400000).toISOString(), retainUntil: new Date(START + 147 * 86400000).toISOString(), free: true,
   sources: [{ source: 'quest', policy: 'achievement-time' }], tiers: [{ xp: 10, title: 'First <milestone>' }, { xp: 100, title: 'Valley explorer' }] };
 const digest = describe(definition).digest;
 store.stage(definition, { reviewer: '76561198000000401', digest }); store.changeState(definition.id, { reviewer: '76561198000000401', digest, action: 'publish', expectedRevision: 1 }); now = START;
@@ -42,6 +42,7 @@ async function until(fn) { for (let i = 0; i < 300; i++) { if (fn()) return; awa
     backend = await listen(internal); process.env.AUTOMATION_SERVICE_URL = backend.url; frontend = await listen(web);
     browser = await chromium.launch({ headless: true, executablePath: process.env.HV_TEST_BROWSER || undefined });
     for (const width of [1440, 390]) {
+      now = START;
       const a = width, b = width + 1, steamA = String(76561198000030000n + BigInt(a)), steamB = String(76561198000030000n + BigInt(b));
       users.prepare('INSERT INTO users(id,steam_id,username) VALUES(?,?,?), (?,?,?)').run(a, steamA, 'Synthetic A', b, steamB, 'Synthetic B');
       const context = await browser.newContext({ viewport: { width, height: 980 } }), page = await context.newPage(), errors = [];
@@ -79,6 +80,10 @@ async function until(fn) { for (let i = 0; i < 300; i++) { if (fn()) return; awa
       await page.click('#season-cancel'); process.env.SEASON_TRACK_ENABLED = '1'; await refresh();
       await page.click('#season-choice'); await context.clearCookies(); await confirm(); assert.equal(await page.locator('#season-review').isVisible(), false);
       assert.equal(await page.locator('#season-tiers p').count(), 0); assert.match(await page.locator('#season-status').textContent(), /account changed/);
+      await cookie(a); now = Date.parse(definition.retainUntil) - 1; await refresh();
+      assert.equal(store.status(definition.id, steamA).participating, true); assert.match(await page.locator('#season-retention').textContent(), /expire/);
+      now++; await refresh(); assert.match(await page.locator('#season-evidence').textContent(), /retention period has ended/);
+      assert.match(await page.locator('#season-points').textContent(), /progress has expired/); assert.equal(await page.locator('#season-sync').isDisabled(), true); assert.equal(await page.locator('#season-choice').isDisabled(), true);
       assert.deepEqual(errors, []); await context.close();
       console.log(JSON.stringify({ width, seasonUi: 'passed', screenshot: path.join(output, 'season-' + width + '.png') }));
     }

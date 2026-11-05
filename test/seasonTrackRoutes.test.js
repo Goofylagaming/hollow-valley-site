@@ -11,7 +11,7 @@ const db = new DatabaseSync(':memory:');
 db.exec('CREATE TABLE progression_xp_ledger(id TEXT PRIMARY KEY,steam_id TEXT,amount INTEGER,source TEXT,reference_type TEXT,created_at TEXT);CREATE TABLE progression_xp_source_times(ledger_id TEXT PRIMARY KEY,source_at INTEGER,basis TEXT)');
 let now = START - 1000;
 const store = createSeasonTrackStore(db, { now: () => now });
-const def = { id: 'synthetic-route-season', title: 'Synthetic private season', startsAt: new Date(START).toISOString(), endsAt: new Date(START + 56 * 86400000).toISOString(), settlesAt: new Date(START + 57 * 86400000).toISOString(), free: true,
+const def = { id: 'synthetic-route-season', title: 'Synthetic private season', startsAt: new Date(START).toISOString(), endsAt: new Date(START + 56 * 86400000).toISOString(), settlesAt: new Date(START + 57 * 86400000).toISOString(), retainUntil: new Date(START + 147 * 86400000).toISOString(), free: true,
   sources: [{ source: 'quest', policy: 'achievement-time' }], tiers: [{ xp: 10, title: 'First milestone' }] };
 const digest = describe(def).digest; store.stage(def, { reviewer: A, digest }); store.changeState(def.id, { action: 'publish', reviewer: A, digest, expectedRevision: 1 }); now = START;
 const originalGet = service.get; service.get = () => store;

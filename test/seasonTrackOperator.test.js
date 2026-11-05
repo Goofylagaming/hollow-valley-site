@@ -15,7 +15,7 @@ function fixture(t) {
     INSERT INTO economy_wallets VALUES('${REVIEWER}',123);`); db.close();
   const start = Date.now() + 7 * 86400000;
   const definition = { id: 'synthetic-operator-season', title: 'Synthetic operator fixture', free: true,
-    startsAt: new Date(start).toISOString(), endsAt: new Date(start + 56 * 86400000).toISOString(), settlesAt: new Date(start + 57 * 86400000).toISOString(),
+    startsAt: new Date(start).toISOString(), endsAt: new Date(start + 56 * 86400000).toISOString(), settlesAt: new Date(start + 57 * 86400000).toISOString(), retainUntil: new Date(start + 147 * 86400000).toISOString(),
     sources: [{ source: 'quest', policy: 'achievement-time' }], tiers: [{ xp: 100, title: 'Synthetic milestone' }] };
   fs.writeFileSync(file, JSON.stringify(definition));
   return { directory, database, file, definition };

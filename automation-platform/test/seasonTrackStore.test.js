@@ -7,7 +7,7 @@ const A = '76561198000000401', B = '76561198000000402';
 const START = Date.parse('2027-01-01T00:00:00Z'), END = START + 56 * 86400000, SETTLE = END + 86400000;
 const iso = ms => new Date(ms).toISOString();
 function definition(id = 'synthetic-season') {
-  return { id, title: 'Synthetic free season', startsAt: iso(START), endsAt: iso(END), settlesAt: iso(SETTLE), free: true,
+  return { id, title: 'Synthetic free season', startsAt: iso(START), endsAt: iso(END), settlesAt: iso(SETTLE), retainUntil: iso(SETTLE + 90 * 86400000), free: true,
     sources: [{ source: 'playtime', policy: 'interval-end' }, { source: 'quest', policy: 'achievement-time' }, { source: 'event', policy: 'confirmation-time' }],
     tiers: [{ xp: 10, title: 'First steps' }, { xp: 100, title: 'Explorer' }] };
 }
@@ -213,10 +213,72 @@ test('player catalog pages omit staged plans and private evidence; guessed stage
   assert.equal(f.store.catalog().items.length, 0); assert.throws(() => f.store.status(f.def.id, A), { status: 404 });
   for (let i = 0; i < 26; i++) {
     const start = START + i * 57 * 86400000;
-    const def = { ...definition('page-' + i), startsAt: iso(start), endsAt: iso(start + 56 * 86400000), settlesAt: iso(start + 57 * 86400000) }, digest = describe(def).digest;
+    const def = { ...definition('page-' + i), startsAt: iso(start), endsAt: iso(start + 56 * 86400000), settlesAt: iso(start + 57 * 86400000), retainUntil: iso(start + 147 * 86400000) }, digest = describe(def).digest;
     f.store.stage(def, { reviewer: A, digest }); f.store.changeState(def.id, { reviewer: A, digest, action: 'publish', expectedRevision: 1 });
   }
   const first = f.store.catalog(), last = f.store.catalog({ before: first.next });
   assert.equal(first.items.length, 25); assert.equal(last.items.length, 1); assert.equal(last.next, null);
   assert.equal(JSON.stringify(first).includes(A), false); assert.throws(() => f.store.catalog({ before: [] }));
+});
+test('reviewed expiry hides private progress immediately, then bounded cleanup erases choices and cannot revive old requests', t => {
+  const f = fixture(t); f.publish(); f.clock(START);
+  const join = { selected: true, expectedRevision: 0, requestKey: 'synthetic-expiry-join', seasonDigest: f.digest };
+  f.store.changeParticipation(f.def.id, A, join); f.grant('expiry-xp'); f.store.reconcile(f.def.id, A);
+  const expiry = Date.parse(f.def.retainUntil); f.clock(expiry - 1);
+  assert.equal(f.store.progress(f.def.id, A).xp, 10); assert.equal(f.store.maintain().removed, 0);
+  f.clock(expiry); const before = f.db.prepare('SELECT total_changes() n').get().n;
+  const status = f.store.status(f.def.id, A); assert.equal(status.progress.xp, 0); assert.equal(status.progress.retentionExpired, true); assert.equal(status.participating, false);
+  assert.equal(f.db.prepare('SELECT total_changes() n').get().n, before);
+  assert.throws(() => f.store.changeParticipation(f.def.id, A, join), { status: 410 });
+  assert.throws(() => f.store.reconcile(f.def.id, A), { status: 410 });
+  let removed = 0;
+  for (let n = 0; n < 6; n++) { const result = f.store.maintain({ limit: 1 }); assert.ok(result.removed <= 1); removed += result.removed; }
+  assert.equal(removed, 4);
+  for (const table of ['evidence','enrollments','choices','requests']) assert.equal(f.db.prepare('SELECT count(*) n FROM progression_season_' + table).get().n, 0);
+  assert.equal(f.db.prepare('SELECT count(*) n FROM progression_xp_ledger').get().n, 1); assert.equal(f.db.prepare('SELECT balance FROM wallet_fixture').get().balance, 1234);
+  assert.equal(f.store.read(f.def.id).definition.title, f.def.title);
+  assert.throws(() => f.store.changeParticipation(f.def.id, A, join), { status: 410 });
+});
+test('retention cleanup rolls back on deletion failure and does not trust a changed expiry index', t => {
+  const f = fixture(t); f.publish(); f.clock(START); f.store.enroll(f.def.id, A); f.grant('retained-expiry'); f.store.reconcile(f.def.id, A);
+  f.clock(Date.parse(f.def.retainUntil));
+  f.db.exec("CREATE TRIGGER refuse_expiry_delete BEFORE DELETE ON progression_season_enrollments BEGIN SELECT RAISE(ABORT,'cleanup unavailable'); END");
+  assert.throws(() => f.store.maintain(), /cleanup unavailable/);
+  assert.equal(f.db.prepare('SELECT count(*) n FROM progression_season_evidence').get().n, 1);
+  assert.equal(f.db.prepare('SELECT cleaned_at FROM progression_season_retention').get().cleaned_at, null);
+  f.db.exec('DROP TRIGGER refuse_expiry_delete');
+  f.db.prepare('UPDATE progression_season_retention SET retain_until=?').run(START);
+  const result = f.store.maintain(); assert.equal(result.unavailable, 1); assert.equal(result.removed, 0);
+  assert.equal(f.db.prepare('SELECT count(*) n FROM progression_season_enrollments').get().n, 1);
+});
+test('old definitions keep their exact digest and readable history without an invented expiry; new reviews require one', t => {
+  const f = fixture(t); const old = { ...f.def }; delete old.retainUntil;
+  const reviewed = describe(old); assert.equal(Object.hasOwn(reviewed.definition, 'retainUntil'), false);
+  assert.throws(() => f.store.stage(old, { reviewer: A, digest: reviewed.digest }), /retention date/);
+  f.publish();
+  f.db.prepare('UPDATE progression_seasons SET definition_json=?,digest=?').run(JSON.stringify(reviewed.definition), reviewed.digest);
+  f.db.prepare('UPDATE progression_season_audit SET digest=?').run(reviewed.digest); f.db.exec('DELETE FROM progression_season_retention');
+  f.clock(START); f.store.enroll(f.def.id, A); f.clock(SETTLE + 367 * 86400000);
+  assert.equal(f.store.read(f.def.id).digest, reviewed.digest); assert.equal(f.store.maintain().removed, 0);
+  assert.equal(f.store.status(f.def.id, A).participating, true);
+  for (const retainUntil of [null, iso(SETTLE), iso(SETTLE - 1), iso(SETTLE + 367 * 86400000), '2027-04-01T00:00:00']) assert.throws(() => describe({ ...f.def, retainUntil }));
+});
+test('orphan position maintenance scans bounded pages and preserves active grant indexes', t => {
+  const f = fixture(t);
+  for (let n = 0; n < 5; n++) f.grant('position-' + n);
+  f.db.exec("DELETE FROM progression_xp_ledger WHERE id='position-4'");
+  assert.equal(f.store.maintain({ limit: 2 }).removed, 0); assert.equal(f.store.maintain({ limit: 2 }).removed, 0);
+  assert.equal(f.store.maintain({ limit: 2 }).removed, 1);
+  assert.equal(f.db.prepare('SELECT count(*) n FROM progression_season_source_positions').get().n, 4);
+  assert.equal(f.db.prepare('SELECT count(*) n FROM progression_xp_ledger').get().n, 4);
+});
+test('own-account deletion after expiry removes replay metadata without inserting another retained request', t => {
+  const f = fixture(t); f.publish(); f.clock(START);
+  f.store.changeParticipation(f.def.id, A, { selected: true, expectedRevision: 0, requestKey: 'synthetic-expired-delete-join', seasonDigest: f.digest });
+  f.clock(Date.parse(f.def.retainUntil));
+  const request = { selected: false, expectedRevision: 0, requestKey: 'synthetic-expired-delete-request', seasonDigest: f.digest };
+  assert.equal(f.store.changeParticipation(f.def.id, A, request).expired, true);
+  assert.equal(f.store.changeParticipation(f.def.id, A, request).current.participating, false);
+  for (const table of ['enrollments','requests','choices']) assert.equal(f.db.prepare('SELECT count(*) n FROM progression_season_' + table).get().n, 0);
+  f.pause(); assert.throws(() => f.store.maintain(), /Read only/);
 });

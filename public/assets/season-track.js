@@ -11,7 +11,7 @@
   function clear() {
     actor = null; catalog = []; next = null; selected = null; model = null; review = null;
     $('season-catalog').replaceChildren(); $('season-tiers').replaceChildren();
-    for (const id of ['season-title','season-dates','season-participation','season-points','season-evidence','season-review-text']) $(id).textContent = '';
+    for (const id of ['season-title','season-dates','season-retention','season-participation','season-points','season-evidence','season-review-text']) $(id).textContent = '';
   }
   function render() {
     $('season-track').hidden = !caps.enabled && !caps.managementAvailable;
@@ -33,9 +33,10 @@
       const date = value => new Date(value).toLocaleString('en-AU', { timeZone: 'Australia/Brisbane' });
       $('season-title').textContent = def.title;
       $('season-dates').textContent = `${date(def.startsAt)} to ${date(def.endsAt)} Brisbane time. Delayed activity receipts accepted until ${date(def.settlesAt)}.`;
-      $('season-participation').textContent = model.participating ? (caps.enabled ? 'You have joined this season.' : 'Season tracking is paused. You can delete your participation.') : 'You have not joined this season.';
-      $('season-points').textContent = `${model.progress.xp.toLocaleString('en-AU')} season XP · ${model.progress.tier} of ${def.tiers.length} milestones reached.`;
-      $('season-evidence').textContent = model.progress.evidenceUnavailable ? 'Some earlier activity is no longer supported by its source evidence and is excluded.' :
+      $('season-retention').textContent = def.retainUntil ? `Your season participation, copied progress and saved requests expire ${date(def.retainUntil)} Brisbane time. Permanent XP stays separate.` : 'These older rules have no automatic expiry date. You can delete your participation and copied progress.';
+      $('season-participation').textContent = model.progress.retentionExpired ? 'Personal participation records have expired.' : model.participating ? (caps.enabled ? 'You have joined this season.' : 'Season tracking is paused. You can delete your participation.') : 'You have not joined this season.';
+      $('season-points').textContent = model.progress.retentionExpired ? 'Personal progress has expired.' : `${model.progress.xp.toLocaleString('en-AU')} season XP · ${model.progress.tier} of ${def.tiers.length} milestones reached.`;
+      $('season-evidence').textContent = model.progress.retentionExpired ? 'The retention period has ended. Personal season progress is no longer available.' : model.progress.evidenceUnavailable ? 'Some earlier activity is no longer supported by its source evidence and is excluded.' :
         model.progress.pending ? 'New receipts have not all been checked. Update saved progress to check the next batch.' : 'All currently available receipts have been checked. Milestones do not grant rewards.';
       const tiers = $('season-tiers'); tiers.replaceChildren();
       def.tiers.forEach((tier, index) => {
@@ -51,6 +52,7 @@
       $('season-review-text').textContent = (review.body.selected ?
         `Join ${review.title} for free. Count new eligible XP after you join from ${sources}. Earlier activity does not count. Season milestones issue no rewards. Your account’s season choice, copied XP evidence and saved-request history are retained; you can delete participation and its copied progress. Permanent XP and minimal request history remain.` :
         `Delete your participation and copied progress for ${review.title}. Rejoining starts fresh. Permanent XP, existing quest rewards and minimal request history remain.`) +
+        (review.retainUntil ? ` Participation, copied progress and saved requests expire ${new Date(review.retainUntil).toLocaleString('en-AU', { timeZone: 'Australia/Brisbane' })} Brisbane time.` : '') +
         (review.uncertain ? ' The reply was not confirmed. Refresh or explicitly retry this saved request.' : review.body.expectedRevision !== model?.revision ? ' Your choice changed elsewhere. Cancel and review the latest state.' : '');
     }
     $('season-confirm').textContent = review?.uncertain ? 'Retry saved season request' : 'Confirm season choice';
@@ -99,7 +101,7 @@
   $('season-more').addEventListener('click', () => run(token => read(token, true)));
   $('season-choice').addEventListener('click', () => {
     if (busy || review || !model || !canWrite() || (!model.participating && !joinOpen())) return;
-    review = { actor, title: definition().title, sources: definition().sources, uncertain: false,
+    review = { actor, title: definition().title, sources: definition().sources, retainUntil: definition().retainUntil, uncertain: false,
       body: { id: selected, selected: !model.participating, expectedRevision: model.revision, seasonDigest: model.progress.season.digest, requestKey: crypto.randomUUID() } };
     render();
   });

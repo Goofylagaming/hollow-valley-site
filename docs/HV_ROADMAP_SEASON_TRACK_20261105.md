@@ -50,8 +50,8 @@ reward. Existing paid quest/level behavior is regression-tested with synthetic d
 - Review actual season dates, thresholds and attribution choices with operators.
   The proposed eight-to-twelve-week duration is not activated. Store contracts
   below constrain explicit choices; they do not establish an approved real season.
-- Complete privacy/retention maintenance and review the real source reconciliation
-  cadence. The prepared player-triggered progress update is bounded and never
+- Review the prepared privacy/retention maintenance against real operational
+  policies and the source reconciliation cadence. The player-triggered update is bounded and never
   manufactures permanent XP or level coins; it is not a background collector.
 - Achievement XP and trustworthy achievement/event source integration. The existing
   permanent ledger currently grants XP from playtime, quests and paid event records;
@@ -63,7 +63,7 @@ reward. Existing paid quest/level behavior is regression-tested with synthetic d
 
 Original #4 wording and historical votes remain. The feature leaves the active
 ballot during development, freeing its old votes without deleting them. Eight
-ideas remain eligible. Homepage planning asset version is 120. No production
+ideas remain eligible. Homepage planning asset version is 121. No production
 completion date is assigned.
 
 ## Local verification
@@ -89,8 +89,8 @@ XP writer, command sender or reward fulfiller. API authorization is deliberately
 not inferred from the module's Steam-ID validation. The website routes now bind
 the current database user's integer ID and Steam identity before forwarding it.
 
-A complete reviewed definition contains `id`, `title`, `startsAt`, `endsAt`,
-`settlesAt`, `free: true`, `sources` and ascending `tiers` (`xp`, `title`). Unknown
+A new reviewed definition contains `id`, `title`, `startsAt`, `endsAt`,
+`settlesAt`, `retainUntil`, `free: true`, `sources` and ascending `tiers` (`xp`, `title`). Unknown
 fields, prices, reward declarations, duplicate/unsupported sources and ambiguous
 timestamps are rejected. Tier labels are milestones without entitlements. There
 are at most 100 tiers and up to 366 days per season, with a separately explicit
@@ -236,6 +236,7 @@ The automation runtime uses the existing economy database with `initialize:false
 | `SEASON_TRACK_ENABLED=1` | Allow private season enrollment and explicit progress updates after operator setup |
 | `SEASON_TRACK_MANAGEMENT_ENABLED=1` | Keep catalog/status and existing participant deletion available while tracking is paused |
 | `SEASON_TRACK_READ_ONLY=1` | Block mutations, including deletion, for a read-only deployment |
+| `SEASON_TRACK_MAINTENANCE_ENABLED=1` on automation only | Run bounded retention cleanup independently of player reads and collection flags |
 
 Keep the management setting enabled when pausing tracking so players can recover
 and delete participation. Website preview restrictions apply in addition to these
@@ -254,6 +255,64 @@ browser fixture also passes at both widths. Desktop/mobile screenshots were
 inspected. The dedicated workflow includes these checks but is still unpublished.
 
 Remaining season work includes achievement XP evidence, real source timing/payload
-review, retention/maintenance and operational recovery, approved reward policy,
+review, operational retention review and recovery, approved reward policy,
 hosted checks and authenticated staging. Roadmap #4 remains Building / Testing;
 the full season and 31-feature roadmap are not complete.
+
+## Reviewed retention and independent cleanup — 6 November 2026
+
+New season artifacts must explicitly choose `retainUntil`, strictly after
+`settlesAt` and within 366 days of it. This is a storage bound, not a chosen live
+retention policy. The date participates in the canonical digest and is immutable
+with the season's other rules. Operator review/staging rejects a missing or invalid
+date. Older saved definitions retain their original canonical form/digest and
+remain readable without an invented expiry; publishing an older staged definition
+requires preparing a new definition/identity with reviewed retention instead.
+
+An additive retention index binds the season identity, digest and expiry date.
+Every normal read verifies it against the reviewed definition and audit. At the
+exact expiry, status/progress reads return no personal enrollment time, XP, tier
+achievement or consent revision, even before maintenance runs. The screen explains
+that personal records expired and disables progress updates/enrollment. An old
+saved join request returns expired rather than recreating participation or a new
+receipt. An explicit own-account deletion can erase expired enrollment, progress,
+choice revisions and saved requests without leaving a new receipt behind.
+
+Cleanup verifies each due definition/index/audit before deleting anything. A pass
+examines at most 25 due seasons and deletes at most 500 personal rows (store bound
+1–1,000), across copied XP evidence, enrollments, saved requests and choice state.
+Partial work continues on later passes; a completed marker prevents empty old
+seasons from starving later cleanup. Failed deletions roll back the entire pass.
+Unverifiable retention evidence is reported as unavailable and never supplies an
+unreviewed expiry. Season definitions and review/audit history remain, preserving
+immutable identities and preventing reopening/reuse after request receipts expire.
+
+Remaining capacity in a pass scans a bounded page of permanent source positions
+and removes only positions whose original XP record no longer exists. A durable
+cursor cycles through the source index without rescanning its full contents each
+minute. Live source positions, permanent XP, source-clock receipts, wallet balances
+and existing paid rewards are untouched. Positions for live permanent records
+continue to follow that original ledger's retention policy.
+
+The automation runtime starts one unreferenced, one-minute maintenance timer only
+when `SEASON_TRACK_MAINTENANCE_ENABLED=1`. It makes an immediate bounded attempt,
+then repeats independently of website access, telemetry and the tracking/management
+flags. It never initializes missing season schema. The read-only setting skips all
+cleanup; failures are reported and retried on the existing timer. Keep maintenance
+enabled on a writable authoritative instance when pausing player collection.
+No maintenance flag or real expiry policy has been enabled by this work.
+
+The Quests screen shows the reviewed expiry in Brisbane time before enrollment
+and explains the expiry state afterward. Its asset version is 2; the homepage
+planning asset is 121. Explicit deletion still removes participation/copies before
+expiry while retaining minimal anti-replay records until the reviewed retention
+date. The synthetic 90-day periods used by tests are not a live policy choice.
+
+Current combined verification: **85 passing checks**, including exact expiry,
+immediate read-only projection hiding, bounded multi-pass deletion, failed-delete
+rollback, old-request replay, tampered retention indexes, legacy digest preservation,
+orphan source-page traversal and maintenance with collection/website access disabled.
+The real Quests-page browser fixture passes at 1440px and 390px for disclosure and
+the exact expiry transition as well as the earlier consent/recovery cases. All
+accounts, dates and databases are synthetic. Hosted and real authenticated staging
+remain unverified; rollout and the full roadmap remain unfinished.

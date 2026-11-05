@@ -27,11 +27,14 @@ function steam(value) {
   return value;
 }
 function describe(input) {
-  fields(input, ['id', 'title', 'startsAt', 'endsAt', 'settlesAt', 'free', 'sources', 'tiers']);
+  const retentionProvided = input && Object.hasOwn(input, 'retainUntil');
+  fields(input, ['id', 'title', 'startsAt', 'endsAt', 'settlesAt', 'free', 'sources', 'tiers', ...(retentionProvided ? ['retainUntil'] : [])]);
   if (input.free !== true) fail('Season enrollment and progression must be free');
   const startsAt = parseSourceTimestamp(input.startsAt), endsAt = parseSourceTimestamp(input.endsAt), settlesAt = parseSourceTimestamp(input.settlesAt);
   if (startsAt === null || endsAt === null || settlesAt === null || endsAt <= startsAt ||
       endsAt - startsAt > 366 * 86400000 || settlesAt < endsAt || settlesAt - endsAt > 30 * 86400000) fail('Invalid season or delayed-grant window');
+  const retainUntil = retentionProvided ? parseSourceTimestamp(input.retainUntil) : null;
+  if (retentionProvided && (retainUntil === null || retainUntil <= settlesAt || retainUntil - settlesAt > 366 * 86400000)) fail('Review a retention date after settlement and within 366 days');
   if (!Array.isArray(input.sources) || !input.sources.length || input.sources.length > 3) fail('Review at least one supported XP source');
   const seen = new Set();
   const sources = input.sources.map(source => {
@@ -53,14 +56,18 @@ function describe(input) {
   const definition = { id: identity(input.id), title: text(input.title, 3, 120),
     startsAt: new Date(startsAt).toISOString(), endsAt: new Date(endsAt).toISOString(),
     settlesAt: new Date(settlesAt).toISOString(), free: true, sources, tiers };
+  if (retentionProvided) definition.retainUntil = new Date(retainUntil).toISOString();
   const json = JSON.stringify(definition);
   return { definition, digest: createHash('sha256').update(json).digest('hex') };
 }
 
-// Internal domain store only. No routes or producers call it yet. The eventual
-// host/operator and player boundaries must authorize current identities themselves.
+// Host/operator and player boundaries authorize current identities themselves.
 function createSeasonTrackStore(db, { now = Date.now, initialize = true, writable = () => {} } = {}) {
   if (initialize) db.exec(`
+    CREATE TABLE IF NOT EXISTS progression_season_retention (
+      season_id TEXT PRIMARY KEY,digest TEXT NOT NULL,retain_until INTEGER NOT NULL,cleaned_at INTEGER);
+    CREATE INDEX IF NOT EXISTS progression_season_retention_due ON progression_season_retention(cleaned_at,retain_until);
+    CREATE TABLE IF NOT EXISTS progression_season_maintenance (id INTEGER PRIMARY KEY CHECK(id=1),source_cursor INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS progression_seasons (
       id TEXT PRIMARY KEY, definition_json TEXT NOT NULL, digest TEXT NOT NULL,
       reviewed_by TEXT NOT NULL, reviewed_at INTEGER NOT NULL,
@@ -80,6 +87,7 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
       payload_json TEXT NOT NULL,result_json TEXT NOT NULL,at INTEGER NOT NULL,
       PRIMARY KEY(steam_id,request_key));
     CREATE INDEX IF NOT EXISTS progression_season_request_rate ON progression_season_requests(steam_id,at);
+    CREATE INDEX IF NOT EXISTS progression_season_request_retention ON progression_season_requests(season_id);
     CREATE TABLE IF NOT EXISTS progression_season_evidence (
       season_id TEXT NOT NULL, steam_id TEXT NOT NULL, ledger_id TEXT NOT NULL,
       amount INTEGER NOT NULL, source TEXT NOT NULL, reference_type TEXT NOT NULL,
@@ -106,6 +114,8 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
     if (reviewed.definition.id !== id || reviewed.digest !== row.digest ||
         !audit || audit.digest !== row.digest || audit.action !== row.state ||
         !['staged', 'published', 'closed'].includes(row.state)) fail('Season review evidence is unavailable', 503);
+    const retention = db.prepare('SELECT * FROM progression_season_retention WHERE season_id=?').get(id);
+    if (reviewed.definition.retainUntil ? (!retention || retention.digest !== row.digest || retention.retain_until !== Date.parse(reviewed.definition.retainUntil)) : Boolean(retention)) fail('Season retention review is unavailable', 503);
     return { ...row, definition: reviewed.definition };
   }
   function read(id) {
@@ -126,10 +136,12 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
         if (old.digest !== digest) fail('Season identity already has different immutable rules');
         return { ...current, duplicate: true };
       }
+      if (!value.definition.retainUntil) fail('Review an explicit season retention date before staging');
       if (Date.parse(value.definition.startsAt) <= now()) fail('Stage a future season; retroactive seasons are not supported');
       db.prepare('INSERT INTO progression_seasons VALUES(?,?,?,?,?,?,?)')
         .run(value.definition.id, JSON.stringify(value.definition), digest, reviewer, now(), 'staged', 1);
       audit(value.definition.id, 1, 'staged', reviewer, digest);
+      db.prepare('INSERT INTO progression_season_retention(season_id,digest,retain_until) VALUES(?,?,?)').run(value.definition.id, digest, Date.parse(value.definition.retainUntil));
       return { ...read(value.definition.id), duplicate: false };
     });
   }
@@ -139,6 +151,7 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
     const row = checked(id);
     if (row.digest !== digest || row.revision !== expectedRevision) fail('Season changed; inspect the current review');
     if (action === 'publish') {
+      if (!row.definition.retainUntil) fail('Review retention in a new season definition before publishing');
       if (row.state !== 'staged' || now() >= Date.parse(row.definition.startsAt)) fail('Only a future staged season can be published');
       const others = db.prepare("SELECT id FROM progression_seasons WHERE state='published'").all();
       for (const other of others) {
@@ -185,6 +198,12 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
   }
   const choice = (id, steamId) => ({ revision: db.prepare('SELECT revision FROM progression_season_choices WHERE season_id=? AND steam_id=?').get(id, steamId)?.revision || 0,
     participating: Boolean(enrollment(id, steamId)) });
+  const expired = row => Boolean(row?.definition.retainUntil && now() >= Date.parse(row.definition.retainUntil));
+  function eraseExpired(id, steamId) {
+    eraseRaw(id, steamId);
+    db.prepare('DELETE FROM progression_season_choices WHERE season_id=? AND steam_id=?').run(id, steamId);
+    db.prepare('DELETE FROM progression_season_requests WHERE season_id=? AND steam_id=?').run(id, steamId);
+  }
   function changeParticipation(id, steamId, { selected, expectedRevision, requestKey, seasonDigest } = {}) {
     steam(steamId); identity(id);
     if (typeof selected !== 'boolean' || !Number.isSafeInteger(expectedRevision) || expectedRevision < 0 || expectedRevision >= Number.MAX_SAFE_INTEGER ||
@@ -192,6 +211,13 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
     const payload = JSON.stringify({ id, selected, expectedRevision, seasonDigest });
     return atomic(() => {
       writable();
+      let row;
+      try { row = checked(id); } catch (error) { if (selected || !find(id)) throw error; }
+      if (expired(row)) {
+        if (selected) fail('Season retention has ended', 410);
+        eraseExpired(id, steamId);
+        return { saved: { revision: 0, participating: false }, current: { revision: 0, participating: false }, expired: true, duplicate: false };
+      }
       const receipt = db.prepare('SELECT * FROM progression_season_requests WHERE steam_id=? AND request_key=?').get(steamId, requestKey);
       if (receipt) {
         if (receipt.payload_json !== payload) fail('Saved request conflicts with this choice', 409);
@@ -218,6 +244,7 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > 1000) fail('Invalid season evidence batch size');
     return atomic(() => {
       writable(); const row = checked(id), participant = enrollment(id, steamId), at = now();
+      if (expired(row)) fail('Season retention has ended', 410);
       if (expectedRevision !== undefined && (!Number.isSafeInteger(expectedRevision) || expectedRevision !== choice(id, steamId).revision || seasonDigest !== row.digest)) fail('Participation or season rules changed; refresh before updating progress', 409);
       if (!participant) fail('Enroll before collecting seasonal progress');
       if (!['published', 'closed'].includes(row.state)) fail('Season has not been published');
@@ -244,7 +271,7 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
   }
   function progress(id, steamId) {
     steam(steamId); const row = checked(id), participant = enrollment(id, steamId), at = now();
-    if (!participant) return { season: read(id), enrolled: false, xp: 0, tier: 0, nextTier: row.definition.tiers[0], pending: false };
+    if (!participant || expired(row)) return { season: read(id), enrolled: false, xp: 0, tier: 0, nextTier: row.definition.tiers[0], pending: false, retentionExpired: expired(row) };
     // Recheck original evidence on every projection. Deleted/altered source rows
     // cannot leave a previously copied seasonal entitlement in force.
     const totals = db.prepare(`SELECT coalesce(sum(CASE WHEN l.id IS NOT NULL AND l.steam_id=e.steam_id
@@ -270,8 +297,42 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
   function status(id, steamId) {
     steam(steamId);
     if (!['published','closed'].includes(checked(id).state)) fail('Published season not found', 404);
-    return { ...choice(id, steamId), progress: progress(id, steamId), serverTime: now() };
+    const value = progress(id, steamId);
+    return { ...(value.retentionExpired ? { revision: 0, participating: false } : choice(id, steamId)), progress: value, serverTime: now() };
   }
-  return { stage, read, reviewStateChange, changeState, enroll, erase, reconcile, progress, catalog, status, changeParticipation };
+  function maintain({ limit = 500 } = {}) {
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 1000) fail('Invalid retention batch size');
+    return atomic(() => {
+      writable(); let remaining = limit, removed = 0, completed = 0, unavailable = 0;
+      const candidates = db.prepare('SELECT season_id FROM progression_season_retention WHERE cleaned_at IS NULL AND retain_until<=? ORDER BY retain_until,season_id LIMIT 25').all(now());
+      for (const candidate of candidates) {
+        let row;
+        try { row = checked(candidate.season_id); } catch { unavailable++; continue; }
+        if (!expired(row)) { unavailable++; continue; }
+        let hasRows = false;
+        for (const table of ['progression_season_evidence','progression_season_enrollments','progression_season_requests','progression_season_choices']) {
+          if (remaining) {
+            const count = db.prepare(`DELETE FROM ${table} WHERE rowid IN (SELECT rowid FROM ${table} WHERE season_id=? LIMIT ?)`).run(row.id, remaining).changes;
+            removed += count; remaining -= count;
+          }
+          hasRows ||= Boolean(db.prepare(`SELECT 1 FROM ${table} WHERE season_id=? LIMIT 1`).get(row.id));
+        }
+        if (!hasRows) { db.prepare('UPDATE progression_season_retention SET cleaned_at=? WHERE season_id=?').run(now(), row.id); completed++; }
+        if (!remaining) break;
+      }
+      // Position IDs follow the permanent ledger. Remove obsolete identity copies
+      // after their original permanent source has been removed, never live XP.
+      if (remaining) {
+        const cursor = db.prepare('SELECT source_cursor FROM progression_season_maintenance WHERE id=1').get()?.source_cursor || 0;
+        const positions = db.prepare(`SELECT p.position,l.id FROM progression_season_source_positions p
+          LEFT JOIN progression_xp_ledger l ON l.id=p.ledger_id WHERE p.position>? ORDER BY p.position LIMIT ?`).all(cursor, remaining);
+        for (const position of positions) if (position.id === null) removed += db.prepare('DELETE FROM progression_season_source_positions WHERE position=?').run(position.position).changes;
+        db.prepare('INSERT INTO progression_season_maintenance VALUES(1,?) ON CONFLICT(id) DO UPDATE SET source_cursor=excluded.source_cursor')
+          .run(positions.length === remaining ? positions.at(-1).position : 0);
+      }
+      return { removed, completed, unavailable };
+    });
+  }
+  return { stage, read, reviewStateChange, changeState, enroll, erase, reconcile, progress, catalog, status, changeParticipation, maintain };
 }
 module.exports = { describe, createSeasonTrackStore, SOURCES };
