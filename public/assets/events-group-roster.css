@@ -1,0 +1,6 @@
+#event-group-roster[hidden],#event-group-roster [hidden]{display:none!important}
+#event-group-roster label{display:block;margin-top:16px}
+#event-group-roster select,#event-group-roster input{max-width:100%;width:100%;margin:8px 0;padding:10px;box-sizing:border-box}
+#group-roster-list{list-style:none;padding:0}
+#group-roster-list li{padding:14px 0;border-top:1px solid #4a503b;overflow-wrap:anywhere}
+#group-roster-list p{margin:8px 0}

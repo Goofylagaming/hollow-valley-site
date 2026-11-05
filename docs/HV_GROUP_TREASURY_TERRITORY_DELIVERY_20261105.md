@@ -43,8 +43,8 @@ The Groups review shows the saved Territory group and event and explains that ca
 ## Remaining integration
 
 - Rehearse the implemented owner coordinator and database signing/settlement against authenticated staging. Keep unavailable-website requests and uncertain dispatched holds retained until the final outcome can be verified.
-- Review actual entry prices and policy before activating an entry catalog. The operator tool permits reviewed Territory activation only with its dedicated rollout flag and proof key configured; it still rejects unsupported group-event activation.
-- Implement a separate actual group event-registration path; the current Discord RSVP system records individual attendance and is not group paid registration.
+- Review actual entry prices and policy before activating an entry catalog. The operator tool permits reviewed Territory activation only with its dedicated rollout flag and proof key configured; group-event activation has its separate event gate and fresh scheduled-event checks.
+- Verify the separate implemented group event-registration path and staff roster in authenticated staging; its local evidence is documented in HV_GROUP_TREASURY_EVENT_REGISTRATION_20261105.md. Individual Discord attendance remains separate.
 - Review live prices/policy and rehearse authenticated staging, backups, failure recovery and hosted checks before separately approved production rollout.
 
 ## Local evidence

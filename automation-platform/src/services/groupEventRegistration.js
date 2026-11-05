@@ -58,10 +58,11 @@ function createGroupEventRegistration(db, { enabled = () => process.env.GROUP_TR
     db.prepare('INSERT INTO economy_group_event_registration_audit(request_id,event_id,group_id,actor) VALUES(?,?,?,?)').run(row.request_key, event.eventId, row.group_id, actor);
   }
   function verify(row) {
+    let descriptor,item;try{descriptor=validateDescriptor(JSON.parse(row.event_json));item=JSON.parse(row.item_json);}catch{throw fail('TREASURY_INTEGRITY_ERROR','Group event registration evidence requires review',500);}
     const registration = db.prepare('SELECT * FROM economy_group_event_registrations WHERE request_id=?').get(row.request_key);
     const audit = db.prepare('SELECT * FROM economy_group_event_registration_audit WHERE request_id=?').get(row.request_key);
     const ledger = db.prepare('SELECT group_id,amount,kind FROM economy_group_treasury_ledger WHERE spend_request_id=?').get(row.request_key);
-    if (row.state !== 'committed' || !ledger || ledger.group_id !== row.group_id || ledger.amount !== -row.cost || ledger.kind !== 'purchase' || !registration || !audit || registration.group_id !== row.group_id || registration.event_id !== row.target_key || registration.event_json !== row.event_json || audit.event_id !== row.target_key || audit.group_id !== row.group_id || audit.actor !== registration.registered_by) throw fail('TREASURY_INTEGRITY_ERROR', 'Group event registration evidence requires review', 500);
+    if (descriptor.eventId!==row.target_key||item.purpose!=='event_registration'||item.target?.eventId!==row.target_key||item.cost!==row.cost||row.state !== 'committed' || !ledger || ledger.group_id !== row.group_id || ledger.amount !== -row.cost || ledger.kind !== 'purchase' || !registration || !audit || registration.group_id !== row.group_id || registration.event_id !== row.target_key || registration.event_json !== row.event_json || audit.event_id !== row.target_key || audit.group_id !== row.group_id || audit.actor !== registration.registered_by) throw fail('TREASURY_INTEGRITY_ERROR', 'Group event registration evidence requires review', 500);
   }
   function list(groupId) {
     if (!Number.isSafeInteger(groupId) || groupId < 1) throw fail('INVALID_GROUP', 'A website group is required', 400);
@@ -71,6 +72,20 @@ function createGroupEventRegistration(db, { enabled = () => process.env.GROUP_TR
       return { eventId: row.target_key, event: JSON.parse(row.event_json), requestId: row.request_key, registeredAt: registration.created_at };
     });
   }
-  return { enabled, preview, reviewed, fulfill, verify, list };
+  function pageLimit(value){if(!Number.isSafeInteger(value)||value<1||value>100)throw fail('INVALID_PAGE','Choose a page size from 1 to 100',400);return value;}
+  function roster(eventId,{afterGroupId=0,limit=50}={}){
+    if(typeof eventId!=='string'||!/^\d{10,24}$/.test(eventId)||!Number.isSafeInteger(afterGroupId)||afterGroupId<0)throw fail('INVALID_PAGE','A valid event and group cursor are required',400);
+    const rows=db.prepare("SELECT * FROM economy_group_treasury_spends WHERE purpose='event_registration' AND event_json IS NOT NULL AND state='committed' AND target_key=? AND group_id>? ORDER BY group_id LIMIT ?").all(eventId,afterGroupId,pageLimit(limit)+1);
+    const page=rows.slice(0,limit).map(row=>{verify(row);const registration=db.prepare('SELECT created_at FROM economy_group_event_registrations WHERE request_id=?').get(row.request_key);
+      return {groupId:row.group_id,eventId:row.target_key,event:validateDescriptor(JSON.parse(row.event_json)),cost:row.cost,requestId:row.request_key,registeredAt:registration.created_at};});
+    return {eventId,registrations:page,nextGroupId:rows.length>limit?page.at(-1).groupId:null};
+  }
+  function eventIndex({afterEventId='',limit=50}={}){
+    if(typeof afterEventId!=='string'||(afterEventId!==''&&!/^\d{10,24}$/.test(afterEventId)))throw fail('INVALID_PAGE','A valid event cursor is required',400);
+    const rows=db.prepare("SELECT target_key,MIN(rowid) AS first_id FROM economy_group_treasury_spends WHERE purpose='event_registration' AND event_json IS NOT NULL AND state='committed' AND target_key>? GROUP BY target_key ORDER BY target_key LIMIT ?").all(afterEventId,pageLimit(limit)+1);
+    const page=rows.slice(0,limit).map(row=>{const receipt=db.prepare('SELECT * FROM economy_group_treasury_spends WHERE rowid=?').get(row.first_id);verify(receipt);return validateDescriptor(JSON.parse(receipt.event_json));});
+    return {events:page,nextEventId:rows.length>limit?page.at(-1).eventId:null};
+  }
+  return { enabled, preview, reviewed, fulfill, verify, list, roster, eventIndex };
 }
 module.exports = { createGroupEventRegistration, validateDescriptor };
