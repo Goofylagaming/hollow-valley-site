@@ -6,9 +6,12 @@ const get=()=>service||(service=require('../services/groupTreasuryService').crea
 let closure;
 const getClosure=()=>closure||(closure=require('../services/groupTreasuryClosure').createGroupTreasuryClosure(require('../services/economyStore')));
 let spending;
+let groupEvents;
+const getGroupEvents=()=>groupEvents||(groupEvents=require('../services/groupEventRegistration').createGroupEventRegistration(require('../services/economyStore').db));
 const territoryProof=require('../services/groupTreasuryTerritoryProof');
 const getSpending=()=>spending||(spending=require('../services/groupTreasurySpending').createGroupTreasurySpending(require('../services/economyStore'),{
  verifyFulfillment:proof=>territoryProof.verify(proof,process.env.GROUP_TREASURY_TERRITORY_PROOF_SECRET),
+ groupEvents:getGroupEvents(),
 }));
 const run=fn=>(req,res)=>{try{res.json(fn(req));}catch(error){res.status(error.status||500).json({error:error.status?error.message:'Group Treasury is temporarily unavailable',code:error.status?error.code:'TREASURY_UNAVAILABLE'});}};
 router.post('/read',run(req=>get().get(req.body?.groupId)));
@@ -19,7 +22,14 @@ const ticket=req=>({groupId:req.body?.groupId,requestId:req.body?.requestId,acto
 router.post('/closure-begin',run(req=>getClosure().begin(ticket(req))));
 router.post('/closure-abort',run(req=>getClosure().abort(ticket(req))));
 router.post('/closure-complete',run(req=>getClosure().complete(ticket(req))));
-const purchase=req=>({groupId:req.body?.groupId,requestId:req.body?.requestId,actorSteamId:req.body?.actorSteamId,itemId:req.body?.itemId,revision:req.body?.revision,expectedCost:req.body?.expectedCost});
+const purchase=req=>({groupId:req.body?.groupId,requestId:req.body?.requestId,actorSteamId:req.body?.actorSteamId,itemId:req.body?.itemId,revision:req.body?.revision,expectedCost:req.body?.expectedCost,event:req.body?.event});
+router.post('/group-event-preview',run(req=>getGroupEvents().preview(req.body?.eventId)));
+router.post('/group-event-registrations',run(req=>{
+ getSpending();
+ const rows=getGroupEvents().list(req.body?.groupId);
+ for(const row of rows)getSpending().read(req.body?.groupId,row.requestId);
+ return {groupId:req.body?.groupId,registrations:rows};
+}));
 router.post('/spending-read',run(req=>({groupId:req.body?.groupId,catalog:getSpending().list(),cosmetics:getSpending().cosmetics(req.body?.groupId)})));
 router.post('/spend-status',run(req=>{try{return getSpending().read(req.body?.groupId,req.body?.requestId);}catch(error){if(error.code==='SPEND_UNAVAILABLE')return null;throw error;}}));
 router.post('/spend-reserve',run(req=>getSpending().reserve(purchase(req))));

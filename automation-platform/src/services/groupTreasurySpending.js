@@ -5,9 +5,10 @@ const {validateItem:item,digest}=require('./groupTreasuryCatalog');
 // Trusted catalog review and current website-group owner authority are checked
 // by callers. Private purchase RPCs bind cosmetic requests; external delivery
 // dispatch and proof ingestion still require their dedicated verified adapter.
-function createGroupTreasurySpending(store,{enabled=()=>process.env.GROUP_TREASURY_ENABLED==='1'&&process.env.GROUP_TREASURY_SPEND_ENABLED==='1',verifyFulfillment=null}={}){
+function createGroupTreasurySpending(store,{enabled=()=>process.env.GROUP_TREASURY_ENABLED==='1'&&process.env.GROUP_TREASURY_SPEND_ENABLED==='1',verifyFulfillment=null,groupEvents=null}={}){
   require('./groupTreasuryService').createGroupTreasury(store);
   const db=store.db;
+  const eventEvidence=groupEvents||require('./groupEventRegistration').createGroupEventRegistration(db,{enabled:()=>false});
   db.exec(`CREATE TABLE IF NOT EXISTS economy_group_treasury_catalog (
     item_id TEXT NOT NULL,revision INTEGER NOT NULL,item_json TEXT NOT NULL,enabled INTEGER NOT NULL DEFAULT 0,
     reviewed_by TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT(datetime('now')),PRIMARY KEY(item_id,revision));
@@ -27,6 +28,7 @@ function createGroupTreasurySpending(store,{enabled=()=>process.env.GROUP_TREASU
     group_id INTEGER NOT NULL,frame TEXT NOT NULL,request_key TEXT NOT NULL UNIQUE,
     granted_at TEXT NOT NULL DEFAULT(datetime('now')),PRIMARY KEY(group_id,frame));`);
   if(!db.prepare('PRAGMA table_info(economy_group_treasury_ledger)').all().some(row=>row.name==='spend_request_id'))db.exec('ALTER TABLE economy_group_treasury_ledger ADD COLUMN spend_request_id TEXT');
+  if(!db.prepare('PRAGMA table_info(economy_group_treasury_spends)').all().some(row=>row.name==='event_json'))db.exec('ALTER TABLE economy_group_treasury_spends ADD COLUMN event_json TEXT');
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS group_treasury_spend_ledger ON economy_group_treasury_ledger(spend_request_id) WHERE spend_request_id IS NOT NULL');
   if(!db.prepare('PRAGMA table_info(economy_group_treasury_spends)').all().some(row=>row.name==='fulfillment_proof_id'))db.exec('ALTER TABLE economy_group_treasury_spends ADD COLUMN fulfillment_proof_id TEXT');
   for(const row of db.prepare('SELECT request_key,proof_json FROM economy_group_treasury_spends WHERE proof_json IS NOT NULL AND fulfillment_proof_id IS NULL').all())db.prepare('UPDATE economy_group_treasury_spends SET fulfillment_proof_id=? WHERE request_key=?').run(JSON.parse(row.proof_json).id,row.request_key);
@@ -68,7 +70,7 @@ function createGroupTreasurySpending(store,{enabled=()=>process.env.GROUP_TREASU
   const list=()=>db.prepare('SELECT item_json FROM economy_group_treasury_catalog WHERE enabled=1 ORDER BY item_id LIMIT 100').all().map(row=>JSON.parse(row.item_json));
   function details(input){const actor=steam(input?.actorSteamId),groupId=positive(input?.groupId),requestId=key(input?.requestId),revision=positive(input?.revision),cost=positive(input?.expectedCost);
     const value=JSON.parse(catalogRow(input.itemId,revision).item_json);if(value.cost!==cost)throw error('PRICE_CHANGED','Review the listed Treasury cost before spending',409);
-    return {actor,groupId,requestId,value};
+    return {actor,groupId,requestId,value,event:input.event??null};
   }
   function verify(row){
     const ledger=db.prepare('SELECT group_id,amount,kind FROM economy_group_treasury_ledger WHERE spend_request_id=?').get(row.request_key);
@@ -77,18 +79,22 @@ function createGroupTreasurySpending(store,{enabled=()=>process.env.GROUP_TREASU
       const target=JSON.parse(row.item_json).target;
       if(!ledger||ledger.group_id!==row.group_id||ledger.amount!==-row.cost||ledger.kind!=='purchase'||
         (row.purpose==='group_cosmetic'&&(!cosmetic||cosmetic.group_id!==row.group_id||cosmetic.frame!==target.value))||
-        (row.purpose!=='group_cosmetic'&&!row.proof_json))throw error('TREASURY_INTEGRITY_ERROR','Spending receipt requires review',500);
+        (row.purpose!=='group_cosmetic'&&!row.proof_json&&!(row.purpose==='event_registration'&&row.event_json)))throw error('TREASURY_INTEGRITY_ERROR','Spending receipt requires review',500);
     }else if(ledger||cosmetic)throw error('TREASURY_INTEGRITY_ERROR','Unresolved spending evidence requires review',500);
+    if(row.purpose==='event_registration'&&row.event_json){
+      if(row.state==='committed')eventEvidence.verify(row);
+      else if(db.prepare('SELECT 1 FROM economy_group_event_registrations WHERE request_id=?').get(row.request_key))throw error('TREASURY_INTEGRITY_ERROR','Unresolved group event evidence requires review',500);
+    }
     if(row.proof_json){const p=JSON.parse(row.proof_json);
       if(p.id!==row.fulfillment_proof_id||p.requestId!==row.request_key||p.groupId!==row.group_id||p.cost!==row.cost||p.purpose!==row.purpose||p.targetKey!==row.target_key||p.outcome!==(row.state==='committed'?'delivered':'not_delivered'))throw error('TREASURY_INTEGRITY_ERROR','Fulfillment receipt requires review',500);
     }
   }
   function read(groupId,requestId){const row=db.prepare('SELECT * FROM economy_group_treasury_spends WHERE group_id=? AND request_key=?').get(positive(groupId),key(requestId));if(!row)throw error('SPEND_UNAVAILABLE','Spending request unavailable',404);verify(row);return row;}
-  function project(row){return {requestId:row.request_key,groupId:row.group_id,item:JSON.parse(row.item_json),state:row.state,createdAt:row.created_at,resolvedAt:row.resolved_at,fulfillment:row.proof_json?JSON.parse(row.proof_json):null};}
-  function matching(row,d){if(row&&(row.group_id!==d.groupId||row.item_id!==d.value.id||row.item_revision!==d.value.revision||row.cost!==d.value.cost))throw error('SPEND_CONFLICT','Spending request already has different details',409);}
+  function project(row){return {requestId:row.request_key,groupId:row.group_id,item:JSON.parse(row.item_json),state:row.state,createdAt:row.created_at,resolvedAt:row.resolved_at,event:row.event_json?JSON.parse(row.event_json):null,fulfillment:row.proof_json?JSON.parse(row.proof_json):null};}
+  function matching(row,d){if(row&&(row.group_id!==d.groupId||row.item_id!==d.value.id||row.item_revision!==d.value.revision||row.cost!==d.value.cost||(row.event_json&&row.event_json!==JSON.stringify(d.event))))throw error('SPEND_CONFLICT','Spending request already has different details',409);}
   function audit(id,state,actor,proofId=null){db.prepare('INSERT INTO economy_group_treasury_spend_audit(request_key,state,actor,proof_id) VALUES(?,?,?,?)').run(id,state,actor,proofId);}
-  function insert(d,state){db.prepare('INSERT INTO economy_group_treasury_spends(request_key,group_id,item_id,item_revision,cost,purpose,target_key,item_json,authorized_by,state,resolved_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)')
-    .run(d.requestId,d.groupId,d.value.id,d.value.revision,d.value.cost,d.value.purpose,targetKey(d.value),JSON.stringify(d.value),d.actor,state,state==='released'?new Date().toISOString():null);audit(d.requestId,state,d.actor);}
+  function insert(d,state,event=null){db.prepare('INSERT INTO economy_group_treasury_spends(request_key,group_id,item_id,item_revision,cost,purpose,target_key,item_json,authorized_by,state,resolved_at,event_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)')
+    .run(d.requestId,d.groupId,d.value.id,d.value.revision,d.value.cost,d.value.purpose,targetKey(d.value),JSON.stringify(d.value),d.actor,state,state==='released'?new Date().toISOString():null,event?JSON.stringify(event):null);audit(d.requestId,state,d.actor);}
   function assertEnabled(){if(!enabled())throw error('TREASURY_SPENDING_DISABLED','New Treasury spending is not enabled',503);}
   function reserve(input){
     assertEnabled();const d=details(input);
@@ -99,13 +105,14 @@ function createGroupTreasurySpending(store,{enabled=()=>process.env.GROUP_TREASU
       if(!catalogRow(d.value.id,d.value.revision).enabled)throw error('ITEM_UNAVAILABLE','Treasury item is not available',409);
       if(db.prepare("SELECT request_key FROM economy_group_treasury_spends WHERE group_id=? AND purpose=? AND target_key=? AND state IN('reserved','fulfilling','committed')").get(d.groupId,d.value.purpose,targetKey(d.value)))throw error('BENEFIT_ALREADY_RESERVED','This group benefit is already reserved or owned',409);
       if(balances(db,d.groupId).available<d.value.cost)throw error('INSUFFICIENT_TREASURY','Not enough available group coins',409);
-      insert(d,'reserved');return project(read(d.groupId,d.requestId));
+      const event=d.value.purpose==='event_registration'&&groupEvents?groupEvents.reviewed(d.value.target.eventId,d.event):null;
+      insert(d,'reserved',event);return project(read(d.groupId,d.requestId));
     });
   }
   function beginFulfillment({groupId,requestId,actorSteamId}={}){
     assertEnabled();const actor=steam(actorSteamId);
     return atomic(()=>{
-      const row=read(groupId,requestId);if(row.purpose==='group_cosmetic')throw error('INVALID_SPEND','Cosmetics are fulfilled atomically');
+      const row=read(groupId,requestId);if(row.purpose==='group_cosmetic'||row.event_json)throw error('INVALID_SPEND','This benefit is fulfilled atomically');
       if(row.state==='released')throw error('SPEND_RELEASED','This spending request was released',409);
       if(row.state!=='reserved')return project(row);
       if(typeof verifyFulfillment!=='function')throw error('FULFILLMENT_NOT_CONFIGURED','Reviewed fulfillment evidence is not configured',503);
@@ -135,6 +142,11 @@ function createGroupTreasurySpending(store,{enabled=()=>process.env.GROUP_TREASU
         const frame=JSON.parse(row.item_json).target.value;
         db.prepare('INSERT INTO economy_group_treasury_cosmetics(group_id,frame,request_key) VALUES(?,?,?)').run(groupId,frame,requestId);
         return spend(row,actor);
+      }
+      if(row.purpose==='event_registration'&&row.event_json){
+        assertEnabled();if(row.state!=='reserved')throw error('INVALID_SPEND','Unexpected group event hold state',409);
+        if(!groupEvents)throw error('FULFILLMENT_NOT_CONFIGURED','Group event registration is not configured',503);
+        groupEvents.fulfill(row,actor);return spend(row,actor);
       }
       if(row.state!=='fulfilling')throw error('FULFILLMENT_UNVERIFIED','Dispatch must be recorded before accepting fulfillment',409);
       return spend(row,actor,proof(row,fulfillmentProof,'delivered'));
