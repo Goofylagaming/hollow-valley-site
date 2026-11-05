@@ -3,7 +3,7 @@
 Roadmap #4 remains Building / Testing. This local branch starts from Event Engine
 `e9556c42` and does not change the three prepared publication heads. No season,
 player season UI, reward catalog or new payout has been enabled. The source-time
-collector is the only addition called by the existing progression service. The
+and achievement timing collectors are called by the existing progression service. The
 season store is now reachable through default-off private HTTP routes after
 explicit operator initialization. No active producer or reward rule is installed.
 
@@ -63,7 +63,7 @@ reward. Existing paid quest/level behavior is regression-tested with synthetic d
 
 Original #4 wording and historical votes remain. The feature leaves the active
 ballot during development, freeing its old votes without deleting them. Eight
-ideas remain eligible. Homepage planning asset version is 121. No production
+ideas remain eligible. Homepage planning asset version is 122. No production
 completion date is assigned.
 
 ## Local verification
@@ -316,3 +316,61 @@ The real Quests-page browser fixture passes at 1440px and 390px for disclosure a
 the exact expiry transition as well as the earlier consent/recovery cases. All
 accounts, dates and databases are synthetic. Hosted and real authenticated staging
 remain unverified; rollout and the full roadmap remain unfinished.
+
+## Achievement source timing prerequisite — 6 November 2026
+
+`achievementSourceTime.js` now retains timing for newly unlocked `quest-1`,
+`quest-25`, `quest-100`, `event-1`, `event-10` and `event-25` achievements. It does
+not add permanent XP, seasonal points, coins or a new reward rule. The season
+catalog still rejects an achievement source; reviewed seasonal point definitions
+and consumption remain the next integration step. Other achievement families
+still require suitable original source evidence and timing contracts.
+
+Permanent achievement `unlocked_at` is a reconciliation date and is never used
+as the source achievement date. Quest-count awards use the original authoritative
+clock of the qualifying threshold completion; paid-event-count awards use the
+qualifying staff confirmation clock. Paid confirmation is not automatically
+verified actual attendance time. Only the matching player's source records count;
+RSVPs, registrations and unpaid event rows do not.
+
+All source clocks in the inspected counter history must be known and unambiguous:
+an unknown completion might precede the apparent threshold. At most 10,000 rows
+are inspected; larger/uncertain histories retain no new timing rather than
+guessing. Threshold rows are ordered by UTC source clock and stable source identity,
+with explicit tie handling. Future clocks use the existing two-minute collection
+tolerance but are withheld from reads until reached.
+
+The additive permanent `progression_achievement_sources` receipt retains the
+existing player/achievement binding, qualifying source clock, explicit basis,
+receiving clock and hashes binding the award and qualifying source evidence.
+It does not copy event titles, source IDs, quest periods, route/location records
+or a full activity history. No player API exposes it yet. Its lifetime follows
+the original permanent achievement; deleting that award removes its receipt in
+the same database operation even when foreign-key enforcement is disabled.
+Withdrawing an award preserves its audit history and withholds timing instead.
+
+Only a newly inserted achievement invokes the collector. Existing awards are not
+backfilled or upgraded by duplicate reconciliation, and an existing receipt's
+source time never changes. New achievement inserts and their receipts share a
+savepoint, so receipt failure rolls back that unlock set. Existing permanent XP
+and level rewards use their already-separate transaction: a later achievement
+audit failure does not reverse previously committed XP/coins. Retrying the same
+XP request remains idempotent and never repays a level reward; later achievement
+reconciliation can finish its own audit without manufacturing more XP.
+
+The read helper performs no writes. It recomputes source evidence and compares
+hashes, original award, source clock and basis. Changed/deleted source records,
+new earlier imports that change the threshold, malformed award metadata, pending
+reviews, withdrawals and future/incompatible receipt clocks make timing
+unavailable. It never repairs or rewrites the first receipt. Operational correction
+and real producer review remain rollout gates.
+
+**107 distinct affected checks pass** across the new collector and existing
+season, quest, permanent progression, achievement/review, combat/species, life,
+Prime and Territory achievement paths. Cases include delayed reconciliation,
+identity separation, unknown clocks, source mutation, legacy retries, atomic
+receipt failure, deletion lifecycle and unchanged existing level payments. The
+achievement and season hosted workflows include the new tests but remain local.
+This addition has no new player UI; the homepage planning note is asset v122.
+Nothing has been pushed, deployed or enabled, and no real data was inspected or
+altered. Roadmap #4 and the full roadmap remain unfinished.

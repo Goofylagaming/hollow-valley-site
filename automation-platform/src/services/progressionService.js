@@ -105,6 +105,7 @@ store.db.exec(`
 `);
 
 const sourceTimes=sourceTimeEvidence.createProgressionSourceTimeStore(store.db);
+const achievementSourceTimes=require('./achievementSourceTime').createAchievementSourceTimeStore(store.db);
 
 function parseJson(value) {
   try { return JSON.parse(value || '{}'); } catch { return {}; }
@@ -316,6 +317,8 @@ function unlockEligibleAchievements(steamId) {
   const counters = countersFor(steam);
   const unlocked = [];
 
+  store.db.exec('SAVEPOINT progression_achievement_unlock');
+  try {
   for (const definition of ACHIEVEMENTS) {
     if (Number(counters[definition.type] || 0) < Number(definition.threshold || 0)) continue;
     const result = store.db.prepare(`
@@ -328,8 +331,13 @@ function unlockEligibleAchievements(steamId) {
       value: Number(counters[definition.type] || 0),
       ...(counters.evidence?.[definition.type] ? { evidence:counters.evidence[definition.type] } : {}),
     }));
-    if (Number(result.changes || 0) > 0) unlocked.push({ ...definition });
+    if (Number(result.changes || 0) > 0) {
+      achievementSourceTimes.recordNewAward(steam,definition.id);
+      unlocked.push({ ...definition });
+    }
   }
+  store.db.exec('RELEASE progression_achievement_unlock');
+  } catch(error) { store.db.exec('ROLLBACK TO progression_achievement_unlock; RELEASE progression_achievement_unlock'); throw error; }
   return unlocked;
 }
 
