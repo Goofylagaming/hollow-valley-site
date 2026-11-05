@@ -6,6 +6,7 @@ const { deriveLifeSource } = require('./achievementLifeSource');
 const { deriveCombatSource, deriveTerritorySource } = require('./achievementBattleSource');
 const { deriveLevelSource, derivePlaytimeSource, sourceInfrastructure } = require('./achievementProgressionSource');
 const { derivePrimeSource, primeInfrastructure } = require('./primeObservationStore');
+const { deriveSkinOwnershipSource, skinOwnershipInfrastructure } = require('./skinOwnershipSource');
 const CONTRACTS = Object.freeze({
   'quest-1': { type: 'quests', threshold: 1, basis: 'quest-threshold' },
   'quest-25': { type: 'quests', threshold: 25, basis: 'quest-threshold' },
@@ -28,6 +29,7 @@ const CONTRACTS = Object.freeze({
   'playtime-250h': { type: 'playtime_minutes', threshold: 15000, basis: 'playtime-interval-threshold' },
   'playtime-500h': { type: 'playtime_minutes', threshold: 30000, basis: 'playtime-interval-threshold' },
   'prime-observed': { type: 'prime_observed', threshold: 1, basis: 'first-prime-observation' },
+  'skins-10': { type: 'owned_skins', threshold: 10, basis: 'recorded-skin-ownership-crossing' },
 });
 function createAchievementSourceTimeStore(db, { now = Date.now, initialize = true } = {}) {
   if (initialize) db.exec(`CREATE TABLE IF NOT EXISTS progression_achievement_sources (
@@ -46,6 +48,11 @@ function createAchievementSourceTimeStore(db, { now = Date.now, initialize = tru
     if (!saved) return null;
     let meta; try { meta = JSON.parse(saved.metadata_json); } catch { return null; }
     if (meta?.type !== contract.type || meta.threshold !== contract.threshold || !Number.isFinite(meta.value) || meta.value < contract.threshold) return null;
+    if (achievementId==='skins-10') {
+      if (!Number.isSafeInteger(meta.value)) return null;
+      const source=deriveSkinOwnershipSource(db,steamId,{asOf:now()});
+      return source ? {awardDigest:digest(saved),basis:contract.basis,sourceAt:source.sourceAt,evidenceDigest:digest(source.evidence)} : null;
+    }
     if (achievementId==='prime-observed') {
       if (meta.value!==1) return null;
       const source=derivePrimeSource(db,steamId,{asOf:now()});
@@ -117,6 +124,7 @@ function createAchievementSourceTimeStore(db, { now = Date.now, initialize = tru
 }
 function checkAchievementInfrastructure(db,awards) {
   for (const award of awards) {
+    if (award.id==='skins-10' && !skinOwnershipInfrastructure(db)) throw Object.assign(new Error('Prepare the skin ownership crossing audit before reviewing these season points'),{status:503});
     if (award.id==='prime-observed' && !primeInfrastructure(db)) throw Object.assign(new Error('Prepare the Prime observation audit before reviewing these season points'),{status:503});
     if (!sourceInfrastructure(db,CONTRACTS[award.id]?.type)) throw Object.assign(new Error('Prepare the level/playtime source audit before reviewing these season points'),{status:503});
   }

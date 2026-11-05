@@ -10,6 +10,15 @@ on:
       - 'automation-platform/test/achievementProgressionSource.test.js'
       - 'automation-platform/src/services/progressionSourceTime.js'
       - 'automation-platform/src/services/achievementSourceTime.js'
+      - 'automation-platform/src/services/skinOwnershipSource.js'
+      - 'automation-platform/src/services/economyStore.js'
+      - 'automation-platform/src/services/skinPresetService.js'
+      - 'automation-platform/test/skinOwnershipSource.test.js'
+      - 'automation-platform/test/skinOwnershipSeason.test.js'
+      - 'automation-platform/test/skinPresets.test.js'
+      - 'automation-platform/test/skinGift*.test.js'
+      - 'automation-platform/test/skinPromo*.test.js'
+      - 'automation-platform/test/premiumSkins*.test.js'
       - 'automation-platform/src/services/primeObservationStore.js'
       - 'automation-platform/src/services/playerPresenceService.js'
       - 'automation-platform/test/primeObservationSource.test.js'
@@ -72,6 +81,7 @@ jobs:
       - run: node --test automation-platform/test/achievementProgressionSource.test.js
       - run: node --test automation-platform/test/achievementBattleSource.test.js
       - run: node --test automation-platform/test/achievementLifeSource.test.js
+      - run: node --test automation-platform/test/skinOwnershipSource.test.js automation-platform/test/skinOwnershipSeason.test.js automation-platform/test/skinPresets.test.js automation-platform/test/skinGift.test.js automation-platform/test/skinGiftConcurrency.test.js automation-platform/test/skinPromo.test.js automation-platform/test/skinPromoConcurrency.test.js automation-platform/test/premiumSkins.test.js automation-platform/test/premiumSkinsReview.test.js
       - run: node --test automation-platform/test/primeObservationSource.test.js automation-platform/test/primeAchievement.test.js automation-platform/test/primeZoneReset.test.js automation-platform/test/playerPresence.test.js automation-platform/test/presenceFeedEndpoint.test.js test/primePresenceClock.test.js
       - run: node --test automation-platform/test/achievementSourceTime.test.js
       - run: node --test automation-platform/test/progressionSourceTime.test.js automation-platform/test/territoryLegacyRecords.test.js test/achievementReviewHttp.test.js automation-platform/test/achievementReview.test.js test/territoryVictoryReview.test.js test/territoryVictoryRuntime.test.js test/territoryVictoryDelivery.test.js automation-platform/test/territoryVictoryResults.test.js test/territoryBattleProvenance.test.js test/territoryAdminHttp.test.js test/territoryAdminRelease.test.js test/territoryControl.test.js automation-platform/test/lifeSurvivalAchievement.test.js automation-platform/test/nestedAdultAchievement.test.js test/valleyLegacy.test.js automation-platform/test/primeAchievement.test.js test/gameCombatLine.test.js automation-platform/test/combatSpeciesAchievements.test.js automation-platform/test/combatEventService.test.js automation-platform/test/combatRoutes.test.js automation-platform/test/combatCalendarReset.test.js automation-platform/test/progressionService.test.js

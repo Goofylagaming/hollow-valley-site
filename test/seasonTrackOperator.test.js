@@ -86,3 +86,15 @@ test('operator dry runs require the dated Prime observation schema rather than o
  try{db.exec('CREATE TABLE progression_achievements(steam_id TEXT,achievement_id TEXT,metadata_json TEXT,unlocked_at TEXT,PRIMARY KEY(steam_id,achievement_id))');require('../automation-platform/src/services/achievementSourceTime').createAchievementSourceTimeStore(db);}finally{db.close();}
  const before=fs.readFileSync(f.database);assert.throws(()=>main(['stage','--file',f.file,'--database',f.database,'--reviewer',REVIEWER,'--digest',review.digest]),/Prime observation audit/);assert.deepEqual(fs.readFileSync(f.database),before);
 });
+
+test('skin point review requires prepared ownership hooks and never initializes or repairs them during a dry run',t=>{
+ const f=fixture(t),def={...f.definition,achievementPoints:{policy:'qualifying-source-time',awards:[{id:'skins-10',xp:55}]}};
+ fs.writeFileSync(f.file,JSON.stringify(def));const review=main(['review','--file',f.file]);let db=new DatabaseSync(f.database);
+ db.exec('CREATE TABLE progression_achievements(steam_id TEXT,achievement_id TEXT,metadata_json TEXT,unlocked_at TEXT,PRIMARY KEY(steam_id,achievement_id))');require('../automation-platform/src/services/achievementSourceTime').createAchievementSourceTimeStore(db);db.close();
+ const command=['stage','--file',f.file,'--database',f.database,'--reviewer',REVIEWER,'--digest',review.digest];
+ const before=fs.readFileSync(f.database);assert.throws(()=>main(command),/skin ownership crossing audit/);assert.deepEqual(fs.readFileSync(f.database),before);
+ db=new DatabaseSync(f.database);db.exec('CREATE TABLE economy_skin_presets(id TEXT PRIMARY KEY,owner_steam_id TEXT,active INTEGER);CREATE TABLE economy_skin_unlocks(steam_id TEXT,preset_id TEXT);CREATE TABLE economy_skin_grants(steam_id TEXT,preset_id TEXT,revoked_at TEXT)');require('../automation-platform/src/services/skinOwnershipSource').initializeSkinOwnershipSource(db);db.close();
+ const prepared=fs.readFileSync(f.database);assert.equal(main(command).wouldStage,true);assert.deepEqual(fs.readFileSync(f.database),prepared);
+ db=new DatabaseSync(f.database);db.exec('DROP TRIGGER progression_skin_presets_update');db.close();const missing=fs.readFileSync(f.database);
+ assert.throws(()=>main(command),/skin ownership crossing audit/);assert.deepEqual(fs.readFileSync(f.database),missing);
+});

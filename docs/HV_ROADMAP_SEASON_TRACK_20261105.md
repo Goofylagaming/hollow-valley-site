@@ -63,7 +63,7 @@ reward. Existing paid quest/level behavior is regression-tested with synthetic d
 
 Original #4 wording and historical votes remain. The feature leaves the active
 ballot during development, freeing its old votes without deleting them. Eight
-ideas remain eligible. Homepage planning asset version is 127. No production
+ideas remain eligible. Homepage planning asset version is 128. No production
 completion date is assigned.
 
 ## Local verification
@@ -715,3 +715,62 @@ include the new source and presence checks. Hosted checks and authenticated stag
 have not run for this local branch. Real producer cadence, season/point choices,
 reward fulfillment and operational recovery still require review. No branch was
 pushed, no merge/deployment occurred, and no rollout or real player data changed.
+
+
+## Recorded collector ownership crossings — 6 November 2026
+
+Optional reviewed seasonal points now support all 22 existing achievement IDs,
+including `skins-10`. This adds a timing contract, not new permanent eligibility,
+point amounts, live seasons or reward payouts. The source basis is explicitly
+`recorded-skin-ownership-crossing`: the recorded change that first brings the
+active personal collection from nine to ten after audit initialization. It does
+not infer original acquisition dates from today's inventory or badge unlock time.
+The Quests policy and confirmation explain creation, purchases and personal grants,
+exclude shared catalog access, and disclose that older collections have no new date.
+Season asset v8 and homepage roadmap v128 remain local; #4 remains Building/Testing.
+
+Economy initialization atomically records existing distinct ownership counts only.
+An account already at ten receives an undated qualified baseline, so dropping below
+ten and later returning cannot create a new clock. Existing badges never receive
+timing on retry. Database hooks cover preset ownership/activation, purchase unlocks
+and personal grants (including revocation, renewal and gifts). Each skin counts
+once across entitlement paths; inactive skins and revoked grants do not count.
+Cosmetic edits and catalog access never create a milestone. Candidate IDs use
+existing owner/account indexes instead of scanning the full shared catalog.
+
+A new crossing records its stable source position, account, database clock, nine-to-ten
+counts and ten sorted skin identities with boolean ownership paths. It copies no
+palette, skin name, description, price, grant note or third-party owner identity.
+The first receipt remains historical after later legitimate gifting, deletion,
+revocation or reactivation. It is not a requirement to keep owning ten forever,
+matching the existing permanent badge. Evidence edits or deletion withhold copied
+season points through the existing receipt hash and review checks. Current count
+inconsistency, unsupported source shape and missing/replaced hooks also withhold
+source timing. Reads return one bounded ten-skin snapshot and perform no repair.
+
+The audit commits inside the actual ownership transaction. A failure rolls back the
+skin change and any enclosing purchase charge; retries preserve the first result.
+Grant renewal uses conflict-safe trigger predicates compatible with the existing
+upsert. A slight SQLite/JavaScript clock difference can be captured within the
+shared two-minute skew limit, but the standard reader does not expose seasonal
+points before the recorded source time arrives. Source/consent floors and season
+windows remain unchanged.
+
+The hooks and version marker are required before operator staging can select this
+policy. Dry runs inspect without changing database bytes. Startup rejects missing
+or changed hooks in an already initialized audit rather than silently repairing a
+collection gap; recovery needs explicit evidence review. This schema/transaction
+coupling audits economy ownership changes even while the seasonal rollout is off,
+and must be included in authenticated staging and backup review. No production
+schema or flags were changed in this session.
+
+**188 affected checks pass**, including actual paid purchases, unchanged permanent
+XP, no extra coins, debit rollback/retry, personal grants and renewal, legacy
+initialization, activation/transfer, distinct paths, immutable first clocks,
+malformed/deleted evidence, operator byte preservation, and existing concurrent
+gifting/promotion workflows. Desktop/mobile season fixtures pass at 1440px and
+390px with skin policy confirmation, separate points and evidence withdrawal;
+the phone rendering was inspected. CI paths and commands include these checks.
+Hosted CI, real policy choices, reward fulfillment, producer review, operational
+recovery and authenticated staging remain unfinished. No push, merge, deployment,
+real player mutation or payout was performed; the full roadmap remains active.
