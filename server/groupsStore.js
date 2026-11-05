@@ -53,9 +53,14 @@ function expireInvites(gid){db.prepare("UPDATE hv_group_invites SET status='expi
 function recordExit(member,g,outcome,snapshot){db.prepare(`
  INSERT INTO hv_group_history(steam_id,group_id,group_name,role,joined_at,outcome,members_snapshot)
  VALUES(?,?,?,?,?,?,?)`).run(member.steamId,g.id,g.name,member.role,member.joinedAt,outcome,JSON.stringify(snapshot.map(m=>m.username)));}
+function cosmeticFrame(groupId){
+ const exists=db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='hv_group_cosmetic_selection'").get();
+ const frame=exists&&db.prepare('SELECT frame FROM hv_group_cosmetic_selection WHERE group_id=?').get(groupId)?.frame;
+ return ['fern','sandstone','night'].includes(frame)?frame:'none';
+}
 function getState(rawSteam){
  const s=steamId(rawSteam),g=current(s);
- const own=g?{...g,members:membersOf(g.id),capacity:CAPACITY,closure:treasuryLifecycle.status(g.id),
+ const own=g?{...g,members:membersOf(g.id),capacity:CAPACITY,closure:treasuryLifecycle.status(g.id),cosmeticFrame:cosmeticFrame(g.id),
   sentInvites:db.prepare(`
    SELECT i.id,i.invitee_steam_id AS steamId,COALESCE(u.username,'Steam player') AS username,
    i.created_at AS createdAt FROM hv_group_invites i LEFT JOIN users u ON u.steam_id=i.invitee_steam_id

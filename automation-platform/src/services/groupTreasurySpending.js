@@ -2,8 +2,9 @@ const {randomUUID}=require('node:crypto');
 const {balances}=require('./groupTreasuryAccounting');
 const error=(code,message,status=400)=>Object.assign(new Error(message),{code,status});
 const FRAMES=['fern','sandstone','night'];
-// Internal accounting only. Callers must establish trusted catalog-review and
-// current website-group owner authority. No runtime spending route is mounted.
+// Trusted catalog review and current website-group owner authority are checked
+// by callers. Private purchase RPCs bind cosmetic requests; external delivery
+// dispatch and proof ingestion still require their dedicated verified adapter.
 function createGroupTreasurySpending(store,{enabled=()=>process.env.GROUP_TREASURY_ENABLED==='1'&&process.env.GROUP_TREASURY_SPEND_ENABLED==='1',verifyFulfillment=null}={}){
   require('./groupTreasuryService').createGroupTreasury(store);
   const db=store.db;

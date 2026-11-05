@@ -4,6 +4,7 @@ const {chromium}=require('playwright');
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'hv-treasury-browser-'));
 process.env.DB_PATH=path.join(temp,'website.sqlite');process.env.AUTOMATION_DB_PATH=path.join(temp,'economy.sqlite');
 process.env.GROUP_TREASURY_ENABLED='1';process.env.GROUP_HQ_ENABLED='0';process.env.HOLLOW_VALLEY_API_TOKEN='synthetic-treasury-browser-token';
+process.env.GROUP_TREASURY_SPEND_ENABLED='0';
 for(const key of ['GROUP_TREASURY_READ_ONLY','SKIN_STUDIO_READ_ONLY','RENDER_SERVICE_ID','RENDER_EXTERNAL_URL','PUBLIC_SITE_URL','STEAM_REALM','STEAM_RETURN_URL'])delete process.env[key];
 const {db}=require('../server/db'),groups=require('../server/groupsStore'),economy=require('../automation-platform/src/services/economyStore');
 const spending=require('../automation-platform/src/services/groupTreasurySpending').createGroupTreasurySpending(economy,{enabled:()=>true});

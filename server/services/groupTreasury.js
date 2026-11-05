@@ -94,9 +94,11 @@ function createGroupTreasury(db,groups,client,{now=()=>new Date().toISOString(),
   }
   function overview(steam){
     steamId(steam);const group=groups.getState(steam).current;
+    const hasPurchases=db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='hv_group_treasury_purchases'").get();
     return {group:group?{id:group.id,name:group.name,closing:Boolean(lifecycle.status(group.id))}:null,
       donations:db.prepare('SELECT * FROM hv_group_treasury_intents WHERE steam_id=? ORDER BY rowid DESC LIMIT 20').all(steam).map(project),
-      hasGroupActivity:Boolean(group&&db.prepare("SELECT id FROM hv_group_treasury_intents WHERE group_id=? AND state IN('submitted','confirmed') LIMIT 1").get(group.id))};
+      hasGroupActivity:Boolean(group&&(db.prepare("SELECT id FROM hv_group_treasury_intents WHERE group_id=? AND state IN('submitted','confirmed') LIMIT 1").get(group.id)||
+        (hasPurchases&&db.prepare('SELECT request_id FROM hv_group_treasury_purchases WHERE group_id=? LIMIT 1').get(group.id))))};
   }
   async function current(steam){
     const {group,donations}=overview(steam);
