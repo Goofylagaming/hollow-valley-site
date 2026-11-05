@@ -42,6 +42,7 @@ function createLegacyStore(db, { now = Date.now } = {}) {
     CREATE TABLE IF NOT EXISTS vl_lives (id TEXT PRIMARY KEY, steam_id TEXT NOT NULL, name TEXT NOT NULL, species TEXT NOT NULL, started_at INTEGER NOT NULL, last_at INTEGER NOT NULL, ended_at INTEGER, growth REAL, location TEXT, mutations TEXT NOT NULL DEFAULT '[]', generation INTEGER NOT NULL DEFAULT 1);
     CREATE UNIQUE INDEX IF NOT EXISTS vl_one_life ON vl_lives(steam_id) WHERE ended_at IS NULL;
     CREATE INDEX IF NOT EXISTS vl_lives_player ON vl_lives(steam_id, started_at);
+    CREATE TABLE IF NOT EXISTS vl_life_closures(life_id TEXT PRIMARY KEY,reason TEXT NOT NULL,at INTEGER NOT NULL,event_id TEXT);
     CREATE TABLE IF NOT EXISTS vl_mastery (steam_id TEXT NOT NULL, species TEXT NOT NULL, seconds INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(steam_id,species));
     CREATE TABLE IF NOT EXISTS vl_records (scope TEXT NOT NULL, metric TEXT NOT NULL, subject TEXT NOT NULL, name TEXT NOT NULL, value REAL NOT NULL, achieved_at INTEGER NOT NULL, PRIMARY KEY(scope,metric,subject));
     CREATE TABLE IF NOT EXISTS vl_events (id TEXT PRIMARY KEY, payload TEXT NOT NULL, occurred_at INTEGER NOT NULL);
@@ -53,6 +54,25 @@ function createLegacyStore(db, { now = Date.now } = {}) {
     CREATE TABLE IF NOT EXISTS vl_requests (id TEXT PRIMARY KEY, nest TEXT NOT NULL, player TEXT NOT NULL, name TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', created_at INTEGER NOT NULL, UNIQUE(nest,player));
     CREATE TABLE IF NOT EXISTS vl_state (key TEXT PRIMARY KEY, value TEXT NOT NULL);
     COMMIT;`);
+  const journeys = require('./journeyStore').createJourneyStore(db,{now,describeLife:(steamId,lifeId)=>{
+    const row=db.prepare(`SELECT id,species,started_at,last_at,ended_at FROM vl_lives WHERE steam_id=? AND id=?`).get(steamId,lifeId);
+    if(!row)return null;
+    const closure=db.prepare('SELECT reason,at FROM vl_life_closures WHERE life_id=?').get(lifeId);
+    // Only events bracketed by connected, retained samples are attributed to
+    // this observation segment. Gaps and deleted/expired points cannot qualify.
+    const cutoff=now()-30*86400000;
+    const combat=db.prepare(`WITH samples AS MATERIALIZED (
+      SELECT at,break_before,LAG(at) OVER (ORDER BY at) AS previous_at
+      FROM journey_points WHERE steam_id=? AND life_id=? AND at>=?
+    ) SELECT occurred_at AS at FROM vl_events
+      WHERE json_extract(payload,'$.steamId')=? AND json_extract(payload,'$.type')='combat_kill'
+      AND occurred_at>=? AND occurred_at<=?
+      AND EXISTS(SELECT 1 FROM samples WHERE break_before=0 AND previous_at<occurred_at AND at>=occurred_at)
+      ORDER BY occurred_at DESC,id DESC LIMIT 21`).all(steamId,lifeId,cutoff,steamId,Math.max(row.started_at,cutoff),row.last_at);
+    return {id:row.id,species:row.species,firstObservedAt:row.started_at,lastObservedAt:row.last_at,
+      endedAt:row.ended_at,closureReason:closure?.reason||null,
+      combatEvents:combat.slice(0,20).map(event=>({type:'combat_kill',at:event.at})),combatEventsLimited:combat.length>20};
+  }});
   const initial = now();
   db.prepare("INSERT OR IGNORE INTO vl_state VALUES ('started', ?)").run(
     String(initial),
@@ -153,7 +173,7 @@ function createLegacyStore(db, { now = Date.now } = {}) {
         const loc =
           p.location &&
           [p.location.x, p.location.y].every(
-            (v) => v != null && Number.isFinite(Number(v)),
+            (v) => ['number','string'].includes(typeof v) && String(v).trim()!=='' && Number.isFinite(Number(v)),
           )
             ? { x: Number(p.location.x), y: Number(p.location.y) }
             : null;
@@ -168,6 +188,8 @@ function createLegacyStore(db, { now = Date.now } = {}) {
               old.growth != null &&
               growth < old.growth - 0.05))
         ) {
+          const reason=old.species!==sp?'species_changed':at-old.last_at>900000?'observation_gap':'growth_reset';
+          db.prepare('INSERT OR IGNORE INTO vl_life_closures VALUES (?,?,?,NULL)').run(old.id,reason,old.last_at);
           db.prepare("UPDATE vl_lives SET ended_at=last_at WHERE id=?").run(
             old.id,
           );
@@ -242,6 +264,10 @@ function createLegacyStore(db, { now = Date.now } = {}) {
           );
         }
       }
+      journeys.prune();
+      for(const row of db.prepare('SELECT id,steam_id,location FROM vl_lives WHERE last_at=? AND ended_at IS NULL').all(at)) {
+        journeys.record({steamId:row.steam_id,lifeId:row.id,at,location:JSON.parse(row.location||'null')});
+      }
       // Record growth evidence only from accepted samples within the same observed
       // life. No historical first-growth inference or cross-life accumulation.
       for (const p of players) {
@@ -260,11 +286,13 @@ function createLegacyStore(db, { now = Date.now } = {}) {
           "SELECT id,steam_id,last_at FROM vl_lives WHERE ended_at IS NULL",
         )
         .all()) {
-        if (!seen.has(row.steam_id))
+        if (!seen.has(row.steam_id)) {
+          db.prepare('INSERT OR IGNORE INTO vl_life_closures VALUES (?,?,?,NULL)').run(row.id,'not_observed',row.last_at);
           db.prepare("UPDATE vl_lives SET ended_at=? WHERE id=?").run(
             row.last_at,
             row.id,
           );
+        }
       }
       db.prepare(
         "INSERT INTO vl_state VALUES ('snapshot',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
@@ -322,11 +350,15 @@ function createLegacyStore(db, { now = Date.now } = {}) {
       );
       if (e.type === "combat_death") {
         const row = current(e.steamId);
-        if (row && row.started_at <= e.at)
+        // An older death must not close a life with newer alive observations.
+        // Keep unmatched events for later review, without inventing a life link.
+        if (row && row.started_at <= e.at && row.last_at <= e.at && e.at-row.last_at<=120000) {
+          db.prepare('INSERT OR IGNORE INTO vl_life_closures VALUES (?,?,?,?)').run(row.id,'combat_death',e.at,e.id);
           db.prepare("UPDATE vl_lives SET ended_at=? WHERE id=?").run(
             e.at,
             row.id,
           );
+        }
       }
       if (e.type.startsWith("combat_")) {
         // Recompute in event-time order so delayed deaths cannot inflate streaks.
@@ -441,6 +473,7 @@ function createLegacyStore(db, { now = Date.now } = {}) {
       .all(id)
       .map((row) => ({
         ...row,
+        closure: db.prepare('SELECT reason,at,event_id AS eventId FROM vl_life_closures WHERE life_id=?').get(row.id)||null,
         parents: db
           .prepare(
             "SELECT l.id,l.name,l.species FROM vl_parents p JOIN vl_lives l ON l.id=p.parent WHERE p.child=?",
@@ -642,6 +675,7 @@ function createLegacyStore(db, { now = Date.now } = {}) {
   }
   return {
     snapshot,
+    journeys,
     ingest,
     rotate,
     overview,
