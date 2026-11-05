@@ -15,7 +15,7 @@ const fs = require('node:fs'), path = require('node:path'), assert = require('no
         if(!member)return json({error:'An active group membership is required'},404);
         if(route.request().method()==='POST'){
           const body=route.request().postDataJSON();writes.push(body);
-          profile={...profile,description:body.description,revision:profile.revision+1,edits:[{revision:profile.revision+1,description:body.description,createdAt:'2026-11-05'}]};
+          profile={...profile,description:body.description,emblem:body.emblem,revision:profile.revision+1,edits:[{revision:profile.revision+1,description:body.description,createdAt:'2026-11-05'}]};
         }
         return json({...profile,canEdit:owner});
       }
@@ -28,9 +28,9 @@ const fs = require('node:fs'), path = require('node:path'), assert = require('no
     await page.evaluate(()=>{document.querySelectorAll('[hidden]').forEach(el=>{if(el.contains(document.getElementById('group-headquarters')))el.hidden=false;});});
     await page.getByText('You can edit your group description.',{exact:true}).waitFor();
     assert.equal(await page.locator('#group-headquarters img').count(),0);
-    await page.fill('#hq-description','Our group <img src=x>');await page.click('#hq-save');
+    await page.fill('#hq-description','Our group <img src=x>');await page.selectOption('#hq-emblem-choice','sun');await page.click('#hq-save');
     await page.waitForFunction(()=>document.getElementById('hq-current').textContent==='Our group <img src=x>');
-    assert.deepEqual(writes[0],{description:'Our group <img src=x>',expectedRevision:0});assert.equal(await page.locator('#hq-history li').count(),1);
+    assert.deepEqual(writes[0],{description:'Our group <img src=x>',emblem:'sun',expectedRevision:0});assert.equal(await page.locator('#hq-history li').count(),1);
     owner=false;await page.click('#hq-refresh');await page.getByText('The group owner can edit this description.',{exact:true}).waitFor();assert.equal(await page.locator('#hq-editor').isVisible(),false);
     owner=true;readOnly=true;await page.reload();await page.evaluate(()=>{document.querySelectorAll('[hidden]').forEach(el=>{if(el.contains(document.getElementById('group-headquarters')))el.hidden=false;});});await page.getByText('This preview is read-only.',{exact:true}).waitFor();assert.equal(await page.locator('#hq-save').isDisabled(),true);
     member=false;await page.click('#hq-refresh');await page.getByText('An active group membership is required',{exact:true}).waitFor();assert.equal(await page.locator('#hq-history li').count(),0);

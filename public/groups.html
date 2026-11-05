@@ -76,11 +76,14 @@
         </section>
         <section class="panel groups-card" id="group-headquarters" hidden>
           <h2>Group Headquarters</h2><h3 id="hq-name"></h3>
+          <p id="hq-emblem" aria-label="Group emblem"></p>
           <p id="hq-current" style="white-space:pre-wrap;overflow-wrap:anywhere"></p>
           <p id="hq-status" role="status" aria-live="polite"></p>
           <button id="hq-refresh" type="button" class="small-button">Refresh Headquarters</button>
           <div id="hq-editor" hidden><form id="hq-form" class="groups-form">
             <label for="hq-description">Group description</label>
+            <label for="hq-emblem-choice">Emblem</label>
+            <select id="hq-emblem-choice" disabled><option value="leaf">Leaf</option><option value="claw">Claw</option><option value="mountain">Mountain</option><option value="sun">Sun</option></select>
             <textarea id="hq-description" maxlength="2000" rows="5" style="width:100%;box-sizing:border-box" disabled></textarea>
             <button id="hq-save" class="small-button" disabled>Save description</button>
           </form></div>
@@ -100,6 +103,6 @@
   </div>
   <script src="/assets/common.js?v=22"></script>
   <script src="/assets/groups.js?v=4"></script>
-  <script src="/assets/group-headquarters.js?v=1"></script>
+  <script src="/assets/group-headquarters.js?v=2"></script>
 </body>
 </html>

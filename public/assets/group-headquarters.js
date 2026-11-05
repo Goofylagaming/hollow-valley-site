@@ -4,6 +4,7 @@
   let profile = null, writable = false, busy = false, active = false;
   function controls() {
     get('hq-description').disabled = busy || !writable || !profile?.canEdit;
+    get('hq-emblem-choice').disabled = busy || !writable || !profile?.canEdit;
     get('hq-save').disabled = busy || !writable || !profile?.canEdit;
     get('hq-refresh').disabled = busy;
   }
@@ -12,11 +13,13 @@
     get('hq-name').textContent = profile.name;
     get('hq-current').textContent = profile.description || 'Your group has no description yet.';
     get('hq-description').value = profile.description;
+    get('hq-emblem-choice').value = profile.emblem || 'leaf';
+    get('hq-emblem').textContent = {leaf:'🌿 Leaf',claw:'🐾 Claw',mountain:'⛰ Mountain',sun:'☀ Sun'}[profile.emblem || 'leaf'];
     get('hq-editor').hidden = !profile.canEdit;
     const history = get('hq-history'); history.replaceChildren();
     for (const edit of profile.edits) {
       const item = document.createElement('li');
-      item.textContent = `Revision ${edit.revision} · ${edit.createdAt} · ${edit.description || '(description cleared)'}`;
+      item.textContent = `Revision ${edit.revision} · ${edit.createdAt} · ${edit.emblem || 'leaf'} · ${edit.description || '(description cleared)'}`;
       history.append(item);
     }
     get('hq-status').textContent = writable ? (profile.canEdit ? 'You can edit your group description.' : 'The group owner can edit this description.') : 'This preview is read-only.';
@@ -26,12 +29,12 @@
     if (busy) return;
     busy = true; controls();
     try {
-      if (save) await api('/api/group-headquarters', { method: 'POST', body: JSON.stringify({ description: get('hq-description').value, expectedRevision: profile.revision }) });
+      if (save) await api('/api/group-headquarters', { method: 'POST', body: JSON.stringify({ description: get('hq-description').value, emblem: get('hq-emblem-choice').value, expectedRevision: profile.revision }) });
       await refresh();
     } catch (error) {
       // Recover ownership and revision after a response is lost or membership changes.
       try { await refresh(); }
-      catch { profile = null; get('hq-current').textContent = ''; get('hq-description').value = ''; get('hq-history').replaceChildren(); get('hq-editor').hidden = true; }
+      catch { profile = null; get('hq-current').textContent = ''; get('hq-emblem').textContent = ''; get('hq-description').value = ''; get('hq-history').replaceChildren(); get('hq-editor').hidden = true; }
       get('hq-status').textContent = error.message;
     } finally { busy = false; controls(); }
   }
@@ -41,8 +44,9 @@
     if (!active) return;
     if (profile?.groupId !== event.detail?.groupId) {
       profile = null; get('hq-current').textContent = ''; get('hq-description').value = '';
+      get('hq-emblem').textContent = '';
       get('hq-history').replaceChildren(); get('hq-editor').hidden = true;
-    } else if (get('hq-description').value !== profile.description) return;
+    } else if (get('hq-description').value !== profile.description || get('hq-emblem-choice').value !== profile.emblem) return;
     action();
   });
   (async () => {
