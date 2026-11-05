@@ -34,12 +34,37 @@ function createDynamicChallengeStore(db, {now=Date.now, enabled=()=>process.env.
     CREATE TABLE IF NOT EXISTS dc_settings(steam_id TEXT PRIMARY KEY, revision INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS dc_requests(steam_id TEXT NOT NULL, request_key TEXT NOT NULL, expected_revision INTEGER NOT NULL,
       selected INTEGER NOT NULL, revision INTEGER NOT NULL, accepted_at INTEGER NOT NULL, PRIMARY KEY(steam_id,request_key));
-    CREATE INDEX IF NOT EXISTS dc_requests_recent ON dc_requests(steam_id,accepted_at);`);
+    CREATE TABLE IF NOT EXISTS dc_runtime(id INTEGER PRIMARY KEY CHECK(id=1),active INTEGER NOT NULL,resumed_at INTEGER NOT NULL);
+    CREATE INDEX IF NOT EXISTS dc_requests_recent ON dc_requests(steam_id,accepted_at);
+    CREATE INDEX IF NOT EXISTS dc_evidence_retention ON dc_evidence(period_start);
+    CREATE INDEX IF NOT EXISTS dc_cursor_age ON dc_cursor(at);`);
   function transaction(fn,write=false) {
     db.exec(write?'BEGIN IMMEDIATE':'SAVEPOINT dynamic_challenges');
     try { const result=fn(); db.exec(write?'COMMIT':'RELEASE dynamic_challenges'); return result; }
     catch(error) { db.exec(write?'ROLLBACK':'ROLLBACK TO dynamic_challenges; RELEASE dynamic_challenges'); throw error; }
   }
+  function synchronizeTracking() {
+    const active=Number(Boolean(enabled()));
+    const old=db.prepare('SELECT active FROM dc_runtime WHERE id=1').get();
+    if(!old || old.active!==active || !active) {
+      db.prepare('DELETE FROM dc_cursor').run();
+      db.prepare('INSERT INTO dc_runtime VALUES (1,?,?) ON CONFLICT(id) DO UPDATE SET active=excluded.active,resumed_at=excluded.resumed_at').run(active,now());
+    }
+    return Boolean(active);
+  }
+  function prune() {
+    // Also runs when snapshots stop or tracking is disabled. Consent and replay
+    // receipts are retained; only private gameplay evidence expires here.
+    return transaction(()=>{
+      synchronizeTracking();
+      const evidence=db.prepare('DELETE FROM dc_evidence WHERE period_start<?').run(now()-35*DAY).changes;
+      const cursors=db.prepare('DELETE FROM dc_cursor WHERE at<?').run(now()-900000).changes;
+      return {evidence:Number(evidence),cursors:Number(cursors)};
+    });
+  }
+  // Starting with tracking disabled must durably break continuity even if no
+  // snapshot arrives before a later restart enables the feature again.
+  prune();
   function change(id, {selected,expectedRevision,requestKey}={}) {
     steam(id);
     if (!enabled()) fail('Dynamic challenges are disabled',503);
@@ -72,7 +97,9 @@ function createDynamicChallengeStore(db, {now=Date.now, enabled=()=>process.env.
   // Only call inside the accepted Legacy snapshot transaction. No positions,
   // names, private journey receipts or inferred event attendance are consumed.
   function observe(rows, at) {
-    if (!enabled() || !Number.isSafeInteger(at) || at>now()+120000) return;
+    if (!synchronizeTracking() || !Number.isSafeInteger(at) || at>now()+120000) return;
+    // Delayed samples from a disabled interval cannot backfill after re-enable.
+    if(at<db.prepare('SELECT resumed_at FROM dc_runtime WHERE id=1').get().resumed_at) return;
     for(const row of rows) {
       const species=canonicalCombatSpecies(ALIASES[row.species]||row.species);
       if(!species) continue;
@@ -124,6 +151,6 @@ function createDynamicChallengeStore(db, {now=Date.now, enabled=()=>process.env.
       return {...p.definition,cadence:p.cadence,startsAt:p.start,endsAt:p.end,progress:Math.min(p.definition.target,amount),completed:amount>=p.definition.target};
     })};
   }
-  return {change,observe,status};
+  return {change,observe,status,prune};
 }
 module.exports={createDynamicChallengeStore,periods};
