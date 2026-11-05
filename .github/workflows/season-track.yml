@@ -3,6 +3,9 @@ on:
   pull_request:
     paths:
       - 'automation-platform/src/services/progressionService.js'
+      - 'automation-platform/src/services/progressionRules.js'
+      - 'automation-platform/src/services/achievementProgressionSource.js'
+      - 'automation-platform/test/achievementProgressionSource.test.js'
       - 'automation-platform/src/services/progressionSourceTime.js'
       - 'automation-platform/src/services/achievementSourceTime.js'
       - 'automation-platform/src/services/achievementLifeSource.js'
@@ -45,6 +48,7 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node --test automation-platform/test/achievementProgressionSource.test.js
       - run: node --test automation-platform/test/achievementBattleSource.test.js
       - run: node --test automation-platform/test/achievementLifeSource.test.js
       - run: node --test automation-platform/test/seasonAchievementPoints.test.js automation-platform/test/achievementSourceTime.test.js automation-platform/test/seasonTrackService.test.js test/seasonTrackRoutes.test.js automation-platform/test/seasonTrackStore.test.js test/seasonTrackOperator.test.js automation-platform/test/progressionSourceTime.test.js automation-platform/test/progressionService.test.js automation-platform/test/questBoosts.test.js automation-platform/test/questChallengeExpansion.test.js test/valleyLegacyTelemetry.test.js test/roadmapCommunity.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js test/questPolling.test.js

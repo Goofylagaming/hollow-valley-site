@@ -3,9 +3,8 @@ const store = require('./economyStore');
 const evidenceReview = require('./achievementEvidenceReview').createAchievementEvidenceReview(store.db);
 const sourceTimeEvidence = require('./progressionSourceTime');
 
-const PLAYTIME_XP_PER_5_MINUTES = 10;
+const { PLAYTIME_XP_PER_5_MINUTES, MAX_LEVEL, xpToReachLevel, levelFromXp } = require('./progressionRules');
 const LEVEL_REWARD_VC = 100;
-const MAX_LEVEL = 999;
 
 const QUEST_XP = Object.freeze({
   'daily-consecutive-1h': 250,
@@ -106,6 +105,7 @@ store.db.exec(`
 
 const sourceTimes=sourceTimeEvidence.createProgressionSourceTimeStore(store.db);
 const achievementSourceTimes=require('./achievementSourceTime').createAchievementSourceTimeStore(store.db);
+const levelSources=require('./achievementProgressionSource').createLevelSourceStore(store.db);
 
 function parseJson(value) {
   try { return JSON.parse(value || '{}'); } catch { return {}; }
@@ -115,24 +115,6 @@ function validateDiscordId(value) {
   const id = String(value || '').trim();
   if (!/^\d{15,22}$/.test(id)) throw new Error('Invalid Discord ID');
   return id;
-}
-
-function xpToReachLevel(level) {
-  const target = Math.max(1, Math.min(MAX_LEVEL, Math.floor(Number(level) || 1)));
-  const steps = target - 1;
-  return steps * 250 + 25 * steps * (steps - 1);
-}
-
-function levelFromXp(xp) {
-  const total = Math.max(0, Math.floor(Number(xp) || 0));
-  let low = 1;
-  let high = MAX_LEVEL;
-  while (low < high) {
-    const mid = Math.ceil((low + high) / 2);
-    if (xpToReachLevel(mid) <= total) low = mid;
-    else high = mid - 1;
-  }
-  return low;
 }
 
 function rankForLevel(level) {
@@ -434,6 +416,7 @@ function awardXp({
       JSON.stringify(metadata || {})
     );
     sourceTimes.recordNewGrant(ledgerId,{source:xpSource,referenceType,sourceTime});
+    levelSources.record(ledgerId,{steamId:steam,oldXp:Number(before.xp || 0),newXp:nextXp,oldLevel,newLevel});
 
     store.db.prepare(`
       UPDATE progression_players

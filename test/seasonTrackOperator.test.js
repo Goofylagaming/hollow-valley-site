@@ -72,3 +72,11 @@ test('achievement point plans require prepared source collection and bind exact 
   fs.writeFileSync(f.file, JSON.stringify({ ...def, achievementPoints: { ...def.achievementPoints, awards: [{ id:'quest-1',xp:26 }] } }));
   assert.throws(() => main([...stage,'--write']), /changed after review/);
 });
+test('operator dry runs reject level points when the XP transition audit has not been prepared',t=>{
+ const f=fixture(t),def={...f.definition,achievementPoints:{policy:'qualifying-source-time',awards:[{id:'first-level',xp:40}]}};
+ fs.writeFileSync(f.file,JSON.stringify(def));const review=main(['review','--file',f.file]);const db=new DatabaseSync(f.database);
+ try{db.exec('CREATE TABLE progression_achievements(steam_id TEXT,achievement_id TEXT,metadata_json TEXT,unlocked_at TEXT,PRIMARY KEY(steam_id,achievement_id))');require('../automation-platform/src/services/achievementSourceTime').createAchievementSourceTimeStore(db);}finally{db.close();}
+ const before=fs.readFileSync(f.database);
+ assert.throws(()=>main(['stage','--file',f.file,'--database',f.database,'--reviewer',REVIEWER,'--digest',review.digest]),/level\/playtime source audit/);
+ assert.deepEqual(fs.readFileSync(f.database),before);
+});

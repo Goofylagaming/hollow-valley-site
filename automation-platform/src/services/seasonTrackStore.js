@@ -1,7 +1,7 @@
 "use strict";
 const { createHash } = require('node:crypto');
 const { parseSourceTimestamp } = require('./progressionSourceTime');
-const { CONTRACTS, createAchievementSourceTimeStore } = require('./achievementSourceTime');
+const { CONTRACTS, createAchievementSourceTimeStore, checkAchievementInfrastructure } = require('./achievementSourceTime');
 
 const SOURCES = Object.freeze({
   playtime: { reference: 'playtime_interval', basis: 'playtime-observation', policy: 'interval-end' },
@@ -162,7 +162,7 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
         return { ...current, duplicate: true };
       }
       if (!value.definition.retainUntil) fail('Review an explicit season retention date before staging');
-      if (value.definition.achievementPoints) achievementStore();
+      if (value.definition.achievementPoints) { achievementStore(); checkAchievementInfrastructure(db,value.definition.achievementPoints.awards); }
       if (Date.parse(value.definition.startsAt) <= now()) fail('Stage a future season; retroactive seasons are not supported');
       db.prepare('INSERT INTO progression_seasons VALUES(?,?,?,?,?,?,?)')
         .run(value.definition.id, JSON.stringify(value.definition), digest, reviewer, now(), 'staged', 1);
@@ -177,7 +177,7 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
     const row = checked(id);
     if (row.digest !== digest || row.revision !== expectedRevision) fail('Season changed; inspect the current review');
     if (action === 'publish') {
-      if (row.definition.achievementPoints) achievementStore();
+      if (row.definition.achievementPoints) { achievementStore(); checkAchievementInfrastructure(db,row.definition.achievementPoints.awards); }
       if (!row.definition.retainUntil) fail('Review retention in a new season definition before publishing');
       if (row.state !== 'staged' || now() >= Date.parse(row.definition.startsAt)) fail('Only a future staged season can be published');
       const others = db.prepare("SELECT id FROM progression_seasons WHERE state='published'").all();

@@ -63,7 +63,7 @@ reward. Existing paid quest/level behavior is regression-tested with synthetic d
 
 Original #4 wording and historical votes remain. The feature leaves the active
 ballot during development, freeing its old votes without deleting them. Eight
-ideas remain eligible. Homepage planning asset version is 125. No production
+ideas remain eligible. Homepage planning asset version is 126. No production
 completion date is assigned.
 
 ## Local verification
@@ -392,7 +392,7 @@ Season definitions can now optionally include this exact shape:
 This fragment is illustrative synthetic policy, not a configured live amount.
 No default point amounts are installed. An operator must review the complete
 season artifact and its new digest, then separately stage/publish it. Each of the
-supported achievement IDs may appear once (currently ten), with an integer
+supported achievement IDs may appear once (currently twenty), with an integer
 award from 1 to 1,000,000 seasonal XP. Unknown policies/IDs, duplicates, prices,
 currency fields and malformed values are rejected. Awards are canonically ordered.
 Definitions without the optional field retain their exact prior digest and behavior.
@@ -416,7 +416,7 @@ strictly before settlement. Legacy unknown timing, late receipts and future cloc
 cannot bypass these rules. An offline player may reconcile timely receipts after
 season closure but before the reviewed retention expiry.
 
-One explicit progress update checks at most ten configured achievement awards in
+One explicit progress update checks at most twenty configured achievement awards in
 addition to the existing bounded XP batch. A separate seasonal evidence table
 copies only the configured point amount, achievement identity, source position,
 timing/basis and binding hashes. Its season/player/achievement key prevents duplicate
@@ -444,7 +444,7 @@ boundaries continue to apply without new mutation endpoints.
 The Quests screen displays each configured achievement and amount before enrollment,
 explains qualifying completion/confirmation dates and shows the achievement portion
 of total season XP. Its review binds the immutable season digest already used by
-participation requests. Player asset v5 and homepage planning asset v125 are local.
+participation requests. Player asset v6 and homepage planning asset v126 are local.
 No actual season, point policy, reward, flag, database or producer has been enabled.
 
 **113 affected checks pass** across reviewed rules, operator readiness/dry runs,
@@ -507,7 +507,7 @@ send a payment/game command. Existing unknown historical awards remain unbackfil
 The existing consent position, settlement cutoff, duplicate-copy, source revalidation,
 erasure/rejoin and reviewed-expiry rules apply to these two added point types. The
 Quests review gives them meaningful labels and uses the same immutable digest as
-the configured amounts. Remaining families—level/playtime, skins and Prime
+the configured amounts. Remaining families—skins and Prime
 achievements—still need trustworthy qualifying-clock contracts
 before they can be selected for seasonal points. Real producer review, approved
 reward fulfillment, live season/point rules, hosted checks and staging remain gates.
@@ -573,7 +573,7 @@ window, receipt settlement cutoff, duplicate-copy protection, read-time validati
 withdrawal/erasure and reviewed retention rules. The Quests review displays meaningful
 combat/capture labels and the exact configured seasonal amount. Permanent badge
 and source rows remain intact when seasonal copies are deleted or unsupported.
-Remaining clocks include levels, playtime totals, skins and Prime; chosen live rules,
+Remaining clocks include skins and Prime; chosen live rules,
 approved reward fulfillment, real producers, operational recovery, hosted checks
 and authenticated staging still need completion.
 
@@ -588,3 +588,87 @@ combined synthetic points, source invalidation/restoration, late-death behavior,
 consent/retry, paused deletion, account changes and expiry. The phone screenshot
 was inspected. Player asset v5 and homepage v125 remain local. No real policy,
 database, flag, deployment, message or game command has been changed.
+
+## Level and playtime milestone source clocks — 6 November 2026
+
+The reviewed policy now also accepts `first-level`, `level-10`, `level-25`,
+`level-50`, `level-100`, `playtime-1h`, `playtime-25h`, `playtime-100h`,
+`playtime-250h` and `playtime-500h`. No point amounts or live policy are installed.
+Existing immutable definitions/digests and permanent eligibility remain unchanged.
+The original XP formulas, 999 level limit, ten XP per five-minute interval and
+100-coin level payment are now shared through pure `progressionRules.js`; their
+values and external progression exports are preserved.
+
+A level source uses the **original activity clock of the grant that crossed its
+official XP threshold in credit order**. It is not a guessed level date computed
+by sorting delayed activity dates, the ledger write date or the badge unlock date.
+A delayed quest may cause a level increase now while retaining its earlier quest
+activity date; seasonal eligibility uses that original activity and the normal
+receiving cutoff. The player review explicitly explains this choice.
+
+New qualifying level transitions atomically capture old/new XP and levels, the
+triggering ledger identity, a stable source position, a prefix hash and fixed
+`permanent-xp-v1` rules. One transition can support several crossed milestones.
+The full positive credited-XP prefix must agree with the new total; unexplained
+legacy counter balances or over-limit histories produce no dated transition.
+Only transitions crossing one of the five supported level milestones are retained.
+They commit with the original XP grant, source clock, counter update and existing
+level payment; an audit failure rolls back that transaction rather than paying twice.
+
+An additive AUTOINCREMENT XP-identity index gives each grant a durable position.
+Its one-time initialization registers existing ledger identities only—never old
+activity clocks, transitions or achievement receipts. Older records' positions
+mean they predate the new audit, not that their original temporal ordering is
+known. New transition hashes bind the complete existing credited prefix, independently
+of implicit SQLite rowids; VACUUM and later grants do not redate the old proof.
+Missing/changed prefix grants, changed source binding, contradictory counters,
+ambiguous repeated crossings or unsupported rules make timing unavailable. Deleting
+a triggering grant removes its transition; the opaque order tombstone retains no
+player name, Steam identity, amount or activity date of its own.
+
+Level source inspection is bounded to 50,001 candidate prefix rows and requires
+the actual triggering grant's matching playtime/quest/event source receipt. Unknown
+or manual grant timing cannot substitute a receiving/unlock date. The permanent
+achievement collector still runs only for newly inserted awards, so existing
+undated level badges never acquire a new date on retry. These additions audit new
+existing XP grants once this code is deployed, even with seasonal rollout off;
+the schema/transaction dependency must be included in authenticated staging review.
+
+Playtime milestones use their exact numbered five-minute interval: 12 intervals
+for one hour through 6,000 for 500 hours. The helper checks a complete, unique
+ordinal prefix, original ten-XP amounts, matching five-minute/sequence metadata
+and a consistent permanent interval counter. Known clocks must not run backward.
+The threshold interval itself needs the original `playtime-observation` clock.
+Earlier untimed intervals do not supply invented dates: their explicit ordinals
+can establish which interval crossed the threshold, but an untimed threshold
+interval still cannot date an award. Gaps, duplicate/altered sequence evidence,
+unknown threshold clocks and incompatible receipts withhold timing.
+
+Playtime evidence is bounded to the threshold prefix plus one overflow candidate
+(at most 6,001 rows), supported by an additive player/interval expression index.
+Later intervals do not move the first qualifying date. Read-only inspection never
+tracks new time or calls the XP writer. The existing observation/continuity collector
+remains responsible for actual game evidence, and real producer cadence still
+requires staging verification.
+
+Operator dry runs/staging/publication require the level/playtime source schema
+before these policies can be selected. Runtime private reads remain noninitializing.
+Seasonal amounts, consent floors, original-date windows, settlement, copies,
+withdrawal/revalidation, deletion/rejoin and expiry remain governed by the same
+immutable season rules. The Quests screen labels every supported milestone and
+explains the source-date/observed-interval policy before enrollment. Asset v6 and
+homepage v126 remain local.
+
+**130 affected checks pass**. The actual XP/playtime pipeline is exercised through
+new level and one-hour receipts, separate season points and unchanged balances;
+other cases cover multi-level skips, one-time 100-coin-per-level rewards, atomic
+audit failure, legacy initialization, missing/changed prefixes, VACUUM, unknown
+clocks, 6,000-interval boundaries and operator readiness/dry-run preservation.
+The real desktop/mobile season fixture passes at 1440px and 390px for the new
+review labels/timing disclosures and existing privacy/recovery behavior. It does
+not claim a real live milestone or policy. The phone screenshot was inspected.
+
+Prime/skin qualifying clocks, approved reward fulfillment, real season/point
+choices, operational review/recovery, hosted checks and authenticated staging remain
+unfinished. No branch was pushed, no deployment or flag was changed, and no real
+player data or funds were accessed. The full roadmap remains active and incomplete.

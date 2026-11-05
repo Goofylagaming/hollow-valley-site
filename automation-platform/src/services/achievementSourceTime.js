@@ -4,6 +4,7 @@ const { createHash } = require('node:crypto');
 const digest = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const { deriveLifeSource } = require('./achievementLifeSource');
 const { deriveCombatSource, deriveTerritorySource } = require('./achievementBattleSource');
+const { deriveLevelSource, derivePlaytimeSource, sourceInfrastructure } = require('./achievementProgressionSource');
 const CONTRACTS = Object.freeze({
   'quest-1': { type: 'quests', threshold: 1, basis: 'quest-threshold' },
   'quest-25': { type: 'quests', threshold: 25, basis: 'quest-threshold' },
@@ -15,6 +16,16 @@ const CONTRACTS = Object.freeze({
   'life-survival-10h': { type: 'life_survival_seconds', threshold: 36000, basis: 'life-survival-observation' },
   'combat-species-5': { type: 'combat_species', threshold: 5, basis: 'combat-species-threshold' },
   'territory-victory': { type: 'territory_victories', threshold: 1, basis: 'territory-capture-resolution' },
+  'first-level': { type: 'level', threshold: 2, basis: 'level-triggering-xp-source' },
+  'level-10': { type: 'level', threshold: 10, basis: 'level-triggering-xp-source' },
+  'level-25': { type: 'level', threshold: 25, basis: 'level-triggering-xp-source' },
+  'level-50': { type: 'level', threshold: 50, basis: 'level-triggering-xp-source' },
+  'level-100': { type: 'level', threshold: 100, basis: 'level-triggering-xp-source' },
+  'playtime-1h': { type: 'playtime_minutes', threshold: 60, basis: 'playtime-interval-threshold' },
+  'playtime-25h': { type: 'playtime_minutes', threshold: 1500, basis: 'playtime-interval-threshold' },
+  'playtime-100h': { type: 'playtime_minutes', threshold: 6000, basis: 'playtime-interval-threshold' },
+  'playtime-250h': { type: 'playtime_minutes', threshold: 15000, basis: 'playtime-interval-threshold' },
+  'playtime-500h': { type: 'playtime_minutes', threshold: 30000, basis: 'playtime-interval-threshold' },
 });
 function createAchievementSourceTimeStore(db, { now = Date.now, initialize = true } = {}) {
   if (initialize) db.exec(`CREATE TABLE IF NOT EXISTS progression_achievement_sources (
@@ -33,6 +44,11 @@ function createAchievementSourceTimeStore(db, { now = Date.now, initialize = tru
     if (!saved) return null;
     let meta; try { meta = JSON.parse(saved.metadata_json); } catch { return null; }
     if (meta?.type !== contract.type || meta.threshold !== contract.threshold || !Number.isFinite(meta.value) || meta.value < contract.threshold) return null;
+    if (contract.type==='level' || contract.type==='playtime_minutes') {
+      if (!Number.isSafeInteger(meta.value)) return null;
+      const source=contract.type==='level' ? deriveLevelSource(db,steamId,contract.threshold) : derivePlaytimeSource(db,steamId,contract.threshold);
+      return source ? {awardDigest:digest(saved),basis:contract.basis,sourceAt:source.sourceAt,evidenceDigest:digest(source.evidence)} : null;
+    }
     if (achievementId === 'nested-adult' || achievementId === 'life-survival-10h') {
       const source = deriveLifeSource(db, steamId, achievementId, meta, { ...options, asOf: now() });
       return source ? { awardDigest: digest(saved), basis: contract.basis, sourceAt: source.sourceAt, evidenceDigest: digest(source.evidence) } : null;
@@ -92,4 +108,9 @@ function createAchievementSourceTimeStore(db, { now = Date.now, initialize = tru
   }
   return { recordNewAward, read };
 }
-module.exports = { createAchievementSourceTimeStore, CONTRACTS };
+function checkAchievementInfrastructure(db,awards) {
+  for (const award of awards) {
+    if (!sourceInfrastructure(db,CONTRACTS[award.id]?.type)) throw Object.assign(new Error('Prepare the level/playtime source audit before reviewing these season points'),{status:503});
+  }
+}
+module.exports = { createAchievementSourceTimeStore, CONTRACTS, checkAchievementInfrastructure };

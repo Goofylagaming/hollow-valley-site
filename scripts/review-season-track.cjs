@@ -44,6 +44,7 @@ function main(args) {
     const tables = new Set(db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(row => row.name));
     if (!['economy_wallets', 'progression_xp_ledger', 'progression_xp_source_times'].every(name => tables.has(name))) throw new Error('Choose an initialized progression/source-time automation database');
     if (reviewed?.definition.achievementPoints && !['progression_achievements','progression_achievement_sources'].every(name => tables.has(name))) throw new Error('Prepare achievement source collection before staging achievement points');
+    if (reviewed?.definition.achievementPoints) require('../automation-platform/src/services/achievementSourceTime').checkAchievementInfrastructure(db,reviewed.definition.achievementPoints.awards);
     const ready = ['progression_seasons', 'progression_season_audit', 'progression_season_enrollments', 'progression_season_evidence', 'progression_season_source_positions', 'progression_season_choices', 'progression_season_requests', 'progression_season_retention', 'progression_season_maintenance', 'progression_season_achievement_cursors', 'progression_season_achievement_evidence'].every(name => tables.has(name));
     if (!ready && command !== 'stage') {
       if (command === 'inspect') return { database, schemaReady: false, season: null, written: false };

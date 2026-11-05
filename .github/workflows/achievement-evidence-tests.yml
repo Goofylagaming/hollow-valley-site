@@ -5,6 +5,9 @@ on:
       - 'automation-platform/src/config/combatSpecies.js'
       - 'automation-platform/src/services/combatEventService.js'
       - 'automation-platform/src/services/progressionService.js'
+      - 'automation-platform/src/services/progressionRules.js'
+      - 'automation-platform/src/services/achievementProgressionSource.js'
+      - 'automation-platform/test/achievementProgressionSource.test.js'
       - 'automation-platform/src/services/progressionSourceTime.js'
       - 'automation-platform/src/services/achievementSourceTime.js'
       - 'automation-platform/src/services/achievementLifeSource.js'
@@ -59,6 +62,7 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node --test automation-platform/test/achievementProgressionSource.test.js
       - run: node --test automation-platform/test/achievementBattleSource.test.js
       - run: node --test automation-platform/test/achievementLifeSource.test.js
       - run: node --test automation-platform/test/achievementSourceTime.test.js
