@@ -19,6 +19,8 @@
     const group=model?.group,donations=model?.donations||[],pending=donations.find(unresolved);
     get('treasury-group').textContent=group?`Current group: ${group.name}`:'Join a group to view its Treasury.';
     get('treasury-balance').textContent=model?.treasury?money(model.treasury.balance):'Unavailable';
+    get('treasury-reserved').hidden=!(model?.treasury?.held>0);
+    get('treasury-reserved').textContent=model?.treasury?`Available to spend: ${money(model.treasury.available)} · Reserved: ${money(model.treasury.held)}`:'';
     get('treasury-availability').textContent=capability.readOnly?'This preview is read-only.':capability.enabled?'':'New donations are unavailable. You can still review or cancel earlier requests.';
     get('treasury-form').hidden=!group||!model?.treasury||!capability.enabled||Boolean(pending);
     const history=get('treasury-history');history.replaceChildren();

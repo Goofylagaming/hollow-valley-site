@@ -6,6 +6,7 @@ process.env.DB_PATH=path.join(temp,'website.sqlite');process.env.AUTOMATION_DB_P
 process.env.GROUP_TREASURY_ENABLED='1';process.env.GROUP_HQ_ENABLED='0';process.env.HOLLOW_VALLEY_API_TOKEN='synthetic-treasury-browser-token';
 for(const key of ['GROUP_TREASURY_READ_ONLY','SKIN_STUDIO_READ_ONLY','RENDER_SERVICE_ID','RENDER_EXTERNAL_URL','PUBLIC_SITE_URL','STEAM_REALM','STEAM_RETURN_URL'])delete process.env[key];
 const {db}=require('../server/db'),groups=require('../server/groupsStore'),economy=require('../automation-platform/src/services/economyStore');
+const spending=require('../automation-platform/src/services/groupTreasurySpending').createGroupTreasurySpending(economy,{enabled:()=>true});
 let dropCoinReply=false,dropPrepareReply=false,failDonation=false,holdDonation=false,heldDonation=null,holdBalance=false,heldBalance=null,failBalance=false;
 let donationPosts=0;
 const unexpected=[];
@@ -67,6 +68,11 @@ async function until(fn){for(let i=0;i<300;i++){if(fn())return;await new Promise
       await page.getByRole('button',{name:'Check status',exact:true}).waitFor();await idle();assert.equal(economy.getWallet(A).balance,900);
       await page.getByRole('button',{name:'Check status',exact:true}).click();await balance(100);await idle();
       assert.equal(await page.locator('#treasury-pending h3').count(),0);assert.equal(donationPosts,before+1);
+      const cosmetic={id:'browser-fern-frame',revision:1,title:'Synthetic frame',description:'Local test fixture only',cost:60,purpose:'group_cosmetic',target:{kind:'profile_frame',value:'fern'}};
+      spending.register(cosmetic,A);spending.setEnabled(cosmetic.id,1,true,A);
+      const hold={groupId,actorSteamId:A,itemId:cosmetic.id,revision:1,expectedCost:60,requestId:'browser_hold_'+n};spending.reserve(hold);
+      await page.click('#treasury-refresh');await page.getByText('Available to spend: 40 Valley Coins · Reserved: 60 Valley Coins',{exact:true}).waitFor();await idle();
+      spending.release(hold);await page.click('#treasury-refresh');await idle();assert.equal(await page.locator('#treasury-reserved').isVisible(),false);
       await prepare(200);await page.getByRole('button',{name:'Cancel request',exact:true}).click();await idle();
       assert.equal(economy.getWallet(A).balance,900);
       await prepare(50);holdDonation=true;heldDonation=null;await confirm();await until(()=>heldDonation);

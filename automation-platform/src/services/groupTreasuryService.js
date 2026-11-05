@@ -27,8 +27,8 @@ function createGroupTreasury(store,{writesEnabled=()=>process.env.GROUP_TREASURY
   function steamId(value){if(typeof value!=='string'||!/^\d{17}$/.test(value))throw failure('INVALID_STEAM','A linked Steam account is required');return value;}
   function requestId(value){if(typeof value!=='string'||!/^[A-Za-z0-9_-]{8,128}$/.test(value))throw failure('INVALID_REQUEST','A valid donation request ID is required');return value;}
   function get(id){
-    const gid=groupId(id),row=db.prepare('SELECT balance FROM economy_group_treasuries WHERE group_id=?').get(gid);
-    return {groupId:gid,balance:row?.balance??0,transactions:db.prepare(`SELECT id,amount,kind,created_at AS createdAt
+    const gid=groupId(id);
+    return {groupId:gid,...require('./groupTreasuryAccounting').balances(db,gid),transactions:db.prepare(`SELECT id,amount,kind,created_at AS createdAt
       FROM economy_group_treasury_ledger WHERE group_id=? ORDER BY rowid DESC LIMIT 50`).all(gid)};
   }
   function verifyReceipt(row){
