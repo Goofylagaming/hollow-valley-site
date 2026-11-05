@@ -108,3 +108,15 @@ It is deliberately not expired automatically; operator reconciliation needs
 verified evidence before such a hold can be resolved. True process-restart tests
 for parked holds and authenticated staging/live-server verification remain pending.
 Gifting remains disabled; these tests did not send actual game commands.
+
+## Process-exit verification
+
+A new test writes the parked hold in a child process and exits without closing
+its database connection. Subsequent, independent child processes reopen the same
+file. Missing, acknowledged and unreachable outcomes preserve the hold even with
+the reconciliation clock advanced by a year. The original command ID is the only
+one queried. Ownership stays with the sender until a confirmed outcome resolves
+the hold, then one acceptance transfers the existing unlock and a restarted retry
+is a duplicate. This test passes locally and is included in Membership Rewards CI.
+It does not contact a game server. Authenticated staging, live outcome behavior
+and operator handling of a never-published interrupted command remain unverified.
