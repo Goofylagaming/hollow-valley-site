@@ -1,0 +1,25 @@
+name: Achievement evidence
+on:
+  pull_request:
+    paths:
+      - 'automation-platform/src/config/combatSpecies.js'
+      - 'automation-platform/src/services/combatEventService.js'
+      - 'automation-platform/src/services/progressionService.js'
+      - 'automation-platform/test/combat*.test.js'
+      - 'automation-platform/test/progressionService.test.js'
+      - 'scripts/game-combat-line.js'
+      - 'test/gameCombatLine.test.js'
+      - '.github/workflows/achievement-evidence-tests.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node --test test/gameCombatLine.test.js automation-platform/test/combatSpeciesAchievements.test.js automation-platform/test/combatEventService.test.js automation-platform/test/combatRoutes.test.js automation-platform/test/combatCalendarReset.test.js automation-platform/test/progressionService.test.js

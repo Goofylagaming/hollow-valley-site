@@ -18,9 +18,13 @@ function loadService(t) {
 
   const modulePath = require.resolve('../src/services/combatEventService');
   delete require.cache[modulePath];
+  delete require.cache[require.resolve('../src/services/questBoostService')];
+  delete require.cache[require.resolve('../src/services/economyStore')];
   const service = require(modulePath);
 
   t.after(() => {
+    service._test.db.close();
+    require('../src/services/economyStore').db.close();
     delete require.cache[modulePath];
     if (oldDbPath === undefined) delete process.env.AUTOMATION_DB_PATH; else process.env.AUTOMATION_DB_PATH = oldDbPath;
     if (oldEnabled === undefined) delete process.env.COMBAT_FEED_ENABLED; else process.env.COMBAT_FEED_ENABLED = oldEnabled;

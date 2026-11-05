@@ -33,6 +33,7 @@ const RANKS = Object.freeze([
 ]);
 
 const ACHIEVEMENTS = Object.freeze([
+  { id: 'combat-species-5', title: 'Versatile Hunter', description: 'Kill players of five different recorded dinosaur species.', type: 'combat_species', threshold: 5 },
   { id: 'skins-10', title: 'Valley Collector', description: 'Own 10 distinct active skins through creation, purchase or a personal grant.', type: 'owned_skins', threshold: 10 },
   { id: 'first-level', title: 'Moving Up', description: 'Reach level 2.', type: 'level', threshold: 2 },
   { id: 'level-10', title: 'Valley Regular', description: 'Reach level 10.', type: 'level', threshold: 10 },
@@ -211,6 +212,7 @@ function countersFor(steamId) {
     playtime_minutes: Number(player.playtime_intervals || 0) * 5,
     quests: countQuestCompletions(steamId),
     events: countConfirmedEvents(steamId),
+    combat_species: countCombatSpecies(steamId),
     // Catalog availability (including shared premium presets) is not ownership.
     // EXISTS prevents multiple entitlement paths from counting a preset twice.
     owned_skins: Number(store.db.prepare(`
@@ -222,6 +224,14 @@ function countersFor(steamId) {
       )
     `).get(steamId, steamId, steamId).count),
   };
+}
+
+function countCombatSpecies(steamId) {
+  // Progression may start before the optional combat service migrates its table.
+  if (!store.db.prepare('PRAGMA table_info(combat_events)').all().some(c => c.name === 'victim_species')) return 0;
+  return Number(store.db.prepare(`SELECT COUNT(DISTINCT victim_species) AS count
+    FROM combat_events WHERE killer_steam_id = ? AND killer_steam_id <> victim_steam_id
+    AND victim_species IS NOT NULL`).get(steamId).count);
 }
 
 function unlockEligibleAchievements(steamId) {

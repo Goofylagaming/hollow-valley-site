@@ -45,6 +45,7 @@ function parseCombatLine(line) {
       killerName: cleanName(actorName),
       victimSteamId: kill[2],
       victimName: cleanName(kill[1]),
+      victimSpecies: outcome.slice(kill[0].length).split(',')[0].trim() || null,
     };
   }
 
