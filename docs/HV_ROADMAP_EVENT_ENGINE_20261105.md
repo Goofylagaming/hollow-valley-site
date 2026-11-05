@@ -40,7 +40,7 @@ All API responses are private/no-store. User text is rendered as text.
 
 The public release register retains the original #14 description and shows the
 unfinished scope. Historical votes remain stored and no longer consume active
-ballot slots; nine ideas remain eligible. Homepage planning asset version is 115.
+ballot slots; nine ideas remain eligible. Homepage planning asset version is 116.
 
 ## Reviewed website schedules
 
@@ -128,11 +128,58 @@ Unhandled read/access failures clear private display data.
 The Events registration assets are v1 and public schedule script is v2. All flags
 remain off in example configuration. This is local development only.
 
+## Staff rosters and reviewed planned teams
+
+`EVENT_ENGINE_TEAMS_ENABLED=0` separately controls new planned-team changes. Staff
+can read published/cancelled event rosters and retained team history during a
+rollout pause. The roster contains reserved registrations, current linked-account
+availability and confirmation for the current schedule. Pending reschedule
+confirmations and unavailable accounts are shown but excluded from assignment.
+This does not verify species, age, actual presence or event-specific game rules.
+
+A deterministic round-robin proposal distributes confirmed registrants among the
+frozen template's team count. Staff can change individual team numbers before
+reviewing. Every currently confirmed registrant must appear exactly once; unknown,
+missing and duplicate players fail. Team numbers must be within the planned count,
+and no team may exceed `ceil(capacity / teamCount)`. Saving teams changes no seat,
+wallet, attendance evidence, Discord role or actual game group.
+
+The review binds event revision, previous team-plan revision, explicit assignments
+and a digest of every reserved Steam identity, registration/accepted-event revision
+and current linked website account ID. Display names are presentation, not identity.
+A changed registration, withdrawal, reconfirmation, linked-account loss or schedule
+invalidates the old plan for current display. There is no automatic reshuffle.
+Staff must inspect the refreshed roster and explicitly save a new plan. Cancellation
+suppresses planned-team display. Existing history remains immutable.
+
+Plan, full frozen roster/event audit and request receipt commit atomically. Current
+staff access, same-origin JSON and preview/read-only guards protect all writes.
+Thirty new changes per staff account per minute are allowed; exact receipts remain
+recoverable after a rollout pause or roster change, returning original saved data
+plus current validity without repeating the change. Fresh edits stop at planned
+start. Saved planned teams may still be read afterward, without implying an actual
+game event. Lists/history use bounded 25-record pages; an inspected roster is bounded
+by the template's maximum 500 places. The screen shows recent history and the API
+provides older pages.
+
+Players see only their own current planned team through private registration
+reads. Public calendar output and member APIs do not return other registrants or
+staff rosters. Stale or damaged team evidence produces an unassigned/unavailable
+state rather than a fabricated team; damaged evidence does not prevent withdrawal.
+The staff browser checks current access around delayed reads and clears private
+names, Steam IDs, review details and history after an account/access change.
+Reviews and uncertain retry requests remain only in page memory, with no browser
+storage or automatic POST retry. Reload requires inspecting saved plans.
+
+The staff team assets are v1 and private registration script is v2. All rollout
+flags remain off in example configuration. Hosted staging, real authentication
+and in-game validation remain unfinished.
+
 ## Remaining full Event Engine requirements
 
 - Verified event lifecycle beyond website plans, including actual start/end and
   outcome evidence, operational rehearsal and authenticated staging.
-- Event-type-specific participant eligibility, staff roster/team allocation,
+- Event-type-specific participant eligibility, actual game-team integration,
   operational capacity review and any later waitlist policy. Website signup is
   not proof that a player meets in-game event rules or is actually present.
 - Appropriate evidence and results for each event type, with staff review and
@@ -185,3 +232,17 @@ account changes and text escaping. Schedule, template and staff attendance brows
 fixtures also pass both widths with registration installed. All identities/events
 and balances in these checks are synthetic. The workflow now includes all four
 browser fixtures. Real Steam sessions, hosted staging and production remain gates.
+
+Reviewed team plans raise the affected set to 80 passing tests. These include
+staff access/revocation, stale roster/event/plan conflicts, complete unique member
+sets, team size limits, changed-account exclusion, audit/receipt rollback,
+paused retry recovery, planned-start boundaries and damaged evidence without
+blocking player withdrawal. Team history pagination and rate limits pass.
+
+The actual Events team workflow passes at 1440px and 390px for staff-only rosters,
+manual proposal changes, explicit review, lost-response retry, stale-roster
+recovery, own-team player display, paused history and delayed-read demotion.
+Registration, schedule, template and existing staff attendance browser fixtures
+also pass both widths with team assets installed. The prepared workflow includes
+all five browser fixtures. All checks use synthetic accounts/events; no real
+players were assigned teams, and nothing was published, merged or deployed.
