@@ -122,11 +122,16 @@ test("all production wallet, marketplace, storage, admin and other page scripts 
         "Existing Admin Operations scripts must retain their original order");
     } else if (page === "events.html") {
       const randomEvents = "assets/events-species-bonuses.js";
+      const groupRoster = "assets/events-group-roster.js";
       assert.equal(actual.filter(src => src === randomEvents).length, 1,
         "Random event display script must be loaded exactly once");
       assert.ok(actual.indexOf(randomEvents) > actual.indexOf("assets/events.js"),
         "Public event bonuses load after the existing Events script");
-      assert.deepEqual(actual.filter(src => src !== randomEvents), baseline,
+      assert.equal(actual.filter(src => src === groupRoster).length, 1,
+        "Staff group event roster must load exactly once");
+      assert.ok(actual.indexOf(groupRoster) > actual.indexOf("assets/events-admin-delete.js"),
+        "Staff group roster loads after the existing Events controls");
+      assert.deepEqual(actual.filter(src => src !== randomEvents && src !== groupRoster), baseline,
         "All existing Events page scripts must retain their original order");
     } else {
       assert.deepEqual(actual, baseline, page + ": feature scripts were dropped or reordered");

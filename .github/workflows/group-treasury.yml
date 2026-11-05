@@ -50,6 +50,7 @@ on:
       - 'server/index.js'
       - 'automation-platform/src/index.js'
       - 'test/groupTreasuryHttp.test.js'
+      - 'test/productionUiRelease.test.js'
       - 'public/groups.html'
       - 'public/assets/group-treasury.js'
       - 'public/assets/groups.css'
@@ -64,9 +65,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: node --test test/groupEventHost.test.js test/groupTreasuryEventPurchases.test.js automation-platform/test/groupEventRegistration.test.js automation-platform/test/discordEventService.test.js test/groupTreasuryTerritoryCoordinator.test.js test/groupTreasuryTerritorySettlement.test.js test/groupTreasuryTerritoryDelivery.test.js automation-platform/test/groupTreasuryCatalog.test.js test/groupTreasuryPurchases.test.js test/groupTreasuryClosure.test.js test/groups.test.js test/groupProgress.test.js test/groupRecruitment.test.js automation-platform/test/groupTreasurySpending.test.js automation-platform/test/groupTreasury.test.js automation-platform/test/economyWallet.test.js automation-platform/test/marketplaceEconomy.test.js test/groupTreasuryHttp.test.js test/roadmapCommunity.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/territoryAdminHttp.test.js
+      - run: node --test test/productionUiRelease.test.js test/groupEventHost.test.js test/groupTreasuryEventPurchases.test.js automation-platform/test/groupEventRegistration.test.js automation-platform/test/discordEventService.test.js test/groupTreasuryTerritoryCoordinator.test.js test/groupTreasuryTerritorySettlement.test.js test/groupTreasuryTerritoryDelivery.test.js automation-platform/test/groupTreasuryCatalog.test.js test/groupTreasuryPurchases.test.js test/groupTreasuryClosure.test.js test/groups.test.js test/groupProgress.test.js test/groupRecruitment.test.js automation-platform/test/groupTreasurySpending.test.js automation-platform/test/groupTreasury.test.js automation-platform/test/economyWallet.test.js automation-platform/test/marketplaceEconomy.test.js test/groupTreasuryHttp.test.js test/roadmapCommunity.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/territoryAdminHttp.test.js
