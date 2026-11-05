@@ -29,7 +29,7 @@ recipient ownership, rollback and eligibility. Replaying a promotional code afte
 gifting cannot regrant the skin; its response/UI now distinguishes previous
 redemption from current ownership. Five existing promotion tests also pass.
 
-Remaining: concurrent worker races, live-skin lifecycle review, authenticated staging and production
+Remaining: parked-edit concurrency and live game verification, authenticated staging and production
 verification. The full roadmap remains unfinished.
 
 ## Website/API integration
@@ -51,3 +51,19 @@ for offer retry, cancellation, recipient acceptance, safe text, preview/guest/
 disabled states and layout. These do not substitute for authenticated staging or
 real game verification. `SKIN_GIFTING_ENABLED` remains off by default on both
 website and automation services.
+
+## Transfer concurrency and Wear Live
+
+Independent SQLite workers now verify competing offers for one unlock, duplicate
+acceptance, retry after reopening and acceptance racing cancellation. Exactly one
+receipt and decision survive. Wear Live now repeats its ownership/skin check under
+a write lock immediately before recording a queued job, after its async server
+snapshot read. Gift eligibility and acceptance reject skins with queued or
+awaiting-confirmation applications. No network call runs inside the write lock.
+
+Tests prove that a gift committed during the snapshot wait stops the former owner
+from queueing a command, and that a pending application blocks gift acceptance
+until terminal status. The existing seven Wear Live tests still pass. These use
+a mocked command bridge and do not prove in-game application/reconciliation.
+Parked-dinosaur skin editing has a separate async flow and still requires review
+before gifting is enabled. No production feature flags were changed.

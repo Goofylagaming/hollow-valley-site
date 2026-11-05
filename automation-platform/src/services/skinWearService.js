@@ -226,15 +226,23 @@ async function wearPreset({ steamId, presetId }) {
     capturedAt: new Date().toISOString(),
   };
 
-  const command = bridge.buildCommand('skin_apply', steamId, buildWearTokens(preset, targetSpecies));
-  store.createSkinApplyJob({
-    id: command.id,
-    steamId,
-    presetId: preset.id,
-    species: resolvedSpecies,
-    skin: safeSkin,
-    lifeMarker,
-  });
+  let command;
+  // Serialize the final ownership check and queued job with gift acceptance.
+  // No network operation is performed while this write lock is held.
+  store.db.exec('BEGIN IMMEDIATE');
+  try {
+    const current = skinPresets.getPresetForPlayer(steamId, presetId);
+    if (current.species !== preset.species || JSON.stringify(current.skin) !== JSON.stringify(preset.skin)) {
+      throw Object.assign(new Error('This skin changed while loading your dinosaur. Please try again.'), {code:'SKIN_PRESET_CHANGED'});
+    }
+    if (current.membershipPremium) skinPresets.assertMembershipSpecies(current, steamId, resolvedSpecies);
+    command = bridge.buildCommand('skin_apply', steamId, buildWearTokens(current, targetSpecies));
+    store.createSkinApplyJob({id:command.id,steamId,presetId:current.id,species:resolvedSpecies,skin:safeSkin,lifeMarker});
+    store.db.exec('COMMIT');
+  } catch (error) {
+    store.db.exec('ROLLBACK');
+    throw error;
+  }
 
   try {
     await bridge.queueCommand(command);

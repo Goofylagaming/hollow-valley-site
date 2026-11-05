@@ -16,6 +16,7 @@ function createSkinGiftService(store,{now=Date.now,enabled=()=>process.env.SKIN_
   function transferable(sender,presetId) {
     const preset=store.getSkinPreset(presetId);
     if(!preset?.active||preset.membershipPremium||preset.isPremium||(preset.published&&Number(preset.price)===0)||preset.owner_steam_id===sender||store.hasSkinGrant(sender,presetId))fail('This skin is not transferable',409);
+    if(db.prepare("SELECT 1 FROM economy_skin_apply_jobs WHERE steam_id=? AND preset_id=? AND status IN ('queued','awaiting_confirmation')").get(sender,presetId))fail('Wait for the pending skin application to finish before gifting',409);
     const unlock=db.prepare('SELECT * FROM economy_skin_unlocks WHERE steam_id=? AND preset_id=?').get(sender,presetId);
     if(!unlock?.idempotency_key)fail('A permanent skin unlock with a receipt is required',409);
     return {preset,unlock};
