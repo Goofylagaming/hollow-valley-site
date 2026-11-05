@@ -1,0 +1,12 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>My journeys | Hollow Valley</title><link rel="stylesheet" href="/assets/styles.css?v=38"><link rel="stylesheet" href="/assets/journeys.css?v=1"></head>
+<body><div class="app-shell"><div id="nav-slot"></div><main class="journey-page"><h1>My journeys</h1><a href="/profile">Back to profile</a>
+<p>Keep a private trail of your observed travel. Recording is optional and starts with new observations after you opt in. Only your account can view this history.</p>
+<p id="journey-status" role="status" aria-live="polite">Loading…</p><p id="journey-signin" hidden><a href="/auth/steam">Sign in with Steam</a> to view your journeys.</p>
+<section id="journey-account" hidden><h2>Recording preferences</h2><p>History keeps up to 10,000 observations for up to 30 days. Older points disappear as either limit is reached. Gaps in observations are not drawn as travelled routes.</p>
+<form id="journey-settings"><label><input id="journey-optin" type="checkbox" disabled> Record my future journeys</label><button disabled>Save preference</button></form>
+<button id="journey-delete" type="button" disabled>Delete history and stop recording</button><p id="journey-preference"></p>
+<h2>Observed trail</h2><p>This is sampled travel, not a complete life or a confirmed death record. Map placement uses the same approximate Gateway bounds as Live Map.</p>
+<button id="journey-refresh" type="button">Refresh history</button><label for="journey-life">Observation segment</label><select id="journey-life"></select>
+<p id="journey-summary"></p><svg id="journey-map" viewBox="0 0 1000 1000" role="img" aria-label="Private observed journey trail on Gateway"><image href="/assets/gateway-map.webp" width="1000" height="1000" preserveAspectRatio="none"/><g id="journey-lines"></g></svg>
+<button id="journey-more" type="button" hidden>Load older observations</button>
+</section></main></div><script src="/assets/common.js?v=30"></script><script src="/assets/journeys.js?v=1"></script></body></html>
