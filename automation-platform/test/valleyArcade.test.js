@@ -26,3 +26,18 @@ test("arcade cap, replay, day rollover, unlimited, emergency control and atomic 
   assert.throws(() => arcade.settle(id,"f",1,1,before+1),/disabled/);
   assert.equal(economy.getWallet(id).balance,1250122);
 });
+test("all six server-generated games hide solutions, enforce ownership and reject client prizes", () => {
+  const games = require("../src/services/valleyArcadeGames");
+  const id = "76561198000000621";
+  arcade.configure("test-admin",{enabled:true,emergency:false,cap:null});
+  let now=Date.now();
+  for (const game of games.games) {
+    const round=games.start(id,game,now);
+    assert.equal(round.solution,undefined);
+    assert.throws(()=>games.start(id,game,now+1),/Wait/);
+    assert.throws(()=>games.answer("76561198000000622",round.id,"5000",now),/Unknown/);
+    assert.equal(games.answer(id,round.id,{payout:5000},now).payout,0);
+    assert.equal(games.answer(id,round.id,round.choices[0],now).duplicate,true);
+    now+=61000;
+  }
+});
