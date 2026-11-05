@@ -5,7 +5,7 @@ const fail = (code, message, status = 409) => Object.assign(new Error(message), 
 // Internal delivery adapter only. The future spending coordinator must record
 // dispatch before calling deliver and verify this database's final evidence
 // before accounting commits. No browser-supplied reservation/proof is accepted.
-function createGroupTreasuryTerritoryDelivery(db, groups, accounting, { enabled = () => false } = {}) {
+function createGroupTreasuryTerritoryDelivery(db, groups, accounting, { enabled = () => false, proofSecret = () => process.env.GROUP_TREASURY_TERRITORY_PROOF_SECRET } = {}) {
   const links = require('./groupTerritoryLinks').createGroupTerritoryLinks(db, groups);
   const lifecycle = require('./groupTreasuryLifecycle').createGroupTreasuryLifecycle(db);
   db.exec(`CREATE TABLE IF NOT EXISTS hv_treasury_territory_delivery (
@@ -115,6 +115,22 @@ function createGroupTreasuryTerritoryDelivery(db, groups, accounting, { enabled 
   function cancel(actor, { expectedGroupId, requestId } = {}) {
     return atomic(() => { const row = read(actor, expectedGroupId, requestId); return row.outcome === 'pending' ? finish(row, actor, 'not_delivered', 'CANCELLED_BEFORE_DELIVERY') : project(row); });
   }
-  return { prepare, deliver, cancel, read: (actor, { expectedGroupId, requestId } = {}) => project(read(actor, expectedGroupId, requestId)) };
+  function signedEvidence(actor, { expectedGroupId, requestId } = {}) {
+    return atomic(() => {
+      const row = read(actor, expectedGroupId, requestId);
+      if (row.outcome === 'pending') throw fail('ENTRY_OUTCOME_PENDING', 'Final entry outcome is not recorded');
+      const events = db.prepare("SELECT actor,outcome FROM hv_treasury_territory_delivery_audit WHERE request_id=? AND outcome<>'pending'").all(requestId);
+      if (events.length !== 1 || events[0].outcome !== row.outcome) throw fail('ENTRY_EVIDENCE_INCOMPLETE', 'Final entry audit requires review', 500);
+      if (row.outcome === 'delivered') {
+        const registration = db.prepare(`SELECT r.status,u.steam_id FROM territory_event_registrations r
+          JOIN users u ON u.id=r.registered_by_user_id WHERE r.event_id=? AND r.group_id=?`).get(row.event_id, row.territory_group_id);
+        if (registration?.status !== 'registered' || registration.steam_id !== events[0].actor) throw fail('ENTRY_EVIDENCE_INCOMPLETE', 'Recorded entry requires review', 500);
+      }
+      const proof = require('../../automation-platform/src/services/groupTreasuryTerritoryProof');
+      if (!proof.configured(proofSecret())) throw fail('ENTRY_PROOF_NOT_CONFIGURED', 'Territory evidence signing is not configured', 503);
+      return proof.sign(project(row).evidence, proofSecret());
+    });
+  }
+  return { prepare, deliver, cancel, signedEvidence, read: (actor, { expectedGroupId, requestId } = {}) => project(read(actor, expectedGroupId, requestId)) };
 }
 module.exports = { createGroupTreasuryTerritoryDelivery };

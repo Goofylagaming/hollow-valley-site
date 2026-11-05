@@ -6,7 +6,10 @@ const get=()=>service||(service=require('../services/groupTreasuryService').crea
 let closure;
 const getClosure=()=>closure||(closure=require('../services/groupTreasuryClosure').createGroupTreasuryClosure(require('../services/economyStore')));
 let spending;
-const getSpending=()=>spending||(spending=require('../services/groupTreasurySpending').createGroupTreasurySpending(require('../services/economyStore')));
+const territoryProof=require('../services/groupTreasuryTerritoryProof');
+const getSpending=()=>spending||(spending=require('../services/groupTreasurySpending').createGroupTreasurySpending(require('../services/economyStore'),{
+ verifyFulfillment:proof=>territoryProof.verify(proof,process.env.GROUP_TREASURY_TERRITORY_PROOF_SECRET),
+}));
 const run=fn=>(req,res)=>{try{res.json(fn(req));}catch(error){res.status(error.status||500).json({error:error.status?error.message:'Group Treasury is temporarily unavailable',code:error.status?error.code:'TREASURY_UNAVAILABLE'});}};
 router.post('/read',run(req=>get().get(req.body?.groupId)));
 router.post('/outcome',run(req=>get().outcome({steamId:req.body?.steamId,requestId:req.body?.requestId})));
@@ -22,4 +25,21 @@ router.post('/spend-status',run(req=>{try{return getSpending().read(req.body?.gr
 router.post('/spend-reserve',run(req=>getSpending().reserve(purchase(req))));
 router.post('/spend-commit',run(req=>getSpending().commit({groupId:req.body?.groupId,requestId:req.body?.requestId,actorSteamId:req.body?.actorSteamId})));
 router.post('/spend-release',run(req=>getSpending().release(purchase(req))));
+router.post('/spend-dispatch-territory',run(req=>{
+ if(!territoryProof.configured(process.env.GROUP_TREASURY_TERRITORY_PROOF_SECRET))throw Object.assign(new Error('Territory evidence verification is not configured'),{status:503,code:'FULFILLMENT_NOT_CONFIGURED'});
+ const order=getSpending().read(req.body?.groupId,req.body?.requestId);
+ if(order.item.purpose!=='territory_entry')throw Object.assign(new Error('Only Territory entry dispatch is available'),{status:409,code:'INVALID_SPEND'});
+ return getSpending().beginFulfillment({groupId:req.body?.groupId,requestId:req.body?.requestId,actorSteamId:req.body?.actorSteamId});
+}));
+router.post('/spend-settle-territory',run(req=>{
+ const evidence=req.body?.evidence;
+ if(!territoryProof.verify(evidence,process.env.GROUP_TREASURY_TERRITORY_PROOF_SECRET))throw Object.assign(new Error('Authenticated Territory delivery evidence is required'),{status:403,code:'FULFILLMENT_UNVERIFIED'});
+ const groupId=req.body?.groupId,requestId=req.body?.requestId,actorSteamId=req.body?.actorSteamId;
+ if(evidence.groupId!==groupId||evidence.requestId!==requestId)throw Object.assign(new Error('Territory evidence does not match this purchase'),{status:409,code:'FULFILLMENT_UNVERIFIED'});
+ const order=getSpending().read(groupId,requestId);
+ if(order.item.purpose!=='territory_entry'||order.item.cost!==evidence.cost||String(order.item.target.eventId)!==evidence.targetKey||
+   (order.fulfillment&&(order.fulfillment.id!==evidence.id||order.fulfillment.outcome!==evidence.outcome)))throw Object.assign(new Error('Territory evidence disagrees with the saved purchase'),{status:409,code:'FULFILLMENT_UNVERIFIED'});
+ if(evidence.outcome==='delivered')return getSpending().commit({groupId,requestId,actorSteamId,fulfillmentProof:evidence});
+ return getSpending().release({groupId,requestId,actorSteamId,itemId:order.item.id,revision:order.item.revision,expectedCost:order.item.cost,fulfillmentProof:evidence});
+}));
 module.exports=router;

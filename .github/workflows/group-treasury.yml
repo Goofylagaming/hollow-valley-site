@@ -12,6 +12,8 @@ on:
       - 'server/services/groupTreasuryClosure.js'
       - 'server/services/groupTreasuryLifecycle.js'
       - 'server/services/groupTreasuryTerritoryDelivery.js'
+      - 'automation-platform/src/services/groupTreasuryTerritoryProof.js'
+      - 'test/groupTreasuryTerritorySettlement.test.js'
       - 'test/groupTreasuryTerritoryDelivery.test.js'
       - 'server/groupsStore.js'
       - 'server/routes/groups.js'
@@ -52,4 +54,4 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: node --test test/groupTreasuryTerritoryDelivery.test.js automation-platform/test/groupTreasuryCatalog.test.js test/groupTreasuryPurchases.test.js test/groupTreasuryClosure.test.js test/groups.test.js test/groupProgress.test.js test/groupRecruitment.test.js automation-platform/test/groupTreasurySpending.test.js automation-platform/test/groupTreasury.test.js automation-platform/test/economyWallet.test.js automation-platform/test/marketplaceEconomy.test.js test/groupTreasuryHttp.test.js test/roadmapCommunity.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/territoryAdminHttp.test.js
+      - run: node --test test/groupTreasuryTerritorySettlement.test.js test/groupTreasuryTerritoryDelivery.test.js automation-platform/test/groupTreasuryCatalog.test.js test/groupTreasuryPurchases.test.js test/groupTreasuryClosure.test.js test/groups.test.js test/groupProgress.test.js test/groupRecruitment.test.js automation-platform/test/groupTreasurySpending.test.js automation-platform/test/groupTreasury.test.js automation-platform/test/economyWallet.test.js automation-platform/test/marketplaceEconomy.test.js test/groupTreasuryHttp.test.js test/roadmapCommunity.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/territoryAdminHttp.test.js
