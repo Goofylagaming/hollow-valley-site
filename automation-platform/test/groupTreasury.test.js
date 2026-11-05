@@ -71,18 +71,44 @@ test('insufficient funds and invalid amounts never create a funded treasury',t=>
   assert.equal(db.prepare('SELECT COUNT(*) n FROM economy_group_treasuries').get().n,0);
 });
 test('group balance overflow and wallet-reference collisions fail without partial movement',t=>{
-  const {db,store,service,fund,donate}=fixture(t);fund(A,1000);donate();
-  db.prepare('UPDATE economy_group_treasuries SET balance=? WHERE group_id=1').run(Number.MAX_SAFE_INTEGER);
-  code(()=>donate(1,'overflow_0001'),'TREASURY_LIMIT');assert.equal(store.getWallet(A).balance,900);
+  const {store,service,fund,donate}=fixture(t);fund(A,Number.MAX_SAFE_INTEGER);donate(Number.MAX_SAFE_INTEGER);fund(B,1);
+  code(()=>donate(1,'overflow_0001',1,B),'TREASURY_LIMIT');assert.equal(store.getWallet(B).balance,1);
   store.applyWalletTransaction({steamId:A,amount:1,kind:'fixture',reason:'Namespace collision fixture',idempotencyKey:'group-treasury-donation:collision_0001'});
   code(()=>donate(1,'collision_0001'),'DONATION_CONFLICT');
-  assert.equal(service.get(1).balance,Number.MAX_SAFE_INTEGER);assert.equal(store.getWallet(A).balance,901);
+  assert.equal(service.get(1).balance,Number.MAX_SAFE_INTEGER);assert.equal(store.getWallet(A).balance,1);
 });
 test('duplicate receipts require both original ledger legs; missing evidence never causes a replacement debit',t=>{
   const {db,store,service,fund,donate}=fixture(t);fund(A,1000);const first=donate();
   db.prepare('DELETE FROM economy_group_treasury_ledger WHERE donation_id=?').run(first.donation.id);
   code(()=>donate(),'TREASURY_INTEGRITY_ERROR');code(()=>service.receipt({steamId:A,requestId:'donation_0001'}),'TREASURY_INTEGRITY_ERROR');
-  assert.equal(store.getWallet(A).balance,900);assert.equal(service.get(1).balance,100);
+  assert.equal(store.getWallet(A).balance,900);code(()=>service.get(1),'TREASURY_INTEGRITY_ERROR');assert.equal(db.prepare('SELECT balance FROM economy_group_treasuries WHERE group_id=1').get().balance,100);
+});
+test('cached balance drift cannot admit new donations, purchases or zero-fund closure',t=>{
+  const {db,store,service,fund,donate}=fixture(t);fund(A,1000);donate();
+  const spending=require('../src/services/groupTreasurySpending').createGroupTreasurySpending(store,{enabled:()=>true});
+  const item={id:'audit-frame',revision:1,title:'Synthetic frame',description:'Test price',cost:50,purpose:'group_cosmetic',target:{kind:'profile_frame',value:'fern'}};
+  spending.register(item,A);spending.setEnabled(item.id,1,true,A);
+  const closure=require('../src/services/groupTreasuryClosure').createGroupTreasuryClosure(store);
+  for(const balance of [0,300]){
+    db.prepare('UPDATE economy_group_treasuries SET balance=? WHERE group_id=1').run(balance);
+    code(()=>service.get(1),'TREASURY_INTEGRITY_ERROR');code(()=>donate(1,'drift_donation_'+balance),'TREASURY_INTEGRITY_ERROR');
+    code(()=>spending.reserve({groupId:1,actorSteamId:A,itemId:item.id,revision:1,expectedCost:50,requestId:'drift_spend_'+balance}),'TREASURY_INTEGRITY_ERROR');
+    code(()=>closure.begin({groupId:1,actorSteamId:A,requestId:'drift_closure_'+balance,action:'disband'}),'TREASURY_INTEGRITY_ERROR');
+    assert.equal(store.getWallet(A).balance,900);assert.equal(db.prepare('SELECT COUNT(*) n FROM economy_group_treasury_closures').get().n,0);
+  }
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM economy_group_treasury_ledger').get().n,1);
+  db.prepare('UPDATE economy_group_treasuries SET balance=100 WHERE group_id=1').run();assert.equal(service.get(1).balance,100);
+});
+test('orphan group ledger credit is not treated as an empty Treasury or repaired by donation',t=>{
+  const {db,store,service,fund,donate}=fixture(t);fund(A,1000);
+  db.prepare("INSERT INTO economy_group_treasury_ledger(id,group_id,amount,kind) VALUES('orphan-credit',9,50,'donation')").run();
+  code(()=>service.get(9),'TREASURY_INTEGRITY_ERROR');code(()=>donate(1,'orphan_donation',9),'TREASURY_INTEGRITY_ERROR');
+  assert.equal(db.prepare('SELECT balance FROM economy_group_treasuries WHERE group_id=9').get(),undefined);assert.equal(store.getWallet(A).balance,1000);
+});
+test('corrupted ledger aggregate overflow returns an integrity error without lossy numeric conversion',t=>{
+  const {db,service}=fixture(t);const insert=db.prepare("INSERT INTO economy_group_treasury_ledger(id,group_id,amount,kind) VALUES(?,8,?,'donation')");
+  db.exec('BEGIN IMMEDIATE');for(let index=0;index<1025;index++)insert.run('overflow-'+index,Number.MAX_SAFE_INTEGER);db.exec('COMMIT');
+  code(()=>service.get(8),'TREASURY_INTEGRITY_ERROR');assert.equal(db.prepare('SELECT COUNT(*) n FROM economy_group_treasuries').get().n,0);
 });
 test('group history is bounded and contains no donor identity or retry key',t=>{
   const {service,fund,donate}=fixture(t);fund(A,1000);

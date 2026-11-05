@@ -110,7 +110,7 @@ function createGroupTreasury(store,{writesEnabled=()=>process.env.GROUP_TREASURY
         if(!Number.isSafeInteger(wallet.balance)||wallet.balance<0)throw failure('TREASURY_INTEGRITY_ERROR','Player wallet requires review',500);
         if(wallet.balance<amount)throw failure('INSUFFICIENT_FUNDS','Not enough Valley Coins',409);
         db.prepare('INSERT OR IGNORE INTO economy_group_treasuries(group_id) VALUES (?)').run(gid);
-        const balance=db.prepare('SELECT balance FROM economy_group_treasuries WHERE group_id=?').get(gid).balance;
+        const balance=require('./groupTreasuryAccounting').balances(db,gid).balance;
         if(balance>MAX-amount)throw failure('TREASURY_LIMIT','Group Treasury balance limit reached',409);
         const id=randomUUID(),walletId=randomUUID();
         db.prepare("UPDATE economy_wallets SET balance=balance-?,updated_at=datetime('now') WHERE steam_id=?").run(amount,steam);

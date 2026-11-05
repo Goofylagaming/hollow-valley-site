@@ -78,7 +78,7 @@ test('one group cannot acquire the same event twice under another catalog item',
 test('missing committed registration, audit or ledger evidence fails closed without replacement debit',()=>{
  for(const table of ['economy_group_event_registrations','economy_group_event_registration_audit','economy_group_treasury_ledger']){
   const f=fixture();f.reserve();f.commit();const key=table==='economy_group_treasury_ledger'?'spend_request_id':'request_id';db.prepare(`DELETE FROM ${table} WHERE ${key}=?`).run(f.requestId);
-  assert.throws(f.commit,code('TREASURY_INTEGRITY_ERROR'));assert.throws(()=>events.list(f.groupId),code('TREASURY_INTEGRITY_ERROR'));assert.equal(treasury.get(f.groupId).balance,120);
+  assert.throws(f.commit,code('TREASURY_INTEGRITY_ERROR'));assert.throws(()=>events.list(f.groupId),code('TREASURY_INTEGRITY_ERROR'));assert.equal(db.prepare('SELECT balance FROM economy_group_treasuries WHERE group_id=?').get(f.groupId).balance,120);
  }
 });
 test('group event flag pauses reservations and effects but retains release and stored receipts',()=>{

@@ -103,7 +103,7 @@ test('external dispatch fails closed without an evidence adapter; missing spend 
   service.reserve(input({itemId:'territory-entry'}));code(()=>service.beginFulfillment({groupId:1,requestId:'purchase_0001',actorSteamId:A}),'FULFILLMENT_NOT_CONFIGURED');
   service.release(input({itemId:'territory-entry'}));add();service.reserve(input({requestId:'purchase_0002'}));service.commit({groupId:1,requestId:'purchase_0002',actorSteamId:A});
   db.prepare('DELETE FROM economy_group_treasury_ledger WHERE spend_request_id=?').run('purchase_0002');
-  code(()=>service.commit({groupId:1,requestId:'purchase_0002',actorSteamId:A}),'TREASURY_INTEGRITY_ERROR');code(()=>service.cosmetics(1),'TREASURY_INTEGRITY_ERROR');assert.equal(treasury.get(1).balance,120);
+  code(()=>service.commit({groupId:1,requestId:'purchase_0002',actorSteamId:A}),'TREASURY_INTEGRITY_ERROR');code(()=>service.cosmetics(1),'TREASURY_INTEGRITY_ERROR');code(()=>treasury.get(1),'TREASURY_INTEGRITY_ERROR');assert.equal(db.prepare('SELECT balance FROM economy_group_treasuries WHERE group_id=1').get().balance,120);
 });
 test('a release racing a late reservation leaves no held or spent coins',async t=>{
   const {store,service,treasury,add,input}=fixture(t);add();
