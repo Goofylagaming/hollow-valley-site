@@ -312,6 +312,13 @@ router.get('/leaderboards/playtime', (req, res) => {
   }
 });
 
+// This is a passive source: never invoke getServerSnapshot/getRconSnapshot here.
+router.get('/rcon/health', (_req, res) => {
+  res.set('Cache-Control', 'private, no-store');
+  if(process.env.STATUS_RCON_HEALTH_ENABLED!=='1')return res.status(503).json({available:false});
+  return res.json({available:true,...require('../services/rconHealthService').getDefaultService().read()});
+});
+
 // A health read must not call the catalog endpoint, which performs seeding.
 router.get('/marketplace/health', (_req, res) => {
   res.set('Cache-Control', 'private, no-store');

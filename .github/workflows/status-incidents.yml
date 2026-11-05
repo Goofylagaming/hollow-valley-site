@@ -13,6 +13,16 @@ on:
       - 'automation-platform/test/marketplaceHealth.test.js'
       - 'automation-platform/test/marketplaceHealthHttp.test.js'
       - 'automation-platform/src/services/economyStore.js'
+      - 'automation-platform/src/services/statusService.js'
+      - 'automation-platform/src/services/rconHealthService.js'
+      - 'automation-platform/src/adapters/evrimaRcon.js'
+      - 'automation-platform/test/rconHealth.test.js'
+      - 'automation-platform/test/rconHealthHttp.test.js'
+      - 'automation-platform/test/rconHealthWire.test.js'
+      - 'automation-platform/test/statusConcurrency.test.js'
+      - 'automation-platform/test/statusPrivacy.test.js'
+      - 'automation-platform/test/statusErrorClassification.test.js'
+      - 'automation-platform/test/evrimaRcon.test.js'
       - 'automation-platform/src/services/officialMarketplaceCatalogService.js'
       - 'automation-platform/test/officialMarketplaceCatalogTiers.test.js'
       - 'server/routes/map.js'
@@ -69,7 +79,7 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: node --test test/marketplaceHealthClient.test.js test/marketplaceHealth.test.js automation-platform/test/marketplaceHealth.test.js automation-platform/test/marketplaceHealthHttp.test.js automation-platform/test/officialMarketplaceCatalogTiers.test.js test/marketplaceStorageUiRegression.test.js test/steamProfile.test.js test/ownerEmailAuth.test.js test/steamProviderHealth.test.js test/steamProviderHttp.test.js test/liveMapProjection.test.js test/liveMapStatusHttp.test.js test/mapActivityRoute.test.js test/liveSnapshotFreshness.test.js test/liveMapTerritoryIntegration.test.js test/bridgeWorkerHealth.test.js test/componentStatusHttp.test.js test/serverManagement.test.js test/desktopReadOnlyManagement.test.js test/statusIncidents.test.js test/statusIncidentsHttp.test.js test/statusPage.test.js test/incidentTimeline.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js test/roadmapCommunity.test.js
+      - run: node --test automation-platform/test/rconHealth.test.js automation-platform/test/rconHealthHttp.test.js automation-platform/test/rconHealthWire.test.js automation-platform/test/statusConcurrency.test.js automation-platform/test/statusPrivacy.test.js automation-platform/test/statusErrorClassification.test.js automation-platform/test/evrimaRcon.test.js test/marketplaceHealthClient.test.js test/marketplaceHealth.test.js automation-platform/test/marketplaceHealth.test.js automation-platform/test/marketplaceHealthHttp.test.js automation-platform/test/officialMarketplaceCatalogTiers.test.js test/marketplaceStorageUiRegression.test.js test/steamProfile.test.js test/ownerEmailAuth.test.js test/steamProviderHealth.test.js test/steamProviderHttp.test.js test/liveMapProjection.test.js test/liveMapStatusHttp.test.js test/mapActivityRoute.test.js test/liveSnapshotFreshness.test.js test/liveMapTerritoryIntegration.test.js test/bridgeWorkerHealth.test.js test/componentStatusHttp.test.js test/serverManagement.test.js test/desktopReadOnlyManagement.test.js test/statusIncidents.test.js test/statusIncidentsHttp.test.js test/statusPage.test.js test/incidentTimeline.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js test/roadmapCommunity.test.js
       - run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.62.1
       - run: npx playwright install --with-deps chromium
       - run: node scripts/verify-status-incidents.cjs

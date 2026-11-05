@@ -480,3 +480,54 @@ Still required: deploy/review the source and collector together, authenticated
 staging, operational source-clock synchronization, multi-process load review,
 storefront rendering and real checkout/delivery verification, remaining service
 monitors, incident retention policy and broader #29/full-roadmap release gates.
+
+
+## Passive RCON source — local integration step, 6 November 2026
+
+The automation status service already performs configured RCON reads and keeps a
+five-to-ten-minute cache. The new default-off STATUS_RCON_HEALTH_ENABLED source
+observes those existing calls only. Its health endpoint never invokes a status
+refresh, opens a socket, sends a game command, polls a queue, writes a database or
+substitutes external presence as RCON evidence. Existing direct-RCON disablement
+is preserved. This is useful only where that automation process actually owns
+RCON status reads; it does not establish the BinaryLane worker's local RCON path.
+
+An enabled configured read obtains a private, one-use request token before the
+existing adapter call. Completion records only read-returned or read-failed and
+the original start time. Cache hits and health reads cannot restamp that fact.
+Monitoring failures are isolated from the pre-existing status result. The source
+returns no host, port, password, errors, players, counts, coordinates or response
+text. Command execution and player-data completeness explicitly remain unverified:
+the current adapter treats some supplementary reads as optional, so returning a
+status is not proof of every field or game-control action.
+
+Configuration changes discard previous observations and pending tokens; older
+or repeated completion tokens cannot replace a newer completed read. Invalid or
+backwards clocks are unverified. Observations expire after six minutes, and retain
+the original timestamp when delayed. A configured cache cadence above six minutes
+can leave deliberate unknown/delayed gaps; deployment must review this instead of
+silently extending health freshness. Disabled RCON, missing connection settings,
+no observed query, failed reads and stale facts remain distinct states.
+
+GET /api/website/rcon/health uses the existing integration token, requires the
+separate source flag and sends private/no-store caching. Disabled calls return
+503 with available:false. A cancellable fixed-path website client read is ready.
+Periodic website collection and public RCON rendering are not connected yet.
+Restart begins without an observation. No new observer tables or background
+RCON probes were introduced.
+
+142 affected local checks pass. Tests cover minimal projection, source-start
+clocks, expiry/rollback, disabled/config changes, single-use/out-of-order tokens,
+existing status cache/concurrency/privacy, observer-failure isolation and actual
+client-to-token-protected HTTP reads. The controlled TCP fixture exercises the
+real adapter authentication and existing player-list/server-details requests,
+records success and authentication failure, and proves repeated health/cache reads
+and disabled RCON open no additional connections. Other service tests verify that
+external presence does not create RCON evidence. These tests use synthetic hosts,
+credentials and protocol responses; no live RCON command was sent.
+
+Homepage roadmap is v139. Collection/public display, source deployment at the
+actual RCON owner, real authenticated RCON/player-data/command verification,
+Discord observation, incident retention, hosted CI, staging and the wider #29 and
+31-feature release gates remain unfinished. No flags, push, merge, deployment,
+player data, game configuration or running producer changed.
