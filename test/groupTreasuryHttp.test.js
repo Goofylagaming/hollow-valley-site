@@ -139,3 +139,11 @@ test('saved request recovery is donor-scoped and does not depend on an accountin
   const other=await request(f.B,'/donations?steamId='+f.A);
   assert.deepEqual(other.body.donations,[]);assert.equal(other.body.group,null);assert.equal(calls.read,before);
 });
+test('current Treasury reads distinguish total, reserved and available group coins',async()=>{
+  const f=seed(),id=(await prepare(f)).body.id;await confirm(f,id);
+  const service=require('../automation-platform/src/services/groupTreasurySpending').createGroupTreasurySpending(economy,{enabled:()=>true});
+  const item={id:'http-test-frame',revision:1,title:'Synthetic frame',description:'Test only',cost:60,purpose:'group_cosmetic',target:{kind:'profile_frame',value:'fern'}};
+  service.register(item,f.A);service.setEnabled(item.id,1,true,f.A);
+  service.reserve({groupId:f.groupId,actorSteamId:f.A,itemId:item.id,revision:1,expectedCost:60,requestId:'http_spend_0001'});
+  const result=await request(f.A);assert.equal(result.body.treasury.balance,100);assert.equal(result.body.treasury.held,60);assert.equal(result.body.treasury.available,40);
+});

@@ -100,8 +100,9 @@ function createGroupTreasury(db,groups,client,{now=()=>new Date().toISOString(),
     const {group,donations}=overview(steam);
     if(!group)return {group:null,treasury:null,donations};
     const treasury=await client.get({groupId:group.id});membership(steam,group.id);
-    if(treasury?.groupId!==group.id||!Number.isSafeInteger(treasury.balance)||treasury.balance<0||!Array.isArray(treasury.transactions)||treasury.transactions.length>50)throw failure('TREASURY_RESPONSE_MISMATCH','Group Treasury balance requires review',502);
-    return {group:{id:group.id,name:group.name},treasury:{groupId:group.id,balance:treasury.balance,transactions:treasury.transactions.map(row=>({id:row.id,amount:row.amount,kind:row.kind,createdAt:row.createdAt}))},donations};
+    const held=treasury?.held??0,available=treasury?.available??treasury?.balance;
+    if(treasury?.groupId!==group.id||!Number.isSafeInteger(treasury.balance)||treasury.balance<0||!Number.isSafeInteger(held)||held<0||!Number.isSafeInteger(available)||available<0||held+available!==treasury.balance||!Array.isArray(treasury.transactions)||treasury.transactions.length>50)throw failure('TREASURY_RESPONSE_MISMATCH','Group Treasury balance requires review',502);
+    return {group:{id:group.id,name:group.name},treasury:{groupId:group.id,balance:treasury.balance,held,available,transactions:treasury.transactions.map(row=>({id:row.id,amount:row.amount,kind:row.kind,createdAt:row.createdAt}))},donations};
   }
   return {prepare,confirm,cancel,reconcile,current,overview,read:(steam,id)=>project(own(steam,id))};
 }

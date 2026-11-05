@@ -14,7 +14,7 @@ Amounts and balances must remain whole, nonnegative safe integers. Insufficient 
 
 New donations default off behind `GROUP_TREASURY_ENABLED=1` on both services. The accounting API, website proxy and Groups-page donation controls are implemented locally. Local tests use synthetic balances only and exercise actual new-process retries plus competing independent processes sharing SQLite. Existing wallet/marketplace test cleanup now closes SQLite handles before verified temporary-directory deletion, allowing those regressions to run on Windows.
 
-Roadmap #17 has left the idea-stage ballot while historical votes remain recorded and free active slots. The homepage release register uses asset version 87. A dedicated hosted test workflow is prepared but has not been published.
+Roadmap #17 has left the idea-stage ballot while historical votes remain recorded and free active slots. The homepage release register uses asset version 88. A dedicated hosted test workflow is prepared but has not been published.
 
 ## Durable website consent and recovery
 
@@ -26,7 +26,7 @@ Cancellation before submission is local and permanently blocks confirmation. Can
 
 The automation endpoints require the private website integration token and trust the website's membership/consent authorization. They do not expose a browser credential. New request-outcome records, website intents and their audit events are additive. No automatic retry scheduler, automatic refund, payout or game command is installed.
 
-63 local checks cover accounting, wallet/marketplace regressions, website-to-automation HTTP authorization, lost responses, coordinator reinitialization, immutable consent, membership replacement, cancellation races across processes, mismatched evidence, failed audits, retained votes, homepage integration and website startup. These use temporary databases and synthetic balances. Production Steam sign-in and hosted behavior remain unverified.
+78 local checks cover accounting, wallet/marketplace regressions, website-to-automation HTTP authorization, lost responses, coordinator reinitialization, immutable consent, membership replacement, donation and purchase races across processes, reviewed catalog validation, reservations, cosmetic entitlement accounting, delivery proof verification, failed audits, retained votes, homepage integration and website startup. These use temporary databases and synthetic balances. Production Steam sign-in and hosted behavior remain unverified.
 
 ## Donation controls
 
@@ -36,8 +36,22 @@ Saved requests load through a donor-scoped website-only overview independent of 
 
 `scripts/verify-group-treasury.cjs` passes at 1440px and 390px using real common/navigation, Groups and Treasury scripts, website and accounting routes, temporary databases and synthetic cookie authentication. Cases include immutable review, required consent, lost preparation and accounting replies, cancellation during confirmation, disabled rollout, balance outage, cancellation during a held balance response, non-donating member access, preview, leaving, late responses and session loss. No real coins or game services are contacted. The existing full Groups/Headquarters fixture also remains part of local regression validation.
 
+## Spending foundation
+
+`createGroupTreasurySpending` adds internal reviewed-catalog and reservation accounting. No runtime spending endpoint or live catalog is configured. Catalog registration is an internal trusted-review operation, and website owner authorization is still required before exposing it. Revisions are immutable, registration defaults disabled, and activation retains an audit. Only cosmetic profile frames, Territory entry and event registration targets are accepted; extra combat/stat fields and unsupported purposes fail validation. Test prices and preset frame identifiers are synthetic and do not establish live prices or delivered frame visuals.
+
+Reservations freeze the accepted item, revision, cost, purpose and target. The balance API and Groups page distinguish total, reserved and available coins. An active or completed benefit cannot be purchased twice under another item ID. Late reservations under a released request remain released. Independent processes cannot reserve the same coins twice. Cosmetic charges and group-scoped entitlement records commit atomically with a single group-ledger debit and audit. Rendering/selecting owned cosmetics is still pending.
+
+External dispatch must be recorded before accepting a delivery result. Dispatch fails when a verified-evidence adapter is not configured. An uncertain dispatched hold cannot expire or release automatically. Final delivery proof must match the group, request, target, purpose and cost and pass a synchronous trusted verifier; truthy promises and fabricated receipts do not qualify. One delivery receipt cannot settle two purchases. A verified non-delivery can release the hold; a verified delivery can settle an accepted hold even after new spending is paused. Release of a committed purchase returns its receipt without refunding. Missing accounting evidence fails closed and is never recreated as a new charge.
+
+`GROUP_TREASURY_SPEND_ENABLED=0` is separate from donation enablement. The internal methods do not prove current website ownership; owner controls, durable website spending authorization, reviewed live catalogs, real entry/registration fulfillment and its receipt ingestion remain required.
+
+## Accepted closure policy
+
+The user selected blocking group closure while coins or unresolved requests remain. This covers disbanding and the last member leaving. Ordinary membership departures/owner succession must remain available outside a pending closure operation. No automatic refunds are authorized. The required distributed gate and race/recovery cases are documented in `HV_GROUP_TREASURY_CLOSURE_PROTOCOL_20261105.md`; enforcement is not implemented yet.
+
 ## Required integration before rollout
 
-- Resolve group closure, retained balance access and refund/cancellation rules before accepting real coins. No closure redistribution rule is inferred from the roadmap.
-- Add owner-authorized spending with reviewed purpose/cost catalogs, recorded fulfillment and recovery. Territory/event registration is in the website database and cannot be claimed atomic with the automation ledger without an explicit reservation/fulfillment protocol. Cosmetics must remain cosmetic.
+- Implement the accepted closure-blocking policy with authoritative accounting freezes and recoverable website gates before accepting real coins.
+- Add current-owner spending authorization/controls, reviewed live prices, cosmetic rendering and real Territory/event fulfillment evidence. The internal reservation layer alone does not complete those integrations.
 - Verify UI, privacy, concurrency, group transitions, backups, hosted CI and authenticated staging. Obtain separate merge/deployment approval before production. Original roadmap #17 remains Building / Testing, with no release date.
