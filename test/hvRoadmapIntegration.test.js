@@ -108,7 +108,7 @@ test("integrated homepage retains read-only status, releases and personal progre
   const release=read("public/assets/site-updates.js");
   assert.match(home,/href="\/status"/);
   assert.match(home,/home-updates-list/);
-  assert.match(home,/home-roadmap\.js\?v=68/);
+  assert.match(home,/home-roadmap\.js\?v=69/);
   assert.match(client,/status\?\.online && !status\?\.stale/);
   assert.match(client,/home-profile-progress/);
   assert.doesNotMatch(release,/\.innerHTML\s*=/);

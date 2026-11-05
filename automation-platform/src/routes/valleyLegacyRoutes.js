@@ -6,6 +6,7 @@ const legacy = require("../services/valleyLegacyService");
 const router = express.Router();
 router.use('/journeys',require('./journeyRoutes'));
 router.use('/discovery',require('./discoveryRoutes'));
+router.use('/death-recaps',require('./deathRecapRoutes'));
 router.use((_req, res, next) => {
   res.set("Cache-Control", "no-store");
   next();

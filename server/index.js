@@ -265,6 +265,7 @@ function createApp() {
   app.use("/api/legacy", require("./routes/valleyLegacy"));
   app.use("/api/journeys", require("./routes/journeys"));
   app.use("/api/discovery", require("./routes/discovery"));
+  app.use("/api/death-recaps", require("./routes/deathRecaps"));
   app.use("/api/roster", rosterRouter);
   app.use("/api/leaderboards", leaderboardsRouter);
   app.use("/api/map", mapRouter);
