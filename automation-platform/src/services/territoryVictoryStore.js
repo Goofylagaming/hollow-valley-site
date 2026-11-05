@@ -6,7 +6,8 @@ function createTerritoryVictoryStore(db,{now=Date.now}={}) {
   CREATE TABLE IF NOT EXISTS progression_territory_winners (
     attack_id INTEGER NOT NULL,steam_id TEXT NOT NULL,PRIMARY KEY(attack_id,steam_id)
   );
-  CREATE INDEX IF NOT EXISTS progression_territory_winners_player ON progression_territory_winners(steam_id)`);
+  CREATE INDEX IF NOT EXISTS progression_territory_winners_player ON progression_territory_winners(steam_id);
+  CREATE INDEX IF NOT EXISTS progression_territory_result_event ON progression_territory_results(event_id)`);
   function invalid(message,status=400) {throw Object.assign(new Error(message),{status});}
   function ingest(input={}) {
     if(!input || typeof input!=='object' || Array.isArray(input)) invalid('Invalid Territory result');

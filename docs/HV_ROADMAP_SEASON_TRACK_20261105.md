@@ -63,7 +63,7 @@ reward. Existing paid quest/level behavior is regression-tested with synthetic d
 
 Original #4 wording and historical votes remain. The feature leaves the active
 ballot during development, freeing its old votes without deleting them. Eight
-ideas remain eligible. Homepage planning asset version is 124. No production
+ideas remain eligible. Homepage planning asset version is 125. No production
 completion date is assigned.
 
 ## Local verification
@@ -392,7 +392,7 @@ Season definitions can now optionally include this exact shape:
 This fragment is illustrative synthetic policy, not a configured live amount.
 No default point amounts are installed. An operator must review the complete
 season artifact and its new digest, then separately stage/publish it. Each of the
-supported achievement IDs may appear once (currently eight), with an integer
+supported achievement IDs may appear once (currently ten), with an integer
 award from 1 to 1,000,000 seasonal XP. Unknown policies/IDs, duplicates, prices,
 currency fields and malformed values are rejected. Awards are canonically ordered.
 Definitions without the optional field retain their exact prior digest and behavior.
@@ -416,7 +416,7 @@ strictly before settlement. Legacy unknown timing, late receipts and future cloc
 cannot bypass these rules. An offline player may reconcile timely receipts after
 season closure but before the reviewed retention expiry.
 
-One explicit progress update checks at most eight configured achievement awards in
+One explicit progress update checks at most ten configured achievement awards in
 addition to the existing bounded XP batch. A separate seasonal evidence table
 copies only the configured point amount, achievement identity, source position,
 timing/basis and binding hashes. Its season/player/achievement key prevents duplicate
@@ -444,7 +444,7 @@ boundaries continue to apply without new mutation endpoints.
 The Quests screen displays each configured achievement and amount before enrollment,
 explains qualifying completion/confirmation dates and shows the achievement portion
 of total season XP. Its review binds the immutable season digest already used by
-participation requests. Player asset v4 and homepage planning asset v124 are local.
+participation requests. Player asset v5 and homepage planning asset v125 are local.
 No actual season, point policy, reward, flag, database or producer has been enabled.
 
 **113 affected checks pass** across reviewed rules, operator readiness/dry runs,
@@ -507,8 +507,8 @@ send a payment/game command. Existing unknown historical awards remain unbackfil
 The existing consent position, settlement cutoff, duplicate-copy, source revalidation,
 erasure/rejoin and reviewed-expiry rules apply to these two added point types. The
 Quests review gives them meaningful labels and uses the same immutable digest as
-the configured amounts. Other families—level/playtime, skins, combat species,
-Prime and Territory achievements—still need trustworthy qualifying-clock contracts
+the configured amounts. Remaining families—level/playtime, skins and Prime
+achievements—still need trustworthy qualifying-clock contracts
 before they can be selected for seasonal points. Real producer review, approved
 reward fulfillment, live season/point rules, hosted checks and staging remain gates.
 
@@ -521,3 +521,70 @@ The actual desktop/mobile Quests fixture passes at 1440px and 390px with reviewe
 life amounts, combined XP totals, late-death exclusion/restoration, consent/retry,
 pause/preview, account changes and expiry. The phone screenshot was inspected.
 All data and point amounts are synthetic; nothing was pushed, deployed or enabled.
+
+## Combat diversity and Territory capture achievement points — 6 November 2026
+
+The optional reviewed policy now accepts `combat-species-5` and `territory-victory`,
+bringing the supported set to ten achievements. No default/live point amount is
+chosen. `achievementBattleSource.js` supplies source evidence to the same new-award
+collector, immutable receipt and private season-progress checks already described.
+There are no new mutation endpoints, game actions, coin payments or permanent XP.
+
+Combat diversity uses the earliest recorded event for each recognized event-time
+victim species, ordered by source UTC clock and stable event identity. The fifth
+distinct species supplies the qualifying source date. Current dinosaur state,
+repeated species, unknown historical labels, self-kills, environmental deaths and
+another player's kills cannot establish that threshold. The helper reuses the
+combat intake's canonical species registry. Qualifying records need their original
+victim identity, event identity, source label and unambiguous clock; it does not
+infer a missing old event date/species from later records or reconciliation.
+
+The receipt hashes the five qualifying events, binding original clock/species,
+victim identity and feed source without copying names, locations, growth or raw
+combat records into a seasonal response. Later nonqualifying/later species events
+do not move the original fifth-species date. Removing/changing a qualifying event
+or importing an earlier event that changes the threshold makes that receipt
+unavailable; it is not silently redated. Unknown clocks among recognized eligible
+events also withhold timing. Historical event inspection is bounded to 10,001 rows
+through the existing killer/time index; real feed provenance/volumes still need
+authenticated producer/staging review. A source label alone is not new proof of
+actual game execution beyond the existing protected combat intake.
+
+Territory timing uses the original earliest capture resolution date for that
+frozen winning Steam identity. The helper requires a version-1, `recorded-live`,
+`capture` result whose attack/event IDs, start/resolution clocks and receiving
+clock agree with the saved result row. The payload must contain the same unique
+1–256 valid Steam identities as the complete saved winner roster. Orphan winner
+rows, malformed/unknown clocks, manual/simulated provenance, contradictory payloads,
+missing membership or reused event identities cannot provide an invented date.
+
+Current membership, ownership, alliances, later player deaths and group names are
+not part of the frozen capture proof. In particular, this contract establishes
+capture participation and never claims battle survival or satisfies the separate
+unfinished survival challenge. There is no change to existing Territory capture
+awards or permanent badge eligibility. Source records are bounded to 10,001 joined
+winner results, with the selected first roster bounded to 257 rows. An additive
+non-unique event-ID index supports a bounded duplicate-identity lookup; existing
+intake and conflict behavior remain unchanged. Website Territory event identities
+already use AUTOINCREMENT and are not inferred from current group state.
+
+Both contracts retain the common enrollment/source-position floor, original-date
+window, receipt settlement cutoff, duplicate-copy protection, read-time validation,
+withdrawal/erasure and reviewed retention rules. The Quests review displays meaningful
+combat/capture labels and the exact configured seasonal amount. Permanent badge
+and source rows remain intact when seasonal copies are deleted or unsupported.
+Remaining clocks include levels, playtime totals, skins and Prime; chosen live rules,
+approved reward fulfillment, real producers, operational recovery, hosted checks
+and authenticated staging still need completion.
+
+**121 affected checks pass** across the new battle-source contracts and existing
+season/achievement/quest/payment paths. Actual protected combat ingestion and
+Territory result tests verify newly unlocked permanent badges receive the original
+event-time receipt without new XP/coins. New cases cover distinct-species ordering,
+unknown/self/unrelated events, source deletion/replacement and late earlier imports,
+frozen rosters, contradictory provenance/times and duplicate event identities.
+The desktop/mobile Quests fixture passes at 1440px and 390px with capture labels,
+combined synthetic points, source invalidation/restoration, late-death behavior,
+consent/retry, paused deletion, account changes and expiry. The phone screenshot
+was inspected. Player asset v5 and homepage v125 remain local. No real policy,
+database, flag, deployment, message or game command has been changed.

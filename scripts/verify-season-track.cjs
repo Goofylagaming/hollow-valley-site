@@ -14,10 +14,11 @@ const START = Date.parse('2027-01-01T00:00:00Z'); let now = START - 1000;
 db.exec('CREATE TABLE progression_achievements(steam_id TEXT,achievement_id TEXT,metadata_json TEXT,unlocked_at TEXT,PRIMARY KEY(steam_id,achievement_id));CREATE TABLE economy_quest_achievements(steam_id TEXT,quest_id TEXT,period_key TEXT,achieved_at TEXT)');
 db.exec('CREATE TABLE vl_lives(id TEXT PRIMARY KEY,steam_id TEXT,species TEXT,started_at INTEGER,last_at INTEGER,ended_at INTEGER);CREATE TABLE vl_events(id TEXT PRIMARY KEY,payload TEXT,occurred_at INTEGER);CREATE TABLE vl_parents(child TEXT,parent TEXT);CREATE TABLE vl_growth_milestones(life_id TEXT,juvenile_at INTEGER,adult_at INTEGER);CREATE TABLE combat_events(id TEXT PRIMARY KEY,victim_steam_id TEXT,occurred_at TEXT)');
 const achievementSources = require('../automation-platform/src/services/achievementSourceTime').createAchievementSourceTimeStore(db, { now: () => now });
+const territorySources = require('../automation-platform/src/services/territoryVictoryStore').createTerritoryVictoryStore(db, { now: () => now });
 const store = createSeasonTrackStore(db, { now: () => now }); service.get = () => store;
 const definition = { id: 'synthetic-browser-season', title: 'Synthetic <Valley> season', startsAt: new Date(START).toISOString(), endsAt: new Date(START + 56 * 86400000).toISOString(), settlesAt: new Date(START + 57 * 86400000).toISOString(), retainUntil: new Date(START + 147 * 86400000).toISOString(), free: true,
   sources: [{ source: 'quest', policy: 'achievement-time' }], tiers: [{ xp: 10, title: 'First <milestone>' }, { xp: 100, title: 'Valley explorer' }],
-  achievementPoints: { policy: 'qualifying-source-time', awards: [{ id:'quest-1', xp:25 }, {id:'nested-adult',xp:50}] } };
+  achievementPoints: { policy: 'qualifying-source-time', awards: [{ id:'quest-1', xp:25 }, {id:'nested-adult',xp:50}, {id:'territory-victory',xp:75}] } };
 const digest = describe(definition).digest;
 store.stage(definition, { reviewer: '76561198000000401', digest }); store.changeState(definition.id, { reviewer: '76561198000000401', digest, action: 'publish', expectedRevision: 1 }); now = START;
 let writes = 0, drop = false, hold = false, held = null;
@@ -60,6 +61,7 @@ async function until(fn) { for (let i = 0; i < 300; i++) { if (fn()) return; awa
       await page.click('#season-choice'); assert.match(await page.locator('#season-review-text').textContent(), /for free/);
       assert.match(await page.locator('#season-review-text').textContent(), /First quest: 25 season XP/);
       assert.match(await page.locator('#season-review-text').textContent(), /Verified nested adulthood: 50 season XP/);
+      assert.match(await page.locator('#season-review-text').textContent(), /Verified Territory capture participation: 75 season XP/);
       const before = writes; drop = true; await confirm(); await page.getByRole('button', { name: 'Retry saved season request', exact: true }).waitFor();
       assert.equal(writes, before + 1); assert.equal(store.status(definition.id, steamA).revision, 1);
       await confirm(); assert.equal(writes, before + 2); assert.equal(store.status(definition.id, steamA).revision, 1);
@@ -75,15 +77,21 @@ async function until(fn) { for (let i = 0; i < 300; i++) { if (fn()) return; awa
       db.prepare('INSERT INTO vl_events VALUES(?,?,?)').run('hatch:'+child,JSON.stringify({type:'hatch',child,parents:[parent],evidence:'synthetic-browser-hatch'}),now);
       db.exec('BEGIN IMMEDIATE'); db.prepare('INSERT INTO progression_achievements VALUES(?,?,?,?)').run(steamA,'nested-adult',JSON.stringify({type:'nested_adult',threshold:1,value:1,evidence:{lifeId:child,juvenileAt:now-30000,adultAt:now}}),new Date(now).toISOString());
       achievementSources.recordNewAward(steamA,'nested-adult'); db.exec('COMMIT');
+      territorySources.ingest({version:1,attackId:width,eventId:width,startedAt:now-60000,resolvedAt:now,outcome:'capture',provenance:'recorded-live',winners:[steamA,steamB]});
+      db.exec('BEGIN IMMEDIATE');db.prepare('INSERT INTO progression_achievements VALUES(?,?,?,?)').run(steamA,'territory-victory',JSON.stringify({type:'territory_victories',threshold:1,value:1}),new Date(now).toISOString());achievementSources.recordNewAward(steamA,'territory-victory');db.exec('COMMIT');
       await refresh(); assert.match(await page.locator('#season-points').textContent(), /^0 season XP/);
-      await page.click('#season-sync'); await idle(); assert.match(await page.locator('#season-points').textContent(), /^85 season XP/);
-      assert.match(await page.locator('#season-points').textContent(), /75 XP comes from reviewed achievements/);
+      await page.click('#season-sync'); await idle(); assert.match(await page.locator('#season-points').textContent(), /^160 season XP/);
+      assert.match(await page.locator('#season-points').textContent(), /150 XP comes from reviewed achievements/);
       db.prepare('UPDATE economy_quest_achievements SET achieved_at=? WHERE steam_id=?').run(new Date(now-1).toISOString(), steamA);
-      await refresh(); assert.match(await page.locator('#season-points').textContent(), /^60 season XP/); assert.match(await page.locator('#season-evidence').textContent(), /excluded/);
+      await refresh(); assert.match(await page.locator('#season-points').textContent(), /^135 season XP/); assert.match(await page.locator('#season-evidence').textContent(), /excluded/);
       db.prepare('UPDATE economy_quest_achievements SET achieved_at=? WHERE steam_id=?').run(new Date(now).toISOString(), steamA); await refresh();
       db.prepare('INSERT INTO combat_events VALUES(?,?,?)').run('nested-death-'+width,steamA,new Date(now-15000).toISOString());
-      await refresh(); assert.match(await page.locator('#season-points').textContent(), /^35 season XP/); assert.match(await page.locator('#season-evidence').textContent(), /excluded/);
-      db.prepare('DELETE FROM combat_events WHERE id=?').run('nested-death-'+width); await refresh(); assert.match(await page.locator('#season-points').textContent(), /^85 season XP/);
+      await refresh(); assert.match(await page.locator('#season-points').textContent(), /^110 season XP/); assert.match(await page.locator('#season-evidence').textContent(), /excluded/);
+      db.prepare('DELETE FROM combat_events WHERE id=?').run('nested-death-'+width); await refresh(); assert.match(await page.locator('#season-points').textContent(), /^160 season XP/);
+      const frozenResult=db.prepare('SELECT payload_json FROM progression_territory_results WHERE attack_id=?').get(width).payload_json;
+      db.prepare('UPDATE progression_territory_results SET payload_json=? WHERE attack_id=?').run(JSON.stringify({...JSON.parse(frozenResult),provenance:'simulated'}),width);
+      await refresh();assert.match(await page.locator('#season-points').textContent(),/^85 season XP/);
+      db.prepare('UPDATE progression_territory_results SET payload_json=? WHERE attack_id=?').run(frozenResult,width);await refresh();assert.match(await page.locator('#season-points').textContent(),/^160 season XP/);
       assert.match(await page.locator('#season-tiers').textContent(), /✓ First <milestone>/);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
       const output = process.env.HV_TEST_ARTIFACT_DIR || path.join(os.tmpdir(), 'hv-season-track-browser'); fs.mkdirSync(output, { recursive: true });

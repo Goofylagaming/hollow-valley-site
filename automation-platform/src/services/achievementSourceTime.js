@@ -3,6 +3,7 @@ const { parseSourceTimestamp } = require('./progressionSourceTime');
 const { createHash } = require('node:crypto');
 const digest = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const { deriveLifeSource } = require('./achievementLifeSource');
+const { deriveCombatSource, deriveTerritorySource } = require('./achievementBattleSource');
 const CONTRACTS = Object.freeze({
   'quest-1': { type: 'quests', threshold: 1, basis: 'quest-threshold' },
   'quest-25': { type: 'quests', threshold: 25, basis: 'quest-threshold' },
@@ -12,6 +13,8 @@ const CONTRACTS = Object.freeze({
   'event-25': { type: 'events', threshold: 25, basis: 'paid-confirmation-threshold' },
   'nested-adult': { type: 'nested_adult', threshold: 1, basis: 'nested-adult-observation' },
   'life-survival-10h': { type: 'life_survival_seconds', threshold: 36000, basis: 'life-survival-observation' },
+  'combat-species-5': { type: 'combat_species', threshold: 5, basis: 'combat-species-threshold' },
+  'territory-victory': { type: 'territory_victories', threshold: 1, basis: 'territory-capture-resolution' },
 });
 function createAchievementSourceTimeStore(db, { now = Date.now, initialize = true } = {}) {
   if (initialize) db.exec(`CREATE TABLE IF NOT EXISTS progression_achievement_sources (
@@ -32,6 +35,11 @@ function createAchievementSourceTimeStore(db, { now = Date.now, initialize = tru
     if (meta?.type !== contract.type || meta.threshold !== contract.threshold || !Number.isFinite(meta.value) || meta.value < contract.threshold) return null;
     if (achievementId === 'nested-adult' || achievementId === 'life-survival-10h') {
       const source = deriveLifeSource(db, steamId, achievementId, meta, { ...options, asOf: now() });
+      return source ? { awardDigest: digest(saved), basis: contract.basis, sourceAt: source.sourceAt, evidenceDigest: digest(source.evidence) } : null;
+    }
+    if (achievementId === 'combat-species-5' || achievementId === 'territory-victory') {
+      if (!Number.isSafeInteger(meta.value)) return null;
+      const source = achievementId === 'combat-species-5' ? deriveCombatSource(db,steamId) : deriveTerritorySource(db,steamId,{asOf:now()});
       return source ? { awardDigest: digest(saved), basis: contract.basis, sourceAt: source.sourceAt, evidenceDigest: digest(source.evidence) } : null;
     }
     if (!Number.isSafeInteger(meta.value)) return null;
