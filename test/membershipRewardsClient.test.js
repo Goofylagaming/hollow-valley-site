@@ -2,6 +2,22 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const client = require("../public/assets/membership-rewards");
 
+test("subscriber loyalty explains automatic permanent roles and progress at each threshold", () => {
+  for (const [months, nextMonths, nextTitle] of [[2, 3, "Valley Companion"], [5, 6, "Ancient Guardian"], [11, 12, "Heart of the Valley"]]) {
+    const milestones = [[3, "Valley Companion"], [6, "Ancient Guardian"], [12, "Heart of the Valley"]]
+      .map(([threshold, title]) => ({ months: threshold, title, earned: months >= threshold }));
+    const markup = client.renderRewards(rewards({ entitled: false, loyalty: { paidMonths: months, milestones } }));
+    assert.ok(markup.includes(`${months} / ${nextMonths} paid months towards ${nextTitle}`));
+    assert.ok(markup.includes(`1 more paid month to ${nextTitle}`));
+    assert.match(markup, /Roles are awarded automatically/);
+    assert.match(markup, /stays permanently, even if you cancel/);
+    assert.match(markup, /Free trials and unpaid periods do not add progress/);
+  }
+  const milestones = [3, 6, 12].map(months => ({ months, earned: true }));
+  assert.match(client.renderRewards(rewards({ loyalty: { paidMonths: 12, milestones } })), /All loyalty milestones earned/);
+  assert.doesNotMatch(client.renderRewards(rewards({ loyalty: { milestones } })), /role="progressbar"/);
+});
+
 function rewards(overrides = {}) {
   return {
     enabled: true,
