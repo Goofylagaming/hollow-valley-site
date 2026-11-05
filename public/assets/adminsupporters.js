@@ -272,6 +272,7 @@ document.getElementById("admin-skin-vote-form")?.addEventListener("submit", asyn
       method: "POST",
       body: JSON.stringify({
         title: document.getElementById("admin-skin-vote-title-input")?.value,
+        kind: document.getElementById("admin-skin-vote-kind")?.value || "premium-skin",
         durationDays: Number(document.getElementById("admin-skin-vote-duration")?.value),
         options,
       }),

@@ -273,6 +273,7 @@ function createApp() {
   app.use("/api/skins", skinShareCodeRedaction);
   app.use("/api/skins", skinsRouter);
   app.use("/api/supporter", require("./routes/membershipRewards"));
+  app.use("/api/subscriber-community", require("./routes/subscriberCommunity"));
   const subscriberFundingRouters = createSubscriberFundingRouters();
   app.use("/api/supporter/progress", subscriberFundingRouters.publicRouter);
   app.use("/api/supporter", supporterRouter);
@@ -395,6 +396,8 @@ function startServer() {
     console.log("[legacy-api] direct game execution paths retired");
     serverStatusService.start();
     const membershipDiscordTimer = require("./services/membershipDiscordQueue").start();
+    const subscriberCommunityTimer = require("./services/subscriberCommunity").start();
+    server.once("close", () => { if (subscriberCommunityTimer) clearInterval(subscriberCommunityTimer); });
     server.once("close", () => { if (membershipDiscordTimer) clearInterval(membershipDiscordTimer); });
     const subscriberFundingTimer = require("./services/subscriberFunding").getDefaultService().start();
     server.once("close", () => { if (subscriberFundingTimer) clearInterval(subscriberFundingTimer); });

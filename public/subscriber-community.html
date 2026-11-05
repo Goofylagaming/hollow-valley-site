@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Subscriber community · Hollow Valley</title><link rel="stylesheet" href="/assets/subscriber-community.css?v=1"></head>
+<body><main><a href="/supporter">← Membership &amp; voting</a><h1>Help shape Hollow Valley</h1>
+<p>Suggest premium skins, public event themes and community improvements. Community events stay open to everyone. Subscriber votes are counted on the website; Discord reactions are for feedback.</p>
+<form id="suggest"><label for="suggestion">Your suggestion</label><textarea id="suggestion" maxlength="1200" required></textarea><p>Keep personal, account and payment information out of suggestions.</p><button>Submit for staff review</button></form>
+<p id="status" role="status"></p>
+<section id="admin" hidden><h2>Community publishing</h2><p>Preview a post before adding it to the delivery queue. Delivery stays disabled while the server is in dry-run mode.</p>
+<form id="post"><label for="kind">Post type</label><select id="kind"><option value="dev-preview">Development preview</option><option value="support-update">What your support helped build</option><option value="vote">Current website vote</option></select><label for="copy">Community update</label><textarea id="copy" maxlength="1200"></textarea><button>Preview post</button><button type="button" id="queue" disabled>Queue reviewed post</button></form><pre id="preview"></pre>
+<p><a href="/adminsupporters">Manage website votes</a></p><button id="monthly">Preview monthly drop &amp; milestones</button><button id="queue-monthly" disabled>Queue reviewed monthly posts</button><button id="deliver">Deliver queued posts</button>
+<h2>Suggestions</h2><div id="suggestions"></div><h2>Delivery status</h2><pre id="delivery"></pre></section></main><script src="/assets/subscriber-community.js?v=1"></script></body></html>
