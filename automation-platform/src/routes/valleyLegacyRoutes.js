@@ -5,6 +5,7 @@ const { requireAdminToken } = require("../middleware/adminAuth");
 const legacy = require("../services/valleyLegacyService");
 const router = express.Router();
 router.use('/journeys',require('./journeyRoutes'));
+router.use('/discovery',require('./discoveryRoutes'));
 router.use((_req, res, next) => {
   res.set("Cache-Control", "no-store");
   next();
