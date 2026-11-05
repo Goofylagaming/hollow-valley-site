@@ -81,3 +81,30 @@ timeout is uncertain, not proof of failure. Before enabling gifting, the
 publication phase still needs a durable command/ownership reservation and
 reconciliation that does not release a transfer hold merely because time elapsed.
 No actual game commands or runtime flag changes were made during these tests.
+
+## Durable parked-command holds
+
+The parked publication gap described above now has a local implementation. Before
+queueing, the storage command hook rechecks ownership under a SQLite write lock
+and records the exact command ID, payload, account, skin and slot in an additive
+`economy_skin_parked_applications` table. Pending records block gift offers and
+acceptance. Acknowledgements, timeouts and uncertain publication errors do not
+release the hold. Only a confirmed or failed outcome for that command can resolve
+it. No network operation runs while the write lock is held.
+
+The gifting page adds an explicit Check pending skin applications action. Its
+session-bound POST reconciles up to 25 pending records by reading outcomes, never
+by publishing another command; previews cannot invoke it. A later parked apply
+also checks pending outcomes before trying to reserve a new command.
+
+Thirteen focused service, storage-hook and HTTP checks pass, plus the gifting
+browser fixture at 1440px and 390px. They cover storage lookup races, durable holds
+after service reinitialization, unchanged command IDs, withheld transfers while
+acknowledged, publication errors, and reserve-before-queue ordering. Existing
+preset and membership-skin regressions also passed after the integration.
+
+An interrupted process before publication may leave a hold with no game outcome.
+It is deliberately not expired automatically; operator reconciliation needs
+verified evidence before such a hold can be resolved. True process-restart tests
+for parked holds and authenticated staging/live-server verification remain pending.
+Gifting remains disabled; these tests did not send actual game commands.

@@ -229,10 +229,11 @@ async function getStoredDino(steamId, slot) {
   return found;
 }
 
-async function runImmediateCommand({ verb, steamId, tokens = [], timeoutMs = 7000, tracking = null }) {
+async function runImmediateCommand({ verb, steamId, tokens = [], timeoutMs = 7000, tracking = null, beforePublish = null }) {
   const steam = validateSteamId(steamId);
   commandBridge.assertPublisherReady();
   const command = commandBridge.buildCommand(verb, steam, tokens);
+  if (beforePublish) beforePublish(command);
 
   // Persist the command before publishing it. A delayed game acknowledgement
   // can then be checked by request ID, without ever publishing a second edit.
@@ -253,6 +254,7 @@ async function runImmediateCommand({ verb, steamId, tokens = [], timeoutMs = 700
     if (tracking) store.updateRequest(command.id, {
       status: 'failed', message: error.message, error: error.message,
     });
+    error.requestId = command.id;
     throw error;
   }
 
@@ -339,7 +341,7 @@ async function getParkedMutationEditStatus({ steamId, slot, requestId }) {
   };
 }
 
-async function editStoredDino({ steamId, slot, mode, values = {}, trackMutation = false }) {
+async function editStoredDino({ steamId, slot, mode, values = {}, trackMutation = false, beforePublish = null }) {
   const steam = validateSteamId(steamId);
   const selectedSlot = validateSlot(slot);
   if (!['mutations', 'skin'].includes(mode)) throw new Error('Unsupported parked dino edit mode');
@@ -364,7 +366,7 @@ async function editStoredDino({ steamId, slot, mode, values = {}, trackMutation 
   }
 
   const result = await runImmediateCommand({
-    verb: 'dino_edit', steamId: steam, tokens,
+    verb: 'dino_edit', steamId: steam, tokens, beforePublish,
     tracking: trackMutation && mode === 'mutations' ? { slot: selectedSlot } : null,
   });
   invalidateStoredDinoCache(steam);

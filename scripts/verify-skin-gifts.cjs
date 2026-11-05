@@ -11,6 +11,7 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
       if(url.pathname==='/assets/common.js')return route.fulfill({contentType:'text/javascript',body:`window.HDS={api:async(url,options={})=>{const r=await fetch(url,{headers:{'Content-Type':'application/json'},...options});const b=await r.json();if(!r.ok)throw new Error(b.error);return b;},loadMe:()=>window.HDS.api('/api/me')};`});
       if(url.pathname==='/api/me')return json({user:role?{steam_id:role}:null});
       if(url.pathname.endsWith('/capabilities'))return json({enabled,readOnly});
+      if(url.pathname.endsWith('/reconcile'))return json({checked:1,resolved:0,pending:1});
       if(url.pathname.endsWith('/eligible'))return json({skins:role===sender&&!rows.some(r=>r.state==='pending')?[{id:'skin',name:'Forest <img src=x>',species:'Triceratops'}]:[]});
       if(url.pathname==='/api/skins/gifts')return json({gifts:rows});
       if(url.pathname.endsWith('/offer')){
@@ -24,6 +25,7 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
     });
     const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());
     await page.goto('http://localhost/skin-gifts');await page.waitForFunction(()=>!document.querySelector('#gift-offer button').disabled);
+    await page.click('#gift-reconcile');await page.getByText('1 parked application(s) still awaiting confirmation. No edit was resent.',{exact:true}).waitFor();
     async function fill(){await page.selectOption('[name=presetId]','skin');await page.fill('[name=recipientSteamId]',recipient);await page.fill('[name=note]','A gift <img src=x onerror=alert(1)>');await page.check('[name=confirmed]');}
     await fill();await page.click('#gift-offer button');await page.getByText('Fixture acknowledgement lost',{exact:true}).waitFor();
     assert.equal(await page.inputValue('[name=recipientSteamId]'),recipient);

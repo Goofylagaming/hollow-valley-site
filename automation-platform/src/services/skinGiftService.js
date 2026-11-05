@@ -2,6 +2,7 @@ const {randomUUID,createHash}=require('node:crypto');
 const fail=(message,status=400)=>{throw Object.assign(new Error(message),{status});};
 function createSkinGiftService(store,{now=Date.now,enabled=()=>process.env.SKIN_GIFTING_ENABLED==='1'&&process.env.SKIN_SYSTEM_ENABLED==='true'}={}) {
   const db=store.db;
+  const parked=require('./skinParkedApplicationService').createSkinParkedApplicationService(store);
   db.exec(`CREATE TABLE IF NOT EXISTS economy_skin_gifts (
     id TEXT PRIMARY KEY,sender TEXT NOT NULL,recipient TEXT NOT NULL,preset_id TEXT NOT NULL,
     request_id TEXT NOT NULL,payload TEXT NOT NULL,unlock_key TEXT NOT NULL,fingerprint TEXT NOT NULL,
@@ -17,6 +18,7 @@ function createSkinGiftService(store,{now=Date.now,enabled=()=>process.env.SKIN_
     const preset=store.getSkinPreset(presetId);
     if(!preset?.active||preset.membershipPremium||preset.isPremium||(preset.published&&Number(preset.price)===0)||preset.owner_steam_id===sender||store.hasSkinGrant(sender,presetId))fail('This skin is not transferable',409);
     if(db.prepare("SELECT 1 FROM economy_skin_apply_jobs WHERE steam_id=? AND preset_id=? AND status IN ('queued','awaiting_confirmation')").get(sender,presetId))fail('Wait for the pending skin application to finish before gifting',409);
+    if(parked.pending(sender,presetId))fail('A parked skin application is awaiting confirmation; check its outcome before gifting',409);
     const unlock=db.prepare('SELECT * FROM economy_skin_unlocks WHERE steam_id=? AND preset_id=?').get(sender,presetId);
     if(!unlock?.idempotency_key)fail('A permanent skin unlock with a receipt is required',409);
     return {preset,unlock};
@@ -79,6 +81,6 @@ function createSkinGiftService(store,{now=Date.now,enabled=()=>process.env.SKIN_
     }
     return {skins,limited:rows.length>500};
   }
-  return {offer,decide,list,eligible};
+  return {offer,decide,list,eligible,reconcile:user=>{gate();return parked.reconcile(store.validateSteamId(user?.steam_id));}};
 }
 module.exports={createSkinGiftService};

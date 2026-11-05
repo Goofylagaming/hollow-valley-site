@@ -4,7 +4,7 @@
   let user=null,writable=false,attempt=null,busy=false,sequence=0;
   const node=(tag,text)=>{const el=document.createElement(tag);el.textContent=text;return el;};
   const post=(path,body)=>api('/api/skins/gifts'+path,{method:'POST',body:JSON.stringify(body)});
-  function controls(){form.querySelector('fieldset').disabled=!writable||busy;form.querySelector('button').disabled=!writable||busy||form.elements.presetId.options.length<2;}
+  function controls(){$('gift-reconcile').disabled=!writable;form.querySelector('fieldset').disabled=!writable||busy;form.querySelector('button').disabled=!writable||busy||form.elements.presetId.options.length<2;}
   async function refresh(){
     const current=++sequence;
     const [history,eligible]=await Promise.all([api('/api/skins/gifts'),api('/api/skins/gifts/eligible')]);if(current!==sequence)return;
@@ -41,6 +41,7 @@
     try{await post('/offer',attempt.body);attempt=null;form.reset();status.textContent='Gift offered. You keep the skin until the recipient accepts.';busy=false;await refresh();}
     catch(e){status.textContent=e.message;}finally{busy=false;controls();}
   });
+  $('gift-reconcile').addEventListener('click',async()=>{if(!writable)return;$('gift-reconcile').disabled=true;try{const result=await post('/reconcile',{});status.textContent=result.pending?`${result.pending} parked application(s) still awaiting confirmation. No edit was resent.`:'No parked applications are waiting for confirmation.';await refresh();}catch(e){status.textContent=e.message;}finally{$('gift-reconcile').disabled=!writable;}});
   $('gift-refresh').addEventListener('click',()=>refresh().catch(e=>{status.textContent=e.message;}));
   (async()=>{try{
     const capability=await api('/api/skins/gifts/capabilities');if(!capability.enabled){status.textContent='Skin gifting is not open yet.';return;}

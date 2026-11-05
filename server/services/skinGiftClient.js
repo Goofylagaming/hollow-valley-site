@@ -17,4 +17,4 @@ async function call(path,{method='GET',body}={}) {
   if (!payload || typeof payload!=='object') {const error=new Error('Skin gifting service returned an invalid response.');error.status=502;throw error;}
   return payload;
 }
-module.exports=Object.fromEntries(['list','eligible','offer','decide'].map(action=>[action,body=>call('/'+action,{method:'POST',body})]));
+module.exports=Object.fromEntries(['list','eligible','offer','decide','reconcile'].map(action=>[action,body=>call('/'+action,{method:'POST',body})]));
