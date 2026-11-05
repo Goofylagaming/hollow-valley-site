@@ -11,18 +11,19 @@ const {createGroupTreasurySpending}=require('../src/services/groupTreasurySpendi
 const spending=createGroupTreasurySpending(economy,{groupEvents:events});
 const treasury=require('../src/services/groupTreasuryService').createGroupTreasury(economy);
 const A='76561198000000001',B='76561198000000002',guildId='1540359454627725387';
-let server,base,drop=false,n=0;
+let server,base,drop=false,n=0,syncClock=0;
 test.before(async()=>{const app=express();app.use(express.json());app.use((req,res,next)=>{if(drop&&req.path.endsWith('/spend-commit')){drop=false;res.json=()=>{res.destroy();return res;};}next();});app.use('/api/website/group-treasury',require('../src/routes/websiteGroupTreasuryRoutes'));server=await new Promise(resolve=>{const value=app.listen(0,'127.0.0.1',()=>resolve(value));});base='http://127.0.0.1:'+server.address().port;});
 test.after(async()=>{await new Promise(resolve=>server.close(resolve));automationStore.close();db.close();const target=path.resolve(temp);assert.ok(target.startsWith(path.resolve(os.tmpdir())+path.sep));fs.rmSync(target,{recursive:true,force:true});});
 function fixture(){
  n++;const groupId=n,eventId=String(1540359454627730000n+BigInt(n)),requestId='group_event_'+n;
  const raw={id:eventId,title:'Synthetic group event '+n,status:'scheduled',startTime:new Date(Date.now()+3600000).toISOString(),endTime:new Date(Date.now()+7200000).toISOString()};
- const sync=(change={},syncedAt=new Date().toISOString())=>feed.syncEvents({guildId,events:[{...raw,...change}],syncedAt});sync();
+ const sync=(change={})=>{syncClock=Math.max(Date.now(),syncClock+1);return feed.syncEvents({guildId,events:[{...raw,...change}],syncedAt:new Date(syncClock).toISOString()});};sync();
+ const stale=()=>{const current=automationStore.getState('discord:scheduled-events').value;automationStore.setState('discord:scheduled-events',{...current,syncedAt:new Date(Date.now()-3600000).toISOString()});};
  economy.applyWalletTransaction({steamId:A,amount:500,kind:'fixture',reason:'Synthetic event funding',idempotencyKey:'eventfund:'+n});treasury.donate({steamId:A,groupId,amount:200,requestId:'event_donation_'+n});
  const item={id:'group-event-'+n,revision:1,title:'Synthetic paid group entry',description:'Test-only price',cost:80,purpose:'event_registration',target:{eventId}};
  spending.register(item,A);spending.setEnabled(item.id,1,true,A);
  const input={groupId,requestId,actorSteamId:A,itemId:item.id,revision:1,expectedCost:80,event:events.preview(eventId)};
- return {groupId,eventId,requestId,item,input,sync,raw,reserve:()=>spending.reserve(input),commit:()=>spending.commit({groupId,requestId,actorSteamId:A}),release:()=>spending.release(input),
+ return {groupId,eventId,requestId,item,input,sync,stale,raw,reserve:()=>spending.reserve(input),commit:()=>spending.commit({groupId,requestId,actorSteamId:A}),release:()=>spending.release(input),
    registrations:()=>db.prepare('SELECT * FROM economy_group_event_registrations WHERE group_id=?').all(groupId)};
 }
 const code=value=>error=>error.code===value;
@@ -36,8 +37,11 @@ test('group registration requires fresh explicit scheduled status; old unknown, 
  const f=fixture();assert.equal(events.preview(f.eventId).eventId,f.eventId);
  for(const status of [undefined,'active','completed','cancelled']){f.sync({status});assert.throws(()=>events.preview(f.eventId),code('GROUP_EVENT_UNAVAILABLE'));}
  f.sync();feed.hideEventFromWebsite(f.eventId);assert.throws(()=>events.preview(f.eventId),code('GROUP_EVENT_UNAVAILABLE'));
- f.sync({},new Date(Date.now()-3600000).toISOString());assert.throws(()=>events.preview(f.eventId),code('GROUP_EVENT_FEED_UNAVAILABLE'));
- f.sync({},new Date(Date.now()+120000).toISOString());assert.throws(()=>events.preview(f.eventId),code('GROUP_EVENT_FEED_UNAVAILABLE'));
+ f.stale();assert.throws(()=>events.preview(f.eventId),code('GROUP_EVENT_FEED_UNAVAILABLE'));
+ // Consumers still reject a pre-existing future-dated cache independently of
+ // the ingestion guard that now prevents accepting such a new snapshot.
+ const cached=automationStore.getState('discord:scheduled-events').value;automationStore.setState('discord:scheduled-events',{...cached,syncedAt:new Date(Date.now()+120000).toISOString()});assert.throws(()=>events.preview(f.eventId),code('GROUP_EVENT_FEED_UNAVAILABLE'));
+ automationStore.setState('discord:scheduled-events',cached);
 });
 test('review snapshot and event identity are immutable consent data before reserving coins',()=>{
  const f=fixture();assert.throws(()=>spending.reserve({...f.input,event:undefined}),code('GROUP_EVENT_CHANGED'));
@@ -61,8 +65,8 @@ test('reschedule, changed title, event start and hidden events block charge whil
  const f=fixture();f.reserve();feed.hideEventFromWebsite(f.eventId);assert.throws(f.commit,code('GROUP_EVENT_UNAVAILABLE'));assert.equal(f.release().state,'released');
 });
 test('stale feed blocks new effects but does not prevent cancellation or committed receipt recovery',()=>{
- const f=fixture();f.reserve();f.sync({},new Date(Date.now()-3600000).toISOString());assert.throws(f.commit,code('GROUP_EVENT_FEED_UNAVAILABLE'));assert.equal(f.release().state,'released');
- const g=fixture();g.reserve();g.commit();g.sync({},new Date(Date.now()-3600000).toISOString());assert.equal(g.commit().state,'committed');assert.equal(events.list(g.groupId).length,1);
+ const f=fixture();f.reserve();f.stale();assert.throws(f.commit,code('GROUP_EVENT_FEED_UNAVAILABLE'));assert.equal(f.release().state,'released');
+ const g=fixture();g.reserve();g.commit();g.stale();assert.equal(g.commit().state,'committed');assert.equal(events.list(g.groupId).length,1);
 });
 test('registration audit or accounting audit failure rolls back both benefit and charge',()=>{
  for(const table of ['economy_group_event_registration_audit','economy_group_treasury_spend_audit']){

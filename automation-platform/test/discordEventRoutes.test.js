@@ -12,7 +12,7 @@ test('HerbyBot event sync is token-protected and website reads the same cached s
     HERBYBOT_AUTOMATION_TOKEN: process.env.HERBYBOT_AUTOMATION_TOKEN,
     HOLLOW_VALLEY_API_TOKEN: process.env.HOLLOW_VALLEY_API_TOKEN,
   };
-  process.env.AUTOMATION_DB_PATH = path.join(dir, 'automation.sqlite');
+  process.env.AUTOMATION_DB_PATH = ':memory:';
   process.env.HERBYBOT_AUTOMATION_TOKEN = 'herbybot-events-test-token';
   process.env.HOLLOW_VALLEY_API_TOKEN = 'website-events-test-token';
 
@@ -88,4 +88,10 @@ test('HerbyBot event sync is token-protected and website reads the same cached s
   assert.equal(read.events[0].title, 'Migration Night');
   assert.equal(read.events[0].attendees, 24);
   assert.equal(read.events[0].url, 'https://discord.com/events/1540359454627725387/1540359454627725398');
+  const post=body=>fetch(base+'/api/herbybot/events/sync',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer herbybot-events-test-token'},body:JSON.stringify(body)});
+  assert.equal((await (await post(snapshot)).json()).duplicate,true);
+  assert.equal((await post({...snapshot,events:[{...snapshot.events[0],status:'completed'}]})).status,409);
+  assert.equal((await post({...snapshot,syncedAt:'2026-09-21T09:39:00Z',events:[]})).status,409);
+  const retained=await fetch(base+'/api/website/events',{headers:{Authorization:'Bearer website-events-test-token'}});
+  assert.equal((await retained.json()).events[0].title,'Migration Night');
 });

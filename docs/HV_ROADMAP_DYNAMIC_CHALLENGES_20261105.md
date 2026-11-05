@@ -135,12 +135,12 @@ disabled, and no private data is retained on sign-out or failed authentication.
 
 The roadmap release register retains #3's original description and feature ID,
 marks development honestly and preserves historical vote counts while freeing
-retired active ballot slots. Homepage asset version is 106. Diplomacy publication
+retired active ballot slots. Homepage asset version is 107. Diplomacy publication
 approval remains separate and pending; its prepared branch is preserved.
 
 ## Local validation
 
-125 checks pass across dynamic challenge evidence, Legacy store/private HTTP and
+146 checks pass across dynamic challenge evidence, Legacy store/private HTTP and
 authenticated telemetry, roadmap ballots/homepage integration, existing quest
 boosts/challenge payouts, journeys and discovery. Tests cover repeated/stale
 samples, alias farming, midnight/Monday rollover, opt-out/rejoin, separated lives,
@@ -255,6 +255,33 @@ confirmation/retry, revocation, conflict, safe text, preview, account changes an
 member privacy. The existing 51-group Events roster fixture also passes at both
 widths. All fixtures use synthetic accounts and temporary/in-memory databases;
 real staff authentication and completed-event synchronization still need staging.
+
+## Event feed verification and receiver ordering
+
+The owner-designated shared bot checkout was inspected read-only at
+`9c5bf4e06407b60f1df3c68b05a17d2e2813df5a`. Its payload omits lifecycle
+status and its sync filters out completed/cancelled events. This is a verified
+local source gap, not independent evidence of the deployed worker. The source
+belongs to the consolidated Primalbound owner and was preserved. Exact evidence,
+required producer work and the receiver contract are in
+`HV_EVENT_PRODUCER_HANDOFF_20261105.md`. Completed attendance cannot be inferred
+from event disappearance while that source gap remains.
+
+The Hollow Valley receiver now rejects mixed-guild events, invalid schedule order,
+timestamps more than one minute ahead, older snapshots and conflicting payloads
+at the same accepted timestamp. Older/conflicting authenticated HTTP requests
+return 409 and leave accepted state intact. Canonical exact retries preserve
+hidden events and do not renew timestamps. Source updates and website hides use
+one serialized SQLite read/validate/write transaction; failures roll back state.
+
+The expanded local set has 146 passing checks, including ingestion chronology,
+same-time conflicts, future/mixed-guild rejection, canonical retries, hidden-event
+preservation and rollback, plus existing private group-registration/charge and
+recovery checks. The source HTTP fixture uses in-memory databases to avoid
+deleting an open database file on Windows. Consumer fixtures use increasing
+accepted timestamps and explicitly seed old/corrupt cache states for outage
+checks. Existing group-event roster and purchase browser fixtures pass at 1440px
+and 390px. No bot change, publication, payout or deployment occurred.
 
 The dedicated Dynamic challenge tracking workflow runs the affected checks and
 the real-page browser fixture on pull requests. Those hosted runs have not yet

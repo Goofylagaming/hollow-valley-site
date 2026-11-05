@@ -48,6 +48,7 @@ function normalizeEvent(raw, guildId) {
   if (!title) throw new Error('Scheduled event title is required');
   const startTime = isoOrNull(raw?.startTime || raw?.scheduled_start_time, { required: true });
   const endTime = isoOrNull(raw?.endTime || raw?.scheduled_end_time);
+  if(endTime&&Date.parse(endTime)<Date.parse(startTime))throw new Error('Scheduled event endTime precedes startTime');
   const attendees = Math.max(0, Math.min(1000000, Number(raw?.attendees ?? raw?.userCount ?? 0) || 0));
   const eventGuildId = validateSnowflake(raw?.guildId || guildId, 'Guild ID');
 
@@ -74,26 +75,30 @@ function syncEvents({ guildId, events, syncedAt = new Date().toISOString() }) {
 
   const normalized = events
     .map((event) => normalizeEvent(event, safeGuildId))
-    .sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+    .sort((a, b) => new Date(a.startTime) - new Date(b.startTime) || a.id.localeCompare(b.id));
 
   const seen = new Set();
   for (const event of normalized) {
+    if(event.guildId!==safeGuildId)throw new Error('Scheduled event guild does not match its snapshot');
     if (seen.has(event.id)) throw new Error(`Duplicate scheduled event ID: ${event.id}`);
     seen.add(event.id);
   }
 
-  const previous = store.getState(STATE_KEY, null)?.value || {};
-  const hiddenEventIds = normalizeHiddenIds(previous).filter((id) => seen.has(id));
-  const hidden = new Set(hiddenEventIds);
-  const visibleEvents = normalized.filter((event) => !hidden.has(event.id));
-
   const synced = isoOrNull(syncedAt, { required: true });
-  const state = store.setState(STATE_KEY, {
-    guildId: safeGuildId,
-    events: normalized,
-    hiddenEventIds,
-    syncedAt: synced,
+  if(Date.parse(synced)>Date.now()+60000)throw new Error('Event snapshot timestamp is in the future');
+  let duplicate=false;
+  const state=store.mutateState(STATE_KEY,previous=>{
+    const oldTime=Date.parse(previous?.syncedAt),nextTime=Date.parse(synced);
+    if(Number.isFinite(oldTime)&&nextTime<oldTime)throw Object.assign(new Error('Event snapshot is older than the accepted snapshot'),{status:409});
+    if(Number.isFinite(oldTime)&&nextTime===oldTime){
+      if(JSON.stringify({guildId:previous.guildId,events:previous.events})!==JSON.stringify({guildId:safeGuildId,events:normalized}))
+        throw Object.assign(new Error('Event snapshot timestamp conflicts with accepted event details'),{status:409});
+      duplicate=true;return undefined;
+    }
+    return {guildId:safeGuildId,events:normalized,hiddenEventIds:normalizeHiddenIds(previous).filter(id=>seen.has(id)),syncedAt:synced};
   });
+  const hidden=new Set(normalizeHiddenIds(state.value));
+  const visibleEvents=state.value.events.filter(event=>!hidden.has(event.id));
 
   return {
     configured: true,
@@ -102,29 +107,20 @@ function syncEvents({ guildId, events, syncedAt = new Date().toISOString() }) {
     syncedAt: synced,
     stale: false,
     updatedAt: state?.updatedAt || null,
+    duplicate,
   };
 }
 
 function hideEventFromWebsite(eventId) {
   const id = validateSnowflake(eventId, 'Scheduled event ID');
-  const state = store.getState(STATE_KEY, null);
-  const value = state?.value || null;
-  const events = Array.isArray(value?.events) ? value.events : [];
-  const event = events.find((entry) => String(entry.id) === id);
-
-  if (!event) {
-    const error = new Error('Scheduled event was not found in the current Discord event snapshot');
-    error.code = 'DISCORD_EVENT_NOT_FOUND';
-    throw error;
-  }
-
-  const hidden = new Set(normalizeHiddenIds(value));
-  const duplicate = hidden.has(id);
-  hidden.add(id);
-
-  store.setState(STATE_KEY, {
-    ...value,
-    hiddenEventIds: [...hidden],
+  let event,duplicate;
+  store.mutateState(STATE_KEY,value=>{
+    const events=Array.isArray(value?.events)?value.events:[];
+    event=events.find(entry=>String(entry.id)===id);
+    if(!event)throw Object.assign(new Error('Scheduled event was not found in the current Discord event snapshot'),{code:'DISCORD_EVENT_NOT_FOUND'});
+    const hidden=new Set(normalizeHiddenIds(value));duplicate=hidden.has(id);
+    if(duplicate)return undefined;
+    hidden.add(id);return {...value,hiddenEventIds:[...hidden]};
   });
 
   return {
