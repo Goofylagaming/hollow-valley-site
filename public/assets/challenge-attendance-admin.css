@@ -1,0 +1,7 @@
+#attendance-evidence-panel{padding:1.25rem;margin:2rem 0;border:1px solid #355246;border-radius:12px;}
+#attendance-evidence-panel[hidden],#attendance-evidence-panel [hidden]{display:none!important;}
+#attendance-evidence-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:1rem;}
+#attendance-evidence-form label{display:grid;gap:.4rem;min-width:0;}
+#attendance-evidence-form input,#attendance-evidence-form textarea,#attendance-evidence-form select{width:100%;min-width:0;box-sizing:border-box;}
+#attendance-evidence-summary p{overflow-wrap:anywhere;}
+#attendance-evidence-panel button{max-width:100%;white-space:normal;margin:.5rem .5rem .5rem 0;}

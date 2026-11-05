@@ -108,11 +108,9 @@ disabled, and no private data is retained on sign-out or failed authentication.
 
 ## Required remaining delivery
 
-- Connect the host-internal attendance attestation service to current staff
-  authorization and review/revocation screens. No attendance writer is exposed by
-  the player API. The current internal actor field is asserted by its trusted
-  caller, not independently authenticated by the evidence store. Review staff
-  self-attestation and correction policy before enabling it.
+- Verify the real completed-event producer and authenticated staging for staff
+  attendance controls. Review staff self-attestation and correction policy before
+  enabling them. The ordinary player API has no attendance writer.
 
 - Review the deterministic schedule and supported pool, including canonical
   species aliases and growth evidence. Add operator-reviewed schedule versions
@@ -137,12 +135,12 @@ disabled, and no private data is retained on sign-out or failed authentication.
 
 The roadmap release register retains #3's original description and feature ID,
 marks development honestly and preserves historical vote counts while freeing
-retired active ballot slots. Homepage asset version is 105. Diplomacy publication
+retired active ballot slots. Homepage asset version is 106. Diplomacy publication
 approval remains separate and pending; its prepared branch is preserved.
 
 ## Local validation
 
-124 checks pass across dynamic challenge evidence, Legacy store/private HTTP and
+125 checks pass across dynamic challenge evidence, Legacy store/private HTTP and
 authenticated telemetry, roadmap ballots/homepage integration, existing quest
 boosts/challenge payouts, journeys and discovery. Tests cover repeated/stale
 samples, alias farming, midnight/Monday rollover, opt-out/rejoin, separated lives,
@@ -205,8 +203,58 @@ Nine source tests cover review changes, stale/unknown/hidden/cancelled/duplicate
 events, wrong guilds, invalid proof/time, retries, revocation, failed-audit rollback,
 privacy, opt-in eligibility and default-off behavior. The desktop/mobile fixture
 adds synthetic host-internal evidence and verifies displayed credit and revocation;
-it does not establish the still-pending staff authorization workflow. Verify the
+it initially exercised the internal source only. The subsequent staff workflow
+checks below cover the website authorization and controls. Verify the
 real producer retains fresh completed events and actual end times before rollout.
+
+## Staff authorization, fixed reviews and Events controls
+
+The separate `/api/admin/challenge-attendance` automation API requires
+`AUTOMATION_ADMIN_TOKEN`; the ordinary website token cannot read or write it.
+Both service flags, Legacy enablement and source read-only controls remain in
+force. `/current` is read-only. `/review` validates and returns the proposed choice
+without changing attendance; `/change` revalidates the frozen descriptor and CAS.
+
+The website's matching staff API checks the actual current `users` row, user ID,
+linked Steam ID and admin permission before each operation and after asynchronous
+responses. It does not rely solely on the session's old admin flag. New reviews
+and confirmations require exact-origin JSON, reject cross-site context and obey
+deployment-preview/read-only guards. There are no payout calls.
+
+A review is stored immutably in the website database for its creating staff
+member. It freezes the server-selected actor, player, action, canonical event,
+attendance time, proof, reason, expected source revision and unique source request
+key. Confirm accepts only the saved review ID and an empty body. Replacement
+fields are rejected. Other staff cannot load or confirm someone else's review.
+Twenty reviews per minute per staff member limit accidental flooding. Retries
+reuse that original body and key and return the latest source state without
+reinstating revoked evidence.
+
+Authority is checked immediately before dispatch and again before disclosing a
+response. A permission loss after an already-authorized dispatch cannot cancel a
+source commit. In that case the private response is withheld; current authorized
+staff can inspect the record, and the creating actor can recover the same request
+after reauthorization. HTTP tests explicitly cover this boundary and verify one
+source receipt rather than implying cross-database cancellation.
+
+The Events page has an independent staff panel with review/confirm/revoke actions,
+explicit Brisbane attendance time and plain-text frozen details. Review creates
+no source evidence. Lost confirmation replies never trigger automatic reposts;
+the operator must explicitly retry the saved confirmation. A review ID in the URL fragment restores the same
+server-owned review after a page reload without posting a confirmation; no private
+evidence is stored in browser storage. Account changes clear that fragment and
+the review. Stale source revisions require a new review. Members cannot
+see the panel, and previews disable writes. The existing Events scripts, payout
+controls and group roster remain in order.
+
+HTTP checks cover separate credentials, current/stale staff authority, permission
+changes during delayed reviews/confirmations, actor spoofing, immutable targets,
+replay recovery, revocation, private cache headers, CSRF and preview/default-off
+gates. The actual Events fixture passes at 1440px and 390px for review, explicit
+confirmation/retry, revocation, conflict, safe text, preview, account changes and
+member privacy. The existing 51-group Events roster fixture also passes at both
+widths. All fixtures use synthetic accounts and temporary/in-memory databases;
+real staff authentication and completed-event synchronization still need staging.
 
 The dedicated Dynamic challenge tracking workflow runs the affected checks and
 the real-page browser fixture on pull requests. Those hosted runs have not yet

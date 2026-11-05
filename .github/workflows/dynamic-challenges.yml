@@ -5,6 +5,15 @@ on:
       - 'automation-platform/src/services/dynamicChallengeStore.js'
       - 'automation-platform/src/services/challengeAttendanceEvidence.js'
       - 'test/challengeAttendanceEvidence.test.js'
+      - 'test/challengeAttendanceHostHttp.test.js'
+      - 'automation-platform/src/routes/challengeAttendanceAdminRoutes.js'
+      - 'automation-platform/src/index.js'
+      - 'server/routes/challengeAttendance.js'
+      - 'server/services/challengeAttendanceHost.js'
+      - 'server/services/automationWebsiteClient.js'
+      - 'public/assets/challenge-attendance-admin.*'
+      - 'public/events.html'
+      - 'scripts/verify-challenge-attendance-admin.cjs'
       - 'automation-platform/src/services/valleyLegacyStore.js'
       - 'automation-platform/src/services/valleyLegacyService.js'
       - 'automation-platform/test/journeyMaintenance.test.js'
@@ -32,7 +41,8 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: node --test test/challengeAttendanceEvidence.test.js automation-platform/test/journeyMaintenance.test.js test/dynamicChallenges.test.js test/dynamicChallengesHttp.test.js test/valleyLegacy.test.js test/valleyLegacyTelemetry.test.js test/valleyLegacyHttp.test.js test/roadmapCommunity.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js test/questPolling.test.js automation-platform/test/walletQuestFrontend.test.js automation-platform/test/questChallengeExpansion.test.js automation-platform/test/questBoosts.test.js automation-platform/test/journeyStore.test.js automation-platform/test/discoveryVisitStore.test.js
+      - run: node --test test/challengeAttendanceEvidence.test.js test/challengeAttendanceHostHttp.test.js automation-platform/test/journeyMaintenance.test.js test/dynamicChallenges.test.js test/dynamicChallengesHttp.test.js test/valleyLegacy.test.js test/valleyLegacyTelemetry.test.js test/valleyLegacyHttp.test.js test/roadmapCommunity.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js test/questPolling.test.js automation-platform/test/walletQuestFrontend.test.js automation-platform/test/questChallengeExpansion.test.js automation-platform/test/questBoosts.test.js automation-platform/test/journeyStore.test.js automation-platform/test/discoveryVisitStore.test.js
       - run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.62.1
       - run: npx playwright install --with-deps chromium
       - run: node scripts/verify-dynamic-challenges.cjs
+      - run: node scripts/verify-challenge-attendance-admin.cjs
