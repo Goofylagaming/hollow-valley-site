@@ -830,6 +830,7 @@ function uploadAdminRestore({ steamId, slot, restore, fullNutrients = false }) {
 module.exports = {
   getTitleEvidence: steamIds => call('/title-evidence',{method:'POST',body:{steamIds}}),
   getAchievementReviews: () => callAdmin('/achievement-reviews'),
+  challengeAttendanceRequest: (action,body) => callAdmin('/challenge-attendance/'+action,{method:'POST',body}),
   decideAchievementReview: body => callAdmin('/achievement-reviews',{method:'POST',body}),
   publishTerritoryWarFeedEvent,
   getAdminChat: () => callAdmin('/chat'),

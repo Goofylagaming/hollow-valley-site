@@ -1,7 +1,8 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-test('startup and scheduled retention remove expired routes despite stopped snapshots and failed event import',()=>{
-  const keys=['AUTOMATION_DB_PATH','VALLEY_LEGACY_ENABLED','JOURNEY_HISTORY_ENABLED'],saved=Object.fromEntries(keys.map(k=>[k,process.env[k]]));
+test('startup and scheduled retention remove expired private evidence despite stopped snapshots and failed event import',()=>{
+  const keys=['AUTOMATION_DB_PATH','VALLEY_LEGACY_ENABLED','JOURNEY_HISTORY_ENABLED','DYNAMIC_CHALLENGES_ENABLED'],saved=Object.fromEntries(keys.map(k=>[k,process.env[k]]));
   process.env.AUTOMATION_DB_PATH=':memory:';process.env.VALLEY_LEGACY_ENABLED='1';process.env.JOURNEY_HISTORY_ENABLED='0';
+  process.env.DYNAMIC_CHALLENGES_ENABLED='0';
   const schedule=global.setInterval,log=console.error,errors=[];let callback,delay,unref=false,store;
   global.setInterval=(fn,ms)=>{callback=fn;delay=ms;return {unref(){unref=true;}};};console.error=(...args)=>errors.push(args);
   try {
@@ -12,13 +13,20 @@ test('startup and scheduled retention remove expired routes despite stopped snap
     const discoverySample=store.db.prepare('INSERT INTO discovery_last_samples VALUES (?,?,?,?,?,?)');
     discoverySample.run(steam,'fixture','life',now-121000,1,2);
     store.db.prepare('INSERT INTO discovery_visits VALUES (?,?,?,?)').run(steam,'fixture','cave',old);
+    const challenge=store.db.prepare('INSERT INTO dc_evidence VALUES (?,?,?,?,?,?,?)');
+    challenge.run(steam,'daily',now-36*86400000,'survival-90','expired',600,0);
+    challenge.run(steam,'daily',now-1000,'survival-90','recent',600,0);
     // A malformed source fixture deliberately causes import to fail each tick.
     store.db.exec('CREATE TABLE combat_events(id TEXT)');
     service.start();assert.equal(delay,15000);assert.equal(unref,true);
+    assert.equal(store.db.prepare('SELECT count(*) n FROM dc_evidence').get().n,1);
+    challenge.run(steam,'daily',now-36*86400000,'survival-90','expired-again',600,0);
     assert.equal(store.db.prepare('SELECT COUNT(*) n FROM discovery_last_samples').get().n,0);
     discoverySample.run(steam,'fixture','life',now-121000,1,2);
     assert.equal(store.db.prepare('SELECT COUNT(*) n FROM journey_points').get().n,1);
     insert.run(steam,'old-again',old+1,5,6,1);callback();
+    assert.equal(store.db.prepare('SELECT count(*) n FROM dc_evidence').get().n,1);
+    assert.equal(store.db.prepare('SELECT subject FROM dc_evidence').get().subject,'recent');
     assert.equal(store.db.prepare('SELECT COUNT(*) n FROM discovery_last_samples').get().n,0);
     assert.equal(store.db.prepare('SELECT COUNT(*) n FROM discovery_visits').get().n,1);
     assert.equal(store.db.prepare('SELECT COUNT(*) n FROM journey_points').get().n,1);

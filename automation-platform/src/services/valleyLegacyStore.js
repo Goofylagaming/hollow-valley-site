@@ -75,6 +75,7 @@ function createLegacyStore(db, { now = Date.now } = {}) {
   }});
   const discoveries = require('./discoveryVisitStore').createDiscoveryVisitStore(db,{now});
   const discoveryCatalogs = require('./discoveryCatalog').createDiscoveryCatalogStore(db);
+  const challenges = require('./dynamicChallengeStore').createDynamicChallengeStore(db,{now});
   const initial = now();
   db.prepare("INSERT OR IGNORE INTO vl_state VALUES ('started', ?)").run(
     String(initial),
@@ -300,6 +301,7 @@ function createLegacyStore(db, { now = Date.now } = {}) {
           );
         }
       }
+      challenges.observe(db.prepare('SELECT id,steam_id,species,growth,location FROM vl_lives WHERE last_at=? AND ended_at IS NULL').all(at).map(row=>({...row,location:JSON.parse(row.location||'null')})),at);
       db.prepare(
         "INSERT INTO vl_state VALUES ('snapshot',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
       ).run(String(at));
@@ -355,6 +357,7 @@ function createLegacyStore(db, { now = Date.now } = {}) {
         e.at,
       );
       if (e.type === "combat_death") {
+        challenges.reconcileDeath(e);
         const row = current(e.steamId);
         // An older death must not close a life with newer alive observations.
         // Keep unmatched events for later review, without inventing a life link.
@@ -683,6 +686,7 @@ function createLegacyStore(db, { now = Date.now } = {}) {
     snapshot,
     journeys,
     discoveries,
+    challenges,
     ingest,
     rotate,
     overview,

@@ -9,6 +9,12 @@
   <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=4">
   <link rel="stylesheet" href="/assets/events-group-roster.css?v=1">
+  <link rel="stylesheet" href="/assets/challenge-attendance-admin.css?v=1">
+  <link rel="stylesheet" href="/assets/event-templates.css?v=1">
+  <link rel="stylesheet" href="/assets/event-schedules.css?v=1">
+  <link rel="stylesheet" href="/assets/event-registrations.css?v=1">
+  <link rel="stylesheet" href="/assets/event-teams.css?v=1">
+  <link rel="stylesheet" href="/assets/event-results.css?v=1">
 </head>
 <body>
   <div class="app-shell">
@@ -162,6 +168,100 @@
           </div>
         </section>
       </section>
+      <section id="attendance-evidence-panel" hidden aria-labelledby="attendance-evidence-heading">
+        <h2 id="attendance-evidence-heading">Staff attendance evidence</h2>
+        <p>Record actual attendance at a completed official event, supported by a staff evidence message. This separate review does not issue coins. An RSVP or registration is not proof of attendance.</p>
+        <p id="attendance-evidence-preview"></p>
+        <p id="attendance-evidence-status" role="status" aria-live="polite"></p>
+        <button id="attendance-evidence-refresh" class="small-button" type="button">Refresh attendance evidence</button>
+        <form id="attendance-evidence-form">
+          <label>Discord event ID<input id="attendance-evidence-event" required pattern="[0-9]{10,24}" inputmode="numeric"></label>
+          <label>Player Steam ID<input id="attendance-evidence-player" required pattern="[0-9]{17}" inputmode="numeric"></label>
+          <label>Action<select id="attendance-evidence-action"><option value="confirm">Confirm actual attendance</option><option value="revoke">Revoke recorded attendance</option></select></label>
+          <label>Attendance time (Brisbane, confirmation only)<input id="attendance-evidence-time" type="datetime-local" step="60"></label>
+          <label>Official Discord evidence message<input id="attendance-evidence-proof" type="url" required maxlength="300"></label>
+          <label>Staff reason<textarea id="attendance-evidence-reason" required minlength="10" maxlength="1000"></textarea></label>
+          <button class="small-button" type="submit">Review attendance evidence</button>
+        </form>
+        <div id="attendance-evidence-review" hidden>
+          <h3>Review before saving</h3>
+          <div id="attendance-evidence-summary"></div>
+          <button id="attendance-evidence-confirm" class="small-button" type="button">Confirm reviewed evidence</button>
+          <button id="attendance-evidence-cancel" class="small-button" type="button">Cancel evidence review</button>
+        </div>
+      </section>
+      <section id="event-schedule-calendar" hidden aria-labelledby="event-schedule-calendar-heading">
+        <h2 id="event-schedule-calendar-heading">Website event schedules</h2>
+        <p id="event-schedule-calendar-status" role="status"></p><button id="event-schedule-calendar-refresh" class="small-button" type="button">Refresh website schedules</button><div id="event-schedule-calendar-list"></div><button id="event-schedule-calendar-more" class="small-button" type="button" hidden>More website schedules</button>
+      </section>
+      <section id="event-registration-panel" hidden aria-labelledby="event-registration-heading">
+        <h2 id="event-registration-heading">My event registrations</h2><p>Reserve a place with your linked Steam account. Registration does not confirm attendance, assign a team, charge coins or issue rewards.</p>
+        <p id="event-registration-preview"></p><p id="event-registration-status" role="status" aria-live="polite"></p><a id="event-registration-signin" href="/auth/steam" hidden>Sign in with Steam</a>
+        <button id="event-registration-refresh" class="small-button" type="button">Refresh my registrations</button><ul id="event-registration-list"></ul><button id="event-registration-more" class="small-button" type="button" hidden>More of my registrations</button>
+        <div id="event-registration-details"></div><button id="event-registration-join" class="small-button" type="button" disabled>Review reserving a place</button><button id="event-registration-leave" class="small-button" type="button" disabled>Review withdrawing registration</button>
+        <div id="event-registration-review" hidden><h3>Review before confirming</h3><div id="event-registration-summary"></div><button id="event-registration-confirm" class="small-button" type="button">Confirm registration choice</button><button id="event-registration-cancel" class="small-button" type="button">Close registration review</button></div>
+        <h3>Recent registration history</h3><ul id="event-registration-history"></ul>
+      </section>
+      <section id="event-schedule-panel" hidden aria-labelledby="event-schedule-heading">
+        <h2 id="event-schedule-heading">Plan a website event</h2>
+        <p>Save a private draft from a template, then separately review publishing its schedule and rules on this website. This does not start a game event or post to Discord.</p>
+        <p id="event-schedule-preview"></p><p id="event-schedule-status" role="status" aria-live="polite"></p>
+        <button id="event-schedule-refresh" class="small-button" type="button">Refresh event plans</button><button id="event-schedule-new" class="small-button" type="button">New event plan</button>
+        <ul id="event-schedule-list"></ul><button id="event-schedule-more" class="small-button" type="button" hidden>More event plans</button>
+        <h3 id="event-schedule-selected">New event schedule</h3>
+        <form id="event-schedule-form">
+          <label>Template for a new event<select id="event-schedule-source" required></select></label><button id="event-schedule-source-more" class="small-button" type="button" hidden>More saved templates</button>
+          <label>Planned start (Brisbane time)<input id="event-schedule-time" type="datetime-local" required></label>
+          <label>Staff reason for publishing, changing or cancelling<textarea id="event-schedule-reason" maxlength="1000"></textarea></label>
+          <button id="event-schedule-save" class="small-button" type="submit">Review event draft</button>
+        </form>
+        <button id="event-schedule-publish" class="small-button" type="button" disabled>Review publishing schedule</button><button id="event-schedule-cancel-event" class="small-button" type="button" disabled>Review cancelling schedule</button>
+        <div id="event-schedule-review" hidden><h3>Review before confirming</h3><div id="event-schedule-summary"></div><button id="event-schedule-confirm" class="small-button" type="button">Confirm schedule change</button><button id="event-schedule-close-review" class="small-button" type="button">Close schedule review</button></div>
+        <h3>Recent schedule history</h3><ul id="event-schedule-history"></ul>
+      </section>
+      <section id="event-result-public" hidden aria-labelledby="event-result-public-heading"><h2 id="event-result-public-heading">Staff event reports</h2><p id="event-result-public-status" role="status"></p><button id="event-result-public-refresh" class="small-button" type="button">Refresh staff reports</button><div id="event-result-public-list"></div></section>
+      <section id="event-result-panel" hidden aria-labelledby="event-result-heading">
+        <h2 id="event-result-heading">Review an event report</h2><p>Record a manual staff report supported by actual event evidence. Registration and planned teams do not prove attendance or an outcome. These reports never issue rewards.</p><p id="event-result-preview"></p><p id="event-result-status" role="status" aria-live="polite"></p>
+        <button id="event-result-refresh" class="small-button" type="button">Refresh report events</button><ul id="event-result-events"></ul><button id="event-result-more" class="small-button" type="button" hidden>More report events</button><h3 id="event-result-selected">Choose an event</h3><p id="event-result-state"></p><button id="event-result-reload" class="small-button" type="button" disabled>Reload selected report</button>
+        <form id="event-result-form">
+          <label>Actual start (Brisbane)<input id="event-result-actual-start" type="datetime-local" step="0.001" required></label><label>Actual end (Brisbane)<input id="event-result-actual-end" type="datetime-local" step="0.001" required></label>
+          <label>Public event summary<textarea id="event-result-public-summary" required minlength="40" maxlength="1000"></textarea></label><label>Winner display names, one per line (up to five)<textarea id="event-result-winners" maxlength="500"></textarea></label>
+          <label>Private official Discord evidence messages, one link per line<textarea id="event-result-evidence" required maxlength="3000"></textarea></label><label>Private evidence review and event criteria<textarea id="event-result-evidence-summary" required minlength="20" maxlength="2000"></textarea></label><button id="event-result-prepare" class="small-button" type="submit">Review publishing staff report</button>
+        </form>
+        <label>Private staff reason for this change<textarea id="event-result-reason" required minlength="10" maxlength="1000"></textarea></label><button id="event-result-withdraw" class="small-button" type="button" disabled>Review withdrawing report</button>
+        <div id="event-result-review" hidden><h3>Review before confirming</h3><div id="event-result-summary"></div><button id="event-result-confirm" class="small-button" type="button">Confirm reviewed report change</button><button id="event-result-cancel" class="small-button" type="button">Close report review</button></div><h3>Recent report history and private evidence</h3><ul id="event-result-history"></ul>
+      </section>
+      <section id="event-team-panel" hidden aria-labelledby="event-team-heading">
+        <h2 id="event-team-heading">Staff event rosters and teams</h2><p>Plan website teams from registrations confirmed for the current schedule. Review actual in-game eligibility separately. Team assignments do not confirm attendance or issue rewards.</p>
+        <p id="event-team-preview"></p><p id="event-team-status" role="status" aria-live="polite"></p><button id="event-team-refresh" class="small-button" type="button">Refresh team events</button><ul id="event-team-events"></ul><button id="event-team-more" class="small-button" type="button" hidden>More team events</button>
+        <h3 id="event-team-selected">Choose an event</h3><p id="event-team-plan"></p><button id="event-team-reload" class="small-button" type="button" disabled>Reload selected roster</button><ul id="event-team-roster"></ul>
+        <label>Staff reason for these teams<input id="event-team-reason" required minlength="10" maxlength="1000"></label><button id="event-team-prepare" class="small-button" type="button" disabled>Review planned teams</button>
+        <div id="event-team-review" hidden><h3>Review before saving</h3><div id="event-team-summary"></div><button id="event-team-confirm" class="small-button" type="button">Confirm planned teams</button><button id="event-team-cancel" class="small-button" type="button">Close team review</button></div>
+        <h3>Recent team plan history</h3><ul id="event-team-history"></ul>
+      </section>
+      <section id="event-template-panel" hidden aria-labelledby="event-template-heading">
+        <h2 id="event-template-heading">Event templates</h2>
+        <p>Prepare staff plans for community events. Templates stay private to staff. Scheduling, registrations, team assignment, results and rewards are not available through this builder yet.</p>
+        <p id="event-template-preview"></p><p id="event-template-status" role="status" aria-live="polite"></p>
+        <button id="event-template-refresh" class="small-button" type="button">Refresh templates</button>
+        <label><span>Include archived templates</span><input id="event-template-archived" type="checkbox"></label>
+        <ul id="event-template-list"></ul><button id="event-template-more" class="small-button" type="button" hidden>More templates</button>
+        <button id="event-template-new" class="small-button" type="button">New template</button>
+        <h3 id="event-template-selected">New template</h3>
+        <form id="event-template-form">
+          <label>Event type<select name="kind" required></select></label>
+          <label>Title<input name="title" required minlength="3" maxlength="120"></label>
+          <label>Description<textarea name="description" required minlength="10" maxlength="2000"></textarea></label>
+          <label>Rules and staff instructions<textarea name="rules" required minlength="10" maxlength="4000"></textarea></label>
+          <label>Duration in minutes<input name="durationMinutes" type="number" min="5" max="1440" step="1" value="60" required></label>
+          <label>Participant capacity<input name="capacity" type="number" min="2" max="500" step="1" value="32" required></label>
+          <label>Number of teams (1 for a single pool)<input name="teamCount" type="number" min="1" max="16" step="1" value="1" required></label>
+          <button class="small-button" type="submit">Review template</button>
+        </form>
+        <button id="event-template-archive" class="small-button" type="button" disabled>Review archiving template</button>
+        <div id="event-template-review" hidden><h3>Review before saving</h3><div id="event-template-summary"></div><button id="event-template-confirm" class="small-button" type="button">Confirm template change</button><button id="event-template-cancel" class="small-button" type="button">Cancel template review</button></div>
+        <h3>Saved revision history</h3><ul id="event-template-history"></ul><button id="event-template-history-more" class="small-button" type="button" hidden>Earlier template revisions</button>
+      </section>
     </main>
 
     <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
@@ -172,5 +272,11 @@
   <script src="assets/events-species-bonuses.js?v=2"></script>
   <script src="assets/events-admin-delete.js?v=1"></script>
   <script src="/assets/events-group-roster.js?v=1"></script>
+  <script src="/assets/challenge-attendance-admin.js?v=1"></script>
+  <script src="/assets/event-templates.js?v=1"></script>
+  <script src="/assets/event-schedules.js?v=2"></script>
+  <script src="/assets/event-registrations.js?v=2"></script>
+  <script src="/assets/event-teams.js?v=1"></script>
+  <script src="/assets/event-results.js?v=1"></script>
 </body>
 </html>

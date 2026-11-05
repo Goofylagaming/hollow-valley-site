@@ -66,6 +66,11 @@ test("all production wallet, marketplace, storage, admin and other page scripts 
       }
       assert.deepEqual(actual.filter(src => src !== membership && (page !== "supporter.html" || src !== subscriberBar)), baseline,
         page + ": existing feature scripts must be preserved");
+    } else if (page === "quests.html") {
+      const dynamic="assets/dynamic-challenges.js";
+      assert.equal(actual.filter(src=>src===dynamic).length,1,"Dynamic challenge controls must load once");
+      assert.equal(actual.indexOf(dynamic),actual.indexOf("assets/quests.js")+1,"Dynamic challenges follow the original quest controller");
+      assert.deepEqual(actual.filter(src=>src!==dynamic),baseline,"Original quest scripts retain their order");
     } else if (page === "skins.html") {
       // v015 intentionally inserts the auto-map and batch-mask helpers before
       // the original viewer. The entire pre-existing script order is preserved.
@@ -123,6 +128,12 @@ test("all production wallet, marketplace, storage, admin and other page scripts 
     } else if (page === "events.html") {
       const randomEvents = "assets/events-species-bonuses.js";
       const groupRoster = "assets/events-group-roster.js";
+      const attendanceEvidence="assets/challenge-attendance-admin.js";
+      const templates="assets/event-templates.js";
+      const schedules="assets/event-schedules.js";
+      const registrations="assets/event-registrations.js";
+      const teams="assets/event-teams.js";
+      const results="assets/event-results.js";
       assert.equal(actual.filter(src => src === randomEvents).length, 1,
         "Random event display script must be loaded exactly once");
       assert.ok(actual.indexOf(randomEvents) > actual.indexOf("assets/events.js"),
@@ -131,7 +142,19 @@ test("all production wallet, marketplace, storage, admin and other page scripts 
         "Staff group event roster must load exactly once");
       assert.ok(actual.indexOf(groupRoster) > actual.indexOf("assets/events-admin-delete.js"),
         "Staff group roster loads after the existing Events controls");
-      assert.deepEqual(actual.filter(src => src !== randomEvents && src !== groupRoster), baseline,
+      assert.equal(actual.filter(src=>src===attendanceEvidence).length,1,"Staff attendance evidence controls must load exactly once");
+      assert.equal(actual.indexOf(attendanceEvidence),actual.indexOf(groupRoster)+1,"Attendance evidence controls follow the existing roster");
+      assert.equal(actual.filter(src=>src===templates).length,1,"Event template controls must load exactly once");
+      assert.equal(actual.indexOf(templates),actual.indexOf(attendanceEvidence)+1,"Event templates follow existing attendance controls");
+      assert.equal(actual.filter(src=>src===schedules).length,1,"Website schedule controls must load exactly once");
+      assert.equal(actual.indexOf(schedules),actual.indexOf(templates)+1,"Website schedules follow the template controls");
+      assert.equal(actual.filter(src=>src===registrations).length,1,"Private registration controls must load exactly once");
+      assert.equal(actual.indexOf(registrations),actual.indexOf(schedules)+1,"Registration follows the public schedule controls");
+      assert.equal(actual.filter(src=>src===teams).length,1,"Staff team controls must load exactly once");
+      assert.equal(actual.indexOf(teams),actual.indexOf(registrations)+1,"Staff teams follow the private registration controls");
+      assert.equal(actual.filter(src=>src===results).length,1,"Event report controls must load exactly once");
+      assert.equal(actual.indexOf(results),actual.indexOf(teams)+1,"Event reports follow existing team controls");
+      assert.deepEqual(actual.filter(src => src !== randomEvents && src !== groupRoster && src !== attendanceEvidence && src !== templates && src !== schedules && src !== registrations && src !== teams && src !== results), baseline,
         "All existing Events page scripts must retain their original order");
     } else {
       assert.deepEqual(actual, baseline, page + ": feature scripts were dropped or reordered");

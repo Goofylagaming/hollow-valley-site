@@ -1,3 +1,4 @@
+process.env.GROUP_DIPLOMACY_ENABLED='0';
 // Real local website/accounting routes, synthetic identity cookies and balances.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),os=require('node:os'),express=require('express');
 const {chromium}=require('playwright');
@@ -34,6 +35,7 @@ app.use('/api/group-treasury',(req,res,next)=>{
   next();
 });
 app.use('/api/group-treasury',require('../server/routes/groupTreasury'));
+app.use('/api/group-diplomacy',require('../server/routes/groupDiplomacy'));
 app.use('/api/group-headquarters',require('../server/routes/groupHeadquarters'));
 app.use('/api/groups',require('../server/routes/groups'));
 app.use('/api',(req,res)=>{unexpected.push(req.method+' '+req.path);res.status(404).json({error:'Unexpected local API'});});

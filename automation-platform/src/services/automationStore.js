@@ -422,6 +422,18 @@ function reserveState(key, value) {
   return { inserted: result.changes === 1, value: getState(key).value };
 }
 
+// Serialize read/validate/write updates across independent workers. Returning
+// undefined leaves both the saved value and its update timestamp unchanged.
+function mutateState(key, transform) {
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const current=getState(key,null);
+    const next=transform(current?.value??null);
+    const result=next===undefined?current:setState(key,next);
+    db.exec('COMMIT');return result;
+  }catch(error){db.exec('ROLLBACK');throw error;}
+}
+
 function deleteState(key) {
   return db.prepare('DELETE FROM automation_state WHERE key = ?').run(String(key)).changes;
 }
@@ -454,6 +466,7 @@ module.exports = {
   getOutboxSummary,
   getState,
   setState,
+  mutateState,
   deleteState,
   reserveState,
 };

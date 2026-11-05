@@ -2,6 +2,37 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const {DatabaseSync}=require('node:sqlite');
 const {createBattleProvenance}=require('../server/services/territoryBattleProvenance');
+
+test('participant evidence uses the actual sample time and repeated polls cannot extend it',()=>{
+  const db=new DatabaseSync(':memory:');
+  try{
+    const s=createBattleProvenance(db),steam='76561198000000001';s.begin(1,1,1000);
+    const present={usable:true,participants:[{steamId:steam,side:'attacker'}],sampledAt:1100};
+    s.observe(1,present,1200);s.observe(1,present,1300);
+    assert.equal(s.hasVerifiedSampleClock(1),true);
+    const row=()=>db.prepare('SELECT first_seen,last_seen FROM territory_battle_participants WHERE attack_id=1').get();
+    assert.deepEqual({...row()},{first_seen:1100,last_seen:1100});
+    s.observe(1,{...present,sampledAt:1250},1400);assert.equal(row().last_seen,1250);
+    for(const sampledAt of [999,2000,NaN,null])s.observe(1,{...present,sampledAt},1500);
+    s.observe(1,{...present,sampledAt:1300},121301);assert.equal(row().last_seen,1250);
+  }finally{db.close();}
+});
+
+test('unstamped and older battle history cannot be upgraded to verified observation clocks',()=>{
+  const db=new DatabaseSync(':memory:');
+  try{
+    const s=createBattleProvenance(db),steam='76561198000000001';
+    s.begin(1,1,1000);s.observe(1,{usable:true,participants:[{steamId:steam,side:'attacker'}]},1100);
+    s.observe(1,{usable:true,participants:[{steamId:steam,side:'attacker'}],sampledAt:1200},1300);
+    assert.equal(s.hasVerifiedSampleClock(1),false);
+    s.begin(2,1,2000);db.prepare('DELETE FROM territory_battle_sample_clock WHERE attack_id=2').run();
+    const reopened=createBattleProvenance(db);reopened.begin(2,1,2000);
+    reopened.observe(2,{usable:true,participants:[{steamId:steam,side:'attacker'}],sampledAt:2100},2200);
+    assert.equal(reopened.hasVerifiedSampleClock(2),false);
+    db.exec('BEGIN');s.begin(3,1,3000);db.exec('ROLLBACK');
+    assert.equal(db.prepare('SELECT count(*) n FROM territory_battle_sample_clock WHERE attack_id=3').get().n,0);
+  }finally{db.close();}
+});
 test('battle provenance survives restarts, never upgrades unknown history or erases preview/manual evidence',()=>{
   const db=new DatabaseSync(':memory:');
   try {

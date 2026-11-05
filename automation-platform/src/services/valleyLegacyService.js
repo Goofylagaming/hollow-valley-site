@@ -113,6 +113,11 @@ function recordSnapshot(players, at) {
 }
 function maintain() {
   try {
+    get().challenges.prune();
+  } catch (e) {
+    console.error('[valley-legacy] challenge cleanup failed:',e.message);
+  }
+  try {
     get().discoveries.prune();
   } catch (e) {
     console.error('[valley-legacy] discovery cleanup failed:', e.message);

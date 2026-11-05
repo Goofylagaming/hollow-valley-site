@@ -233,6 +233,13 @@ function createApp() {
     res.json({
       loggedIn: Boolean(req.user),
       valleyLegacyEnabled: process.env.VALLEY_LEGACY_ENABLED === "1",
+      eventTemplateBuilderEnabled: process.env.EVENT_ENGINE_ENABLED === "1" && Boolean(req.user?.is_admin),
+      eventScheduleBuilderEnabled: process.env.EVENT_ENGINE_ENABLED === "1" && process.env.EVENT_ENGINE_SCHEDULES_ENABLED === "1" && Boolean(req.user?.is_admin),
+      eventSchedulesEnabled: process.env.EVENT_ENGINE_ENABLED === "1" && process.env.EVENT_ENGINE_SCHEDULES_ENABLED === "1",
+      eventRegistrationManagementAvailable: Boolean(req.user?.steam_id),
+      eventTeamManagementAvailable: Boolean(req.user?.is_admin),
+      eventResultsManagementAvailable: Boolean(req.user?.is_admin),
+      eventResultsAvailable: process.env.EVENT_ENGINE_RESULTS_ENABLED === "1",
       user: req.user || null,
       territoryWarsAdminAccess: TERRITORY_WARS_ADMIN_TEST_ENABLED && isTerritoryAdmin(req.user),
       financeOwnerAccess: isFinanceOwner(req.user),
@@ -264,6 +271,8 @@ function createApp() {
   app.use("/api/progression", progressionRouter);
   app.use("/api/legacy", require("./routes/valleyLegacy"));
   app.use("/api/journeys", require("./routes/journeys"));
+  app.use("/api/dynamic-challenges", require("./routes/dynamicChallenges"));
+  app.use("/api/admin/challenge-attendance", require("./routes/challengeAttendance").createRouter());
   app.use("/api/discovery", require("./routes/discovery"));
   app.use("/api/death-recaps", require("./routes/deathRecaps"));
   app.use("/api/roster", rosterRouter);
@@ -285,6 +294,11 @@ function createApp() {
   app.use("/api/bodydrop", bodydropRouter);
   app.use("/api/server-status", serverStatusRouter);
   app.use("/api/events", eventsRouter);
+  app.use("/api/event-templates", require("./routes/eventTemplates").createRouter());
+  app.use("/api/event-schedules", require("./routes/eventSchedules").createRouter());
+  app.use("/api/event-registrations", require("./routes/eventRegistrations").createRouter());
+  app.use("/api/event-teams", require("./routes/eventTeams").createRouter());
+  app.use("/api/event-results", require("./routes/eventResults").createRouter());
   app.use("/api/friends", friendsRouter);
   app.use("/api/roadmap", roadmapCommunityRouter);
   app.use("/api/community-guides", communityGuidesRouter);
@@ -295,6 +309,7 @@ function createApp() {
   app.use("/api/groups", groupsRouter);
   app.use("/api/group-headquarters", require("./routes/groupHeadquarters"));
   app.use("/api/group-treasury", require("./routes/groupTreasury"));
+  app.use("/api/group-diplomacy", require("./routes/groupDiplomacy"));
   if (TERRITORY_WARS_ADMIN_TEST_ENABLED) {
     // Loading the module creates isolated territory_* tables: never load while disabled.
     app.use("/api/territory-wars", require("./routes/territoryWars"));

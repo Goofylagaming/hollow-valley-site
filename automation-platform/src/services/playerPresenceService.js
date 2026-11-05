@@ -249,6 +249,9 @@ function presenceFeedError(code, message) {
 }
 
 function finiteOrNull(value) {
+  // Unknown telemetry must not become a measured zero (or Boolean one).
+  if (!['number', 'string'].includes(typeof value) ||
+      (typeof value === 'string' && value.trim() === '')) return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
 }

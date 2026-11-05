@@ -1,0 +1,7 @@
+#dynamic-challenges {margin:2rem 0;padding:1.25rem;border:1px solid var(--border, #355246);border-radius:12px;}
+#dynamic-challenges [hidden],#dynamic-challenges[hidden] {display:none!important;}
+#dynamic-challenges p {overflow-wrap:anywhere;}
+#dynamic-list {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:1rem;margin:1rem 0;}
+#dynamic-list progress {width:100%;accent-color:#91cda3;}
+#dynamic-review {padding:1rem;border:1px solid #829b60;margin-top:1rem;border-radius:8px;}
+#dynamic-challenges button {white-space:normal;max-width:100%;margin:.3rem .3rem .3rem 0;}

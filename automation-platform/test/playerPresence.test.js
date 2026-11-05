@@ -1,15 +1,12 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
 
 function loadPresence({ snapshot, enabled = true } = {}) {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hv-presence-'));
-  const dbPath = path.join(tempDir, 'presence.sqlite');
   const previousDb = process.env.AUTOMATION_DB_PATH;
   const previousEnabled = process.env.PLAYER_PRESENCE_ENABLED;
-  process.env.AUTOMATION_DB_PATH = dbPath;
+  // Each reloaded presence module gets an isolated database. No filesystem
+  // persistence is under test here, and imported services retain open handles.
+  process.env.AUTOMATION_DB_PATH = ':memory:';
   process.env.PLAYER_PRESENCE_ENABLED = enabled ? 'true' : 'false';
 
   const statusPath = require.resolve('../src/services/statusService');
@@ -31,7 +28,6 @@ function loadPresence({ snapshot, enabled = true } = {}) {
       else process.env.AUTOMATION_DB_PATH = previousDb;
       if (previousEnabled === undefined) delete process.env.PLAYER_PRESENCE_ENABLED;
       else process.env.PLAYER_PRESENCE_ENABLED = previousEnabled;
-      fs.rmSync(tempDir, { recursive: true, force: true });
     },
   };
 }

@@ -1,0 +1,8 @@
+#group-diplomacy[hidden],#group-diplomacy [hidden]{display:none!important}
+#group-diplomacy select{width:100%;max-width:100%;padding:10px;box-sizing:border-box}
+#group-diplomacy p,#group-diplomacy li{overflow-wrap:anywhere}
+#group-diplomacy .diplomacy-list{list-style:none;padding:0}
+#group-diplomacy .diplomacy-list li{margin:10px 0}
+#group-diplomacy .diplomacy-list button{max-width:100%;white-space:normal;text-align:left}
+#diplomacy-review{padding:14px;border:1px solid #687a4c;margin:16px 0}
+#diplomacy-review button{margin:4px 8px 4px 0}

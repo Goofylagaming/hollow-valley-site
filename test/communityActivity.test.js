@@ -17,7 +17,7 @@ const router=require("../server/routes/communityActivity");
 const A="76561198000000001",B="76561198000000002";
 db.prepare("INSERT INTO users(steam_id,username,is_admin) VALUES (?,'Staff',1)").run(A);
 db.prepare("INSERT INTO users(steam_id,username,is_admin) VALUES (?,'Player',0)").run(B);
-const staff={steam_id:A,is_admin:1},player={steam_id:B,is_admin:0};
+const staff=db.prepare('SELECT * FROM users WHERE steam_id=?').get(A),player=db.prepare('SELECT * FROM users WHERE steam_id=?').get(B);
 test.after(()=>{db.close();fs.rmSync(dir,{recursive:true,force:true});});
 function app(){
   const server=express();server.use(express.json());
@@ -198,6 +198,31 @@ test("manual event results validate date, winner names and explicit staff public
     assert.doesNotMatch(JSON.stringify(publicData),new RegExp(A+"|steam_id|publishedBySteamId|payment|payout:true"));
     assert.equal(db.prepare("SELECT published_by_steam_id FROM hv_event_results_public").get().published_by_steam_id,A);
   });
+});
+
+test('legacy result publication rechecks cached staff permissions, preview restrictions and reserved keys',async()=>{
+ assert.throws(()=>activity.validateEventResult({...resultPayload(),eventKey:'engine-reserved-event-key'}),{code:'INVALID_EVENT_RESULT'});
+ const previous=process.env.SKIN_STUDIO_READ_ONLY;
+ try{await withServer(async base=>{
+  process.env.SKIN_STUDIO_READ_ONLY='1';assert.equal((await post(base,'/api/community-activity/admin/event-results',{...resultPayload(),eventKey:'preview_result_key'})).status,403);
+  delete process.env.SKIN_STUDIO_READ_ONLY;db.prepare('UPDATE users SET is_admin=0 WHERE steam_id=?').run(A);assert.equal((await post(base,'/api/community-activity/admin/event-results',{...resultPayload(),eventKey:'demoted_result_key'})).status,403);
+  db.prepare('UPDATE users SET is_admin=1 WHERE steam_id=?').run(A);
+  const cross=await fetch(base+'/api/community-activity/admin/event-results',{method:'POST',headers:{'Content-Type':'application/json',Origin:base,'X-Test-Role':'staff','Sec-Fetch-Site':'cross-site'},body:JSON.stringify({...resultPayload(),eventKey:'cross_site_result_key'})});assert.equal(cross.status,403);
+ });}finally{db.prepare('UPDATE users SET is_admin=1 WHERE steam_id=?').run(A);if(previous===undefined)delete process.env.SKIN_STUDIO_READ_ONLY;else process.env.SKIN_STUDIO_READ_ONLY=previous;}
+});
+
+test('legacy publication returns the saved result even when its event date is outside the latest public page',()=>{
+ const at=new Date().toISOString();for(let n=0;n<30;n++)db.prepare('INSERT INTO hv_event_results_public VALUES(?,?,?,?,?,?,?)').run('ranked_result_'+n,'More recent event '+n,at,'A previously published staff summary for this synthetic community event.','[]',at,A);
+ const saved=activity.publishResult(staff,{...resultPayload(),eventKey:'older_completed_result'});assert.equal(saved.eventKey,'older_completed_result');assert.equal(activity.publicResults(25).some(r=>r.eventKey==='older_completed_result'),false);
+});
+
+test('the existing community results API serves Engine reports from the same database without private evidence',async()=>{
+ const {randomUUID}=require('node:crypto');let clock=Date.now();const templates=require('../server/services/eventTemplateStore').createEventTemplateStore(db,{now:()=>clock}),schedules=require('../server/services/eventScheduleStore').createEventScheduleStore(db,{now:()=>clock}),reports=require('../server/services/eventResultStore').createEventResultStore(db,{now:()=>clock,guild:()=>'10000000000001'});
+ const template=templates.change(staff,{id:randomUUID(),expectedRevision:0,requestKey:randomUUID(),action:'save',details:{kind:'migration',title:'Shared community report fixture',description:'Planned event for the shared public results API.',rules:'Staff review actual event evidence.',durationMinutes:60,capacity:4,teamCount:1}}).current,eventId=randomUUID(),start=clock+3600000,end=start+3600000;
+ schedules.change(staff,{eventId,expectedRevision:0,requestKey:randomUUID(),action:'create',templateId:template.id,templateRevision:1,startsAt:start});schedules.change(staff,{eventId,expectedRevision:1,requestKey:randomUUID(),action:'publish',reason:'Reviewed the synthetic website event plan.'});clock=end+1000;const proof='https://discord.com/channels/10000000000001/10000000000002/10000000000003';
+ reports.change(staff,{eventId,expectedRevision:0,requestKey:randomUUID(),action:'publish',reason:'Staff reviewed the actual synthetic event evidence.',eventRevision:2,actualStart:start,actualEnd:end,publicSummary:'Staff publish this manual outcome after reviewing the evidence for the completed synthetic community event.',winners:['Display winner'],evidenceUrls:[proof],evidenceSummary:'Private staff evidence review referencing '+B+' for this event.'});
+ await withServer(async base=>{const response=await fetch(base+'/api/community-activity/event-results'),data=await response.json(),report=data.results.find(r=>r.eventId===eventId);assert.equal(response.status,200);assert.equal(report.evidenceReviewed,true);assert.equal(report.automaticallyVerified,false);assert.equal(JSON.stringify(report).includes(proof),false);assert.equal(JSON.stringify(report).includes(B),false);});
+ reports.change(staff,{eventId,expectedRevision:1,requestKey:randomUUID(),action:'withdraw',reason:'Staff withdraw this synthetic publication after the integration check.'});assert.equal(activity.publicResults(25).some(r=>r.eventId===eventId),false);
 });
 
 test("UX06 UI and routes preserve the existing game/wallet safety boundary",()=>{

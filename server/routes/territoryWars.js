@@ -2,6 +2,7 @@ const express = require("express");
 const { db } = require("../db");
 const { requireAuth, requireAdmin } = require("../middleware/requireAuth");
 const serverStatus = require("../services/serverStatus");
+const {observation}=require('../services/liveSnapshotFreshness');
 const battleProvenance = require('../services/territoryBattleProvenance').createBattleProvenance(db);
 const { isRemovedTerritory } = require("../services/territoryAreas");
 const { fromRconLocation } = require("../evrimaMap");
@@ -561,9 +562,11 @@ function territoryPresence(event, includePlayers = false) {
     };
   }
 
-  if (!state?.configured || !state?.online || !geometry) {
+  const observed=observation(state,Date.now());
+  if (!state?.configured || !state?.online || !observed.fresh || !geometry) {
     return {
-      serverOnline: Boolean(state?.online),
+      serverOnline: Boolean(state?.online&&observed.fresh),
+      stale:!observed.fresh,
       simulated: false,
       tracking: Boolean(geometry),
       region: geometry?.territoryName || null,
@@ -623,6 +626,7 @@ function territoryPresence(event, includePlayers = false) {
 
   return {
     serverOnline: true,
+    stale:false,
     tracking: true,
     region: geometry.territoryName,
     geometry,
@@ -775,7 +779,8 @@ function contestPresence(event, attack, nowMs) {
     };
   }
 
-  if (!state?.configured || !state?.online || !geometry) {
+  const observed=observation(state,nowMs);
+  if (!state?.configured || !state?.online || !observed.fresh || !geometry) {
     return { usable: false, simulated: false, attackers: 0, defenders: 0 };
   }
 
@@ -805,7 +810,7 @@ function contestPresence(event, attack, nowMs) {
     ...attackerLineup.filter(m=>insideClaimSteamIds.has(String(m.steam_id))).map(m=>({steamId:String(m.steam_id),side:'attacker'})),
     ...defenderLineup.filter(m=>insideClaimSteamIds.has(String(m.steam_id))).map(m=>({steamId:String(m.steam_id),side:'defender'})),
   ];
-  return { usable: true, attackers, defenders, participants };
+  return { usable: true, attackers, defenders, participants, sampledAt:observed.sampledAt };
 }
 
 function captureTerritory(event, attack, atMs, actorUserId = null) {

@@ -41,6 +41,7 @@ function loadQuests() {
     store,
     quests,
     cleanup() {
+      store.db.close();
       delete require.cache[storePath];
       delete require.cache[questPath];
       for (const [key, value] of Object.entries(previous)) {
@@ -59,6 +60,8 @@ function loadQuests() {
         if (value === undefined) delete process.env[envName];
         else process.env[envName] = value;
       }
+      assert.equal(path.dirname(path.resolve(dir)),path.resolve(os.tmpdir()));
+      assert.ok(path.basename(dir).startsWith('hv-quests-'));
       fs.rmSync(dir, { recursive: true, force: true });
     },
   };

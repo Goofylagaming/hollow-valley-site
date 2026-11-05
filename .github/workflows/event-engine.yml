@@ -1,0 +1,65 @@
+name: Event Engine templates
+on:
+  pull_request:
+    paths:
+      - 'server/services/eventTemplateStore.js'
+      - 'server/routes/eventTemplates.js'
+      - 'server/services/eventScheduleStore.js'
+      - 'server/routes/eventSchedules.js'
+      - 'server/services/eventRegistrationStore.js'
+      - 'server/routes/eventRegistrations.js'
+      - 'server/services/eventTeamStore.js'
+      - 'server/services/eventTeamEvidence.js'
+      - 'server/routes/eventTeams.js'
+      - 'server/services/eventResultStore.js'
+      - 'server/services/eventResultPublicStore.js'
+      - 'server/services/eventResultValidation.js'
+      - 'server/routes/eventResults.js'
+      - 'server/services/communityActivity.js'
+      - 'server/routes/communityActivity.js'
+      - 'test/communityActivity.test.js'
+      - 'server/index.js'
+      - 'server/services/roadmapCommunity.js'
+      - 'public/events.html'
+      - 'public/assets/event-templates.*'
+      - 'public/assets/event-schedules.*'
+      - 'public/assets/event-registrations.*'
+      - 'public/assets/event-teams.*'
+      - 'public/assets/event-results.*'
+      - 'public/assets/home-roadmap.js'
+      - 'test/eventTemplates*.test.js'
+      - 'test/eventSchedules*.test.js'
+      - 'test/eventRegistrations*.test.js'
+      - 'test/eventTeams*.test.js'
+      - 'test/eventResults*.test.js'
+      - 'test/roadmapCommunity.test.js'
+      - 'test/productionUiRelease.test.js'
+      - 'scripts/verify-event-templates.cjs'
+      - 'scripts/verify-event-schedules.cjs'
+      - 'scripts/verify-event-registrations.cjs'
+      - 'scripts/verify-event-teams.cjs'
+      - 'scripts/verify-event-results.cjs'
+      - '.github/workflows/event-engine.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node --test test/eventResults.test.js test/eventResultsHttp.test.js test/communityActivity.test.js test/eventTeams.test.js test/eventTeamsHttp.test.js test/eventRegistrations.test.js test/eventRegistrationsHttp.test.js test/eventSchedules.test.js test/eventSchedulesHttp.test.js test/eventTemplates.test.js test/eventTemplatesHttp.test.js test/roadmapCommunity.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js test/challengeAttendanceHostHttp.test.js test/groupEventHost.test.js
+      - run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.62.1
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/verify-event-templates.cjs
+      - run: node scripts/verify-event-schedules.cjs
+      - run: node scripts/verify-event-registrations.cjs
+      - run: node scripts/verify-event-teams.cjs
+      - run: node scripts/verify-event-results.cjs
+      - run: node scripts/verify-challenge-attendance-admin.cjs

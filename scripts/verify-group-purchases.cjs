@@ -1,3 +1,4 @@
+process.env.GROUP_DIPLOMACY_ENABLED='0';
 const assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path'),express=require('express');
 const {chromium}=require('playwright');
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'hv-purchase-browser-'));
@@ -24,7 +25,8 @@ const auto=express();auto.use(express.json());auto.use('/api/website/group-treas
 });auto.use('/api/website/group-treasury',require('../automation-platform/src/routes/websiteGroupTreasuryRoutes'));
 const app=express();app.use(express.json());app.use((req,_res,next)=>{const steam=String(req.headers.cookie||'').match(/(?:^|;\s*)fixture-account=(\d{17})(?:;|$)/)?.[1];if(steam)req.user=db.prepare('SELECT * FROM users WHERE steam_id=?').get(steam);next();});
 app.get('/api/me',(req,res)=>res.json({loggedIn:Boolean(req.user),user:req.user||null,steamLoginConfigured:true}));
-app.use('/api/groups',require('../server/routes/groups'));app.use('/api/group-treasury',require('../server/routes/groupTreasury'));app.use('/api/group-headquarters',require('../server/routes/groupHeadquarters'));
+app.use('/api/groups',require('../server/routes/groups'));app.use('/api/group-treasury',require('../server/routes/groupTreasury'));
+app.use('/api/group-diplomacy',require('../server/routes/groupDiplomacy'));app.use('/api/group-headquarters',require('../server/routes/groupHeadquarters'));
 const unexpected=[];app.use('/api',(req,res)=>{unexpected.push(req.method+' '+req.path);res.status(404).json({error:'Unexpected fixture API'});});
 app.get('/groups',(_req,res)=>res.sendFile(path.join(__dirname,'../public/groups.html')));app.use(express.static(path.join(__dirname,'../public')));
 const listen=app=>new Promise(resolve=>{const server=app.listen(0,'127.0.0.1',()=>resolve(server));});

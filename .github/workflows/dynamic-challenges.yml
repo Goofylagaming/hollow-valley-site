@@ -1,0 +1,77 @@
+name: Dynamic challenge tracking
+on:
+  pull_request:
+    paths:
+      - 'automation-platform/src/services/dynamicChallengeStore.js'
+      - 'automation-platform/src/services/challengeLocationCatalog.js'
+      - 'automation-platform/src/services/challengeLocationStore.js'
+      - 'test/challengeLocation.test.js'
+      - 'test/challengeMapOperator.test.js'
+      - 'scripts/review-challenge-map.cjs'
+      - 'automation-platform/src/services/discordEventService.js'
+      - 'automation-platform/src/services/automationStore.js'
+      - 'automation-platform/src/routes/herbyBotRoutes.js'
+      - 'automation-platform/test/discordEventService.test.js'
+      - 'automation-platform/test/discordEventRoutes.test.js'
+      - 'automation-platform/test/groupEventRegistration.test.js'
+      - 'automation-platform/src/services/challengeAttendanceEvidence.js'
+      - 'test/challengeAttendanceEvidence.test.js'
+      - 'test/challengeAttendanceHostHttp.test.js'
+      - 'automation-platform/src/routes/challengeAttendanceAdminRoutes.js'
+      - 'automation-platform/src/index.js'
+      - 'server/routes/challengeAttendance.js'
+      - 'server/services/challengeAttendanceHost.js'
+      - 'server/services/automationWebsiteClient.js'
+      - 'public/assets/challenge-attendance-admin.*'
+      - 'public/events.html'
+      - 'scripts/verify-challenge-attendance-admin.cjs'
+      - 'automation-platform/src/services/valleyLegacyStore.js'
+      - 'automation-platform/src/services/playerPresenceService.js'
+      - 'automation-platform/src/services/externalServerSnapshotService.js'
+      - 'automation-platform/test/presenceFeedEndpoint.test.js'
+      - 'automation-platform/test/playerPresence.test.js'
+      - 'automation-platform/src/services/valleyLegacyService.js'
+      - 'automation-platform/test/journeyMaintenance.test.js'
+      - 'automation-platform/src/routes/dynamicChallengeRoutes.js'
+      - 'automation-platform/src/routes/valleyLegacyRoutes.js'
+      - 'server/routes/dynamicChallenges.js'
+      - 'server/index.js'
+      - 'server/services/serverStatus.js'
+      - 'server/services/liveSnapshotFreshness.js'
+      - 'server/services/territoryBattleProvenance.js'
+      - 'server/routes/territoryWars.js'
+      - 'test/liveSnapshotFreshness.test.js'
+      - 'test/territoryBattleProvenance.test.js'
+      - 'test/territoryVictoryRuntime.test.js'
+      - 'public/assets/territory-wars.js'
+      - 'public/assets/admin-territory-wars.js'
+      - 'scripts/verify-territory-freshness.cjs'
+      - 'public/quests.html'
+      - 'public/assets/dynamic-challenges.*'
+      - 'public/assets/home-roadmap.js'
+      - 'test/dynamicChallenges*.test.js'
+      - 'scripts/verify-dynamic-challenges.cjs'
+      - '.github/workflows/dynamic-challenges.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node --test automation-platform/test/presenceFeedEndpoint.test.js automation-platform/test/playerPresence.test.js
+      - run: node --test test/communityActivity.test.js test/mapActivityRoute.test.js test/liveMapTerritoryIntegration.test.js test/statusPage.test.js test/liveSnapshotFreshness.test.js test/serverStatusAutomationOnly.test.js test/territoryBattleProvenance.test.js test/territoryVictoryRuntime.test.js test/territoryControl.test.js test/territoryVictoryDelivery.test.js test/territoryVictoryReview.test.js test/territoryAdminHttp.test.js test/territoryAdminRelease.test.js test/groupTerritoryHistory.test.js test/challengeMapOperator.test.js test/challengeLocation.test.js automation-platform/test/discordEventService.test.js automation-platform/test/discordEventRoutes.test.js automation-platform/test/groupEventRegistration.test.js test/challengeAttendanceEvidence.test.js test/challengeAttendanceHostHttp.test.js automation-platform/test/journeyMaintenance.test.js test/dynamicChallenges.test.js test/dynamicChallengesHttp.test.js test/valleyLegacy.test.js test/valleyLegacyTelemetry.test.js test/valleyLegacyHttp.test.js test/roadmapCommunity.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js test/questPolling.test.js automation-platform/test/walletQuestFrontend.test.js automation-platform/test/questChallengeExpansion.test.js automation-platform/test/questBoosts.test.js automation-platform/test/journeyStore.test.js automation-platform/test/discoveryVisitStore.test.js
+      - run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.62.1
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/verify-dynamic-challenges.cjs
+      - run: node scripts/verify-challenge-attendance-admin.cjs
+      - run: node scripts/verify-group-event-host.cjs
+      - run: node scripts/verify-group-purchases.cjs
+      - run: node scripts/verify-territory-freshness.cjs
