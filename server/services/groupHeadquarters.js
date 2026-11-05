@@ -9,6 +9,16 @@ function createGroupHeadquarters(db, groups) {
     if (!db.prepare(`PRAGMA table_info(${table})`).all().some(column => column.name === 'emblem')) db.exec(`ALTER TABLE ${table} ADD COLUMN emblem TEXT NOT NULL DEFAULT 'leaf'`);
   }
   const emblems = ['leaf', 'claw', 'mountain', 'sun'];
+  db.exec(`CREATE TABLE IF NOT EXISTS hv_group_member_ranks (
+    group_id INTEGER NOT NULL, steam_id TEXT NOT NULL, rank TEXT NOT NULL,
+    revision INTEGER NOT NULL, exit_id INTEGER NOT NULL, PRIMARY KEY(group_id,steam_id));
+    CREATE TABLE IF NOT EXISTS hv_group_rank_edits (
+    group_id INTEGER NOT NULL, steam_id TEXT NOT NULL, revision INTEGER NOT NULL,
+    actor TEXT NOT NULL, rank TEXT NOT NULL, exit_id INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')), PRIMARY KEY(group_id,steam_id,revision));`);
+  function lastExit(groupId, steamId) {
+    return db.prepare('SELECT MAX(id) id FROM hv_group_history WHERE group_id=? AND steam_id=?').get(groupId,steamId).id || 0;
+  }
 
   function membership(steamId) {
     const group = groups.getState(steamId).current;
@@ -22,6 +32,12 @@ function createGroupHeadquarters(db, groups) {
       groupId: group.id, name: group.name, canEdit: group.ownerSteamId === steamId,
       description: profile?.description || '', revision: profile?.revision || 0,
       emblem: profile?.emblem || 'leaf',
+      members: group.members.map(member => {
+        const assignment = db.prepare('SELECT rank,revision,exit_id FROM hv_group_member_ranks WHERE group_id=? AND steam_id=?').get(group.id,member.steamId);
+        return { steamId:member.steamId, name:member.username, role:member.role,
+          rank:member.role==='owner'?'owner':assignment?.exit_id===lastExit(group.id,member.steamId)?assignment.rank:'member',
+          rankRevision:assignment?.revision || 0 };
+      }),
       edits: db.prepare(`SELECT revision,description,emblem,created_at AS createdAt FROM hv_group_profile_edits
         WHERE group_id=? ORDER BY revision DESC LIMIT 20`).all(group.id)
     };
@@ -46,6 +62,24 @@ function createGroupHeadquarters(db, groups) {
       return result;
     } catch (error) { db.exec('ROLLBACK'); throw error; }
   }
-  return { get, update };
+  function setRank(steamId, { memberSteamId, rank, expectedRevision } = {}) {
+    if (typeof memberSteamId !== 'string' || !/^\d{17}$/.test(memberSteamId) || !['member','veteran','officer'].includes(rank) || !Number.isSafeInteger(expectedRevision) || expectedRevision<0) throw Object.assign(new Error('Valid member, rank and revision required'),{status:400});
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      const group=membership(steamId);
+      if(group.ownerSteamId!==steamId)throw Object.assign(new Error('Only the group owner can assign ranks'),{status:403});
+      const member=group.members.find(person=>person.steamId===memberSteamId);
+      if(!member)throw Object.assign(new Error('Group member unavailable'),{status:404});
+      if(member.role==='owner')throw Object.assign(new Error('Owner rank follows group ownership'),{status:409});
+      const old=db.prepare('SELECT revision FROM hv_group_member_ranks WHERE group_id=? AND steam_id=?').get(group.id,memberSteamId);
+      if((old?.revision||0)!==expectedRevision)throw Object.assign(new Error('Member rank changed; refresh before saving'),{status:409});
+      const revision=expectedRevision+1,exitId=lastExit(group.id,memberSteamId);
+      db.prepare(`INSERT INTO hv_group_member_ranks VALUES (?,?,?,?,?) ON CONFLICT(group_id,steam_id)
+        DO UPDATE SET rank=excluded.rank,revision=excluded.revision,exit_id=excluded.exit_id`).run(group.id,memberSteamId,rank,revision,exitId);
+      db.prepare('INSERT INTO hv_group_rank_edits(group_id,steam_id,revision,actor,rank,exit_id) VALUES (?,?,?,?,?,?)').run(group.id,memberSteamId,revision,steamId,rank,exitId);
+      const result=get(steamId);db.exec('COMMIT');return result;
+    }catch(error){db.exec('ROLLBACK');throw error;}
+  }
+  return { get, update, setRank };
 }
 module.exports = { createGroupHeadquarters };

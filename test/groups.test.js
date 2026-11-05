@@ -51,6 +51,17 @@ test('Headquarters descriptions enforce owner authority, stale revisions and ato
  assert.equal(headquarters.get(A).description,'Valley explorers');assert.equal(headquarters.get(A).revision,1);
 });
 
+test('Headquarters rank assignments enforce owner authority and revisions',()=>{
+ const hq=require('../server/services/groupHeadquarters').createGroupHeadquarters(db,groups);
+ expectFail(()=>hq.setRank(B,{memberSteamId:B,rank:'officer',expectedRevision:0}),403);
+ expectFail(()=>hq.setRank(A,{memberSteamId:C,rank:'officer',expectedRevision:0}),404);
+ expectFail(()=>hq.setRank(A,{memberSteamId:A,rank:'member',expectedRevision:0}),409);
+ const result=hq.setRank(A,{memberSteamId:B,rank:'officer',expectedRevision:0});
+ assert.equal(result.members.find(m=>m.steamId===B).rank,'officer');
+ expectFail(()=>hq.setRank(A,{memberSteamId:B,rank:'veteran',expectedRevision:0}),409);
+ expectFail(()=>groups.invite(B,C),403);
+});
+
 test("invites can be declined or cancelled with proper ownership checks",()=>{
  groups.invite(A,C);let inv=groups.getState(C).incoming[0];
  groups.actOnInvite(C,inv.id,"decline");
@@ -70,6 +81,8 @@ test("owner removal writes previous group history and allows re-inviting",()=>{
  groups.invite(A,B);
  groups.actOnInvite(B,groups.getState(B).incoming[0].id,"accept");
  assert.equal(groups.getState(B).current.role,"member");
+ const hq=require('../server/services/groupHeadquarters').createGroupHeadquarters(db,groups);
+ assert.equal(hq.get(B).members.find(m=>m.steamId===B).rank,'member');
 });
 test("leader leaving automatically transfers ownership; no unwanted disband",()=>{
  expectFail(()=>groups.exitGroup(B,A),403);

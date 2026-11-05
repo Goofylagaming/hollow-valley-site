@@ -21,5 +21,6 @@ const run = action => (req, res) => {
   catch (error) { res.status(error.status || 500).json({ error: error.status ? error.message : 'Headquarters is temporarily unavailable' }); }
 };
 router.get('/', run(req => service.get(req.user.steam_id)));
+router.post('/ranks', run(req => service.setRank(req.user.steam_id, { memberSteamId:req.body?.memberSteamId,rank:req.body?.rank,expectedRevision:req.body?.expectedRevision })));
 router.post('/', run(req => service.update(req.user.steam_id, { description: req.body?.description, expectedRevision: req.body?.expectedRevision, emblem: req.body?.emblem })));
 module.exports = router;
