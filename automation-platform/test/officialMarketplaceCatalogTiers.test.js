@@ -23,6 +23,7 @@ function loadFixture() {
     store,
     catalog,
     cleanup() {
+      store.db.close();
       delete require.cache[storePath];
       delete require.cache[policyPath];
       delete require.cache[catalogPath];

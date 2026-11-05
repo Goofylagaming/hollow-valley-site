@@ -387,3 +387,45 @@ Home roadmap is v136, status CSS v5 and component controller v3. No flag was
 enabled, no live provider probe was installed, and no push, merge, deployment,
 incident publication, command or account data changed. RCON/Discord/Marketplace
 monitoring and the remaining #29 and full-roadmap gates are still incomplete.
+
+
+## Marketplace health source — local integration step, 6 November 2026
+
+The existing GET catalog route calls seedOfficialCatalog before reading. It is
+therefore unsuitable for periodic monitoring that promises no business writes.
+The new token-protected GET /api/website/marketplace/health uses a separate,
+default-off STATUS_MARKETPLACE_HEALTH_ENABLED gate in the automation service.
+It never calls seeding, initializes tables, invokes fulfillment, or queries or
+mutates wallets, orders, players or command queues. Its website client method
+uses the existing server-side integration token and does not take a player ID.
+The public status endpoint does not call this source yet.
+
+The source performs one bounded SELECT of active catalog rows and validates
+nonempty item identity/type/name, positive safe integer prices and object-shaped
+JSON payloads. The limits are 1000 active records, 16 KiB per payload and 2 MiB
+of total payload bytes. It reports readable, empty-catalog, invalid-catalog,
+catalog-too-large, unavailable or unverified-clock. Inactive malformed rows do
+not affect the active read. Missing tables stay unavailable; no schema is added.
+This check validates storage/readability, not species policy, catalog completeness,
+storefront rendering, purchase eligibility, checkout or delivery.
+
+Only version, scope, result, pre-query observation time and explicit false
+checkoutVerified/fulfillmentVerified fields leave the source. Raw exceptions,
+item details, identifiers, prices and payloads are excluded. Responses use
+private/no-store caching. Disabled calls return 503 with available:false;
+token authorization remains required even while the feature is disabled.
+
+The source tests exercise corruption, empty/missing storage, payload/item/total
+bounds, multi-byte payload sizes, invalid clocks and unchanged total_changes.
+The actual route/client fixture runs with SQLite query_only enabled, substitutes
+a seeding method that fails if called, and proves both empty and readable results
+without writes. Existing official catalog tier/policy and marketplace UI guards
+remain in the affected suite. A pre-existing Windows test cleanup problem was
+fixed by closing the test's SQLite handle before removing its temporary directory.
+All 117 affected local checks pass. Homepage roadmap is v137.
+
+Periodic website collection, stale/replay handling, public Marketplace display,
+local browser checks of that display, deployment of this new source, authenticated
+staging, purchase/delivery verification and the wider #29/roadmap gates remain
+unfinished. No monitor, flag, catalog, wallet, order, purchase, game command,
+publication, merge or deployment was changed in a running environment.

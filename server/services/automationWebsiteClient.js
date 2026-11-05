@@ -265,6 +265,10 @@ function getCombatLeaderboard({ hours = 24 * 31 } = {}) {
   return call(`/leaderboards/combat?hours=${safeHours}`);
 }
 
+function getMarketplaceHealth() {
+  return call('/marketplace/health');
+}
+
 function listMarketplaceCatalog() {
   return call('/marketplace/catalog');
 }
@@ -860,6 +864,7 @@ module.exports = {
   getMapActivity,
   getPlaytimeLeaderboard,
   getCombatLeaderboard,
+  getMarketplaceHealth,
   listMarketplaceCatalog,
   updateMarketplaceCatalogItem,
   listMarketplaceOrders,

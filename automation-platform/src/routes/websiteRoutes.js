@@ -312,6 +312,13 @@ router.get('/leaderboards/playtime', (req, res) => {
   }
 });
 
+// A health read must not call the catalog endpoint, which performs seeding.
+router.get('/marketplace/health', (_req, res) => {
+  res.set('Cache-Control', 'private, no-store');
+  if(process.env.STATUS_MARKETPLACE_HEALTH_ENABLED!=='1')return res.status(503).json({available:false});
+  return res.json({available:true,...require('../services/marketplaceHealthService').readMarketplaceHealth(economy.db)});
+});
+
 router.get('/marketplace/catalog', (_req, res) => {
   officialCatalog.seedOfficialCatalog();
   res.json({ catalog: economy.listCatalog({ activeOnly: true }) });
