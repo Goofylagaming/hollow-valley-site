@@ -582,3 +582,51 @@ deployments were changed.
 Still required: source deployment at the actual RCON owner, live clock/cadence
 review, authenticated staging, real local-worker/command/player-data verification,
 Discord monitoring, incident retention and the remaining #29/full-roadmap gates.
+
+
+## Passive Discord bridge contact source — 6 November 2026
+
+The automation process has authenticated bot polling routes but no verified Discord
+gateway heartbeat. The new default-off STATUS_DISCORD_BRIDGE_HEALTH_ENABLED source
+records only completed authorized GET /api/herbybot/status and POST /api/herbybot/
+outbox/claim requests. The observer runs after the existing bot-token middleware.
+It does not initiate a bot poll, claim/acknowledge an outbox event, send a message,
+open Discord or modify the separately owned bot checkout. Existing request behavior
+and authorization stay intact; observation failures cannot change their outcome.
+
+The source records original server-side request start time and a bounded returned/
+failed response result only after finish. A close before finish produces no contact.
+Unauthorized requests, unknown routes, other bot actions and website health fetches
+cannot refresh it. The record proves only an authenticated bridge request completed
+in this automation process: it does not identify the caller as a running Discord
+client or prove receipt, gateway readiness, channel permissions or message delivery.
+Both gatewayVerified and deliveryVerified remain explicitly false.
+
+Private one-use request tokens prevent duplicate/out-of-order completion; rotating
+the integration token or disabling collection clears old and pending observations.
+Missing configuration and no prior contact remain distinct. Invalid/backwards
+clocks are unverified, and observations expire after three minutes while retaining
+their original date. No request path/body, auth header, message, user, guild, channel,
+status detail or private error is stored in the health projection. The source is
+in memory and creates no monitoring schema or queue entries.
+
+GET /api/website/discord/health uses the separate existing website-integration
+token, the explicit source flag and private/no-store responses. Disabled calls
+return 503 available:false. A fixed-path cancellable website client read is ready;
+periodic collection and public contact display are not connected yet. Reading this
+endpoint never calls the bot /status route or its possible existing RCON path.
+
+168 affected local checks pass. Source/middleware tests cover absent/disabled
+configuration, original timestamps, failure outcomes, expiry/rollback, rotated
+credentials, one-use/concurrent completions, interrupted replies, route allowlists
+and observer-failure isolation. The actual HTTP/client test verifies auth before
+observation, unchanged original timestamps during repeated website health reads,
+zero additional message claims, blocked business mutators, unchanged outbox summary
+and query_only economy storage. Existing bot isolation and outbox regressions pass.
+All requests use synthetic local credentials; no Discord message was sent.
+
+Homepage roadmap is v141. Actual gateway/delivery evidence still needs work with
+the bot owner. Periodic website collection, public display, real producer/source
+cadence review, authenticated staging, retention policy, hosted CI and remaining
+#29/full-roadmap release requirements are unfinished. No live flags, bot process,
+message queue, player data, pushes, merges or deployments were changed.

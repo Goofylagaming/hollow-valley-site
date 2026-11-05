@@ -312,6 +312,13 @@ router.get('/leaderboards/playtime', (req, res) => {
   }
 });
 
+// Website monitoring must not refresh the separate authenticated bot-contact source.
+router.get('/discord/health', (_req, res) => {
+  res.set('Cache-Control', 'private, no-store');
+  if(process.env.STATUS_DISCORD_BRIDGE_HEALTH_ENABLED!=='1')return res.status(503).json({available:false});
+  return res.json({available:true,...require('../services/discordBridgeHealthService').getDefaultService().read()});
+});
+
 // This is a passive source: never invoke getServerSnapshot/getRconSnapshot here.
 router.get('/rcon/health', (_req, res) => {
   res.set('Cache-Control', 'private, no-store');

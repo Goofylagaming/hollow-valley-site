@@ -266,6 +266,10 @@ function getCombatLeaderboard({ hours = 24 * 31 } = {}) {
   return call(`/leaderboards/combat?hours=${safeHours}`);
 }
 
+function getDiscordBridgeHealth({signal}={}) {
+  return call('/discord/health',{signal,timeoutMs:5000});
+}
+
 function getRconHealth({signal}={}) {
   return call('/rcon/health',{signal,timeoutMs:5000});
 }
@@ -869,6 +873,7 @@ module.exports = {
   getMapActivity,
   getPlaytimeLeaderboard,
   getCombatLeaderboard,
+  getDiscordBridgeHealth,
   getRconHealth,
   getMarketplaceHealth,
   listMarketplaceCatalog,
