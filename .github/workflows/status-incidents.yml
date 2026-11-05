@@ -34,6 +34,7 @@ on:
       - 'test/incidentTimeline.test.js'
       - 'scripts/verify-status-incidents.cjs'
       - 'scripts/verify-status-editor.cjs'
+      - 'scripts/verify-live-map-source.cjs'
       - '.github/workflows/status-incidents.yml'
 permissions:
   contents: read
@@ -54,3 +55,5 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: node scripts/verify-status-incidents.cjs
       - run: node scripts/verify-status-editor.cjs
+
+      - run: node scripts/verify-live-map-source.cjs

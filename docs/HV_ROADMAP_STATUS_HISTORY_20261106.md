@@ -305,3 +305,34 @@ fixtures verify usable/unprojectable sources, cached expiry and privacy. The
 real source calibration, full map account lifecycle review, independent service
 probes, retention policy and hosted checks remain gates. No live configuration,
 publication, merge, deployment, game command or player data changed.
+
+
+## Actual Map-page failure recovery — 6 November 2026
+
+The full local Live Map page exposed a recovery gap after a successful private
+position read: HTTP 503 cleared markers but retained the character panel's old
+coordinates/vitals. The navigation module also retained its last successful map
+state because failure did not emit a map-state update. The new browser fixture
+failed on retained private details before the fix.
+
+Failed reads now clear the character panel and emit a null map-state observation
+to dependent navigation controls, together with the existing marker/global-state
+clearing. Sign-out keeps the explicit sign-in message. Static layers, historical
+trails and user-created targets retain their existing meaning; the My dino action
+cannot obtain a stale source from the failed read. No account/role semantics or
+live data access changed.
+
+The real page and its scripts pass the fixture at 1440px and 390px. It uses the
+shared backend projection with synthetic owner/other characters and checks fresh
+rendering, escaped names, member position privacy, expired/future cached packets,
+HTTP failure, 401, verified-offline, outside-bounds markers and recovery to fresh
+positions. Each unavailable case checks the panel, roster, markers, global state
+and My dino navigation. Expected unrelated APIs have explicit synthetic responses;
+unexpected API calls and page errors fail the fixture. This validates local page
+behavior; real Steam sessions, account-switch races and upstream calibration still
+require separate evidence. The phone character panel was visually inspected.
+
+All 84 affected local regression checks pass. The dedicated workflow now includes
+this actual-page fixture. Live Map asset is v20 and home roadmap is v135. No flags,
+push, PR, merge, deployment, game commands or production data changed. The full
+31-feature roadmap remains incomplete.

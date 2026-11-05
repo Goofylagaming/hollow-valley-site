@@ -732,6 +732,8 @@ async function loadMap() {
     renderMarkers(null);
     lastMapState = null;
     window.HVLiveMapState = null;
+    window.dispatchEvent(new CustomEvent("hv:map-state", { detail: null }));
+    renderMe({connected:false,sourceStatus:'unavailable'});
 
     if (err && err.status === 401) {
       if (status) status.textContent = "Sign in to see your character · no player positions are shown";
