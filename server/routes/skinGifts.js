@@ -9,7 +9,7 @@ router.use((req,res,next)=>{if(!/^\d{17}$/.test(String(req.user?.steam_id||'')))
 router.use(skinMutationGuard);
 router.use((req,res,next)=>{if(req.method!=='GET'&&(req.get('origin')!==`${req.protocol}://${req.get('host')}`||!req.is('application/json')))return res.status(403).json({error:'Use the website to manage skin gifts'});next();});
 const run=fn=>async(req,res)=>{try{res.json(await fn(req));}catch(e){res.status(e.status||502).json({error:e.message||'Skin gifts are temporarily unavailable'});}};
-router.post('/reconcile',run(req=>client.reconcile({steamId:req.user.steam_id})));
+router.post('/reconcile',run(req=>client.reconcile({steamId:req.user.steam_id,cursor:req.body?.cursor??0})));
 router.get('/',run(req=>client.list({steamId:req.user.steam_id})));
 router.get('/eligible',run(req=>client.eligible({steamId:req.user.steam_id})));
 router.post('/offer',run(req=>client.offer({steamId:req.user.steam_id,presetId:req.body?.presetId,recipientSteamId:req.body?.recipientSteamId,requestId:req.body?.requestId,note:req.body?.note})));

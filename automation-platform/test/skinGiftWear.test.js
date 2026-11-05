@@ -86,3 +86,40 @@ test('an old unresolved Wear Live request cannot be resent by retry',async()=>{
     assert.notEqual(queued.at(-1).id,job);
   } finally {outcome={state:'confirmed'};}
 });
+
+test('gift recovery pages through historical live holds without resending or overwriting a newer assignment',async()=>{
+  const steam='76561198000000401',other='76561198000000402',ids=[],reads=[];
+  const add=(actor,id)=>store.createSkinApplyJob({id,steamId:actor,presetId:'recovery-fixture',species:'Triceratops',skin:{}});
+  for(let i=0;i<12;i++){const id=randomUUID();ids.push(id);add(steam,id);}
+  const unrelated=randomUUID();add(other,unrelated);
+  const newer=randomUUID();add(steam,newer);store.updateSkinApplyJob({id:newer,status:'verified',completed:true});
+  store.upsertSkinLiveAssignment({steamId:steam,presetId:'newer-skin',species:'Triceratops',skin:{},requestId:newer,status:'verified'});
+  const recovery=require('../src/services/skinGiftLiveRecovery').createSkinGiftLiveRecovery(store,{readOutcome:async command=>{
+    reads.push(command);if(command.id===ids[0])return null;if(command.id===ids[1])return {state:'acknowledged'};
+    if(command.id===ids[2])throw new Error('Unreachable');
+    return {state:command.id===ids[3]?'failed':'confirmed'};
+  }});
+  const before=queued.length,first=await recovery.reconcile(steam);
+  assert.equal(first.checked,10);assert.equal(first.resolved,7);assert.equal(first.pending,5);assert.ok(first.nextCursor);
+  const second=await recovery.reconcile(steam,{cursor:first.nextCursor});
+  assert.deepEqual(second,{checked:2,resolved:2,pending:3,nextCursor:null});
+  assert.equal(reads.length,12);assert.ok(reads.every(c=>c.steam===steam&&c.verb==='skin_apply'&&ids.includes(c.id)));
+  assert.equal(queued.length,before);assert.equal(store.getSkinApplyJob(unrelated).status,'queued');
+  assert.equal(store.getSkinLiveAssignment(steam).request_id,newer);
+  await assert.rejects(recovery.reconcile(steam,{cursor:-1}),{status:400});
+  await assert.rejects(recovery.reconcile(steam,{cursor:'1'}),{status:400});
+});
+
+test('gifting recovery releases a confirmed historical hold for acceptance',async()=>{
+  const {preset,id}=await fixture(),old=randomUUID(),newer=randomUUID();
+  store.createSkinApplyJob({id:old,steamId:sender.steam_id,presetId:preset.id,species:preset.species,skin:preset.skin});
+  store.createSkinApplyJob({id:newer,steamId:sender.steam_id,presetId:'different-skin',species:preset.species,skin:preset.skin});
+  store.updateSkinApplyJob({id:newer,status:'verified',completed:true});
+  assert.throws(()=>gifts.decide(recipient,{id,decision:'accepted',expectedRevision:0}),{status:409});
+  const before=queued.length;outcome={state:'confirmed'};
+  const result=await gifts.reconcile(sender);
+  assert.ok(result.resolved>=1);assert.equal(store.getSkinApplyJob(old).status,'verified');
+  assert.equal(queued.length,before);
+  gifts.decide(recipient,{id,decision:'accepted',expectedRevision:0});
+  assert.equal(store.hasSkinUnlock(recipient.steam_id,preset.id),true);
+});

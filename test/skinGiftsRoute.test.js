@@ -24,7 +24,8 @@ test('gift routes bind every actor to the session and block guests, cross-origin
     assert.deepEqual(calls.pop(),{name:'offer',body:{steamId:steam,presetId:'skin',recipientSteamId:'76561198000000002',requestId:'fixture-request',note:'Hello'}});
     assert.equal((await send('/decide',{steamId:'76561198999999999',id:'gift',decision:'accepted',expectedRevision:0})).status,200);
     assert.deepEqual(calls.pop(),{name:'decide',body:{steamId:steam,id:'gift',decision:'accepted',expectedRevision:0}});
-    assert.equal((await send('/reconcile',{steamId:'76561198999999999'})).status,200);assert.deepEqual(calls.pop(),{name:'reconcile',body:{steamId:steam}});
+    assert.equal((await send('/reconcile',{steamId:'76561198999999999'})).status,200);assert.deepEqual(calls.pop(),{name:'reconcile',body:{steamId:steam,cursor:0}});
+    assert.equal((await send('/reconcile',{steamId:'76561198999999999',cursor:10})).status,200);assert.deepEqual(calls.pop(),{name:'reconcile',body:{steamId:steam,cursor:10}});
     process.env.SKIN_STUDIO_READ_ONLY='true';assert.equal((await send('/reconcile')).status,403);assert.equal((await send('/offer')).status,403);assert.equal((await send('/decide')).status,403);
     assert.equal(calls.length,0);
   }finally{await new Promise(resolve=>server.close(resolve));Object.assign(client,originals);for(const [k,v]of Object.entries(previous)){if(v===undefined)delete process.env[k];else process.env[k]=v;}}

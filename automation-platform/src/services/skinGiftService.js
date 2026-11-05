@@ -3,6 +3,7 @@ const fail=(message,status=400)=>{throw Object.assign(new Error(message),{status
 function createSkinGiftService(store,{now=Date.now,enabled=()=>process.env.SKIN_GIFTING_ENABLED==='1'&&process.env.SKIN_SYSTEM_ENABLED==='true'}={}) {
   const db=store.db;
   const parked=require('./skinParkedApplicationService').createSkinParkedApplicationService(store);
+  const live=require('./skinGiftLiveRecovery').createSkinGiftLiveRecovery(store);
   db.exec(`CREATE TABLE IF NOT EXISTS economy_skin_gifts (
     id TEXT PRIMARY KEY,sender TEXT NOT NULL,recipient TEXT NOT NULL,preset_id TEXT NOT NULL,
     request_id TEXT NOT NULL,payload TEXT NOT NULL,unlock_key TEXT NOT NULL,fingerprint TEXT NOT NULL,
@@ -81,6 +82,11 @@ function createSkinGiftService(store,{now=Date.now,enabled=()=>process.env.SKIN_
     }
     return {skins,limited:rows.length>500};
   }
-  return {offer,decide,list,eligible,reconcile:user=>{gate();return parked.reconcile(store.validateSteamId(user?.steam_id));}};
+  return {offer,decide,list,eligible,reconcile:async(user,options={})=>{
+    gate();const steam=store.validateSteamId(user?.steam_id);
+    const liveResult=await live.reconcile(steam,options),parkedResult=await parked.reconcile(steam);
+    return {checked:liveResult.checked+parkedResult.checked,resolved:liveResult.resolved+parkedResult.resolved,
+      pending:liveResult.pending+parkedResult.pending,nextCursor:liveResult.nextCursor};
+  }};
 }
 module.exports={createSkinGiftService};

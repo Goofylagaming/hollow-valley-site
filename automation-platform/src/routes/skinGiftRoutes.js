@@ -4,7 +4,7 @@ router.use((_req,res,next)=>{res.set('Cache-Control','private, no-store');if(pro
 const get=()=>service||(service=require('../services/skinGiftService').createSkinGiftService(require('../services/economyStore')));
 const run=fn=>async(req,res)=>{try{res.json(await fn(req));}catch(e){res.status(e.status||400).json({error:e.message});}};
 const user=req=>({steam_id:req.body?.steamId});
-router.post('/reconcile',run(req=>get().reconcile(user(req))));
+router.post('/reconcile',run(req=>get().reconcile(user(req),{cursor:req.body?.cursor??0})));
 router.post('/list',run(req=>get().list(user(req))));
 router.post('/eligible',run(req=>get().eligible(user(req))));
 router.post('/offer',run(req=>get().offer(user(req),{presetId:req.body?.presetId,recipientSteamId:req.body?.recipientSteamId,requestId:req.body?.requestId,note:req.body?.note})));
