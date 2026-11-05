@@ -19,6 +19,7 @@ async function call(path,{method='GET',body}={}) {
 }
 function steamQuery(steamId) {return steamId ? `?steamId=${encodeURIComponent(String(steamId))}`:'';}
 module.exports={
+  listCollections:steamId=>call(`/collections${steamQuery(steamId)}`),
   listCatalog:(steamId)=>call(`/catalog${steamQuery(steamId)}`),
   listAdmin:(steamId)=>call(`/admin${steamQuery(steamId)}`),
   fulfillClaim:({claimId,steamId,skinId})=>call('/fulfill',{method:'POST',body:{claimId,steamId,skinId}}),

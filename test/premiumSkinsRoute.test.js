@@ -15,7 +15,7 @@ async function fixture(t,user){
   process.env.SKIN_STUDIO_READ_ONLY='false';
   t.after(()=>{for(const [key,value]of Object.entries(previous)){if(value===undefined)delete process.env[key];else process.env[key]=value;}});
   const calls=[];const originals={};
-  for(const name of ['listCatalog','listAdmin','seedDrafts','draftFromPreset','updateDraft','verifyDraft','setPublished']){
+  for(const name of ['listCollections','listCatalog','listAdmin','seedDrafts','draftFromPreset','updateDraft','verifyDraft','setPublished']){
     originals[name]=client[name];client[name]=async(arg)=>{calls.push({name,arg});return {enabled:true,skins:[]};};
   }
   const app=express();app.use(express.json());app.use((req,_res,next)=>{req.user=user;next();});app.use('/api/skins/premium',router);
@@ -27,7 +27,15 @@ async function fixture(t,user){
 test('guest sees public collection but cannot inspect or mutate private drafts',async(t)=>{
   const f=await fixture(t,null);assert.equal((await f.request()).status,200);
   assert.equal((await f.request('/admin')).status,401);assert.equal((await f.request('/admin/seed-drafts',{})).status,401);
+  assert.equal((await f.request('/collections')).status,401);
   assert.deepEqual(f.calls.map(x=>x.name),['listCatalog']);
+});
+
+test('profile collection reads are bound to the session Steam identity',async(t)=>{
+  const f=await fixture(t,{id:2,steam_id:OWNER,is_admin:0});
+  const response=await f.request('/collections?steamId=76561198099999999');
+  assert.equal(response.status,200);assert.equal(response.headers.get('cache-control'),'private, no-store');
+  assert.deepEqual(f.calls,[{name:'listCollections',arg:OWNER}]);
 });
 test('ordinary signed-in member cannot create, verify or publish premium collections',async(t)=>{
   const f=await fixture(t,{id:2,steam_id:OWNER,is_admin:0});

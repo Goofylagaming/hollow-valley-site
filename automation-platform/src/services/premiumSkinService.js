@@ -71,6 +71,20 @@ function listCatalog(steamId = null, { admin = false } = {}) {
     .map(({entry,preset}) => card(entry, preset, steam, admin));
   return { enabled: enabled() && skins.systemEnabled(), skins: catalogue, publishedCount: catalogue.filter((item) => item.published).length };
 }
+function profileCollections(steamId) {
+  const steam=store.validateSteamId(steamId),collections=new Map();
+  const rows=store.db.prepare("SELECT * FROM economy_membership_skin_catalog WHERE state='published' OR (state='archived' AND published_at IS NOT NULL) ORDER BY created_at DESC,id").all();
+  for(const entry of rows) {
+    const preset=store.getSkinPreset(entry.preset_id);if(!preset?.active)continue;
+    const ownership=preset.owner_steam_id===steam?'created':store.hasSkinUnlock(steam,preset.id)?'unlocked':store.hasSkinGrant(steam,preset.id)?'granted':null;
+    if(entry.state==='archived'&&!ownership)continue;
+    const skin=card(entry,preset,steam);
+    if(!collections.has(skin.collectionKey))collections.set(skin.collectionKey,{key:skin.collectionKey,total:0,owned:0,skins:[]});
+    const group=collections.get(skin.collectionKey);group.total++;if(ownership)group.owned++;
+    group.skins.push({id:skin.id,name:skin.name,species:skin.species,owned:Boolean(ownership),ownership,archived:entry.state==='archived',swatches:skin.swatches});
+  }
+  return {enabled:enabled()&&skins.systemEnabled(),collections:[...collections.values()].sort((a,b)=>a.key.localeCompare(b.key))};
+}
 function createDraft({ ownerSteamId, species = 'Universal', name, description = '', skin, collection = 'valley-premium', sourceKey = null }) {
   const owner = store.validateSteamId(ownerSteamId);
   const key = collectionKey(collection);
@@ -216,4 +230,4 @@ function seedDrafts({ ownerSteamId }) {
     return createDraft({ownerSteamId,name:palette.name,description:palette.description,skin,collection:'valley-origins',sourceKey:`membership-starter:v1:${palette.key}`}).skin;
   }) };
 }
-module.exports={enabled,listCatalog,createDraft,draftFromPreset,updateDraft,verifyDraft,setPublished,fulfillClaim,seedDrafts,STARTER_PALETTES};
+module.exports={enabled,listCatalog,profileCollections,createDraft,draftFromPreset,updateDraft,verifyDraft,setPublished,fulfillClaim,seedDrafts,STARTER_PALETTES};

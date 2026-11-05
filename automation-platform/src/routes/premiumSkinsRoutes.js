@@ -9,6 +9,7 @@ function respond(res,action,successStatus=200) {
   catch(error) { return res.status(error.status || 400).json({error:error.message,code:error.code || 'PREMIUM_SKIN_ERROR'}); }
 }
 router.get('/catalog',(req,res)=>respond(res,()=>premium.listCatalog(req.query.steamId || null)));
+router.get('/collections',(req,res)=>respond(res,()=>premium.profileCollections(req.query.steamId)));
 router.get('/admin',(req,res)=>respond(res,()=>premium.listCatalog(req.query.steamId || null,{admin:true})));
 router.post('/fulfill',(req,res)=>respond(res,()=>premium.fulfillClaim({claimId:req.body?.claimId,steamId:req.body?.steamId,skinId:req.body?.skinId})));
 router.post('/admin/seed-drafts',(req,res)=>respond(res,()=>premium.seedDrafts({ownerSteamId:req.body?.actorSteamId}),201));

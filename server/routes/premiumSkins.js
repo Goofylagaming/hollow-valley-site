@@ -1,5 +1,5 @@
 const express=require('express');
-const {requireAdmin}=require('../middleware/requireAuth');
+const {requireAdmin,requireAuth}=require('../middleware/requireAuth');
 const {skinMutationGuard}=require('../middleware/skinStudioSafety');
 const client=require('../services/premiumSkinClient');
 const router=express.Router();
@@ -21,6 +21,7 @@ async function respond(res,action,successStatus=200) {
   catch(error) {return res.status(Number.isInteger(error.status)?error.status:502).json({error:error.message||'Premium skins are temporarily unavailable.',code:error.code||null});}
 }
 router.get('/',(req,res)=>respond(res,()=>client.listCatalog(req.user?.steam_id||null)));
+router.get('/collections',requireAuth,actor,(req,res)=>respond(res,()=>client.listCollections(req.user.steam_id)));
 router.get('/admin',requireAdmin,actor,(req,res)=>respond(res,()=>client.listAdmin(req.user.steam_id)));
 router.post('/admin/seed-drafts',requireAdmin,actor,(req,res)=>respond(res,()=>client.seedDrafts(req.user.steam_id),201));
 router.post('/admin/drafts',requireAdmin,actor,(req,res)=>respond(res,()=>client.draftFromPreset({actorSteamId:req.user.steam_id,presetId:req.body?.presetId,collection:req.body?.collection}),201));
