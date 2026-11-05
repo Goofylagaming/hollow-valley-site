@@ -102,6 +102,7 @@ function createGroupTreasurySpending(store,{enabled=()=>process.env.GROUP_TREASU
     return atomic(()=>{
       const previous=db.prepare('SELECT * FROM economy_group_treasury_spends WHERE request_key=?').get(d.requestId);matching(previous,d);
       if(previous){verify(previous);return project(previous);}
+      require('./groupTreasuryClosure').assertOpen(db,d.groupId);
       if(!catalogRow(d.value.id,d.value.revision).enabled)throw error('ITEM_UNAVAILABLE','Treasury item is not available',409);
       if(db.prepare("SELECT request_key FROM economy_group_treasury_spends WHERE group_id=? AND purpose=? AND target_key=? AND state IN('reserved','fulfilling','committed')").get(d.groupId,d.value.purpose,targetKey(d.value)))throw error('BENEFIT_ALREADY_RESERVED','This group benefit is already reserved or owned',409);
       if(balances(db,d.groupId).available<d.value.cost)throw error('INSUFFICIENT_TREASURY','Not enough available group coins',409);

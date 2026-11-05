@@ -85,7 +85,7 @@ test('lost donation acknowledgements reconcile after coordinator reinitializatio
   assert.equal((await request(f.A,`/donations/${id}`)).body.state,'confirmed');
 });
 test('membership changes before confirmation reject stale consent; donor can cancel after leaving',async()=>{
-  const f=seed(),id=(await prepare(f)).body.id,before=calls.donate;groups.exitGroup(f.A);
+  const f=seed(),id=(await prepare(f)).body.id,before=calls.donate;groups.invite(f.A,f.B);groups.actOnInvite(f.B,groups.getState(f.B).incoming[0].id,'accept');groups.exitGroup(f.A);
   const replacement=groups.createGroup(f.A,'Replacement treasury '+count).current.id;
   assert.equal((await confirm(f,id)).status,409);assert.equal(calls.donate,before);
   assert.equal((await request(f.A,`/donations/${id}/cancel`,{})).body.state,'cancelled');
@@ -94,7 +94,7 @@ test('membership changes before confirmation reject stale consent; donor can can
 });
 test('uncertain donations are not resubmitted to a former group; cancellation works while rollout is off',async()=>{
   const f=seed(),id=(await prepare(f)).body.id;failDonation=true;assert.equal((await confirm(f,id)).body.state,'submitted');
-  const before=calls.donate;groups.exitGroup(f.A);process.env.GROUP_TREASURY_ENABLED='0';
+  const before=calls.donate;groups.invite(f.A,f.B);groups.actOnInvite(f.B,groups.getState(f.B).incoming[0].id,'accept');groups.exitGroup(f.A);process.env.GROUP_TREASURY_ENABLED='0';
   assert.equal((await confirm(f,id)).body.state,'submitted');assert.equal(calls.donate,before);
   const cancelled=await request(f.A,`/donations/${id}/cancel`,{});assert.equal(cancelled.body.state,'cancelled');
   const afterLeave=await request(f.A);assert.equal(afterLeave.body.group,null);assert.equal(afterLeave.body.donations[0].state,'cancelled');
@@ -128,7 +128,7 @@ test('failed authorization audit prevents dispatch; failed receipt audit remains
 });
 test('a pending group balance read is rejected after membership ends',async()=>{
   const f=seed();holdRead=true;heldRead=null;const pending=request(f.A);await until(()=>heldRead);
-  groups.exitGroup(f.A);heldRead();heldRead=null;const result=await pending;
+  groups.invite(f.A,f.B);groups.actOnInvite(f.B,groups.getState(f.B).incoming[0].id,'accept');groups.exitGroup(f.A);heldRead();heldRead=null;const result=await pending;
   assert.equal(result.status,409);assert.equal(result.body.treasury,undefined);
 });
 test('saved request recovery is donor-scoped and does not depend on an accounting balance read',async()=>{

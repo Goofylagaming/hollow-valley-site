@@ -29,6 +29,7 @@ db.exec(`
  CREATE INDEX IF NOT EXISTS hv_group_history_member ON hv_group_history(steam_id,id DESC);
 `);
 const CAPACITY=12;
+const treasuryLifecycle=require('./services/groupTreasuryLifecycle').createGroupTreasuryLifecycle(db);
 function fail(message,status=400){const error=new Error(message);error.status=status;throw error;}
 function steamId(value){const id=String(value??"").trim();if(!/^\d{17}$/.test(id))fail("A linked 17-digit Steam account is required.");return id;}
 function positiveId(value){const id=Number(value);if(!Number.isSafeInteger(id)||id<1)fail("Invalid group or invitation ID.");return id;}
@@ -54,12 +55,13 @@ function recordExit(member,g,outcome,snapshot){db.prepare(`
  VALUES(?,?,?,?,?,?,?)`).run(member.steamId,g.id,g.name,member.role,member.joinedAt,outcome,JSON.stringify(snapshot.map(m=>m.username)));}
 function getState(rawSteam){
  const s=steamId(rawSteam),g=current(s);
- const own=g?{...g,members:membersOf(g.id),capacity:CAPACITY,
+ const own=g?{...g,members:membersOf(g.id),capacity:CAPACITY,closure:treasuryLifecycle.status(g.id),
   sentInvites:db.prepare(`
    SELECT i.id,i.invitee_steam_id AS steamId,COALESCE(u.username,'Steam player') AS username,
    i.created_at AS createdAt FROM hv_group_invites i LEFT JOIN users u ON u.steam_id=i.invitee_steam_id
    WHERE i.group_id=? AND i.status='pending' ORDER BY i.id DESC`).all(g.id)}:null;
  return {current:own,
+ closurePending:db.prepare("SELECT c.group_id AS groupId,g.name AS groupName FROM hv_group_treasury_closures c JOIN hv_groups g ON g.id=c.group_id WHERE c.actor=? AND c.state='closed' AND c.remote_complete=0 ORDER BY c.group_id DESC LIMIT 20").all(s),
  incoming:db.prepare(`
    SELECT i.id,i.group_id AS groupId,g.name AS groupName,i.created_at AS createdAt,
    COALESCE(u.username,'Steam player') AS invitedBy
@@ -92,6 +94,7 @@ function invite(rawSteam,rawInvitee){
  if(s===target)fail("You cannot invite yourself.");
  return atomic(()=>{
    const g=ownerGroup(s);
+   treasuryLifecycle.assertOpen(g.id);
    if(!account(target))fail("That player must first sign in with Steam on this website.",404);
    if(current(target))fail("That player is already in a group.",409);
    if(membersOf(g.id).length>=CAPACITY)fail("Your group is full.",409);
@@ -107,6 +110,7 @@ function actOnInvite(rawSteam,rawId,action){
    const invitation=db.prepare("SELECT * FROM hv_group_invites WHERE id=? AND status='pending'").get(id);
    if(!invitation||invitation.invitee_steam_id!==s)fail("Invitation not found.",404);
    if(action==="accept"){
+     treasuryLifecycle.assertOpen(invitation.group_id);
      if(!db.prepare("SELECT id FROM hv_groups WHERE id=? AND status='active'").get(invitation.group_id))fail("Group no longer exists.",404);
      if(current(s))fail("Leave your current group before accepting.",409);
      if(membersOf(invitation.group_id).length>=CAPACITY)fail("This group is full.",409);
@@ -127,15 +131,18 @@ function cancelInvite(rawSteam,rawId){
    return getState(s);
  });
 }
-function exitGroup(rawSteam,rawTarget){
+function exitGroup(rawSteam,rawTarget,options={}){
  const s=steamId(rawSteam);
  return atomic(()=>{
    const g=current(s);
    if(!g)fail("You do not belong to a group.",404);
+   if(options.expectedGroupId!==undefined&&options.expectedGroupId!==g.id)fail('Group membership changed; refresh before leaving.',409);
    const target=rawTarget==null?s:steamId(rawTarget);
    if(target!==s&&g.ownerSteamId!==s)fail("Only the owner can remove other members.",403);
    const snapshot=membersOf(g.id),member=snapshot.find(m=>m.steamId===target);
    if(!member)fail("Player does not belong to your group.",404);
+   if(snapshot.length===1)treasuryLifecycle.assertMayClose(g.id,s,'leave',options.closureRequestId);
+   else treasuryLifecycle.assertOpen(g.id);
    groupProgress.observeGroup(g.id);
    recordExit(member,g,target===s?"left":"removed",snapshot);
    db.prepare("DELETE FROM hv_group_members WHERE group_id=? AND steam_id=?").run(g.id,target);
@@ -143,6 +150,7 @@ function exitGroup(rawSteam,rawTarget){
    if(!remaining.length){
      db.prepare("UPDATE hv_groups SET status='closed',closed_at=datetime('now') WHERE id=?").run(g.id);
      expireInvites(g.id);
+     treasuryLifecycle.markClosed(g.id);
    }else if(member.role==="owner"){
      const next=remaining[0];
      db.prepare("UPDATE hv_group_members SET role='owner' WHERE group_id=? AND steam_id=?").run(g.id,next.steamId);
@@ -151,15 +159,18 @@ function exitGroup(rawSteam,rawTarget){
    return getState(s);
  });
 }
-function disband(rawSteam){
+function disband(rawSteam,options={}){
  const s=steamId(rawSteam);
  return atomic(()=>{
    const g=ownerGroup(s),snapshot=membersOf(g.id);
+   if(options.expectedGroupId!==undefined&&options.expectedGroupId!==g.id)fail('Group membership changed; refresh before closing.',409);
+   treasuryLifecycle.assertMayClose(g.id,s,'disband',options.closureRequestId);
    groupProgress.observeGroup(g.id);
    for(const m of snapshot)recordExit(m,g,"disbanded",snapshot);
    db.prepare("DELETE FROM hv_group_members WHERE group_id=?").run(g.id);
    db.prepare("UPDATE hv_groups SET status='closed',closed_at=datetime('now') WHERE id=?").run(g.id);
    expireInvites(g.id);
+   treasuryLifecycle.markClosed(g.id);
    return getState(s);
  });
 }

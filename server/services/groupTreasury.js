@@ -1,6 +1,7 @@
 const {randomUUID}=require('node:crypto');
 function failure(code,message,status=400){return Object.assign(new Error(message),{code,status});}
 function createGroupTreasury(db,groups,client,{now=()=>new Date().toISOString(),writesEnabled=()=>process.env.GROUP_TREASURY_ENABLED==='1'}={}){
+  const lifecycle=require('./groupTreasuryLifecycle').createGroupTreasuryLifecycle(db);
   db.exec(`CREATE TABLE IF NOT EXISTS hv_group_treasury_intents (
     id TEXT PRIMARY KEY,steam_id TEXT NOT NULL,client_key TEXT NOT NULL,group_id INTEGER NOT NULL,group_name TEXT NOT NULL,
     amount INTEGER NOT NULL,state TEXT NOT NULL CHECK(state IN('draft','submitted','confirmed','cancelled')),
@@ -27,6 +28,7 @@ function createGroupTreasury(db,groups,client,{now=()=>new Date().toISOString(),
       const previous=db.prepare('SELECT * FROM hv_group_treasury_intents WHERE steam_id=? AND client_key=?').get(steam,requestId);
       if(previous){if(previous.group_id!==expectedGroupId||previous.amount!==amount)throw failure('DONATION_CONFLICT','Donation request already has different details',409);return project(previous);}
       const group=membership(steam,expectedGroupId);
+      lifecycle.assertOpen(group.id);
       if(db.prepare("SELECT id FROM hv_group_treasury_intents WHERE steam_id=? AND state IN('draft','submitted')").get(steam))throw failure('DONATION_PENDING','Review your existing donation before starting another',409);
       const id=randomUUID(),at=now();
       db.prepare("INSERT INTO hv_group_treasury_intents(id,steam_id,client_key,group_id,group_name,amount,state,created_at) VALUES(?,?,?,?,?,?,'draft',?)").run(id,steam,requestId,group.id,group.name,amount,at);
@@ -64,7 +66,7 @@ function createGroupTreasury(db,groups,client,{now=()=>new Date().toISOString(),
       const current=own(steam,id);
       if(current.group_id!==expectedGroupId)throw failure('GROUP_MEMBERSHIP_CHANGED','Donation group changed; review the saved request',409);
       if(current.state==='draft'){
-        requireEnabled();membership(steam,current.group_id);const at=now();
+        requireEnabled();membership(steam,current.group_id);lifecycle.assertOpen(current.group_id);const at=now();
         db.prepare("UPDATE hv_group_treasury_intents SET state='submitted',authorized_at=? WHERE id=?").run(at,id);event(id,'submitted',at);
       }
       return own(steam,id);
@@ -92,7 +94,7 @@ function createGroupTreasury(db,groups,client,{now=()=>new Date().toISOString(),
   }
   function overview(steam){
     steamId(steam);const group=groups.getState(steam).current;
-    return {group:group?{id:group.id,name:group.name}:null,
+    return {group:group?{id:group.id,name:group.name,closing:Boolean(lifecycle.status(group.id))}:null,
       donations:db.prepare('SELECT * FROM hv_group_treasury_intents WHERE steam_id=? ORDER BY rowid DESC LIMIT 20').all(steam).map(project),
       hasGroupActivity:Boolean(group&&db.prepare("SELECT id FROM hv_group_treasury_intents WHERE group_id=? AND state IN('submitted','confirmed') LIMIT 1").get(group.id))};
   }

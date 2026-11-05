@@ -7,7 +7,7 @@
   function controls(){
     get('treasury-refresh').disabled=Boolean(busy);
     get('treasury-amount').disabled=Boolean(busy)||!writable();
-    get('treasury-review').disabled=Boolean(busy)||!writable()||!capability.enabled||!model?.treasury||model.donations.some(unresolved);
+    get('treasury-review').disabled=Boolean(busy)||!writable()||!capability.enabled||!model?.treasury||model?.group?.closing||model.donations.some(unresolved);
     get('treasury-pending').querySelectorAll('[data-action]').forEach(button=>{
       const interrupt=(button.dataset.action==='cancel'&&['confirm','refresh'].includes(busy))||(button.dataset.action==='check'&&busy==='refresh');
       button.disabled=(!interrupt&&Boolean(busy))||!writable()||button.dataset.allowed!=='true';
@@ -21,8 +21,8 @@
     get('treasury-balance').textContent=model?.treasury?money(model.treasury.balance):'Unavailable';
     get('treasury-reserved').hidden=!(model?.treasury?.held>0);
     get('treasury-reserved').textContent=model?.treasury?`Available to spend: ${money(model.treasury.available)} · Reserved: ${money(model.treasury.held)}`:'';
-    get('treasury-availability').textContent=capability.readOnly?'This preview is read-only.':capability.enabled?'':'New donations are unavailable. You can still review or cancel earlier requests.';
-    get('treasury-form').hidden=!group||!model?.treasury||!capability.enabled||Boolean(pending);
+    get('treasury-availability').textContent=group?.closing?'A Treasury closure check is pending. Finish or cancel it in Groups.':capability.readOnly?'This preview is read-only.':capability.enabled?'':'New donations are unavailable. You can still review or cancel earlier requests.';
+    get('treasury-form').hidden=!group||group.closing||!model?.treasury||!capability.enabled||Boolean(pending);
     const history=get('treasury-history');history.replaceChildren();
     for(const row of donations){
       const item=document.createElement('li');item.textContent=`${money(row.amount)} to ${row.groupName} · ${{draft:'Awaiting confirmation',submitted:'Outcome pending',confirmed:'Donated',cancelled:'Cancelled'}[row.state]||'Unknown'} · ${new Date(row.createdAt).toLocaleString()}`;history.append(item);
@@ -36,7 +36,7 @@
       const note=document.createElement('p');note.textContent=pending.state==='draft'?'No coins have been moved by this request.':
         'The outcome is pending. Coins may have moved. Check status before retrying the same donation.';container.append(note);
       const cancellation=document.createElement('p');cancellation.textContent='Cancellation stops an uncommitted donation. A completed donation is not refunded.';container.append(cancellation);
-      const canConfirm=capability.enabled&&group?.id===pending.groupId&&!['TREASURY_INTEGRITY_ERROR','TREASURY_RESPONSE_MISMATCH'].includes(pending.lastErrorCode);
+      const canConfirm=capability.enabled&&group?.id===pending.groupId&&!group.closing&&!['TREASURY_INTEGRITY_ERROR','TREASURY_RESPONSE_MISMATCH'].includes(pending.lastErrorCode);
       if(canConfirm){
         const label=document.createElement('label'),checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.id='treasury-consent';
         label.append(checkbox,document.createTextNode(` I confirm donating ${money(pending.amount)} to ${pending.groupName}.`));container.append(label);
@@ -102,7 +102,7 @@
   }
   get('treasury-refresh').addEventListener('click',()=>act('refresh'));
   get('treasury-form').addEventListener('submit',event=>{
-    event.preventDefault();if(!writable()||!capability.enabled||!model?.group||!model.treasury||model.donations.some(unresolved))return;
+    event.preventDefault();if(!writable()||!capability.enabled||!model?.group||model.group.closing||!model.treasury||model.donations.some(unresolved))return;
     const value=get('treasury-amount').value.trim(),amount=Number(value);
     if(!/^\d+$/.test(value)||!Number.isSafeInteger(amount)||amount<1){get('treasury-status').textContent='Enter a positive whole number of Valley Coins.';return;}
     const body={amount,expectedGroupId:model.group.id,requestId:crypto.randomUUID()};
