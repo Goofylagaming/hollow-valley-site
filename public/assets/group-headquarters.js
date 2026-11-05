@@ -1,0 +1,56 @@
+(() => {
+  const { api, loadMe } = window.HDS;
+  const get = id => document.getElementById(id);
+  let profile = null, writable = false, busy = false, active = false;
+  function controls() {
+    get('hq-description').disabled = busy || !writable || !profile?.canEdit;
+    get('hq-save').disabled = busy || !writable || !profile?.canEdit;
+    get('hq-refresh').disabled = busy;
+  }
+  async function refresh() {
+    profile = await api('/api/group-headquarters');
+    get('hq-name').textContent = profile.name;
+    get('hq-current').textContent = profile.description || 'Your group has no description yet.';
+    get('hq-description').value = profile.description;
+    get('hq-editor').hidden = !profile.canEdit;
+    const history = get('hq-history'); history.replaceChildren();
+    for (const edit of profile.edits) {
+      const item = document.createElement('li');
+      item.textContent = `Revision ${edit.revision} · ${edit.createdAt} · ${edit.description || '(description cleared)'}`;
+      history.append(item);
+    }
+    get('hq-status').textContent = writable ? (profile.canEdit ? 'You can edit your group description.' : 'The group owner can edit this description.') : 'This preview is read-only.';
+    controls();
+  }
+  async function action(save = false) {
+    if (busy) return;
+    busy = true; controls();
+    try {
+      if (save) await api('/api/group-headquarters', { method: 'POST', body: JSON.stringify({ description: get('hq-description').value, expectedRevision: profile.revision }) });
+      await refresh();
+    } catch (error) {
+      // Recover ownership and revision after a response is lost or membership changes.
+      try { await refresh(); }
+      catch { profile = null; get('hq-current').textContent = ''; get('hq-description').value = ''; get('hq-history').replaceChildren(); get('hq-editor').hidden = true; }
+      get('hq-status').textContent = error.message;
+    } finally { busy = false; controls(); }
+  }
+  get('hq-form').addEventListener('submit', event => { event.preventDefault(); if (writable && profile?.canEdit) action(true); });
+  get('hq-refresh').addEventListener('click', () => action());
+  window.addEventListener('hv:group-state', event => {
+    if (!active) return;
+    if (profile?.groupId !== event.detail?.groupId) {
+      profile = null; get('hq-current').textContent = ''; get('hq-description').value = '';
+      get('hq-history').replaceChildren(); get('hq-editor').hidden = true;
+    } else if (get('hq-description').value !== profile.description) return;
+    action();
+  });
+  (async () => {
+    try {
+      const capability = await api('/api/group-headquarters/capabilities');
+      if (!capability.enabled || !(await loadMe())?.user?.steam_id) return;
+      active = true; writable = !capability.readOnly; get('group-headquarters').hidden = false;
+      await action();
+    } catch (error) { get('hq-status').textContent = error.message; }
+  })();
+})();

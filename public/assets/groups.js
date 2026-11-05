@@ -88,6 +88,7 @@
       '<article class="groups-history-card"><div><strong>'+safe(entry.groupName)+'</strong><small>'+safe(date(entry.joinedAt))+' – '+safe(date(entry.leftAt))+'</small></div><span class="groups-outcome">'+safe(outcomes[entry.outcome]||entry.outcome)+'</span><small class="groups-past-members">Previous members: '+safe((entry.members||[]).join(", ")||"Unavailable")+'</small></article>'
     ).join(""):empty("Your previous groups will appear here once you leave or a group disbands.");
     void refreshProgress();
+    window.dispatchEvent(new CustomEvent('hv:group-state', { detail: { groupId: state?.current?.id || null } }));
   }
   async function refresh(){
     state=await api("/api/groups");
