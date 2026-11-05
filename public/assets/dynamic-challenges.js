@@ -5,6 +5,7 @@
   const message=text=>$('dynamic-status').textContent=text;
   const identity=me=>me?.loggedIn&&/^\d{17}$/.test(String(me.user?.steam_id||''))?String(me.user.steam_id):null;
   const writable=()=>actor&&model&&!caps.readOnly&&caps.enabled;
+  const reviewedRevision=()=>review?.kind==='location'?model?.location?.revision:model?.revision;
   function clear(){actor=null;model=null;review=null;$('dynamic-list').replaceChildren();}
   function render(){
     $('dynamic-challenges').hidden=!caps.enabled;
@@ -13,14 +14,20 @@
     $('dynamic-preview').textContent=caps.readOnly?'This preview is read-only.':'';
     $('dynamic-choice').textContent=model?.participating?'Review stop tracking':'Review participation';
     $('dynamic-choice').disabled=busy||!writable()||Boolean(review);
+    $('dynamic-location').hidden=!model||(!model.location?.available&&!model.location?.enabled);
+    $('dynamic-location-status').textContent=model?.location?.enabled?(model.location.available?'Location tracking is on for separately reviewed map goals.':'Location tracking is paused until reviewed map rules are available. You can stop it and delete its progress.'):'Location tracking is off. Joining the main challenge rotation does not enable it.';
+    $('dynamic-location-choice').textContent=model?.location?.enabled?'Review stopping location tracking':'Review location tracking';
+    $('dynamic-location-choice').disabled=busy||!writable()||Boolean(review)||!model?.participating;
     $('dynamic-refresh').disabled=busy;
     $('dynamic-review').hidden=!review;
-    $('dynamic-review-text').textContent=review?(review.body.selected?
+    const consent=review?.kind==='location'?(review.body.selected?
+      'Enable separate location tracking for observed travel and Highlands visits. Only the last position is stored; it expires after two minutes and is removed on the next maintenance pass. Coordinate-free progress receipts expire after 35 days. No journey history is read or created, and no coins are issued.':
+      'Stop location tracking and erase its last position and progress receipts. Rejoining starts fresh. A minimal consent revision and request receipt remain to prevent old requests re-enabling tracking.'):(review?.body.selected?
       'Start tracking these challenges from new gameplay observations. Challenge tracking keeps species, growth and observation times for up to 35 days. Late death reports can correct progress. No coin rewards or streak bonuses are enabled.':
-      'Stop challenge tracking and delete its saved gameplay progress. Rejoining starts fresh. Separate staff event records are retained. A minimal choice revision and request receipt remain to prevent old requests restoring participation.')+
-      (review.uncertain?' The reply was not confirmed. Refresh or explicitly retry this saved request.':review.body.expectedRevision!==model?.revision?' Your choice changed elsewhere. Cancel this review and review the latest state.':''):'';
+      'Stop challenge tracking and delete its saved gameplay progress, including location progress. Rejoining starts fresh. Separate staff event records are retained. A minimal choice revision and request receipt remain to prevent old requests restoring participation.');
+    $('dynamic-review-text').textContent=review?consent+(review.uncertain?' The reply was not confirmed. Refresh or explicitly retry this saved request.':review.body.expectedRevision!==reviewedRevision()?' Your choice changed elsewhere. Cancel this review and review the latest state.':''):'';
     $('dynamic-confirm').textContent=review?.uncertain?'Retry saved request':'Confirm participation choice';
-    $('dynamic-confirm').disabled=busy||!writable()||!review||review.actor!==actor||(!review.uncertain&&review.body.expectedRevision!==model.revision);
+    $('dynamic-confirm').disabled=busy||!writable()||!review||review.actor!==actor||(!review.uncertain&&review.body.expectedRevision!==reviewedRevision());
     $('dynamic-cancel').disabled=busy;
     const list=$('dynamic-list');list.replaceChildren();
     for(const challenge of model?.challenges||[]){
@@ -31,6 +38,8 @@
       detail.textContent=challenge.metric==='observed_seconds'?`${Math.floor(challenge.progress/60)} / ${challenge.target/60} observed minutes in one connected life segment.`:
         challenge.metric==='species'?`${challenge.progress} / ${challenge.target} species observed.`:
         challenge.metric==='confirmed_attendance'?`${challenge.progress} / ${challenge.target} event attendance confirmed by staff. RSVPs and registrations do not count.`:
+        challenge.metric==='observed_metres'?`${(Math.floor(challenge.progress/10)/100).toFixed(2)} / 12 km of observed connected displacement.`:
+        challenge.metric==='highlands_visit'?(challenge.completed?'Highlands visit observed.':'Two consecutive observations inside the reviewed Highlands boundary are required.'):
         challenge.completed?'Juvenile-to-adult herbivore growth observed.':'Observe the same herbivore as a juvenile and then an adult.';
       const reset=document.createElement('p');reset.textContent=`Resets ${new Date(challenge.endsAt).toLocaleString('en-AU',{timeZone:'Australia/Brisbane'})} Brisbane time.`;
       const bar=document.createElement('progress');bar.max=challenge.target;bar.value=challenge.progress;bar.setAttribute('aria-label',challenge.title+' progress');
@@ -63,6 +72,10 @@
     if(!writable()||busy||review)return;
     review={actor,body:{selected:!model.participating,expectedRevision:model.revision,requestKey:crypto.randomUUID()},uncertain:false};render();
   });
+  $('dynamic-location-choice').addEventListener('click',()=>{
+    if(!writable()||busy||review||!model.participating)return;
+    review={kind:'location',actor,body:{selected:!model.location.enabled,expectedRevision:model.location.revision,requestKey:crypto.randomUUID()},uncertain:false};render();
+  });
   $('dynamic-cancel').addEventListener('click',()=>{if(!busy){review=null;render();}});
   $('dynamic-confirm').addEventListener('click',()=>run(async token=>{
     if(!writable()||!review)return;
@@ -73,11 +86,13 @@
     caps=await api(base+'/capabilities',{cache:'no-store'});
     if(!writable()){message('Participation changes are unavailable in this preview.');return;}
     try {
-      const result=await api(base+'/participation',{method:'POST',body:JSON.stringify(saved.body)});
+      const result=await api(base+(saved.kind==='location'?'/location':'/participation'),{method:'POST',body:JSON.stringify(saved.body)});
       const checked=identity(await api('/api/me',{cache:'no-store'}));
       if(token!==epoch)return;
       if(checked!==saved.actor){clear();message('Your account changed. Refresh to continue.');return;}
-      model=result;review=null;message(result.participating?'Challenge tracking is on. New gameplay observations can count.':'Challenge tracking is off and its saved gameplay progress has been deleted.');
+      if(saved.kind==='location'){
+        await read(token);if(actor!==saved.actor)return;review=null;message(result.enabled?(result.available?'Separate location tracking is on. New observations can count.':'Location tracking remains opted in but is paused until reviewed map rules are available.'):'Location tracking is off and its last position and progress receipts have been deleted.');
+      }else{model=result;review=null;message(result.participating?'Challenge tracking is on. New gameplay observations can count.':'Challenge tracking is off and its saved gameplay progress has been deleted.');}
     } catch(error){
       const uncertain=!error.status||error.status>=500;
       if(uncertain){saved.uncertain=true;review=saved;}else review=null;

@@ -42,6 +42,7 @@ function createDynamicChallengeStore(db, {now=Date.now, enabled=()=>process.env.
     CREATE INDEX IF NOT EXISTS dc_evidence_retention ON dc_evidence(period_start);
     CREATE INDEX IF NOT EXISTS dc_cursor_age ON dc_cursor(at);
     CREATE INDEX IF NOT EXISTS dc_observation_retention ON dc_observations(at);`);
+  const locations=require('./challengeLocationStore').createChallengeLocationStore(db,{now,enabled:()=>enabled()&&process.env.DYNAMIC_CHALLENGES_LOCATION_ENABLED==='1'});
   function transaction(fn,write=false) {
     db.exec(write?'BEGIN IMMEDIATE':'SAVEPOINT dynamic_challenges');
     try { const result=fn(); db.exec(write?'COMMIT':'RELEASE dynamic_challenges'); return result; }
@@ -61,6 +62,7 @@ function createDynamicChallengeStore(db, {now=Date.now, enabled=()=>process.env.
     // receipts are retained; only private gameplay evidence expires here.
     return transaction(()=>{
       synchronizeTracking();
+      locations.prune();
       const evidence=db.prepare('DELETE FROM dc_evidence WHERE period_start<?').run(now()-35*DAY).changes;
       const cursors=db.prepare('DELETE FROM dc_cursor WHERE at<?').run(now()-900000).changes;
       const observations=db.prepare('DELETE FROM dc_observations WHERE at<?').run(now()-35*DAY).changes;
@@ -92,6 +94,7 @@ function createDynamicChallengeStore(db, {now=Date.now, enabled=()=>process.env.
         fail('Too many participation changes. Try again shortly.',429);
       if(selected) db.prepare('INSERT OR IGNORE INTO dc_participants VALUES (?,?)').run(id,now());
       else {
+        locations.erase(id);
         for(const table of ['dc_evidence','dc_cursor','dc_observations','dc_participants']) db.prepare(`DELETE FROM ${table} WHERE steam_id=?`).run(id);
       }
       db.prepare('INSERT INTO dc_settings VALUES (?,?) ON CONFLICT(steam_id) DO UPDATE SET revision=excluded.revision').run(id,revision+1);
@@ -102,7 +105,8 @@ function createDynamicChallengeStore(db, {now=Date.now, enabled=()=>process.env.
   // Only call inside the accepted Legacy snapshot transaction. No positions,
   // names, private journey receipts or inferred event attendance are consumed.
   function observe(rows, at) {
-    if (!synchronizeTracking() || !Number.isSafeInteger(at) || at>now()+120000) return;
+    if (!synchronizeTracking()) {locations.prune();return;}
+    if (!Number.isSafeInteger(at) || at>now()+120000) return;
     // Delayed samples from a disabled interval cannot backfill after re-enable.
     if(at<db.prepare('SELECT resumed_at FROM dc_runtime WHERE id=1').get().resumed_at) return;
     for(const row of rows) {
@@ -110,6 +114,7 @@ function createDynamicChallengeStore(db, {now=Date.now, enabled=()=>process.env.
       if(!species) continue;
       const joined=db.prepare('SELECT joined_at FROM dc_participants WHERE steam_id=?').get(row.steam_id);
       if(!joined || at<=joined.joined_at) continue;
+      locations.observe({steamId:row.steam_id,lifeId:row.id,at,location:row.location});
       const old=db.prepare('SELECT * FROM dc_cursor WHERE steam_id=?').get(row.steam_id);
       if(old && at<=old.at) continue;
       const connected=old && old.life_id===row.id && old.species===row.species && at-old.at<=900000 &&
@@ -141,6 +146,7 @@ function createDynamicChallengeStore(db, {now=Date.now, enabled=()=>process.env.
     // Every accepted snapshot is complete. An absent or invalid observation
     // breaks challenge continuity even if Legacy cannot identify a new life.
     db.prepare('DELETE FROM dc_cursor WHERE at<>?').run(at);
+    locations.finishSnapshot(at);
     // Progress is private and short-lived; missed days never create a debt.
     db.prepare('DELETE FROM dc_evidence WHERE period_start<?').run(now()-35*DAY);
     db.prepare('DELETE FROM dc_observations WHERE at<?').run(now()-35*DAY);
@@ -154,6 +160,7 @@ function createDynamicChallengeStore(db, {now=Date.now, enabled=()=>process.env.
   function reconcileDeath(event) {
     const id=steam(event.steamId),at=event.at;
     if(!Number.isFinite(at)||!db.prepare('SELECT 1 FROM dc_participants WHERE steam_id=? AND joined_at<=?').get(id,at))return;
+    locations.reconcileDeath(event);
     const segments=db.prepare(`SELECT segment,MIN(at) AS first_at,MAX(at) AS last_at FROM dc_observations
       WHERE steam_id=? GROUP BY segment HAVING MIN(at)<=? AND MAX(at)>=?`).all(id,at,at);
     for(const segment of segments) {
@@ -208,8 +215,13 @@ function createDynamicChallengeStore(db, {now=Date.now, enabled=()=>process.env.
       const progress=joined?Math.min(1,attendance.count(id,{start:week.start,end:week.end,joinedAt:joined.joined_at})):0;
       challenges.push({id:'event-confirmed',title:'Join a Valley Event',metric:'confirmed_attendance',target:1,cadence:'weekly',startsAt:week.start,endsAt:week.end,progress,completed:progress>=1});
     }
-    return {enabled:true,participating,revision,timezone:'Australia/Brisbane',rewardsEnabled:false,challenges};
+    const location=locations.status(id);
+    if(location.available){
+      challenges.push({id:'travel-12km',title:'Roam 12 km',metric:'observed_metres',target:12000,cadence:'daily',startsAt:location.startsAt,endsAt:location.endsAt,progress:location.distanceMetres,completed:location.distanceMetres>=12000});
+      challenges.push({id:'visit-highlands',title:'Visit Highlands',metric:'highlands_visit',target:1,cadence:'daily',startsAt:location.startsAt,endsAt:location.endsAt,progress:location.highlandsVisited?1:0,completed:location.highlandsVisited});
+    }
+    return {enabled:true,participating,revision,timezone:'Australia/Brisbane',rewardsEnabled:false,location,challenges};
   }
-  return {change,observe,status,prune,reconcileDeath,attendance};
+  return {change,observe,status,prune,reconcileDeath,attendance,locations};
 }
 module.exports={createDynamicChallengeStore,periods};

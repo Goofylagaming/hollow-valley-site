@@ -301,7 +301,7 @@ function createLegacyStore(db, { now = Date.now } = {}) {
           );
         }
       }
-      challenges.observe(db.prepare('SELECT id,steam_id,species,growth FROM vl_lives WHERE last_at=? AND ended_at IS NULL').all(at),at);
+      challenges.observe(db.prepare('SELECT id,steam_id,species,growth,location FROM vl_lives WHERE last_at=? AND ended_at IS NULL').all(at).map(row=>({...row,location:JSON.parse(row.location||'null')})),at);
       db.prepare(
         "INSERT INTO vl_state VALUES ('snapshot',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
       ).run(String(at));

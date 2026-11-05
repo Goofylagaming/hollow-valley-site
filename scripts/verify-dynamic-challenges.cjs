@@ -4,8 +4,11 @@ const {chromium}=require('playwright');
 for(const name of ['DYNAMIC_CHALLENGES_READ_ONLY','SKIN_STUDIO_READ_ONLY','RENDER_SERVICE_ID','RENDER_EXTERNAL_URL','PUBLIC_SITE_URL','STEAM_REALM','STEAM_RETURN_URL'])delete process.env[name];
 process.env.DYNAMIC_CHALLENGES_ENABLED='1';process.env.VALLEY_LEGACY_ENABLED='1';process.env.HOLLOW_VALLEY_API_TOKEN=randomBytes(32).toString('hex');
 process.env.DYNAMIC_CHALLENGES_EVENTS_ENABLED='1';process.env.DYNAMIC_CHALLENGES_EVENT_GUILD_ID='10000000000001';
+process.env.DYNAMIC_CHALLENGES_LOCATION_ENABLED='1';process.env.DYNAMIC_CHALLENGES_LOCATION_MAP_VERSION='synthetic-map';
 const db=new DatabaseSync(':memory:');let clock=Date.parse('2026-11-05T10:00:00+10:00');
 const store=require('../automation-platform/src/services/valleyLegacyStore').createLegacyStore(db,{now:()=>clock});
+const mapReview=store.challenges.locations.catalogs.register({version:'synthetic-v1',mapVersion:'synthetic-map',units:'unreal-centimetres',bounds:{minX:-2000000,maxX:2000000,minY:-2000000,maxY:2000000},highlands:{polygon:[[-10000,-10000],[10000,-10000],[10000,10000],[-10000,10000]]},reviewNote:'Synthetic browser geometry only; no actual Highlands boundary or map review is claimed.'},'76561198000000999');
+store.challenges.locations.catalogs.activate({...mapReview,expectedVersion:null,actorSteamId:'76561198000000999'});
 const legacy=require('../automation-platform/src/services/valleyLegacyService'),oldGet=legacy.get;legacy.get=()=>store;
 let drop=false,hold=false,held=null,writes=0;const unexpected=[];
 const backend=express();backend.use(express.json());backend.use('/api/website/legacy',require('../automation-platform/src/routes/valleyLegacyRoutes'));
@@ -58,6 +61,16 @@ async function until(fn){for(let n=0;n<300;n++){if(fn())return;await new Promise
     await page.click('#dynamic-refresh');await idle();assert.match(await page.locator('#dynamic-list').textContent(),/90 \/ 90 observed minutes/);
     store.ingest({id:'browser-late-death-'+width,type:'combat_death',steamId:A,at:first+45*60000});
     await page.click('#dynamic-refresh');await idle();assert.match(await page.locator('#dynamic-list').textContent(),/40 \/ 90 observed minutes/);
+    assert.equal(store.challenges.locations.status(A).enabled,false);
+    await page.click('#dynamic-location-choice');assert.match(await page.locator('#dynamic-review-text').textContent(),/expires after two minutes/);assert.equal(db.prepare('SELECT count(*) n FROM dc_location_last').get().n,0);
+    const locationWrites=writes;drop=true;await confirm();await page.getByRole('button',{name:'Retry saved request',exact:true}).waitFor();assert.equal(writes,locationWrites+1);
+    await confirm();assert.equal(store.challenges.locations.status(A).enabled,true);assert.equal(writes,locationWrites+2);
+    clock+=30000;store.snapshot([{steamId:A,species:'tyrannosaurus',growth:0.5,location:{x:0,y:0}}],clock);
+    clock+=30000;store.snapshot([{steamId:A,species:'tyrannosaurus',growth:0.5,location:{x:100,y:0}}],clock);
+    for(let n=1;n<=6;n++){clock+=50000;store.snapshot([{steamId:A,species:'tyrannosaurus',growth:0.5,location:{x:100+n*200000,y:0}}],clock);}
+    await page.click('#dynamic-refresh');await idle();assert.match(await page.locator('#dynamic-list').textContent(),/12.00 \/ 12 km/);assert.match(await page.locator('#dynamic-list').textContent(),/Highlands visit observed/);
+    process.env.DYNAMIC_CHALLENGES_LOCATION_ENABLED='0';await page.click('#dynamic-refresh');await idle();assert.match(await page.locator('#dynamic-location-status').textContent(),/paused/);
+    await page.click('#dynamic-location-choice');await confirm();assert.equal(store.challenges.locations.status(A).enabled,false);assert.equal(db.prepare('SELECT count(*) n FROM dc_location_last').get().n,0);assert.equal(db.prepare('SELECT count(*) n FROM dc_location_receipts').get().n,0);process.env.DYNAMIC_CHALLENGES_LOCATION_ENABLED='1';
     await review();assert.match(await page.locator('#dynamic-review-text').textContent(),/delete its saved gameplay progress/);
     store.challenges.change(A,{selected:false,expectedRevision:1,requestKey:randomUUID()});
     await confirm();assert.equal(await page.locator('#dynamic-review').isVisible(),false);assert.match(await page.locator('#dynamic-status').textContent(),/changed/);
