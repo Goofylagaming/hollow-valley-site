@@ -10,10 +10,13 @@ function createGroupTreasuryLifecycle(db){
   const active=row=>row&&!['cancelled'].includes(row.state);
   function inspect(groupId){
     const exists=db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='hv_group_treasury_intents'").get();
-    return {pending:Boolean(exists&&db.prepare("SELECT id FROM hv_group_treasury_intents WHERE group_id=? AND state IN('draft','submitted') LIMIT 1").get(groupId)),
-      financialActivity:Boolean(exists&&db.prepare("SELECT id FROM hv_group_treasury_intents WHERE group_id=? AND authorized_at IS NOT NULL LIMIT 1").get(groupId))};
+    const purchases=db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='hv_group_treasury_purchases'").get();
+    return {pending:Boolean((exists&&db.prepare("SELECT id FROM hv_group_treasury_intents WHERE group_id=? AND state IN('draft','submitted') LIMIT 1").get(groupId))||
+      (purchases&&db.prepare("SELECT request_id FROM hv_group_treasury_purchases WHERE group_id=? AND state IN('draft','submitted','reserved') LIMIT 1").get(groupId))),
+      financialActivity:Boolean((exists&&db.prepare("SELECT id FROM hv_group_treasury_intents WHERE group_id=? AND authorized_at IS NOT NULL LIMIT 1").get(groupId))||
+      (purchases&&db.prepare('SELECT request_id FROM hv_group_treasury_purchases WHERE group_id=? AND authorized_at IS NOT NULL LIMIT 1').get(groupId)))};
   }
-  function assertNoPending(groupId){if(inspect(groupId).pending)throw error('TREASURY_REQUESTS_PENDING','Resolve pending Treasury donation requests before closing this group');}
+  function assertNoPending(groupId){if(inspect(groupId).pending)throw error('TREASURY_REQUESTS_PENDING','Resolve pending Treasury donation or purchase requests before closing this group');}
   const needsRemote=groupId=>process.env.GROUP_TREASURY_ENABLED==='1'||inspect(groupId).financialActivity;
   function assertOpen(groupId){if(active(read(groupId)))throw error('GROUP_CLOSURE_PENDING','Group closure is being checked. Retry or cancel the closure check.');}
   function event(row,state){db.prepare('INSERT INTO hv_group_treasury_closure_events(group_id,request_id,state,actor) VALUES(?,?,?,?)').run(row.group_id,row.request_id,state,row.actor);}

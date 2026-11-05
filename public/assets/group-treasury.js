@@ -1,6 +1,6 @@
 (() => {
   const {api,loadMe}=window.HDS,get=id=>document.getElementById(id),base='/api/group-treasury';
-  let model=null,capability={enabled:false,readOnly:true},ready=false,active=false,busy=null,generation=0,expectedGroup;
+  let model=null,capability={enabled:false,readOnly:true},ready=false,active=false,busy=null,generation=0,expectedGroup,refreshPending=false;
   const money=value=>`${Number(value).toLocaleString()} Valley Coins`;
   const unresolved=row=>['draft','submitted'].includes(row.state);
   const writable=()=>ready&&!capability.readOnly;
@@ -98,7 +98,7 @@
         if(epoch===generation){ready=false;if([error.status,recoveryError.status].some(status=>[401,403].includes(status))){model=null;render();get('group-treasury').hidden=true;}controls();}
       }
       if(epoch===generation)get('treasury-status').textContent=error.message||'Treasury could not refresh. Try again.';
-    }finally{if(epoch===generation){busy=null;controls();}}
+    }finally{if(epoch===generation){busy=null;controls();if(refreshPending){refreshPending=false;void act('refresh');}}}
   }
   get('treasury-refresh').addEventListener('click',()=>act('refresh'));
   get('treasury-form').addEventListener('submit',event=>{
@@ -110,9 +110,10 @@
   });
   window.addEventListener('hv:group-state',event=>{
     expectedGroup=event.detail?.groupId??null;if(!active)return;
-    generation++;busy=null;ready=false;if(model){model.group=null;model.treasury=null;render();}
+    generation++;busy=null;refreshPending=false;ready=false;if(model){model.group=null;model.treasury=null;render();}
     void act('refresh');
   });
+  window.addEventListener('hv:treasury-changed',event=>{if(!active||model?.group?.id!==event.detail?.groupId)return;if(busy)refreshPending=true;else void act('refresh');});
   (async()=>{
     if(!/^\d{17}$/.test(String((await loadMe())?.user?.steam_id||'')))return;
     active=true;await act('refresh');

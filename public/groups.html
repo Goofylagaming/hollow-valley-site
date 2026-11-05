@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="/assets/styles.css?v=22">
   <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=4">
-  <link rel="stylesheet" href="/assets/groups.css?v=5">
+  <link rel="stylesheet" href="/assets/groups.css?v=6">
 </head>
 <body class="has-my-stuff-rail groups-page">
   <div class="app-shell">
@@ -126,6 +126,22 @@
           <div id="treasury-pending"></div>
           <details><summary>Recent group transactions</summary><ol id="treasury-transactions"></ol></details>
           <h3>Your recent donation requests</h3><ol id="treasury-history"></ol>
+          <section id="treasury-shop" hidden>
+            <h3>Group cosmetics</h3><p>Only the current group owner can spend group coins. Frames change the appearance of your group card.</p>
+            <p id="treasury-shop-status" role="status" aria-live="polite"></p>
+            <button id="treasury-shop-refresh" type="button" class="small-button">Refresh purchases</button>
+            <form id="treasury-shop-form" class="groups-form" hidden>
+              <label for="treasury-shop-item">Reviewed group cosmetics</label><select id="treasury-shop-item"></select>
+              <button id="treasury-shop-review" class="small-button" disabled>Review purchase</button>
+            </form>
+            <div id="treasury-purchase-pending"></div>
+            <h4>Group frame</h4><p id="treasury-frame-current"></p>
+            <form id="treasury-frame-form" class="groups-form" hidden>
+              <label for="treasury-frame-choice">Owned group frames</label><select id="treasury-frame-choice"></select>
+              <button id="treasury-frame-save" class="small-button" disabled>Save group frame</button>
+            </form>
+            <h4>Recent group purchases</h4><ol id="treasury-purchase-history"></ol>
+          </section>
         </section>
         <section class="panel groups-card">
           <div class="list-heading"><span>GROUP INVITATIONS</span><span>Accept or decline</span></div>
@@ -140,9 +156,10 @@
     <footer><span>© 2026 Hollow Valley</span><span>AUSTRALIAN ISLE SERVER</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="/assets/common.js?v=22"></script>
-  <script src="/assets/groups.js?v=5"></script>
+  <script src="/assets/groups.js?v=6"></script>
   <script src="/assets/group-headquarters.js?v=5"></script>
   <script src="/assets/group-territory.js?v=1"></script>
-  <script src="/assets/group-treasury.js?v=3"></script>
+  <script src="/assets/group-treasury.js?v=4"></script>
+  <script src="/assets/group-treasury-shop.js?v=1"></script>
 </body>
 </html>

@@ -66,6 +66,7 @@
     text("groups-history-count",history.length);
     show("groups-current-panel",!!g);show("groups-create-panel",!g);
     if(g){
+      $('groups-current-panel').dataset.groupFrame=g.cosmeticFrame||'none';
       const owner=g.ownerSteamId===steam,closure=g.closure;
       text("groups-name-title",g.name);text("groups-created","Created "+date(g.createdAt)+" · Website group");
       text("groups-capacity",g.members.length+" / "+g.capacity);
@@ -169,5 +170,8 @@
     wire();
     try{await refresh();}catch(error){alert(error.message||"Groups could not load.",true);}
   }
+  window.addEventListener('hv:group-cosmetic',event=>{if(state?.current?.id===event.detail?.groupId&&['none','fern','sandstone','night'].includes(event.detail.frame)){
+    state.current.cosmeticFrame=event.detail.frame;$('groups-current-panel').dataset.groupFrame=event.detail.frame;
+  }});
   init();
 })();
