@@ -34,6 +34,14 @@
     }
     status.textContent = `${data.points.length} of ${data.total} locations discovered. ${settings.enabled ? 'Discovery recording is on.' : 'Discovery recording is off.'}${writable ? '' : ' This preview is read-only.'}`;
     if (!aligned) status.textContent += ' Discovery markers are waiting for matching map data.';
+    const regions = get('discovery-regions');
+    regions.replaceChildren();
+    for (const region of data.regions || []) {
+      const item = document.createElement('li');
+      item.textContent = region.total === 0 ? `${region.name} · Discovery locations awaiting review` :
+        `${region.name} · ${region.discovered} of ${region.total}${region.complete ? ' · Complete' : ''}`;
+      regions.append(item);
+    }
   }
   window.addEventListener('hv:mapdata', render);
   async function action(operation) {

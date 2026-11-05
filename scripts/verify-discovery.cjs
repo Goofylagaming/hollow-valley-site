@@ -20,7 +20,7 @@ const fs = require('node:fs'), path = require('node:path'), assert = require('no
           if (url.pathname.endsWith('/delete')) cleared = true;
           return json(settings);
         }
-        if (url.pathname.endsWith('/points')) return json({ total: 2, mapVersion: 'Gateway_v0.21', bounds: { minX: -100, maxX: 100, minY: -100, maxY: 100 }, points: cleared ? [] : [{ name: 'Cave <img src=x>', x: 0, y: 0 }] });
+        if (url.pathname.endsWith('/points')) return json({ total: 2, regions: [{id:'north',name:'North <img src=x>',total:2,discovered:cleared?0:1,complete:false}], mapVersion: 'Gateway_v0.21', bounds: { minX: -100, maxX: 100, minY: -100, maxY: 100 }, points: cleared ? [] : [{ name: 'Cave <img src=x>', x: 0, y: 0 }] });
         if (url.pathname.endsWith('.js') && !url.pathname.includes('livemap-discovery')) return route.fulfill({ contentType: 'text/javascript', body: '' });
         const file = path.join(__dirname, '../public', url.pathname === '/livemap' ? 'livemap.html' : url.pathname.slice(1));
         if (!fs.existsSync(file)) return route.abort();
@@ -29,7 +29,7 @@ const fs = require('node:fs'), path = require('node:path'), assert = require('no
       const page = await context.newPage(); const errors = []; page.on('pageerror', error => errors.push(error.message)); page.on('dialog', dialog => dialog.accept());
       await page.goto('http://localhost/livemap');
       await page.getByText('1 of 2 locations discovered. Discovery recording is off.', { exact: true }).waitFor();
-      assert.equal(await page.locator('#tracker-discoveries img').count(), 0);
+      assert.equal(await page.locator('#tracker-discoveries img').count(), 0); assert.ok((await page.locator('#discovery-regions').textContent()).includes('1 of 2')); assert.equal(await page.locator('#discovery-regions img').count(),0);
       assert.equal(await page.locator('#tracker-discoveries .poi').count(), 1);
       await page.evaluate(() => { window.HVLiveMapData.mapVersion='other'; window.dispatchEvent(new Event('hv:mapdata')); });
       assert.equal(await page.locator('#tracker-discoveries .poi').count(), 0);

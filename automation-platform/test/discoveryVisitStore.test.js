@@ -4,6 +4,27 @@ const { DatabaseSync } = require('node:sqlite');
 const { createDiscoveryCatalogStore } = require('../src/services/discoveryCatalog');
 const { createDiscoveryVisitStore } = require('../src/services/discoveryVisitStore');
 
+test('region completion requires every enabled location in the same catalog version', () => {
+  const db = new DatabaseSync(':memory:');
+  try {
+    const catalogs = createDiscoveryCatalogStore(db);
+    const rules = { version:'v1',mapVersion:'fixture',bounds:{minX:-10000,maxX:10000,minY:-10000,maxY:10000},regions:[{id:'north',name:'North'},{id:'empty',name:'Unreviewed'}],points:
+      ['a','b','disabled'].map(id=>({id,name:id,category:'cave',regionId:'north',enabled:id!=='disabled',x:0,y:0,radiusMetres:50})) };
+    catalogs.register(rules); const visits=createDiscoveryVisitStore(db), steam='76561198000000801';
+    const insert=db.prepare('INSERT INTO discovery_visits VALUES (?,?,?,?)');
+    insert.run(steam,'v1','a',1000);
+    assert.equal(visits.discovered(steam,'v1').regions.find(r=>r.id==='north').complete,false);
+    insert.run(steam,'v1','b',2000);
+    const result=visits.discovered(steam,'v1');
+    assert.deepEqual(result.regions.find(r=>r.id==='north'),{id:'north',name:'North',total:2,discovered:2,complete:true,completedAt:2000});
+    assert.equal(result.regions.find(r=>r.id==='empty').complete,false);
+    rules.version='v2';catalogs.register(rules);
+    assert.equal(visits.discovered(steam,'v2').regions.find(r=>r.id==='north').complete,false);
+    visits.change(steam,{enabled:false,expectedRevision:0,erase:true});
+    assert.equal(visits.discovered(steam,'v1').regions.find(r=>r.id==='north').complete,false);
+  } finally { db.close(); }
+});
+
 test('accepted snapshots commit discovery with consent and roll it back with the enclosing transaction', () => {
   const saved = [process.env.POI_DISCOVERY_ENABLED, process.env.POI_DISCOVERY_CATALOG_VERSION];
   process.env.POI_DISCOVERY_ENABLED = '1'; process.env.POI_DISCOVERY_CATALOG_VERSION = 'v1';
