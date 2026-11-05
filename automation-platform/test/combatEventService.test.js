@@ -4,6 +4,18 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
+test('optional recap evidence preserves original values across mixed-version retries and rejects contradictions', t => {
+  const service = loadService(t);
+  const input = { ...event(), killerSpecies:'triceratops', victimGrowth:0 };
+  const first = service.ingestEvent(input).event;
+  assert.equal(first.killer_species,'triceratops'); assert.equal(first.victim_growth,0);
+  assert.equal(service.ingestEvent(event()).duplicate,true);
+  assert.throws(()=>service.ingestEvent({...input,victimGrowth:0.5}),{code:'COMBAT_EVENT_CONFLICT'});
+  assert.throws(()=>service.ingestEvent({...input,killerSpecies:'tyrannosaurus'}),{code:'COMBAT_EVENT_CONFLICT'});
+  for(const value of [-1,1.1,'0.5',true,NaN])assert.throws(()=>service.ingestEvent({...input,victimGrowth:value}),{code:'COMBAT_EVENT_INVALID'});
+  assert.equal(service._test.db.prepare('SELECT victim_growth FROM combat_events WHERE id=?').get(first.id).victim_growth,0);
+});
+
 function loadService(t) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hv-combat-service-'));
   const oldDbPath = process.env.AUTOMATION_DB_PATH;

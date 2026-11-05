@@ -20,6 +20,10 @@ test('recaps disclose delayed victim-owned events and preserve unknown historica
     db.exec('ALTER TABLE combat_events ADD COLUMN victim_species TEXT');
     db.prepare('UPDATE combat_events SET victim_species=? WHERE id=?').run('rex', 'owned');
     assert.equal(service.list(steam).recaps[0].victimSpecies, 'rex');
+    db.exec('ALTER TABLE combat_events ADD COLUMN killer_species TEXT; ALTER TABLE combat_events ADD COLUMN victim_growth REAL');
+    db.prepare('UPDATE combat_events SET killer_species=?,victim_growth=? WHERE id=?').run('triceratops',0,'owned');
+    assert.equal(service.list(steam).recaps[0].attackerSpecies,'triceratops');
+    assert.equal(service.list(steam).recaps[0].growth,0);
     assert.throws(() => service.list('invalid'), { status: 400 });
   } finally { db.close(); }
 });
