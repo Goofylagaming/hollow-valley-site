@@ -37,6 +37,18 @@ rule; any future naturally-earned-only badge would require additional evidence.
 The original #2 description is retained and its status is Building / Testing.
 Historical votes remain; retired #2 votes no longer use active voting slots.
 
+Valley Born recognizes the player who grows a verified nested dinosaur from
+juvenile to adult in one observed life. An additive growth-milestone table records
+accepted juvenile and later adult samples; existing adults get no invented early
+history. Eligibility requires an admin-verified hatch evidence reference and
+parent link. Egg reservations alone do not qualify. Species/growth resets, gaps
+and player omission retain the existing Legacy life boundaries. Known deaths in
+both Legacy and the raw combat table block eligibility across those events.
+These are observed-life guarantees, not proof of unobserved gameplay. Delayed
+evidence arriving after a permanent award needs an audited correction policy
+before production rollout; no automatic revocation or player-data rewrite is
+introduced here. Automatic hatch detection remains outside this implemented slice.
+
 Remaining original unlocks and evidence requirements:
 
 | Unlock | Current evidence and remaining work |
@@ -45,7 +57,7 @@ Remaining original unlocks and evidence requirements:
 | Reach Prime | Implemented locally as observed Prime status, including preexisting observations; authenticated staging verification pending. |
 | Win a Territory War | Integrate authoritative finalized battle results and participant identity; a kill or generic territory event is insufficient. |
 | Kill five different species | Implemented locally from event-time species, awaiting forwarder/service rollout and authenticated staging verification. |
-| Raise a nested baby to adult | Verified parent links exist, but nest reservations are not hatch proof. Link verified hatch evidence to growth in the same life. |
+| Raise a nested baby to adult | Implemented locally from verified hatch links and juvenile/adult observations in one life; staging and delayed-evidence correction policy remain pending. |
 | Visit every major biome | Tracker zone visits are migration/patrol/sanctuary areas, not a reviewed biome catalog. Define canonical biome coverage and map version. |
 
 Collector validation covers entitlement deduplication, account isolation, revoked

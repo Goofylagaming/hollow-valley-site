@@ -48,6 +48,7 @@ function createLegacyStore(db, { now = Date.now } = {}) {
     CREATE INDEX IF NOT EXISTS vl_events_player_time ON vl_events(json_extract(payload,'$.steamId'),occurred_at);
     CREATE TABLE IF NOT EXISTS vl_imports (source TEXT NOT NULL, id TEXT NOT NULL, error TEXT, PRIMARY KEY(source,id));
     CREATE TABLE IF NOT EXISTS vl_parents (child TEXT NOT NULL, parent TEXT NOT NULL, PRIMARY KEY(child,parent));
+    CREATE TABLE IF NOT EXISTS vl_growth_milestones (life_id TEXT PRIMARY KEY, juvenile_at INTEGER NOT NULL, adult_at INTEGER);
     CREATE TABLE IF NOT EXISTS vl_nests (id TEXT PRIMARY KEY, host TEXT NOT NULL, parent TEXT NOT NULL, species TEXT NOT NULL, name TEXT NOT NULL, eggs INTEGER NOT NULL CHECK(eggs BETWEEN 1 AND 12), remaining INTEGER NOT NULL CHECK(remaining>=0), status TEXT NOT NULL DEFAULT 'open', created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS vl_requests (id TEXT PRIMARY KEY, nest TEXT NOT NULL, player TEXT NOT NULL, name TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', created_at INTEGER NOT NULL, UNIQUE(nest,player));
     CREATE TABLE IF NOT EXISTS vl_state (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -240,6 +241,18 @@ function createLegacyStore(db, { now = Date.now } = {}) {
             id,
           );
         }
+      }
+      // Record growth evidence only from accepted samples within the same observed
+      // life. No historical first-growth inference or cross-life accumulation.
+      for (const p of players) {
+        if (!['number', 'string'].includes(typeof p.growth) || String(p.growth).trim() === '') continue;
+        const raw = Number(p.growth);
+        const g = raw > 1.5 ? raw / 100 : raw;
+        if (!Number.isFinite(g) || g < 0 || g > 1) continue;
+        const row = current(String(p.steamId));
+        if (!row || row.last_at !== at || row.growth !== g) continue;
+        if (g < 1) db.prepare('INSERT OR IGNORE INTO vl_growth_milestones(life_id,juvenile_at) VALUES (?,?)').run(row.id,at);
+        else db.prepare('UPDATE vl_growth_milestones SET adult_at=COALESCE(adult_at,?) WHERE life_id=? AND juvenile_at<?').run(at,row.id,at);
       }
       // A complete successful snapshot that omits a player ends observed continuity.
       for (const row of db
