@@ -1,0 +1,3 @@
+body.discovery-mode #tracker-pois,body.discovery-mode #tracker-labels,body.discovery-mode #tracker-shapes,body.discovery-mode #territory-war-shapes,body.discovery-mode #territory-war-overlay-slot{display:none!important}
+#tracker-discoveries{display:none}body.discovery-mode #tracker-discoveries{display:block}
+#discovery-controls{margin:12px 0;padding:12px;border:1px solid #52725b;border-radius:8px}#discovery-controls label{display:block;margin:8px 0}#discovery-controls button{padding:8px;margin:6px 4px 6px 0}#discovery-controls p{line-height:1.5}#discovery-controls input{width:auto}

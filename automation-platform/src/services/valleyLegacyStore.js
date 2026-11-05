@@ -73,6 +73,8 @@ function createLegacyStore(db, { now = Date.now } = {}) {
       endedAt:row.ended_at,closureReason:closure?.reason||null,
       combatEvents:combat.slice(0,20).map(event=>({type:'combat_kill',at:event.at})),combatEventsLimited:combat.length>20};
   }});
+  const discoveries = require('./discoveryVisitStore').createDiscoveryVisitStore(db,{now});
+  const discoveryCatalogs = require('./discoveryCatalog').createDiscoveryCatalogStore(db);
   const initial = now();
   db.prepare("INSERT OR IGNORE INTO vl_state VALUES ('started', ?)").run(
     String(initial),
@@ -265,8 +267,12 @@ function createLegacyStore(db, { now = Date.now } = {}) {
         }
       }
       journeys.prune();
+      discoveries.prune();
+      const discoveryVersion=process.env.POI_DISCOVERY_CATALOG_VERSION;
+      const discoveryActive=process.env.POI_DISCOVERY_ENABLED==='1' && discoveryVersion && discoveryCatalogs.get(discoveryVersion);
       for(const row of db.prepare('SELECT id,steam_id,location FROM vl_lives WHERE last_at=? AND ended_at IS NULL').all(at)) {
         journeys.record({steamId:row.steam_id,lifeId:row.id,at,location:JSON.parse(row.location||'null')});
+        if(discoveryActive) discoveries.observe({steamId:row.steam_id,version:discoveryVersion,lifeId:row.id,at,location:JSON.parse(row.location||'null')});
       }
       // Record growth evidence only from accepted samples within the same observed
       // life. No historical first-growth inference or cross-life accumulation.
@@ -676,6 +682,7 @@ function createLegacyStore(db, { now = Date.now } = {}) {
   return {
     snapshot,
     journeys,
+    discoveries,
     ingest,
     rotate,
     overview,

@@ -1,0 +1,2172 @@
+{
+  "format": "discovery-candidate-review-v1",
+  "bounds": {
+    "minX": -607000,
+    "maxX": 509000,
+    "minY": -505000,
+    "maxY": 607000
+  },
+  "candidates": [
+    {
+      "id": "candidate-02a36d6a4f98b53a435b84bf",
+      "name": "Delta",
+      "sourceLayer": "territories",
+      "x": 33000,
+      "y": 177000,
+      "enabled": false,
+      "category": "territory",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-072eb1c4fd9c8c2f9e8d7cf7",
+      "name": "Gate I18",
+      "sourceLayer": "land",
+      "x": -82000,
+      "y": 439000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-07470b46dbb3125a6358b7ca",
+      "name": "TN.K08.g2 - Gorge Riv",
+      "sourceLayer": "caves",
+      "x": 45200,
+      "y": -117800,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-0886d7877c75bcb7b5304f54",
+      "name": "Gate H16",
+      "sourceLayer": "land",
+      "x": -164000,
+      "y": 305000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-09dcbe68ea52ef3ca0692046",
+      "name": "South Puddle",
+      "sourceLayer": "water",
+      "x": 200000,
+      "y": -352000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-0ae8644e79ceaaf1b260497c",
+      "name": "TN.F19 - Port SW",
+      "sourceLayer": "caves",
+      "x": -252000,
+      "y": 487000,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-0b1376be2f73f28c02897a0d",
+      "name": "Site P04 (the Pit)",
+      "sourceLayer": "land",
+      "x": 293000,
+      "y": -374000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-0e3902d3c6ad18f537d5702c",
+      "name": "Central Dome",
+      "sourceLayer": "land",
+      "x": 104000,
+      "y": -43000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-106403dc36cc8b86174f3d01",
+      "name": "TN.F19 - Port SE",
+      "sourceLayer": "caves",
+      "x": -250300,
+      "y": 516600,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-152f5252ad22c350cb232fad",
+      "name": "East Lake",
+      "sourceLayer": "water",
+      "x": -137000,
+      "y": 460000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-15b2b9542a3a024df0cf4eb1",
+      "name": "TN.G18 - Port hill",
+      "sourceLayer": "caves",
+      "x": -217000,
+      "y": 458400,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-15b3ae39e9748532e5ac6ff9",
+      "name": "The Pit",
+      "sourceLayer": "territories",
+      "x": 329000,
+      "y": -394000,
+      "enabled": false,
+      "category": "territory",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-164738c1358d38e50c2acb34",
+      "name": "Verdant Pond",
+      "sourceLayer": "water",
+      "x": -276000,
+      "y": 156000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-168e75595ef2664e7abe2276",
+      "name": "Eastern Jungle",
+      "sourceLayer": "territories",
+      "x": -157000,
+      "y": 398000,
+      "enabled": false,
+      "category": "territory",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-1c2b708b34f43130ab04345d",
+      "name": "Port Swere:B1",
+      "sourceLayer": "caves",
+      "x": -278800,
+      "y": 501500,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-1e9e99cf46134a33098899c2",
+      "name": "Pipes",
+      "sourceLayer": "land",
+      "x": 191000,
+      "y": 47000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-1efd7c12eb7526dee51d6dee",
+      "name": "West Rail",
+      "sourceLayer": "territories",
+      "x": -4000,
+      "y": -238000,
+      "enabled": false,
+      "category": "territory",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-1fd178847114624cb84110c7",
+      "name": "Pit Pond",
+      "sourceLayer": "water",
+      "x": 281000,
+      "y": -332000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-29ad5fb62215b8d7dd753972",
+      "name": "Rock Pond",
+      "sourceLayer": "water",
+      "x": 319000,
+      "y": -252000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-2a5ecdc084c1ee2ffea67303",
+      "name": "Site E15 (Volc.Notrh)",
+      "sourceLayer": "land",
+      "x": -333000,
+      "y": 246000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-2cea190712abbe28e6afbee8",
+      "name": "Gate F17",
+      "sourceLayer": "land",
+      "x": -262000,
+      "y": 397000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-2dbc694aedc1fa950c657ad5",
+      "name": "East Coast",
+      "sourceLayer": "territories",
+      "x": -131000,
+      "y": 564000,
+      "enabled": false,
+      "category": "territory",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-2e1ae9c65f07cd3a0f782c7e",
+      "name": "Port Tunnel",
+      "sourceLayer": "land",
+      "x": -233000,
+      "y": 535000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-2f57fbd44b4e2e24e665b639",
+      "name": "Radio Tower",
+      "sourceLayer": "land",
+      "x": -221000,
+      "y": 543000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-3134c1787bc2faada5db17c4",
+      "name": "TN.F19 - Port SE",
+      "sourceLayer": "caves",
+      "x": -250600,
+      "y": 514299.99999999994,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-328fc7fbfbed7f82769925d6",
+      "name": "Northern Jungle",
+      "sourceLayer": "territories",
+      "x": -321000,
+      "y": 166000,
+      "enabled": false,
+      "category": "territory",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-33a3d15d1ccb520859b45f7c",
+      "name": "Swamp Tunnel",
+      "sourceLayer": "land",
+      "x": 136000,
+      "y": 123000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-3643a4cc8438eda0491ff865",
+      "name": "NE. Cape",
+      "sourceLayer": "territories",
+      "x": -460000,
+      "y": 433000,
+      "enabled": false,
+      "category": "territory",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-3669a81e78de82ac775378de",
+      "name": "Gate L12",
+      "sourceLayer": "land",
+      "x": 69000,
+      "y": 65000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-366dfd38113f8edba4b0f211",
+      "name": "Southern Beach",
+      "sourceLayer": "territories",
+      "x": 397000,
+      "y": 130000,
+      "enabled": false,
+      "category": "territory",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-36911a2c5cfe293f8f7ad5af",
+      "name": "Endorheic",
+      "sourceLayer": "water",
+      "x": 199000,
+      "y": 179000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-36bbf1526cc91a6bf6e09ecc",
+      "name": ":TN.F20",
+      "sourceLayer": "caves",
+      "x": -211000,
+      "y": 533000,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-3744bb29d2890b891d577c81",
+      "name": "Southern Strait",
+      "sourceLayer": "territories",
+      "x": 238000,
+      "y": -211000,
+      "enabled": false,
+      "category": "territory",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-396d1558544246c7beae6de0",
+      "name": ":Port Swere:B3",
+      "sourceLayer": "caves",
+      "x": -280800,
+      "y": 492700,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-39c5e372255ccd227f313070",
+      "name": "TN.E15 - Volc N",
+      "sourceLayer": "caves",
+      "x": -325900,
+      "y": 242100,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-3b41cd148aaa1048299ff6d8",
+      "name": "TN.K08.g1 - Gorge hill",
+      "sourceLayer": "caves",
+      "x": 54200,
+      "y": -164000,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-3b7a189f81008c6df15462aa",
+      "name": "Water Access",
+      "sourceLayer": "territories",
+      "x": -214000,
+      "y": 87000,
+      "enabled": false,
+      "category": "territory",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-3c038d82493494dd186b8930",
+      "name": "Site C14 (Derelict Base)",
+      "sourceLayer": "land",
+      "x": -429000,
+      "y": 201000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-3e81e534ede5e601dc633b5d",
+      "name": "Highland",
+      "sourceLayer": "territories",
+      "x": -127000,
+      "y": -80000,
+      "enabled": false,
+      "category": "territory",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-42e7d68e7909387c55cd378f",
+      "name": ":Port Swere:B3",
+      "sourceLayer": "caves",
+      "x": -301600,
+      "y": 496800,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-45bd9cfeea44adfd3fbb296a",
+      "name": "Forks Plains",
+      "sourceLayer": "territories",
+      "x": -119000,
+      "y": 246000,
+      "enabled": false,
+      "category": "territory",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-4bb61bb9c0567d95760c1c01",
+      "name": "TN.G18 - Port hill",
+      "sourceLayer": "caves",
+      "x": -218600,
+      "y": 458000,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-4be1c3d52e77eba6b87f7236",
+      "name": "TN.M09 - Swamp NW",
+      "sourceLayer": "caves",
+      "x": 213000,
+      "y": -66000,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-4c97f8ab99e9175be43c6b69",
+      "name": "Collapsed point E17",
+      "sourceLayer": "land",
+      "x": -316000,
+      "y": 395000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-4d56b8e5549251fb6dcdd5f7",
+      "name": "North Lake",
+      "sourceLayer": "water",
+      "x": -374000,
+      "y": 324000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-510b3f092ba53ee0b407e352",
+      "name": "Site G15 (Volc.South)",
+      "sourceLayer": "land",
+      "x": -222000,
+      "y": 269000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-51ff11b7b2bb38415f831d83",
+      "name": "Collapsed point F17",
+      "sourceLayer": "land",
+      "x": -246000,
+      "y": 386000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-537575110ee1462192ef7ffa",
+      "name": "Swamps",
+      "sourceLayer": "territories",
+      "x": 273000,
+      "y": 74000,
+      "enabled": false,
+      "category": "territory",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-57058a5494c8e083d13749d6",
+      "name": "Site J17",
+      "sourceLayer": "land",
+      "x": -26000,
+      "y": 362000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-57cdf245a8cc6a030d6adbc5",
+      "name": "Gate K12",
+      "sourceLayer": "land",
+      "x": 24000,
+      "y": 80000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-5893b939c88af9de20cca152",
+      "name": "Site L11 (Entrance)",
+      "sourceLayer": "land",
+      "x": 87000,
+      "y": 30000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-5ba5f5caed881d2c95976324",
+      "name": "Highland Bridge",
+      "sourceLayer": "land",
+      "x": -211000,
+      "y": 9000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-5bf9e29388a541358759f68f",
+      "name": "Volcano",
+      "sourceLayer": "land",
+      "x": -268000,
+      "y": 250000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-5d57f9fb8cddf3c0ba4b8e94",
+      "name": "TN.K08 - West Rail 2",
+      "sourceLayer": "caves",
+      "x": 10000,
+      "y": -165900,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-5da6ccd5172ac329296a3620",
+      "name": "Gate G17",
+      "sourceLayer": "land",
+      "x": -210000,
+      "y": 402000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-5dead779ad37025adb4a26b1",
+      "name": "Mad Grotto",
+      "sourceLayer": "land",
+      "x": -45000,
+      "y": 213000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-630abec361a0c5ff788f7e6a",
+      "name": "Gate D14",
+      "sourceLayer": "land",
+      "x": -381000,
+      "y": 216000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-6333fbf8d4daecb809f61813",
+      "name": "Landslid Lake",
+      "sourceLayer": "water",
+      "x": -80000,
+      "y": -226000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-63ede9823d6d92e55161085f",
+      "name": "Jungle Pond",
+      "sourceLayer": "water",
+      "x": -2000,
+      "y": 82000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-66fbff83206f35b014e897a4",
+      "name": "Gate K15",
+      "sourceLayer": "land",
+      "x": 4000,
+      "y": 275000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-6b801137786ceaed7087243c",
+      "name": "Gate J16",
+      "sourceLayer": "land",
+      "x": -37000,
+      "y": 297000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-6db0f86458ed240945b3a298",
+      "name": "Collapsed point D17",
+      "sourceLayer": "land",
+      "x": -399000,
+      "y": 399000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-6f7ce220b8cb7892073b14f4",
+      "name": "TN.H19 - East Lake",
+      "sourceLayer": "caves",
+      "x": -147000,
+      "y": 471000,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-70dc819d226c6a080ffc584a",
+      "name": "Collapsed point G18",
+      "sourceLayer": "land",
+      "x": -195000,
+      "y": 450000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-745655c75aafb8876d8951d2",
+      "name": "Highland Lake",
+      "sourceLayer": "water",
+      "x": -92000,
+      "y": -65000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-79d91c700e612f6741a5bdce",
+      "name": "Volcano Cave",
+      "sourceLayer": "water",
+      "x": -258000,
+      "y": 285000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-7ae965c85cc1a9833841b73b",
+      "name": "Highland Lake",
+      "sourceLayer": "water",
+      "x": -135000,
+      "y": -22000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-7b3eb6efc3dffe9d28f20c40",
+      "name": "Dam Lake",
+      "sourceLayer": "water",
+      "x": -267000,
+      "y": 79000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-7dd2c78c0f9caa1e55326f74",
+      "name": "TN.K07 - West Rail 1",
+      "sourceLayer": "caves",
+      "x": 8700,
+      "y": -214500,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-807fc5fa46b5f37530b82492",
+      "name": "Estuary Weir",
+      "sourceLayer": "land",
+      "x": 141000,
+      "y": 240000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-8161c365553a841a6c0235d7",
+      "name": "TN.E15 - Volc N",
+      "sourceLayer": "caves",
+      "x": -324600,
+      "y": 241500,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-84bda22bbebe8be2c4b5bea7",
+      "name": "Log Bridge",
+      "sourceLayer": "land",
+      "x": -221000,
+      "y": 360000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-84eef2c74b35fa5d5134884f",
+      "name": "Site E12 (Dam Lab)",
+      "sourceLayer": "land",
+      "x": -309000,
+      "y": 92000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-8688e1d5c8758e7e9c57ea02",
+      "name": "Site F11 (Lake-port)",
+      "sourceLayer": "land",
+      "x": -239000,
+      "y": 37000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-88d51ef95020857947b897db",
+      "name": "Lagoon",
+      "sourceLayer": "territories",
+      "x": 334000,
+      "y": -87000,
+      "enabled": false,
+      "category": "territory",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-8b5c0dcbec6147196d60f88b",
+      "name": "Verdant Pool",
+      "sourceLayer": "caves",
+      "x": -258000,
+      "y": 163000,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-8c6dab27198d9828af689438",
+      "name": "Gorge River",
+      "sourceLayer": "water",
+      "x": 135000,
+      "y": -198000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-8d161bab5347596f22bf46d9",
+      "name": "Shade puddle",
+      "sourceLayer": "water",
+      "x": 90000,
+      "y": -128000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-8d956fdbdb909aece1e9097b",
+      "name": "[Now can't enter here]",
+      "sourceLayer": "land",
+      "x": 120000,
+      "y": -41000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-8e554536377aaa0815ddb95a",
+      "name": "TN.F14 - Volc W",
+      "sourceLayer": "caves",
+      "x": -245000,
+      "y": 196500,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-956e2744b50e2d24919d3822",
+      "name": ":TN.F20",
+      "sourceLayer": "caves",
+      "x": -248000,
+      "y": 542000,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-9b461fe31bbfde9f3b6cfa67",
+      "name": "Pit's Antenna",
+      "sourceLayer": "land",
+      "x": 313000,
+      "y": -431000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-9b7572f6014cacd29f8885c9",
+      "name": "TN.F16 - Volc E",
+      "sourceLayer": "caves",
+      "x": -252700,
+      "y": 338400,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-9ce02a36549414c8cdbc8bfe",
+      "name": "Site K15 (Delta side)",
+      "sourceLayer": "land",
+      "x": 26000,
+      "y": 245000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-9d9cdbdf7fe83d353b23394d",
+      "name": "North Plains",
+      "sourceLayer": "territories",
+      "x": -345000,
+      "y": 353000,
+      "enabled": false,
+      "category": "territory",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-9e3cf63b886dc6daaf16e675",
+      "name": "Gate C17",
+      "sourceLayer": "land",
+      "x": -412000,
+      "y": 355000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-9eb1247c0a6a8d518070cd82",
+      "name": "Coastal Pond",
+      "sourceLayer": "water",
+      "x": 50000,
+      "y": 330000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-a04f23ebb15fb177266ab952",
+      "name": "TN.G15 - Volc S",
+      "sourceLayer": "caves",
+      "x": -224300,
+      "y": 285500,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-a13257524a4db0dbb947337e",
+      "name": "TN.I06 - Lansllake",
+      "sourceLayer": "caves",
+      "x": -68000,
+      "y": -253000,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-a4f6cc48a29c486a8b26ef6f",
+      "name": "Collapsed point G19",
+      "sourceLayer": "land",
+      "x": -199000,
+      "y": 508000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-a95b3c31bf8243cc19cc3801",
+      "name": "Site G20 (Radio Base)",
+      "sourceLayer": "land",
+      "x": -204000,
+      "y": 538000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-ae580dbe3df216c1723268c8",
+      "name": "Gate H19",
+      "sourceLayer": "land",
+      "x": -160000,
+      "y": 505000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-b0a71431748f253f35757018",
+      "name": "Verdant Pool",
+      "sourceLayer": "caves",
+      "x": -249000,
+      "y": 168000,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-b1e9e802a54b640b36cf4a90",
+      "name": "Volcano Chamber",
+      "sourceLayer": "water",
+      "x": -283000,
+      "y": 256000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-b1fc97975f4fda5cf8a261d2",
+      "name": "Gate C15",
+      "sourceLayer": "land",
+      "x": -451000,
+      "y": 263000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-b88cd15b9ef7c984af001151",
+      "name": "Plains River",
+      "sourceLayer": "water",
+      "x": -290000,
+      "y": 368000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-ba2b70f0d15e5c6bb8ec69f0",
+      "name": "Storage G19",
+      "sourceLayer": "land",
+      "x": -200000,
+      "y": 483000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-c07c36ffb4f7534f358cf86d",
+      "name": "Dam",
+      "sourceLayer": "land",
+      "x": -286000,
+      "y": 72000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-c0a1b2f17927e49793eca9c3",
+      "name": "Port",
+      "sourceLayer": "territories",
+      "x": -308000,
+      "y": 548000,
+      "enabled": false,
+      "category": "territory",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-c0a5a1a9977df055e60ddafe",
+      "name": "West Bay",
+      "sourceLayer": "territories",
+      "x": 101000,
+      "y": -394000,
+      "enabled": false,
+      "category": "territory",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-c36e1c5153bbfbf71223c29d",
+      "name": "Gate D18",
+      "sourceLayer": "land",
+      "x": -373000,
+      "y": 412000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-c511d412da1b2aa634e0bfae",
+      "name": "Collapsed point C16",
+      "sourceLayer": "land",
+      "x": -419000,
+      "y": 320000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-c67e1876a2c5624e50a1e5f3",
+      "name": "TN.F19 - Port SW",
+      "sourceLayer": "caves",
+      "x": -252800,
+      "y": 489000,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-c6c0498bfd96cde960d934ca",
+      "name": "TN.K16 - Delta Jungle",
+      "sourceLayer": "caves",
+      "x": 9000,
+      "y": 335000,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-caae27ebecdac3350f322006",
+      "name": "Site F16 (Volc.East)",
+      "sourceLayer": "land",
+      "x": -255000,
+      "y": 329000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-ce6636e0da09640bd3b6f1f7",
+      "name": ":Volcano:side",
+      "sourceLayer": "caves",
+      "x": -253000,
+      "y": 290000,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-d27b6e68935b2e4de0dfd657",
+      "name": "Delta",
+      "sourceLayer": "water",
+      "x": 43000,
+      "y": 189000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-d2e1bfb64effa46fdfe6bf8e",
+      "name": "Forks Pond",
+      "sourceLayer": "water",
+      "x": -171000,
+      "y": 246000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-d50bc0b570dbe5b7a106a876",
+      "name": "Gate C14",
+      "sourceLayer": "land",
+      "x": -426000,
+      "y": 230000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-d831a933af6c33ec86c234a7",
+      "name": "South Plains",
+      "sourceLayer": "territories",
+      "x": 250000,
+      "y": -302000,
+      "enabled": false,
+      "category": "territory",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-dbfd9bdb09ff39ee369563e0",
+      "name": "Delta River",
+      "sourceLayer": "water",
+      "x": -88000,
+      "y": 237000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-df8c87751516e38ca2f96b03",
+      "name": "Volcano",
+      "sourceLayer": "caves",
+      "x": -279800,
+      "y": 283000,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-e0814a4f089b0c2b1e305357",
+      "name": "Pygmy's puddle",
+      "sourceLayer": "water",
+      "x": 82000,
+      "y": -244000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-e108c489d2993f95d9072864",
+      "name": "Site I12 (RS)",
+      "sourceLayer": "land",
+      "x": -109000,
+      "y": 81000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-e6859c7b8eef056dfd608634",
+      "name": ":TN.M13",
+      "sourceLayer": "caves",
+      "x": 155000,
+      "y": 121000,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-e9eb08abb047147a15a18611",
+      "name": "Swamp West",
+      "sourceLayer": "water",
+      "x": 276000,
+      "y": -30000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-eb197976711a78a9c45987b3",
+      "name": "Gate L15",
+      "sourceLayer": "land",
+      "x": 63000,
+      "y": 270000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-ed2b7342568ab520f3540621",
+      "name": "West Pond",
+      "sourceLayer": "water",
+      "x": 20000,
+      "y": -277000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-ef3caa4db9f353f28e17dddf",
+      "name": "Cascades",
+      "sourceLayer": "water",
+      "x": -171000,
+      "y": 175000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-f02a9a59f134acbdb120d3f3",
+      "name": ":TN.M13",
+      "sourceLayer": "caves",
+      "x": 121000,
+      "y": 120000,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-f0dd479e0bd0a4fca03dcb95",
+      "name": "Central Jungle",
+      "sourceLayer": "territories",
+      "x": -49000,
+      "y": 71000,
+      "enabled": false,
+      "category": "territory",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-f13043c86a85d537912d3b44",
+      "name": "Swamp East",
+      "sourceLayer": "water",
+      "x": 254000,
+      "y": 106000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-f146070ddce65150994d2013",
+      "name": ":Port Swere:2",
+      "sourceLayer": "caves",
+      "x": -283500,
+      "y": 485600,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-f1e7bf863eb8c09516a5af8b",
+      "name": "Hollow Falls",
+      "sourceLayer": "water",
+      "x": -171000,
+      "y": 344000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-f2111a85954d50fa4fb70e5a",
+      "name": "TN.F16 - Volc E",
+      "sourceLayer": "caves",
+      "x": -253000,
+      "y": 339700,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    },
+    {
+      "id": "candidate-f81e2d56780dbaac4cc6154a",
+      "name": "Site I19 (Water Treatment)",
+      "sourceLayer": "land",
+      "x": -83000,
+      "y": 488000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-fbbeb3fc659051fb13bfba09",
+      "name": "Site F19 (Port)",
+      "sourceLayer": "land",
+      "x": -263000,
+      "y": 501000,
+      "enabled": false,
+      "category": null,
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area",
+        "Confirm discovery category"
+      ]
+    },
+    {
+      "id": "candidate-feccf609f55d62f669026f28",
+      "name": ":Port Swere:2",
+      "sourceLayer": "caves",
+      "x": -279000,
+      "y": 491000,
+      "enabled": false,
+      "category": "cave",
+      "regionId": null,
+      "radiusMetres": null,
+      "reviewRequired": [
+        "Verify in-game location and accessibility",
+        "Assign catalog region",
+        "Define visit area"
+      ]
+    }
+  ],
+  "rejected": [],
+  "territorySources": [
+    {
+      "path": "server/evrimaMap.js",
+      "sha256": "cce5ddb5f60277394f830adb14ba0824793521079706943f8447c91e998feec1"
+    },
+    {
+      "path": "server/services/territoryAreas.js",
+      "sha256": "bba960d044f38b8e8480047ed34f2acc39b63d97431203b7f4f8deca45bb0fb9"
+    }
+  ],
+  "source": {
+    "path": "public/assets/map-data.json",
+    "sha256": "5b90dcd0ece4417f0f65898daab0c8c70c3056a93a624638527e209feabb2288",
+    "map": "Gateway_v0.21.7",
+    "attribution": "Map feature data from the vulnona.com community Isle map project",
+    "generated": "2026-09-12"
+  }
+}
