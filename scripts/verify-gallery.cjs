@@ -57,12 +57,28 @@ const {db}=require('../server/db');
     if(process.env.HV_TEST_OUTPUT){fs.mkdirSync(process.env.HV_TEST_OUTPUT,{recursive:true});await page.screenshot({path:path.join(process.env.HV_TEST_OUTPUT,`gallery-${width}.png`),fullPage:true});}
     const guest=await browser.newContext({viewport:{width,height:1000}}),guestPage=await guest.newPage();await guestPage.goto(base+'/gallery');await guestPage.getByText('Featured screenshot').waitFor();
     assert.equal(await guestPage.locator('[data-view=mine]').isVisible(),false);assert.equal(await guestPage.locator('#gallery-signin').isVisible(),true);
+    await guestPage.click('[data-view=results]');await guestPage.locator('#gallery-results').waitFor({state:'visible'});
+    await guestPage.getByText('No screenshots in this view yet.').waitFor();
+    assert.equal(await guestPage.locator('#gallery-voting').isVisible(),false);
+    assert.equal(await guestPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+    const historical=await (await fetch(base+'/api/gallery/results')).json(),historicalId=`history-${width}`;
+    db.prepare(`INSERT INTO gallery_images(id,owner_steam_id,author,title,image,width,height,content_hash,request_id,created_at,status)
+      SELECT ?,owner_steam_id,author,'Past choice <img src=x>',image,width,height,content_hash,?,?,status FROM gallery_images WHERE status='approved' LIMIT 1`).run(historicalId,historicalId,historical.startsAt+1000);
+    db.prepare('INSERT INTO gallery_monthly_votes VALUES (?,?,?,?,?)').run(historical.month,'76561198000000552',historicalId,1,historical.startsAt+2000);
+    await guestPage.click('#gallery-refresh');await guestPage.getByText('Rank 1 · 1 vote',{exact:true}).waitFor();
+    assert.equal(await guestPage.locator('.gallery-card h2 img').count(),0);
+    assert.equal(await guestPage.locator('[data-gallery-vote]').count(),0);
+    assert.equal(await guestPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+    db.prepare('DELETE FROM gallery_images WHERE id=?').run(historicalId);
+    db.prepare('DELETE FROM gallery_monthly_votes WHERE month=?').run(historical.month);
+
+    await guestPage.click('[data-view=public]');await guestPage.getByText('Featured screenshot').waitFor();
     await page.click('[data-view=mine]');page.on('dialog',dialog=>dialog.accept());
     await page.getByRole('button',{name:'Remove my screenshot'}).click();await page.waitForFunction(()=>document.getElementById('gallery-message').textContent==='Screenshot removed.');
     await guestPage.click('#gallery-refresh');await guestPage.getByText('No screenshots in this view yet.').waitFor();
     process.env.HV_GALLERY_ENABLED='0';await page.click('#gallery-refresh');await page.getByText('The gallery is not open yet. Check back after launch.').waitFor();
     assert.equal(await page.locator('#gallery-upload').isVisible(),false);process.env.HV_GALLERY_ENABLED='1';
-    assert.deepEqual(errors,[]);console.log(`PASS ${width}px: real upload/retry, moderation/history/filters, featured display, monthly vote/clear, withdrawal, guest, disabled rollout and layout`);
+    assert.deepEqual(errors,[]);console.log(`PASS ${width}px: real upload/retry, moderation/history/filters, featured display, monthly vote/clear and past results, withdrawal, guest, disabled rollout and layout`);
     await guest.close();await admin.close();await context.close();
   }}finally{await browser.close();await new Promise(resolve=>server.close(resolve));db.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

@@ -105,3 +105,23 @@ entries, changed and cleared choices, lost/stale request semantics, withdrawal,
 identity spoofing and private voter data. Real desktop/mobile browser flows also
 cast and clear a vote against the actual local API. Staging and production remain
 unverified and the rollout flag remains disabled outside fixtures.
+
+## Past monthly results
+
+The gallery now has a public Past monthly results view and a read-only
+`GET /api/gallery/results?month=YYYY-MM` endpoint behind the existing rollout
+flag. The default is the last completed Brisbane calendar month. Current and
+future months are rejected. Results show up to 50 voted entries, ranked by votes
+with shared ranks for ties and deterministic ordering within each tie.
+
+Only screenshots uploaded during that month and still approved are returned.
+Withdrawn or rejected screenshots disappear; their original votes remain stored.
+The UI explicitly explains that subsequent moderation can change the visible
+rankings. This is a view of past votes, not a frozen prize or winner ledger.
+No voter Steam IDs, private moderation data or new rewards are exposed.
+
+Eight gallery service/HTTP tests pass. Desktop (1440px) and mobile (390px)
+browser fixtures cover empty and populated historical results, safe title text,
+no voting controls on past results and layout bounds, alongside the existing
+upload, review, current-month vote and withdrawal checks. Staging and production
+verification remain pending.

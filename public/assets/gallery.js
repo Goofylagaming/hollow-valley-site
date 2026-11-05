@@ -3,7 +3,7 @@
   const cards=$('gallery-cards'),message=$('gallery-message'),upload=$('gallery-upload'),more=$('gallery-more');
   let user=null,view='public',cursor=null,sequence=0,uploadAttempt=null,uploadBusy=false,enabled=false;
   let voting=null,voteAttempt=null,voteBusy=false;
-  function controls(){upload.hidden=!enabled||view!=='mine'||!user?.steam_id;$('gallery-filter').hidden=!enabled||view!=='admin';
+  function controls(){$('gallery-results').hidden=!enabled||view!=='results';upload.hidden=!enabled||view!=='mine'||!user?.steam_id;$('gallery-filter').hidden=!enabled||view!=='admin';
     $('gallery-voting').hidden=!enabled||!voting||!['public','featured'].includes(view);
     $('gallery-clear-vote').hidden=!voting?.myVoteId;
     $('gallery-clear-vote').disabled=voteBusy;
@@ -50,6 +50,7 @@
     const card=node('article');card.className='gallery-card';
     if(row.status!=='withdrawn'){const img=node('img');img.src=`/api/gallery/${encodeURIComponent(row.id)}/image`;img.alt=row.title;img.loading='lazy';img.width=row.width;img.height=row.height;card.append(img);}
     card.append(node('h2',row.title),node('p',`By ${row.author} · ${new Date(row.createdAt).toLocaleDateString()}`));
+    if(view==='results')card.append(node('p',`Rank ${row.rank} · ${row.votes} ${row.votes===1?'vote':'votes'}`));
     if(row.featured)card.append(node('p','Featured screenshot'));
     if(['public','featured'].includes(view)){
       card.append(node('p',`${Number(row.votes)||0} ${Number(row.votes)===1?'vote':'votes'} this month`));
@@ -70,6 +71,7 @@
     if(!append){cursor=null;cards.replaceChildren();}
     const endpoint=['public','featured'].includes(view)?'/api/gallery':`/api/gallery/${view}`;
     const params=new URLSearchParams();if(append&&cursor)params.set('before',cursor);if(view==='featured')params.set('featured','1');if(view==='admin')params.set('status',$('gallery-status').value);
+    if(view==='results'&&$('gallery-results-month').value)params.set('month',$('gallery-results-month').value);
     message.textContent=success||'Loading screenshots…';
     try{
       const capabilities=await api('/api/gallery/capabilities');if(current!==sequence)return;
@@ -78,8 +80,9 @@
       const data=await api(endpoint+(params.size?`?${params}`:''));if(current!==sequence)return;
       voting=data.voting||null;controls();
       if(voting)$('gallery-voting-period').textContent=`${voting.month} · Voting closes ${new Date(voting.endsAt).toLocaleString('en-AU',{timeZone:'Australia/Brisbane'})} Brisbane time.`;
-      for(const row of data.images)render(row);cursor=data.nextCursor;more.hidden=cursor===null;more.disabled=false;
-      message.textContent=success||(!cards.children.length?'No screenshots in this view yet.':'Screenshots loaded.');
+      if(view==='results')$('gallery-results-month').value=data.month;
+      for(const row of data.images)render(row);cursor=data.nextCursor??null;more.hidden=cursor===null;more.disabled=false;
+      message.textContent=success||(view==='results'&&cards.children.length?`${data.month} results loaded.${data.limited?' Showing the first 50 entries.':''}`:!cards.children.length?'No screenshots in this view yet.':'Screenshots loaded.');
     }catch(e){if(current!==sequence)return;if(e.status===503){enabled=false;controls();}more.hidden=true;message.textContent=success?`${success} Refresh to load the latest images.`:e.message;}
   }
   document.querySelectorAll('[data-view]').forEach(tab=>tab.addEventListener('click',()=>{
@@ -88,6 +91,7 @@
   }));
   $('gallery-refresh').addEventListener('click',()=>load());more.addEventListener('click',()=>load(true));
   $('gallery-status').addEventListener('change',()=>load());
+  $('gallery-results-month').addEventListener('change',()=>load());
   upload.addEventListener('submit',async event=>{
     event.preventDefault();if(uploadBusy||!enabled)return;
     const file=upload.elements.image.files[0],title=upload.elements.title.value.trim();

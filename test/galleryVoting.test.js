@@ -44,3 +44,29 @@ test('monthly choices use Brisbane boundaries, reject invalid entries and preser
     now=Date.parse('2026-12-31T14:00:00Z');assert.equal(gallery.voting().month,'2027-01');
   }finally{db.close();}
 });
+
+test('completed monthly results retain ties, omit private entries and never expose voter identities',()=>{
+  const db=new DatabaseSync(':memory:');let now=Date.parse('2026-11-05T00:00:00Z');
+  try{
+    const gallery=createGalleryStore(db,{now:()=>now});
+    const insert=db.prepare('INSERT INTO gallery_images(id,owner_steam_id,author,title,width,height,content_hash,request_id,created_at,status) VALUES (?,?,?,?,?,?,?,?,?,?)');
+    for(const id of ['one','two','three'])insert.run(id,owner.steam_id,'Fixture',id,1,1,'hash',id,now,'approved');
+    for(let i=0;i<5;i++)gallery.vote({steam_id:`7656119800000090${i}`},{month:'2026-11',imageId:i<2?'one':i<4?'two':'three',expectedRevision:0,requestId:`results-vote-${i}`});
+    assert.throws(()=>gallery.results('2026-11'),{status:400});
+    now=Date.parse('2026-11-30T14:00:00Z');
+    const changes=db.prepare('SELECT total_changes() AS n').get().n;
+    const result=gallery.results();assert.equal(result.month,'2026-11');
+    assert.deepEqual(result.images.map(r=>[r.id,r.votes,r.rank]),[['one',2,1],['two',2,1],['three',1,3]]);
+    assert.equal(db.prepare('SELECT total_changes() AS n').get().n,changes);
+    assert.equal(JSON.stringify(result).includes(owner.steam_id),false);
+    assert.equal(JSON.stringify(result).includes('steam'),false);
+    gallery.withdraw(owner,'one');
+    gallery.review({...voter,is_admin:true},'two',{requestId:'results-reject',status:'rejected',expectedRevision:0,reason:'Removed after moderation review'});
+    assert.deepEqual(gallery.results('2026-11').images.map(r=>r.id),['three']);
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM gallery_monthly_votes').get().n,5);
+    for(const invalid of ['2026-12','2027-01','2026-00','2026-13',[],"2026-11' OR 1=1"])
+      assert.throws(()=>gallery.results(invalid),{status:400});
+    assert.deepEqual(gallery.results('2026-10').images,[]);
+    now=Date.parse('2026-12-31T14:00:00Z');assert.equal(gallery.results().month,'2026-12');
+  }finally{db.close();}
+});

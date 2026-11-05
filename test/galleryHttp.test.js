@@ -16,6 +16,7 @@ test('upload and image routes enforce rollout, identity, origin and moderation',
   const upload=extra=>fetch(base+'/gallery?title=Screenshot',{method:'POST',headers:{...headers,...extra},body:image});
   try{
     assert.equal((await upload()).status,503);
+    assert.equal((await fetch(base+'/gallery/results')).status,503);
     assert.equal((await (await fetch(base+'/gallery/capabilities')).json()).enabled,false);
     assert.equal(db.prepare("SELECT 1 FROM sqlite_master WHERE name='gallery_images'").get(),undefined);
     process.env.HV_GALLERY_ENABLED='1';
@@ -34,6 +35,10 @@ test('upload and image routes enforce rollout, identity, origin and moderation',
     assert.equal(history.reviews[0].reason,'Community screenshot reviewed');
     assert.equal(history.reviews[0].actorSteamId,other);
     assert.equal((await (await fetch(base+'/gallery')).json()).images.length,1);
+    const resultResponse=await fetch(base+'/gallery/results');
+    assert.equal(resultResponse.status,200);assert.equal(resultResponse.headers.get('cache-control'),'private, no-store');
+    assert.deepEqual((await resultResponse.json()).images,[]);
+    assert.equal((await fetch(base+'/gallery/results?month=invalid')).status,400);
     const month=(await (await fetch(base+'/gallery')).json()).voting.month;
     const voteBody={month,imageId:id,requestId:'gallery-vote-http',expectedRevision:0,steamId:owner};
     const vote=extra=>fetch(base+'/gallery/vote',{method:'POST',headers:{Origin:base,'Content-Type':'application/json','x-test-user':other,...extra},body:JSON.stringify(voteBody)});
