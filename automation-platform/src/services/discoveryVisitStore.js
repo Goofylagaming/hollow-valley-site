@@ -57,7 +57,7 @@ function createDiscoveryVisitStore(db, { now = Date.now, enabled = () => process
       const previous = db.prepare('SELECT * FROM discovery_last_samples WHERE steam_id=?').get(steamId);
       if (previous && at <= previous.at) { db.exec('RELEASE discovery_observation'); return { recorded: false }; }
       const seconds = previous ? (at - previous.at) / 1000 : 0;
-      const continuous = valid && previous && previous.x !== null && previous.version === version && previous.life_id === lifeId && seconds >= 5 && seconds <= 120 &&
+      const continuous = valid && previous && previous.x !== null && previous.version === version && previous.life_id === lifeId && seconds > 0 && seconds <= 120 &&
         Math.hypot(location.x - previous.x, location.y - previous.y) / 100 / seconds <= 40;
       let discovered = 0;
       if (continuous) {

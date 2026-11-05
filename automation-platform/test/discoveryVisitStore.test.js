@@ -70,7 +70,7 @@ test('visits require consecutive trusted samples and retain private idempotent r
     assert.equal(visits.discovered(steam, 'v1').points.length, 0);
     clock += 10000; sample(null); clock += 10000; sample({ x: 0, y: 0 });
     assert.equal(visits.discovered(steam, 'v1').points.length, 0);
-    clock += 10000; assert.equal(sample({ x: 0, y: 0 }).discovered, 1);
+    clock += 1000; assert.equal(sample({ x: 0, y: 0 }).discovered, 1);
     assert.equal(sample({ x: 0, y: 0 }).recorded, false);
     visits = createDiscoveryVisitStore(db, { now: () => clock, enabled: () => true });
     clock += 10000; assert.equal(sample({ x: 0, y: 0 }).discovered, 0);
