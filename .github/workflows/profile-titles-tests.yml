@@ -16,4 +16,4 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: node --test test/profileTitles.test.js test/roadmapCommunity.test.js test/roadmapFrontend.test.js test/hvRoadmapIntegration.test.js
+      - run: node --test test/profileTitles.test.js test/roadmapCommunity.test.js test/roadmapFrontend.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js
