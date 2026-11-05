@@ -11,10 +11,13 @@ function createGroupTreasuryLifecycle(db){
   function inspect(groupId){
     const exists=db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='hv_group_treasury_intents'").get();
     const purchases=db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='hv_group_treasury_purchases'").get();
+    const entries=db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='hv_treasury_territory_delivery'").get();
     return {pending:Boolean((exists&&db.prepare("SELECT id FROM hv_group_treasury_intents WHERE group_id=? AND state IN('draft','submitted') LIMIT 1").get(groupId))||
-      (purchases&&db.prepare("SELECT request_id FROM hv_group_treasury_purchases WHERE group_id=? AND state IN('draft','submitted','reserved') LIMIT 1").get(groupId))),
+      (purchases&&db.prepare("SELECT request_id FROM hv_group_treasury_purchases WHERE group_id=? AND state IN('draft','submitted','reserved') LIMIT 1").get(groupId))||
+      (entries&&db.prepare("SELECT request_id FROM hv_treasury_territory_delivery WHERE group_id=? AND outcome='pending' LIMIT 1").get(groupId))),
       financialActivity:Boolean((exists&&db.prepare("SELECT id FROM hv_group_treasury_intents WHERE group_id=? AND authorized_at IS NOT NULL LIMIT 1").get(groupId))||
-      (purchases&&db.prepare('SELECT request_id FROM hv_group_treasury_purchases WHERE group_id=? AND authorized_at IS NOT NULL LIMIT 1').get(groupId)))};
+      (purchases&&db.prepare('SELECT request_id FROM hv_group_treasury_purchases WHERE group_id=? AND authorized_at IS NOT NULL LIMIT 1').get(groupId))||
+      (entries&&db.prepare('SELECT request_id FROM hv_treasury_territory_delivery WHERE group_id=? LIMIT 1').get(groupId)))};
   }
   function assertNoPending(groupId){if(inspect(groupId).pending)throw error('TREASURY_REQUESTS_PENDING','Resolve pending Treasury donation or purchase requests before closing this group');}
   const needsRemote=groupId=>process.env.GROUP_TREASURY_ENABLED==='1'||inspect(groupId).financialActivity;
