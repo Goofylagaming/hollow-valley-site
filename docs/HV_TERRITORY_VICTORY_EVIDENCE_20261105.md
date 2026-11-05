@@ -50,8 +50,8 @@ new flag defaults off. Server shutdown clears its polling timer.
 The local integration fixture covers capture transaction rollback, durable queue
 reopening, a successful receiver commit followed by a lost acknowledgement,
 idempotent retry and progression unlock. This is not an actual runtime battle or
-staging verification. Runtime-level capture tests, operational handling of review
-rows, defensive victory rules and production approval remain pending.
+staging verification. Operational handling of review rows, defensive victory rules, authenticated
+staging verification and production approval remain pending.
 
 ## Existing behavior
 
@@ -103,3 +103,15 @@ This work must include both attacker captures and defensible winner semantics fo
 defender victories. The current runtime's admin defence path is insufficient to
 claim automatically verified defensive wins. Decide and test a real resolution
 rule within the Territory feature before declaring the full victory badge complete.
+
+## Runtime fixture verification
+
+The real Territory router now has a fixture that declares attacks over local HTTP
+with a synthetic signed-in group leader, advances the actual runtime against
+synthetic automation positions and observes capture. It verifies that offline
+ticks create no live evidence, unregistered bystanders are excluded, a later
+membership change cannot alter the frozen payload, and admin control adjustments
+prevent queueing. Existing outer authentication/allowlist tests remain separate.
+This uses temporary SQLite files and a controlled clock, not a live game battle.
+The defensive-win gameplay rule has been requested from the user; no default
+battle timer or automatic defensive resolution has been introduced.
