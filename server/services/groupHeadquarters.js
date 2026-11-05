@@ -32,6 +32,10 @@ function createGroupHeadquarters(db, groups) {
       groupId: group.id, name: group.name, canEdit: group.ownerSteamId === steamId,
       description: profile?.description || '', revision: profile?.revision || 0,
       emblem: profile?.emblem || 'leaf',
+      rankEdits: db.prepare(`SELECT e.revision,e.rank,e.created_at AS createdAt,
+        COALESCE(u.username,'Former member') AS memberName
+        FROM hv_group_rank_edits e LEFT JOIN users u ON u.steam_id=e.steam_id
+        WHERE e.group_id=? ORDER BY e.rowid DESC LIMIT 20`).all(group.id),
       members: group.members.map(member => {
         const assignment = db.prepare('SELECT rank,revision,exit_id FROM hv_group_member_ranks WHERE group_id=? AND steam_id=?').get(group.id,member.steamId);
         return { steamId:member.steamId, name:member.username, role:member.role,

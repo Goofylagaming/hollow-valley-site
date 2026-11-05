@@ -7,6 +7,7 @@
     get('hq-emblem-choice').disabled = busy || !writable || !profile?.canEdit;
     get('hq-save').disabled = busy || !writable || !profile?.canEdit;
     get('hq-refresh').disabled = busy;
+    get('hq-ranks').querySelectorAll('select,button').forEach(element => { element.disabled = busy || !writable || !profile?.canEdit; });
   }
   async function refresh() {
     profile = await api('/api/group-headquarters');
@@ -22,6 +23,26 @@
       item.textContent = `Revision ${edit.revision} · ${edit.createdAt} · ${edit.emblem || 'leaf'} · ${edit.description || '(description cleared)'}`;
       history.append(item);
     }
+    const ranks = get('hq-ranks'); ranks.replaceChildren();
+    for (const member of profile.members || []) {
+      const row = document.createElement('div');
+      const label = document.createElement('p'); label.textContent = `${member.name} · ${member.rank}`; row.append(label);
+      if (profile.canEdit && member.role !== 'owner') {
+        const select = document.createElement('select'); select.setAttribute('aria-label', `Rank for ${member.name}`);
+        for (const rank of ['member','veteran','officer']) select.add(new Option(rank,rank));
+        select.value = member.rank;
+        const button = document.createElement('button'); button.type = 'button'; button.textContent = 'Save rank';
+        button.addEventListener('click', () => {
+          if (writable && profile?.canEdit) action(() => api('/api/group-headquarters/ranks', { method:'POST', body:JSON.stringify({memberSteamId:member.steamId,rank:select.value,expectedRevision:member.rankRevision}) }));
+        });
+        row.append(select,button);
+      }
+      ranks.append(row);
+    }
+    const rankHistory=get('hq-rank-history'); rankHistory.replaceChildren();
+    for (const edit of profile.rankEdits || []) {
+      const item=document.createElement('li'); item.textContent=`${edit.memberName} · ${edit.rank} · ${edit.createdAt}`; rankHistory.append(item);
+    }
     get('hq-status').textContent = writable ? (profile.canEdit ? 'You can edit your group description.' : 'The group owner can edit this description.') : 'This preview is read-only.';
     controls();
   }
@@ -29,12 +50,13 @@
     if (busy) return;
     busy = true; controls();
     try {
-      if (save) await api('/api/group-headquarters', { method: 'POST', body: JSON.stringify({ description: get('hq-description').value, emblem: get('hq-emblem-choice').value, expectedRevision: profile.revision }) });
+      if (typeof save === 'function') await save();
+      else if (save) await api('/api/group-headquarters', { method: 'POST', body: JSON.stringify({ description: get('hq-description').value, emblem: get('hq-emblem-choice').value, expectedRevision: profile.revision }) });
       await refresh();
     } catch (error) {
       // Recover ownership and revision after a response is lost or membership changes.
       try { await refresh(); }
-      catch { profile = null; get('hq-current').textContent = ''; get('hq-emblem').textContent = ''; get('hq-description').value = ''; get('hq-history').replaceChildren(); get('hq-editor').hidden = true; }
+      catch { profile = null; get('hq-current').textContent = ''; get('hq-emblem').textContent = ''; get('hq-description').value = ''; get('hq-history').replaceChildren(); get('hq-ranks').replaceChildren(); get('hq-rank-history').replaceChildren(); get('hq-editor').hidden = true; }
       get('hq-status').textContent = error.message;
     } finally { busy = false; controls(); }
   }
@@ -45,6 +67,7 @@
     if (profile?.groupId !== event.detail?.groupId) {
       profile = null; get('hq-current').textContent = ''; get('hq-description').value = '';
       get('hq-emblem').textContent = '';
+      get('hq-ranks').replaceChildren(); get('hq-rank-history').replaceChildren();
       get('hq-history').replaceChildren(); get('hq-editor').hidden = true;
     } else if (get('hq-description').value !== profile.description || get('hq-emblem-choice').value !== profile.emblem) return;
     action();
