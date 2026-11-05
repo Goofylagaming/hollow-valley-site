@@ -7,6 +7,8 @@ on:
       - 'automation-platform/src/services/progressionService.js'
       - 'automation-platform/test/combat*.test.js'
       - 'automation-platform/test/progressionService.test.js'
+      - 'automation-platform/test/primeAchievement.test.js'
+      - 'automation-platform/src/services/primeTrackerService.js'
       - 'scripts/game-combat-line.js'
       - 'test/gameCombatLine.test.js'
       - '.github/workflows/achievement-evidence-tests.yml'
@@ -22,4 +24,4 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: node --test test/gameCombatLine.test.js automation-platform/test/combatSpeciesAchievements.test.js automation-platform/test/combatEventService.test.js automation-platform/test/combatRoutes.test.js automation-platform/test/combatCalendarReset.test.js automation-platform/test/progressionService.test.js
+      - run: node --test automation-platform/test/primeAchievement.test.js test/gameCombatLine.test.js automation-platform/test/combatSpeciesAchievements.test.js automation-platform/test/combatEventService.test.js automation-platform/test/combatRoutes.test.js automation-platform/test/combatCalendarReset.test.js automation-platform/test/progressionService.test.js

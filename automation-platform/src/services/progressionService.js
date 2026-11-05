@@ -33,6 +33,7 @@ const RANKS = Object.freeze([
 ]);
 
 const ACHIEVEMENTS = Object.freeze([
+  { id: 'prime-observed', title: 'Prime Survivor', description: 'Have a dinosaur observed as Prime by the server.', type: 'prime_observed', threshold: 1 },
   { id: 'combat-species-5', title: 'Versatile Hunter', description: 'Kill players of five different recorded dinosaur species.', type: 'combat_species', threshold: 5 },
   { id: 'skins-10', title: 'Valley Collector', description: 'Own 10 distinct active skins through creation, purchase or a personal grant.', type: 'owned_skins', threshold: 10 },
   { id: 'first-level', title: 'Moving Up', description: 'Reach level 2.', type: 'level', threshold: 2 },
@@ -213,6 +214,7 @@ function countersFor(steamId) {
     quests: countQuestCompletions(steamId),
     events: countConfirmedEvents(steamId),
     combat_species: countCombatSpecies(steamId),
+    prime_observed: hasObservedPrime(steamId),
     // Catalog availability (including shared premium presets) is not ownership.
     // EXISTS prevents multiple entitlement paths from counting a preset twice.
     owned_skins: Number(store.db.prepare(`
@@ -232,6 +234,15 @@ function countCombatSpecies(steamId) {
   return Number(store.db.prepare(`SELECT COUNT(DISTINCT victim_species) AS count
     FROM combat_events WHERE killer_steam_id = ? AND killer_steam_id <> victim_steam_id
     AND victim_species IS NOT NULL`).get(steamId).count);
+}
+
+function hasObservedPrime(steamId) {
+  const columns = new Set(store.db.prepare('PRAGMA table_info(prime_tracker_lives)').all().map(c => c.name));
+  if (!['steam_id', 'is_prime', 'prime_started_at', 'prime_preexisting'].every(c => columns.has(c))) return 0;
+  // Recognize observed status, including preexisting Prime. This does not infer
+  // natural attainment, original attainment time, or Prime from growth alone.
+  return store.db.prepare(`SELECT 1 FROM prime_tracker_lives WHERE steam_id = ?
+    AND (is_prime = 1 OR prime_started_at IS NOT NULL OR prime_preexisting = 1) LIMIT 1`).get(steamId) ? 1 : 0;
 }
 
 function unlockEligibleAchievements(steamId) {

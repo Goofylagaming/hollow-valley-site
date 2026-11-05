@@ -25,6 +25,15 @@ Windows game-log forwarder, then observing a staging event end-to-end. The
 canonical registry deliberately ignores unrecognized labels; update it only with
 verified species names. No historical species backfill is attempted.
 
+Prime Survivor recognizes a dinosaur observed as Prime by the server tracker.
+It accepts both recorded transitions and preexisting Prime observations, retaining
+the badge across subsequent lives. Adult growth alone does not qualify. This is
+an observed-status badge: it does not claim natural attainment, exclude a Prime
+status obtained through an admin action, or invent the original attainment time.
+The award timestamp records when the permanent achievement was recognized.
+The original roadmap asks to reach Prime and specifies no separate provenance
+rule; any future naturally-earned-only badge would require additional evidence.
+
 The original #2 description is retained and its status is Building / Testing.
 Historical votes remain; retired #2 votes no longer use active voting slots.
 
@@ -33,7 +42,7 @@ Remaining original unlocks and evidence requirements:
 | Unlock | Current evidence and remaining work |
 | --- | --- |
 | Ten hours on one dinosaur | Legacy tracks observed life segments, separating species changes, growth resets and long gaps. Account playtime is insufficient; delayed combat deaths and continuity must be reconciled before permanent awards. |
-| Reach Prime | Prime tracker distinguishes preexisting Prime from observed transitions, but admin Prime grants exist. Establish eligibility and provenance before awarding gameplay badges. |
+| Reach Prime | Implemented locally as observed Prime status, including preexisting observations; authenticated staging verification pending. |
 | Win a Territory War | Integrate authoritative finalized battle results and participant identity; a kill or generic territory event is insufficient. |
 | Kill five different species | Implemented locally from event-time species, awaiting forwarder/service rollout and authenticated staging verification. |
 | Raise a nested baby to adult | Verified parent links exist, but nest reservations are not hatch proof. Link verified hatch evidence to growth in the same life. |
@@ -51,3 +60,10 @@ badge unlock, account isolation, deduplication and no additional payout. Existin
 combat HTTP authentication, daily/weekly reset and leaderboard tests also pass.
 Windows test fixtures now close their SQLite handles before deleting temporary
 files, and refresh economy/quest module instances between database fixtures.
+
+Prime validation covers an absent optional tracker, full growth without Prime,
+observed transitions, preexisting Prime without fabricated timestamps, old samples,
+account separation, permanence and no extra XP/currency. The isolated profile
+browser fixture renders all three badges at 1440px and 390px, checks their count
+and layout bounds, and retains title save/reload/outage/guest checks. Both badge
+screenshots were visually reviewed. These fixtures are not staging evidence.
