@@ -114,6 +114,32 @@
   document.getElementById('status-rcon-state').textContent=label;document.getElementById('status-rcon-detail').textContent=detail;
   document.getElementById('status-rcon-time').textContent=at!==null?'RCON read observation: '+new Date(at).toLocaleString('en-AU',{timeZone:'Australia/Brisbane',dateStyle:'medium',timeStyle:'short'})+' AEST':'No timestamped RCON read observed';
  }
+ const discordMessages={
+  'request-returned':['ok','Authenticated poll returned','An authenticated bridge polling request completed. Discord gateway readiness and message delivery are not verified.'],
+  'request-failed':['attention','Polling request failed','The last authenticated polling request failed. This does not establish a Discord gateway outage.'],
+  'bridge-not-configured':['unknown','Bridge not configured','The bot bridge contact source is not configured.'],
+  'invalid-observation':['unknown','Observation unverified','The bridge contact observation or its time could not be verified.'],
+  'timed-out':['delayed','Observation fetch timed out','The contact observation source did not respond in time. The bot was not polled by this check.'],
+  stale:['delayed','Delayed','The recorded bridge contact has expired. Current contact is unverified.'],
+  'not-configured':['unknown','Not monitored','The bridge contact observation is not enabled.'],
+  'integration-not-configured':['unknown','Not configured','The observation source connection is not configured.'],
+  'no-observation':['unknown','No observed contact','No completed authenticated polling request has been observed in the source process yet.'],
+  'unverified-clock':['unknown','Clock unverified','The bridge contact time cannot be verified.'],
+  unavailable:['unknown','Unknown','The contact source could not be checked. Discord gateway and delivery remain unverified.']
+ };
+ function renderDiscord(value){
+  const card=document.getElementById('status-discord-card');if(!card)return;
+  let code='unavailable',at=null;
+  if(value?.scope==='authenticated-bot-bridge-contact'&&value.gatewayVerified===false&&value.deliveryVerified===false&&Object.hasOwn(discordMessages,value.code)){
+   code=value.code;
+   if(value.observedAt!==null){at=Date.parse(value.observedAt);if(typeof value.observedAt!=='string'||!Number.isSafeInteger(at)||at<0||new Date(at).toISOString()!==value.observedAt){code='unavailable';at=null;}}
+   if(['request-returned','request-failed'].includes(code)&&at===null)code='unavailable';
+   if(at!==null)code=at>Date.now()?'unverified-clock':Date.now()-at>180000?'stale':code;
+  }
+  const [state,label,detail]=discordMessages[code];card.dataset.state=state;
+  document.getElementById('status-discord-state').textContent=label;document.getElementById('status-discord-detail').textContent=detail;
+  document.getElementById('status-discord-time').textContent=at!==null?'Bridge contact: '+new Date(at).toLocaleString('en-AU',{timeZone:'Australia/Brisbane',dateStyle:'medium',timeStyle:'short'})+' AEST':'No timestamped bridge contact observed';
+ }
  let controller=null,generation=0;
  function show(code,at=null){const [state,label,detail]=messages[code]||messages.unavailable;document.getElementById('status-worker-card').dataset.state=state;$('state').textContent=label;$('detail').textContent=detail;$('time').textContent=at?'Agent snapshot: '+new Date(at).toLocaleString('en-AU',{timeZone:'Australia/Brisbane',dateStyle:'medium',timeStyle:'short'})+' AEST':'No verified worker observation yet';}
  function renderWorker(value){
@@ -127,10 +153,10 @@
   const current=++generation;if(controller)controller.abort();controller=new AbortController();const active=controller,timer=setTimeout(()=>active.abort(),8000);
   try{
    const response=await fetch('/api/component-status',{cache:'no-store',credentials:'same-origin',signal:active.signal});if(!response.ok)throw new Error();const body=await response.json();if(current!==generation)return;
-   if(body?.available===false){show('not-configured');renderRcon({scope:'automation-rcon-status-read',commandExecutionVerified:false,playerDataVerified:false,code:'not-configured',observedAt:null});renderMarketplace({scope:'official-catalog-read',checkoutVerified:false,fulfillmentVerified:false,code:'not-configured',observedAt:null});renderSteam({scope:'provider-discovery-http',linkingVerified:false,code:'not-configured',observedAt:null});renderMap({scope:'cached-position-source',renderingVerified:false,code:'not-configured',observedAt:null});return;}
-   if(body?.available!==true||!Array.isArray(body.components)||body.components.length<1||body.components.length>5)throw new Error();if(new Set(body.components.map(v=>v?.id)).size!==body.components.length||body.components.some(v=>!['map-source','bridge-worker','steam-openid','marketplace-catalog','rcon-read'].includes(v?.id)))throw new Error();renderRcon(body.components.find(v=>v?.id==='rcon-read'));renderMarketplace(body.components.find(v=>v?.id==='marketplace-catalog'));renderSteam(body.components.find(v=>v?.id==='steam-openid'));renderMap(body.components.find(v=>v?.id==='map-source'));const value=body.components.find(v=>v?.id==='bridge-worker');
+   if(body?.available===false){show('not-configured');renderDiscord({scope:'authenticated-bot-bridge-contact',gatewayVerified:false,deliveryVerified:false,code:'not-configured',observedAt:null});renderRcon({scope:'automation-rcon-status-read',commandExecutionVerified:false,playerDataVerified:false,code:'not-configured',observedAt:null});renderMarketplace({scope:'official-catalog-read',checkoutVerified:false,fulfillmentVerified:false,code:'not-configured',observedAt:null});renderSteam({scope:'provider-discovery-http',linkingVerified:false,code:'not-configured',observedAt:null});renderMap({scope:'cached-position-source',renderingVerified:false,code:'not-configured',observedAt:null});return;}
+   if(body?.available!==true||!Array.isArray(body.components)||body.components.length<1||body.components.length>6)throw new Error();if(new Set(body.components.map(v=>v?.id)).size!==body.components.length||body.components.some(v=>!['map-source','bridge-worker','steam-openid','marketplace-catalog','rcon-read','discord-bridge'].includes(v?.id)))throw new Error();renderDiscord(body.components.find(v=>v?.id==='discord-bridge'));renderRcon(body.components.find(v=>v?.id==='rcon-read'));renderMarketplace(body.components.find(v=>v?.id==='marketplace-catalog'));renderSteam(body.components.find(v=>v?.id==='steam-openid'));renderMap(body.components.find(v=>v?.id==='map-source'));const value=body.components.find(v=>v?.id==='bridge-worker');
    renderWorker(value);
-  }catch{if(current===generation){show('unavailable');renderMap(null);renderSteam(null);renderMarketplace(null);renderRcon(null);}}
+  }catch{if(current===generation){show('unavailable');renderMap(null);renderSteam(null);renderMarketplace(null);renderRcon(null);renderDiscord(null);}}
   finally{clearTimeout(timer);if(current===generation)controller=null;}
  }
  function init(){if(!$('state'))return;document.getElementById('status-refresh')?.addEventListener('click',refresh);refresh();setInterval(()=>{if(!document.hidden)refresh();},30000);}

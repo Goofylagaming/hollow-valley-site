@@ -630,3 +630,50 @@ the bot owner. Periodic website collection, public display, real producer/source
 cadence review, authenticated staging, retention policy, hosted CI and remaining
 #29/full-roadmap release requirements are unfinished. No live flags, bot process,
 message queue, player data, pushes, merges or deployments were changed.
+
+
+## Discord bridge collection and public contact display — 6 November 2026
+
+The website's STATUS_COMPONENTS_DISCORD_ENABLED monitor defaults off and reads
+only the token-protected passive /api/website/discord/health source. It never calls
+bot polling routes, claims messages or contacts Discord. Its one-minute cadence,
+one active request and five-second deadline are independent of public page reads.
+Shutdown cancels source HTTP work and clears saved observations. The separately
+owned bot checkout and running bot process were not modified.
+
+The collector requires source version, exact authenticated-bot-bridge-contact
+scope, bounded returned/failed/stale or unknown states, explicit false gateway/
+delivery verification and original UTC contact clocks. Older/conflicting results
+are rejected. Exact cached repeats preserve the source and first local check-start
+clocks; they cannot refresh apparent bot contact. Source-derived expiry keeps its
+old date and is accepted only after actual expiry. Both source and local cache
+age expire after three minutes. Disabled/missing/no-contact/clock-unknown states
+and failed fetches never acquire invented bot-contact dates. Configuration changes
+invalidate stored results and pending replies. No provider payload or credentials
+are retained in the public projection.
+
+The separate Discord bridge contact card reports an authenticated poll returned,
+a failed polling request, absent contact or scoped unknown/delayed data. It says
+Discord gateway readiness and message delivery are unverified. An authenticated
+integration request is not proof a Discord gateway client is online, that the
+caller was the bot, or that a message reached a channel. Public polling cannot
+renew the source contact. The browser independently rejects expired/future/bad
+clocks and upgraded gateway/delivery claims. Older component frames leave this
+card unknown; these failures never change the independent game/website summary.
+
+179 affected local checks pass. The actual authorized bot/source/client/collector/
+public-route fixture proves repeated public reads perform one source fetch, no
+new bot claims, no business writes and no timestamp renewal. A held actual HTTP
+request checks fixed-path authenticated GET and cancellation propagation. Service
+checks cover unknown states, strict metadata, source replay/conflict, expiry,
+clock rollback, single flight/cadence, timeouts, late replies and config changes.
+Desktop1440/phone390 fixtures cover returned/failed polls, missing configuration,
+absent contact, timeout, dated/undated expiry, future/invalid clocks and false
+verification claims while the game remains independently online. The phone card
+was visually inspected. Homepage is v142, status CSS v8 and component controller v6.
+
+No live flag, bot action, message, wallet, command, push, merge or deployment was
+performed. Actual Discord gateway/channel/delivery evidence, live source cadence,
+authenticated staging, incident retention, hosted CI and the wider #29/full-roadmap
+release gates remain incomplete. Local contact display does not complete Discord
+health monitoring or the 31-feature roadmap.

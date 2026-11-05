@@ -428,6 +428,8 @@ function startServer() {
     server.once('close', stopMarketplaceHealth);
     const stopRconHealth = require('./services/rconHealth').getDefaultService().start();
     server.once('close', stopRconHealth);
+    const stopDiscordHealth = require('./services/discordBridgeHealth').getDefaultService().start();
+    server.once('close', stopDiscordHealth);
     const membershipDiscordTimer = require("./services/membershipDiscordQueue").start();
     server.once("close", () => { if (membershipDiscordTimer) clearInterval(membershipDiscordTimer); });
     const subscriberFundingTimer = require("./services/subscriberFunding").getDefaultService().start();

@@ -1,6 +1,6 @@
 "use strict";
 const {createBridgeWorkerHealthStore}=require('../services/bridgeWorkerHealth');
-function createRouter({db,env=process.env,now=Date.now,getMapState,getSteamHealth,getMarketplaceHealth,getRconHealth}={}){
+function createRouter({db,env=process.env,now=Date.now,getMapState,getSteamHealth,getMarketplaceHealth,getRconHealth,getDiscordBridgeHealth}={}){
  const router=require('express').Router();
  router.get('/',(_req,res)=>{
   res.set('Cache-Control','no-store');
@@ -16,7 +16,9 @@ function createRouter({db,env=process.env,now=Date.now,getMapState,getSteamHealt
   if(env.STATUS_COMPONENTS_MARKETPLACE_ENABLED==='1'){try{marketplace=(getMarketplaceHealth||(()=>require('../services/marketplaceHealth').getDefaultService().read()))();}catch{marketplace={...marketplace,code:'unavailable'};}}
   let rcon={id:'rcon-read',scope:'automation-rcon-status-read',code:'not-configured',observedAt:null,commandExecutionVerified:false,playerDataVerified:false};
   if(env.STATUS_COMPONENTS_RCON_ENABLED==='1'){try{rcon=(getRconHealth||(()=>require('../services/rconHealth').getDefaultService().read()))();}catch{rcon={...rcon,code:'unavailable'};}}
-  return res.json({available:true,components:[worker,map,steam,marketplace,rcon]});
+  let discord={id:'discord-bridge',scope:'authenticated-bot-bridge-contact',code:'not-configured',observedAt:null,gatewayVerified:false,deliveryVerified:false};
+  if(env.STATUS_COMPONENTS_DISCORD_ENABLED==='1'){try{discord=(getDiscordBridgeHealth||(()=>require('../services/discordBridgeHealth').getDefaultService().read()))();}catch{discord={...discord,code:'unavailable'};}}
+  return res.json({available:true,components:[worker,map,steam,marketplace,rcon,discord]});
  });return router;
 }
 module.exports={createRouter};

@@ -51,7 +51,7 @@ test('status page is public, read-only and reachable without adding crowded navi
   const roadmap = read('public/assets/home-roadmap.js');
   const sourceHome = read('public/assets/home-v2.js');
   assert.match(html, /\/assets\/status-page\.js\?v=1/);
-  assert.match(html, /\/assets\/status-page\.css\?v=7/);
+  assert.match(html, /\/assets\/status-page\.css\?v=8/);
   assert.match(html, /not independently monitored/);
   assert.match(index, /href="\/status"/);
   assert.match(server, /"status"/);
