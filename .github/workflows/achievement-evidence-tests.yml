@@ -9,6 +9,7 @@ on:
       - 'automation-platform/test/progressionService.test.js'
       - 'automation-platform/test/primeAchievement.test.js'
       - 'automation-platform/test/nestedAdultAchievement.test.js'
+      - 'automation-platform/test/lifeSurvivalAchievement.test.js'
       - 'automation-platform/src/services/valleyLegacyStore.js'
       - 'automation-platform/src/services/primeTrackerService.js'
       - 'scripts/game-combat-line.js'
@@ -26,4 +27,4 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: node --test automation-platform/test/nestedAdultAchievement.test.js test/valleyLegacy.test.js automation-platform/test/primeAchievement.test.js test/gameCombatLine.test.js automation-platform/test/combatSpeciesAchievements.test.js automation-platform/test/combatEventService.test.js automation-platform/test/combatRoutes.test.js automation-platform/test/combatCalendarReset.test.js automation-platform/test/progressionService.test.js
+      - run: node --test automation-platform/test/lifeSurvivalAchievement.test.js automation-platform/test/nestedAdultAchievement.test.js test/valleyLegacy.test.js automation-platform/test/primeAchievement.test.js test/gameCombatLine.test.js automation-platform/test/combatSpeciesAchievements.test.js automation-platform/test/combatEventService.test.js automation-platform/test/combatRoutes.test.js automation-platform/test/combatCalendarReset.test.js automation-platform/test/progressionService.test.js

@@ -31,6 +31,8 @@ test('verified juvenile-to-adult life unlocks permanently, but reservations and 
   verify(life);
   const earned=badge(a);
   assert.equal(earned.title,'Valley Born');
+  assert.equal(earned.metadata.evidence.lifeId,life);
+  assert.ok(earned.metadata.evidence.adultAt>earned.metadata.evidence.juvenileAt);
   sample(a,0.1); // New life must not remove a permanent award.
   assert.deepEqual(badge(a),earned);
   assert.equal(store.getWallet(a).balance,0);

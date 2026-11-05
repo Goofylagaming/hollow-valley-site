@@ -49,11 +49,19 @@ evidence arriving after a permanent award needs an audited correction policy
 before production rollout; no automatic revocation or player-data rewrite is
 introduced here. Automatic hatch detection remains outside this implemented slice.
 
+Enduring Survivor uses the all-time survival record for one observed Legacy life,
+requiring at least 36,000 recorded seconds. Account playtime, mastery totals and
+time across different lives are not interchangeable with this evidence. It checks
+the record against the life's time bounds and known deaths in both combat and
+Legacy records. Long unobserved gaps do not count. Both life-based badges now
+retain the supporting life ID and observation times in the permanent ledger for
+later audit. Evidence received after an award remains a production rollout gate.
+
 Remaining original unlocks and evidence requirements:
 
 | Unlock | Current evidence and remaining work |
 | --- | --- |
-| Ten hours on one dinosaur | Legacy tracks observed life segments, separating species changes, growth resets and long gaps. Account playtime is insufficient; delayed combat deaths and continuity must be reconciled before permanent awards. |
+| Ten hours on one dinosaur | Implemented locally from a single observed life and known-death checks; staging and post-award delayed-evidence handling remain pending. |
 | Reach Prime | Implemented locally as observed Prime status, including preexisting observations; authenticated staging verification pending. |
 | Win a Territory War | Integrate authoritative finalized battle results and participant identity; a kill or generic territory event is insufficient. |
 | Kill five different species | Implemented locally from event-time species, awaiting forwarder/service rollout and authenticated staging verification. |
@@ -79,3 +87,7 @@ account separation, permanence and no extra XP/currency. The isolated profile
 browser fixture renders all three badges at 1440px and 390px, checks their count
 and layout bounds, and retains title save/reload/outage/guest checks. Both badge
 screenshots were visually reviewed. These fixtures are not staging evidence.
+
+The browser fixture now includes all five new badges. Survival tests simulate
+five-minute snapshots up to the exact ten-hour threshold, species/life changes,
+long gaps, account-only playtime and raw combat deaths pending Legacy import.

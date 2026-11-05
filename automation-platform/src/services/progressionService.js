@@ -33,6 +33,7 @@ const RANKS = Object.freeze([
 ]);
 
 const ACHIEVEMENTS = Object.freeze([
+  { id: 'life-survival-10h', title: 'Enduring Survivor', description: 'Survive 10 recorded hours on one dinosaur life.', type: 'life_survival_seconds', threshold: 36000 },
   { id: 'nested-adult', title: 'Valley Born', description: 'Grow a verified nested dinosaur from juvenile to adult in one observed life.', type: 'nested_adult', threshold: 1 },
   { id: 'prime-observed', title: 'Prime Survivor', description: 'Have a dinosaur observed as Prime by the server.', type: 'prime_observed', threshold: 1 },
   { id: 'combat-species-5', title: 'Versatile Hunter', description: 'Kill players of five different recorded dinosaur species.', type: 'combat_species', threshold: 5 },
@@ -209,6 +210,8 @@ function countConfirmedEvents(steamId) {
 
 function countersFor(steamId) {
   const player = ensurePlayer(steamId);
+  const survival = survivalEvidence(steamId);
+  const nested = nestedAdultEvidence(steamId);
   return {
     level: Number(player.level) || 1,
     playtime_minutes: Number(player.playtime_intervals || 0) * 5,
@@ -216,7 +219,12 @@ function countersFor(steamId) {
     events: countConfirmedEvents(steamId),
     combat_species: countCombatSpecies(steamId),
     prime_observed: hasObservedPrime(steamId),
-    nested_adult: hasNestedAdult(steamId),
+    nested_adult: nested ? 1 : 0,
+    life_survival_seconds: Number(survival?.value || 0),
+    evidence: {
+      life_survival_seconds: survival ? { lifeId:survival.id, observedThrough:survival.achieved_at } : null,
+      nested_adult: nested ? { lifeId:nested.id, juvenileAt:nested.juvenile_at, adultAt:nested.adult_at } : null,
+    },
     // Catalog availability (including shared premium presets) is not ownership.
     // EXISTS prevents multiple entitlement paths from counting a preset twice.
     owned_skins: Number(store.db.prepare(`
@@ -238,6 +246,25 @@ function countCombatSpecies(steamId) {
     AND victim_species IS NOT NULL`).get(steamId).count);
 }
 
+function survivalEvidence(steamId) {
+  const tables = store.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('vl_lives','vl_records','vl_events')").all();
+  if (tables.length !== 3) return null;
+  const combatAvailable = store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='combat_events'").get();
+  const noUnimportedDeath = combatAvailable ? `AND NOT EXISTS (
+    SELECT 1 FROM combat_events c WHERE c.victim_steam_id=l.steam_id
+    AND (CAST(strftime('%s',c.occurred_at) AS INTEGER)*1000 + CAST(substr(strftime('%f',c.occurred_at),4,3) AS INTEGER))
+      BETWEEN l.started_at AND r.achieved_at)` : '';
+  return store.db.prepare(`SELECT l.id,r.value,r.achieved_at FROM vl_lives l
+    JOIN vl_records r ON r.subject=l.id AND r.scope='all' AND r.metric='survival_seconds'
+    WHERE l.steam_id=? AND r.value>=36000
+    AND r.achieved_at<=l.last_at AND r.value*1000<=r.achieved_at-l.started_at
+    AND (l.ended_at IS NULL OR l.ended_at>=r.achieved_at)
+    AND NOT EXISTS (SELECT 1 FROM vl_events d WHERE json_extract(d.payload,'$.type')='combat_death'
+      AND json_extract(d.payload,'$.steamId')=l.steam_id
+      AND d.occurred_at BETWEEN l.started_at AND r.achieved_at)
+    ${noUnimportedDeath} ORDER BY r.achieved_at,l.id LIMIT 1`).get(steamId) || null;
+}
+
 function hasObservedPrime(steamId) {
   const columns = new Set(store.db.prepare('PRAGMA table_info(prime_tracker_lives)').all().map(c => c.name));
   if (!['steam_id', 'is_prime', 'prime_started_at', 'prime_preexisting'].every(c => columns.has(c))) return 0;
@@ -247,16 +274,16 @@ function hasObservedPrime(steamId) {
     AND (is_prime = 1 OR prime_started_at IS NOT NULL OR prime_preexisting = 1) LIMIT 1`).get(steamId) ? 1 : 0;
 }
 
-function hasNestedAdult(steamId) {
+function nestedAdultEvidence(steamId) {
   const tables = store.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('vl_lives','vl_parents','vl_growth_milestones','vl_events')").all();
-  if (tables.length !== 4) return 0;
+  if (tables.length !== 4) return null;
   // Do not wait for the periodic Legacy importer to notice a known death.
   const combatAvailable = store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='combat_events'").get();
   const noUnimportedDeath = combatAvailable ? `AND NOT EXISTS (
     SELECT 1 FROM combat_events c WHERE c.victim_steam_id=l.steam_id
     AND (CAST(strftime('%s',c.occurred_at) AS INTEGER)*1000 + CAST(substr(strftime('%f',c.occurred_at),4,3) AS INTEGER))
       BETWEEN g.juvenile_at AND g.adult_at)` : '';
-  return store.db.prepare(`SELECT 1 FROM vl_lives l
+  return store.db.prepare(`SELECT l.id,g.juvenile_at,g.adult_at FROM vl_lives l
     JOIN vl_growth_milestones g ON g.life_id=l.id
     WHERE l.steam_id=? AND g.adult_at>g.juvenile_at
     AND (l.ended_at IS NULL OR l.ended_at>=g.adult_at)
@@ -267,7 +294,7 @@ function hasNestedAdult(steamId) {
     AND NOT EXISTS (SELECT 1 FROM vl_events d WHERE json_extract(d.payload,'$.type')='combat_death'
       AND json_extract(d.payload,'$.steamId')=l.steam_id
       AND d.occurred_at BETWEEN g.juvenile_at AND g.adult_at)
-    ${noUnimportedDeath} LIMIT 1`).get(steamId) ? 1 : 0;
+    ${noUnimportedDeath} ORDER BY g.adult_at,l.id LIMIT 1`).get(steamId) || null;
 }
 
 function unlockEligibleAchievements(steamId) {
@@ -285,6 +312,7 @@ function unlockEligibleAchievements(steamId) {
       type: definition.type,
       threshold: definition.threshold,
       value: Number(counters[definition.type] || 0),
+      ...(counters.evidence?.[definition.type] ? { evidence:counters.evidence[definition.type] } : {}),
     }));
     if (Number(result.changes || 0) > 0) unlocked.push({ ...definition });
   }

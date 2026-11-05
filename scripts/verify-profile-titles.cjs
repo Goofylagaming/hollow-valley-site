@@ -15,6 +15,7 @@ async function main() {
       let selected = null, failSave = false, failRead = false, loggedIn = true;
       const writes = [], errors = [];
       const achievements = [
+        {id:'life-survival-10h',title:'Enduring Survivor',description:'Survive 10 recorded hours on one dinosaur life.'},
         {id:'nested-adult',title:'Valley Born',description:'Grow a verified nested dinosaur from juvenile to adult in one observed life.'},
         {id:'skins-10',title:'Valley Collector',description:'Own 10 distinct active skins through creation, purchase or a personal grant.'},
         {id:'combat-species-5',title:'Versatile Hunter',description:'Kill players of five different recorded dinosaur species.'},
@@ -51,9 +52,9 @@ async function main() {
       page.on('pageerror', error => errors.push(error.message));
       await page.goto('http://hv.test/profile');
       await page.waitForFunction(() => !document.getElementById('profile-title-choice').disabled);
-      await page.waitForFunction(() => document.querySelectorAll('#profile-achievements article').length === 4);
+      await page.waitForFunction(() => document.querySelectorAll('#profile-achievements article').length === 5);
       assert.deepEqual(await page.locator('#profile-achievements b').allTextContents(),achievements.map(a=>a.title));
-      assert.equal(await page.locator('#profile-achievement-count').innerText(),'4');
+      assert.equal(await page.locator('#profile-achievement-count').innerText(),'5');
       assert.equal(await page.locator('#profile-achievements').evaluate(panel => {
         const box=panel.getBoundingClientRect();
         return [...panel.querySelectorAll('article')].some(card=>card.getBoundingClientRect().right > box.right+1);
@@ -95,7 +96,7 @@ async function main() {
       await page.waitForFunction(() => !document.getElementById('profile-guard').hidden);
       assert.equal(await page.locator('#profile-title-form').isVisible(), false);
       assert.deepEqual(errors, []);
-      console.log(`PASS ${width}px: four badges, unlocks, save/reload, failure/retry, clear, outage, guest, bounds, no page errors`);
+      console.log(`PASS ${width}px: five badges, unlocks, save/reload, failure/retry, clear, outage, guest, bounds, no page errors`);
       await context.close();
     }
   } finally { await browser.close(); }
