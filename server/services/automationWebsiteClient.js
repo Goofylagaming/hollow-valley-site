@@ -928,3 +928,4 @@ module.exports = {
 };
 
 module.exports.legacyRequest = (path, options) => call(`/legacy${path}`, options);
+module.exports.postTerritoryVictory = payload => call('/territory-results', {method:'POST',body:payload});

@@ -36,8 +36,22 @@ manual and defensive outcome formats are rejected.
 Progression can now award Territory Victor from this received ledger, only to
 frozen winners and without XP/currency. Receiver tests cover auth/disabled-token
 gates, payload validation, immutable replay, account separation, failed multirow
-insert rollback and retry. The website producer/outbox is not yet connected;
-there is no production end-to-end delivery or defensive victory support yet.
+insert rollback and retry.
+
+Capture now queues the canonical result alongside its frozen winners in the
+existing capture transaction. `territoryVictoryOutbox` persists payloads, retries
+transient failures with bounded backoff and requires a matching acknowledgement.
+400/409/422 responses retain the payload in review state; they are never silently
+dropped or force-replaced. Error storage uses sanitized codes, not response bodies.
+Delivery uses the existing website integration client and token. It starts only
+when Territory runtime is enabled and `TERRITORY_VICTORY_DELIVERY_ENABLED=1`; the
+new flag defaults off. Server shutdown clears its polling timer.
+
+The local integration fixture covers capture transaction rollback, durable queue
+reopening, a successful receiver commit followed by a lost acknowledgement,
+idempotent retry and progression unlock. This is not an actual runtime battle or
+staging verification. Runtime-level capture tests, operational handling of review
+rows, defensive victory rules and production approval remain pending.
 
 ## Existing behavior
 

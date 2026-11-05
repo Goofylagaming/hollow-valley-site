@@ -1,5 +1,6 @@
 // Internal evidence only. No player endpoint, badge, currency or game command.
 function createBattleProvenance(db) {
+  const outbox=require('./territoryVictoryOutbox').createVictoryOutbox(db);
   db.exec(`CREATE TABLE IF NOT EXISTS territory_battle_provenance (
     attack_id INTEGER PRIMARY KEY,event_id INTEGER NOT NULL,started_at INTEGER NOT NULL,
     live_observed INTEGER NOT NULL DEFAULT 0,disqualified_reason TEXT,
@@ -62,6 +63,11 @@ function createBattleProvenance(db) {
         AND NOT EXISTS (SELECT 1 FROM territory_battle_participants other
           WHERE other.attack_id=p.attack_id AND other.steam_id=p.steam_id AND other.side<>p.side)`)
         .run(id,side,at);
+      const roster=db.prepare('SELECT steam_id FROM territory_battle_winners WHERE attack_id=? ORDER BY steam_id').all(id).map(r=>r.steam_id);
+      if(outcome==='capture' && roster.length) outbox.enqueue({
+        version:1,attackId:id,eventId:result.event_id,startedAt:result.started_at,resolvedAt:at,
+        outcome,provenance:'recorded-live',winners:roster,
+      });
     }
     return {eligible:!result.disqualified_reason && result.live_observed===1,
       reason:result.disqualified_reason || (result.live_observed?'recorded-live':'no-live-evidence')};
