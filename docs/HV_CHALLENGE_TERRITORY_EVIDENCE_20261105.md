@@ -48,6 +48,36 @@ an eligible outcome or a game-character identity.
 
 ## Required survival integration
 
+### Source identity and unknown telemetry audit
+
+The inspected authenticated external intake (`normalizeExternalPlayers` in
+`playerPresenceService.js`) and saved external snapshot carry Steam identity,
+species, growth, vitals and location, but no stable game life/character ID.
+Legacy creates its own UUID for an observed segment, splitting on disappearance,
+species/growth reset or a long gap. That UUID does not establish an authoritative
+game life, including an unobserved same-species respawn between samples. The
+Territory survival requirement therefore still needs verified producer evidence;
+neither Steam identity nor the Legacy UUID is promoted into a survival proof.
+
+Intake now accepts only nonblank finite numeric strings or numbers for numeric
+telemetry. Explicit null, blank strings, Booleans, arrays and objects stay unknown,
+rather than coercing to zero or one. This also prevents invalid object coordinates
+from becoming observations at the origin. Actual numeric zero remains valid.
+An authenticated HTTP fixture checks intake, immutable retry, saved snapshot and
+Legacy together: unknown growth followed by adult growth cannot create a juvenile
+milestone; a genuinely observed zero followed by adult growth still can.
+
+This correction does not repair previously accepted samples or retroactively
+grant/revoke progress. A retry of a historical sample whose normalized payload
+changes under this stricter conversion can conflict with its original hash; it
+must not silently replace the original receipt or repeat its side effects.
+
+91 affected checks pass after this correction, including authenticated intake,
+challenge/Legacy/location evidence, existing paid quest rules, presence sessions
+and roadmap/navigation preservation. The presence unit fixture now uses isolated
+in-memory SQLite databases; its former open-file cleanup failed on Windows.
+No new player interface is added. Homepage planning asset version is 111.
+
 - Freeze the actual participant/side and authoritative life/character identity
   for the relevant real battle. Include the needed capture/defence and other
   participating-side outcomes; a winner-only roster is insufficient.

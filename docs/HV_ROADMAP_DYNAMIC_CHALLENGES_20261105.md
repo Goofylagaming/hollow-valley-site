@@ -3,6 +3,13 @@
 Roadmap #3 remains Building / Testing. This branch has the evidence layer and
 private player controls. Nothing has been deployed or enabled.
 
+Authenticated feed validation now preserves unknown numeric telemetry instead of
+coercing null/blank/Boolean/container values into measurements. The real intake,
+saved website snapshot, Legacy milestones and opt-in challenge journal are checked
+together; unknown-to-adult growth cannot fabricate a juvenile milestone. See
+`HV_CHALLENGE_TERRITORY_EVIDENCE_20261105.md` for the remaining source-life identity
+gap. Existing accepted evidence is not rewritten by this correction.
+
 ## Implemented evidence core
 
 `dynamicChallengeStore` uses additive tables in the automation database. It is
