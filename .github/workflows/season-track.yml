@@ -1,4 +1,4 @@
-name: Season track source evidence
+name: Free season track evidence
 on:
   pull_request:
     paths:
@@ -6,6 +6,10 @@ on:
       - 'automation-platform/src/services/progressionSourceTime.js'
       - 'automation-platform/test/progressionService.test.js'
       - 'automation-platform/test/progressionSourceTime.test.js'
+      - 'automation-platform/src/services/seasonTrackStore.js'
+      - 'automation-platform/test/seasonTrackStore.test.js'
+      - 'scripts/review-season-track.cjs'
+      - 'test/seasonTrackOperator.test.js'
       - 'server/services/roadmapCommunity.js'
       - 'public/assets/home-roadmap.js'
       - '.github/workflows/season-track.yml'
@@ -23,4 +27,4 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: node --test automation-platform/test/progressionSourceTime.test.js automation-platform/test/progressionService.test.js automation-platform/test/questBoosts.test.js automation-platform/test/questChallengeExpansion.test.js test/valleyLegacyTelemetry.test.js test/roadmapCommunity.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js
+      - run: node --test automation-platform/test/seasonTrackStore.test.js test/seasonTrackOperator.test.js automation-platform/test/progressionSourceTime.test.js automation-platform/test/progressionService.test.js automation-platform/test/questBoosts.test.js automation-platform/test/questChallengeExpansion.test.js test/valleyLegacyTelemetry.test.js test/roadmapCommunity.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js
