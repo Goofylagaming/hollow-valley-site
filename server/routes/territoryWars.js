@@ -800,7 +800,11 @@ function contestPresence(event, attack, nowMs) {
   const defenders = defenderLineup
     .filter((member) => updateGrace(event.id, member, insideClaimSteamIds, nowMs)).length;
 
-  return { usable: true, attackers, defenders };
+  const participants = [
+    ...attackerLineup.filter(m=>insideClaimSteamIds.has(String(m.steam_id))).map(m=>({steamId:String(m.steam_id),side:'attacker'})),
+    ...defenderLineup.filter(m=>insideClaimSteamIds.has(String(m.steam_id))).map(m=>({steamId:String(m.steam_id),side:'defender'})),
+  ];
+  return { usable: true, attackers, defenders, participants };
 }
 
 function captureTerritory(event, attack, atMs, actorUserId = null) {
@@ -896,7 +900,7 @@ function processEventRuntime(eventInput) {
   if (protectionUntil && nowMs < protectionUntil.getTime()) return event;
 
   const presence = contestPresence(event, attack, nowMs);
-  battleProvenance.observe(attack.id,presence);
+  battleProvenance.observe(attack.id,presence,nowMs);
   if (!presence.usable) return event;
 
   const contestStarted = parseDate(attack.contest_started_at);

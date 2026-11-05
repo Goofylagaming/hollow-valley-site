@@ -28,3 +28,30 @@ test('battle provenance survives restarts, never upgrades unknown history or era
     assert.equal(s.read(7),null,'declaration and provenance share the caller transaction');
   } finally {db.close();}
 });
+
+test('victory roster freezes observed winning participants and excludes side switching or later membership',()=>{
+  const db=new DatabaseSync(':memory:');
+  try {
+    const s=createBattleProvenance(db);
+    const a='76561198000000001',b='76561198000000002',c='76561198000000003',d='76561198000000004';
+    s.begin(1,1,100);
+    s.observe(1,{usable:true,participants:[{steamId:a,side:'attacker'},{steamId:b,side:'defender'},{steamId:c,side:'attacker'}]},110);
+    s.observe(1,{usable:true,participants:[{steamId:a,side:'attacker'},{steamId:c,side:'defender'}]},120);
+    db.exec('BEGIN');s.finish(1,200,'capture');
+    assert.deepEqual(s.winners(1),[a]);
+    db.exec('ROLLBACK');assert.deepEqual(s.winners(1),[]);
+    assert.equal(s.read(1).closed_at,null,'outcome and winners share the capture transaction');
+    s.finish(1,200,'capture');
+    s.observe(1,{usable:true,participants:[{steamId:d,side:'attacker'}]},210);
+    s.finish(1,200,'capture');
+    assert.deepEqual(createBattleProvenance(db).winners(1),[a]);
+    s.begin(2,1,300);
+    s.observe(2,{usable:true,simulated:true,participants:[{steamId:a,side:'attacker'}]},310);
+    s.observe(2,{usable:true,participants:[{steamId:a,side:'attacker'}]},320);
+    s.finish(2,400,'capture');assert.deepEqual(s.winners(2),[]);
+    s.begin(3,1,500);s.observe(3,{usable:true,participants:[{steamId:b,side:'defender'}]},510);
+    s.finish(3,600,'defence',{manual:true});assert.deepEqual(s.winners(3),[]);
+    s.begin(4,1,700);s.observe(4,{usable:true,participants:[{steamId:'invalid',side:'attacker'}]},710);
+    assert.equal(s.finish(4,800,'capture').eligible,false);
+  } finally {db.close();}
+});

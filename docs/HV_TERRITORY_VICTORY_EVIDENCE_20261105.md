@@ -14,8 +14,13 @@ existing transaction and forced capture is explicitly marked manual. Unknown
 historical attacks cannot become eligible merely by receiving a later live tick.
 Idempotent initialization and conflicting result checks preserve the first record.
 
-This foundation does not yet freeze participant identities, export results, award
-victory badges or implement defensive victory resolution. No automatic grants
+The runtime now records registered fighters physically observed in the claim
+zone on each usable live sample. Capture freezes winning participants in the
+same transaction as the result. Side-switchers are excluded; subsequent lineup
+changes or observations cannot extend a closed result. Unit tests cover restart,
+rollback, replay, side switching and preview/manual exclusions. This foundation
+does not yet export results, award victory badges or implement defensive victory
+resolution. No automatic grants
 consume its eligibility result yet. Runtime end-to-end winner attribution remains
 to be implemented and tested; current tests cover store persistence/rollback,
 source transitions and the existing HTTP/access-control/control-math regressions.
