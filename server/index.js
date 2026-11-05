@@ -234,6 +234,8 @@ function createApp() {
       loggedIn: Boolean(req.user),
       valleyLegacyEnabled: process.env.VALLEY_LEGACY_ENABLED === "1",
       eventTemplateBuilderEnabled: process.env.EVENT_ENGINE_ENABLED === "1" && Boolean(req.user?.is_admin),
+      eventScheduleBuilderEnabled: process.env.EVENT_ENGINE_ENABLED === "1" && process.env.EVENT_ENGINE_SCHEDULES_ENABLED === "1" && Boolean(req.user?.is_admin),
+      eventSchedulesEnabled: process.env.EVENT_ENGINE_ENABLED === "1" && process.env.EVENT_ENGINE_SCHEDULES_ENABLED === "1",
       user: req.user || null,
       territoryWarsAdminAccess: TERRITORY_WARS_ADMIN_TEST_ENABLED && isTerritoryAdmin(req.user),
       financeOwnerAccess: isFinanceOwner(req.user),
@@ -289,6 +291,7 @@ function createApp() {
   app.use("/api/server-status", serverStatusRouter);
   app.use("/api/events", eventsRouter);
   app.use("/api/event-templates", require("./routes/eventTemplates").createRouter());
+  app.use("/api/event-schedules", require("./routes/eventSchedules").createRouter());
   app.use("/api/friends", friendsRouter);
   app.use("/api/roadmap", roadmapCommunityRouter);
   app.use("/api/community-guides", communityGuidesRouter);

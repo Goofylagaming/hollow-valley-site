@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="/assets/events-group-roster.css?v=1">
   <link rel="stylesheet" href="/assets/challenge-attendance-admin.css?v=1">
   <link rel="stylesheet" href="/assets/event-templates.css?v=1">
+  <link rel="stylesheet" href="/assets/event-schedules.css?v=1">
 </head>
 <body>
   <div class="app-shell">
@@ -186,6 +187,27 @@
           <button id="attendance-evidence-cancel" class="small-button" type="button">Cancel evidence review</button>
         </div>
       </section>
+      <section id="event-schedule-calendar" hidden aria-labelledby="event-schedule-calendar-heading">
+        <h2 id="event-schedule-calendar-heading">Website event schedules</h2>
+        <p id="event-schedule-calendar-status" role="status"></p><button id="event-schedule-calendar-refresh" class="small-button" type="button">Refresh website schedules</button><div id="event-schedule-calendar-list"></div><button id="event-schedule-calendar-more" class="small-button" type="button" hidden>More website schedules</button>
+      </section>
+      <section id="event-schedule-panel" hidden aria-labelledby="event-schedule-heading">
+        <h2 id="event-schedule-heading">Plan a website event</h2>
+        <p>Save a private draft from a template, then separately review publishing its schedule and rules on this website. This does not start a game event or post to Discord.</p>
+        <p id="event-schedule-preview"></p><p id="event-schedule-status" role="status" aria-live="polite"></p>
+        <button id="event-schedule-refresh" class="small-button" type="button">Refresh event plans</button><button id="event-schedule-new" class="small-button" type="button">New event plan</button>
+        <ul id="event-schedule-list"></ul><button id="event-schedule-more" class="small-button" type="button" hidden>More event plans</button>
+        <h3 id="event-schedule-selected">New event schedule</h3>
+        <form id="event-schedule-form">
+          <label>Template for a new event<select id="event-schedule-source" required></select></label><button id="event-schedule-source-more" class="small-button" type="button" hidden>More saved templates</button>
+          <label>Planned start (Brisbane time)<input id="event-schedule-time" type="datetime-local" required></label>
+          <label>Staff reason for publishing, changing or cancelling<textarea id="event-schedule-reason" maxlength="1000"></textarea></label>
+          <button id="event-schedule-save" class="small-button" type="submit">Review event draft</button>
+        </form>
+        <button id="event-schedule-publish" class="small-button" type="button" disabled>Review publishing schedule</button><button id="event-schedule-cancel-event" class="small-button" type="button" disabled>Review cancelling schedule</button>
+        <div id="event-schedule-review" hidden><h3>Review before confirming</h3><div id="event-schedule-summary"></div><button id="event-schedule-confirm" class="small-button" type="button">Confirm schedule change</button><button id="event-schedule-close-review" class="small-button" type="button">Close schedule review</button></div>
+        <h3>Recent schedule history</h3><ul id="event-schedule-history"></ul>
+      </section>
       <section id="event-template-panel" hidden aria-labelledby="event-template-heading">
         <h2 id="event-template-heading">Event templates</h2>
         <p>Prepare staff plans for community events. Templates stay private to staff. Scheduling, registrations, team assignment, results and rewards are not available through this builder yet.</p>
@@ -221,5 +243,6 @@
   <script src="/assets/events-group-roster.js?v=1"></script>
   <script src="/assets/challenge-attendance-admin.js?v=1"></script>
   <script src="/assets/event-templates.js?v=1"></script>
+  <script src="/assets/event-schedules.js?v=1"></script>
 </body>
 </html>
