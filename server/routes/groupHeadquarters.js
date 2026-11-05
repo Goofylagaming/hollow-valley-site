@@ -3,6 +3,8 @@ const { requireAuth } = require('../middleware/requireAuth');
 const { getSkinStudioSafety } = require('../middleware/skinStudioSafety');
 const { db } = require('../db');
 const service = require('../services/groupHeadquarters').createGroupHeadquarters(db, require('../groupsStore'));
+const territoryLinks = require('../services/groupTerritoryLinks').createGroupTerritoryLinks(db, require('../groupsStore'));
+const battleHistory = require('../services/groupBattleHistory').createGroupBattleHistory(db);
 const readOnly = () => process.env.GROUP_HQ_READ_ONLY === '1' || getSkinStudioSafety().readOnly;
 
 router.use((_req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); });
@@ -21,6 +23,9 @@ const run = action => (req, res) => {
   catch (error) { res.status(error.status || 500).json({ error: error.status ? error.message : 'Headquarters is temporarily unavailable' }); }
 };
 router.get('/', run(req => service.get(req.user.steam_id)));
+router.get('/territory-link',run(req=>territoryLinks.get(req.user.steam_id)));
+router.get('/battles',run(req=>{const groupId=service.get(req.user.steam_id).groupId;return {groupId,battles:battleHistory.list(groupId)};}));
+router.post('/territory-link',run(req=>territoryLinks.set(req.user.steam_id,{territoryGroupId:req.body?.territoryGroupId,expectedRevision:req.body?.expectedRevision,expectedGroupId:req.body?.expectedGroupId})));
 router.post('/screenshots', run(req => service.shareScreenshot(req.user.steam_id,{imageId:req.body?.imageId,remove:req.body?.remove??false})));
 router.post('/ranks', run(req => service.setRank(req.user.steam_id, { memberSteamId:req.body?.memberSteamId,rank:req.body?.rank,expectedRevision:req.body?.expectedRevision })));
 router.post('/', run(req => service.update(req.user.steam_id, { description: req.body?.description, expectedRevision: req.body?.expectedRevision, emblem: req.body?.emblem })));

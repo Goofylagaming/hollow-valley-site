@@ -24,12 +24,18 @@ test('real declaration and runtime capture freeze only observed lineup fighters;
   global.Date=class extends OriginalDate {constructor(...args){super(...(args.length?args:[now]));}static now(){return now;}};
   for(const [id,steam] of [[1,a],[2,b],[3,outsider]]) db.prepare('INSERT INTO users(id,steam_id,username,is_admin) VALUES (?,?,?,1)').run(id,steam,'Fixture '+id);
   db.exec("INSERT INTO territory_groups(id,name,tag,leader_user_id) VALUES (1,'Attackers','ATK',1); INSERT INTO territory_group_members(group_id,user_id,role) VALUES (1,1,'leader'),(1,2,'member')");
+  const groups=require('../server/groupsStore');
+  const websiteGroupId=groups.createGroup(a,'Website Attackers').current.id;
+  const links=require('../server/services/groupTerritoryLinks').createGroupTerritoryLinks(db,groups);
+  const history=require('../server/services/groupBattleHistory').createGroupBattleHistory(db);
   const app=express();app.use(express.json());app.use((req,res,next)=>{req.user={id:1,steam_id:a,is_admin:1};next();});app.use('/tw',router);
   const server=await new Promise(resolve=>{const s=app.listen(0,'127.0.0.1',()=>resolve(s));});
   const base=`http://127.0.0.1:${server.address().port}/tw`;
   const post=async(url,body)=>{const r=await fetch(base+url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});assert.equal(r.status,200,await r.clone().text());return r.json();};
   try {
     for(const manual of [false,true]) {
+      const link=links.get(a);
+      links.set(a,{expectedGroupId:websiteGroupId,territoryGroupId:1,expectedRevision:link.revision});
       const eventId=manual?2:1;
       const iso=ms=>new Date(ms).toISOString();
       db.prepare("INSERT INTO territory_events(id,name,status,owner_name,starts_at,ends_at) VALUES (?,?,'live','Unowned',?,?)").run(eventId,'Fixture battle',iso(now-60000),iso(now+3*3600000));
@@ -38,6 +44,9 @@ test('real declaration and runtime capture freeze only observed lineup fighters;
       await post('/attack-declare',{eventId});
       const attack=db.prepare('SELECT * FROM territory_attacks WHERE event_id=?').get(eventId);
       assert.ok(db.prepare('SELECT * FROM territory_battle_provenance WHERE attack_id=?').get(attack.id));
+      const identity=db.prepare("SELECT * FROM hv_group_battle_identity WHERE attack_id=? AND side='attacker'").get(attack.id);
+      assert.equal(identity.group_id,websiteGroupId);assert.equal(identity.territory_group_id,1);
+      links.set(a,{expectedGroupId:websiteGroupId,territoryGroupId:null,expectedRevision:links.get(a).revision});
       if(manual) await post('/admin/control',{id:eventId,ownerControl:1});
       // Offline positions cannot advance control or produce evidence.
       online=false;now+=6*60000;router.tickRuntime();
@@ -51,11 +60,14 @@ test('real declaration and runtime capture freeze only observed lineup fighters;
       const queued=db.prepare('SELECT payload_json FROM territory_victory_outbox WHERE attack_id=?').get(attack.id);
       if(manual) assert.equal(queued,undefined);
       else {
+        assert.equal(history.list(websiteGroupId)[0].attackId,attack.id);
+        assert.equal(history.list(websiteGroupId)[0].result,'win');
         assert.deepEqual(JSON.parse(queued.payload_json).winners,[a,b]);
         db.exec('DELETE FROM territory_group_members WHERE user_id=2');
         assert.deepEqual(JSON.parse(db.prepare('SELECT payload_json FROM territory_victory_outbox WHERE attack_id=?').get(attack.id).payload_json).winners,[a,b]);
         db.exec("INSERT INTO territory_group_members(group_id,user_id,role) VALUES (1,2,'member')");
       }
+      assert.equal(history.list(websiteGroupId).length,1,'manual results cannot enter Headquarters battle history');
       db.prepare("UPDATE territory_events SET status='ended' WHERE id=?").run(eventId);
     }
   } finally {global.Date=OriginalDate;await new Promise(resolve=>server.close(resolve));}
