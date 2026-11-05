@@ -1,6 +1,24 @@
 const test=require('node:test'),assert=require('node:assert/strict'),{DatabaseSync}=require('node:sqlite');
 const {createJourneyStore}=require('../src/services/journeyStore');
 const steam='76561198000000801',other='76561198000000802';
+test('missing positions persist a trail break and late samples cannot fill the gap',()=>{
+  const db=new DatabaseSync(':memory:');let clock=4000000;
+  try {
+    let store=createJourneyStore(db,{now:()=>clock,enabled:()=>true});
+    store.change(steam,{enabled:true,expectedRevision:0});
+    const sample=(at,location)=>store.record({steamId:steam,lifeId:'same-life',at,location});
+    clock+=15000;sample(clock,{x:0,y:0});const first=clock;
+    clock+=1000;assert.equal(sample(clock,null),false);const missing=clock;
+    store=createJourneyStore(db,{now:()=>clock,enabled:()=>true});
+    assert.equal(sample(missing-1,{x:10,y:10}),false);
+    clock+=15000;assert.equal(sample(clock,{x:20,y:20}),true);
+    assert.equal(store.points(steam).points[0].breakBefore,1);
+    assert.equal(sample(first,null),false);
+    clock+=15000;sample(clock,{x:30,y:30});assert.equal(store.points(steam).points[0].breakBefore,0);
+    clock+=15000;sample(clock,null);store.change(steam,{enabled:false,expectedRevision:1,erase:true});
+    assert.equal(db.prepare('SELECT COUNT(*) n FROM journey_gaps').get().n,0);
+  }finally{db.close();}
+});
 function fixture(){const db=new DatabaseSync(':memory:');let clock=1000000;const store=createJourneyStore(db,{now:()=>clock,enabled:()=>true});return {db,store,tick:n=>clock+=n,now:()=>clock};}
 test('journey consent, deletion and new opt-in reject delayed observations',()=>{
   const f=fixture(),s=f.store,record=at=>s.record({steamId:steam,lifeId:'life',at,location:{x:1,y:2}});
