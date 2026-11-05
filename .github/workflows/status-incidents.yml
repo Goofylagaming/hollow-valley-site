@@ -9,6 +9,13 @@ on:
       - 'server/routes/map.js'
       - 'server/services/liveMapProjection.js'
       - 'server/services/sourceTimestamp.js'
+      - 'server/services/steamProviderHealth.js'
+      - 'test/steamProviderHealth.test.js'
+      - 'test/steamProviderHttp.test.js'
+      - 'server/authSteam.js'
+      - 'server/services/steamProfile.js'
+      - 'test/steamProfile.test.js'
+      - 'test/ownerEmailAuth.test.js'
       - 'public/assets/live-map-observation.js'
       - 'public/assets/livemap.js'
       - 'public/assets/status-components.js'
@@ -50,7 +57,7 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: node --test test/liveMapProjection.test.js test/liveMapStatusHttp.test.js test/mapActivityRoute.test.js test/liveSnapshotFreshness.test.js test/liveMapTerritoryIntegration.test.js test/bridgeWorkerHealth.test.js test/componentStatusHttp.test.js test/serverManagement.test.js test/desktopReadOnlyManagement.test.js test/statusIncidents.test.js test/statusIncidentsHttp.test.js test/statusPage.test.js test/incidentTimeline.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js test/roadmapCommunity.test.js
+      - run: node --test test/steamProfile.test.js test/ownerEmailAuth.test.js test/steamProviderHealth.test.js test/steamProviderHttp.test.js test/liveMapProjection.test.js test/liveMapStatusHttp.test.js test/mapActivityRoute.test.js test/liveSnapshotFreshness.test.js test/liveMapTerritoryIntegration.test.js test/bridgeWorkerHealth.test.js test/componentStatusHttp.test.js test/serverManagement.test.js test/desktopReadOnlyManagement.test.js test/statusIncidents.test.js test/statusIncidentsHttp.test.js test/statusPage.test.js test/incidentTimeline.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js test/roadmapCommunity.test.js
       - run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.62.1
       - run: npx playwright install --with-deps chromium
       - run: node scripts/verify-status-incidents.cjs

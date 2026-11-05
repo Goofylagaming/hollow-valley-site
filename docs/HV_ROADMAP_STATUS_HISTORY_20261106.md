@@ -336,3 +336,54 @@ All 84 affected local regression checks pass. The dedicated workflow now include
 this actual-page fixture. Live Map asset is v20 and home roadmap is v135. No flags,
 push, PR, merge, deployment, game commands or production data changed. The full
 31-feature roadmap remains incomplete.
+
+
+## Steam provider observation — local follow-up, 6 November 2026
+
+Valve documents Steam Community OpenID as the website authentication provider:
+https://partner.steamgames.com/doc/features/auth#website . The existing website
+login router redirects users to its login endpoint and verifies callbacks there.
+This follow-up adds a distinct discovery HTTP observation; it does not perform a
+login, verify a signed identity, link accounts, fetch profiles, persist a session
+or exercise the site's callback. No auth behavior was changed.
+
+STATUS_COMPONENTS_STEAM_ENABLED defaults to 0. When explicitly enabled alongside
+the existing nonempty Steam realm/return configuration, the process-started
+monitor requests only https://steamcommunity.com/openid/ . The fixed GET sends
+no user identity, callback URL, cookie, API key or auth headers, and redirects are
+not followed. The result is responded only for HTTP 200 with the expected
+application/xrds+xml content type. The provider document is cancelled after
+headers, not parsed or retained. This is endpoint reachability with expected
+headers, not a verified OpenID document or proof account linking works.
+
+Each process makes at most one request per minute with one active request and a
+five-second deadline, including when a transport ignores cancellation. The source
+time is captured before requesting and never replaced with read or completion
+time. Responses older than three minutes expire; backwards/future clocks remain
+unverified. Public reads neither initiate nor accelerate probes. HTTP errors,
+redirects, HTML challenges, timeouts and transport failures have generic scoped
+states without provider bodies or private errors. Restart has no observation.
+Shutdown cancels outstanding work, clears the loop and observation, and rejects
+late publication even for transports that ignore abort. Flag/config withdrawal
+withholds public results. No monitoring table or retention of identities is added.
+
+The public endpoint requires the separate public status flag and returns only
+component ID, scope, state, original source clock and linkingVerified:false. The
+Steam card independently expires cached successful packets and rejects future or
+invalid clocks. Older Bridge/Map-only frames show unknown Steam status. Failures
+remain separate from the website/game summary. The page still labels full account
+linking as unverified and does not infer an offline game or universal login outage.
+
+The tests cover disabled/unconfigured no-network behavior, fixed request privacy,
+status/content-type checks, body cancellation, exceptions, timeout/late response,
+single flight, cadence, expiry/rollback, stop/start isolation and public HTTP reads.
+Public desktop/phone fixtures use a synthetic provider transport; they verify the
+card, cached expiry, future/invalid clocks and independent summary. The 390px card
+was visually inspected. Existing Steam profile and owner-email auth tests also
+remain in the affected verification suite. 101 affected local checks and the desktop/phone public browser fixtures pass; real deployed egress and Steam login/link/callback/profile behavior
+remain staging gates. Multiple-process probe volume needs operational review.
+
+Home roadmap is v136, status CSS v5 and component controller v3. No flag was
+enabled, no live provider probe was installed, and no push, merge, deployment,
+incident publication, command or account data changed. RCON/Discord/Marketplace
+monitoring and the remaining #29 and full-roadmap gates are still incomplete.

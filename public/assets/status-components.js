@@ -36,6 +36,30 @@
   document.getElementById('status-map-state').textContent=label;document.getElementById('status-map-detail').textContent=detail;
   document.getElementById('status-map-time').textContent=at!==null?'Source snapshot: '+new Date(at).toLocaleString('en-AU',{timeZone:'Australia/Brisbane',dateStyle:'medium',timeStyle:'short'})+' AEST':'No verified map source observation yet';
  }
+ const steamMessages={
+  responded:['ok','Provider endpoint responded','Steam returned a discovery response. Signing in, linking accounts and profile retrieval are not verified.'],
+  'unexpected-response':['attention','Unexpected provider response','The last check did not receive the expected discovery response. Account linking remains unverified.'],
+  'timed-out':['delayed','Provider check timed out','The endpoint did not answer within the check window. This does not prove an account cannot sign in.'],
+  stale:['delayed','Delayed','The provider observation has expired. Current endpoint reachability is unknown.'],
+  'not-configured':['unknown','Not monitored','The Steam provider check is not enabled.'],
+  'login-not-configured':['unknown','Sign-in not configured','This website has not configured Steam sign-in.'],
+  'no-observation':['unknown','No observation','No provider check has finished in this website process yet.'],
+  'unverified-clock':['unknown','Clock unverified','The provider observation time cannot be verified.'],
+  unavailable:['unknown','Unknown','The provider endpoint could not be checked. Account linking is unverified.']
+ };
+ function renderSteam(value){
+  const card=document.getElementById('status-steam-card');if(!card)return;
+  let code='unavailable',at=null;
+  if(value?.scope==='provider-discovery-http'&&value.linkingVerified===false&&Object.hasOwn(steamMessages,value.code)){
+   code=value.code;
+   if(value.observedAt!==null){at=Date.parse(value.observedAt);if(typeof value.observedAt!=='string'||!Number.isSafeInteger(at)||at<0||new Date(at).toISOString()!==value.observedAt){code='unavailable';at=null;}}
+   if(!['not-configured','login-not-configured','no-observation','unverified-clock','unavailable'].includes(code)&&at===null)code='unavailable';
+   if(at!==null)code=at>Date.now()?'unverified-clock':Date.now()-at>180000?'stale':code;
+  }
+  const [state,label,detail]=steamMessages[code];card.dataset.state=state;
+  document.getElementById('status-steam-state').textContent=label;document.getElementById('status-steam-detail').textContent=detail;
+  document.getElementById('status-steam-time').textContent=at!==null?'Source snapshot: '+new Date(at).toLocaleString('en-AU',{timeZone:'Australia/Brisbane',dateStyle:'medium',timeStyle:'short'})+' AEST':'No verified provider observation yet';
+ }
  let controller=null,generation=0;
  function show(code,at=null){const [state,label,detail]=messages[code]||messages.unavailable;document.getElementById('status-worker-card').dataset.state=state;$('state').textContent=label;$('detail').textContent=detail;$('time').textContent=at?'Agent snapshot: '+new Date(at).toLocaleString('en-AU',{timeZone:'Australia/Brisbane',dateStyle:'medium',timeStyle:'short'})+' AEST':'No verified worker observation yet';}
  function renderWorker(value){
@@ -49,10 +73,10 @@
   const current=++generation;if(controller)controller.abort();controller=new AbortController();const active=controller,timer=setTimeout(()=>active.abort(),8000);
   try{
    const response=await fetch('/api/component-status',{cache:'no-store',credentials:'same-origin',signal:active.signal});if(!response.ok)throw new Error();const body=await response.json();if(current!==generation)return;
-   if(body?.available===false){show('not-configured');renderMap({scope:'cached-position-source',renderingVerified:false,code:'not-configured',observedAt:null});return;}
-   if(body?.available!==true||!Array.isArray(body.components)||body.components.length<1||body.components.length>2)throw new Error();if(new Set(body.components.map(v=>v?.id)).size!==body.components.length||body.components.some(v=>!['map-source','bridge-worker'].includes(v?.id)))throw new Error();renderMap(body.components.find(v=>v?.id==='map-source'));const value=body.components.find(v=>v?.id==='bridge-worker');
+   if(body?.available===false){show('not-configured');renderSteam({scope:'provider-discovery-http',linkingVerified:false,code:'not-configured',observedAt:null});renderMap({scope:'cached-position-source',renderingVerified:false,code:'not-configured',observedAt:null});return;}
+   if(body?.available!==true||!Array.isArray(body.components)||body.components.length<1||body.components.length>3)throw new Error();if(new Set(body.components.map(v=>v?.id)).size!==body.components.length||body.components.some(v=>!['map-source','bridge-worker','steam-openid'].includes(v?.id)))throw new Error();renderSteam(body.components.find(v=>v?.id==='steam-openid'));renderMap(body.components.find(v=>v?.id==='map-source'));const value=body.components.find(v=>v?.id==='bridge-worker');
    renderWorker(value);
-  }catch{if(current===generation){show('unavailable');renderMap(null);}}
+  }catch{if(current===generation){show('unavailable');renderMap(null);renderSteam(null);}}
   finally{clearTimeout(timer);if(current===generation)controller=null;}
  }
  function init(){if(!$('state'))return;document.getElementById('status-refresh')?.addEventListener('click',refresh);refresh();setInterval(()=>{if(!document.hidden)refresh();},30000);}

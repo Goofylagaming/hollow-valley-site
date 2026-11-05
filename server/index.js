@@ -422,6 +422,8 @@ function startServer() {
     console.log(`Herby Death Squad portal running on port ${PORT}`);
     console.log("[legacy-api] direct game execution paths retired");
     serverStatusService.start();
+    const stopSteamHealth = require('./services/steamProviderHealth').getDefaultService().start();
+    server.once('close', stopSteamHealth);
     const membershipDiscordTimer = require("./services/membershipDiscordQueue").start();
     server.once("close", () => { if (membershipDiscordTimer) clearInterval(membershipDiscordTimer); });
     const subscriberFundingTimer = require("./services/subscriberFunding").getDefaultService().start();
