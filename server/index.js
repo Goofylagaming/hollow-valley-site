@@ -270,6 +270,7 @@ function createApp() {
   app.use("/api/mydinos", mydinosRouter);
   app.use("/api/marketplace", marketplaceRouter);
   app.use("/api/skins/premium", require("./routes/premiumSkins"));
+  app.use("/api/skins/promos", require("./routes/skinPromos"));
   app.use("/api/skins", skinShareCodeRedaction);
   app.use("/api/skins", skinsRouter);
   app.use("/api/supporter", require("./routes/membershipRewards"));

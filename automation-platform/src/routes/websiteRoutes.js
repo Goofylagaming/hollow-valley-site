@@ -28,6 +28,7 @@ const progression = require('../services/progressionService');
 const router = express.Router();
 router.use(requireWebsiteToken);
 router.use('/premium-skins', require('./premiumSkinsRoutes'));
+router.use('/skin-promos', require('./skinPromoRoutes'));
 
 function validateSteamId(value) {
   const steamId = String(value || '').trim();
