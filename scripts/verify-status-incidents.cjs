@@ -2,7 +2,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),os=require('node:os'),express=require('express'),{DatabaseSync}=require('node:sqlite'),{randomUUID}=require('node:crypto'),{chromium}=require('playwright');
 for(const key of ['STATUS_INCIDENTS_READ_ONLY','SKIN_STUDIO_READ_ONLY','RENDER_SERVICE_ID','RENDER_EXTERNAL_URL','PUBLIC_SITE_URL','STEAM_REALM','STEAM_RETURN_URL'])delete process.env[key];
 process.env.STATUS_INCIDENTS_PUBLIC_ENABLED='1';
-Object.assign(process.env,{STATUS_COMPONENTS_PUBLIC_ENABLED:'1',STATUS_COMPONENTS_COLLECTION_ENABLED:'1',HV_MANAGEMENT_ENABLED:'1',HV_MANAGEMENT_AGENT_TOKEN:'synthetic-worker-status-token-over-thirty-two-characters'});
+Object.assign(process.env,{STATUS_COMPONENTS_MAP_ENABLED:'1',STATUS_COMPONENTS_PUBLIC_ENABLED:'1',STATUS_COMPONENTS_COLLECTION_ENABLED:'1',HV_MANAGEMENT_ENABLED:'1',HV_MANAGEMENT_AGENT_TOKEN:'synthetic-worker-status-token-over-thirty-two-characters'});
 const db=new DatabaseSync(':memory:');db.exec("CREATE TABLE users(id INTEGER PRIMARY KEY,steam_id TEXT,is_admin INTEGER);INSERT INTO users VALUES(1,'76561198000000001',1)");
 const admin={id:1,steam_id:'76561198000000001'},guild='111122223333444455';let clock=Date.now()-3600000;
 const store=require('../server/services/statusIncidentStore').createStatusIncidentStore(db,{now:()=>clock,guild:()=>guild});let latest;
@@ -14,7 +14,8 @@ for(let i=0;i<26;i++){
 const app=express(),unexpected=[];let failHistory=false;
 let workerClock=Date.now();const worker=require('../server/services/bridgeWorkerHealth').createBridgeWorkerHealthStore(db,{now:()=>workerClock});
 worker.record({sampledAt:new Date(workerClock).toISOString(),tasks:{command_bridge:'Running'},logs:{bridge:['PRIVATE worker log']}});
-app.use('/api/component-status',require('../server/routes/componentStatus').createRouter({db,now:()=>workerClock}));
+let mapLocation={x:0,y:0};
+app.use('/api/component-status',require('../server/routes/componentStatus').createRouter({db,now:()=>workerClock,getMapState:()=>({configured:true,online:true,lastChecked:new Date(workerClock).toISOString(),characters:[{name:'PRIVATE MAP NAME',steamId:'76561198000000998',location:mapLocation}]})}));
 app.get('/healthz',(_req,res)=>res.json({ok:true}));app.get('/readyz',(_req,res)=>res.json({ok:true}));app.get('/api/me',(_req,res)=>res.json({loggedIn:false,user:null,steamLoginConfigured:false}));
 app.get('/api/server-status',(_req,res)=>res.json({configured:true,online:true,stale:false,lastChecked:new Date().toISOString(),playerCount:2,maxPlayers:100}));
 app.use('/api/status-incidents',(req,res,next)=>failHistory&&req.path==='/'?res.status(503).json({error:'Synthetic unavailable source'}):next());app.use('/api/status-incidents',require('../server/routes/statusIncidents').createRouters({db,now:()=>clock}).publicRouter);
@@ -30,6 +31,14 @@ app.get('/status',(_req,res)=>res.sendFile(path.resolve(__dirname,'../public/sta
    const context=await browser.newContext({viewport:{width,height:980}}),page=await context.newPage(),errors=[];page.on('pageerror',error=>errors.push(error.message));await page.goto(url+'/status');
    await page.waitForFunction(()=>document.querySelectorAll('.hv-status-incident').length===25);assert.match(await page.locator('#status-overall').textContent(),/Website ready.*Game server online/);
    await page.getByText('Observed running',{exact:true}).waitFor();assert.match(await page.locator('#status-worker-detail').textContent(),/execution.*not checked/);
+   await page.getByText('Position source usable',{exact:true}).waitFor();assert.doesNotMatch(await page.locator('body').textContent(),/PRIVATE MAP NAME|76561198000000998/);
+   const mapBody=await (await page.request.get(url+'/api/component-status')).json();assert.doesNotMatch(JSON.stringify(mapBody),/PRIVATE MAP NAME|76561198000000998|location|characters/);
+   mapLocation={x:1e9,y:0};await page.click('#status-refresh');await page.getByText('Positions unavailable',{exact:true}).waitFor();assert.match(await page.locator('#status-overall').textContent(),/Game server online/);mapLocation={x:0,y:0};await page.click('#status-refresh');await page.getByText('Position source usable',{exact:true}).waitFor();
+   for(const [observedAt,expected] of [[new Date(Date.now()-120001).toISOString(),'Delayed'],[new Date(Date.now()+60000).toISOString(),'Clock unverified'],['invalid','Unknown']]){
+    await page.route('**/api/component-status',route=>route.fulfill({json:{available:true,components:[{id:'map-source',scope:'cached-position-source',code:'usable',observedAt,renderingVerified:false}]}}));await page.click('#status-refresh');await page.waitForFunction(expected=>document.getElementById('status-map-state').textContent===expected,expected);assert.match(await page.locator('#status-overall').textContent(),/Game server online/);await page.unroute('**/api/component-status');
+   }
+   await page.click('#status-refresh');await page.getByText('Position source usable',{exact:true}).waitFor();
+   const mapOutput=process.env.HV_TEST_ARTIFACT_DIR||path.join(os.tmpdir(),'hv-status-incidents-browser');fs.mkdirSync(mapOutput,{recursive:true});await page.locator('#status-map-card').screenshot({path:path.join(mapOutput,'map-'+width+'.png')});
    const workerOutput=process.env.HV_TEST_ARTIFACT_DIR||path.join(os.tmpdir(),'hv-status-incidents-browser');fs.mkdirSync(workerOutput,{recursive:true});await page.locator('#status-worker-card').screenshot({path:path.join(workerOutput,'worker-'+width+'.png')});
    await page.route('**/api/component-status',route=>route.fulfill({json:{available:true,components:[{id:'bridge-worker',scope:'windows-scheduled-task',code:'running',observedAt:new Date(Date.now()-90001).toISOString(),executionVerified:false}]}}));await page.click('#status-refresh');await page.waitForFunction(()=>document.getElementById('status-worker-state').textContent==='Delayed');assert.match(await page.locator('#status-overall').textContent(),/Website ready.*Game server online/);await page.unroute('**/api/component-status');await page.click('#status-refresh');await page.getByText('Observed running',{exact:true}).waitFor();
    assert.match(await page.locator('#status-incidents-list').textContent(),/Connection <check>/);assert.equal(await page.locator('#status-incidents-list check').count(),0);assert.doesNotMatch(await page.locator('body').textContent(),/PRIVATE SOURCE|76561198000000999|discord\.com\/channels/);

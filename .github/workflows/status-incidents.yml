@@ -6,6 +6,15 @@ on:
       - 'server/services/statusIncidentStore.js'
       - 'server/services/bridgeWorkerHealth.js'
       - 'server/routes/componentStatus.js'
+      - 'server/routes/map.js'
+      - 'server/services/liveMapProjection.js'
+      - 'server/services/sourceTimestamp.js'
+      - 'public/assets/live-map-observation.js'
+      - 'public/assets/livemap.js'
+      - 'public/assets/status-components.js'
+      - 'public/livemap.html'
+      - 'test/liveMapProjection.test.js'
+      - 'test/liveMapStatusHttp.test.js'
       - 'server/routes/serverManagement.js'
       - 'scripts/windows/HollowValley-ServerManagementAgent.ps1'
       - 'test/bridgeWorkerHealth.test.js'
@@ -40,7 +49,7 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: node --test test/bridgeWorkerHealth.test.js test/componentStatusHttp.test.js test/serverManagement.test.js test/desktopReadOnlyManagement.test.js test/statusIncidents.test.js test/statusIncidentsHttp.test.js test/statusPage.test.js test/incidentTimeline.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js test/roadmapCommunity.test.js
+      - run: node --test test/liveMapProjection.test.js test/liveMapStatusHttp.test.js test/mapActivityRoute.test.js test/liveSnapshotFreshness.test.js test/liveMapTerritoryIntegration.test.js test/bridgeWorkerHealth.test.js test/componentStatusHttp.test.js test/serverManagement.test.js test/desktopReadOnlyManagement.test.js test/statusIncidents.test.js test/statusIncidentsHttp.test.js test/statusPage.test.js test/incidentTimeline.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js test/roadmapCommunity.test.js
       - run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.62.1
       - run: npx playwright install --with-deps chromium
       - run: node scripts/verify-status-incidents.cjs

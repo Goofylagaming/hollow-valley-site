@@ -264,3 +264,44 @@ Still required: live source/agent verification, complete Bridge execution and RC
 health, Discord/Marketplace/Steam/Live Map probes, private-evidence retention policy,
 operational concurrency/recovery measurements, hosted CI and authenticated staging.
 This is progress on #29, not completion of #29 or the 31-item roadmap.
+
+
+## Live Map source validation — local follow-up, 6 November 2026
+
+The default-off STATUS_COMPONENTS_MAP_ENABLED observation reads the existing
+cached server snapshot, independently of management-agent collection. It shares
+projection validation with authenticated map positions. The public response
+contains only scope, source time, result and renderingVerified:false. It never
+returns identities, coordinates, character counts, vitals or raw provider errors,
+and never polls RCON or performs writes. A public source check is not proof of
+individual account access, upstream ingestion or browser rendering.
+
+Explicit UTC source clocks are mandatory. Missing, malformed, ambiguous, future
+or older-than-120-second sources cannot supply live positions. Stale is checked
+before offline, preventing an expired cache from inventing an offline verdict.
+An empty character observation remains unknown. Missing/invalid/outside map
+coordinates are unprojectable; zero is valid. Owner/admin numerical coordinates
+remain available when outside community bounds, but markers, region and grid are
+withheld rather than clamped onto an invented map edge. Regular members retain
+position-free entries for other players. The positions route remains authenticated
+and now uses private/no-store caching and generic source-failure responses.
+
+The private map browser validates the original normalized source time before
+rendering a received observation and clears rejected positions. Disconnected UI
+now distinguishes verified-offline from unverified source data. This change does
+not establish account-switch isolation or production map calibration.
+
+The public Map card checks its source clock independently in the browser and
+cannot change the website/game summary. Missing or malformed Bridge observations
+cannot reset a valid Map result. Older Bridge-only frames retain unknown Map
+status. All rollout flags remain off. Home roadmap v134, status CSS v4,
+component controller v2 and Live Map v19 reference the new validator v1.
+
+84 affected local checks pass, covering public/private HTTP paths, source age,
+bounds, role privacy, minimal observations, source failures and existing Bridge,
+management, incident, roadmap and production guards. Desktop/phone public browser
+fixtures verify usable/unprojectable sources, cached expiry and privacy. The
+390px Map card has been visually inspected. Authenticated production staging,
+real source calibration, full map account lifecycle review, independent service
+probes, retention policy and hosted checks remain gates. No live configuration,
+publication, merge, deployment, game command or player data changed.

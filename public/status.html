@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="/assets/styles.css?v=38">
   <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=5">
-  <link rel="stylesheet" href="/assets/status-page.css?v=3">
+  <link rel="stylesheet" href="/assets/status-page.css?v=4">
 </head>
 <body>
   <div class="app-shell">
@@ -46,11 +46,16 @@
           <p id="status-worker-detail">Checking the management agent's recorded Windows task state. This does not test game commands.</p>
           <small id="status-worker-time">No verified worker observation yet</small>
         </article>
+        <article class="hv-status-card" id="status-map-card" data-state="unknown">
+          <div class="hv-status-card-header"><h3>Live Map data check</h3><span class="hv-status-pill" id="status-map-state">Checking</span></div>
+          <p id="status-map-detail">Checking source freshness and whether recorded coordinates can be projected. Account access and browser display are separate checks.</p>
+          <small id="status-map-time">No verified position-source observation yet</small>
+        </article>
       </section>
       <section class="hv-status-notes" aria-labelledby="status-notes-heading">
         <h2 id="status-notes-heading">What this page can verify</h2>
         <p><strong>Website process</strong> means the website answered its liveness check. <strong>Website readiness</strong> checks local storage and draining state. <strong>Game server</strong> uses a server snapshot; its last update is shown so delayed data is never mistaken for live player presence.</p>
-        <p>The Command Bridge worker observation checks a recorded Windows task state; it does not verify command delivery or in-game execution. RCON, Discord bot, Steam sign-in, Marketplace operations and Live Map data are <strong>not independently monitored on this page yet</strong>. An online website does not prove those services work. Staff-reviewed incident reports below are separate from these checks.</p>
+        <p>The Command Bridge worker observation checks a recorded Windows task state; it does not verify command execution. The Live Map data check uses the same projection as the signed-in map but shows no player data. Account access and browser display remain unverified. RCON, Discord bot, Steam sign-in and Marketplace operations are <strong>not independently monitored on this page yet</strong>. Staff-reviewed incident reports below are separate from these checks.</p>
         <a href="/">← Back to Hollow Valley</a>
       </section>
       <section class="hv-status-notes" aria-labelledby="status-incidents-heading">
@@ -66,6 +71,6 @@
   <script src="/assets/common.js?v=22"></script>
   <script src="/assets/status-page.js?v=1"></script>
   <script src="/assets/status-incidents.js?v=1"></script>
-  <script src="/assets/status-components.js?v=1"></script>
+  <script src="/assets/status-components.js?v=2"></script>
 </body>
 </html>
