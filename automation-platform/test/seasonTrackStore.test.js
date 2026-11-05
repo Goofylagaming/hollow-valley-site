@@ -233,8 +233,8 @@ test('reviewed expiry hides private progress immediately, then bounded cleanup e
   assert.throws(() => f.store.reconcile(f.def.id, A), { status: 410 });
   let removed = 0;
   for (let n = 0; n < 6; n++) { const result = f.store.maintain({ limit: 1 }); assert.ok(result.removed <= 1); removed += result.removed; }
-  assert.equal(removed, 4);
-  for (const table of ['evidence','enrollments','choices','requests']) assert.equal(f.db.prepare('SELECT count(*) n FROM progression_season_' + table).get().n, 0);
+  assert.equal(removed, 5);
+  for (const table of ['collection_queue','evidence','enrollments','choices','requests']) assert.equal(f.db.prepare('SELECT count(*) n FROM progression_season_' + table).get().n, 0);
   assert.equal(f.db.prepare('SELECT count(*) n FROM progression_xp_ledger').get().n, 1); assert.equal(f.db.prepare('SELECT balance FROM wallet_fixture').get().balance, 1234);
   assert.equal(f.store.read(f.def.id).definition.title, f.def.title);
   assert.throws(() => f.store.changeParticipation(f.def.id, A, join), { status: 410 });

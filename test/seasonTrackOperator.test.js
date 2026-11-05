@@ -30,7 +30,7 @@ test('operator review opens no database; default stage and inspect leave the exa
   main([...stageArgs, '--write']);
   const staged = fs.readFileSync(f.database);
   const inspection = main(['inspect', '--database', f.database, '--id', f.definition.id]);
-  assert.equal(inspection.season.state, 'staged'); assert.equal(inspection.audit.length, 1);
+  assert.equal(inspection.season.state, 'staged'); assert.equal(inspection.audit.length, 1);assert.equal(inspection.collectionReady,true);
   const publish = ['publish', '--database', f.database, '--id', f.definition.id, '--digest', review.digest, '--revision', '1', '--reviewer', REVIEWER];
   assert.equal(main(publish).nextState, 'published'); assert.deepEqual(fs.readFileSync(f.database), staged);
   assert.equal(main([...publish, '--write']).season.state, 'published');

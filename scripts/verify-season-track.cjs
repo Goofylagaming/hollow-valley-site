@@ -97,6 +97,8 @@ async function until(fn) { for (let i = 0; i < 300; i++) { if (fn()) return; awa
       for(let i=0;i<10;i++) db.prepare('INSERT INTO economy_skin_presets VALUES(?,?,1)').run('browser-skin-'+width+'-'+i,steamA);
       db.exec('BEGIN IMMEDIATE');db.prepare('INSERT INTO progression_achievements VALUES(?,?,?,?)').run(steamA,'skins-10',JSON.stringify({type:'owned_skins',threshold:10,value:10}),new Date(now).toISOString());achievementSources.recordNewAward(steamA,'skins-10');db.exec('COMMIT');
       await refresh(); assert.match(await page.locator('#season-points').textContent(), /^0 season XP/);
+      const beforeBackground=writes,background=store.collect();assert.equal(background.accepted,1);assert.equal(background.achievementAccepted,5);
+      await refresh();assert.equal(writes,beforeBackground,'background updates need no player POST or read-time collection');assert.match(await page.locator('#season-points').textContent(),/^275 season XP/);
       await page.click('#season-sync'); await idle(); assert.match(await page.locator('#season-points').textContent(), /^275 season XP/);
       assert.match(await page.locator('#season-points').textContent(), /265 XP comes from reviewed achievements/);
       db.prepare('UPDATE economy_quest_achievements SET achieved_at=? WHERE steam_id=?').run(new Date(now-1).toISOString(), steamA);

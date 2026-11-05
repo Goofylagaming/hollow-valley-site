@@ -2,6 +2,25 @@
 const { createHash } = require('node:crypto');
 const { parseSourceTimestamp } = require('./progressionSourceTime');
 const { CONTRACTS, createAchievementSourceTimeStore, checkAchievementInfrastructure } = require('./achievementSourceTime');
+const COLLECTION_HOOKS=[
+  `CREATE TRIGGER IF NOT EXISTS progression_season_collection_join AFTER INSERT ON progression_season_enrollments BEGIN
+    INSERT INTO progression_season_collection_queue(season_id,steam_id) VALUES(NEW.season_id,NEW.steam_id);
+  END`,
+  `CREATE TRIGGER IF NOT EXISTS progression_season_collection_leave AFTER DELETE ON progression_season_enrollments BEGIN
+    DELETE FROM progression_season_collection_queue WHERE season_id=OLD.season_id AND steam_id=OLD.steam_id;
+  END`,
+];
+function collectionReady(db) {
+  for (const [name,fields] of [['progression_season_collection_queue',['position','season_id','steam_id']],['progression_season_collection_cursor',['id','after_position']]]) {
+    const columns=new Set(db.prepare(`PRAGMA table_info(${name})`).all().map(row=>row.name));if (!fields.every(field=>columns.has(field))) return false;
+  }
+  const canonical=sql=>sql.replace('IF NOT EXISTS ','').replace(/\s+/g,' ').trim();
+  for (const sql of COLLECTION_HOOKS) {
+    const name=sql.match(/EXISTS (\w+)/)[1],actual=db.prepare("SELECT sql FROM sqlite_master WHERE type='trigger' AND name=?").get(name)?.sql;
+    if (!actual || canonical(actual)!==canonical(sql)) return false;
+  }
+  return true;
+}
 
 const SOURCES = Object.freeze({
   playtime: { reference: 'playtime_interval', basis: 'playtime-observation', policy: 'interval-end' },
@@ -78,7 +97,9 @@ function describe(input) {
 
 // Host/operator and player boundaries authorize current identities themselves.
 function createSeasonTrackStore(db, { now = Date.now, initialize = true, writable = () => {} } = {}) {
-  if (initialize) db.exec(`
+  if (initialize) {
+    db.exec('SAVEPOINT progression_season_initialize');
+    try { db.exec(`
     CREATE TABLE IF NOT EXISTS progression_season_retention (
       season_id TEXT PRIMARY KEY,digest TEXT NOT NULL,retain_until INTEGER NOT NULL,cleaned_at INTEGER);
     CREATE INDEX IF NOT EXISTS progression_season_retention_due ON progression_season_retention(cleaned_at,retain_until);
@@ -94,6 +115,13 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
     CREATE TABLE IF NOT EXISTS progression_season_enrollments (
       season_id TEXT NOT NULL, steam_id TEXT NOT NULL, enrolled_at INTEGER NOT NULL,
       cursor INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(season_id,steam_id));
+    CREATE TABLE IF NOT EXISTS progression_season_collection_queue (
+      position INTEGER PRIMARY KEY AUTOINCREMENT,season_id TEXT NOT NULL,steam_id TEXT NOT NULL,UNIQUE(season_id,steam_id));
+    CREATE TABLE IF NOT EXISTS progression_season_collection_cursor (id INTEGER PRIMARY KEY CHECK(id=1),after_position INTEGER NOT NULL);
+    ${COLLECTION_HOOKS.join(';')};
+    INSERT INTO progression_season_collection_queue(season_id,steam_id)
+      SELECT e.season_id,e.steam_id FROM progression_season_enrollments e WHERE NOT EXISTS (
+        SELECT 1 FROM progression_season_collection_queue q WHERE q.season_id=e.season_id AND q.steam_id=e.steam_id);
     CREATE TABLE IF NOT EXISTS progression_season_achievement_cursors (
       season_id TEXT NOT NULL,steam_id TEXT NOT NULL,source_floor INTEGER NOT NULL,PRIMARY KEY(season_id,steam_id));
     CREATE TABLE IF NOT EXISTS progression_season_achievement_evidence (
@@ -120,7 +148,9 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
     CREATE TRIGGER IF NOT EXISTS progression_season_source_insert AFTER INSERT ON progression_xp_ledger BEGIN
       INSERT OR IGNORE INTO progression_season_source_positions(ledger_id,steam_id) VALUES(NEW.id,NEW.steam_id);
     END;
-  `);
+  `);db.exec('RELEASE progression_season_initialize'); }
+    catch(error) { db.exec('ROLLBACK TO progression_season_initialize; RELEASE progression_season_initialize');throw error; }
+  }
   function atomic(action) {
     db.exec('BEGIN IMMEDIATE');
     try { const result = action(); db.exec('COMMIT'); return result; }
@@ -222,6 +252,7 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
   const enrollment = (id, steamId) => db.prepare('SELECT enrolled_at AS enrolledAt,cursor FROM progression_season_enrollments WHERE season_id=? AND steam_id=?').get(id, steamId) || null;
   function eraseRaw(id, steamId) {
       writable();
+      if (db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='progression_season_collection_queue'").get()) db.prepare('DELETE FROM progression_season_collection_queue WHERE season_id=? AND steam_id=?').run(id,steamId);
       db.prepare('DELETE FROM progression_season_evidence WHERE season_id=? AND steam_id=?').run(id, steamId);
       db.prepare('DELETE FROM progression_season_achievement_evidence WHERE season_id=? AND steam_id=?').run(id, steamId);
       db.prepare('DELETE FROM progression_season_achievement_cursors WHERE season_id=? AND steam_id=?').run(id, steamId);
@@ -278,7 +309,9 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
   function reconcile(id, steamId, { limit = 500, expectedRevision, seasonDigest } = {}) {
     steam(steamId);
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > 1000) fail('Invalid season evidence batch size');
-    return atomic(() => {
+    return atomic(() => reconcileRaw(id,steamId,{limit,expectedRevision,seasonDigest}));
+  }
+  function reconcileRaw(id,steamId,{limit,expectedRevision,seasonDigest}) {
       writable(); const row = checked(id), participant = enrollment(id, steamId), at = now();
       if (expired(row)) fail('Season retention has ended', 410);
       if (expectedRevision !== undefined && (!Number.isSafeInteger(expectedRevision) || expectedRevision !== choice(id, steamId).revision || seasonDigest !== row.digest)) fail('Participation or season rules changed; refresh before updating progress', 409);
@@ -311,6 +344,38 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
           result.achievementAccepted += db.prepare('INSERT OR IGNORE INTO progression_season_achievement_evidence VALUES(?,?,?,?,?,?,?,?,?,?)')
             .run(id, steamId, award.id, award.xp, source.position, source.sourceAt, source.recordedAt, source.basis, source.awardDigest, source.evidenceDigest).changes;
         }
+      }
+      return result;
+  }
+  function collect({ limit = 10, evidenceLimit = 100 } = {}) {
+    if (!Number.isSafeInteger(limit) || limit<1 || limit>25 || !Number.isSafeInteger(evidenceLimit) || evidenceLimit<1 || evidenceLimit>1000 || limit*evidenceLimit>2500) fail('Invalid background season batch size');
+    if (!collectionReady(db)) fail('Prepare the season collection queue before background updates',503);
+    return atomic(() => {
+      writable();
+      const cursor=db.prepare('SELECT after_position FROM progression_season_collection_cursor WHERE id=1').get()?.after_position || 0;
+      if (!Number.isSafeInteger(cursor) || cursor<0) fail('Season collection cursor is unavailable',503);
+      const candidates=`SELECT q.position,q.season_id,q.steam_id FROM progression_season_collection_queue q
+        JOIN progression_season_enrollments e ON e.season_id=q.season_id AND e.steam_id=q.steam_id
+        JOIN progression_seasons s ON s.id=q.season_id LEFT JOIN progression_season_retention r ON r.season_id=s.id
+        WHERE s.state IN ('published','closed') AND (r.season_id IS NULL OR r.retain_until>?)`;
+      const jobs=db.prepare(`${candidates} AND q.position>? ORDER BY q.position LIMIT ?`).all(now(),cursor,limit+1);
+      if (jobs.length<=limit && cursor) jobs.push(...db.prepare(`${candidates} AND q.position<=? ORDER BY q.position LIMIT ?`).all(now(),cursor,limit+1-jobs.length));
+      const result={visited:0,scanned:0,accepted:0,achievementAccepted:0,unavailable:0,more:jobs.length>limit};
+      for (const job of jobs.slice(0,limit)) {
+        db.exec('SAVEPOINT season_background_player');
+        try {
+          steam(job.steam_id);
+          const value=reconcileRaw(job.season_id,job.steam_id,{limit:evidenceLimit});
+          db.exec('RELEASE season_background_player');
+          result.scanned+=value.scanned;result.accepted+=value.accepted;result.achievementAccepted+=value.achievementAccepted||0;result.more ||= value.more;
+        } catch (error) {
+          db.exec('ROLLBACK TO season_background_player;RELEASE season_background_player');
+          // A broken player's evidence cannot starve other participants. The
+          // next queue cycle retries it; no identity or source error is logged.
+          result.unavailable++;
+        }
+        result.visited++;
+        db.prepare('INSERT INTO progression_season_collection_cursor VALUES(1,?) ON CONFLICT(id) DO UPDATE SET after_position=excluded.after_position').run(job.position);
       }
       return result;
     });
@@ -378,7 +443,8 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
         try { row = checked(candidate.season_id); } catch { unavailable++; continue; }
         if (!expired(row)) { unavailable++; continue; }
         let hasRows = false;
-        for (const table of ['progression_season_evidence','progression_season_achievement_evidence','progression_season_achievement_cursors','progression_season_enrollments','progression_season_requests','progression_season_choices']) {
+        const queueExists=db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='progression_season_collection_queue'").get();
+        for (const table of [...(queueExists?['progression_season_collection_queue']:[]),'progression_season_evidence','progression_season_achievement_evidence','progression_season_achievement_cursors','progression_season_enrollments','progression_season_requests','progression_season_choices']) {
           if (remaining) {
             const count = db.prepare(`DELETE FROM ${table} WHERE rowid IN (SELECT rowid FROM ${table} WHERE season_id=? LIMIT ?)`).run(row.id, remaining).changes;
             removed += count; remaining -= count;
@@ -401,6 +467,6 @@ function createSeasonTrackStore(db, { now = Date.now, initialize = true, writabl
       return { removed, completed, unavailable };
     });
   }
-  return { stage, read, reviewStateChange, changeState, enroll, erase, reconcile, progress, catalog, status, changeParticipation, maintain };
+  return { stage, read, reviewStateChange, changeState, enroll, erase, reconcile, collect, progress, catalog, status, changeParticipation, maintain };
 }
-module.exports = { describe, createSeasonTrackStore, SOURCES };
+module.exports = { describe, createSeasonTrackStore, collectionReady, SOURCES };

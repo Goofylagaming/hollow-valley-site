@@ -28,7 +28,7 @@ test('runtime flags alone never initialize season schema or install source trigg
     clock = Date.parse(def.startsAt); operator.enroll(def.id, '76561198000000401');
     delete process.env.SEASON_TRACK_MANAGEMENT_ENABLED; process.env.SEASON_TRACK_MAINTENANCE_ENABLED = '1';
     assert.throws(service.get, { status: 503 });
-    assert.equal(service.maintain().removed, 1, 'cleanup runs without collection, website access, player reads or telemetry');
+    assert.equal(service.maintain().removed, 2, 'cleanup removes enrollment and its collection queue without collection, website access, player reads or telemetry');
     delete process.env.SEASON_TRACK_MAINTENANCE_ENABLED;
   } finally { economy.db.close(); }
 });

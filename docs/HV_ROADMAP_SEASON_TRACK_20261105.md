@@ -53,7 +53,7 @@ reward. Existing paid quest/level behavior is regression-tested with synthetic d
 - Review the prepared privacy/retention maintenance against real operational
   policies and the source reconciliation cadence. The player-triggered update is bounded and never
   manufactures permanent XP or level coins; it is not a background collector.
-- Additional achievement families and real achievement/event source verification. The existing
+- Real source verification for the 22 prepared achievement timing contracts. The existing
   permanent ledger currently grants XP from playtime, quests and paid event records;
   it is not a complete season implementation.
 - Approved cosmetic/reward policy and any separately authorized payout behavior.
@@ -63,7 +63,7 @@ reward. Existing paid quest/level behavior is regression-tested with synthetic d
 
 Original #4 wording and historical votes remain. The feature leaves the active
 ballot during development, freeing its old votes without deleting them. Eight
-ideas remain eligible. Homepage planning asset version is 128. No production
+ideas remain eligible. Homepage planning asset version is 129. No production
 completion date is assigned.
 
 ## Local verification
@@ -774,3 +774,70 @@ the phone rendering was inspected. CI paths and commands include these checks.
 Hosted CI, real policy choices, reward fulfillment, producer review, operational
 recovery and authenticated staging remain unfinished. No push, merge, deployment,
 real player mutation or payout was performed; the full roadmap remains active.
+
+
+## Optional automatic saved-progress collection — 6 November 2026
+
+A default-off background collector now reconciles existing season enrollments
+without requiring a player's page visit or update request. It copies supported
+existing XP/achievement evidence only. It never calls the permanent XP writer,
+creates an enrollment, grants a reward or issues a game command. The player update
+button remains available for bounded catch-up; ordinary GET projections remain
+read-only and continue revalidating original evidence.
+
+The automation runtime requires both `SEASON_TRACK_ENABLED=1` and
+`SEASON_TRACK_COLLECTION_ENABLED=1`, and skips every collection write under
+`SEASON_TRACK_READ_ONLY=1`. Management access alone cannot run collection. All
+flags remain off in the example configuration. Privacy maintenance retains its
+independent `SEASON_TRACK_MAINTENANCE_ENABLED` control and does not depend on
+tracking, collection or website visits.
+
+Each minute the existing single-instance scheduler attempts cleanup and collection
+separately. One task's failure does not prevent the other task from running.
+Collection defaults to ten participants and 100 XP source candidates per participant.
+The store caps a call at 25 participants, 1,000 candidates per participant and
+2,500 total XP candidates. Each selected participant also uses the existing bounded
+22-contract achievement inspection. These are work limits, not a promised live
+refresh cadence: full-cycle latency depends on queue size, backlog, source validation
+cost and deployment throughput, which still need real staging measurements.
+
+An additive queue assigns a durable AUTOINCREMENT identity to each enrollment.
+The saved checkpoint contains only an opaque position, never a Steam ID. Keyset
+selection wraps fairly across participants rather than repeatedly exhausting one
+busy account. A process restart or VACUUM does not reset membership positions.
+Independent collectors serialize the batch and checkpoint under the database's
+write transaction. The shared reconcile body rechecks the current enrollment,
+immutable season review and retention inside that same transaction. Missing or
+changed evidence and unreviewed dates never gain a new basis through collection.
+
+Each participant has a savepoint: its source error rolls back its copied progress
+and leaves its personal cursor unchanged, while the queue advances to other
+participants. A later cycle retries the failed account. A batch/checkpoint failure
+rolls back the complete batch. Reports contain aggregate counts and a generic
+maintenance/collection category, not account identities or private source errors.
+Delayed receipts can be copied after a season closes only when their original
+activity and receipt dates satisfy its unchanged windows; expired history is never
+collected. Deletion/rejoin uses the existing source floors, so neither the worker
+nor a lost reply can restore erased points.
+
+Explicit operator initialization now creates/migrates the queue and hooks in the
+same schema transaction. Existing enrollments enter the queue without changing
+their consent dates, choice revisions or source floors. Runtime flags and reads do
+not initialize or repair this schema. Operator inspection reports `collectionReady`
+without writing; missing/replaced queue hooks stop automatic collection. Privacy
+deletion directly removes queued identities even if the leave hook is damaged.
+Bounded expiry maintenance also counts/removes queue rows and works with older
+schemas that have no queue. No production schema or flag was changed here.
+
+**197 affected checks pass**, including fair bounded traversal, durable checkpoint
+restarts, independent simultaneous collectors, VACUUM, participant and checkpoint
+rollback, delayed/closed-season evidence, expired exclusion, account erasure and
+same-clock rejoin, automatic achievement copies, missing-hook readiness, runtime
+flags/read-only behavior and cleanup failure isolation. Desktop/mobile HTTP/browser
+fixtures pass at 1440px and 390px: the background copy appears on a subsequent
+read without a player POST; a later manual update does not duplicate points.
+The homepage planning asset is v129 and #4 remains Building/Testing.
+
+No branch was pushed, merged or deployed. Reward policy/fulfillment, actual season
+choices, producer verification, operational recovery, hosted CI and authenticated
+staging remain required. The full 31-item roadmap remains active and incomplete.

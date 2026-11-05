@@ -1,6 +1,6 @@
 "use strict";
 const fs = require('node:fs'), path = require('node:path');
-const { describe, createSeasonTrackStore } = require('../automation-platform/src/services/seasonTrackStore');
+const { describe, createSeasonTrackStore, collectionReady } = require('../automation-platform/src/services/seasonTrackStore');
 
 // Host-operator tool. A supplied reviewer is an audit identity, not remote auth.
 // No environment loading, automatic database selection or implicit mutations.
@@ -47,11 +47,11 @@ function main(args) {
     if (reviewed?.definition.achievementPoints) require('../automation-platform/src/services/achievementSourceTime').checkAchievementInfrastructure(db,reviewed.definition.achievementPoints.awards);
     const ready = ['progression_seasons', 'progression_season_audit', 'progression_season_enrollments', 'progression_season_evidence', 'progression_season_source_positions', 'progression_season_choices', 'progression_season_requests', 'progression_season_retention', 'progression_season_maintenance', 'progression_season_achievement_cursors', 'progression_season_achievement_evidence'].every(name => tables.has(name));
     if (!ready && command !== 'stage') {
-      if (command === 'inspect') return { database, schemaReady: false, season: null, written: false };
+      if (command === 'inspect') return { database, schemaReady: false, collectionReady: false, season: null, written: false };
       throw new Error('Stage a reviewed season first');
     }
     const store = ready || write ? createSeasonTrackStore(db, { initialize: write }) : null;
-    if (command === 'inspect') return { database, schemaReady: true, season: store.read(options.id),
+    if (command === 'inspect') return { database, schemaReady: true, collectionReady: collectionReady(db), season: store.read(options.id),
       audit: db.prepare('SELECT revision,action,actor,digest,at FROM progression_season_audit WHERE season_id=? ORDER BY revision DESC LIMIT 10').all(options.id), written: false };
     if (command === 'stage') {
       const old = ready ? db.prepare('SELECT digest FROM progression_seasons WHERE id=?').get(reviewed.definition.id) : null;

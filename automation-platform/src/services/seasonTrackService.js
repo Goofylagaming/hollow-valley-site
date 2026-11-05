@@ -25,11 +25,18 @@ function maintain() {
   if (process.env.SEASON_TRACK_MAINTENANCE_ENABLED !== '1' || process.env.SEASON_TRACK_READ_ONLY === '1') return { skipped: true };
   return open().maintain();
 }
+function collect() {
+  if (process.env.SEASON_TRACK_COLLECTION_ENABLED !== '1' || !enabled() || process.env.SEASON_TRACK_READ_ONLY === '1') return { skipped: true };
+  return open().collect();
+}
 let timer = null, cancelTimer = clearInterval;
-function start({ schedule = setInterval, cancel = clearInterval, report = () => console.error('[season-track] retention cleanup is unavailable') } = {}) {
-  if (timer !== null || process.env.SEASON_TRACK_MAINTENANCE_ENABLED !== '1') return timer;
-  const run = () => { try { const result = maintain(); if (result.unavailable) report(); } catch { report(); } };
+function start({ schedule = setInterval, cancel = clearInterval, report = area => console.error('[season-track]',area==='collection'?'progress collection is unavailable':'retention cleanup is unavailable') } = {}) {
+  if (timer !== null || (process.env.SEASON_TRACK_MAINTENANCE_ENABLED !== '1' && process.env.SEASON_TRACK_COLLECTION_ENABLED !== '1')) return timer;
+  const run = () => {
+    try { const result = maintain(); if (result.unavailable) report('maintenance'); } catch { report('maintenance'); }
+    try { const result = collect(); if (result.unavailable) report('collection'); } catch { report('collection'); }
+  };
   run(); cancelTimer = cancel; timer = schedule(run, 60000); timer.unref?.(); return timer;
 }
 function stop() { if (timer !== null) cancelTimer(timer); timer = null; }
-module.exports = { get, enabled, available, maintain, start, stop };
+module.exports = { get, enabled, available, maintain, collect, start, stop };
