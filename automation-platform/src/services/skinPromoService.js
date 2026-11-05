@@ -36,7 +36,7 @@ function createSkinPromoService(store,{now=Date.now,enabled=()=>process.env.SKIN
     return tx(()=>{
       const row=db.prepare('SELECT * FROM economy_skin_promos WHERE code_hash=?').get(hash);
       if(!row)fail('This code is unavailable',404);
-      if(row.redeemed_by===steam)return {duplicate:true,presetId:row.preset_id};
+      if(row.redeemed_by===steam)return {duplicate:true,presetId:row.preset_id,stillOwned:store.hasSkinUnlock(steam,row.preset_id)};
       if(row.redeemed_by||row.revoked_at!==null||row.expires_at<=now())fail('This code is unavailable',409);
       const preset=store.getSkinPreset(row.preset_id);eligible(preset);
       if(preset.owner_steam_id!==row.actor||fingerprint(preset)!==row.fingerprint)fail('The skin changed after this code was issued',409);
