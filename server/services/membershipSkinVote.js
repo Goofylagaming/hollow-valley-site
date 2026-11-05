@@ -215,7 +215,9 @@ function createBallot(actor, input, { env = process.env, now = Date.now() } = {}
   if (activeBallot(now)) throw new SkinVoteError(409, "SKIN_VOTE_ALREADY_OPEN", "Close the current member skin vote before opening another.");
   const title = cleanText(input?.title || "Choose next month's premium skin", MAX_TITLE, "vote title");
   const kind = input?.kind || "premium-skin";
-  if (!["premium-skin", "public-event-theme", "community-choice"].includes(kind)) {
+  const standardKinds = ["premium-skin", "public-event-theme", "community-choice"];
+  const publicKinds = ["community-challenge", "roadmap-priority", "community-improvement", "public-weekend-theme"];
+  if (!standardKinds.includes(kind) && !(process.env.COMMUNITY_PARTICIPATION_ENABLED === "1" && publicKinds.includes(kind))) {
     throw new SkinVoteError(400, "INVALID_SKIN_VOTE", "Choose a premium skin, public event theme or community choice ballot.");
   }
   const options = normalizeOptions(input?.options);
