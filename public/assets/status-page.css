@@ -25,6 +25,7 @@
 .hv-status-summary button:focus-visible, .hv-status-notes a:focus-visible { outline: 3px solid #d8a928; outline-offset: 4px; }
 .hv-status-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 18px; }
 .hv-status-card { padding: 22px; min-height: 170px; }
+#status-worker-card { grid-column: 1 / -1; min-height: 0; }
 .hv-status-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .hv-status-card h3 { margin: 0; font-size: 1rem; color: #f3ebd4; }
 .hv-status-card p { margin: 22px 0 12px; color: #b8c6b9; line-height: 1.6; font-size: .9rem; }

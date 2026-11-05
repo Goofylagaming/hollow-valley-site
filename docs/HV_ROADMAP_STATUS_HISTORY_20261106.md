@@ -189,3 +189,78 @@ candidate `708b2c8a` and its operations follow-up `2ef0562d` remain unchanged.
 Independent component probes, private-evidence retention policy, operational
 concurrency/recovery measurements, hosted checks and authenticated staging are
 still required. Roadmap #29 and the full roadmap remain incomplete.
+
+
+## Independent Bridge worker observation — 6 November 2026
+
+A separate default-off component signal now uses the existing authenticated owner
+management-agent heartbeat to observe the Command Bridge **Windows scheduled task**.
+It is not a command-execution test, RCON probe or claim that the Bridge pipeline is
+fully operational. The website/game summary remains independent, and the public
+card explicitly labels its narrow scope as an observation.
+
+The repository's management agent is now v0.3-status-clock. It records UTC
+`sampledAt` at the start of `Get-Snapshot`, before collecting process/task/log
+facts, and includes that timestamp in its normal outbound status payload. Its
+allowlisted hosts, token selection, default status/read-only mode, task-write gates,
+job polling and task actions are unchanged. The new script has not been installed
+or run on the live Windows host. PowerShell syntax was parsed without executing it;
+the local runtime confirms the seven-digit UTC round-trip format emitted by .NET.
+
+The existing authenticated `POST /api/binarylane-management/status` path optionally
+captures only `sampledAt` and `tasks.command_bridge`. A minimal singleton table
+stores schema version, original source time, receiving time and an allowlisted
+Windows task state. It copies no logs, task names/paths, process IDs, server
+addresses, player identifiers, token values or owner job data. Public observation
+failure is isolated from the existing private management heartbeat, with a generic
+notice and no raw source error logging. A failed write never advances the saved
+observation's timestamp.
+
+Collection requires `STATUS_COMPONENTS_COLLECTION_ENABLED=1`; public visibility
+requires `STATUS_COMPONENTS_PUBLIC_ENABLED=1`. Both default off. Public projection
+also requires the existing management channel to be enabled/configured. Neither
+flag activates task writes or changes `HV_MANAGEMENT_WRITES_ENABLED`.
+
+The read-only `GET /api/component-status` endpoint never sends a network probe,
+leases a management job, polls a command queue, creates monitoring schema or runs
+a game action. Schema preparation occurs only on an enabled, supported incoming
+heartbeat. Old senders without an explicit source clock remain unobserved rather
+than acquiring the receiving process's current time. Existing private owner status
+behavior remains compatible with those senders.
+
+Source parsing accepts explicit UTC ISO timestamps, including Windows' seven-digit
+fractional precision (conservatively truncated to milliseconds). Invalid calendars,
+missing offsets, missing task facts and unsupported states are rejected. Exact
+replays preserve the first receiving time; older/conflicting source clocks cannot
+overwrite a newer observation. Source skew above two minutes is rejected. Public
+reads require both source and receiving clocks not to be future-dated and both ages
+to be within 90 seconds. Otherwise the card is delayed, unknown or clock-unverified;
+no timestamp is clamped into apparent freshness. The default agent poll interval
+is 20 seconds; any nondefault cadence and collection overhead need staging review.
+
+The public card reports an observed running task, a queued task, a task not running
+at the last check, or an explicitly unknown/unavailable observation. It does not
+infer an offline game or failed command delivery. It renders the original agent
+snapshot date in Brisbane time. The browser independently checks that date, so a
+cached response still claiming a running task becomes delayed after expiry.
+
+**66 affected local checks pass**, including new source/calendar precision,
+replay/conflict, expired/future clock, malformed evidence, minimal projection,
+disabled/legacy no-schema behavior, authenticated heartbeat-to-public HTTP flow,
+private-field exclusion and management failure isolation. The HTTP fixture keeps
+a synthetic queued management job untouched during every health read. Existing
+owner-management, read-only, incident, status, voting and production-preservation
+checks pass. Both desktop/phone public fixtures pass at 1440px and 390px, including
+cached-worker expiry without altering the separate live summary. The phone card
+was visually inspected. The staff editor did not change in this follow-up.
+
+Homepage roadmap asset is v133, status CSS v3 and the new component controller v1.
+The dedicated workflow includes the source, HTTP, management regression and public
+browser checks. No live flags, agent installation, incident, management job, game
+command, merge or deployment changed. The season and operations candidates remain
+fixed at `708b2c8a` and `2ef0562d`.
+
+Still required: live source/agent verification, complete Bridge execution and RCON
+health, Discord/Marketplace/Steam/Live Map probes, private-evidence retention policy,
+operational concurrency/recovery measurements, hosted CI and authenticated staging.
+This is progress on #29, not completion of #29 or the 31-item roadmap.

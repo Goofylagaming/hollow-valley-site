@@ -68,6 +68,10 @@ agentRouter.post("/status", (req, res) => {
       return res.status(413).json({ error: "Status payload too large." });
     }
     management.receiveHeartbeat(req.body);
+    // Independent public worker observation only; never leases a management job.
+    // Failure cannot interrupt the owner's existing heartbeat/control channel.
+    try { require('../services/bridgeWorkerHealth').captureManagementObservation(req.body); }
+    catch { console.warn('[component-status] worker observation could not be saved'); }
     res.json({ ok: true, at: new Date().toISOString() });
   } catch (e) { rejectError(res, e); }
 });

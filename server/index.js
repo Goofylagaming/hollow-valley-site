@@ -293,6 +293,7 @@ function createApp() {
   app.use("/api/daily-bonus", dailyBonusRouter);
   app.use("/api/bodydrop", bodydropRouter);
   app.use("/api/server-status", serverStatusRouter);
+  app.use("/api/component-status", require("./routes/componentStatus").createRouter());
   const statusIncidents = require("./routes/statusIncidents").createRouters();
   app.use("/api/status-incidents", statusIncidents.publicRouter);
   app.use("/api/admin/status-incidents", statusIncidents.adminRouter);

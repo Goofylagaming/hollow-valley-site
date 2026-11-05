@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="/assets/styles.css?v=38">
   <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=5">
-  <link rel="stylesheet" href="/assets/status-page.css?v=2">
+  <link rel="stylesheet" href="/assets/status-page.css?v=3">
 </head>
 <body>
   <div class="app-shell">
@@ -41,11 +41,16 @@
           <p id="status-game-detail">Reading the last server snapshot from Hollow Valley automation.</p>
           <small id="status-snapshot-time">No verified snapshot loaded yet</small>
         </article>
+        <article class="hv-status-card" id="status-worker-card" data-state="unknown">
+          <div class="hv-status-card-header"><h3>Command Bridge worker observation</h3><span class="hv-status-pill" id="status-worker-state">Checking</span></div>
+          <p id="status-worker-detail">Checking the management agent's recorded Windows task state. This does not test game commands.</p>
+          <small id="status-worker-time">No verified worker observation yet</small>
+        </article>
       </section>
       <section class="hv-status-notes" aria-labelledby="status-notes-heading">
         <h2 id="status-notes-heading">What this page can verify</h2>
         <p><strong>Website process</strong> means the website answered its liveness check. <strong>Website readiness</strong> checks local storage and draining state. <strong>Game server</strong> uses a server snapshot; its last update is shown so delayed data is never mistaken for live player presence.</p>
-        <p>RCON / Command Bridge, Discord bot, Steam sign-in, Marketplace operations and Live Map data are <strong>not independently monitored on this page yet</strong>. An online website does not prove those services work. Staff-reviewed incident reports below are separate from these checks.</p>
+        <p>The Command Bridge worker observation checks a recorded Windows task state; it does not verify command delivery or in-game execution. RCON, Discord bot, Steam sign-in, Marketplace operations and Live Map data are <strong>not independently monitored on this page yet</strong>. An online website does not prove those services work. Staff-reviewed incident reports below are separate from these checks.</p>
         <a href="/">← Back to Hollow Valley</a>
       </section>
       <section class="hv-status-notes" aria-labelledby="status-incidents-heading">
@@ -61,5 +66,6 @@
   <script src="/assets/common.js?v=22"></script>
   <script src="/assets/status-page.js?v=1"></script>
   <script src="/assets/status-incidents.js?v=1"></script>
+  <script src="/assets/status-components.js?v=1"></script>
 </body>
 </html>
