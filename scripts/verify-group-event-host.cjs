@@ -24,6 +24,8 @@ app.get(['/api/events/rewards/mine','/api/events/admin/rewards'],(_req,res)=>res
 app.get(['/api/events/attendance/mine','/api/events/admin/attendance'],(_req,res)=>res.json({attendance:[],state:{enabled:false}}));
 app.get('/api/events/admin/players',(_req,res)=>res.json({players:[]}));
 app.use('/api/events',require('../server/routes/events'));
+process.env.DYNAMIC_CHALLENGES_EVENTS_ENABLED='0';
+app.use('/api/admin/challenge-attendance',require('../server/routes/challengeAttendance').createRouter());
 const unexpected=[];app.use('/api',(req,res)=>{unexpected.push(req.method+' '+req.path);res.status(404).json({error:'Unexpected fixture API'});});
 app.get('/events',(_req,res)=>res.sendFile(path.join(__dirname,'../public/events.html')));app.use(express.static(path.join(__dirname,'../public')));
 const listen=app=>new Promise(resolve=>{const server=app.listen(0,'127.0.0.1',()=>resolve(server));});

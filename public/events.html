@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=4">
   <link rel="stylesheet" href="/assets/events-group-roster.css?v=1">
+  <link rel="stylesheet" href="/assets/challenge-attendance-admin.css?v=1">
 </head>
 <body>
   <div class="app-shell">
@@ -162,6 +163,28 @@
           </div>
         </section>
       </section>
+      <section id="attendance-evidence-panel" hidden aria-labelledby="attendance-evidence-heading">
+        <h2 id="attendance-evidence-heading">Staff attendance evidence</h2>
+        <p>Record actual attendance at a completed official event, supported by a staff evidence message. This separate review does not issue coins. An RSVP or registration is not proof of attendance.</p>
+        <p id="attendance-evidence-preview"></p>
+        <p id="attendance-evidence-status" role="status" aria-live="polite"></p>
+        <button id="attendance-evidence-refresh" class="small-button" type="button">Refresh attendance evidence</button>
+        <form id="attendance-evidence-form">
+          <label>Discord event ID<input id="attendance-evidence-event" required pattern="[0-9]{10,24}" inputmode="numeric"></label>
+          <label>Player Steam ID<input id="attendance-evidence-player" required pattern="[0-9]{17}" inputmode="numeric"></label>
+          <label>Action<select id="attendance-evidence-action"><option value="confirm">Confirm actual attendance</option><option value="revoke">Revoke recorded attendance</option></select></label>
+          <label>Attendance time (Brisbane, confirmation only)<input id="attendance-evidence-time" type="datetime-local" step="60"></label>
+          <label>Official Discord evidence message<input id="attendance-evidence-proof" type="url" required maxlength="300"></label>
+          <label>Staff reason<textarea id="attendance-evidence-reason" required minlength="10" maxlength="1000"></textarea></label>
+          <button class="small-button" type="submit">Review attendance evidence</button>
+        </form>
+        <div id="attendance-evidence-review" hidden>
+          <h3>Review before saving</h3>
+          <div id="attendance-evidence-summary"></div>
+          <button id="attendance-evidence-confirm" class="small-button" type="button">Confirm reviewed evidence</button>
+          <button id="attendance-evidence-cancel" class="small-button" type="button">Cancel evidence review</button>
+        </div>
+      </section>
     </main>
 
     <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
@@ -172,5 +195,6 @@
   <script src="assets/events-species-bonuses.js?v=2"></script>
   <script src="assets/events-admin-delete.js?v=1"></script>
   <script src="/assets/events-group-roster.js?v=1"></script>
+  <script src="/assets/challenge-attendance-admin.js?v=1"></script>
 </body>
 </html>
