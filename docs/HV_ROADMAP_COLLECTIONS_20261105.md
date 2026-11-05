@@ -35,7 +35,26 @@ handling, guest hiding and layout bounds. Mobile collection cards were inspected
 
 ## Remaining roadmap work
 
-Broader rarity classification, additional collection curation, real in-game
+Additional collection curation, real in-game
 verification of starter palettes, gifting/trading integrations, authenticated
 staging and production verification remain outstanding. No production settings,
 skin entitlements, purchases or game commands were changed.
+
+## Admin rarity classification
+
+Admins can explicitly classify catalogue skins as Common, Rare, Epic, Legendary
+or Event, or clear a classification. Existing skins remain unclassified until
+a decision is recorded. Each change requires a reason, the current revision and
+a retry identifier. The session supplies the reviewer identity. Conflicting or
+stale decisions are rejected, and replaying an earlier request cannot overwrite
+a later decision. The admin panel shows the latest 20 audit entries; public cards
+and profile collections show only the rarity label.
+
+Classification does not change palette data, publication verification, prices,
+wallets or entitlements. Same-origin JSON and admin authentication are required;
+read-only preview sessions cannot submit changes.
+
+Validation: 26 premium service, concurrency and route tests passed. The isolated
+rarity browser fixture passed at 1440px and 390px, covering failed-save retries,
+preserved reasons, escaped audit text, read-only controls, guest isolation and
+layout bounds. These checks use synthetic data; no live skins were classified.

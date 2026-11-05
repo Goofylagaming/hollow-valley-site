@@ -311,6 +311,7 @@ async function loadCollections() {
       for(const skin of group.skins||[]) {
         const li=node('li',`${skin.name} · ${skin.species} · ${skin.owned?({created:'Your design',unlocked:'Permanently unlocked',granted:'Personal grant'}[skin.ownership]||'Owned'):'Not owned'}`);
         if(skin.archived)li.append(node('small',' · Archived from the catalogue'));
+        if(skin.rarity)li.append(node('small',` · Rarity: ${skin.rarity}`));
         const swatches=node('div','');swatches.setAttribute('aria-label','Palette preview');swatches.style.cssText='display:flex;flex-wrap:wrap;gap:4px;margin:6px 0 12px';
         for(const swatch of skin.swatches||[]) {
           if(!/^#[0-9a-f]{6}$/i.test(swatch.color))continue;

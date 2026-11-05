@@ -28,4 +28,8 @@ router.post('/admin/drafts',requireAdmin,actor,(req,res)=>respond(res,()=>client
 router.put('/admin/:skinId',requireAdmin,actor,(req,res)=>respond(res,()=>client.updateDraft({skinId:req.params.skinId,actorSteamId:req.user.steam_id,species:req.body?.species,name:req.body?.name,description:req.body?.description,skin:req.body?.skin})));
 router.post('/admin/:skinId/verify',requireAdmin,actor,(req,res)=>respond(res,()=>client.verifyDraft({skinId:req.params.skinId,actorSteamId:req.user.steam_id,verifiedSpecies:req.body?.verifiedSpecies,note:req.body?.note,confirmedInGame:req.body?.confirmedInGame,expectedVersion:req.body?.expectedVersion})));
 router.post('/admin/:skinId/publish',requireAdmin,actor,(req,res)=>respond(res,()=>client.setPublished({skinId:req.params.skinId,actorSteamId:req.user.steam_id,published:req.body?.published})));
+router.post('/admin/:skinId/rarity',requireAdmin,actor,(req,res)=>{
+  if(req.get('origin')!==`${req.protocol}://${req.get('host')}`||!req.is('application/json'))return res.status(403).json({error:'Same-origin JSON request required.'});
+  return respond(res,()=>client.setRarity({skinId:req.params.skinId,actorSteamId:req.user.steam_id,rarity:req.body?.rarity,reason:req.body?.reason,expectedRevision:req.body?.expectedRevision,requestId:req.body?.requestId}));
+});
 module.exports=router;

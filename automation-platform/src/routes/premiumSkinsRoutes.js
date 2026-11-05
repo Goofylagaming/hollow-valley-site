@@ -17,4 +17,5 @@ router.post('/admin/drafts',(req,res)=>respond(res,()=>premium.draftFromPreset({
 router.put('/admin/:skinId',(req,res)=>respond(res,()=>premium.updateDraft({skinId:req.params.skinId,actorSteamId:req.body?.actorSteamId,species:req.body?.species,name:req.body?.name,description:req.body?.description,skin:req.body?.skin})));
 router.post('/admin/:skinId/verify',(req,res)=>respond(res,()=>premium.verifyDraft({skinId:req.params.skinId,actorSteamId:req.body?.actorSteamId,verifiedSpecies:req.body?.verifiedSpecies,note:req.body?.note,confirmedInGame:req.body?.confirmedInGame,expectedVersion:req.body?.expectedVersion})));
 router.post('/admin/:skinId/publish',(req,res)=>respond(res,()=>premium.setPublished({skinId:req.params.skinId,actorSteamId:req.body?.actorSteamId,published:req.body?.published})));
+router.post('/admin/:skinId/rarity',(req,res)=>respond(res,()=>premium.setRarity({skinId:req.params.skinId,actorSteamId:req.body?.actorSteamId,rarity:req.body?.rarity,reason:req.body?.reason,expectedRevision:req.body?.expectedRevision,requestId:req.body?.requestId})));
 module.exports=router;
