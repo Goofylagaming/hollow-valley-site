@@ -26,6 +26,7 @@ function steam(value) {
 }
 function fail(message,status=400) {throw Object.assign(new Error(message),{status});}
 function createDynamicChallengeStore(db, {now=Date.now, enabled=()=>process.env.DYNAMIC_CHALLENGES_ENABLED==='1'}={}) {
+  const attendance=require('./challengeAttendanceEvidence').createChallengeAttendanceEvidence(db,{now});
   db.exec(`CREATE TABLE IF NOT EXISTS dc_participants(steam_id TEXT PRIMARY KEY, joined_at INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS dc_cursor(steam_id TEXT PRIMARY KEY, life_id TEXT NOT NULL, species TEXT NOT NULL, at INTEGER NOT NULL, segment TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS dc_evidence(steam_id TEXT NOT NULL, cadence TEXT NOT NULL, period_start INTEGER NOT NULL,
@@ -195,14 +196,20 @@ function createDynamicChallengeStore(db, {now=Date.now, enabled=()=>process.env.
   function statusView(id) {
     const participating=Boolean(db.prepare('SELECT 1 FROM dc_participants WHERE steam_id=?').get(id));
     const revision=db.prepare('SELECT revision FROM dc_settings WHERE steam_id=?').get(id)?.revision||0;
-    return {enabled:true,participating,revision,timezone:'Australia/Brisbane',rewardsEnabled:false,challenges:periods(now()).map(p=>{
+    const challenges=periods(now()).map(p=>{
       const rows=db.prepare(`SELECT amount FROM dc_evidence e WHERE steam_id=? AND cadence=? AND period_start=? AND challenge_id=?
         AND (challenge_id='species-three' OR EXISTS (SELECT 1 FROM dc_observations o WHERE o.steam_id=e.steam_id AND o.segment=e.subject))`)
         .all(id,p.cadence,p.start,p.definition.id);
       const amount=p.definition.id==='species-three'?rows.length:rows.reduce((best,r)=>Math.max(best,r.amount),0);
       return {...p.definition,cadence:p.cadence,startsAt:p.start,endsAt:p.end,progress:Math.min(p.definition.target,amount),completed:amount>=p.definition.target};
-    })};
+    });
+    if(attendance.enabled()) {
+      const week=periods(now())[1],joined=db.prepare('SELECT joined_at FROM dc_participants WHERE steam_id=?').get(id);
+      const progress=joined?Math.min(1,attendance.count(id,{start:week.start,end:week.end,joinedAt:joined.joined_at})):0;
+      challenges.push({id:'event-confirmed',title:'Join a Valley Event',metric:'confirmed_attendance',target:1,cadence:'weekly',startsAt:week.start,endsAt:week.end,progress,completed:progress>=1});
+    }
+    return {enabled:true,participating,revision,timezone:'Australia/Brisbane',rewardsEnabled:false,challenges};
   }
-  return {change,observe,status,prune,reconcileDeath};
+  return {change,observe,status,prune,reconcileDeath,attendance};
 }
 module.exports={createDynamicChallengeStore,periods};

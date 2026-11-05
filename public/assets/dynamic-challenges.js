@@ -17,7 +17,7 @@
     $('dynamic-review').hidden=!review;
     $('dynamic-review-text').textContent=review?(review.body.selected?
       'Start tracking these challenges from new gameplay observations. Challenge tracking keeps species, growth and observation times for up to 35 days. Late death reports can correct progress. No coin rewards or streak bonuses are enabled.':
-      'Stop challenge tracking and delete its saved gameplay progress. Rejoining starts fresh. A minimal choice revision and request receipt remain to prevent old requests restoring participation.')+
+      'Stop challenge tracking and delete its saved gameplay progress. Rejoining starts fresh. Separate staff event records are retained. A minimal choice revision and request receipt remain to prevent old requests restoring participation.')+
       (review.uncertain?' The reply was not confirmed. Refresh or explicitly retry this saved request.':review.body.expectedRevision!==model?.revision?' Your choice changed elsewhere. Cancel this review and review the latest state.':''):'';
     $('dynamic-confirm').textContent=review?.uncertain?'Retry saved request':'Confirm participation choice';
     $('dynamic-confirm').disabled=busy||!writable()||!review||review.actor!==actor||(!review.uncertain&&review.body.expectedRevision!==model.revision);
@@ -30,6 +30,7 @@
       const detail=document.createElement('p');
       detail.textContent=challenge.metric==='observed_seconds'?`${Math.floor(challenge.progress/60)} / ${challenge.target/60} observed minutes in one connected life segment.`:
         challenge.metric==='species'?`${challenge.progress} / ${challenge.target} species observed.`:
+        challenge.metric==='confirmed_attendance'?`${challenge.progress} / ${challenge.target} event attendance confirmed by staff. RSVPs and registrations do not count.`:
         challenge.completed?'Juvenile-to-adult herbivore growth observed.':'Observe the same herbivore as a juvenile and then an adult.';
       const reset=document.createElement('p');reset.textContent=`Resets ${new Date(challenge.endsAt).toLocaleString('en-AU',{timeZone:'Australia/Brisbane'})} Brisbane time.`;
       const bar=document.createElement('progress');bar.max=challenge.target;bar.value=challenge.progress;bar.setAttribute('aria-label',challenge.title+' progress');
