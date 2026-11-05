@@ -37,7 +37,7 @@ function createGroupDiplomacy(db,groups,{now=Date.now}={}){
       effectiveAlliance:other.status==='active'&&row?.alliance==='active',updatedAt:row?.updated_at??null};
   }
   function detail(actor,targetId){const own=member(actor),other=peer(own.id,targetId),row=pair(own.id,other.id);
-    return {...project(row,own.id,other),canManage:own.ownerSteamId===actor,
+    return {...project(row,own.id,other),canManage:own.ownerSteamId===actor,closing:Boolean(lifecycle.status(own.id)),
       history:row?db.prepare('SELECT revision,actor_group_id AS actorGroupId,action,created_at AS at FROM hv_group_relation_edits WHERE pair_id=? ORDER BY revision DESC LIMIT 20').all(row.id):[],
       headToHead:battles.versus(own.id,other.id)};
   }
@@ -45,7 +45,7 @@ function createGroupDiplomacy(db,groups,{now=Date.now}={}){
     const own=member(actor);if(!Number.isSafeInteger(afterRelationId)||afterRelationId<0)throw fail('INVALID_PAGE','A valid relationship cursor is required',400);
     const rows=db.prepare('SELECT * FROM hv_group_relations WHERE (group_low=? OR group_high=?) AND id>? ORDER BY id LIMIT 51').all(own.id,own.id,afterRelationId);
     const relations=rows.slice(0,50).map(row=>project(row,own.id,peer(own.id,row.group_low===own.id?row.group_high:row.group_low)));
-    return {group:{id:own.id,name:own.name},canManage:own.ownerSteamId===actor,relations,nextRelationId:rows.length>50?relations.at(-1).relationId:null};
+    return {group:{id:own.id,name:own.name,closing:Boolean(lifecycle.status(own.id))},canManage:own.ownerSteamId===actor,relations,nextRelationId:rows.length>50?relations.at(-1).relationId:null};
   }
   function search(actor,query){const own=member(actor);if(typeof query!=='string'||query.trim().length<2||query.trim().length>80||/[\x00-\x1f\x7f]/.test(query))throw fail('INVALID_SEARCH','Use 2–80 characters of a group name',400);
     const needle='%'+query.trim().replace(/[\\%_]/g,'\\$&')+'%';

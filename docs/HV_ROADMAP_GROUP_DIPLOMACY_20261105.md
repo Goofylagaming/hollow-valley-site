@@ -1,6 +1,6 @@
 # Rivalries / Alliances — roadmap #18
 
-The public requirement is formal group ally/rival declarations plus preserved historical Territory head-to-head scores. This local branch implements the relationship store, private account APIs and verified battle aggregate reads. Groups-page controls and desktop/mobile acceptance remain unfinished. `GROUP_DIPLOMACY_ENABLED=0` defaults off; roadmap #18 remains Building / Testing with no production release date.
+The public requirement is formal group ally/rival declarations plus preserved historical Territory head-to-head scores. This local branch implements the relationship store, private account APIs, Groups-page controls and verified battle aggregate reads. Local desktop/mobile acceptance passes; authenticated hosted staging remains pending. `GROUP_DIPLOMACY_ENABLED=0` defaults off; roadmap #18 remains Building / Testing with no production release date.
 
 ## Relationship rules
 
@@ -26,10 +26,24 @@ Routes provide relationship pages, bounded group-name search, a pair's state/his
 
 If the Territory evidence store does not exist, availability is false and totals remain unknown. An existing store with no eligible shared history reports zero recorded battles. Reads contain result/time/event identifiers, with no fighter roster, Steam identities or live location. Diplomatic declarations do not create, edit or backfill battle outcomes. Current alliance/rival status has no effect on historical scores.
 
+## Groups controls and recovery
+
+The independent diplomacy panel works without enabling Headquarters or Treasury. Current members can search active group names, page retained relationships and view a selected group's alliance/rival directions, recent change history and verified all-time battle record. Closed counterparts are historical and cannot receive new changes. Only the current owner gets actionable relationship controls; preview and own-group closure state disable them.
+
+Review freezes the named groups, displayed pair revision, action and operation key without writing. Confirm explicitly sends that request. Declaring a rival explains that it ends an alliance/proposal. A lost or incomplete reply triggers only authoritative reads; the page retains the same request and offers an explicit retry. Retrying a recorded operation returns current state without another edit. A definitive conflict discards the stale review and loads the current relationship for a new decision. Refreshing a reviewed pair never silently changes its expected revision. Review keys are held in page memory, not browser storage; reload never resends a change.
+
+Group/context changes clear selection, review, search results and private history immediately. Generation checks ignore late responses from a former group or selection. Server binding still rejects a stale write after leaving/recreating. Same-group refresh retains a review while disabling it if the pair revision changed. Permission changes are reread; former owners cannot keep mutation controls, and the successor can manage the group's retained relationship. Names and history render as text.
+
+The record view labels unavailable evidence separately from an existing store with zero shared battles. The display contains at most 50 recent battles, while the score counts all eligible historical records. Social changes and ownership succession cannot rewrite the frozen battle score.
+
 ## Local evidence and remaining work
 
 89 affected local checks cover the relationship state machine, current-owner/member permission, immutable retries, stale group/revision conflicts, failed-audit rollback, owner succession, closed-group/name reuse, literal search, rate/capacity limits, independent-process competing decisions, private HTTP authorization, origin/read-only protections, lost response recovery, frozen Territory identity and all-time counts beyond the 50-row display cap. Existing Groups/progression/recruitment, roadmap, production-preservation and dormant Territory checks also pass. Fixtures use synthetic identities and temporary databases; no live group or Territory state was changed.
 
-Original roadmap descriptions remain unchanged. Historical #18 votes remain stored while no longer consuming active ballot slots. Homepage roadmap asset version is 99.
+The real Groups-page browser fixture passes at 1440px and 390px for both-owner acceptance, directional rivalry, reviewed writes, incomplete-reply recovery using exactly the same request, stale conflicts, 52-row pagination, private battle totals, member/preview access, session loss, delayed reads during leave/recreate and owner succession. It uses synthetic groups, local session cookies and recorded test battle evidence. Existing Groups/Headquarters, Treasury and purchase fixtures also exercise the disabled diplomacy module as a regression check.
 
-Next work is the actual Groups controls for search, proposal/acceptance, rival declarations, revision conflicts and outcome recovery, plus head-to-head display and desktop/mobile checks. Authenticated staging, real Territory evidence verification, review publication and separately approved production rollout remain required. The branch is local and stacked on the Treasury draft; its publication is not covered by the Treasury approval.
+The combined Treasury/diplomacy workflow commands pass 241 distinct local tests. All four Groups-related browser fixtures pass at both widths after the diplomacy controls are added. The lost-reply fixture cuts a response after headers/body bytes, verifies that no extra write is automatically posted by the page, and confirms that an explicit retry uses the same saved operation and adds no second edit.
+
+Original roadmap descriptions remain unchanged. Historical #18 votes remain stored while no longer consuming active ballot slots. Homepage roadmap asset version is 100.
+
+Authenticated staging, real Territory evidence verification, review publication and separately approved production rollout remain required. The branch is local and stacked on Treasury draft PR #307; its publication is not covered by the Treasury approval. Local browser authentication does not prove live Steam behavior, and no production release is claimed.
