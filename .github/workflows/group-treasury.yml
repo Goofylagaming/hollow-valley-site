@@ -1,0 +1,25 @@
+name: Group Treasury accounting
+on:
+  pull_request:
+    paths:
+      - 'automation-platform/src/services/groupTreasuryService.js'
+      - 'automation-platform/src/services/economyStore.js'
+      - 'automation-platform/test/groupTreasury.test.js'
+      - 'automation-platform/test/economyWallet.test.js'
+      - 'automation-platform/test/marketplaceEconomy.test.js'
+      - 'server/services/roadmapCommunity.js'
+      - 'test/roadmapCommunity.test.js'
+      - '.github/workflows/group-treasury.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node --test automation-platform/test/groupTreasury.test.js automation-platform/test/economyWallet.test.js automation-platform/test/marketplaceEconomy.test.js test/roadmapCommunity.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js
