@@ -2,8 +2,33 @@ const express = require("express");
 const { requireAuth } = require("../middleware/requireAuth");
 const automation = require("../services/automationWebsiteClient");
 const snapshots = require('../services/readSnapshots');
+const titles = require('../services/profileTitles');
 
 const router = express.Router();
+
+router.get('/titles', requireAuth, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  if (!/^\d{17}$/.test(String(req.user?.steam_id || ''))) return res.status(400).json({ error: 'Link your Steam account first.' });
+  try {
+    const result = await automation.getProgression(req.user.steam_id);
+    return res.json(titles.readTitles(req.user.steam_id, result));
+  } catch (error) {
+    return res.status(error.status === 400 ? 400 : 503).json({ error: 'Verified titles are temporarily unavailable. Please try again later.' });
+  }
+});
+
+router.post('/titles', requireAuth, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  if (req.get('Origin') !== req.protocol + '://' + req.get('Host')) return res.status(403).json({ error: 'Use this website to choose a title.' });
+  if (!req.is('application/json')) return res.status(415).json({ error: 'Send a JSON title choice.' });
+  if (!/^\d{17}$/.test(String(req.user?.steam_id || ''))) return res.status(400).json({ error: 'Link your Steam account first.' });
+  try {
+    const result = await automation.getProgression(req.user.steam_id);
+    return res.json(titles.chooseTitle(req.user.steam_id, req.body?.titleId, result));
+  } catch (error) {
+    return res.status(error.status === 400 ? 400 : 503).json({ error: error.status === 400 ? error.message : 'Your title was not changed. Verified progression is temporarily unavailable.' });
+  }
+});
 
 function mapAutomationError(error, fallback) {
   if (Number.isInteger(error?.status)) {

@@ -112,6 +112,49 @@ function renderAchievements(profile) {
   `).join("");
 }
 
+function renderTitles(result) {
+  const select = document.getElementById('profile-title-choice');
+  select.replaceChildren(new Option('No title', ''));
+  for (const title of result.titles) {
+    if (title.unlocked) select.add(new Option(title.name, title.id));
+  }
+  select.value = result.selectedTitleId || '';
+  const chosen = result.titles.find(title => title.id === result.selectedTitleId);
+  document.getElementById('profile-title-current').textContent = chosen ? chosen.name : 'No title selected';
+  document.getElementById('profile-title-catalog').innerHTML = result.titles.map(title =>
+    `<article class="profile-achievement"><div><b>${escapeHtml(title.name)}</b><p>${escapeHtml(title.requirement)}</p><small>${title.unlocked ? 'UNLOCKED' : 'LOCKED'}</small></div></article>`).join('');
+  select.disabled = false;
+  document.getElementById('profile-title-save').disabled = false;
+}
+
+async function loadTitles() {
+  try { renderTitles(await api('/api/progression/titles')); }
+  catch {
+    document.getElementById('profile-title-current').textContent = 'Titles unavailable';
+    document.getElementById('profile-title-status').textContent = 'Verified progression could not be loaded. Your saved title has not changed.';
+  }
+}
+
+document.getElementById('profile-title-form')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const select = document.getElementById('profile-title-choice');
+  const button = document.getElementById('profile-title-save');
+  if (button.disabled) return;
+  button.disabled = true;
+  select.disabled = true;
+  const status = document.getElementById('profile-title-status');
+  status.textContent = 'Saving…';
+  try {
+    renderTitles(await api('/api/progression/titles', { method: 'POST', body: JSON.stringify({ titleId: select.value || null }) }));
+    status.textContent = 'Title saved.';
+  } catch (error) {
+    status.textContent = error.message || 'Could not save your title.';
+  } finally {
+    button.disabled = false;
+    select.disabled = false;
+  }
+});
+
 function renderProgression(profile) {
   const rank = profile.rank?.name || "Hypsilophodon";
   const level = Number(profile.level || 1);
@@ -205,6 +248,7 @@ async function init() {
   guard.hidden = true;
   content.hidden = false;
   renderIdentity(me);
+  const titlesLoaded = loadTitles();
 
   const [progressionResult, walletResult, supporterResult, friendsResult, rewardsResult] = await Promise.allSettled([
     api("/api/progression"),
@@ -245,6 +289,7 @@ async function init() {
 
   if (friendsResult.status === "fulfilled") renderFriends(friendsResult.value);
   else renderUnavailable("profile-friends-count", "profile-friends-detail");
+  await titlesLoaded;
 }
 
 document.getElementById("profile-copy-steam")?.addEventListener("click", copySteamId);
