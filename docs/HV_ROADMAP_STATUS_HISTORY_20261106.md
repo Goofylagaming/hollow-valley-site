@@ -429,3 +429,54 @@ local browser checks of that display, deployment of this new source, authenticat
 staging, purchase/delivery verification and the wider #29/roadmap gates remain
 unfinished. No monitor, flag, catalog, wallet, order, purchase, game command,
 publication, merge or deployment was changed in a running environment.
+
+
+## Marketplace collection and public observation — 6 November 2026
+
+STATUS_COMPONENTS_MARKETPLACE_ENABLED defaults off in the website. Collection
+requires an existing automation URL/token and the separate automation source flag
+from the preceding section. The process starts one monitor, polls no more than
+once a minute, uses one active request and a five-second deadline, and cancels
+outstanding HTTP work on shutdown. There is no fallback to the catalog GET,
+which seeds records. A missing/disabled/newer-incompatible source stays unverified.
+The new optional request signal combines with the existing client's own deadline;
+other client methods retain their existing requests.
+
+The collector checks source version, availability, exact scope, bounded state,
+explicit checkoutVerified:false/fulfillmentVerified:false and an explicit UTC
+source timestamp. Unknown schemas, future clocks, conflicting equal-time facts
+and older observations cannot become successful status. Exact source repeats
+preserve both the source clock and their first local check-start clock. Reads
+expire after three minutes by either clock. Repeated public polling never moves
+those clocks or requests another source check. Local transport/error observations
+use their check-start time and generic unavailable/timed-out states; they never
+copy provider bodies, errors, tokens or catalog data. Config/credential changes
+invalidate saved facts and suppress pending old-source results. Process restart
+starts without an observation.
+
+The public endpoint exposes a separate official-catalog-read component only when
+public status is enabled. It returns no item/customer records or connection data.
+The new card says Catalog readable for a successful bounded active-record read,
+not that purchases or delivery work. Empty/invalid/oversized catalogs, invalid
+observations, transport failure, timeout, delayed clocks and missing configuration
+have separate scoped labels. Cached successful packets expire independently in
+the browser; future/malformed timestamps and upgraded verification claims become
+unknown. Old component frames show unknown Marketplace status. Website/game
+summary signals are never changed by these scoped failures.
+
+126 affected local checks pass. The actual client/automation-source/collector/
+public-route fixture uses query_only SQLite, a failing seeding substitute and
+unchanged total_changes to prove the monitored path has no business writes.
+Repeated public reads cause one source call. A separate actual held HTTP request
+proves cancellation propagation. Service checks cover cadence, single flight,
+replays/conflicts, source expiry, clock rollback, config changes and late results.
+Desktop1440/phone390 public fixtures exercise readable, empty, invalid, oversized,
+timeout, old/future/bad clocks and invalid verification flags while preserving the
+separate game summary. The phone card was visually inspected. Homepage is v138,
+status CSS v6 and component controller v4. No user actions, live flags, purchases,
+orders, commands, pushes, merges or deployments were performed.
+
+Still required: deploy/review the source and collector together, authenticated
+staging, operational source-clock synchronization, multi-process load review,
+storefront rendering and real checkout/delivery verification, remaining service
+monitors, incident retention policy and broader #29/full-roadmap release gates.

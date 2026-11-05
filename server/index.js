@@ -424,6 +424,8 @@ function startServer() {
     serverStatusService.start();
     const stopSteamHealth = require('./services/steamProviderHealth').getDefaultService().start();
     server.once('close', stopSteamHealth);
+    const stopMarketplaceHealth = require('./services/marketplaceHealth').getDefaultService().start();
+    server.once('close', stopMarketplaceHealth);
     const membershipDiscordTimer = require("./services/membershipDiscordQueue").start();
     server.once("close", () => { if (membershipDiscordTimer) clearInterval(membershipDiscordTimer); });
     const subscriberFundingTimer = require("./services/subscriberFunding").getDefaultService().start();

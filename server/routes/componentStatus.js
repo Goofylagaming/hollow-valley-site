@@ -1,6 +1,6 @@
 "use strict";
 const {createBridgeWorkerHealthStore}=require('../services/bridgeWorkerHealth');
-function createRouter({db,env=process.env,now=Date.now,getMapState,getSteamHealth}={}){
+function createRouter({db,env=process.env,now=Date.now,getMapState,getSteamHealth,getMarketplaceHealth}={}){
  const router=require('express').Router();
  router.get('/',(_req,res)=>{
   res.set('Cache-Control','no-store');
@@ -12,7 +12,9 @@ function createRouter({db,env=process.env,now=Date.now,getMapState,getSteamHealt
   if(env.STATUS_COMPONENTS_MAP_ENABLED==='1'){try{map=require('../services/liveMapProjection').health((getMapState||require('../services/serverStatus').getState)(),now());}catch{map={...map,code:'unavailable'};}}
   let steam={id:'steam-openid',scope:'provider-discovery-http',code:'not-configured',observedAt:null,linkingVerified:false};
   if(env.STATUS_COMPONENTS_STEAM_ENABLED==='1'){try{steam=(getSteamHealth||(()=>require('../services/steamProviderHealth').getDefaultService().read()))();}catch{steam={...steam,code:'unavailable'};}}
-  return res.json({available:true,components:[worker,map,steam]});
+  let marketplace={id:'marketplace-catalog',scope:'official-catalog-read',code:'not-configured',observedAt:null,checkoutVerified:false,fulfillmentVerified:false};
+  if(env.STATUS_COMPONENTS_MARKETPLACE_ENABLED==='1'){try{marketplace=(getMarketplaceHealth||(()=>require('../services/marketplaceHealth').getDefaultService().read()))();}catch{marketplace={...marketplace,code:'unavailable'};}}
+  return res.json({available:true,components:[worker,map,steam,marketplace]});
  });return router;
 }
 module.exports={createRouter};

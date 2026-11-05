@@ -67,10 +67,11 @@ async function callAdmin(path, { method = 'GET', body } = {}) {
   }
 }
 
-async function call(path, { method = 'GET', body, timeoutMs: requestTimeoutMs } = {}) {
+async function call(path, { method = 'GET', body, timeoutMs: requestTimeoutMs, signal: requestSignal } = {}) {
   if (typeof globalThis.fetch !== 'function') throw new Error('A fetch implementation is required');
   const { baseUrl, token, timeoutMs } = requireConfig();
   const controller = new AbortController();
+  const signal = requestSignal ? AbortSignal.any([controller.signal, requestSignal]) : controller.signal;
   const effectiveTimeoutMs = requestTimeoutMs == null ? timeoutMs :
     Math.max(1000, Math.min(30000, Number(requestTimeoutMs) || timeoutMs));
   const timer = setTimeout(() => controller.abort(), effectiveTimeoutMs);
@@ -85,7 +86,7 @@ async function call(path, { method = 'GET', body, timeoutMs: requestTimeoutMs } 
         ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
       },
       body: body === undefined ? undefined : JSON.stringify(body),
-      signal: controller.signal,
+      signal,
     });
     let payload = null;
     try { payload = await response.json(); } catch {}
@@ -265,8 +266,8 @@ function getCombatLeaderboard({ hours = 24 * 31 } = {}) {
   return call(`/leaderboards/combat?hours=${safeHours}`);
 }
 
-function getMarketplaceHealth() {
-  return call('/marketplace/health');
+function getMarketplaceHealth({signal}={}) {
+  return call('/marketplace/health',{signal,timeoutMs:5000});
 }
 
 function listMarketplaceCatalog() {

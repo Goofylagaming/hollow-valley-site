@@ -2,7 +2,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),os=require('node:os'),express=require('express'),{DatabaseSync}=require('node:sqlite'),{randomUUID}=require('node:crypto'),{chromium}=require('playwright');
 for(const key of ['STATUS_INCIDENTS_READ_ONLY','SKIN_STUDIO_READ_ONLY','RENDER_SERVICE_ID','RENDER_EXTERNAL_URL','PUBLIC_SITE_URL','STEAM_REALM','STEAM_RETURN_URL'])delete process.env[key];
 process.env.STATUS_INCIDENTS_PUBLIC_ENABLED='1';
-Object.assign(process.env,{STATUS_COMPONENTS_STEAM_ENABLED:'1',STATUS_COMPONENTS_MAP_ENABLED:'1',STATUS_COMPONENTS_PUBLIC_ENABLED:'1',STATUS_COMPONENTS_COLLECTION_ENABLED:'1',HV_MANAGEMENT_ENABLED:'1',HV_MANAGEMENT_AGENT_TOKEN:'synthetic-worker-status-token-over-thirty-two-characters'});
+Object.assign(process.env,{STATUS_COMPONENTS_MARKETPLACE_ENABLED:'1',STATUS_COMPONENTS_STEAM_ENABLED:'1',STATUS_COMPONENTS_MAP_ENABLED:'1',STATUS_COMPONENTS_PUBLIC_ENABLED:'1',STATUS_COMPONENTS_COLLECTION_ENABLED:'1',HV_MANAGEMENT_ENABLED:'1',HV_MANAGEMENT_AGENT_TOKEN:'synthetic-worker-status-token-over-thirty-two-characters'});
 const db=new DatabaseSync(':memory:');db.exec("CREATE TABLE users(id INTEGER PRIMARY KEY,steam_id TEXT,is_admin INTEGER);INSERT INTO users VALUES(1,'76561198000000001',1)");
 const admin={id:1,steam_id:'76561198000000001'},guild='111122223333444455';let clock=Date.now()-3600000;
 const store=require('../server/services/statusIncidentStore').createStatusIncidentStore(db,{now:()=>clock,guild:()=>guild});let latest;
@@ -15,15 +15,16 @@ const app=express(),unexpected=[];let failHistory=false;
 let workerClock=Date.now();const worker=require('../server/services/bridgeWorkerHealth').createBridgeWorkerHealthStore(db,{now:()=>workerClock});
 worker.record({sampledAt:new Date(workerClock).toISOString(),tasks:{command_bridge:'Running'},logs:{bridge:['PRIVATE worker log']}});
 const steam=require('../server/services/steamProviderHealth').createSteamProviderHealth({env:{STATUS_COMPONENTS_STEAM_ENABLED:'1',STEAM_REALM:'https://synthetic.invalid',STEAM_RETURN_URL:'https://synthetic.invalid/callback'},now:()=>workerClock,fetchImpl:async()=>({status:200,headers:new Headers({'content-type':'application/xrds+xml'}),body:{cancel:async()=>{}}})});
+const marketplace=require('../server/services/marketplaceHealth').createMarketplaceHealth({env:{STATUS_COMPONENTS_MARKETPLACE_ENABLED:'1',AUTOMATION_SERVICE_URL:'https://synthetic.invalid',HOLLOW_VALLEY_API_TOKEN:'PRIVATE TOKEN'},now:()=>workerClock,readSource:async()=>({available:true,version:1,scope:'official-catalog-read',code:'readable',observedAt:new Date(workerClock).toISOString(),checkoutVerified:false,fulfillmentVerified:false,catalog:[{name:'PRIVATE MARKET ITEM',price:12345}]})});
 let mapLocation={x:0,y:0};
-app.use('/api/component-status',require('../server/routes/componentStatus').createRouter({db,getSteamHealth:steam.read,now:()=>workerClock,getMapState:()=>({configured:true,online:true,lastChecked:new Date(workerClock).toISOString(),characters:[{name:'PRIVATE MAP NAME',steamId:'76561198000000998',location:mapLocation}]})}));
+app.use('/api/component-status',require('../server/routes/componentStatus').createRouter({db,getMarketplaceHealth:marketplace.read,getSteamHealth:steam.read,now:()=>workerClock,getMapState:()=>({configured:true,online:true,lastChecked:new Date(workerClock).toISOString(),characters:[{name:'PRIVATE MAP NAME',steamId:'76561198000000998',location:mapLocation}]})}));
 app.get('/healthz',(_req,res)=>res.json({ok:true}));app.get('/readyz',(_req,res)=>res.json({ok:true}));app.get('/api/me',(_req,res)=>res.json({loggedIn:false,user:null,steamLoginConfigured:false}));
 app.get('/api/server-status',(_req,res)=>res.json({configured:true,online:true,stale:false,lastChecked:new Date().toISOString(),playerCount:2,maxPlayers:100}));
 app.use('/api/status-incidents',(req,res,next)=>failHistory&&req.path==='/'?res.status(503).json({error:'Synthetic unavailable source'}):next());app.use('/api/status-incidents',require('../server/routes/statusIncidents').createRouters({db,now:()=>clock}).publicRouter);
 app.use('/api',(req,res)=>{unexpected.push(req.method+' '+req.originalUrl);res.status(404).json({error:'Unexpected fixture route'});});
 app.get('/status',(_req,res)=>res.sendFile(path.resolve(__dirname,'../public/status.html')));app.use(express.static(path.resolve(__dirname,'../public')));
 (async()=>{
- await steam.poll();
+ await steam.poll();await marketplace.poll();
  const server=app.listen(0,'127.0.0.1');let browser;
  try{
   await new Promise(resolve=>server.once('listening',resolve));const url='http://127.0.0.1:'+server.address().port;
@@ -33,6 +34,13 @@ app.get('/status',(_req,res)=>res.sendFile(path.resolve(__dirname,'../public/sta
    const context=await browser.newContext({viewport:{width,height:980}}),page=await context.newPage(),errors=[];page.on('pageerror',error=>errors.push(error.message));await page.goto(url+'/status');
    await page.waitForFunction(()=>document.querySelectorAll('.hv-status-incident').length===25);assert.match(await page.locator('#status-overall').textContent(),/Website ready.*Game server online/);
    await page.getByText('Observed running',{exact:true}).waitFor();assert.match(await page.locator('#status-worker-detail').textContent(),/execution.*not checked/);
+   await page.getByText('Catalog readable',{exact:true}).waitFor();assert.match(await page.locator('#status-marketplace-detail').textContent(),/delivery.*not verified/);
+   const marketBody=await (await page.request.get(url+'/api/component-status')).json();assert.doesNotMatch(JSON.stringify(marketBody),/PRIVATE MARKET ITEM|PRIVATE TOKEN|12345/);
+   for(const [code,observedAt,checkoutVerified,expected] of [['readable',new Date(Date.now()-180001).toISOString(),false,'Delayed'],['readable',new Date(Date.now()+60000).toISOString(),false,'Clock unverified'],['readable','invalid',false,'Unknown'],['readable',new Date().toISOString(),true,'Unknown'],['empty-catalog',new Date().toISOString(),false,'No active catalog'],['invalid-catalog',new Date().toISOString(),false,'Catalog needs attention'],['catalog-too-large',new Date().toISOString(),false,'Catalog check limited'],['timed-out',new Date().toISOString(),false,'Catalog check timed out']]){
+    await page.route('**/api/component-status',route=>route.fulfill({json:{available:true,components:[{id:'marketplace-catalog',scope:'official-catalog-read',code,observedAt,checkoutVerified,fulfillmentVerified:false}]}}));await page.click('#status-refresh');await page.waitForFunction(expected=>document.getElementById('status-marketplace-state').textContent===expected,expected);assert.match(await page.locator('#status-overall').textContent(),/Game server online/);await page.unroute('**/api/component-status');
+   }
+   await page.click('#status-refresh');await page.getByText('Catalog readable',{exact:true}).waitFor();
+   const marketOutput=process.env.HV_TEST_ARTIFACT_DIR||path.join(os.tmpdir(),'hv-status-incidents-browser');fs.mkdirSync(marketOutput,{recursive:true});await page.locator('#status-marketplace-card').screenshot({path:path.join(marketOutput,'marketplace-'+width+'.png')});
    await page.getByText('Provider endpoint responded',{exact:true}).waitFor();assert.match(await page.locator('#status-steam-detail').textContent(),/linking accounts.*not verified/);
    for(const [observedAt,expected] of [[new Date(Date.now()-180001).toISOString(),'Delayed'],[new Date(Date.now()+60000).toISOString(),'Clock unverified'],['invalid','Unknown']]){
     await page.route('**/api/component-status',route=>route.fulfill({json:{available:true,components:[{id:'steam-openid',scope:'provider-discovery-http',code:'responded',observedAt,linkingVerified:false}]}}));await page.click('#status-refresh');await page.waitForFunction(expected=>document.getElementById('status-steam-state').textContent===expected,expected);assert.match(await page.locator('#status-overall').textContent(),/Game server online/);await page.unroute('**/api/component-status');
