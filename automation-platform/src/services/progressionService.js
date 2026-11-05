@@ -174,6 +174,7 @@ function latestPlayerName(steamId) {
 
 function readAchievements(steamId) {
   const pending = evidenceReview.inspect(steamId);
+  const withdrawn = evidenceReview.withdrawn(steamId);
   return store.db.prepare(`
     SELECT achievement_id, metadata_json, unlocked_at
     FROM progression_achievements
@@ -186,7 +187,7 @@ function readAchievements(steamId) {
       title: definition?.title || row.achievement_id,
       description: definition?.description || '',
       unlockedAt: row.unlocked_at,
-      ...(pending.has(row.achievement_id) ? {verificationStatus:'under-review'} : {}),
+      ...(withdrawn.has(row.achievement_id) ? {verificationStatus:'withdrawn'} : pending.has(row.achievement_id) ? {verificationStatus:'under-review'} : {}),
       metadata: parseJson(row.metadata_json),
     };
   });
@@ -606,7 +607,7 @@ function readProfile(steamId) {
     questsCompleted: countQuestCompletions(steam),
     eventsAttended: countConfirmedEvents(steam),
     achievements: readAchievements(steam),
-    achievementCount: readAchievements(steam).length,
+    achievementCount: readAchievements(steam).filter(a=>a.verificationStatus!=='withdrawn').length,
   };
 }
 
@@ -675,7 +676,9 @@ function getLeaderboard({ limit = 100 } = {}) {
     rank: rankForLevel(row.level),
     verifiedPlaytimeMinutes: Number(row.playtime_intervals || 0) * 5,
     achievementCount: Number(store.db.prepare(
-      'SELECT COUNT(*) AS count FROM progression_achievements WHERE steam_id = ?'
+      `SELECT COUNT(*) AS count FROM progression_achievements a WHERE steam_id = ?
+       AND NOT EXISTS (SELECT 1 FROM progression_achievement_review_state s
+         WHERE s.steam_id=a.steam_id AND s.achievement_id=a.achievement_id AND s.status='withdrawn')`
     ).get(row.steam_id)?.count || 0),
   }));
 }

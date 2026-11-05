@@ -106,3 +106,16 @@ achievement row, award timestamp and wallet history remain unchanged. A death
 after the qualifying interval does not invalidate it. This is detection and
 disclosure, not an admin resolution workflow; that workflow remains a rollout
 gate. Historical badge counts still count award records, including flagged ones.
+
+
+### Achievement review decisions (local, not deployed)
+
+Added an admin-token-protected review list and decision endpoint. Decisions require
+an actor, reason, request ID and current revision. Identical retries are safe;
+conflicting requests and stale revisions are rejected. New evidence advances the
+revision so it cannot silently be resolved by a decision based on an older view.
+Withdrawal preserves the original award and removes it from profile/leaderboard
+counts; restoration preserves both decisions. The profile labels withdrawn awards.
+Nine targeted service/HTTP tests passed, including authentication, replay,
+withdrawal/restoration, unchanged award history and no wallet or XP changes.
+Website session-bound proxy and review controls remain to be implemented.
