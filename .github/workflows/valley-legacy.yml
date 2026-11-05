@@ -14,4 +14,4 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci --no-audit --no-fund
-      - run: node --test automation-platform/test/discoveryCatalog.test.js test/journeysHttp.test.js automation-platform/test/journeyStore.test.js automation-platform/test/journeyMaintenance.test.js test/valleyLegacy*.test.js test/ownerEmailAuth.test.js test/restartTelemetry.test.js automation-platform/test/migrationReadiness.test.js automation-platform/test/websiteAuth.test.js automation-platform/test/playerPresence.test.js automation-platform/test/presenceFeedEndpoint.test.js
+      - run: node --test automation-platform/test/discoveryCatalog.test.js automation-platform/test/discoveryVisitStore.test.js test/journeysHttp.test.js automation-platform/test/journeyStore.test.js automation-platform/test/journeyMaintenance.test.js test/valleyLegacy*.test.js test/ownerEmailAuth.test.js test/restartTelemetry.test.js automation-platform/test/migrationReadiness.test.js automation-platform/test/websiteAuth.test.js automation-platform/test/playerPresence.test.js automation-platform/test/presenceFeedEndpoint.test.js
