@@ -88,9 +88,10 @@ router.post('/events/sync', (req, res) => {
       guildId: result.guildId,
       eventCount: result.events.length,
       syncedAt: result.syncedAt,
+      duplicate: result.duplicate,
     });
   } catch (error) {
-    res.status(400).json({ error: error.message || 'Unable to sync Discord scheduled events.' });
+    res.status(error.status===409?409:400).json({ error: error.message || 'Unable to sync Discord scheduled events.' });
   }
 });
 

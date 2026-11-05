@@ -79,7 +79,7 @@ test('website-deleted Discord events stay hidden across HerbyBot resyncs', () =>
     { id: keptId, title: 'Keep Me', startTime: '2026-09-22T10:00:00Z' },
   ];
 
-  service.syncEvents({ guildId, events: snapshot, syncedAt: '2026-09-21T09:00:00Z' });
+  service.syncEvents({ guildId, events: snapshot, syncedAt: '2026-09-21T09:00:01Z' });
   const deleted = service.hideEventFromWebsite(hiddenId);
   assert.equal(deleted.deleted, true);
   assert.equal(deleted.duplicate, false);
@@ -119,4 +119,38 @@ test('Discord event sync rejects duplicate IDs and malformed payloads', () => {
     guildId: 'bad',
     events: [],
   }), /Guild ID must be a Discord snowflake/);
+});
+
+test('older or conflicting snapshots cannot restore a completed event to scheduled',()=>{
+  const guildId='1540359454627725387',event={id:'1540359454627725400',title:'Lifecycle event',startTime:'2026-09-22T09:00:00Z',endTime:'2026-09-22T10:00:00Z',status:'completed'};
+  service.syncEvents({guildId,events:[event],syncedAt:'2026-09-22T11:00:00Z'});
+  const before=require(storePath).getState('discord:scheduled-events');
+  for(const stamp of ['2026-09-22T10:59:00Z','2026-09-22T11:00:00Z'])assert.throws(()=>service.syncEvents({guildId,events:[{...event,status:'scheduled'}],syncedAt:stamp}),{status:409});
+  assert.deepEqual(require(storePath).getState('discord:scheduled-events'),before);
+});
+test('exact retries preserve hidden events and do not renew snapshot freshness',()=>{
+  const guildId='1540359454627725387',event={id:'1540359454627725401',title:'Hidden completed event',startTime:'2026-09-22T09:00:00Z',status:'completed'};
+  const input={guildId,events:[event],syncedAt:'2026-09-22T12:00:00Z'};
+  service.syncEvents(input);service.hideEventFromWebsite(event.id);const before=require(storePath).getState('discord:scheduled-events');
+  const retry=service.syncEvents(input);assert.equal(retry.duplicate,true);assert.equal(retry.events.length,0);
+  assert.deepEqual(require(storePath).getState('discord:scheduled-events'),before);
+  assert.equal(service.getEvents({nowMs:Date.parse('2026-09-22T12:06:00Z')}).stale,true);
+});
+test('canonical equal-time retries ignore event order when schedules match',()=>{
+  const guildId='1540359454627725387',a={id:'1540359454627725402',title:'A',startTime:'2026-09-23T09:00:00Z'},b={...a,id:'1540359454627725403',title:'B'};
+  const syncedAt='2026-09-22T13:00:00Z';service.syncEvents({guildId,events:[a,b],syncedAt});
+  assert.equal(service.syncEvents({guildId,events:[b,a],syncedAt}).duplicate,true);
+});
+test('future timestamps, mixed guilds and malformed completed schedules cannot replace accepted state',()=>{
+  const before=require(storePath).getState('discord:scheduled-events'),guildId='1540359454627725387';
+  assert.throws(()=>service.syncEvents({guildId,events:[],syncedAt:new Date(Date.now()+120000).toISOString()}),/future/);
+  assert.throws(()=>service.syncEvents({guildId,events:[{id:'1540359454627725404',guildId:'1540359454627725999',title:'Wrong guild',startTime:'2026-09-23T09:00:00Z'}]}),/guild does not match/);
+  assert.throws(()=>service.syncEvents({guildId,events:[{id:'1540359454627725404',title:'Invalid schedule',status:'completed',startTime:'2026-09-23T09:00:00Z',endTime:'2026-09-23T08:00:00Z'}]}),/precedes/);
+  assert.deepEqual(require(storePath).getState('discord:scheduled-events'),before);
+});
+test('failed atomic state mutation rolls back value and leaves the store usable',()=>{
+  const store=require(storePath),before=store.getState('discord:scheduled-events');
+  assert.throws(()=>store.mutateState('discord:scheduled-events',()=>{store.setState('discord:scheduled-events',{broken:true});throw new Error('Interrupted mutation');}),/Interrupted/);
+  assert.deepEqual(store.getState('discord:scheduled-events'),before);
+  assert.equal(store.mutateState('discord:scheduled-events',()=>undefined).value.guildId,before.value.guildId);
 });
