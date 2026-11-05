@@ -58,3 +58,13 @@ Validation: 26 premium service, concurrency and route tests passed. The isolated
 rarity browser fixture passed at 1440px and 390px, covering failed-save retries,
 preserved reasons, escaped audit text, read-only controls, guest isolation and
 layout bounds. These checks use synthetic data; no live skins were classified.
+
+## Purchase retry integrity
+
+The existing Skin Shop now rejects a purchase key already used for another skin
+or account instead of reporting a successful duplicate with no ownership. The
+transaction rolls back without debiting funds or creating an unlock. Exact retries
+of an owned skin retain their existing no-charge behavior. Nine skin preset tests
+pass, including both conflict cases and unchanged balances/ownership. Test cleanup
+now closes its SQLite handles before removing temporary fixture directories on
+Windows. Player gifting and marketplace transfers remain unimplemented.

@@ -504,7 +504,10 @@ function purchasePreset({ steamId, presetId, idempotencyKey }) {
   } catch (error) {
     try { store.db.exec('ROLLBACK'); } catch {}
     if (/UNIQUE constraint failed: economy_skin_unlocks\.idempotency_key/i.test(String(error?.message || ''))) {
-      return { duplicate: true, preset: { ...preset, owned: store.hasSkinUnlock(steam, preset.id) }, wallet: store.getWallet(steam) };
+      const conflict = new Error('This purchase request key was already used for another skin or account.');
+      conflict.code = 'SKIN_PURCHASE_CONFLICT';
+      conflict.status = 409;
+      throw conflict;
     }
     throw error;
   }
