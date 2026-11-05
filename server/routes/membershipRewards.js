@@ -47,6 +47,12 @@ async function summary(user) {
   return result;
 }
 
+router.get("/rewards/collection", (req, res) => {
+  if (process.env.MEMBERSHIP_COLLECTION_ENABLED !== "1") return res.sendStatus(404);
+  try { return res.json(require("../services/membershipVault").readVault(req.user.id)); }
+  catch (error) { return sendError(res, error); }
+});
+
 router.get("/rewards", async (req, res) => {
   try { return res.json(await summary(req.user)); } catch (error) { return sendError(res, error); }
 });
