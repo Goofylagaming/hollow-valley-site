@@ -33,6 +33,7 @@ const RANKS = Object.freeze([
 ]);
 
 const ACHIEVEMENTS = Object.freeze([
+  { id: 'territory-victory', title: 'Territory Victor', description: 'Participate in a verified Territory War capture.', type: 'territory_victories', threshold: 1 },
   { id: 'life-survival-10h', title: 'Enduring Survivor', description: 'Survive 10 recorded hours on one dinosaur life.', type: 'life_survival_seconds', threshold: 36000 },
   { id: 'nested-adult', title: 'Valley Born', description: 'Grow a verified nested dinosaur from juvenile to adult in one observed life.', type: 'nested_adult', threshold: 1 },
   { id: 'prime-observed', title: 'Prime Survivor', description: 'Have a dinosaur observed as Prime by the server.', type: 'prime_observed', threshold: 1 },
@@ -220,6 +221,7 @@ function countersFor(steamId) {
     combat_species: countCombatSpecies(steamId),
     prime_observed: hasObservedPrime(steamId),
     nested_adult: nested ? 1 : 0,
+    territory_victories: countTerritoryVictories(steamId),
     life_survival_seconds: Number(survival?.value || 0),
     evidence: {
       life_survival_seconds: survival ? { lifeId:survival.id, observedThrough:survival.achieved_at } : null,
@@ -244,6 +246,11 @@ function countCombatSpecies(steamId) {
   return Number(store.db.prepare(`SELECT COUNT(DISTINCT victim_species) AS count
     FROM combat_events WHERE killer_steam_id = ? AND killer_steam_id <> victim_steam_id
     AND victim_species IS NOT NULL`).get(steamId).count);
+}
+
+function countTerritoryVictories(steamId) {
+  if(!store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='progression_territory_winners'").get()) return 0;
+  return Number(store.db.prepare('SELECT COUNT(*) AS n FROM progression_territory_winners WHERE steam_id=?').get(steamId).n);
 }
 
 function survivalEvidence(steamId) {

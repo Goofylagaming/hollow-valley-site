@@ -25,6 +25,20 @@ consume its eligibility result yet. Runtime end-to-end winner attribution remain
 to be implemented and tested; current tests cover store persistence/rollback,
 source transitions and the existing HTTP/access-control/control-math regressions.
 
+The automation receiver now exists at `/api/website/territory-results`, protected
+by the existing website integration token. It accepts version 1 recorded-live
+captures with positive event/attack IDs, ordered timestamps and 1–256 distinct
+Steam identities. Results and winner rows commit together. Exact replays are
+idempotent (roster ordering is irrelevant); changed identity, event, time or roster
+for an existing attack returns 409 without modifying evidence. Unknown, simulated,
+manual and defensive outcome formats are rejected.
+
+Progression can now award Territory Victor from this received ledger, only to
+frozen winners and without XP/currency. Receiver tests cover auth/disabled-token
+gates, payload validation, immutable replay, account separation, failed multirow
+insert rollback and retry. The website producer/outbox is not yet connected;
+there is no production end-to-end delivery or defensive victory support yet.
+
 ## Existing behavior
 
 - `server/routes/territoryWars.js` owns the website-side battle runtime and tables.
