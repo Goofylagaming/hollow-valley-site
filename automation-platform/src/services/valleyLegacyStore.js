@@ -75,6 +75,7 @@ function createLegacyStore(db, { now = Date.now } = {}) {
   }});
   const discoveries = require('./discoveryVisitStore').createDiscoveryVisitStore(db,{now});
   const discoveryCatalogs = require('./discoveryCatalog').createDiscoveryCatalogStore(db);
+  const challenges = require('./dynamicChallengeStore').createDynamicChallengeStore(db,{now});
   const initial = now();
   db.prepare("INSERT OR IGNORE INTO vl_state VALUES ('started', ?)").run(
     String(initial),
@@ -300,6 +301,7 @@ function createLegacyStore(db, { now = Date.now } = {}) {
           );
         }
       }
+      challenges.observe(db.prepare('SELECT id,steam_id,species,growth FROM vl_lives WHERE last_at=? AND ended_at IS NULL').all(at),at);
       db.prepare(
         "INSERT INTO vl_state VALUES ('snapshot',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
       ).run(String(at));
@@ -683,6 +685,7 @@ function createLegacyStore(db, { now = Date.now } = {}) {
     snapshot,
     journeys,
     discoveries,
+    challenges,
     ingest,
     rotate,
     overview,
