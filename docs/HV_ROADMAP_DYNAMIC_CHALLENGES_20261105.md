@@ -40,6 +40,29 @@ independently at Legacy startup/every 15 seconds. Missed
 days create no debt. Reads return only the requested player's current periods;
 they contain no Steam identities, life IDs or positions.
 
+Accepted opt-in challenge samples now retain canonical species, normalized growth,
+observation time and a private observation-segment key for up to 35 days. No
+coordinates or names are added. This challenge history is independent of journey
+and discovery consent and is deleted on challenge opt-out and by retention.
+
+Trusted, accepted Legacy combat deaths recalculate affected survival/growth
+segments from those samples in the same source-event transaction. Intervals
+crossing a death do not count; a sample at the exact death timestamp cannot serve
+as an alive endpoint. The best uninterrupted pre/post-death run is retained,
+including a valid completion already earned before death. Juvenile/adult evidence
+cannot bridge a death. Repeated and out-of-order reports use the same source
+events and observations. Future samples begin a fresh challenge segment even
+when Legacy cannot link a contradictory late report to its current observed life.
+Already-known deaths also prevent later snapshots reconnecting across them.
+
+Corrections affect only the relevant enrolled account, including retained
+progress while tracking is paused. Opt-out prevents late reports rebuilding
+deleted challenge history. Failed correction rolls back the source death and
+progress together; producer reconciliation does not advance its import receipt
+on that failure and can retry. Older development aggregates without retained
+challenge observations remain stored but cannot qualify survival/growth as
+reconciled evidence. New samples do not extend those unjournaled segments.
+
 `DYNAMIC_CHALLENGES_ENABLED=0` is the default. Tracking currently also requires
 `VALLEY_LEGACY_ENABLED=1`. The existing fixed challenge/quest reward service is
 unchanged. New tracking never accesses a wallet, ledger or game-command service,
@@ -89,9 +112,11 @@ disabled, and no private data is retained on sign-out or failed authentication.
   species aliases and growth evidence. Add operator-reviewed schedule versions
   before changing live definitions.
 - Survival remains an *observed continuity* measure: the feed has no immutable
-  game-character identity. Late combat-death reconciliation and contradictory
-  growth/life evidence must be handled before presenting a guaranteed survival
-  achievement or authorizing any rewards.
+  game-character identity. Accepted deaths correct retained samples, but Legacy
+  rejects evidence belonging to closed seasons or conflicting source IDs. That
+  existing immutable-season boundary is unchanged. Historical rejection review,
+  missing/deleted source evidence and actual character identity remain delivery
+  gates before guaranteed survival achievements or any rewards are authorized.
 - Add travel (12 km), Highlands visitation, confirmed event participation and
   Territory battle survival only from reviewed map units/geometry, attendance
   evidence and frozen participant-life/outcome evidence. An RSVP, registration,
@@ -106,12 +131,12 @@ disabled, and no private data is retained on sign-out or failed authentication.
 
 The roadmap release register retains #3's original description and feature ID,
 marks development honestly and preserves historical vote counts while freeing
-retired active ballot slots. Homepage asset version is 103. Diplomacy publication
+retired active ballot slots. Homepage asset version is 104. Diplomacy publication
 approval remains separate and pending; its prepared branch is preserved.
 
 ## Local validation
 
-103 checks pass across dynamic challenge evidence, Legacy store/private HTTP and
+115 checks pass across dynamic challenge evidence, Legacy store/private HTTP and
 authenticated telemetry, roadmap ballots/homepage integration, existing quest
 boosts/challenge payouts, journeys and discovery. Tests cover repeated/stale
 samples, alias farming, midnight/Monday rollover, opt-out/rejoin, separated lives,
@@ -130,6 +155,13 @@ Maintenance coverage adds disabled snapshots/restarts, delayed samples after
 activation, separated survival/growth evidence, no-feed retention, retained
 consent/receipts and storage-error rollback. A scheduled Legacy fixture proves
 cleanup continues while import fails and tracking remains disabled.
+
+Late-death tests cover false completion removal, valid earlier completion,
+out-of-order/duplicate reports, exact sample timestamps, growth boundaries,
+known deaths before future samples, restart recovery, unrelated accounts,
+disabled tracking, opt-out, unjournaled historical aggregates, transaction failure
+and actual combat-producer import retry. The real Quests browser fixture also
+checks progress changing from 90 to 40 observed minutes after a late death.
 
 The dedicated Dynamic challenge tracking workflow runs the affected checks and
 the real-page browser fixture on pull requests. Those hosted runs have not yet

@@ -202,6 +202,8 @@ test('independent retention removes expired evidence during an outage, keeping c
   const before=x.db.prepare('SELECT count(*) n FROM dc_evidence').get().n;assert.ok(before>0);
   x.advance(36*86400000);const removed=x.c.prune();assert.equal(removed.evidence,before);assert.equal(removed.cursors,1);
   assert.equal(x.db.prepare('SELECT count(*) n FROM dc_evidence').get().n,0);
+  assert.equal(removed.observations,1);
+  assert.equal(x.db.prepare('SELECT count(*) n FROM dc_observations').get().n,0);
   assert.equal(x.c.status(A).participating,true);assert.equal(x.c.status(A).revision,1);
   assert.equal(x.db.prepare('SELECT count(*) n FROM dc_requests').get().n,1);
 });
@@ -216,4 +218,118 @@ test('maintenance rollback retains consistent evidence, runtime and cursor after
   assert.equal(x.db.prepare('SELECT count(*) n FROM dc_cursor').get().n,0);
   assert.equal(x.db.prepare('SELECT count(*) n FROM dc_evidence').get().n,0);
   assert.equal(x.db.prepare('SELECT active FROM dc_runtime').get().active,0);
+});
+function survivalRun(x,count=9){
+  x.c.participate(A,true);x.advance(MIN);x.snap([x.row()]);const first=x.at();
+  for(let n=0;n<count;n++){x.advance(10*MIN);x.snap([x.row()]);}
+  return first;
+}
+test('late deaths recompute connected survival instead of preserving a false 90-minute completion',t=>{
+  const x=setup(t),first=survivalRun(x);assert.equal(x.daily().completed,true);
+  const life=x.db.prepare('SELECT id FROM vl_lives WHERE ended_at IS NULL').get().id;
+  x.s.ingest({id:'late-middle',type:'combat_death',steamId:A,at:first+45*MIN});
+  assert.equal(x.daily().progress,2400);assert.equal(x.daily().completed,false);
+  assert.equal(x.db.prepare('SELECT id FROM vl_lives WHERE ended_at IS NULL').get().id,life);
+  assert.equal(x.db.prepare('SELECT count(*) n FROM dc_cursor').get().n,0);
+  x.advance(10*MIN);x.snap([x.row()]);
+  for(let n=0;n<5;n++){x.advance(10*MIN);x.snap([x.row()]);}
+  assert.equal(x.daily().progress,3000); // New observations cannot extend the old best run.
+});
+test('late death preserves a valid 90-minute completion achieved before the death',t=>{
+  const x=setup(t),first=survivalRun(x,11);
+  x.s.ingest({id:'late-after-completion',type:'combat_death',steamId:A,at:first+105*MIN});
+  assert.equal(x.daily().progress,5400);assert.equal(x.daily().completed,true);
+});
+test('out-of-order deaths and exact duplicates recompute from the same retained observations',t=>{
+  const x=setup(t),first=survivalRun(x);
+  x.s.ingest({id:'later-death',type:'combat_death',steamId:A,at:first+75*MIN});assert.equal(x.daily().progress,4200);
+  const earlier={id:'earlier-death',type:'combat_death',steamId:A,at:first+25*MIN};
+  x.s.ingest(earlier);assert.equal(x.daily().progress,2400);
+  assert.deepEqual(x.s.ingest(earlier),{duplicate:true});assert.equal(x.daily().progress,2400);
+  assert.equal(x.db.prepare('SELECT count(*) n FROM dc_observations').get().n,10);
+});
+test('retained observations support late correction after reopening the Legacy store',t=>{
+  const x=setup(t),first=survivalRun(x);
+  const reopened=createLegacyStore(x.db,{now:x.at});
+  reopened.ingest({id:'after-restart',type:'combat_death',steamId:A,at:first+45*MIN});
+  assert.equal(reopened.challenges.status(A).challenges[0].progress,2400);
+  assert.equal(x.db.prepare('SELECT count(*) n FROM dc_observations').get().n,10);
+});
+test('a death at an observation timestamp cannot count that point as an alive endpoint',t=>{
+  const x=setup(t),first=survivalRun(x);
+  x.s.ingest({id:'at-sample',type:'combat_death',steamId:A,at:first+50*MIN});
+  assert.equal(x.daily().progress,2400);
+});
+test('late deaths prevent growth across death while retaining adulthood already observed before death',t=>{
+  for(const afterAdult of [false,true]){
+    const x=setup(t,'2026-11-06T00:00:00+10:00');x.c.participate(A,true);
+    x.advance(MIN);x.snap([x.row('tenonto',0.5)]);const first=x.at();
+    x.advance(10*MIN);x.snap([x.row('tenonto',1)]);x.advance(10*MIN);x.snap([x.row('tenonto',1)]);
+    assert.equal(x.daily().completed,true);
+    x.s.ingest({id:'growth-death',type:'combat_death',steamId:A,at:first+(afterAdult?15:5)*MIN});
+    assert.equal(x.daily().completed,afterAdult);
+  }
+});
+test('known death evidence breaks future observation continuity even without a Legacy life link',t=>{
+  const x=setup(t);x.c.participate(A,true);x.advance(MIN);x.snap([x.row()]);
+  x.advance(10*MIN);x.snap([x.row()]);const previous=x.at();x.advance(5*MIN);
+  x.s.ingest({id:'unmatched-death',type:'combat_death',steamId:A,at:previous+3*MIN});
+  x.snap([x.row()]);x.advance(10*MIN);x.snap([x.row()]);assert.equal(x.daily().progress,600);
+});
+test('failed death reconciliation rolls back the source event and all progress changes',t=>{
+  const x=setup(t),first=survivalRun(x);
+  x.db.exec("CREATE TRIGGER fail_death BEFORE DELETE ON dc_evidence BEGIN SELECT RAISE(ABORT,'reconciliation unavailable'); END");
+  const event={id:'retry-death',type:'combat_death',steamId:A,at:first+45*MIN};
+  assert.throws(()=>x.s.ingest(event),/reconciliation unavailable/);
+  assert.equal(x.db.prepare('SELECT count(*) n FROM vl_events WHERE id=?').get(event.id).n,0);
+  assert.equal(x.daily().progress,5400);
+  x.db.exec('DROP TRIGGER fail_death');x.s.ingest(event);assert.equal(x.daily().progress,2400);
+});
+test('opt-out erases challenge observations and late deaths cannot recreate deleted participation',t=>{
+  const x=setup(t),first=survivalRun(x);x.c.participate(A,false);
+  assert.equal(x.db.prepare('SELECT count(*) n FROM dc_observations').get().n,0);
+  x.s.ingest({id:'after-optout',type:'combat_death',steamId:A,at:first+45*MIN});
+  assert.equal(x.c.status(A).participating,false);assert.equal(x.daily().progress,0);
+  assert.equal(x.db.prepare('SELECT count(*) n FROM dc_observations').get().n,0);
+});
+test('pre-journal aggregates remain stored but cannot qualify as reconciled survival evidence',t=>{
+  const x=setup(t);x.c.participate(A,true);
+  x.db.prepare('INSERT INTO dc_evidence VALUES (?,?,?,?,?,?,?)').run(A,'daily',x.daily().startsAt,'survival-90','older-unreconciled-segment',5400,0);
+  assert.equal(x.daily().progress,0);assert.equal(x.daily().completed,false);
+  assert.equal(x.db.prepare("SELECT amount FROM dc_evidence WHERE subject='older-unreconciled-segment'").get().amount,5400);
+});
+test('a late death only corrects the affected participant and still works while tracking is disabled',t=>{
+  const x=setup(t);x.c.participate(A,true);x.c.participate(B,true);x.advance(MIN);const first=x.at();
+  for(let n=0;n<=9;n++){
+    if(n)x.advance(10*MIN);
+    x.snap([x.row(),{...x.row(),steamId:B}]);
+  }
+  process.env.DYNAMIC_CHALLENGES_ENABLED='0';x.s.challenges.prune();
+  x.s.ingest({id:'only-a',type:'combat_death',steamId:A,at:first+45*MIN});
+  assert.equal(x.daily().progress,2400);assert.equal(x.c.status(B).challenges[0].progress,5400);
+  assert.equal(x.weekly().progress,1);assert.equal(x.c.status(B).challenges[1].progress,1);
+});
+test('trusted combat import retries failed challenge correction without advancing its source checkpoint',()=>{
+  const {execFileSync}=require('node:child_process');
+  const code=String.raw`
+    const assert=require('node:assert/strict');
+    let clock=Date.parse('2026-11-05T00:00:00+10:00');Date.now=()=>clock;
+    const legacy=require('./automation-platform/src/services/valleyLegacyService'),s=legacy.get(),db=s.db;
+    const id='76561198000000001';
+    s.challenges.change(id,{selected:true,expectedRevision:0,requestKey:'trusted-import-enroll'});
+    clock+=60000;const first=clock;
+    for(let n=0;n<=9;n++){if(n)clock+=600000;s.snapshot([{steamId:id,species:'rex',growth:0.5}],clock);}
+    db.exec('CREATE TABLE combat_events(id TEXT PRIMARY KEY,occurred_at TEXT,killer_steam_id TEXT,killer_name TEXT,victim_steam_id TEXT,victim_name TEXT)');
+    db.prepare('INSERT INTO combat_events VALUES (?,?,?,?,?,?)').run('trusted-late',new Date(first+45*60000).toISOString(),'76561198000000002','Other',id,'Survivor');
+    db.exec("CREATE TRIGGER fail_import BEFORE DELETE ON dc_evidence BEGIN SELECT RAISE(ABORT,'import correction unavailable'); END");
+    assert.throws(()=>legacy.reconcile(),/import correction unavailable/);
+    assert.equal(db.prepare("SELECT count(*) n FROM vl_imports WHERE source='combat_events'").get().n,0);
+    assert.equal(s.challenges.status(id).challenges[0].progress,5400);
+    db.exec('DROP TRIGGER fail_import');legacy.reconcile();legacy.reconcile();
+    assert.equal(s.challenges.status(id).challenges[0].progress,2400);
+    assert.equal(db.prepare("SELECT count(*) n FROM vl_events WHERE id='combat:trusted-late:death'").get().n,1);
+    assert.equal(db.prepare("SELECT count(*) n FROM vl_imports WHERE source='combat_events'").get().n,1);
+    db.close();
+  `;
+  execFileSync(process.execPath,['-e',code],{cwd:require('node:path').join(__dirname,'..'),env:{...process.env,AUTOMATION_DB_PATH:':memory:',VALLEY_LEGACY_ENABLED:'1',DYNAMIC_CHALLENGES_ENABLED:'1'},stdio:'pipe'});
 });

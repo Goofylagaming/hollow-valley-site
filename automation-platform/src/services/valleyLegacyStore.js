@@ -357,6 +357,7 @@ function createLegacyStore(db, { now = Date.now } = {}) {
         e.at,
       );
       if (e.type === "combat_death") {
+        challenges.reconcileDeath(e);
         const row = current(e.steamId);
         // An older death must not close a life with newer alive observations.
         // Keep unmatched events for later review, without inventing a life link.

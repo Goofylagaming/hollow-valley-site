@@ -16,7 +16,7 @@
     $('dynamic-refresh').disabled=busy;
     $('dynamic-review').hidden=!review;
     $('dynamic-review-text').textContent=review?(review.body.selected?
-      'Start tracking these challenges from new gameplay observations. No coin rewards or streak bonuses are enabled.':
+      'Start tracking these challenges from new gameplay observations. Challenge tracking keeps species, growth and observation times for up to 35 days. Late death reports can correct progress. No coin rewards or streak bonuses are enabled.':
       'Stop challenge tracking and delete its saved gameplay progress. Rejoining starts fresh. A minimal choice revision and request receipt remain to prevent old requests restoring participation.')+
       (review.uncertain?' The reply was not confirmed. Refresh or explicitly retry this saved request.':review.body.expectedRevision!==model?.revision?' Your choice changed elsewhere. Cancel this review and review the latest state.':''):'';
     $('dynamic-confirm').textContent=review?.uncertain?'Retry saved request':'Confirm participation choice';
