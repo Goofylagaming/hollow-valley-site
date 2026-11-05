@@ -1,6 +1,6 @@
 const DAY=86400000;
 const fail=(message,status=400)=>{throw Object.assign(new Error(message),{status});};
-function createJourneyStore(db,{now=Date.now,enabled=()=>process.env.JOURNEY_HISTORY_ENABLED==='1'}={}) {
+function createJourneyStore(db,{now=Date.now,enabled=()=>process.env.JOURNEY_HISTORY_ENABLED==='1',describeLife=()=>null}={}) {
   db.exec(`CREATE TABLE IF NOT EXISTS journey_preferences(
     steam_id TEXT PRIMARY KEY,enabled INTEGER NOT NULL,revision INTEGER NOT NULL,
     collect_after INTEGER NOT NULL);
@@ -61,7 +61,9 @@ function createJourneyStore(db,{now=Date.now,enabled=()=>process.env.JOURNEY_HIS
     gate();steam(id);if(!Number.isSafeInteger(before)||before<1)fail('Invalid history cursor');
     const rows=db.prepare(`SELECT life_id AS lifeId,at,x,y,break_before AS breakBefore FROM journey_points
       WHERE steam_id=? AND at<? AND at>=? ORDER BY at DESC LIMIT 501`).all(id,before,now()-30*DAY);
-    return {points:rows.slice(0,500),nextBefore:rows.length>500?rows[499].at:null};
+    const page=rows.slice(0,500);
+    const lives=[...new Set(page.map(p=>p.lifeId))].map(lifeId=>describeLife(id,lifeId)).filter(Boolean);
+    return {points:page,nextBefore:rows.length>500?rows[499].at:null,lives};
   }
   return {settings,change,record,points,prune};
 }

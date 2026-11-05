@@ -55,10 +55,19 @@ test('accepted Legacy snapshots collect only opted-in private history behind the
     legacy.journeys.change(steam,{enabled:true,expectedRevision:0});clock+=15000;
     const players=[steam,other].map(steamId=>({steamId,species:'Triceratops',growth:0.5,location:{x:10,y:20}}));
     legacy.snapshot(players,clock);assert.equal(legacy.journeys.points(steam).points.length,1);
+    const summary=legacy.journeys.points(steam).lives;
+    assert.equal(summary.length,1);assert.equal(summary[0].species,'triceratops');assert.equal(summary[0].closureReason,null);
+    assert.equal(JSON.stringify(summary).includes(steam),false);assert.equal(JSON.stringify(summary).includes('location'),false);
     assert.equal(legacy.journeys.points(other).points.length,0);
+    assert.deepEqual(legacy.journeys.points(other).lives,[]);
     legacy.snapshot(players,clock);assert.equal(legacy.journeys.points(steam).points.length,1);
     process.env.JOURNEY_HISTORY_ENABLED='0';clock+=15000;legacy.snapshot(players,clock);
     assert.equal(db.prepare('SELECT COUNT(*) n FROM journey_points').get().n,1);
+    process.env.JOURNEY_HISTORY_ENABLED='1';clock+=1000;
+    legacy.ingest({id:'journey-death',type:'combat_death',steamId:steam,at:clock});
+    assert.equal(legacy.journeys.points(steam).lives[0].closureReason,'combat_death');
+    legacy.journeys.change(steam,{enabled:false,expectedRevision:1,erase:true});
+    assert.deepEqual(legacy.journeys.points(steam).lives,[]);
   } finally {db.close();if(previous===undefined)delete process.env.JOURNEY_HISTORY_ENABLED;else process.env.JOURNEY_HISTORY_ENABLED=previous;}
 });
 

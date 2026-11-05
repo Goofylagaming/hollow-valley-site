@@ -54,7 +54,13 @@ function createLegacyStore(db, { now = Date.now } = {}) {
     CREATE TABLE IF NOT EXISTS vl_requests (id TEXT PRIMARY KEY, nest TEXT NOT NULL, player TEXT NOT NULL, name TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', created_at INTEGER NOT NULL, UNIQUE(nest,player));
     CREATE TABLE IF NOT EXISTS vl_state (key TEXT PRIMARY KEY, value TEXT NOT NULL);
     COMMIT;`);
-  const journeys = require('./journeyStore').createJourneyStore(db,{now});
+  const journeys = require('./journeyStore').createJourneyStore(db,{now,describeLife:(steamId,lifeId)=>{
+    const row=db.prepare(`SELECT id,species,started_at,last_at,ended_at FROM vl_lives WHERE steam_id=? AND id=?`).get(steamId,lifeId);
+    if(!row)return null;
+    const closure=db.prepare('SELECT reason,at FROM vl_life_closures WHERE life_id=?').get(lifeId);
+    return {id:row.id,species:row.species,firstObservedAt:row.started_at,lastObservedAt:row.last_at,
+      endedAt:row.ended_at,closureReason:closure?.reason||null};
+  }});
   const initial = now();
   db.prepare("INSERT OR IGNORE INTO vl_state VALUES ('started', ?)").run(
     String(initial),
