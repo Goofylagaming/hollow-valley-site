@@ -14,6 +14,12 @@ const express = require("express");
 const router = require("../server/routes/roadmapCommunity");
 const steam1 = "76561198000000001";
 const steam2 = "76561198000000002";
+test('diplomacy votes remain recorded and no longer occupy the active ballot during development',()=>{
+ const steam='76561198000000018';db.prepare('INSERT INTO roadmap_votes(steam_id,feature_id) VALUES(?,18)').run(steam);
+ for(const id of [3,4,5])voting.setVote(steam,id,true);
+ const summary=voting.voteSummary(steam);assert.equal(summary.counts[18],1);assert.deepEqual(summary.myVotes,[3,4,5]);assert.throws(()=>voting.setVote(steam,18,true),{code:'FEATURE_NOT_VOTABLE'});
+ assert.equal(db.prepare('SELECT COUNT(*) n FROM roadmap_votes WHERE steam_id=? AND feature_id=18').get(steam).n,1);db.prepare('DELETE FROM roadmap_votes WHERE steam_id=?').run(steam);
+});
 
 test('Treasury votes stay historical and free active ballot slots during development',()=>{
   const steam='76561198000000017';db.prepare('INSERT INTO roadmap_votes (steam_id,feature_id) VALUES (?,17)').run(steam);
@@ -81,8 +87,8 @@ test("roadmap ballot limits voting to three idea-stage features per Steam identi
   const initial = voting.voteSummary(steam1);
   assert.equal(initial.maxVotes, 3);
   assert.equal(initial.myVotes.length, 0);
-  assert.equal(initial.eligibleFeatureIds.length, 12);
-  assert.equal(new Set(initial.eligibleFeatureIds).size, 12, "No duplicate roadmap feature IDs");
+  assert.equal(initial.eligibleFeatureIds.length, 11);
+  assert.equal(new Set(initial.eligibleFeatureIds).size, 11, "No duplicate roadmap feature IDs");
 
   for (const id of [3, 4, 5]) voting.setVote(steam1, id, true);
   voting.setVote(steam1, 5, true); // idempotent repeated request
@@ -90,7 +96,7 @@ test("roadmap ballot limits voting to three idea-stage features per Steam identi
   assert.equal(voting.voteSummary(steam1).counts[5], 1);
   assert.throws(() => voting.setVote(steam1, 6, true), { code: "VOTE_LIMIT" });
 
-  for (const id of [1, 2, 7, 8, 9, 10, 11, 12, 13, 15, 16, 17, 22, 23, 24, 31, 0, 100]) {
+  for (const id of [1, 2, 7, 8, 9, 10, 11, 12, 13, 15, 16, 17, 18, 22, 23, 24, 31, 0, 100]) {
     assert.throws(() => voting.setVote(steam1, id, true), { code: "FEATURE_NOT_VOTABLE" });
   }
   assert.throws(() => voting.setVote("not-steam", 1, true), { code: "STEAM_REQUIRED" });

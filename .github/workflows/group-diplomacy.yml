@@ -1,0 +1,31 @@
+name: Group diplomacy
+on:
+  pull_request:
+    paths:
+      - 'server/services/groupDiplomacy.js'
+      - 'server/services/groupBattleHistory.js'
+      - 'server/services/groupTreasuryLifecycle.js'
+      - 'server/routes/groupDiplomacy.js'
+      - 'server/groupsStore.js'
+      - 'server/index.js'
+      - 'server/services/roadmapCommunity.js'
+      - 'public/assets/home-roadmap.js'
+      - 'test/groupDiplomacy*.test.js'
+      - 'test/groupTerritoryHistory.test.js'
+      - 'test/roadmapCommunity.test.js'
+      - '.github/workflows/group-diplomacy.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node --test test/groupDiplomacy.test.js test/groupDiplomacyHttp.test.js test/groupTerritoryHistory.test.js test/groups.test.js test/groupProgress.test.js test/groupRecruitment.test.js test/roadmapCommunity.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js test/territoryAdminHttp.test.js
