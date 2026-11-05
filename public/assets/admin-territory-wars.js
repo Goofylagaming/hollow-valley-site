@@ -91,6 +91,7 @@ function renderPresence(presence) {
   }
 
   text("tw-admin-presence-heading", `${presence.region || "Territory"} Battlefield / Claim Zone`);
+  if(presence.stale){count.textContent="Tracking unavailable";count.className="tw-status";target.innerHTML='<div class="tw-empty">Fresh automation positions are unavailable. Battle progress is paused.</div>';return;}
   if (!presence.serverOnline) {
     count.textContent = "Server offline";
     count.className = "tw-status";

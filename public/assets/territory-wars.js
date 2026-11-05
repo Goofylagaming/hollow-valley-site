@@ -87,6 +87,7 @@ function renderPresence(presence) {
     text("tw-presence", "Territory geometry unavailable");
     return;
   }
+  if(presence.stale){text("tw-presence","Live tracking unavailable · battle progress paused");return;}
   if (!presence.serverOnline) {
     text("tw-presence", "Server offline");
     return;

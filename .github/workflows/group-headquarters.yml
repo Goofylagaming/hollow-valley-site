@@ -35,4 +35,4 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: node --test test/groups.test.js test/groupProgress.test.js test/groupTerritoryHistory.test.js test/territoryBattleProvenance.test.js test/territoryVictoryRuntime.test.js test/territoryVictoryDelivery.test.js test/territoryVictoryReview.test.js test/territoryAdminHttp.test.js test/territoryAdminRelease.test.js test/territoryControl.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/roadmapCommunity.test.js
+      - run: node --test test/liveSnapshotFreshness.test.js test/serverStatusAutomationOnly.test.js test/groups.test.js test/groupProgress.test.js test/groupTerritoryHistory.test.js test/territoryBattleProvenance.test.js test/territoryVictoryRuntime.test.js test/territoryVictoryDelivery.test.js test/territoryVictoryReview.test.js test/territoryAdminHttp.test.js test/territoryAdminRelease.test.js test/territoryControl.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/roadmapCommunity.test.js

@@ -137,12 +137,12 @@ disabled, and no private data is retained on sign-out or failed authentication.
 
 The roadmap release register retains #3's original description and feature ID,
 marks development honestly and preserves historical vote counts while freeing
-retired active ballot slots. Homepage asset version is 109. Diplomacy publication
+retired active ballot slots. Homepage asset version is 110. Diplomacy publication
 approval remains separate and pending; its prepared branch is preserved.
 
 ## Local validation
 
-165 checks pass across dynamic challenge evidence, Legacy store/private HTTP and
+220 affected checks pass across dynamic challenge evidence, Legacy store/private HTTP and
 authenticated telemetry, roadmap ballots/homepage integration, existing quest
 boosts/challenge payouts, journeys and discovery. Tests cover repeated/stale
 samples, alias farming, midnight/Monday rollover, opt-out/rejoin, separated lives,
@@ -373,6 +373,20 @@ changed rules, explicit writes, compare-and-swap, audit migration, baseline
 clearing and integrity failure while preserving unrelated wallet data. See
 `HV_CHALLENGE_MAP_OPERATOR_20261105.md` for the review/runbook and remaining release
 gates. No real catalog or live database was changed by this work.
+
+## Territory survival prerequisite
+
+The next source audit confirmed that capture winner records do not establish
+individual survival. Live status now requires actual fresh automation timestamps;
+cached responses cannot fabricate a new `checkedAt` or keep positions live beyond
+120 seconds. Runtime participation uses source observation times and retains an
+explicit clock-verification boundary without upgrading old/unstamped history.
+Public/admin Territory pages distinguish unavailable tracking from verified
+offline reports. The combined affected scope has 220 passing checks, and both
+real-page desktop/mobile projections pass presentation checks. See
+`HV_CHALLENGE_TERRITORY_EVIDENCE_20261105.md` for exact evidence and the unfinished
+participant/life/end-of-battle proof requirements. No survival reward or claim is
+created from the clock marker or existing victory roster.
 
 The dedicated Dynamic challenge tracking workflow runs the affected checks and
 the real-page browser fixture on pull requests. Those hosted runs have not yet
