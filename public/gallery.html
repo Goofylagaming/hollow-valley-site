@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Screenshot Gallery | Hollow Valley</title>
+  <meta name="description" content="Community screenshots from Hollow Valley, reviewed before publication.">
+  <link rel="stylesheet" href="/assets/styles.css?v=17"><link rel="stylesheet" href="/assets/ui-v2.css?v=3"><link rel="stylesheet" href="/assets/snapshot-ui.css?v=4">
+  <link rel="stylesheet" href="/assets/gallery.css?v=1">
+</head>
+<body><div class="app-shell"><div id="nav-slot"></div><main>
+  <section class="page-header"><p class="overline green">LIFE IN THE VALLEY</p><h1>Screenshot gallery.</h1><p class="section-intro">Share a moment from your dinosaur’s story. Screenshots stay private until an admin approves them.</p><a href="/profile">Back to your profile</a></section>
+  <section class="roster-section">
+    <p id="gallery-message" role="status" aria-live="polite">Loading gallery…</p>
+    <p id="gallery-signin" hidden><a href="/auth/steam">Sign in with Steam</a> to submit screenshots and manage your images.</p>
+    <nav class="filter-row" aria-label="Gallery views"><button class="filter active" data-view="public" aria-pressed="true">Community</button><button class="filter" data-view="mine" hidden aria-pressed="false">My screenshots</button><button class="filter" data-view="admin" hidden aria-pressed="false">Moderation</button><button class="small-button" id="gallery-refresh">Refresh</button></nav>
+    <form id="gallery-upload" hidden>
+      <h2>Submit a screenshot</h2><p>PNG, JPEG or WebP, up to 8 MB. Avoid private chats and personal information. Only upload images you have permission to share.</p>
+      <label>Title <input name="title" required maxlength="120" autocomplete="off"></label>
+      <label>Screenshot <input name="image" type="file" accept=".png,.jpg,.jpeg,.webp" required></label>
+      <button class="small-button" type="submit">Submit for review</button><p>Up to five submissions per day and 20 saved images. Embedded metadata is removed before storage.</p>
+    </form>
+    <div id="gallery-cards" class="gallery-grid"></div>
+    <button id="gallery-more" class="small-button" hidden>Load more</button>
+  </section>
+</main><footer><span>HOLLOW VALLEY</span><a href="/">Home</a></footer></div>
+<script src="/assets/common.js?v=22"></script><script src="/assets/gallery.js?v=1"></script></body>
+</html>

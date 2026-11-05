@@ -27,6 +27,10 @@ test('upload and image routes enforce rollout, identity, origin and moderation',
     assert.equal((await fetch(base+'/gallery/admin',{headers:{'x-test-user':owner}})).status,403);
     const review=await fetch(`${base}/gallery/${id}/review`,{method:'POST',headers:{Origin:base,'Content-Type':'application/json','x-test-user':other,'x-test-admin':'1'},body:JSON.stringify({requestId:'review-http-1',status:'approved',reason:'Community screenshot reviewed',expectedRevision:0})});assert.equal(review.status,200);
     assert.equal((await fetch(`${base}/gallery/${id}/image`)).status,200);
+    assert.equal((await fetch(`${base}/gallery/${id}/history`,{headers:{'x-test-user':owner}})).status,403);
+    const history=await (await fetch(`${base}/gallery/${id}/history`,{headers:{'x-test-user':other,'x-test-admin':'1'}})).json();
+    assert.equal(history.reviews[0].reason,'Community screenshot reviewed');
+    assert.equal(history.reviews[0].actorSteamId,other);
     assert.equal((await (await fetch(base+'/gallery')).json()).images.length,1);
     assert.equal((await fetch(`${base}/gallery/${id}`,{method:'DELETE',headers:{Origin:base,'x-test-user':owner}})).status,200);
     assert.equal((await fetch(`${base}/gallery/${id}/image`)).status,404);

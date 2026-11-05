@@ -13,6 +13,7 @@ function linked(req,res,next){if(!/^\d{17}$/.test(String(req.user?.steam_id||'')
 router.get('/',run((req,res)=>res.json(get().list(null,{before:req.query.before===undefined?undefined:Number(req.query.before)}))));
 router.get('/mine',requireAuth,linked,run((req,res)=>res.json(get().list(req.user,{mine:true,before:req.query.before===undefined?undefined:Number(req.query.before)}))));
 router.get('/admin',requireAdmin,linked,run((req,res)=>res.json(get().list(req.user,{admin:true,before:req.query.before===undefined?undefined:Number(req.query.before)}))));
+router.get('/:id/history',requireAdmin,linked,run((req,res)=>res.json({reviews:get().history(req.user,req.params.id)})));
 router.get('/:id/image',run((req,res)=>{
   const data=get().image(req.params.id,req.user);
   res.set({'Content-Type':'image/webp','X-Content-Type-Options':'nosniff','Content-Disposition':'inline; filename="screenshot.webp"','Cross-Origin-Resource-Policy':'same-origin'}).send(data);

@@ -31,9 +31,9 @@ before enabling production.
 
 ## Remaining milestone work
 
-- Public gallery and account/profile presentation.
-- Upload, owner-management and moderation screens with accessible mobile layouts.
-- Admin decision-history display and moderation filters.
+- Dinosaur-specific association beyond the implemented account gallery.
+- Authenticated staging verification of the implemented upload, owner-management and moderation screens.
+- Moderation status filters and featured-only browsing.
 - Community voting and any separately approved reward rules.
 - Linux dependency/decoder validation in CI, authenticated staging and production verification.
 
@@ -50,3 +50,22 @@ rollout gating and daily quotas. The decoder uses its documented pixel limit and
 metadata-stripping defaults:
 [constructor](https://sharp.pixelplumbing.com/api-constructor/) and
 [output options](https://sharp.pixelplumbing.com/api-output/).
+
+
+## Gallery screens — local verification
+
+Added `/gallery` and profile links for community browsing and personal images.
+Steam-linked owners can upload, retry an interrupted submission with the same
+request ID, and permanently withdraw their own image. The same page exposes
+moderation only to admins, with approval/rejection, featuring and decision history;
+all admin access is enforced again by the API. Guests can browse approved images.
+Images and captions use safe DOM construction, responsive cards and live status
+messages. Cursor pagination supports longer galleries.
+
+The browser fixture runs the real image upload, moderation and storage routes
+against an isolated database. Desktop (1440px) and mobile (390px) runs passed:
+lost acknowledgement/retry without duplicate upload, private pending state,
+approval/history, featured public display, guest access, text escaping, withdrawal
+and viewport bounds. The mobile screenshot was visually inspected. Moderator
+history authorization also has an HTTP regression test. No production flag was
+enabled and the achievements review branch is unchanged.

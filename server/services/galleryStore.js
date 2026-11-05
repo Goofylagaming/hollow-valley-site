@@ -72,6 +72,11 @@ function createGalleryStore(db,{now=Date.now}={}) {
     db.prepare("UPDATE gallery_images SET status='withdrawn',featured=0,image=NULL,revision=revision+1 WHERE id=? AND status!='withdrawn'").run(id);
     return {withdrawn:true};
   }
-  return {submit,list,image,review,withdraw};
+  function history(user,id) {
+    identity(user);if(!user.is_admin)fail('Admin access required',403);
+    if(!db.prepare('SELECT id FROM gallery_images WHERE id=?').get(id))fail('Image not found',404);
+    return db.prepare('SELECT actor_steam_id,created_at,payload FROM gallery_reviews WHERE image_id=? ORDER BY created_at,request_id').all(id).map(row=>({actorSteamId:row.actor_steam_id,createdAt:row.created_at,...JSON.parse(row.payload)}));
+  }
+  return {submit,list,image,review,withdraw,history};
 }
 module.exports={createGalleryStore};
