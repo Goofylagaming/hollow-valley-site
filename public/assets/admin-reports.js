@@ -1,7 +1,8 @@
 /* Admin-only moderation. All content is escaped before insertion. */
 (function () {
   "use strict";
-  const { api, loadMe, escapeHtml } = window.HDS;
+  const { api, escapeHtml } = window.HDS;
+  const guard=window.HVReportContext;let loadGeneration=0;
   const get = (id) => document.getElementById(id);
   const esc = (value) => escapeHtml(String(value ?? "—"));
   const displayTime = (value) => {
@@ -26,7 +27,7 @@
         ' · Reference ' + esc(item.id) + '</p>' +
         '<p class="hv-report-description">' + esc(item.description) + '</p>' +
         (evidence.length ? '<div class="hv-report-evidence">' + links + '</div>' : '') +
-        '<div class="hv-reports-review"><label>Review status<select class="report-review-status">' +
+        guard.controls() + '<div class="hv-reports-review"><label>Review status<select class="report-review-status">' +
           ["open", "reviewing", "resolved", "dismissed"].map(s =>
             '<option value="' + s + '"' + (s === safeStatus ? ' selected' : '') + '>' + s + '</option>'
           ).join("") + '</select></label>' +
@@ -37,18 +38,22 @@
     }).join("") : '<p>No reports match the selected filters.</p>';
   }
   async function load() {
+    const generation=++loadGeneration;guard.clearContexts();let ticket;
     get("admin-report-feedback").textContent = "Loading private reports…";
     try {
+      ticket=await guard.check();await guard.prepare(ticket);
       const query = new URLSearchParams({
         status: get("admin-report-status").value,
         q: get("admin-report-search").value.trim().slice(0, 90),
         limit: "100",
       });
       const response = await api("/api/reports/admin?" + query);
+      await guard.check(ticket.binding);if(generation!==loadGeneration||!guard.valid(ticket))return;
       const items = Array.isArray(response.reports) ? response.reports : [];
       render(items);
       get("admin-report-feedback").textContent = items.length + " report(s) in the current view.";
     } catch {
+      if(!guard.valid(ticket)||generation!==loadGeneration)return;
       get("admin-report-list").textContent = "Reports are unavailable.";
       get("admin-report-feedback").textContent = "The report queue could not be loaded.";
     }
@@ -62,24 +67,26 @@
     const feedback = item.querySelector(".report-review-feedback");
     button.disabled = true;
     feedback.textContent = "Saving…";
+    let ticket;
     try {
+      ticket=await guard.check();
       const result = await api("/api/reports/admin/" + encodeURIComponent(id) + "/review", {
-        method: "POST", body: JSON.stringify({ status, note }),
+        method: "POST", headers:{"Content-Type":"application/json","X-Report-Reviewer":ticket.binding}, body: JSON.stringify({ status, note }),
       });
-      await load();
+      await guard.check(ticket.binding);if(!guard.valid(ticket))return;
+      await load();if(!guard.valid(ticket))return;
       get("admin-report-feedback").textContent = result.changed
         ? "Review saved to admin history."
         : "No change required.";
     } catch (error) {
+      try{await guard.check(ticket?.binding);}catch{return;}if(!guard.valid(ticket))return;
       feedback.textContent = error.message || "Could not save the review.";
     } finally { button.disabled = false; }
   }
   async function init() {
-    const me = await loadMe();
-    const admin = Boolean(me?.loggedIn && me?.user?.is_admin);
-    get("admin-report-guard").hidden = admin;
-    get("admin-report-content").hidden = !admin;
-    if (!admin) return;
+    await guard.check();
+    get("admin-report-guard").hidden = true;
+    get("admin-report-content").hidden = false;
     get("admin-report-filters").addEventListener("submit", e => {e.preventDefault(); load();});
     get("admin-report-list").addEventListener("click", event => {
       const button = event.target.closest(".report-review-save");

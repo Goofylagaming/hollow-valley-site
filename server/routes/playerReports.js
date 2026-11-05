@@ -74,6 +74,7 @@ router.get("/admin/:id", requireAdmin, (req, res) => {
   } catch (error) { return respondError(res, error); }
 });
 router.post("/admin/:id/review", requireAdmin, requireSteam, sameOriginJson, (req, res) => {
+  const reviewer=req.get("X-Report-Reviewer");if(reviewer&&reviewer!==req.user.id+":"+req.user.steam_id)return res.status(403).json({error:"The admin account changed. Reload reports."});
   try {
     return res.json(reports.reviewReport(req.params.id, req.user, req.body?.status, req.body?.note));
   } catch (error) { return respondError(res, error); }

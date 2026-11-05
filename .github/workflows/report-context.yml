@@ -14,6 +14,11 @@ on:
       - 'test/reportContext*.test.js'
       - '.env.example'
       - 'public/assets/home-roadmap.js'
+      - 'public/adminreports.html'
+      - 'public/assets/admin-reports.js'
+      - 'public/assets/report-context.js'
+      - 'public/assets/player-reports.css'
+      - 'scripts/verify-report-context.cjs'
       - '.github/workflows/report-context.yml'
 permissions:
   contents: read
@@ -33,3 +38,7 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: node --test test/reportContext.test.js test/reportContextHttp.test.js automation-platform/test/reportContext.test.js automation-platform/test/reportContextHttp.test.js automation-platform/test/chatFeed.test.js automation-platform/test/combatEventService.test.js test/playerReports.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js
+
+      - run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.62.1
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/verify-report-context.cjs

@@ -115,3 +115,55 @@ retry/recovery browser fixtures, source attachment/retention policy, authenticat
 staging and production verification remain unfinished. The original status branch
 stays fixed at e9fb72c4 and has not acquired this follow-up. No live flag, source,
 player report, moderation decision, push, merge or deployment changed.
+
+## Staff context controls — 6 November 2026
+
+The reports queue now offers an explicit Load recorded context button only when
+the current linked moderator's context capability is enabled. It does not fetch
+source records on page load or queue reload. Each report has its own hide control;
+retrying replaces earlier results with a loading state and never leaves stale
+chat visible after a failed source read. Missing report times, unavailable sources,
+limited records and partial chat/combat coverage have explicit explanatory text.
+The context panel always labels matches as context, not proof, and the history as
+incomplete. Chat uses textContent, so supplied HTML is literal text, and masked
+text is labelled. No attachment or moderation decision is created by loading it.
+
+A page-local identity guard uses fresh no-store /api/me reads rather than the
+shared helper's cached/fallback identity. It checks before and after context and
+queue reads and review actions. Switched/revoked/unknown identities clear private
+context and the queue, hide controls and require a page reload. Focus/visibility
+changes hide private content and clear context until current access is verified;
+periodic visible-page identity checks detect otherwise unannounced changes.
+Delayed context/list replies are guarded by actor identity and request generation.
+Abort controllers prevent hidden/replaced context reads from repopulating panels.
+
+Existing review controls remain available. The updated UI sends a reviewer-binding
+header, and the review endpoint rejects a provided mismatched binding before any
+write. This preserves older clients that do not send the optional header; it does
+not claim to retrofit bound reviews onto old cached pages. The browser validates
+identity again after uncertain or failed responses and does not automatically
+repost a review. Normal review saves still use the existing status/history service.
+
+48 affected local checks pass, along with actual-page desktop1440/phone390 browser
+fixtures. Browser coverage includes no automatic context reads, literal chat,
+source/truncation warnings, hide, source failure and explicit retry, partial source
+results, missing-time no-query behavior, held source replies during account switch
+and permission revocation, identity endpoint failure, held queue replies, disabled
+controls and unchanged review writes. A review prepared before an account-cookie
+switch is rejected with no new review record; a normal explicit synthetic review
+saves once and queue refresh does not reload context. Tests use the real website
+routes, DB permissions, response projection and bound headers with synthetic source
+records, not a real Steam session or production feed.
+
+The phone panel was visually inspected and both layouts have no horizontal
+overflow. A reports-page footer width override fixes overflow from its existing
+rail margin, and the duplicate body tag was removed. Review/context controls have
+readable 16px input/button sizing. Admin reports script is v2, its context guard
+v1, reports CSS v2 and homepage roadmap v145. The workflow includes the new browser
+fixture. No live report, flag, source, moderator action, push, merge or deployment
+changed. Status publication candidate e9fb72c4 remains fixed.
+
+Persistent attachment/retention rules, broader historical coverage, real source
+provenance, authenticated staging and production verification remain open. These
+controls show read-only retained context; they do not automatically preserve it
+on a report or complete the original #26/full-roadmap goal.
