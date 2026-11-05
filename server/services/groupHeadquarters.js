@@ -46,6 +46,12 @@ function createGroupHeadquarters(db, groups) {
     if (!group) throw Object.assign(new Error('An active group membership is required'), { status: 404 });
     return group;
   }
+  function editingGroup(steamId,expectedGroupId) {
+    if(!Number.isSafeInteger(expectedGroupId)||expectedGroupId<1)throw Object.assign(new Error('A valid website group is required'),{status:400});
+    const group=membership(steamId);
+    if(group.id!==expectedGroupId)throw Object.assign(new Error('Group membership changed; refresh before saving'),{status:409});
+    return group;
+  }
   function get(steamId) {
     const group = membership(steamId);
     const profile = db.prepare('SELECT description,revision,emblem FROM hv_group_profiles WHERE group_id=?').get(group.id);
@@ -69,13 +75,13 @@ function createGroupHeadquarters(db, groups) {
         WHERE group_id=? ORDER BY revision DESC LIMIT 20`).all(group.id)
     };
   }
-  function update(steamId, { description, expectedRevision, emblem } = {}) {
+  function update(steamId, { description, expectedRevision, emblem, expectedGroupId } = {}) {
     if (emblem !== undefined && !emblems.includes(emblem)) throw Object.assign(new Error('Choose an available group emblem'), { status: 400 });
     if (typeof description !== 'string' || description.length > 2000 || /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(description) ||
         !Number.isSafeInteger(expectedRevision) || expectedRevision < 0) throw Object.assign(new Error('A description up to 2,000 characters and a valid revision are required'), { status: 400 });
     db.exec('BEGIN IMMEDIATE');
     try {
-      const group = membership(steamId);
+      const group = editingGroup(steamId,expectedGroupId);
       if (group.ownerSteamId !== steamId) throw Object.assign(new Error('Only the group owner can edit Headquarters'), { status: 403 });
       const profile = db.prepare('SELECT revision,emblem FROM hv_group_profiles WHERE group_id=?').get(group.id);
       if ((profile?.revision || 0) !== expectedRevision) throw Object.assign(new Error('Headquarters changed; refresh before saving'), { status: 409 });
@@ -89,11 +95,11 @@ function createGroupHeadquarters(db, groups) {
       return result;
     } catch (error) { db.exec('ROLLBACK'); throw error; }
   }
-  function setRank(steamId, { memberSteamId, rank, expectedRevision } = {}) {
+  function setRank(steamId, { memberSteamId, rank, expectedRevision, expectedGroupId } = {}) {
     if (typeof memberSteamId !== 'string' || !/^\d{17}$/.test(memberSteamId) || !['member','veteran','officer'].includes(rank) || !Number.isSafeInteger(expectedRevision) || expectedRevision<0) throw Object.assign(new Error('Valid member, rank and revision required'),{status:400});
     db.exec('BEGIN IMMEDIATE');
     try {
-      const group=membership(steamId);
+      const group=editingGroup(steamId,expectedGroupId);
       if(group.ownerSteamId!==steamId)throw Object.assign(new Error('Only the group owner can assign ranks'),{status:403});
       const member=group.members.find(person=>person.steamId===memberSteamId);
       if(!member)throw Object.assign(new Error('Group member unavailable'),{status:404});
@@ -107,12 +113,12 @@ function createGroupHeadquarters(db, groups) {
       const result=get(steamId);db.exec('COMMIT');return result;
     }catch(error){db.exec('ROLLBACK');throw error;}
   }
-  function shareScreenshot(steamId, { imageId, remove = false } = {}) {
+  function shareScreenshot(steamId, { imageId, remove = false, expectedGroupId } = {}) {
     if(process.env.HV_GALLERY_ENABLED!=='1')throw Object.assign(new Error('Gallery sharing is not enabled'),{status:503});
     if(typeof imageId!=='string'||!imageId||imageId.length>160||typeof remove!=='boolean')throw Object.assign(new Error('Valid gallery image required'),{status:400});
     db.exec('BEGIN IMMEDIATE');
     try {
-      const group=membership(steamId);
+      const group=editingGroup(steamId,expectedGroupId);
       const old=db.prepare('SELECT shared_by FROM hv_group_screenshots WHERE group_id=? AND image_id=?').get(group.id,imageId);
       let changed=false;
       if(remove){

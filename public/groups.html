@@ -8,9 +8,9 @@
   <link rel="stylesheet" href="/assets/styles.css?v=22">
   <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=4">
-  <link rel="stylesheet" href="/assets/groups.css?v=2">
+  <link rel="stylesheet" href="/assets/groups.css?v=3">
 </head>
-<body class="has-my-stuff-rail">
+<body class="has-my-stuff-rail groups-page">
   <div class="app-shell">
     <div id="nav-slot"></div>
     <main>
@@ -80,6 +80,7 @@
           <p id="hq-current" style="white-space:pre-wrap;overflow-wrap:anywhere"></p>
           <p id="hq-status" role="status" aria-live="polite"></p>
           <button id="hq-refresh" type="button" class="small-button">Refresh Headquarters</button>
+          <button id="hq-discard" type="button" class="small-button" disabled>Discard draft and reload</button>
           <div id="hq-editor" hidden><form id="hq-form" class="groups-form">
             <label for="hq-description">Group description</label>
             <label for="hq-emblem-choice">Emblem</label>
@@ -121,7 +122,7 @@
   </div>
   <script src="/assets/common.js?v=22"></script>
   <script src="/assets/groups.js?v=4"></script>
-  <script src="/assets/group-headquarters.js?v=4"></script>
+  <script src="/assets/group-headquarters.js?v=5"></script>
   <script src="/assets/group-territory.js?v=1"></script>
 </body>
 </html>

@@ -38,27 +38,27 @@ test('Headquarters descriptions enforce owner authority, stale revisions and ato
  const headquarters=require('../server/services/groupHeadquarters').createGroupHeadquarters(db,groups);
  assert.equal(headquarters.get(A).revision,0);
  expectFail(()=>headquarters.get(C),404);
- expectFail(()=>headquarters.update(B,{description:'Unauthorized',expectedRevision:0}),403);
- expectFail(()=>headquarters.update(A,{description:'Bad emblem',emblem:'arbitrary-url',expectedRevision:0}),400);
- const saved=headquarters.update(A,{description:' Valley explorers ',emblem:'mountain',expectedRevision:0});
+ expectFail(()=>headquarters.update(B,{expectedGroupId:groups.getState(B).current.id,description:'Unauthorized',expectedRevision:0}),403);
+ expectFail(()=>headquarters.update(A,{expectedGroupId:groups.getState(A).current.id,description:'Bad emblem',emblem:'arbitrary-url',expectedRevision:0}),400);
+ const saved=headquarters.update(A,{expectedGroupId:groups.getState(A).current.id,description:' Valley explorers ',emblem:'mountain',expectedRevision:0});
  assert.equal(saved.description,'Valley explorers');assert.equal(saved.revision,1);
  assert.equal(saved.emblem,'mountain');assert.equal(saved.edits[0].emblem,'mountain');
  assert.equal(headquarters.get(B).canEdit,false);assert.equal(headquarters.get(B).edits.length,1);
- expectFail(()=>headquarters.update(A,{description:'Stale',expectedRevision:0}),409);
+ expectFail(()=>headquarters.update(A,{expectedGroupId:groups.getState(A).current.id,description:'Stale',expectedRevision:0}),409);
  db.exec("CREATE TRIGGER fail_group_profile_edit BEFORE INSERT ON hv_group_profile_edits BEGIN SELECT RAISE(ABORT,'fixture audit failure'); END");
- assert.throws(()=>headquarters.update(A,{description:'Rollback',expectedRevision:1}));
+ assert.throws(()=>headquarters.update(A,{expectedGroupId:groups.getState(A).current.id,description:'Rollback',expectedRevision:1}));
  db.exec('DROP TRIGGER fail_group_profile_edit');
  assert.equal(headquarters.get(A).description,'Valley explorers');assert.equal(headquarters.get(A).revision,1);
 });
 
 test('Headquarters rank assignments enforce owner authority and revisions',()=>{
  const hq=require('../server/services/groupHeadquarters').createGroupHeadquarters(db,groups);
- expectFail(()=>hq.setRank(B,{memberSteamId:B,rank:'officer',expectedRevision:0}),403);
- expectFail(()=>hq.setRank(A,{memberSteamId:C,rank:'officer',expectedRevision:0}),404);
- expectFail(()=>hq.setRank(A,{memberSteamId:A,rank:'member',expectedRevision:0}),409);
- const result=hq.setRank(A,{memberSteamId:B,rank:'officer',expectedRevision:0});
+ expectFail(()=>hq.setRank(B,{expectedGroupId:groups.getState(B).current.id,memberSteamId:B,rank:'officer',expectedRevision:0}),403);
+ expectFail(()=>hq.setRank(A,{expectedGroupId:groups.getState(A).current.id,memberSteamId:C,rank:'officer',expectedRevision:0}),404);
+ expectFail(()=>hq.setRank(A,{expectedGroupId:groups.getState(A).current.id,memberSteamId:A,rank:'member',expectedRevision:0}),409);
+ const result=hq.setRank(A,{expectedGroupId:groups.getState(A).current.id,memberSteamId:B,rank:'officer',expectedRevision:0});
  assert.equal(result.members.find(m=>m.steamId===B).rank,'officer');
- expectFail(()=>hq.setRank(A,{memberSteamId:B,rank:'veteran',expectedRevision:0}),409);
+ expectFail(()=>hq.setRank(A,{expectedGroupId:groups.getState(A).current.id,memberSteamId:B,rank:'veteran',expectedRevision:0}),409);
  expectFail(()=>groups.invite(B,C),403);
 });
 
@@ -70,14 +70,14 @@ test('Headquarters screenshots require owned approved images and follow moderati
   const insert=db.prepare('INSERT INTO gallery_images VALUES (?,?,?,?,?,?)');
   insert.run('approved',B,'Bravo','Shared picture','approved',Buffer.from('fixture'));
   insert.run('pending',B,'Bravo','Pending picture','pending',Buffer.from('fixture'));
-  expectFail(()=>hq.shareScreenshot(A,{imageId:'approved'}),404);
-  expectFail(()=>hq.shareScreenshot(B,{imageId:'pending'}),404);
-  assert.equal(hq.shareScreenshot(B,{imageId:'approved'}).screenshots.length,1);
-  hq.shareScreenshot(B,{imageId:'approved'});
+  expectFail(()=>hq.shareScreenshot(A,{expectedGroupId:groups.getState(A).current.id,imageId:'approved'}),404);
+  expectFail(()=>hq.shareScreenshot(B,{expectedGroupId:groups.getState(B).current.id,imageId:'pending'}),404);
+  assert.equal(hq.shareScreenshot(B,{expectedGroupId:groups.getState(B).current.id,imageId:'approved'}).screenshots.length,1);
+  hq.shareScreenshot(B,{expectedGroupId:groups.getState(B).current.id,imageId:'approved'});
   assert.equal(db.prepare('SELECT COUNT(*) n FROM hv_group_screenshot_edits').get().n,1);
   db.prepare("UPDATE gallery_images SET status='withdrawn',image=NULL WHERE id='approved'").run();
   assert.equal(hq.get(A).screenshots[0].available,false);assert.equal(hq.get(A).screenshots[0].title,'Unavailable screenshot');
-  hq.shareScreenshot(A,{imageId:'approved',remove:true});
+  hq.shareScreenshot(A,{expectedGroupId:groups.getState(A).current.id,imageId:'approved',remove:true});
   assert.equal(db.prepare('SELECT COUNT(*) n FROM hv_group_screenshot_edits').get().n,2);
  }finally{if(saved===undefined)delete process.env.HV_GALLERY_ENABLED;else process.env.HV_GALLERY_ENABLED=saved;}
 });
@@ -134,6 +134,17 @@ test("pending invites expire on group closure; sole owner departure closes group
  const again=groups.createGroup(D,"Next Pack");
  assert.equal(again.current.name,"Next Pack");
 });
+test('Headquarters writes reject delayed requests intended for a previous group',()=>{
+ const hq=require('../server/services/groupHeadquarters').createGroupHeadquarters(db,groups);
+ const current=groups.getState(D).current.id,previous=groups.getState(D).previous[0]?.groupId||current+100;
+ expectFail(()=>hq.update(D,{description:'Wrong group',expectedRevision:0,expectedGroupId:previous}),409);
+ expectFail(()=>hq.setRank(D,{memberSteamId:D,rank:'veteran',expectedRevision:0,expectedGroupId:previous}),409);
+ const saved=process.env.HV_GALLERY_ENABLED;process.env.HV_GALLERY_ENABLED='1';
+ try{expectFail(()=>hq.shareScreenshot(D,{imageId:'approved',expectedGroupId:previous}),409);}
+ finally{if(saved===undefined)delete process.env.HV_GALLERY_ENABLED;else process.env.HV_GALLERY_ENABLED=saved;}
+ expectFail(()=>hq.update(D,{description:'Missing binding',expectedRevision:0}),400);
+ assert.equal(hq.get(D).revision,0);assert.equal(hq.get(D).description,'');
+});
 test("groups routes require sessions and Steam identities",async()=>{
  const express=require("express");
  const router=require("../server/routes/groups");
@@ -162,13 +173,13 @@ test('Headquarters HTTP binds actors and follows membership succession',async()=
  app.use((req,_res,next)=>{if(req.get('x-user'))req.user={steam_id:req.get('x-user')};next();});app.use('/hq',require('../server/routes/groupHeadquarters'));
  const server=await new Promise(resolve=>{const s=app.listen(0,'127.0.0.1',()=>resolve(s));});const base='http://127.0.0.1:'+server.address().port;
  const read=user=>fetch(base+'/hq',{headers:{'x-user':user||''}});
- const write=(user,body,origin=base)=>fetch(base+'/hq',{method:'POST',headers:{'x-user':user,Origin:origin,'Content-Type':'application/json'},body:JSON.stringify(body)});
+ const write=(user,body,origin=base)=>fetch(base+'/hq',{method:'POST',headers:{'x-user':user,Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({expectedGroupId:groups.getState(user).current?.id,...body})});
  try{
   assert.equal((await read(B)).status,503);process.env.GROUP_HQ_ENABLED='1';
   assert.equal((await read()).status,401);assert.equal((await read('bad')).status,403);assert.equal((await read(A)).status,404);
   groups.invite(B,C);groups.actOnInvite(C,groups.getState(C).incoming[0].id,'accept');
   const response=await read(C);assert.equal(response.headers.get('cache-control'),'private, no-store');assert.equal((await response.json()).canEdit,false);
-  const territoryWrite=(user,body,origin=base)=>fetch(base+'/hq/territory-link',{method:'POST',headers:{'x-user':user,Origin:origin,'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const territoryWrite=(user,body,origin=base)=>fetch(base+'/hq/territory-link',{method:'POST',headers:{'x-user':user,Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({expectedGroupId:groups.getState(user).current?.id,...body})});
   const groupId=groups.getState(B).current.id;
   db.exec('CREATE TABLE territory_groups(id INTEGER PRIMARY KEY,name TEXT,leader_user_id INTEGER)');
   db.prepare('INSERT INTO territory_groups VALUES (10,?,?)').run('Territory fixture',db.prepare('SELECT id FROM users WHERE steam_id=?').get(B).id);

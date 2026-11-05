@@ -15,6 +15,17 @@ const router = require("../server/routes/roadmapCommunity");
 const steam1 = "76561198000000001";
 const steam2 = "76561198000000002";
 
+test('Headquarters votes remain recorded while all active ballot slots are available',()=>{
+  const steam='76561198000000016';
+  db.prepare('INSERT INTO roadmap_votes (steam_id,feature_id) VALUES (?,16)').run(steam);
+  for(const id of [3,4,5])voting.setVote(steam,id,true);
+  const summary=voting.voteSummary(steam);
+  assert.equal(summary.counts[16],1);assert.deepEqual(summary.myVotes,[3,4,5]);
+  assert.throws(()=>voting.setVote(steam,16,true),{code:'FEATURE_NOT_VOTABLE'});
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM roadmap_votes WHERE steam_id=? AND feature_id=16').get(steam).n,1);
+  db.prepare('DELETE FROM roadmap_votes WHERE steam_id=?').run(steam);
+});
+
 test('discovery votes remain historical without using active ballot slots',()=>{
   const steam='76561198000000010';db.prepare('INSERT INTO roadmap_votes (steam_id,feature_id) VALUES (?,10)').run(steam);
   for(const id of [3,4,5])voting.setVote(steam,id,true);

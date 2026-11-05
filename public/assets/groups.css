@@ -7,6 +7,8 @@
 .groups-card h2{margin:2px 0 10px;color:#f1f7f4;font-size:24px}
 .groups-guest{padding:26px;margin:18px 0}
 .groups-form{margin:14px 0;display:grid;gap:8px;max-width:760px}
+.groups-form[hidden]{display:none}
+.groups-page footer{width:auto;margin-right:12px}
 .groups-form label{font-weight:600;color:#b1d7ca}
 .groups-form small,.groups-person small,.groups-row small,.groups-history-card small{display:block;color:#9dafaa;font-size:12px}
 .groups-inline{display:flex;gap:10px}

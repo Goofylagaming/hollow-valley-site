@@ -5,7 +5,7 @@ const fs = require('node:fs'), path = require('node:path'), assert = require('no
   try { for (const width of [1440,390]) {
     const context = await browser.newContext({viewport:{width,height:1000}});
     let readOnly=false, owner=true, member=true;
-    let profile={name:'Valley <img src=x>',description:'Explorers',revision:0,edits:[],members:[{steamId:'76561198000000002',name:'Member <img src=x>',role:'member',rank:'member',rankRevision:0}],rankEdits:[],screenshots:[],screenshotChoices:[{id:'fixture-image',title:'Picture <img src=x>'}]};const writes=[],rankWrites=[];
+    let profile={groupId:1,emblem:'leaf',name:'Valley <img src=x>',description:'Explorers',revision:0,edits:[],members:[{steamId:'76561198000000002',name:'Member <img src=x>',role:'member',rank:'member',rankRevision:0}],rankEdits:[],screenshots:[],screenshotChoices:[{id:'fixture-image',title:'Picture <img src=x>'}]};const writes=[],rankWrites=[];
     await context.route('**/*',async route=>{
       const url=new URL(route.request().url());if(url.origin!=='http://localhost')return route.abort();
       const json=(body,status=200)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});
@@ -41,15 +41,19 @@ const fs = require('node:fs'), path = require('node:path'), assert = require('no
     assert.equal(await page.locator('#group-headquarters img').count(),0);
     await page.fill('#hq-description','Our group <img src=x>');await page.selectOption('#hq-emblem-choice','sun');await page.click('#hq-save');
     await page.waitForFunction(()=>document.getElementById('hq-current').textContent==='Our group <img src=x>');
-    assert.deepEqual(writes[0],{description:'Our group <img src=x>',emblem:'sun',expectedRevision:0});assert.equal(await page.locator('#hq-history li').count(),1);
+    assert.deepEqual(writes[0],{description:'Our group <img src=x>',emblem:'sun',expectedRevision:0,expectedGroupId:1});assert.equal(await page.locator('#hq-history li').count(),1);
+    await page.fill('#hq-description','Unfinished description');
     await page.locator('#hq-ranks select').selectOption('veteran');await page.getByRole('button',{name:'Save rank',exact:true}).click();
     await page.waitForFunction(()=>document.getElementById('hq-ranks').textContent.includes('· veteran'));
-    assert.deepEqual(rankWrites[0],{memberSteamId:'76561198000000002',rank:'veteran',expectedRevision:0});
+    assert.deepEqual(rankWrites[0],{memberSteamId:'76561198000000002',rank:'veteran',expectedRevision:0,expectedGroupId:1});
+    assert.equal(await page.inputValue('#hq-description'),'Unfinished description');
     assert.equal(await page.locator('#hq-ranks img').count(),0);assert.equal(await page.locator('#hq-rank-history img').count(),0);
     await page.click('#hq-share');await page.locator('#hq-screenshots figure').waitFor();
     assert.equal(await page.locator('#hq-screenshots img').count(),1);
     assert.ok((await page.locator('#hq-screenshots img').getAttribute('src')).startsWith('/api/gallery/fixture-image/image'));
     await page.getByRole('button',{name:'Remove screenshot',exact:true}).click();await page.waitForFunction(()=>!document.querySelector('#hq-screenshots figure'));
+    assert.equal(await page.inputValue('#hq-description'),'Unfinished description');
+    await page.click('#hq-discard');await page.waitForFunction(()=>document.getElementById('hq-description').value==='Our group <img src=x>');
     owner=false;await page.click('#hq-refresh');await page.getByText('The group owner can edit this description.',{exact:true}).waitFor();assert.equal(await page.locator('#hq-editor').isVisible(),false);
     owner=true;readOnly=true;await page.reload();await page.evaluate(()=>{document.querySelectorAll('[hidden]').forEach(el=>{if(el.contains(document.getElementById('group-headquarters')))el.hidden=false;});});await page.getByText('This preview is read-only.',{exact:true}).waitFor();assert.equal(await page.locator('#hq-save').isDisabled(),true);
     member=false;await page.click('#hq-refresh');await page.getByText('An active group membership is required',{exact:true}).waitFor();assert.equal(await page.locator('#hq-history li').count(),0);
