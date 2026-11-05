@@ -257,6 +257,7 @@ function createApp() {
   app.use("/auth/owner", authOwnerRouter);
   app.use("/api/internal/commandbridge", legacyDirectGameApiRetired);
   app.use("/api/internal/supporter-memberships", supporterInternalRouter);
+  app.use("/api/valley-arcade", require("./routes/valleyArcade"));
   app.use("/api/internal/membership-rewards", require("./routes/membershipRewardsInternal"));
   app.use("/api/species", speciesRouter);
   app.use("/api/wallet", walletRouter);
