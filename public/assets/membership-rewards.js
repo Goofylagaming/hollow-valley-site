@@ -99,24 +99,24 @@
   function renderSkinVote(vote = {}) {
     if (vote.enabled !== true) return "";
     if (vote.eligible !== true) {
-      return `<section class="membership-skin-vote" aria-labelledby="membership-skin-vote-title"><span class="membership-kicker">MEMBER SKIN VOTE</span><h3 id="membership-skin-vote-title">Help choose what comes next.</h3><p>Active members get one equal vote in premium skin polls. Higher tiers get more monthly skin choices, not more voting power.</p><a href="#tier-grid">View membership tiers <span aria-hidden="true">→</span></a></section>`;
+      return `<section class="membership-skin-vote" aria-labelledby="membership-skin-vote-title"><span class="membership-kicker">SUBSCRIBER VOTE</span><h3 id="membership-skin-vote-title">Help choose what comes next.</h3><p>Active members get one equal vote on premium skins, public event themes and community choices. Higher tiers get more monthly skin choices, not more voting power.</p><a href="#tier-grid">View membership tiers <span aria-hidden="true">→</span></a></section>`;
     }
     if (vote.open !== true || !vote.ballot) {
       const winner = vote.lastWinner?.label
         ? `<p class="membership-notice">Last winner: <strong>${escape(vote.lastWinner.label)}</strong></p>`
         : "";
-      return `<section class="membership-skin-vote" aria-labelledby="membership-skin-vote-title"><span class="membership-kicker">MEMBER SKIN VOTE</span><h3 id="membership-skin-vote-title">No vote open right now.</h3><p>Your next premium skin poll will appear here when the candidates are ready.</p>${winner}</section>`;
+      return `<section class="membership-skin-vote" aria-labelledby="membership-skin-vote-title"><span class="membership-kicker">SUBSCRIBER VOTE</span><h3 id="membership-skin-vote-title">No vote open right now.</h3><p>Your next subscriber vote will appear here when the choices are ready.</p>${winner}</section>`;
     }
     const options = Array.isArray(vote.options) ? vote.options : [];
     const selected = Number(vote.selectedOptionId);
     const closes = date(vote.ballot.closesAt);
     return `<section class="membership-skin-vote" aria-labelledby="membership-skin-vote-title">
-      <div class="membership-section-title"><div><span class="membership-kicker">MEMBER SKIN VOTE</span><h3 id="membership-skin-vote-title">${escape(vote.ballot.title || "Choose the next premium skin")}</h3></div><span class="membership-next">${closes ? `Closes ${escape(closes)}` : "Open now"}</span></div>
-      <p>One vote per active member. You can change your choice until voting closes.</p>
+      <div class="membership-section-title"><div><span class="membership-kicker">SUBSCRIBER VOTE</span><h3 id="membership-skin-vote-title">${escape(vote.ballot.title || "Choose what comes next")}</h3></div><span class="membership-next">${closes ? `Closes ${escape(closes)}` : "Open now"}</span></div>
+      <p>One vote per active member. You can change your choice until voting closes. Discord reactions do not count; public events stay open to everyone.</p>
       <form id="membership-skin-vote-form">
         <div class="membership-vote-options">${options.map((option) => `<label class="membership-vote-option">
           <input type="radio" name="optionId" value="${Number(option.id)}"${Number(option.id) === selected ? " checked" : ""}>
-          <span><strong>${escape(option.label)}</strong><small>${escape(option.description || "Premium skin candidate")}</small></span>
+          <span><strong>${escape(option.label)}</strong><small>${escape(option.description || "Community choice")}</small></span>
           <b>${count(option.votes) ?? 0}</b>
         </label>`).join("")}</div>
         <div class="membership-form-actions"><button type="submit" class="small-button"${options.length ? "" : " disabled"}>Save my vote</button><p id="membership-skin-vote-message" role="status" aria-live="polite"></p></div>
