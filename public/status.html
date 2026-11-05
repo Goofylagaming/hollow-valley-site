@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="/assets/styles.css?v=38">
   <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=5">
-  <link rel="stylesheet" href="/assets/status-page.css?v=1">
+  <link rel="stylesheet" href="/assets/status-page.css?v=2">
 </head>
 <body>
   <div class="app-shell">
@@ -45,13 +45,21 @@
       <section class="hv-status-notes" aria-labelledby="status-notes-heading">
         <h2 id="status-notes-heading">What this page can verify</h2>
         <p><strong>Website process</strong> means the website answered its liveness check. <strong>Website readiness</strong> checks local storage and draining state. <strong>Game server</strong> uses a server snapshot; its last update is shown so delayed data is never mistaken for live player presence.</p>
-        <p>RCON / Command Bridge, Discord bot, Steam sign-in, Marketplace operations and Live Map data are <strong>not independently monitored on this page yet</strong>. An online website does not prove those services work. Component checks and verified incident history are planned in later HV-W01 releases.</p>
+        <p>RCON / Command Bridge, Discord bot, Steam sign-in, Marketplace operations and Live Map data are <strong>not independently monitored on this page yet</strong>. An online website does not prove those services work. Staff-reviewed incident reports below are separate from these checks.</p>
         <a href="/">← Back to Hollow Valley</a>
+      </section>
+      <section class="hv-status-notes" aria-labelledby="status-incidents-heading">
+        <h2 id="status-incidents-heading">Staff-reviewed incident history</h2>
+        <p>Published staff reports describe recorded interruptions and follow-up checks. They are not independent monitoring, and an empty history does not confirm every service is healthy.</p>
+        <p id="status-incidents-message" role="status">Checking incident history…</p>
+        <div id="status-incidents-list"></div>
+        <button type="button" id="status-incidents-more" hidden>Load older reports</button>
       </section>
     </main>
     <footer><span>© 2026 Hollow Valley</span><span>HOLLOW VALLEY · AUSTRALIAN ISLE SERVER</span><a href="/">Home ↑</a></footer>
   </div>
   <script src="/assets/common.js?v=22"></script>
   <script src="/assets/status-page.js?v=1"></script>
+  <script src="/assets/status-incidents.js?v=1"></script>
 </body>
 </html>
