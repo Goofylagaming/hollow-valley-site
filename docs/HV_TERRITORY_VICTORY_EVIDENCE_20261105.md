@@ -4,6 +4,22 @@ Inspected the local achievements branch on 5 November 2026. This is a delivery
 dependency for roadmap #2, with shared evidence requirements for #13 and #31.
 It is not a completed victory badge or production verification.
 
+## Local implementation progress
+
+`territoryBattleProvenance` now persists a declaration record in the attack's
+creation transaction. Runtime observations retain simulated evidence; manual
+configuration/control/status changes disqualify an active attack. Controlled
+testing is ineligible from declaration. Capture closes the record within its
+existing transaction and forced capture is explicitly marked manual. Unknown
+historical attacks cannot become eligible merely by receiving a later live tick.
+Idempotent initialization and conflicting result checks preserve the first record.
+
+This foundation does not yet freeze participant identities, export results, award
+victory badges or implement defensive victory resolution. No automatic grants
+consume its eligibility result yet. Runtime end-to-end winner attribution remains
+to be implemented and tested; current tests cover store persistence/rollback,
+source transitions and the existing HTTP/access-control/control-math regressions.
+
 ## Existing behavior
 
 - `server/routes/territoryWars.js` owns the website-side battle runtime and tables.

@@ -12,6 +12,9 @@ on:
       - 'automation-platform/test/lifeSurvivalAchievement.test.js'
       - 'automation-platform/src/services/valleyLegacyStore.js'
       - 'automation-platform/src/services/primeTrackerService.js'
+      - 'server/services/territoryBattleProvenance.js'
+      - 'server/routes/territoryWars.js'
+      - 'test/territoryBattleProvenance.test.js'
       - 'scripts/game-combat-line.js'
       - 'test/gameCombatLine.test.js'
       - '.github/workflows/achievement-evidence-tests.yml'
@@ -27,4 +30,4 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: node --test automation-platform/test/lifeSurvivalAchievement.test.js automation-platform/test/nestedAdultAchievement.test.js test/valleyLegacy.test.js automation-platform/test/primeAchievement.test.js test/gameCombatLine.test.js automation-platform/test/combatSpeciesAchievements.test.js automation-platform/test/combatEventService.test.js automation-platform/test/combatRoutes.test.js automation-platform/test/combatCalendarReset.test.js automation-platform/test/progressionService.test.js
+      - run: node --test test/territoryBattleProvenance.test.js test/territoryAdminHttp.test.js test/territoryAdminRelease.test.js test/territoryControl.test.js automation-platform/test/lifeSurvivalAchievement.test.js automation-platform/test/nestedAdultAchievement.test.js test/valleyLegacy.test.js automation-platform/test/primeAchievement.test.js test/gameCombatLine.test.js automation-platform/test/combatSpeciesAchievements.test.js automation-platform/test/combatEventService.test.js automation-platform/test/combatRoutes.test.js automation-platform/test/combatCalendarReset.test.js automation-platform/test/progressionService.test.js

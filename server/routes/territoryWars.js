@@ -2,6 +2,7 @@ const express = require("express");
 const { db } = require("../db");
 const { requireAuth, requireAdmin } = require("../middleware/requireAuth");
 const serverStatus = require("../services/serverStatus");
+const battleProvenance = require('../services/territoryBattleProvenance').createBattleProvenance(db);
 const { isRemovedTerritory } = require("../services/territoryAreas");
 const { fromRconLocation } = require("../evrimaMap");
 const {
@@ -316,6 +317,10 @@ function eventLog(eventId, limit = 20) {
 
 function addLog(eventId, kind, message, actorUserId = null) {
   if (!eventId) return;
+  if (actorUserId && ['config','control','status','reset','team','live-test'].includes(kind)) {
+    const attack = activeAttack(eventId);
+    if (attack) battleProvenance.disqualify(attack.id,'manual');
+  }
   db.prepare(`
     INSERT INTO territory_event_log (event_id, kind, message, actor_user_id)
     VALUES (?, ?, ?, ?)
@@ -811,6 +816,7 @@ function captureTerritory(event, attack, atMs, actorUserId = null) {
       WHERE id = ?
     `).run(attacker.name, protectionUntil, event.id);
     if (attack?.id) {
+      battleProvenance.finish(attack.id,atMs,'capture',{manual:actorUserId!==null});
       db.prepare(`
         UPDATE territory_attacks
         SET status = 'resolved', resolved_at = ?, outcome = 'capture'
@@ -890,6 +896,7 @@ function processEventRuntime(eventInput) {
   if (protectionUntil && nowMs < protectionUntil.getTime()) return event;
 
   const presence = contestPresence(event, attack, nowMs);
+  battleProvenance.observe(attack.id,presence);
   if (!presence.usable) return event;
 
   const contestStarted = parseDate(attack.contest_started_at);
@@ -1268,7 +1275,12 @@ router.post("/attack-declare", requireAuth, (req, res) => {
       SET challenger_name = ?, control_score = -100, owner_control = 100, challenger_control = 0, updated_at = datetime('now')
       WHERE id = ?
     `).run(access.group.name, event.id);
-    return Number(insert.lastInsertRowid);
+    const attackId = Number(insert.lastInsertRowid);
+    battleProvenance.begin(attackId,event.id,Date.parse(declaredAt),{
+      initialScore:-100,
+      testing:Boolean(event.live_test_mode) || previewSimulationEnabled(),
+    });
+    return attackId;
   });
   addLog(event.id, "attack", `${access.group.name} declared an attack. Five-minute warning started.`, req.user.id);
   res.json({ ok: true, event: decorateEvent(eventById(event.id)), attack: decorateAttack(db.prepare("SELECT * FROM territory_attacks WHERE id = ?").get(result)) });
