@@ -4,6 +4,10 @@ function createVictoryOutbox(db,{send,now=Date.now}={}) {
     attempts INTEGER NOT NULL DEFAULT 0,next_attempt_at INTEGER NOT NULL DEFAULT 0,
     delivered_at INTEGER,last_error_code TEXT
   )`);
+  db.exec(`CREATE TABLE IF NOT EXISTS territory_victory_delivery_reviews (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,attack_id INTEGER NOT NULL,actor_steam_id TEXT NOT NULL,
+    reason TEXT NOT NULL,previous_status TEXT NOT NULL,reviewed_at INTEGER NOT NULL
+  )`);
   let running=false;
   function enqueue(payload) {
     const serialized=JSON.stringify(payload);
@@ -31,7 +35,26 @@ function createVictoryOutbox(db,{send,now=Date.now}={}) {
       }
     } finally {running=false;}
   }
-  return {enqueue,flush};
+  function list() {
+    return db.prepare(`SELECT attack_id AS attackId,status,attempts,next_attempt_at AS nextAttemptAt,
+      delivered_at AS deliveredAt,last_error_code AS errorCode
+      FROM territory_victory_outbox ORDER BY CASE status WHEN 'review' THEN 0 WHEN 'pending' THEN 1 ELSE 2 END,attack_id DESC LIMIT 100`).all();
+  }
+  function retry(attackId,actor,reason) {
+    if(!Number.isSafeInteger(attackId)||attackId<=0||!/^\d{17}$/.test(actor)||typeof reason!=='string'||reason.trim().length<10||reason.length>500) {
+      throw Object.assign(new Error('A valid battle, linked admin and review reason are required'),{status:400});
+    }
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      const row=db.prepare('SELECT status FROM territory_victory_outbox WHERE attack_id=?').get(attackId);
+      if(!row) throw Object.assign(new Error('Delivery not found'),{status:404});
+      if(row.status==='delivered') throw Object.assign(new Error('This result was already delivered'),{status:409});
+      db.prepare('INSERT INTO territory_victory_delivery_reviews(attack_id,actor_steam_id,reason,previous_status,reviewed_at) VALUES (?,?,?,?,?)').run(attackId,actor,reason.trim(),row.status,now());
+      db.prepare("UPDATE territory_victory_outbox SET status='pending',next_attempt_at=0 WHERE attack_id=?").run(attackId);
+      db.exec('COMMIT');return {queued:true,attackId};
+    } catch(error) {db.exec('ROLLBACK');throw error;}
+  }
+  return {enqueue,flush,list,retry};
 }
 function start() {
   if(process.env.TERRITORY_VICTORY_DELIVERY_ENABLED!=='1') return null;

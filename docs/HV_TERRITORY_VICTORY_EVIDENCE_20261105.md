@@ -50,8 +50,8 @@ new flag defaults off. Server shutdown clears its polling timer.
 The local integration fixture covers capture transaction rollback, durable queue
 reopening, a successful receiver commit followed by a lost acknowledgement,
 idempotent retry and progression unlock. This is not an actual runtime battle or
-staging verification. Operational handling of review rows, defensive victory rules, authenticated
-staging verification and production approval remain pending.
+staging verification. Defensive victory rules, authenticated staging verification and production
+approval remain pending.
 
 ## Existing behavior
 
@@ -115,3 +115,15 @@ prevent queueing. Existing outer authentication/allowlist tests remain separate.
 This uses temporary SQLite files and a controlled clock, not a live game battle.
 The defensive-win gameplay rule has been requested from the user; no default
 battle timer or automatic defensive resolution has been introduced.
+
+## Admin delivery review
+
+The protected Territory admin page now lists up to 100 delivery records, showing
+status, attempt counts and sanitized error codes. Retrying requires a linked
+admin, same-origin JSON and a 10–500 character reason. The retry and audit record
+commit together; the original payload cannot be edited through this endpoint,
+and delivered results cannot be retried. The audit retains actor, reason, prior
+status and time. Retrying only queues the unchanged result for the enabled relay.
+Local HTTP tests cover access, CSRF, identity binding, immutable payloads and audit
+persistence. Isolated desktop/mobile panel fixtures cover selection and success/
+failure feedback; authenticated staging verification is still required.

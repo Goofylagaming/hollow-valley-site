@@ -91,3 +91,9 @@ screenshots were visually reviewed. These fixtures are not staging evidence.
 The browser fixture now includes all five new badges. Survival tests simulate
 five-minute snapshots up to the exact ten-hour threshold, species/life changes,
 long gaps, account-only playtime and raw combat deaths pending Legacy import.
+
+Biome evidence audit: the bundled Vulnona files declare Gateway_v0.21.7 and
+contain named area labels and activity-zone layers. Repository searches found no
+canonical biome catalogue. Landmark names, region anchors and migration zones
+will not be substituted for verified biome boundaries. The biome unlock remains
+unimplemented until that versioned geographic source is established.

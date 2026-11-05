@@ -19,6 +19,9 @@ on:
       - 'server/services/automationWebsiteClient.js'
       - 'test/territoryVictoryDelivery.test.js'
       - 'test/territoryVictoryRuntime.test.js'
+      - 'test/territoryVictoryReview.test.js'
+      - 'server/routes/territoryVictoryReview.js'
+      - 'public/assets/territory-victory-review.js'
       - 'server/services/territoryBattleProvenance.js'
       - 'server/routes/territoryWars.js'
       - 'test/territoryBattleProvenance.test.js'
@@ -37,4 +40,4 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: node --test test/territoryVictoryRuntime.test.js test/territoryVictoryDelivery.test.js automation-platform/test/territoryVictoryResults.test.js test/territoryBattleProvenance.test.js test/territoryAdminHttp.test.js test/territoryAdminRelease.test.js test/territoryControl.test.js automation-platform/test/lifeSurvivalAchievement.test.js automation-platform/test/nestedAdultAchievement.test.js test/valleyLegacy.test.js automation-platform/test/primeAchievement.test.js test/gameCombatLine.test.js automation-platform/test/combatSpeciesAchievements.test.js automation-platform/test/combatEventService.test.js automation-platform/test/combatRoutes.test.js automation-platform/test/combatCalendarReset.test.js automation-platform/test/progressionService.test.js
+      - run: node --test test/territoryVictoryReview.test.js test/territoryVictoryRuntime.test.js test/territoryVictoryDelivery.test.js automation-platform/test/territoryVictoryResults.test.js test/territoryBattleProvenance.test.js test/territoryAdminHttp.test.js test/territoryAdminRelease.test.js test/territoryControl.test.js automation-platform/test/lifeSurvivalAchievement.test.js automation-platform/test/nestedAdultAchievement.test.js test/valleyLegacy.test.js automation-platform/test/primeAchievement.test.js test/gameCombatLine.test.js automation-platform/test/combatSpeciesAchievements.test.js automation-platform/test/combatEventService.test.js automation-platform/test/combatRoutes.test.js automation-platform/test/combatCalendarReset.test.js automation-platform/test/progressionService.test.js

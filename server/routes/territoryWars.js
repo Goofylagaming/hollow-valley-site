@@ -18,6 +18,7 @@ const {
 } = require("../services/territoryControl");
 
 const router = express.Router();
+router.use('/admin/victory-delivery', require('./territoryVictoryReview'));
 const LINEUP_CAP = 6;
 const LIVE_SUB_DELAY_MS = 10 * 60 * 1000;
 const ATTACK_WARNING_MS = 5 * 60 * 1000;
