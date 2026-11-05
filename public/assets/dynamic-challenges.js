@@ -4,20 +4,23 @@
   let actor=null,model=null,caps={},review=null,busy=false,epoch=0;
   const message=text=>$('dynamic-status').textContent=text;
   const identity=me=>me?.loggedIn&&/^\d{17}$/.test(String(me.user?.steam_id||''))?String(me.user.steam_id):null;
-  const writable=()=>actor&&model&&!caps.readOnly&&caps.enabled;
+  const writable=()=>actor&&model&&!caps.readOnly&&(caps.enabled||caps.managementAvailable);
+  const running=()=>caps.enabled&&model?.enabled;
+  const canChoose=kind=>writable()&&(running()||(kind==='location'?model.location?.enabled:model.participating));
+  const canConfirm=()=>writable()&&review&&(running()||review.body.selected===false);
   const reviewedRevision=()=>review?.kind==='location'?model?.location?.revision:model?.revision;
   function clear(){actor=null;model=null;review=null;$('dynamic-list').replaceChildren();}
   function render(){
-    $('dynamic-challenges').hidden=!caps.enabled;
+    $('dynamic-challenges').hidden=!caps.enabled&&!model?.participating&&!model?.location?.enabled&&!review;
     $('dynamic-details').hidden=!model;
-    $('dynamic-participation').textContent=model?.participating?'You are participating.':'You are not participating.';
+    $('dynamic-participation').textContent=model?.participating?(running()?'You are participating.':'Challenge tracking is paused. You can stop and delete saved progress.'):'You are not participating.';
     $('dynamic-preview').textContent=caps.readOnly?'This preview is read-only.':'';
     $('dynamic-choice').textContent=model?.participating?'Review stop tracking':'Review participation';
-    $('dynamic-choice').disabled=busy||!writable()||Boolean(review);
+    $('dynamic-choice').disabled=busy||!canChoose()||Boolean(review);
     $('dynamic-location').hidden=!model||(!model.location?.available&&!model.location?.enabled);
     $('dynamic-location-status').textContent=model?.location?.enabled?(model.location.available?'Location tracking is on for separately reviewed map goals.':'Location tracking is paused until reviewed map rules are available. You can stop it and delete its progress.'):'Location tracking is off. Joining the main challenge rotation does not enable it.';
     $('dynamic-location-choice').textContent=model?.location?.enabled?'Review stopping location tracking':'Review location tracking';
-    $('dynamic-location-choice').disabled=busy||!writable()||Boolean(review)||!model?.participating;
+    $('dynamic-location-choice').disabled=busy||!canChoose('location')||Boolean(review)||!model?.participating;
     $('dynamic-refresh').disabled=busy;
     $('dynamic-review').hidden=!review;
     const consent=review?.kind==='location'?(review.body.selected?
@@ -27,7 +30,7 @@
       'Stop challenge tracking and delete its saved gameplay progress, including location progress. Rejoining starts fresh. Separate staff event records are retained. A minimal choice revision and request receipt remain to prevent old requests restoring participation.');
     $('dynamic-review-text').textContent=review?consent+(review.uncertain?' The reply was not confirmed. Refresh or explicitly retry this saved request.':review.body.expectedRevision!==reviewedRevision()?' Your choice changed elsewhere. Cancel this review and review the latest state.':''):'';
     $('dynamic-confirm').textContent=review?.uncertain?'Retry saved request':'Confirm participation choice';
-    $('dynamic-confirm').disabled=busy||!writable()||!review||review.actor!==actor||(!review.uncertain&&review.body.expectedRevision!==reviewedRevision());
+    $('dynamic-confirm').disabled=busy||!canConfirm()||review.actor!==actor||(!review.uncertain&&review.body.expectedRevision!==reviewedRevision());
     $('dynamic-cancel').disabled=busy;
     const list=$('dynamic-list');list.replaceChildren();
     for(const challenge of model?.challenges||[]){
@@ -50,14 +53,14 @@
     const [cap,me]=await Promise.all([api(base+'/capabilities',{cache:'no-store'}),api('/api/me',{cache:'no-store'})]);
     if(token!==epoch)return;
     caps=cap;const who=identity(me);
-    if(!caps.enabled){clear();return;}
+    if(!caps.enabled&&!caps.managementAvailable){clear();return;}
     if(who!==actor){clear();actor=who;}
     if(!actor){clear();message('Sign in with Steam to view challenge progress.');return;}
     const result=await api(base+'/me',{cache:'no-store'});
     const checked=identity(await api('/api/me',{cache:'no-store'}));
     if(token!==epoch)return;
     if(checked!==who){clear();message('Your account changed. Refresh to continue.');return;}
-    model=result;message(model.participating?'Tracking new gameplay observations. Rewards are disabled.':'Participation is optional. Review the tracking details before joining.');
+    model=result;message(!running()?'Challenge tracking is paused. Existing participants can stop and delete saved progress.':model.participating?'Tracking new gameplay observations. Rewards are disabled.':'Participation is optional. Review the tracking details before joining.');
   }
   async function run(fn){
     if(busy)return;
@@ -69,22 +72,22 @@
   const refresh=()=>run(read);
   $('dynamic-refresh').addEventListener('click',refresh);
   $('dynamic-choice').addEventListener('click',()=>{
-    if(!writable()||busy||review)return;
+    if(!canChoose()||busy||review)return;
     review={actor,body:{selected:!model.participating,expectedRevision:model.revision,requestKey:crypto.randomUUID()},uncertain:false};render();
   });
   $('dynamic-location-choice').addEventListener('click',()=>{
-    if(!writable()||busy||review||!model.participating)return;
+    if(!canChoose('location')||busy||review||!model.participating)return;
     review={kind:'location',actor,body:{selected:!model.location.enabled,expectedRevision:model.location.revision,requestKey:crypto.randomUUID()},uncertain:false};render();
   });
   $('dynamic-cancel').addEventListener('click',()=>{if(!busy){review=null;render();}});
   $('dynamic-confirm').addEventListener('click',()=>run(async token=>{
-    if(!writable()||!review)return;
+    if(!canConfirm())return;
     const saved=review;
     const me=identity(await api('/api/me',{cache:'no-store'}));
     if(me!==saved.actor){clear();message('Your account changed. Refresh to continue.');return;}
     // Re-read deployment capability before sending the reviewed mutation.
     caps=await api(base+'/capabilities',{cache:'no-store'});
-    if(!writable()){message('Participation changes are unavailable in this preview.');return;}
+    if(!canConfirm()){message('This participation choice is unavailable while tracking is paused or this preview is read-only.');return;}
     try {
       const result=await api(base+(saved.kind==='location'?'/location':'/participation'),{method:'POST',body:JSON.stringify(saved.body)});
       const checked=identity(await api('/api/me',{cache:'no-store'}));

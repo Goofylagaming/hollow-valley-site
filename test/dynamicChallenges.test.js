@@ -33,9 +33,28 @@ test('default-off store rejects enrollment and collects no evidence',t=>{
   const c=createDynamicChallengeStore(db,{enabled:()=>false});
   assert.throws(()=>c.change(A,{selected:true,expectedRevision:0,requestKey:randomUUID()}),{status:503});
   c.observe([{steam_id:A,id:'life',species:'rex'}],Date.now());
-  assert.deepEqual(c.status(A),{enabled:false});
+  assert.deepEqual(c.status(A),{enabled:false,participating:false,revision:0,timezone:'Australia/Brisbane',rewardsEnabled:false,location:{available:false,enabled:false,revision:0},challenges:[]});
   assert.equal(db.prepare('SELECT count(*) n FROM dc_cursor').get().n,0);
 });
+test('paused tracking retains private deletion choices without permitting enrollment or replay restoration',t=>{
+  const x=setup(t);x.c.participate(A,true);x.c.participate(B,true);x.advance(MIN);x.snap([x.row(),{...x.row(),steamId:B}]);
+  process.env.DYNAMIC_CHALLENGES_ENABLED='0';const c=x.s.challenges;
+  const paused=c.status(A);assert.equal(paused.enabled,false);assert.equal(paused.participating,true);assert.equal(paused.revision,1);assert.deepEqual(paused.challenges,[]);
+  assert.throws(()=>c.change(A,{selected:true,expectedRevision:1,requestKey:randomUUID()}),{status:503});
+  const stop={selected:false,expectedRevision:1,requestKey:randomUUID()};
+  x.db.exec("CREATE TRIGGER refuse_paused_delete BEFORE DELETE ON dc_observations BEGIN SELECT RAISE(ABORT,'delete unavailable'); END");
+  assert.throws(()=>c.change(A,stop),/delete unavailable/);assert.equal(c.status(A).revision,1);assert.equal(c.status(A).participating,true);
+  x.db.exec('DROP TRIGGER refuse_paused_delete');
+  assert.equal(c.change(A,stop).participating,false);assert.equal(c.change(A,stop).duplicate,true);assert.equal(c.status(A).revision,2);
+  for(const table of ['dc_participants','dc_observations','dc_evidence','dc_cursor'])assert.equal(x.db.prepare(`SELECT count(*) n FROM ${table} WHERE steam_id=?`).get(A).n,0);
+  assert.equal(c.status(B).participating,true);assert.equal(x.db.prepare('SELECT count(*) n FROM dc_observations WHERE steam_id=?').get(B).n,1);
+  assert.throws(()=>c.change(A,{...stop,requestKey:randomUUID()}),{status:409});
+  process.env.DYNAMIC_CHALLENGES_ENABLED='1';const rejoin={selected:true,expectedRevision:2,requestKey:randomUUID()};c.change(A,rejoin);
+  process.env.DYNAMIC_CHALLENGES_ENABLED='0';assert.throws(()=>c.change(A,rejoin),{status:503});
+  assert.equal(c.change(A,stop).participating,true,'an old deletion retry reports the current choice without deleting a later opt-in');
+  assert.equal(c.status(A).revision,3);
+});
+
 test('accepted snapshots count distinct species only after enrollment; retries do not add progress',t=>{
   const x=setup(t);x.snap([x.row()]);assert.equal(x.weekly().progress,0);
   x.c.participate(A,true);x.advance(MIN);x.snap([x.row()]);

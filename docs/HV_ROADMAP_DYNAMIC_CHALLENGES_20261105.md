@@ -12,6 +12,40 @@ gap. Existing accepted evidence is not rewritten by this correction.
 
 ## Implemented evidence core
 
+### Player deletion during a challenge rollout pause
+
+With Legacy still available, turning `DYNAMIC_CHALLENGES_ENABLED` off no longer
+removes existing players' ability to stop and delete private challenge progress.
+Private status reads return only the saved participation/consent revisions and
+location choice, with an empty challenge list. The Quests panel stays available
+for existing participants, labels tracking paused and supports explicit review
+and confirmation of stopping all challenges or separate location tracking.
+Players without a retained choice see no paused panel. Enrollment and location
+opt-in remain blocked, including a rollout pause between review and confirmation.
+
+The existing current Steam session, website token, exact-origin JSON, revision,
+immutable retry and preview/read-only restrictions all remain. A lost deletion
+reply can be retried with the saved request; it neither repeats deletion nor
+overwrites a later consent choice. General stopping deletes the participant's
+challenge evidence, cursor and observations plus location last position/receipts,
+atomically with its receipt and consent revision. Other players and separate staff
+attendance audit records are retained. Failed deletion rolls back the choice.
+
+The website capability `managementAvailable` identifies availability of Legacy
+for this purpose, without disclosing whether anyone participates. Disabling
+Legacy itself or making a preview read-only still blocks these writes; the change
+does not open an alternate database path or bypass those deployment controls.
+No collection or enrollment flag is changed by deletion. The Quests script is v5
+and the homepage planning asset is v112. This remains local development.
+
+230 affected checks pass, including paused-deletion rollback, immutable retries,
+other-player isolation, stale choices, blocked enrollment, authentication, preview
+and exact-origin guards. The real Quests page passes at 1440px and 390px, including
+a pause between enrollment review and confirmation, separate location deletion,
+general deletion after a lost response, and unchanged consent revision on retry.
+These fixtures use synthetic identities and local evidence; authenticated hosted
+staging and production remain unverified.
+
 `dynamicChallengeStore` uses additive tables in the automation database. It is
 called inside the accepted Valley Legacy snapshot transaction, so failures roll
 back the snapshot and its challenge evidence together. It consumes accepted

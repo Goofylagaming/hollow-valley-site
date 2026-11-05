@@ -6,8 +6,8 @@ const automation=require('../services/automationWebsiteClient');
 const enabled=()=>process.env.DYNAMIC_CHALLENGES_ENABLED==='1'&&process.env.VALLEY_LEGACY_ENABLED==='1';
 const readOnly=()=>process.env.DYNAMIC_CHALLENGES_READ_ONLY==='1'||getSkinStudioSafety().readOnly;
 router.use((_req,res,next)=>{res.set('Cache-Control','private, no-store');next();});
-router.get('/capabilities',(_req,res)=>res.json({enabled:enabled(),readOnly:readOnly(),rewardsEnabled:false}));
-router.use((_req,res,next)=>enabled()?next():res.status(503).json({error:'Dynamic challenges are not enabled'}));
+router.get('/capabilities',(_req,res)=>res.json({enabled:enabled(),managementAvailable:process.env.VALLEY_LEGACY_ENABLED==='1',readOnly:readOnly(),rewardsEnabled:false}));
+router.use((req,res,next)=>process.env.VALLEY_LEGACY_ENABLED==='1'&&(enabled()||req.method==='GET'||req.body?.selected===false)?next():res.status(503).json({error:'Dynamic challenges are not enabled'}));
 router.use(requireAuth);
 router.use((req,res,next)=>/^\d{17}$/.test(String(req.user?.steam_id||''))?next():res.status(403).json({error:'A linked Steam account is required'}));
 router.use((req,res,next)=>{

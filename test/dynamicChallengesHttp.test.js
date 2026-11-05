@@ -22,7 +22,7 @@ test('challenge API binds Steam identity, protects consent and never accepts cli
       method:body===undefined?'GET':'POST',headers:{'x-user':user,Origin:origin,'Content-Type':'application/json',...headers},...(body===undefined?{}:{body:JSON.stringify(body)})});
     const direct=(path,body,token=process.env.HOLLOW_VALLEY_API_TOKEN)=>fetch(backend.url+'/api/website/legacy/challenges/'+path,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(body)});
     const choice=(selected,revision)=>({selected,expectedRevision:revision,requestKey:randomUUID()});
-    const caps=await request('/capabilities',{user:''});assert.deepEqual(await caps.json(),{enabled:true,readOnly:false,rewardsEnabled:false});
+    const caps=await request('/capabilities',{user:''});assert.deepEqual(await caps.json(),{enabled:true,managementAvailable:true,readOnly:false,rewardsEnabled:false});
     assert.equal((await request('/me',{user:''})).status,401);assert.equal((await request('/me',{user:'bad'})).status,403);
     assert.equal((await direct('status',{steamId:A},'bad')).status,401);
     const initial=await request('/me');assert.equal(initial.headers.get('cache-control'),'private, no-store');assert.equal((await initial.json()).revision,0);
@@ -60,8 +60,31 @@ test('challenge API binds Steam identity, protects consent and never accepts cli
     // A website token has no route for writing challenge evidence or awards.
     assert.equal((await direct('evidence',{steamId:A,progress:999})).status,404);
     assert.equal((await direct('attendance',{steamId:A,eventId:'10000000000002',state:'confirmed'})).status,404);
-    process.env.DYNAMIC_CHALLENGES_ENABLED='0';assert.equal((await request('/me')).status,503);assert.equal((await direct('status',{steamId:A})).status,503);
+    assert.equal((await request('/participation',{body:choice(true,2)})).status,200);
+    const locationRevision=store.challenges.locations.status(A).revision;
+    assert.equal((await request('/location',{body:choice(true,locationRevision)})).status,200);
+    clock+=30000;store.snapshot([{steamId:A,species:'rex',growth:0.5,location:{x:0,y:0}}],clock);
+    clock+=30000;store.snapshot([{steamId:A,species:'rex',growth:0.5,location:{x:100,y:0}}],clock);
+    process.env.DYNAMIC_CHALLENGES_ENABLED='0';
+    assert.equal((await request('/me',{user:''})).status,401);assert.equal((await direct('status',{steamId:A},'bad')).status,401);
+    const paused=await (await request('/me')).json();assert.equal(paused.enabled,false);assert.equal(paused.participating,true);assert.equal(paused.location.enabled,true);assert.deepEqual(paused.challenges,[]);
+    assert.equal((await direct('status',{steamId:A})).status,200);
+    assert.equal((await request('/participation',{body:choice(true,3)})).status,503);
+    assert.equal((await direct('change',{steamId:A,...choice(true,3)})).status,503);
+    assert.equal((await request('/location',{body:choice(true,locationRevision+1)})).status,503);
+    const pausedStop=choice(false,3);
+    assert.equal((await request('/participation',{body:pausedStop,origin:'https://evil.invalid'})).status,403);
+    assert.equal((await request('/participation',{body:pausedStop,headers:{'Sec-Fetch-Site':'cross-site'}})).status,403);
+    process.env.DYNAMIC_CHALLENGES_READ_ONLY='1';
+    assert.equal((await request('/participation',{body:pausedStop})).status,403);assert.equal((await direct('change',{steamId:A,...pausedStop})).status,403);
+    delete process.env.DYNAMIC_CHALLENGES_READ_ONLY;
+    assert.equal((await request('/location',{body:choice(false,locationRevision+1)})).status,200);
+    assert.equal(db.prepare('SELECT count(*) n FROM dc_location_receipts WHERE steam_id=?').get(A).n,0);
+    assert.equal((await request('/participation',{body:{...pausedStop,steamId:B}})).status,200);
+    const recovered=await (await request('/participation',{body:pausedStop})).json();assert.equal(recovered.duplicate,true);assert.equal(recovered.participating,false);assert.equal(recovered.revision,4);
+    for(const table of ['dc_participants','dc_observations','dc_evidence','dc_cursor','dc_location_last','dc_location_receipts'])assert.equal(db.prepare(`SELECT count(*) n FROM ${table} WHERE steam_id=?`).get(A).n,0);
     assert.equal((await (await request('/capabilities',{user:''})).json()).enabled,false);
+    process.env.VALLEY_LEGACY_ENABLED='0';assert.equal((await request('/me')).status,503);assert.equal((await request('/participation',{body:choice(false,4)})).status,503);assert.equal((await (await request('/capabilities')).json()).managementAvailable,false);
   } finally {
     for(const surface of [website,backend])if(surface)await new Promise(resolve=>surface.server.close(resolve));
     legacy.get=get;db.close();for(const [k,v] of Object.entries(saved))if(v===undefined)delete process.env[k];else process.env[k]=v;

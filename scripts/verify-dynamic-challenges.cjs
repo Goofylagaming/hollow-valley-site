@@ -81,11 +81,27 @@ async function until(fn){for(let n=0;n<300;n++){if(fn())return;await new Promise
     assert.equal(await page.locator('#dynamic-details').isVisible(),false);assert.equal(await page.locator('#dynamic-list article').count(),0);
     await page.click('#dynamic-refresh');await idle();assert.match(await page.locator('#dynamic-list').textContent(),/0 \/ 3 species observed/);
     await review();await context.clearCookies();await page.click('#dynamic-refresh');await idle();assert.equal(await page.locator('#dynamic-review').isVisible(),false);assert.equal(await page.locator('#dynamic-list article').count(),0);assert.match(await page.locator('#dynamic-status').textContent(),/Sign in/);
-    await cookie(B);await page.click('#dynamic-refresh');await idle();await review();await confirm();assert.equal(store.challenges.status(B).participating,true);
-    await review();await confirm();assert.equal(store.challenges.status(B).participating,false);assert.equal(store.challenges.status(B).challenges[1].progress,0);
+    await cookie(B);await page.click('#dynamic-refresh');await idle();await review();
+    const beforePausedJoin=writes;process.env.DYNAMIC_CHALLENGES_ENABLED='0';await confirm();
+    assert.equal(writes,beforePausedJoin,'a pause between enrollment review and confirmation blocks publication');assert.equal(store.challenges.status(B).participating,false);
+    assert.equal(await page.locator('#dynamic-confirm').isDisabled(),true);assert.match(await page.locator('#dynamic-status').textContent(),/paused/);
+    await page.click('#dynamic-cancel');process.env.DYNAMIC_CHALLENGES_ENABLED='1';await page.click('#dynamic-refresh');await idle();await review();await confirm();assert.equal(store.challenges.status(B).participating,true);
+    await page.click('#dynamic-location-choice');await confirm();
+    clock+=30000;store.snapshot([{steamId:B,species:'tyrannosaurus',growth:0.5,location:{x:0,y:0}}],clock);
+    clock+=30000;store.snapshot([{steamId:B,species:'tyrannosaurus',growth:0.5,location:{x:100,y:0}}],clock);
+    process.env.DYNAMIC_CHALLENGES_ENABLED='0';await page.click('#dynamic-refresh');await idle();
+    assert.equal(await page.locator('#dynamic-challenges').isVisible(),true);assert.match(await page.locator('#dynamic-participation').textContent(),/paused/);assert.equal(await page.locator('#dynamic-list article').count(),0);
+    process.env.DYNAMIC_CHALLENGES_READ_ONLY='1';await page.click('#dynamic-refresh');await idle();assert.equal(await page.locator('#dynamic-choice').isDisabled(),true);delete process.env.DYNAMIC_CHALLENGES_READ_ONLY;
+    await page.click('#dynamic-refresh');await idle();await page.click('#dynamic-location-choice');await confirm();assert.equal(store.challenges.locations.status(B).enabled,false);
+    assert.equal(db.prepare('SELECT count(*) n FROM dc_location_receipts WHERE steam_id=?').get(B).n,0);
+    await review();const beforePausedStop=writes;drop=true;await confirm();await page.getByRole('button',{name:'Retry saved request',exact:true}).waitFor();
+    assert.equal(store.challenges.status(B).participating,false);const stoppedRevision=store.challenges.status(B).revision;
+    await confirm();assert.equal(writes,beforePausedStop+2);assert.equal(store.challenges.status(B).revision,stoppedRevision);
+    assert.equal(db.prepare('SELECT count(*) n FROM dc_observations WHERE steam_id=?').get(B).n,0);
+    process.env.DYNAMIC_CHALLENGES_ENABLED='1';assert.equal(store.challenges.status(B).challenges[1].progress,0);
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);
-    process.env.DYNAMIC_CHALLENGES_ENABLED='0';await page.click('#dynamic-refresh');await idle();assert.equal(await page.locator('#dynamic-challenges').isVisible(),false);process.env.DYNAMIC_CHALLENGES_ENABLED='1';
-    assert.deepEqual(errors,[]);assert.deepEqual(unexpected,[]);await context.close();console.log(`PASS ${width}px real Quests: original board, explicit consent, lost reply/retry, evidence progress, stale revision, preview, delayed read/account switch, session loss and opt-out`);
+    process.env.DYNAMIC_CHALLENGES_ENABLED='0';await page.reload();await idle();assert.equal(await page.locator('#dynamic-challenges').isVisible(),false);process.env.DYNAMIC_CHALLENGES_ENABLED='1';
+    assert.deepEqual(errors,[]);assert.deepEqual(unexpected,[]);await context.close();console.log(`PASS ${width}px real Quests: original board, explicit consent, lost reply/retry, evidence progress, stale revision, preview, delayed read/account switch, session loss, paused deletion and blocked enrollment`);
   }
  }finally{
   if(held)held();if(browser)await browser.close();for(const s of [website,internal])if(s)await new Promise(resolve=>s.server.close(resolve));legacy.get=oldGet;db.close();
