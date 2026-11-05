@@ -1,5 +1,5 @@
 const express=require('express');
-const {requireAdmin}=require('../middleware/requireAuth');
+const {requireAdmin,requireAuth}=require('../middleware/requireAuth');
 const {skinMutationGuard}=require('../middleware/skinStudioSafety');
 const client=require('../services/premiumSkinClient');
 const router=express.Router();
@@ -21,10 +21,15 @@ async function respond(res,action,successStatus=200) {
   catch(error) {return res.status(Number.isInteger(error.status)?error.status:502).json({error:error.message||'Premium skins are temporarily unavailable.',code:error.code||null});}
 }
 router.get('/',(req,res)=>respond(res,()=>client.listCatalog(req.user?.steam_id||null)));
+router.get('/collections',requireAuth,actor,(req,res)=>respond(res,()=>client.listCollections(req.user.steam_id)));
 router.get('/admin',requireAdmin,actor,(req,res)=>respond(res,()=>client.listAdmin(req.user.steam_id)));
 router.post('/admin/seed-drafts',requireAdmin,actor,(req,res)=>respond(res,()=>client.seedDrafts(req.user.steam_id),201));
 router.post('/admin/drafts',requireAdmin,actor,(req,res)=>respond(res,()=>client.draftFromPreset({actorSteamId:req.user.steam_id,presetId:req.body?.presetId,collection:req.body?.collection}),201));
 router.put('/admin/:skinId',requireAdmin,actor,(req,res)=>respond(res,()=>client.updateDraft({skinId:req.params.skinId,actorSteamId:req.user.steam_id,species:req.body?.species,name:req.body?.name,description:req.body?.description,skin:req.body?.skin})));
 router.post('/admin/:skinId/verify',requireAdmin,actor,(req,res)=>respond(res,()=>client.verifyDraft({skinId:req.params.skinId,actorSteamId:req.user.steam_id,verifiedSpecies:req.body?.verifiedSpecies,note:req.body?.note,confirmedInGame:req.body?.confirmedInGame,expectedVersion:req.body?.expectedVersion})));
 router.post('/admin/:skinId/publish',requireAdmin,actor,(req,res)=>respond(res,()=>client.setPublished({skinId:req.params.skinId,actorSteamId:req.user.steam_id,published:req.body?.published})));
+router.post('/admin/:skinId/rarity',requireAdmin,actor,(req,res)=>{
+  if(req.get('origin')!==`${req.protocol}://${req.get('host')}`||!req.is('application/json'))return res.status(403).json({error:'Same-origin JSON request required.'});
+  return respond(res,()=>client.setRarity({skinId:req.params.skinId,actorSteamId:req.user.steam_id,rarity:req.body?.rarity,reason:req.body?.reason,expectedRevision:req.body?.expectedRevision,requestId:req.body?.requestId}));
+});
 module.exports=router;

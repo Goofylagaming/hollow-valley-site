@@ -6,6 +6,11 @@
   let monthly=null;
   let readOnly=true;
   const el=(id)=>document.getElementById(id);
+  const rarityAttempts=new Map();
+  function rarityForm(skin){
+    const choices=[['','Unclassified'],['common','Common'],['rare','Rare'],['epic','Epic'],['legendary','Legendary'],['event','Event']];
+    return `<form data-premium-rarity="${esc(skin.id)}" class="premium-rarity-form"><fieldset ${readOnly?'disabled':''}><legend>Rarity classification</legend><label>Rarity<select name="rarity">${choices.map(([value,label])=>`<option value="${value}" ${value===(skin.rarity||'')?'selected':''}>${label}</option>`).join('')}</select></label><label>Reason<textarea name="reason" required minlength="10" maxlength="500"></textarea></label><button type="submit" class="small-button">Save classification</button></fieldset><details><summary>Recent classification history</summary>${(skin.rarityHistory||[]).map(r=>`<p>${esc(r.at)} · ${esc(r.actor)} · ${esc(r.rarity||'Unclassified')}: ${esc(r.reason)}</p>`).join('')||'<p>No classification recorded.</p>'}</details></form>`;
+  }
   function safeHex(value){return /^#[a-f0-9]{6}$/i.test(String(value))?value:'#445548';}
   function card(skin,admin=false){
     const pending=(monthly?.claims||[]).find((claim)=>claim.skinId===skin.id && ['pending','reserved'].includes(claim.status));
@@ -13,7 +18,7 @@
     const actions=admin
       ? `${skin.state==='draft'?`<button class="small-button" data-premium-edit="${esc(skin.id)}" ${readOnly?'disabled':''}>Edit in Studio</button><button class="small-button" data-premium-verify="${esc(skin.id)}" ${readOnly?'disabled':''}>Record in-game check</button>`:''}${skin.state!=='draft'?`<button class="small-button" data-premium-publish="${esc(skin.id)}" data-published="${skin.published?'0':'1'}" ${readOnly?'disabled':''}>${skin.published?'Remove from collection':'Publish to collection'}</button>`:''}`
       : skin.owned?'<a class="small-button" href="#my-skins" data-premium-mine>In My Skins</a>':`<button class="small-button" data-premium-claim="${esc(skin.id)}" ${canClaim?'':'disabled'}>${pending?'Retry pending claim':'Choose this skin'}</button>`;
-    return `<article class="premium-card"><div class="premium-palette" aria-label="${esc(skin.name)} colour palette">${(skin.swatches||[]).map((swatch)=>`<span style="background:${safeHex(swatch.color)}" title="${esc(swatch.zone)}"></span>`).join('')}<b>PREMIUM</b></div><div class="premium-card-body"><span class="premium-collection-label">${esc(skin.collectionKey.replaceAll('-',' '))}</span><h3>${esc(skin.name)}</h3><p>${esc(skin.description)}</p><p class="premium-compatibility">${skin.verifiedSpecies?.length?`Verified in-game: ${esc(skin.verifiedSpecies.join(', '))}`:'Draft palette · in-game review pending'}</p>${admin?`<span class="premium-review-state">${esc(skin.state)}</span>`:''}<div class="premium-card-actions">${actions}</div></div></article>`;
+    return `<article class="premium-card"><div class="premium-palette" aria-label="${esc(skin.name)} colour palette">${(skin.swatches||[]).map((swatch)=>`<span style="background:${safeHex(swatch.color)}" title="${esc(swatch.zone)}"></span>`).join('')}<b>PREMIUM</b></div><div class="premium-card-body"><span class="premium-collection-label">${esc(skin.collectionKey.replaceAll('-',' '))}</span><h3>${esc(skin.name)}</h3><p>${esc(skin.description)}</p><p>Rarity: ${esc(skin.rarity||'Unclassified')}</p><p class="premium-compatibility">${skin.verifiedSpecies?.length?`Verified in-game: ${esc(skin.verifiedSpecies.join(', '))}`:'Draft palette · in-game review pending'}</p>${admin?`<span class="premium-review-state">${esc(skin.state)}</span>`:''}<div class="premium-card-actions">${actions}</div>${admin?rarityForm(skin):''}</div></article>`;
   }
   function render(){
     el('premium-skin-grid').innerHTML=catalog.skins.length?catalog.skins.map((skin)=>card(skin)).join(''):'<div class="premium-empty"><strong>The first collection is being prepared.</strong>Premium skins will appear here after their in-game review. Your existing skins remain in My Skins.</div>';
@@ -53,6 +58,17 @@
   }
   async function action(button,callback){button.disabled=true;try{await callback();await loadMine();await refresh();}catch(error){showAlert(error.message,'error');button.disabled=false;}}
   el('premium-refresh').addEventListener('click',()=>refresh().catch((error)=>showAlert(error.message,'error')));
+  el('premium-admin-grid').addEventListener('submit',async event=>{
+    const form=event.target.closest('[data-premium-rarity]');if(!form)return;event.preventDefault();if(readOnly)return;
+    const skin=adminCatalog.skins.find(s=>s.id===form.dataset.premiumRarity);if(!skin)return;
+    const body={rarity:form.elements.rarity.value||null,reason:form.elements.reason.value.trim(),expectedRevision:skin.rarityRevision||0};
+    if(body.reason.length<10)return;
+    const signature=JSON.stringify(body),old=rarityAttempts.get(skin.id);
+    const attempt=old?.signature===signature?old:{signature,requestId:crypto.randomUUID()};rarityAttempts.set(skin.id,attempt);
+    const fields=form.querySelector('fieldset');fields.disabled=true;
+    try{await api(`/api/skins/premium/admin/${encodeURIComponent(skin.id)}/rarity`,{method:'POST',body:JSON.stringify({...body,requestId:attempt.requestId})});rarityAttempts.delete(skin.id);showAlert('Classification saved.','success');await refresh();}
+    catch(error){showAlert(error.message,'error');fields.disabled=false;}
+  });
   el('premium-seed-drafts').addEventListener('click',(event)=>action(event.currentTarget,async()=>{
     await api('/api/skins/premium/admin/seed-drafts',{method:'POST',body:'{}'});showAlert('Prepared Ashfall, Moonlit Marsh and Valley Royalty as private drafts.','success');
   }));

@@ -26,6 +26,11 @@ store.db.exec(`
     FOREIGN KEY(skin_id) REFERENCES economy_membership_skin_catalog(id)
   );
 `);
+store.db.exec(`CREATE TABLE IF NOT EXISTS economy_skin_classifications (
+  preset_id TEXT PRIMARY KEY,rarity TEXT,revision INTEGER NOT NULL);
+  CREATE TABLE IF NOT EXISTS economy_skin_classification_actions (
+    request_id TEXT PRIMARY KEY,preset_id TEXT NOT NULL,payload TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT (datetime('now')));`);
+const RARITIES=Object.freeze(['common','rare','epic','legendary','event']);
 
 function enabled(env = process.env) {
   return /^(1|true|yes)$/i.test(String(env.MEMBERSHIP_PREMIUM_SKINS_ENABLED || '').trim());
@@ -53,14 +58,16 @@ function draftVersion(preset) {
 }
 function card(entry, preset, steamId, admin = false) {
   const owned = Boolean(steamId && (store.hasSkinUnlock(steamId, preset.id) || preset.owner_steam_id === steamId));
+  const classification=store.db.prepare('SELECT rarity,revision FROM economy_skin_classifications WHERE preset_id=?').get(preset.id);
   return {
     id: entry.id, presetId: preset.id, name: preset.name, description: preset.description,
     species: preset.species, collectionKey: entry.collection_key,
     state: entry.state, published: entry.state === 'published', owned,
-    premium: true, previewType: 'palette',
+    premium: true, previewType: 'palette',rarity:classification?.rarity||null,
     verifiedSpecies: preset.membershipVerifiedSpecies,
     swatches: ['body','markings','flank','underbelly','maleDisplay','eyes'].map((zone) => ({ zone, color: hex(preset.skin[zone]) })),
-    ...(admin ? { skin: preset.skin, version: draftVersion(preset), verificationNote: entry.verification_note, verifiedAt: entry.verified_at, publishedAt: entry.published_at } : {}),
+    ...(admin ? { skin: preset.skin, version: draftVersion(preset), verificationNote: entry.verification_note, verifiedAt: entry.verified_at, publishedAt: entry.published_at,
+      rarityRevision:classification?.revision||0,rarityHistory:store.db.prepare('SELECT payload,created_at FROM economy_skin_classification_actions WHERE preset_id=? ORDER BY rowid DESC LIMIT 20').all(preset.id).map(r=>({...JSON.parse(r.payload),at:r.created_at})) } : {}),
   };
 }
 function listCatalog(steamId = null, { admin = false } = {}) {
@@ -70,6 +77,36 @@ function listCatalog(steamId = null, { admin = false } = {}) {
     .filter(({preset}) => preset?.active)
     .map(({entry,preset}) => card(entry, preset, steam, admin));
   return { enabled: enabled() && skins.systemEnabled(), skins: catalogue, publishedCount: catalogue.filter((item) => item.published).length };
+}
+function profileCollections(steamId) {
+  const steam=store.validateSteamId(steamId),collections=new Map();
+  const rows=store.db.prepare("SELECT * FROM economy_membership_skin_catalog WHERE state='published' OR (state='archived' AND published_at IS NOT NULL) ORDER BY created_at DESC,id").all();
+  for(const entry of rows) {
+    const preset=store.getSkinPreset(entry.preset_id);if(!preset?.active)continue;
+    const ownership=preset.owner_steam_id===steam?'created':store.hasSkinUnlock(steam,preset.id)?'unlocked':store.hasSkinGrant(steam,preset.id)?'granted':null;
+    if(entry.state==='archived'&&!ownership)continue;
+    const skin=card(entry,preset,steam);
+    if(!collections.has(skin.collectionKey))collections.set(skin.collectionKey,{key:skin.collectionKey,total:0,owned:0,skins:[]});
+    const group=collections.get(skin.collectionKey);group.total++;if(ownership)group.owned++;
+    group.skins.push({id:skin.id,name:skin.name,species:skin.species,owned:Boolean(ownership),ownership,archived:entry.state==='archived',rarity:skin.rarity,swatches:skin.swatches});
+  }
+  return {enabled:enabled()&&skins.systemEnabled(),collections:[...collections.values()].sort((a,b)=>a.key.localeCompare(b.key))};
+}
+function setRarity({skinId,actorSteamId,rarity,reason,expectedRevision,requestId}={}) {
+  const actor=store.validateSteamId(actorSteamId);
+  if((rarity!==null&&!RARITIES.includes(rarity))||typeof reason!=='string'||reason.trim().length<10||reason.length>500||typeof requestId!=='string'||!/^[A-Za-z0-9_-]{8,128}$/.test(requestId)||!Number.isSafeInteger(expectedRevision)||expectedRevision<0)fail('Choose a valid rarity and record a review reason.','SKIN_CLASSIFICATION_INVALID');
+  const payload=JSON.stringify({skinId,actor,rarity,reason:reason.trim(),expectedRevision});
+  store.db.exec('BEGIN IMMEDIATE');
+  try {
+    const prior=store.db.prepare('SELECT payload FROM economy_skin_classification_actions WHERE request_id=?').get(requestId);
+    if(prior){if(prior.payload!==payload)fail('Classification request conflicts with its recorded decision.','SKIN_CLASSIFICATION_CONFLICT',409);store.db.exec('COMMIT');return {duplicate:true};}
+    const {preset}=find(skinId);
+    const current=store.db.prepare('SELECT revision FROM economy_skin_classifications WHERE preset_id=?').get(preset.id);
+    if((current?.revision||0)!==expectedRevision)fail('Classification changed; refresh before saving.','SKIN_CLASSIFICATION_CONFLICT',409);
+    store.db.prepare('INSERT INTO economy_skin_classifications VALUES (?,?,?) ON CONFLICT(preset_id) DO UPDATE SET rarity=excluded.rarity,revision=excluded.revision').run(preset.id,rarity,expectedRevision+1);
+    store.db.prepare('INSERT INTO economy_skin_classification_actions(request_id,preset_id,payload) VALUES (?,?,?)').run(requestId,preset.id,payload);
+    store.db.exec('COMMIT');return {duplicate:false};
+  }catch(error){try{store.db.exec('ROLLBACK');}catch{}throw error;}
 }
 function createDraft({ ownerSteamId, species = 'Universal', name, description = '', skin, collection = 'valley-premium', sourceKey = null }) {
   const owner = store.validateSteamId(ownerSteamId);
@@ -216,4 +253,4 @@ function seedDrafts({ ownerSteamId }) {
     return createDraft({ownerSteamId,name:palette.name,description:palette.description,skin,collection:'valley-origins',sourceKey:`membership-starter:v1:${palette.key}`}).skin;
   }) };
 }
-module.exports={enabled,listCatalog,createDraft,draftFromPreset,updateDraft,verifyDraft,setPublished,fulfillClaim,seedDrafts,STARTER_PALETTES};
+module.exports={enabled,listCatalog,profileCollections,setRarity,RARITIES,createDraft,draftFromPreset,updateDraft,verifyDraft,setPublished,fulfillClaim,seedDrafts,STARTER_PALETTES};

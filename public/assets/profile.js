@@ -251,6 +251,7 @@ async function init() {
   content.hidden = false;
   renderIdentity(me);
   const titlesLoaded = loadTitles();
+  const collectionsLoaded = loadCollections();
 
   const [progressionResult, walletResult, supporterResult, friendsResult, rewardsResult] = await Promise.allSettled([
     api("/api/progression"),
@@ -292,6 +293,35 @@ async function init() {
   if (friendsResult.status === "fulfilled") renderFriends(friendsResult.value);
   else renderUnavailable("profile-friends-count", "profile-friends-detail");
   await titlesLoaded;
+  await collectionsLoaded;
+}
+
+async function loadCollections() {
+  const panel=document.getElementById('profile-collections'),status=document.getElementById('profile-collections-status');
+  const node=(tag,text)=>{const e=document.createElement(tag);e.textContent=text;return e;};
+  try {
+    const data=await api('/api/skins/premium/collections');
+    panel.replaceChildren();
+    if(data.enabled!==true){status.textContent='Collections are not available yet.';return;}
+    if(!Array.isArray(data.collections))throw new Error('Invalid collection response');
+    status.textContent=data.collections.length?'Ownership is checked against your linked Steam account.':'No collections have been published yet.';
+    for(const group of data.collections) {
+      const article=node('article','');article.append(node('h3',String(group.key).split('-').map(word=>word.charAt(0).toUpperCase()+word.slice(1)).join(' ')),node('p',`${Number(group.owned)||0} of ${Number(group.total)||0} owned`));
+      const list=node('ul','');
+      for(const skin of group.skins||[]) {
+        const li=node('li',`${skin.name} · ${skin.species} · ${skin.owned?({created:'Your design',unlocked:'Permanently unlocked',granted:'Personal grant'}[skin.ownership]||'Owned'):'Not owned'}`);
+        if(skin.archived)li.append(node('small',' · Archived from the catalogue'));
+        if(skin.rarity)li.append(node('small',` · Rarity: ${skin.rarity}`));
+        const swatches=node('div','');swatches.setAttribute('aria-label','Palette preview');swatches.style.cssText='display:flex;flex-wrap:wrap;gap:4px;margin:6px 0 12px';
+        for(const swatch of skin.swatches||[]) {
+          if(!/^#[0-9a-f]{6}$/i.test(swatch.color))continue;
+          const sample=node('span','');sample.title=String(swatch.zone);sample.style.cssText='display:inline-block;width:20px;height:20px;border:1px solid #768679';sample.style.backgroundColor=swatch.color;swatches.append(sample);
+        }
+        li.append(swatches);list.append(li);
+      }
+      article.append(list);panel.append(article);
+    }
+  }catch{status.textContent='Skin collections are temporarily unavailable. Refresh to try again.';}
 }
 
 document.getElementById("profile-copy-steam")?.addEventListener("click", copySteamId);

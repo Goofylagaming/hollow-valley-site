@@ -79,6 +79,7 @@ function loadService({ enabled = true, edits = true, cost = 500 } = {}) {
     getDino: () => dino,
     getEditCalls: () => clone(editCalls),
     cleanup() {
+      store.db.close();
       delete require.cache[storePath];
       delete require.cache[storagePath];
       delete require.cache[servicePath];
@@ -322,6 +323,25 @@ test('published skin purchase permanently unlocks once and debits Valley Coin on
   const owned = fixture.service.listAvailablePresets(buyer);
   assert.equal(owned.some((row) => row.id === created.preset.id), true);
   assert.equal(fixture.store.getWallet(buyer).transactions.filter((tx) => tx.kind === 'skin_purchase').length, 1);
+  const other = await fixture.service.createPresetFromStudio({
+    steamId: creator, species: 'Triceratops', name: 'Second Frill',
+    skin: sampleSkin(), idempotencyKey: 'skin-studio:other',
+  });
+  fixture.service.publishPreset({presetId: other.preset.id, price: 100});
+  assert.throws(() => fixture.service.purchasePreset({steamId: buyer,
+    presetId: other.preset.id, idempotencyKey: 'skin-buy:009'}),
+    error => error.code === 'SKIN_PURCHASE_CONFLICT' && error.status === 409);
+  const stranger = '76561198000000310';
+  fixture.store.applyWalletTransaction({steamId: stranger, amount: 500,
+    kind: 'test_credit', reason: 'Fixture funding', idempotencyKey: 'skin-fund:stranger'});
+  assert.throws(() => fixture.service.purchasePreset({steamId: stranger,
+    presetId: created.preset.id, idempotencyKey: 'skin-buy:009'}),
+    error => error.code === 'SKIN_PURCHASE_CONFLICT');
+  assert.equal(fixture.store.getWallet(buyer).balance, 250);
+  assert.equal(fixture.store.getWallet(stranger).balance, 500);
+  assert.equal(fixture.store.hasSkinUnlock(buyer, other.preset.id), false);
+  assert.equal(fixture.store.hasSkinUnlock(stranger, created.preset.id), false);
+
 });
 
 
@@ -369,6 +389,7 @@ test('existing skin preset databases migrate columns before share-code indexes a
   assert.equal(indexes.has('idx_economy_skin_presets_create_key'), true);
 
   t.after(() => {
+    store.db.close();
     delete require.cache[storePath];
     if (previous === undefined) delete process.env.AUTOMATION_DB_PATH;
     else process.env.AUTOMATION_DB_PATH = previous;

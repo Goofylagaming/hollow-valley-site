@@ -31,6 +31,10 @@ async function main() {
         if (url.origin !== 'http://hv.test') return route.abort();
         const json = (data, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(data) });
         if (url.pathname === '/api/me') return json({ loggedIn, steamLoginConfigured: true, user: loggedIn ? { steam_id: '76561198000000001', username: 'Fixture player' } : null });
+        if (url.pathname === '/api/skins/premium/collections') return failRead?json({error:'Unavailable'},503):json({enabled:true,collections:[{key:'valley-origins',owned:1,total:2,skins:[
+          {id:'one',name:'Ashfall <img src=x>',species:'Universal',owned:true,ownership:'unlocked',swatches:[{zone:'body',color:'#343638'}]},
+          {id:'two',name:'Moonlit Marsh',species:'Universal',owned:false,ownership:null,swatches:[{zone:'body',color:'#233a4a'}]}
+        ]}]});
         if (url.pathname === '/api/progression/titles') {
           if (route.request().method() === 'POST') {
             writes.push(route.request().postDataJSON());
@@ -54,6 +58,13 @@ async function main() {
       await page.goto('http://hv.test/profile');
       await page.waitForFunction(() => !document.getElementById('profile-title-choice').disabled);
       await page.waitForFunction(() => document.querySelectorAll('#profile-achievements article').length === 6);
+      await page.waitForFunction(()=>document.querySelectorAll('#profile-collections article').length===1);
+      assert.match(await page.locator('#profile-collections').innerText(),/1 of 2 owned/);
+      assert.match(await page.locator('#profile-collections').innerText(),/Permanently unlocked/);
+      assert.match(await page.locator('#profile-collections').innerText(),/Not owned/);
+      assert.equal(await page.locator('#profile-collections img').count(),0);
+      assert.equal(await page.locator('#profile-collections').evaluate(panel=>[...panel.querySelectorAll('article')].some(card=>card.getBoundingClientRect().right>panel.getBoundingClientRect().right+1)),false);
+      if(output)await page.locator('#profile-collections').screenshot({path:path.join(output,`profile-collections-${width}.png`)});
       assert.deepEqual(await page.locator('#profile-achievements b').allTextContents(),achievements.map(a=>a.title));
       assert.equal(await page.locator('#profile-achievement-count').innerText(),'6');
       assert.equal(await page.locator('#profile-achievements [role="status"]').innerText(),'Awaiting evidence review');
@@ -93,10 +104,12 @@ async function main() {
       assert.equal(await page.locator('#profile-title-save').isDisabled(), true);
       assert.equal(await page.locator('#profile-title-choice').isDisabled(), true);
       assert.equal(await page.locator('#profile-hero-level').innerText(), 'Level 10');
+      await page.waitForFunction(()=>document.getElementById('profile-collections-status').textContent.includes('temporarily unavailable'));
       loggedIn = false;
       await page.reload();
       await page.waitForFunction(() => !document.getElementById('profile-guard').hidden);
       assert.equal(await page.locator('#profile-title-form').isVisible(), false);
+      assert.equal(await page.locator('#profile-collections').isVisible(),false);
       assert.deepEqual(errors, []);
       console.log(`PASS ${width}px: six badges, unlocks, save/reload, failure/retry, clear, outage, guest, bounds, no page errors`);
       await context.close();

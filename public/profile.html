@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=4">
   <link rel="stylesheet" href="/assets/membership-rewards.css?v=3">
   <link rel="stylesheet" href="/assets/profile-titles.css?v=1">
+  <link rel="stylesheet" href="/assets/profile-collections.css?v=1">
 </head>
 <body class="has-my-stuff-rail">
   <div class="app-shell">
@@ -156,6 +157,14 @@
             <p id="profile-title-status" role="status" aria-live="polite"></p>
             <div id="profile-title-catalog" class="profile-achievements"></div>
           </section>
+          <section aria-labelledby="profile-collections-heading">
+            <h2 id="profile-collections-heading">Skin collections</h2>
+            <p>Published skins and your archived owned skins. Personal grants can be revoked; palette previews are not in-game renders.</p>
+            <p id="profile-collections-status" role="status">Loading collections…</p>
+            <div id="profile-collections" class="profile-achievements"></div>
+            <a href="/skins">Open Skin Studio</a> · <a href="/skin-codes">Redeem a promotional code</a>
+          </section>
+          <p><a href="/gallery?view=mine">My screenshots</a> · <a href="/gallery">Community gallery</a></p>
           <div class="list-heading"><span>DINO RANK LADDER</span><small>milestone ranks</small></div>
           <div class="profile-rank-ladder" id="profile-rank-ladder"></div>
 
@@ -168,6 +177,6 @@
   </div>
   <script src="/assets/common.js?v=22"></script>
   <script src="/assets/membership-rewards.js?v=3"></script>
-  <script src="/assets/profile.js?v=6"></script>
+  <script src="/assets/profile.js?v=8"></script>
 </body>
 </html>

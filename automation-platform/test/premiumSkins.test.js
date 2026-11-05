@@ -107,3 +107,48 @@ test('verification rejects a stale draft after another edit',()=>{
   assert.throws(()=>premium.verifyDraft({skinId:skin.id,actorSteamId:OWNER,verifiedSpecies:['Tyrannosaurus'],note:'Checked this exact palette in-game.',confirmedInGame:true,expectedVersion:skin.version}),{code:'PREMIUM_DRAFT_CHANGED'});
   assert.equal(premium.listCatalog().skins.length,0);
 });
+
+test('profile collections count explicit ownership and active grants without exposing drafts or writing data',()=>{
+  reset();const drafts=premium.seedDrafts({ownerSteamId:OWNER}).skins;
+  publish(drafts[0]);publish(drafts[1]);
+  premium.fulfillClaim({claimId:'collection_claim_001',steamId:MEMBER,skinId:drafts[0].id});
+  store.grantSkinPreset({steamId:MEMBER,presetId:drafts[1].presetId,grantedBySteamId:OWNER,note:'Fixture personal grant'});
+  const before=store.db.prepare('SELECT total_changes() n').get().n;
+  const mine=premium.profileCollections(MEMBER).collections[0];
+  assert.equal(mine.total,2);assert.equal(mine.owned,2);
+  assert.deepEqual(mine.skins.map(s=>s.ownership).sort(),['granted','unlocked']);
+  assert.equal(premium.profileCollections(OTHER).collections[0].owned,0);
+  assert.equal(premium.profileCollections(OWNER).collections[0].owned,2);
+  for(const skin of mine.skins){assert.equal(skin.skin,undefined);assert.equal(skin.share_code,undefined);assert.equal(skin.verificationNote,undefined);}
+  assert.equal(store.db.prepare('SELECT total_changes() n').get().n,before);
+  store.db.prepare("UPDATE economy_skin_grants SET revoked_at=datetime('now') WHERE steam_id=?").run(MEMBER);
+  assert.equal(premium.profileCollections(MEMBER).collections[0].owned,1);
+  assert.equal(premium.profileCollections(MEMBER).collections[0].skins.find(s=>s.id===drafts[1].id).ownership,null);
+  premium.setPublished({skinId:drafts[0].id,actorSteamId:OWNER,published:false});
+  const archived=premium.profileCollections(MEMBER).collections[0].skins.find(s=>s.id===drafts[0].id);
+  assert.equal(archived.owned,true);assert.equal(archived.archived,true);
+  assert.equal(premium.profileCollections(OTHER).collections[0].skins.some(s=>s.id===drafts[0].id),false);
+});
+
+test('rarity is explicitly classified with revision checks and immutable decisions without altering skins or entitlements',()=>{
+  reset();const skin=draft();publish(skin);
+  assert.equal(premium.listCatalog(MEMBER).skins[0].rarity,null);
+  const before={preset:store.db.prepare('SELECT * FROM economy_skin_presets WHERE id=?').get(skin.presetId),catalog:store.db.prepare('SELECT * FROM economy_membership_skin_catalog WHERE id=?').get(skin.id),wallets:store.db.prepare('SELECT * FROM economy_wallets').all()};
+  const input={skinId:skin.id,actorSteamId:OWNER,rarity:'rare',reason:'Limited curated collection classification',expectedRevision:0,requestId:'rarity-request-1'};
+  assert.throws(()=>premium.setRarity({...input,rarity:'mythic'}),{code:'SKIN_CLASSIFICATION_INVALID'});
+  assert.throws(()=>premium.setRarity({...input,reason:'short'}),{code:'SKIN_CLASSIFICATION_INVALID'});
+  assert.equal(premium.setRarity(input).duplicate,false);assert.equal(premium.setRarity(input).duplicate,true);
+  assert.throws(()=>premium.setRarity({...input,rarity:'epic'}),{status:409});
+  assert.throws(()=>premium.setRarity({...input,requestId:'rarity-request-stale'}),{status:409});
+  const publicCard=premium.listCatalog(MEMBER).skins[0];assert.equal(publicCard.rarity,'rare');assert.equal(publicCard.rarityHistory,undefined);
+  const adminCard=premium.listCatalog(OWNER,{admin:true}).skins.find(s=>s.id===skin.id);
+  assert.equal(adminCard.rarityRevision,1);assert.equal(adminCard.rarityHistory[0].actor,OWNER);assert.equal(adminCard.rarityHistory[0].reason,input.reason);
+  assert.equal(premium.profileCollections(MEMBER).collections[0].skins[0].rarity,'rare');
+  premium.setRarity({...input,rarity:null,expectedRevision:1,requestId:'rarity-request-clear'});
+  premium.setRarity(input);assert.equal(premium.listCatalog(MEMBER).skins[0].rarity,null,'old replay cannot reverse a newer classification');
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM economy_skin_classification_actions WHERE preset_id=?').get(skin.presetId).n,2);
+  assert.deepEqual(store.db.prepare('SELECT * FROM economy_skin_presets WHERE id=?').get(skin.presetId),before.preset);
+  assert.deepEqual(store.db.prepare('SELECT * FROM economy_membership_skin_catalog WHERE id=?').get(skin.id),before.catalog);
+  assert.deepEqual(store.db.prepare('SELECT * FROM economy_wallets').all(),before.wallets);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM economy_skin_unlocks').get().n,0);
+});

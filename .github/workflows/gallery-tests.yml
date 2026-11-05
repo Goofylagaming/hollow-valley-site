@@ -1,0 +1,28 @@
+name: Screenshot gallery
+on:
+  pull_request:
+    paths:
+      - 'server/services/gallery*.js'
+      - 'server/routes/gallery.js'
+      - 'server/index.js'
+      - 'public/gallery.html'
+      - 'public/assets/gallery.*'
+      - 'public/profile.html'
+      - 'scripts/verify-gallery.cjs'
+      - 'test/gallery*.test.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/gallery-tests.yml'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node --test test/galleryVoting.test.js test/gallery.test.js test/galleryHttp.test.js test/roadmapCommunity.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js
