@@ -30,7 +30,7 @@ covering ordinary skin access, duplicate redemption, conflicting requests,
 no currency changes, expiry, revocation, changed palettes, ownership, membership
 exclusion, session binding, admin permissions, origin and preview restrictions.
 
-Remaining: broader concurrent-worker verification, player-to-player gifting,
+Remaining: player-to-player gifting,
 authenticated staging and production verification. #23 remains Building / Testing;
 its previous roadmap votes remain recorded while freeing active voting slots.
 
@@ -49,3 +49,14 @@ History renders names and reasons as text. Desktop/mobile fixtures at 1440px and
 390px pass issuance/retry, secret retention, revocation, redemption retry, escaping,
 no browser persistence, preview, guest, rollout-disabled and layout checks.
 These are isolated fixtures, not live account or staging verification.
+
+## Concurrent redemption verification
+
+A separate-worker test now uses independent SQLite connections to the same
+file-backed database. Two different recipients race to redeem one code: exactly
+one unlock and one recorded recipient survive. A fresh worker reopens the database
+and retries the accepted redemption without another grant. Redemption racing
+revocation produces only one successful outcome. An injected consumption-write
+failure rolls back the preceding unlock, leaving the code redeemable on retry.
+No wallet ledger entries are produced. The test is included in Membership Rewards
+CI; it has passed locally but has not been pushed or run in hosted CI yet.
