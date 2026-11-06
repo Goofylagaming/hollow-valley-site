@@ -154,7 +154,8 @@ test("permanent progression profile uses the shared Steam-keyed automation sourc
   assert.match(client, /function getProgressionLeaderboard/);
   assert.match(websiteRoutes, /leaderboards\/progression/);
   assert.match(service, /LEVEL_REWARD_VC = 100/);
-  assert.match(service, /PLAYTIME_XP_PER_5_MINUTES = 10/);
+  assert.match(service, /require\('\.\/progressionRules'\)/);
+  assert.equal(require('../automation-platform/src/services/progressionRules').PLAYTIME_XP_PER_5_MINUTES, 10);
   assert.match(service, /progression_level_reward/);
   const nav = read("public/partials/nav.html");
   assert.match(nav, /My profile/);
@@ -396,7 +397,7 @@ test("Prime Tracker backend remains wired to verified presence samples", () => {
   assert.match(websiteRoutes, /primeTrackerService/);
   assert.match(websiteRoutes, /router\.get\('\/prime\/:steamId'/);
   assert.match(presence, /recordPrimeSnapshot\(players, sampledAt\)/);
-  assert.match(presence, /recordPrimeSnapshot\(players, nowIso\)/);
+  assert.match(presence, /recordPrimeSnapshot\(observations, observedAt\)/);
   assert.match(prime, /function enabled/);
   assert.match(prime, /PRIME_TRACKER_ENABLED/);
   assert.match(prime, /function trackerState/);

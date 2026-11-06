@@ -8,6 +8,8 @@ on:
       - 'automation-platform/test/achievementProgressionSource.test.js'
       - 'automation-platform/src/services/progressionSourceTime.js'
       - 'automation-platform/src/services/achievementSourceTime.js'
+      - 'automation-platform/src/services/seasonTrackInspection.js'
+      - 'test/seasonTrackHealth.test.js'
       - 'automation-platform/test/seasonTrackCollection*.test.js'
       - 'automation-platform/src/services/skinOwnershipSource.js'
       - 'automation-platform/src/services/economyStore.js'
@@ -70,6 +72,7 @@ jobs:
       - run: node --test automation-platform/test/achievementProgressionSource.test.js
       - run: node --test automation-platform/test/achievementBattleSource.test.js
       - run: node --test automation-platform/test/achievementLifeSource.test.js
+      - run: node --test test/seasonTrackHealth.test.js
       - run: node --test automation-platform/test/seasonTrackCollection.test.js automation-platform/test/seasonTrackCollectionRuntime.test.js automation-platform/test/seasonTrackCollectionConcurrency.test.js
       - run: node --test automation-platform/test/skinOwnershipSource.test.js automation-platform/test/skinOwnershipSeason.test.js automation-platform/test/skinPresets.test.js automation-platform/test/skinGift.test.js automation-platform/test/skinGiftConcurrency.test.js automation-platform/test/skinPromo.test.js automation-platform/test/skinPromoConcurrency.test.js automation-platform/test/premiumSkins.test.js automation-platform/test/premiumSkinsReview.test.js
       - run: node --test automation-platform/test/primeObservationSource.test.js automation-platform/test/primeAchievement.test.js automation-platform/test/primeZoneReset.test.js automation-platform/test/playerPresence.test.js automation-platform/test/presenceFeedEndpoint.test.js test/primePresenceClock.test.js

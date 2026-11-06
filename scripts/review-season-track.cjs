@@ -7,12 +7,13 @@ const { describe, createSeasonTrackStore, collectionReady } = require('../automa
 function main(args) {
   const [command, ...rest] = args;
   const required = {
-    review: ['file'], inspect: ['database', 'id'],
+    review: ['file'], inspect: ['database', 'id'],health: ['database','id'],
     stage: ['database', 'file', 'reviewer', 'digest'],
     publish: ['database', 'id', 'reviewer', 'digest', 'revision'],
     close: ['database', 'id', 'reviewer', 'digest', 'revision'],
   }[command];
-  if (!required) throw new Error('Choose review, inspect, stage, publish or close');
+  if (!required) throw new Error('Choose review, inspect, health, stage, publish or close');
+  const allowed=[...required,...(command==='health'?['limit','after']:[])];
   const options = {}; let write = false;
   for (let i = 0; i < rest.length; i++) {
     if (rest[i] === '--write') {
@@ -20,13 +21,14 @@ function main(args) {
       write = true; continue;
     }
     const name = rest[i].startsWith('--') ? rest[i].slice(2) : '';
-    if (!required.includes(name) || Object.hasOwn(options, name) || !rest[i + 1] || rest[i + 1].startsWith('--')) throw new Error('Unknown, duplicate or missing season option');
+    if (!allowed.includes(name) || Object.hasOwn(options, name) || !rest[i + 1] || rest[i + 1].startsWith('--')) throw new Error('Unknown, duplicate or missing season option');
     options[name] = rest[++i];
   }
   if (required.some(key => !Object.hasOwn(options, key))) throw new Error('Required options: ' + required.map(key => '--' + key).join(', '));
   if (options.reviewer && !/^\d{17}$/.test(options.reviewer)) throw new Error('A reviewing operator Steam ID is required');
   if (options.digest && !/^[a-f0-9]{64}$/.test(options.digest)) throw new Error('Use the exact reviewed SHA-256 digest');
   if (options.revision && (!/^[1-9]\d*$/.test(options.revision) || !Number.isSafeInteger(Number(options.revision)))) throw new Error('Use the current whole revision');
+  for(const key of ['limit','after'])if(options[key]!==undefined && (!/^(0|[1-9]\d*)$/.test(options[key])||!Number.isSafeInteger(Number(options[key]))))throw new Error('Choose a bounded inspection page');
   let reviewed;
   if (options.file) {
     const file = path.resolve(options.file), stat = fs.statSync(file);
@@ -41,6 +43,7 @@ function main(args) {
   const { DatabaseSync } = require('node:sqlite'), db = new DatabaseSync(database, { readOnly: !write });
   try {
     db.exec('PRAGMA busy_timeout=5000');
+    if(command==='health')return {...require('../automation-platform/src/services/seasonTrackInspection').inspectSeasonTrack(db,options.id,{limit:options.limit===undefined?5:Number(options.limit),after:options.after===undefined?0:Number(options.after)}),written:false};
     const tables = new Set(db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(row => row.name));
     if (!['economy_wallets', 'progression_xp_ledger', 'progression_xp_source_times'].every(name => tables.has(name))) throw new Error('Choose an initialized progression/source-time automation database');
     if (reviewed?.definition.achievementPoints && !['progression_achievements','progression_achievement_sources'].every(name => tables.has(name))) throw new Error('Prepare achievement source collection before staging achievement points');
