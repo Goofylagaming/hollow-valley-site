@@ -2,6 +2,7 @@ const store = require('./economyStore');
 const supporterBonuses = require('./supporterBonusService');
 
 function enabled() {
+  if (process.env.DAILY_LOGIN_REWARDS_ENABLED === '1') return false;
   return String(process.env.WALLET_DAILY_LOGIN_BONUS_ENABLED || '').toLowerCase() === 'true';
 }
 

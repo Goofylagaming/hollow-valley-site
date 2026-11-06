@@ -47,6 +47,25 @@ async function summary(user) {
   return result;
 }
 
+async function daily(req, res) {
+  if (process.env.DAILY_LOGIN_REWARDS_ENABLED !== "1") return res.sendStatus(404);
+  try {
+    const status = require("../db").getSupporterStatus(req.user.id);
+    const tier = rewards.entitlement(status).tier;
+    const result = await require("../services/automationWebsiteClient").dailyLogin(
+      req.method === "POST" ? "claim" : "status", { steamId:req.user.steam_id, tier, day:req.body?.day });
+    return res.json(result);
+  } catch (error) { return sendError(res,error); }
+}
+router.get("/rewards/daily", daily);
+router.post("/rewards/daily", daily);
+
+router.get("/rewards/collection", (req, res) => {
+  if (process.env.MEMBERSHIP_COLLECTION_ENABLED !== "1") return res.sendStatus(404);
+  try { return res.json(require("../services/membershipVault").readVault(req.user.id)); }
+  catch (error) { return sendError(res, error); }
+});
+
 router.get("/rewards", async (req, res) => {
   try { return res.json(await summary(req.user)); } catch (error) { return sendError(res, error); }
 });

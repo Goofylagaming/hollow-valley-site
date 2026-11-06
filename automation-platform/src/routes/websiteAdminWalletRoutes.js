@@ -25,6 +25,16 @@ function validateSteamId(value) {
   return steamId;
 }
 
+router.post('/daily-login/:action', (req, res) => {
+  if (process.env.DAILY_LOGIN_REWARDS_ENABLED !== '1') return res.sendStatus(404);
+  const daily = require('../services/dailyLoginWallet');
+  const { steamId, tier, day } = req.body || {};
+  if (!/^\d{17}$/.test(steamId)) return res.sendStatus(400);
+  if (req.params.action === 'status') return res.json(daily.dailyStatus(steamId,tier));
+  if (req.params.action === 'claim') return res.json(daily.claimDaily(steamId,tier,day));
+  return res.sendStatus(404);
+});
+
 router.post('/credit', async (req, res) => {
   try {
     const steamId = validateSteamId(req.body?.steamId);
