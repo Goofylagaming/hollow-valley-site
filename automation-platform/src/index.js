@@ -292,6 +292,7 @@ if (require.main === module) {
   backgroundTimers.push(startDinoStorageStaleSweeper());
   backgroundTimers.push(startDinoMarketplaceReconciler());
   backgroundTimers.push(startOfficialMarketplaceFulfillment());
+  backgroundTimers.push(require('./services/arcadeDinoDelivery').start());
   backgroundTimers.push(startDiscordAutomation());
   backgroundTimers.push(startScheduler());
   backgroundTimers.push(startSafeLogRestartWarnings());
