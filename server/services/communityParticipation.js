@@ -54,4 +54,28 @@ function review(actor,id,input) {
     db.exec("COMMIT");return {stage,theme,skin};
   } catch(e){db.exec("ROLLBACK");throw e;}
 }
-module.exports={schema,review};
+function activateWeekend(actor,suggestionId,startsAt,endsAt,now=Date.now()){
+  if(!actor?.is_admin) fail(403,"Administrator required");
+  if(!Number.isSafeInteger(startsAt)||!Number.isSafeInteger(endsAt)||endsAt<=startsAt||endsAt<=now||endsAt-startsAt>48*3600000) fail(400,"Choose a weekend window of up to 48 hours");
+  const first=new Date(startsAt+36000000).getUTCDay(),last=new Date(endsAt-1+36000000).getUTCDay();
+  if(![0,6].includes(first)||![0,6].includes(last)) fail(400,"Choose a Brisbane weekend");
+  schema();
+  const suggestion=db.prepare("SELECT theme,stage FROM membership_suggestion_reviews WHERE suggestion_id=?").get(suggestionId);
+  if(!suggestion || !themes.has(suggestion.theme) || !["planned","released"].includes(suggestion.stage)) fail(409,"Approved public theme required");
+  weekendSchema();
+  db.prepare("INSERT OR IGNORE INTO membership_public_weekends VALUES (?,?,?,?,?)").run(suggestionId,suggestion.theme,startsAt,endsAt,actor.id);
+  const existing=db.prepare("SELECT theme,starts_at,ends_at FROM membership_public_weekends WHERE suggestion_id=?").get(suggestionId);
+  if(existing.starts_at!==startsAt || existing.ends_at!==endsAt || existing.theme!==suggestion.theme) fail(409,"Already scheduled with different settings");
+  return existing;
+}
+function weekendSchema(){
+  db.exec("CREATE TABLE IF NOT EXISTS membership_public_weekends(suggestion_id INTEGER PRIMARY KEY,theme TEXT NOT NULL,starts_at INTEGER NOT NULL,ends_at INTEGER NOT NULL,approved_by INTEGER NOT NULL REFERENCES users(id))");
+}
+function publicCommunity(now=Date.now()){
+  schema();weekendSchema();
+  const themes=db.prepare("SELECT theme,starts_at,ends_at FROM membership_public_weekends WHERE starts_at<=? AND ends_at>? ORDER BY starts_at").all(now,now);
+  const skins=db.prepare(`SELECT skin_id AS skinId FROM membership_suggestion_reviews
+    WHERE stage='released' AND public_credit=1 AND skin_id IS NOT NULL ORDER BY skin_id`).all();
+  return {themes,skins:skins.map(row=>({...row,credit:"Designed with the Community"}))};
+}
+module.exports={schema,review,activateWeekend,publicCommunity};

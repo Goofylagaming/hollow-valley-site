@@ -34,7 +34,7 @@ function readVault(userId, now = Date.now()) {
     passport: { lifetime: lifetime.lifetime_paid_months, consecutive: coverageEnd > now ? consecutive : 0 } };
 }
 
-function savePreferences(userId,input) {
+function savePreferences(userId,input,achievementIds=[]) {
   const vault=readVault(userId);
   const owned=vault.collectibles.filter(item=>item.earned_at);
   const valid={
@@ -42,7 +42,7 @@ function savePreferences(userId,input) {
     banner:owned.filter(i=>i.kind==="banner").map(i=>i.slug),
     featured_skin:vault.skins.map(s=>s.skin_id),
     featured_title:[...vault.loyalty.map(i=>i.title),...owned.filter(i=>i.kind==="title").map(i=>i.slug)],
-    featured_achievement:owned.filter(i=>i.kind==="achievement").map(i=>i.slug)
+    featured_achievement:[...achievementIds,...owned.filter(i=>i.kind==="achievement").map(i=>i.slug)]
   };
   for(const [key,choices] of Object.entries(valid)){
     if(input[key] && !choices.includes(input[key])) throw new rewards.MembershipError(403,"COSMETIC_REQUIRED","Choose an item from your collection.");

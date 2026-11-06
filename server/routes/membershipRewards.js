@@ -71,15 +71,25 @@ router.get("/rewards/daily/admin/:userId",requireAdmin,async(req,res)=>{
 router.get("/rewards/daily", daily);
 router.post("/rewards/daily", daily);
 
-router.post("/rewards/collection/preferences", (req,res)=>{
+async function verifiedAchievements(user) {
+  if(!/^\d{17}$/.test(user.steam_id||"")) return [];
+  const result=await require("../services/automationWebsiteClient").getTitleEvidence([user.steam_id]);
+  return result.players?.find(p=>p.steamId===user.steam_id)?.achievementIds || [];
+}
+
+router.post("/rewards/collection/preferences", async(req,res)=>{
   if(process.env.MEMBERSHIP_COLLECTION_ENABLED!=="1") return res.sendStatus(404);
-  try {return res.json(require("../services/membershipVault").savePreferences(req.user.id,req.body||{}));}
+  try {return res.json(require("../services/membershipVault").savePreferences(req.user.id,req.body||{},req.body?.featured_achievement ? await verifiedAchievements(req.user) : []));}
   catch(error){return sendError(res,error);}
 });
 
-router.get("/rewards/collection", (req, res) => {
+router.get("/rewards/collection", async(req, res) => {
   if (process.env.MEMBERSHIP_COLLECTION_ENABLED !== "1") return res.sendStatus(404);
-  try { return res.json(require("../services/membershipVault").readVault(req.user.id)); }
+  try {
+    const book=require("../services/membershipVault").readVault(req.user.id);
+    try {book.achievementIds=await verifiedAchievements(req.user);}catch{book.achievementIds=null;}
+    return res.json(book);
+  }
   catch (error) { return sendError(res, error); }
 });
 

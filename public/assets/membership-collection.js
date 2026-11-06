@@ -21,6 +21,7 @@
   section("Permanently claimed premium skins", book.skins.length ? book.skins.map(s => s.skin_id) : ["No claims recorded"]);
   section("Loyalty titles", book.milestones.map(m => m.title + (book.loyalty.some(l => l.months === m.months) ? " · Owned" : " · Locked")));
   if (book.collectibles.length) section("Collectibles", book.collectibles.map(c => c.name + (c.earned_at ? " · Owned" : " · Locked")));
+  section("Verified achievements", book.achievementIds?.length ? book.achievementIds : [book.achievementIds===null ? "Temporarily unavailable" : "No verified achievements yet"]);
   const form=document.createElement("form");
   const owned=book.collectibles.filter(item=>item.earned_at);
   const controls={};
@@ -34,7 +35,7 @@
     ["accent","Accent",owned.filter(i=>i.kind==="accent")],["banner","Banner",owned.filter(i=>i.kind==="banner")],
     ["featured_skin","Featured premium skin",book.skins.map(s=>({slug:s.skin_id,name:s.skin_id}))],
     ["featured_title","Featured title",[...owned.filter(i=>i.kind==="title"),...book.loyalty.map(i=>({slug:i.title,name:i.title}))]],
-    ["featured_achievement","Featured achievement",owned.filter(i=>i.kind==="achievement")]
+    ["featured_achievement","Featured achievement",[...owned.filter(i=>i.kind==="achievement"),...(book.achievementIds||[]).map(slug=>({slug,name:slug}))]]
   ]){
     const select=document.createElement("select");select.add(new Option("None",""));
     for(const item of items) select.add(new Option(item.name,item.slug));
