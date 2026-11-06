@@ -51,7 +51,8 @@
     if (result.partialSources.length) panel.append(node('p','Unavailable sources: '+result.partialSources.join(', ')+'.'));
     if (result.disabledSources?.length) panel.append(node('p','Disabled sources: '+result.disabledSources.join(', ')+'.'));
     if (result.hasMoreUnloaded) panel.append(node('p','Results or source history are limited; additional matching records may be missing.'));
-    panel.append(node('p','Operator audits and requests search only their newest 200 and 100 entries. Chat searches at most 500 retained messages. Combat and chat each return at most 50 matches; the combined view shows at most 200.'));
+    panel.append(node('p',result.operationMode==='retained-window' ? 'Operator audits and requests search retained rows in this player/time window, returning up to 50 timestamp markers each. Associations use current saved identity fields; prior metadata and intermediate status changes may be missing. Markers do not verify execution in the game.' : result.operationMode==='history-disabled' ? 'Retained operation history was disabled during this read. Its records are withheld.' : 'Operator audits and requests search only their newest 200 and 100 entries.'));
+    panel.append(node('p','Chat searches at most 500 retained messages. Combat and chat each return at most 50 matches; the combined view shows at most 200.'));
     panel.append(node('p','The optional official marketplace source returns up to 50 stored order timestamps. A current order update is not a complete status history, and a fulfillment timestamp does not verify delivery in the game.'));
     panel.append(node('p','The optional peer marketplace source returns up to 50 stored listing timestamps. Buyer matches use only the listing’s current saved buyer; older reservations may be missing. Sale timestamps do not verify game delivery.'));
     if (!result.events.length) panel.append(node('p','No matching retained records were returned. This does not establish that nothing happened.'));
@@ -62,6 +63,7 @@
       if (event.source === 'chat') { row.append(node('p',event.text),node('small','Channel: '+event.channel+(event.redacted?' · Some text masked.':''))); }
       else if (event.source === 'combat') row.append(node('p','Selected player: '+event.playerRole+'. Other player identity and location are withheld.'));
       else if (event.source === 'peer-marketplace') row.append(node('p','Selected player: '+event.participantRole+'. Other trader identity is withheld.'),node('small','Listing reference: '+event.reference));
+      else if (event.associations === 'current-stored-identities') row.append(node('p','Current saved association: '+({actor:'Operator',target:'Target player','actor-and-target':'Operator and target',player:'Player'}[event.selectedRole]||'Unknown')+'.'),node('small','Record reference: '+event.reference));
       else { if (event.actorName || event.actorSteamId) row.append(node('p','Operator: '+(event.actorName || event.actorSteamId))); row.append(node('small','Reference: '+(event.reference || event.id))); }
       list.append(row);
     }

@@ -8,8 +8,12 @@ on:
       - 'automation-platform/src/routes/incidentMarketplaceAdminRoutes.js'
       - 'automation-platform/src/services/incidentMarketplaceService.js'
       - 'automation-platform/src/services/incidentPeerMarketplaceService.js'
+      - 'automation-platform/src/services/incidentOperationsService.js'
+      - 'automation-platform/src/services/automationStore.js'
+      - 'automation-platform/src/routes/incidentOperationsAdminRoutes.js'
       - 'automation-platform/test/incidentMarketplace*.test.js'
       - 'automation-platform/test/incidentPeerMarketplace*.test.js'
+      - 'automation-platform/test/incidentOperations*.test.js'
       - 'server/services/incident*.js'
       - 'server/services/reportContext.js'
       - 'server/services/automationWebsiteClient.js'
@@ -41,7 +45,7 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: node --test automation-platform/test/incidentPeerMarketplace.test.js automation-platform/test/incidentPeerMarketplaceHttp.test.js automation-platform/test/incidentMarketplace.test.js automation-platform/test/incidentMarketplaceHttp.test.js test/incidentMarketplaceIntegration.test.js test/incidentPlayerContext.test.js test/incidentPlayerContextHttp.test.js test/incidentTimeline.test.js test/reportContext.test.js test/reportContextHttp.test.js automation-platform/test/reportContext.test.js automation-platform/test/reportContextHttp.test.js test/serverEntrypointSyntax.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js
+      - run: node --test automation-platform/test/incidentOperations.test.js automation-platform/test/incidentOperationsStore.test.js test/incidentOperationsIntegration.test.js automation-platform/test/incidentPeerMarketplace.test.js automation-platform/test/incidentPeerMarketplaceHttp.test.js automation-platform/test/incidentMarketplace.test.js automation-platform/test/incidentMarketplaceHttp.test.js test/incidentMarketplaceIntegration.test.js test/incidentPlayerContext.test.js test/incidentPlayerContextHttp.test.js test/incidentTimeline.test.js test/reportContext.test.js test/reportContextHttp.test.js automation-platform/test/reportContext.test.js automation-platform/test/reportContextHttp.test.js test/serverEntrypointSyntax.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js
       - run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.62.1
       - run: npx playwright install --with-deps chromium
       - run: node scripts/verify-incident-context.cjs

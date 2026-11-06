@@ -229,3 +229,71 @@ reservation/status-transition history, complete historical search, real-source
 semantics, authenticated staging and production delivery remain unfinished.
 The approved 90-day saved-report context policy is unchanged. No live flags,
 keys, player tracking, retained data, push, merge or deployment changed.
+
+## Retained operation-window query (homepage v154)
+
+Follow-up branch: feature/hv-roadmap-incident-history-20261106, starting at the
+fixed incident publication candidate a0143039. This work is outside the three
+prepared publication candidates, which remain unchanged.
+
+INCIDENT_OPERATIONS_HISTORY_ENABLED=0 independently gates an admin-token retained
+operation source and its website use. When enabled on both services, the player/
+time investigation queries matching retained audit/request rows in the same
+15-minute either-side window, rather than filtering only the newest 200 audits
+and 100 requests globally. Each source returns at most 50 timestamp markers and
+explicit truncation; the combined view still caps all sources at 200. The service
+supports the same canonical UTC input and incident-age/future bounds.
+
+Audit matching uses exact text values in current stored actorSteamId,
+adminSteamId, targetSteamId, steamId and playerSteamId fields. It does not match
+free-text messages, request references or arbitrary nested metadata. Invalid JSON
+or metadata over 16 KiB cannot establish an association and is excluded. Request
+matching uses the exact steam_id column. The output includes only bounded typed
+operation/category identifiers, record references, selected-player association,
+creation/latest-update timestamps and the latest known stored status. Other
+identities, details JSON, messages, errors, command IDs and payloads are excluded.
+
+Creation markers have status recorded; a later outcome is not retroactively
+applied to creation. Source associations describe current saved identity fields,
+not immutable historical participant evidence. Earlier metadata and intermediate
+status transitions are not reconstructed. Unknown status/code fields remain
+unknown. Every response declares incomplete history and no verified game execution.
+This is a retained-record lookup, not a complete forensic archive or a new
+connection/dinosaur-action event producer.
+
+The automation source receives the private automationStore database through a
+new read-only store method; no mutable DB handle is exported. The admin router
+uses that method in the real entrypoint. Read paths create no schema, update no
+request/audit/job/outbox state and do not execute, reconcile or publish operations.
+The fixed website client uses GET /api/admin/incident-operations/context. Website
+projection rechecks scope, player/time/window, roles, marker/status consistency,
+unique references and bounded sections. Bad audit/request sections are independently
+unavailable. A malformed or unavailable retained source never triggers a fallback
+to the global recent lists. Disabling the flag during a pending read suppresses
+its rows and explicitly reports history-disabled. Fresh queries with the flag off
+use the original recent-window mode, which is clearly labelled in the page.
+Current admin/account/report checks remain in place after all reads.
+
+111 distinct affected local tests pass. Added tests demonstrate older matching
+records excluded by the recent global limits, exact structured identity matching,
+malformed/oversized metadata, no retroactive status inference, source isolation,
+row caps, disabled/invalid input and no schema creation. The real automationStore
+path is checked with fail-on-call mutators and unchanged saved data. Two-service
+local HTTP tests exercise token/flag/query restrictions, the actual website
+client and private route with query-only DBs, including independent source gating
+and no hidden fallback. Root projection tests suppress duplicates, oversized or
+upgraded rows, wrong bindings, revoked admins, changed reports and disabled pending
+history. Desktop1440/phone390 browser fixtures render retained-window records,
+show association/limit warnings, reject partial/bad sources and distinguish a
+paused in-flight read from an explicit return to recent-window queries. They
+verify that retained-mode requests never invoke the recent-list clients and make
+no DB writes. Existing report, marketplace and account/role-switch flows continue
+to pass. The phone layout was visually checked. CI includes the new sources,
+private-store entrypoint and HTTP tests.
+
+Real source semantics, query plans/capacity on retained host data, authenticated
+staging, precise connection/dinosaur-action feeds, full transition history and
+production delivery remain unfinished. No source retention was extended and no
+new player tracking was added. The approved 90-day saved-report context policy
+is unchanged. All new flags remain off; no publication candidate, live key,
+production record, push, merge, deployment, command or payout changed.
