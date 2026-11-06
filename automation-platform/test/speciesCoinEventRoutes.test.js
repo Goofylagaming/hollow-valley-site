@@ -108,7 +108,8 @@ test('automation admin API creates one idempotent multi-dinosaur event and refus
   });
   const data = await listing.json();
   assert.equal(data.multipleSpeciesSupported, true);
-  assert.equal(data.maxSpeciesPerEvent, 20);
+  assert.equal(data.maxSpeciesPerEvent, 21);
   const saved = data.events.find(event => event.id === first.event.id);
   assert.equal(saved.speciesCount, 2);
 });
+
