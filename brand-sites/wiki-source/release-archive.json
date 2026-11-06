@@ -353,6 +353,27 @@
   ],
   "world": [
     {
+      "version": "M36.7",
+      "title": "Primalbound World M36.7 — Windows playtest",
+      "notes": [
+        "Play World opens your installed adventure directly and returns to the launcher when you quit. Play Current Version lets you keep playing offline or skip an offered update.",
+        "Check for Updates offers verified Windows updates, and Patch Notes opens the public release notes. Primalbound Web is available separately in your browser.",
+        "If an update stops before its backup is ready, the updater leaves the installed game files in place.",
+        "Seven dinosaur guardians now have their own species appearances in expedition encounters. Look for the clubbed tail of Ankylosaurus, the long claws of Therizinosaurus, and the sail of Spinosaurus.",
+        "Carnotaurus, Triceratops and Allosaurus use their original stylised designs in the wild and in guardian encounters.",
+        "Named Carnotaurus, Triceratops, Allosaurus and Deinosuchus campaign guardians use their matching authored creature appearances. Their health, damage, titles and combat collision stay unchanged.",
+        "Companion appearances follow their creature species instead of being overridden by legacy companion metadata.",
+        "Mosswatch's Lodge, Nursery, Genetics Lab, Companion Armoury, Training Grounds, Archive and Herbalist now form connected town courtyards. Services sit away from combat camps and boundary hills; the Growth/Prime platform clears the houses. Existing Homestead plots and the village board keep their space.",
+        "Music and sound settings, Mutant Set Collection and Quick Gear Guide each have one Close action. Close and Escape return to the existing pause menu.",
+        "The HUD and profile screen show the installed patch version. Exploration guidance returns after sound captions without displaying an obsolete milestone.",
+        "Save and Quit stops sound effects before closing.",
+        "The campaign save format remains unchanged, with existing local profiles and recovery history."
+      ],
+      "published": "2026-11-06",
+      "tag": "m36-7-build-42133151186",
+      "source": "https://github.com/Goofylagaming/primalbound-downloads/releases/tag/m36-7-build-42133151186"
+    },
+    {
       "version": "M36.6",
       "title": "Primalbound World M36.6 — Windows playtest",
       "notes": [
