@@ -4,6 +4,10 @@ Whenever implementing any of the 31 public roadmap features, update the release
 register in `public/assets/home-roadmap.js` in the same change. Keep original
 feature numbers and descriptions. Mark complete only for a verified, delivered
 scope; use partial for missing required integrations and explain what remains.
+Keep this register synchronized with every feature change, including draft and
+local development work. Use the visible label `Working on` for development or
+testing; describe unfinished work honestly. A commit, passing tests or a draft PR
+does not establish that a feature is completed on the live website.
 Completed features show a green tick and `Complete, added DD/MM/YYYY`, using the
 actual production release date in Australia/Brisbane. Do not guess release dates.
 If a planned deployment is delayed, correct its date before publishing.
