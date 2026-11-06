@@ -258,6 +258,12 @@ function createApp() {
   app.use("/api/internal/commandbridge", legacyDirectGameApiRetired);
   app.use("/api/internal/supporter-memberships", supporterInternalRouter);
   app.use("/api/valley-arcade", require("./routes/valleyArcade"));
+  app.use('/api/arcade', require('./routes/arcadeRewards'));
+  app.get(['/arcade','/arcade/'], (_req,res) => res.sendFile(path.join(__dirname,'..','public','arcade.html')));
+  app.get(['/admin/arcade','/admin/arcade/'], requireAdmin, (_req,res) => {
+    res.set('Cache-Control','private, no-store');
+    res.sendFile(path.join(__dirname,'pages','adminArcade.html'));
+  });
   app.use("/api/internal/membership-rewards", require("./routes/membershipRewardsInternal"));
   app.use("/api/species", speciesRouter);
   app.use("/api/wallet", walletRouter);

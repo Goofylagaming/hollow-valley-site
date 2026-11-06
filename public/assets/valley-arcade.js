@@ -16,7 +16,7 @@ scores().then(()=>{byId("games").hidden=false;byId("status").textContent="";}).c
 byId("start").onclick=async()=>{
   const area=byId("round");area.replaceChildren();byId("start").disabled=true;
   try{
-    const round=await api("start",{game:byId("game").value});
+    const round=await api("start",{game:byId("game").value,requestKey:crypto.randomUUID()});
     byId("status").textContent=round.preview||round.prompt;
     if(round.preview||round.game==="reaction") await new Promise(resolve=>setTimeout(resolve,Math.max(0,round.opens-Date.now())));
     byId("status").textContent=round.game==="reaction"?"Green!":round.prompt;

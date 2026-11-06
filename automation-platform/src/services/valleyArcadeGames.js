@@ -57,22 +57,40 @@ function challenge(game, now) {
   return {prompt:clue, choices:shuffle([solution,...others]),solution};
 }
 
-function start(steamId, game, now=Date.now()) {
+function start(steamId, game, now=Date.now(), requestKey=null) {
   steamId=validateSteamId(steamId);
   if (process.env.VALLEY_ARCADE_ENABLED!=="1") throw new Error("Arcade disabled");
   const settings=arcade.settings();
   if (!settings.enabled || settings.emergency || !games.includes(game)) throw new Error("Game unavailable");
+  const rewards=require('./arcadeRewards');
+  if(rewards.enabled()) {
+    rewards.schema();
+    if(!/^[A-Za-z0-9_-]{8,100}$/.test(requestKey||'')) throw new Error('A play request key is required');
+  }
   db.exec(`CREATE TABLE IF NOT EXISTS arcade_challenges (
     round_id TEXT PRIMARY KEY REFERENCES arcade_rounds(id), solution TEXT NOT NULL, opens INTEGER NOT NULL, closes INTEGER NOT NULL)`);
+  db.exec(`CREATE TABLE IF NOT EXISTS arcade_play_receipts (
+    steam_id TEXT NOT NULL, request_key TEXT NOT NULL, game TEXT NOT NULL, response_json TEXT NOT NULL,
+    PRIMARY KEY(steam_id,request_key))`);
   db.exec("BEGIN IMMEDIATE");
   try {
+    if(rewards.enabled()) {
+      const prior=db.prepare('SELECT * FROM arcade_play_receipts WHERE steam_id=? AND request_key=?').get(steamId,requestKey);
+      if(prior) {
+        if(prior.game!==game)throw new Error('Play key conflicts with another game');
+        db.exec('COMMIT');return JSON.parse(prior.response_json);
+      }
+      rewards.consumePlay(steamId,now);
+    }
     if (db.prepare("SELECT 1 FROM arcade_rounds WHERE steam_id=? AND opened_at>? LIMIT 1").get(steamId,now-3000)) throw new Error("Wait before starting another round");
     const id=randomUUID();
     const {solution,opens=now,closes=now+60000,...display}=challenge(game,now);
     db.prepare("INSERT INTO arcade_rounds(id,steam_id,game,opened_at) VALUES (?,?,?,?)").run(id,steamId,game,now);
     db.prepare("INSERT INTO arcade_challenges VALUES (?,?,?,?)").run(id,solution,opens,closes);
+    const response={id,game,opens,closes,...display};
+    if(rewards.enabled()) db.prepare('INSERT INTO arcade_play_receipts VALUES (?,?,?,?)').run(steamId,requestKey,game,JSON.stringify(response));
     db.exec("COMMIT");
-    return {id,game,opens,closes,...display};
+    return response;
   } catch (e) { db.exec("ROLLBACK"); throw e; }
 }
 

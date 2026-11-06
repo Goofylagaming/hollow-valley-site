@@ -98,3 +98,43 @@ test("isolated signed-in membership, moderation, growth and Arcade flows",async 
   assert.equal((await call("/arcade/settings",{enabled:true,emergency:true,cap:250000},true)).status,200);
   assert.equal((await call("/arcade/start",{game:"trivia"})).status,409);
 });
+
+test('Arcade launch staging crosses the real authenticated HTTP boundary and unlocks custom skins',async t=>{
+  process.env.VALLEY_ARCADE_REWARDS_ENABLED='1';t.after(()=>delete process.env.VALLEY_ARCADE_REWARDS_ENABLED);
+  const store=require('../automation-platform/src/services/economyStore');
+  const rewards=require('../automation-platform/src/services/arcadeRewards');
+  const skins=require('../automation-platform/src/services/skinPresetService');
+  const launch=require('../scripts/configure-arcade-launch.cjs');
+  launch.applyLaunchConfig();
+  require('../automation-platform/src/services/valleyArcade').configure('staging',{enabled:true,emergency:false,cap:250000});
+  const wallet=express();wallet.use(express.json());wallet.use('/api/website/admin-wallet',require('../automation-platform/src/routes/websiteAdminWalletRoutes'));
+  process.env.AUTOMATION_SERVICE_URL=await serve(wallet,t);
+  const site=express();site.use(express.json());site.use((req,res,next)=>{req.user=accounts[req.get('fixture-admin')==='1'?1:0];next();});
+  site.use('/api/arcade',require('../server/routes/arcadeRewards'));
+  const url=await serve(site,t);
+  async function call(path,body,admin=false){const response=await fetch(url+'/api/arcade'+path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',Origin:url,'fixture-admin':admin?'1':'0'},body:body?JSON.stringify(body):undefined});return {status:response.status,value:await response.json()};}
+  assert.equal((await call('/admin')).status,403);
+  assert.equal((await call('/daily',{})).status,200);assert.equal((await call('/daily',{})).value.duplicate,true);
+  const all=Object.values(launch.desired.crates).flat();
+  const selected=[...new Map(all.filter(r=>r.type!=='coins').map(r=>[r.presetId||r.id,r])).values()];
+  for(const reward of selected){
+    // Deterministic fixture tables exercise each fulfillment path, never production RNG.
+    const c=rewards.config();c.crates.event=[{...reward,weight:1}];
+    assert.equal((await call('/admin/configure',{config:c,expectedVersion:c.version},true)).status,200);
+    const grant=await call('/admin/grant',{steamId:accounts[0].steam_id,requestKey:'launch-'+reward.id,kind:'crate',family:'event',amount:2,source:'event'},true);
+    assert.equal(grant.status,200);
+    for(const crateId of grant.value.crateIds){
+      const request={crateId,requestKey:'opening-'+crateId};
+      assert.equal((await call('/open',request)).status,200);assert.equal((await call('/open',request)).value.duplicate,true);
+    }
+    if(reward.type==='skin')assert.ok(skins.listAvailablePresets(accounts[0].steam_id).some(s=>s.id===reward.presetId));
+  }
+  assert.equal(skins.listStore().some(s=>s.id.startsWith('arcade-')),false);
+  const state=(await call('')).value;assert.ok(state.entitlements.length>=8);
+  assert.ok(state.history.some(h=>h.reward.convertedFrom));
+  assert.equal(store.db.prepare("SELECT count(*) AS n FROM economy_wallet_ledger WHERE kind='arcade_crate' AND amount<0").get().n,0);
+  const c=rewards.config();rewards.configure('staging-restore',launch.desired,c.version);
+  require('../automation-platform/src/services/valleyArcade').configure('staging',{enabled:true,emergency:true,cap:250000});
+  assert.equal((await call('/daily',{})).value.duplicate,true); // committed receipt is readable during pause
+  assert.equal((await call('/craft',{family:'valley',requestKey:'paused-craft'})).status,409);
+});
