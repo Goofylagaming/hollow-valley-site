@@ -4,6 +4,7 @@ const {project} = require('./reportContext');
 const {createHash} = require('node:crypto');
 const {projectIncidentMarketplace} = require('./incidentMarketplaceContext');
 const {projectIncidentPeerMarketplace} = require('./incidentPeerMarketplaceContext');
+const {projectIncidentOperations} = require('./incidentOperationsContext');
 const WINDOW_MS = 900000, MAX_EVENTS = 200;
 const fail = (status, message) => { throw Object.assign(Error(message), {status}); };
 const steam = value => typeof value === 'string' && /^\d{17}$/.test(value);
@@ -12,7 +13,7 @@ const stamp = value => {
   return Number.isSafeInteger(at) && at >= WINDOW_MS && new Date(at).toISOString() === value ? at : null;
 };
 
-function createIncidentPlayerContext({db, automation, enabled = () => process.env.INCIDENT_PLAYER_CONTEXT_ENABLED === '1', marketplaceEnabled = () => process.env.INCIDENT_MARKETPLACE_CONTEXT_ENABLED === '1', peerMarketplaceEnabled = () => process.env.INCIDENT_PEER_MARKETPLACE_CONTEXT_ENABLED === '1', now = Date.now} = {}) {
+function createIncidentPlayerContext({db, automation, enabled = () => process.env.INCIDENT_PLAYER_CONTEXT_ENABLED === '1', marketplaceEnabled = () => process.env.INCIDENT_MARKETPLACE_CONTEXT_ENABLED === '1', peerMarketplaceEnabled = () => process.env.INCIDENT_PEER_MARKETPLACE_CONTEXT_ENABLED === '1', operationsHistoryEnabled = () => process.env.INCIDENT_OPERATIONS_HISTORY_ENABLED === '1', now = Date.now} = {}) {
   function admin(getUser, binding) {
     const user = getUser();
     if (!Number.isSafeInteger(user?.id) || !steam(user?.steam_id)) fail(403, 'Current linked admin access is required.');
@@ -68,12 +69,14 @@ function createIncidentPlayerContext({db, automation, enabled = () => process.en
     const query = {steamId: input.steamId, occurredAt: input.occurredAt};
     const marketplaceRequested = Boolean(marketplaceEnabled());
     const peerMarketplaceRequested = Boolean(peerMarketplaceEnabled());
+    const historyRequested = Boolean(operationsHistoryEnabled());
     const results = await Promise.allSettled([
-      Promise.resolve().then(() => automation.getAdminAudit({limit: timeline.AUDIT_LIMIT})),
-      Promise.resolve().then(() => automation.getAdminRequests({limit: timeline.REQUEST_LIMIT})),
+      historyRequested ? Promise.resolve(null) : Promise.resolve().then(() => automation.getAdminAudit({limit: timeline.AUDIT_LIMIT})),
+      historyRequested ? Promise.resolve(null) : Promise.resolve().then(() => automation.getAdminRequests({limit: timeline.REQUEST_LIMIT})),
       Promise.resolve().then(() => automation.getAdminReportContext({reporterSteamId: query.steamId, reportedSteamId: null, occurredAt: query.occurredAt})),
       marketplaceRequested ? Promise.resolve().then(() => automation.getAdminIncidentMarketplaceContext(query)) : Promise.resolve(null),
       peerMarketplaceRequested ? Promise.resolve().then(() => automation.getAdminIncidentPeerMarketplaceContext(query)) : Promise.resolve(null),
+      historyRequested ? Promise.resolve().then(() => automation.getAdminIncidentOperationsContext(query)) : Promise.resolve(null),
     ]);
     admin(getUser, actor);
     if (!enabled()) fail(503, 'Player incident context is not enabled.');
@@ -82,7 +85,18 @@ function createIncidentPlayerContext({db, automation, enabled = () => process.en
     const start = at - WINDOW_MS, end = Math.min(clock, at + WINDOW_MS), events = [], partialSources = [], disabledSources = [];
     const scanned = {audit: 0, requests: 0};
     let hasMoreUnloaded = false, available = 0;
-    for (const [index, source, key, cap, normalize] of [
+    let operationMode = historyRequested ? 'retained-window' : 'recent-window';
+    if (historyRequested) {
+      if (!operationsHistoryEnabled()) {operationMode='history-disabled';disabledSources.push('audit-history','request-history');}
+      else {
+        let history;
+        try {if(results[5].status!=='fulfilled')throw Error('Unavailable');history=projectIncidentOperations(results[5].value,query,{start,end,finished});} catch {history={audit:null,requests:null};}
+        for(const key of ['audit','requests']) {
+          if(!history[key]){partialSources.push(key);continue;}
+          available++;hasMoreUnloaded ||= history[key].truncated;events.push(...history[key].events);scanned[key]=history[key].events.length;
+        }
+      }
+    } else for (const [index, source, key, cap, normalize] of [
       [0, 'audit', 'audit', timeline.AUDIT_LIMIT, timeline.normalizeAudit],
       [1, 'requests', 'requests', timeline.REQUEST_LIMIT, timeline.normalizeRequest],
     ]) {
@@ -129,7 +143,7 @@ function createIncidentPlayerContext({db, automation, enabled = () => process.en
     if (!available) fail(502, 'Player incident sources are unavailable.');
     events.sort((a,b) => b.at.localeCompare(a.at) || a.source.localeCompare(b.source) || b.id.localeCompare(a.id));
     return {version: 1, reviewerBinding: actor, query, windowStart: new Date(start).toISOString(), windowEnd: new Date(end).toISOString(), complete: false, associationOnly: true,
-      events: events.slice(0, MAX_EVENTS), partialSources, disabledSources, sourceCounts: scanned, hasMoreUnloaded: hasMoreUnloaded || events.length > MAX_EVENTS, fetchedAt: new Date(finished).toISOString()};
+      events: events.slice(0, MAX_EVENTS), partialSources, disabledSources, operationMode, sourceCounts: scanned, hasMoreUnloaded: hasMoreUnloaded || events.length > MAX_EVENTS, fetchedAt: new Date(finished).toISOString()};
   }
   return {capabilities, read, reportDetails, readReport};
 }

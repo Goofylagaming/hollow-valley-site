@@ -440,6 +440,7 @@ function deleteState(key) {
 
 module.exports = {
   dbPath,
+  readIncidentOperations: input => require('./incidentOperationsService').createIncidentOperationsSource({db}).read(input),
   close: () => db.close(),
   createRequest,
   getRequest,

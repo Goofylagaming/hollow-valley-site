@@ -9,7 +9,7 @@ function fixture(t) {
   const db = new DatabaseSync(':memory:'); t.after(() => db.close());
   db.exec('CREATE TABLE users(id INTEGER PRIMARY KEY,steam_id TEXT,is_admin INTEGER)');
   db.prepare('INSERT INTO users VALUES(3,?,1),(4,?,1),(1,?,0)').run(MOD,OTHER,PLAYER);
-  let user = {id:3,steam_id:MOD}, enabled = true, clock = AT, marketplace = false, peerMarketplace = false;
+  let user = {id:3,steam_id:MOD}, enabled = true, clock = AT, marketplace = false, peerMarketplace = false, history = false;
   const calls = [], text = 'Recorded <img src=x> statement.';
   const raw = {version:1,scope:'report-participant-context',reportedTime:iso(AT-60000),windowStart:iso(AT-960000),windowEnd:iso(AT),associationOnly:true,complete:false,retainedChatLimit:500,
     combat:{available:true,truncated:false,events:[{id:'combat-one',at:iso(AT-30000),attacker:null,victim:'reporter',otherPlayerIdentityWithheld:true,location:'PRIVATE'}]},
@@ -21,9 +21,9 @@ function fixture(t) {
     getAdminRequests: async args => {calls.push(['requests',args]);return {requests:[request]};},
     getAdminReportContext: async args => {calls.push(['context',args]);return raw;},
   };
-  const reader = createIncidentPlayerContext({db,automation,enabled:()=>enabled,marketplaceEnabled:()=>marketplace,peerMarketplaceEnabled:()=>peerMarketplace,now:()=>clock});
+  const reader = createIncidentPlayerContext({db,automation,enabled:()=>enabled,marketplaceEnabled:()=>marketplace,peerMarketplaceEnabled:()=>peerMarketplace,operationsHistoryEnabled:()=>history,now:()=>clock});
   const input = {steamId:PLAYER,occurredAt:iso(AT-60000)}, binding = '3:'+MOD;
-  return {db,reader,automation,raw,audit,request,calls,input,binding,getUser:()=>user,user:value=>{user=value;},enable:value=>{enabled=value;},enableMarketplace:value=>{marketplace=value;},enablePeer:value=>{peerMarketplace=value;},time:value=>{clock=value;},read:()=>reader.read(()=>user,binding,input)};
+  return {db,reader,automation,raw,audit,request,calls,input,binding,getUser:()=>user,user:value=>{user=value;},enable:value=>{enabled=value;},enableMarketplace:value=>{marketplace=value;},enablePeer:value=>{peerMarketplace=value;},enableHistory:value=>{history=value;},time:value=>{clock=value;},read:()=>reader.read(()=>user,binding,input)};
 }
 
 test('one player/time window merges four read-only sources without forwarding raw details or third-party game identities',async t=>{
@@ -146,4 +146,23 @@ test('a pending peer reply is withheld after source disabling, admin revocation 
   if(mode==='disable')f.enablePeer(false);else if(mode==='revoke')f.db.exec('UPDATE users SET is_admin=0 WHERE id=3');else f.db.prepare('UPDATE player_reports SET occurred_at=?').run(iso(AT-30000));release();
   if(mode==='disable'){const result=await pending;assert.deepEqual(result.disabledSources,['marketplace','peer-marketplace']);assert.equal(result.events.length,4);}else await assert.rejects(pending,{status:mode==='revoke'?403:409});
  }
+});
+
+function operationsPayload(f){
+ const section=source=>({available:true,truncated:false,events:['created','latest-update'].map((marker,i)=>({id:source+':operation-one:'+marker,recordId:'operation-one',at:iso(AT-10000+i*1000),marker,category:source==='audit'?'game_admin':'automation_request',operation:source==='audit'?'inspect_player':'dinostorage',status:marker==='created'?'recorded':'failed',selectedRole:source==='audit'?'target':'player',payload:'PRIVATE'}))});
+ return {version:1,scope:'retained-operation-records',steamId:PLAYER,occurredAt:f.input.occurredAt,windowStart:iso(AT-960000),windowEnd:iso(AT),complete:false,gameExecutionVerified:false,associations:'current-stored-identities',audit:section('audit'),requests:section('request')};
+}
+function operationsFixture(t){const f=fixture(t);f.operations=operationsPayload(f);f.automation.getAdminIncidentOperationsContext=async input=>{f.calls.push(['history',input]);return f.operations;};return f;}
+test('retained operation mode explicitly replaces global recent reads, preserves bounds and withholds raw fields',async t=>{
+ const f=operationsFixture(t);let result=await f.read();assert.equal(result.operationMode,'recent-window');assert.equal(f.calls.some(([name])=>name==='history'),false);f.enableHistory(true);result=await f.read();assert.equal(result.operationMode,'retained-window');assert.equal(f.calls.filter(([name])=>name==='audit').length,1);assert.equal(f.calls.filter(([name])=>name==='requests').length,1);assert.deepEqual(f.calls.at(-1),['history',f.input]);assert.equal(result.events.length,6);assert.equal(result.events.filter(row=>row.source==='audit'||row.source==='request').every(row=>row.gameExecutionVerified===false&&row.associations==='current-stored-identities'),true);assert.doesNotMatch(JSON.stringify(result),/PRIVATE|payload/);
+});
+test('bad operation sections fail independently and source-level binding failures never fall back to global recent records',async t=>{
+ const f=operationsFixture(t);f.enableHistory(true);f.operations.audit.events[0].selectedRole='other';let result=await f.read();assert.deepEqual(result.partialSources,['audit']);assert.equal(result.events.filter(row=>row.source==='request').length,2);assert.equal(f.calls.some(([name])=>name==='audit'||name==='requests'),false);
+ for(const change of [g=>{g.operations.steamId=OTHER;},g=>{g.operations.associations='historically-verified';},g=>{g.operations.gameExecutionVerified=true;},g=>{g.operations.windowEnd=iso(AT+1);},g=>{g.automation.getAdminIncidentOperationsContext=async()=>{throw Error('PRIVATE');};}]){const g=operationsFixture(t);g.enableHistory(true);change(g);result=await g.read();assert.deepEqual(result.partialSources,['audit','requests']);assert.equal(result.events.length,2);assert.equal(g.calls.some(([name])=>name==='audit'||name==='requests'),false);}
+});
+test('duplicate, oversized, unsafe and retroactively upgraded operation rows are withheld per source',async t=>{
+ for(const change of [f=>{f.operations.audit.events.push(f.operations.audit.events[0]);},f=>{f.operations.audit.events=Array(51).fill(f.operations.audit.events[0]);},f=>{f.operations.audit.events[0].status='succeeded';},f=>{f.operations.audit.events[0].operation='PRIVATE token=value';},f=>{f.operations.audit.events[0].at=iso(AT+1);},f=>{f.operations.audit.available=false;}]){const f=operationsFixture(t);f.enableHistory(true);change(f);const result=await f.read();assert.deepEqual(result.partialSources,['audit']);assert.equal(result.events.some(row=>row.source==='audit'),false);assert.doesNotMatch(JSON.stringify(result),/PRIVATE/);}
+});
+test('pending retained history is suppressed after disabling, revoked access or saved-report change',async t=>{
+ for(const mode of ['disable','revoke','report']){const f=mode==='report'?reportFixture(t):operationsFixture(t);f.enableHistory(true);const payload=operationsPayload(f);let release;const hold=new Promise(r=>{release=r;});f.automation.getAdminIncidentOperationsContext=async()=>{await hold;return payload;};const pending=mode==='report'?f.reportRead({role:'reporter',fingerprint:f.details().report.fingerprint}):f.read();await Promise.resolve();if(mode==='disable')f.enableHistory(false);else if(mode==='revoke')f.db.exec('UPDATE users SET is_admin=0 WHERE id=3');else f.db.prepare('UPDATE player_reports SET occurred_at=?').run(iso(AT-30000));release();if(mode==='disable'){const result=await pending;assert.equal(result.operationMode,'history-disabled');assert.deepEqual(result.disabledSources,['audit-history','request-history','marketplace','peer-marketplace']);assert.equal(result.events.length,2);assert.equal(f.calls.some(([name])=>name==='audit'||name==='requests'),false);}else await assert.rejects(pending,{status:mode==='revoke'?403:409});}
 });
