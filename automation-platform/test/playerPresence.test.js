@@ -1,3 +1,4 @@
+const closeFixtureDatabases = require("../test-support/closeFixtureDatabases");
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -31,6 +32,7 @@ function loadPresence({ snapshot, enabled = true } = {}) {
       else process.env.AUTOMATION_DB_PATH = previousDb;
       if (previousEnabled === undefined) delete process.env.PLAYER_PRESENCE_ENABLED;
       else process.env.PLAYER_PRESENCE_ENABLED = previousEnabled;
+      closeFixtureDatabases(tempDir);
       fs.rmSync(tempDir, { recursive: true, force: true });
     },
   };

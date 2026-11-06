@@ -122,6 +122,7 @@ test("supporter bonus multiplies the already quest-boosted playtime payout", (t)
     supporter._test.clearCache();
     for (const modulePath of modules) delete require.cache[modulePath];
     restoreEnv(previous);
+    store.db.close();
     fs.rmSync(dir, { recursive: true, force: true });
   });
 

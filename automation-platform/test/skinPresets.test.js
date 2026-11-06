@@ -86,6 +86,7 @@ function loadService({ enabled = true, edits = true, cost = 500 } = {}) {
       if (previous.system === undefined) delete process.env.SKIN_SYSTEM_ENABLED; else process.env.SKIN_SYSTEM_ENABLED = previous.system;
       if (previous.edits === undefined) delete process.env.PARKED_DINO_EDIT_ENABLED; else process.env.PARKED_DINO_EDIT_ENABLED = previous.edits;
       if (previous.cost === undefined) delete process.env.SKIN_PRESET_CREATE_COST; else process.env.SKIN_PRESET_CREATE_COST = previous.cost;
+      store.db.close();
       fs.rmSync(dir, { recursive: true, force: true });
     },
   };
@@ -372,6 +373,7 @@ test('existing skin preset databases migrate columns before share-code indexes a
     delete require.cache[storePath];
     if (previous === undefined) delete process.env.AUTOMATION_DB_PATH;
     else process.env.AUTOMATION_DB_PATH = previous;
+    store.db.close();
     fs.rmSync(dir, { recursive: true, force: true });
   });
 });

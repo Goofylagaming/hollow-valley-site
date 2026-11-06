@@ -34,6 +34,7 @@ function loadMarketplace() {
       else process.env.MARKETPLACE_WRITE_ENABLED = previous.write;
       if (previous.fulfillment === undefined) delete process.env.OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED;
       else process.env.OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED = previous.fulfillment;
+      store.db.close();
       fs.rmSync(dir, { recursive: true, force: true });
     },
   };

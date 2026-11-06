@@ -27,3 +27,19 @@ test("one missed day pauses the cycle, a second gap resets it, and day seven ren
   assert.equal(restarted.graceUsed,false);
   assert.equal(quote(restarted,before+10*day,null,false).cycleDay,1);
 });
+test("cutover preserves a legacy same-day receipt and prevents a second or multiplied payout", () => {
+  process.env.AUTOMATION_DB_PATH=":memory:";
+  process.env.DAILY_LOGIN_REWARDS_ENABLED="1";
+  process.env.WALLET_DAILY_LOGIN_BONUS_ENABLED="true";
+  const old = require("../src/services/dailyLoginBonusService");
+  const wallet = require("../src/services/economyStore");
+  const daily = require("../src/services/dailyLoginWallet");
+  const id="76561198000000621", day="2026-11-05";
+  assert.equal(old.enabled(),false);
+  wallet.applyWalletTransaction({steamId:id,amount:1000,kind:"daily_login_bonus",reason:"legacy",
+    idempotencyKey:"daily-login:"+id+":"+day,referenceId:day});
+  const result=daily.claimDaily(id,"legend",day,before);
+  assert.equal(result.eligible,false);
+  assert.equal(result.claim.legacy,true);
+  assert.equal(wallet.getWallet(id).balance,1000);
+});

@@ -1,3 +1,4 @@
+const closeFixtureDatabases = require("../test-support/closeFixtureDatabases");
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -22,6 +23,7 @@ test.after(() => {
   delete require.cache[servicePath];
   if (oldDb === undefined) delete process.env.AUTOMATION_DB_PATH; else process.env.AUTOMATION_DB_PATH = oldDb;
   if (oldStale === undefined) delete process.env.DISCORD_EVENTS_STALE_SECONDS; else process.env.DISCORD_EVENTS_STALE_SECONDS = oldStale;
+  closeFixtureDatabases(dir);
   fs.rmSync(dir, { recursive: true, force: true });
 });
 

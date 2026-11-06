@@ -116,6 +116,7 @@ function loadMarketplace({ transferError = null } = {}) {
       else process.env.MARKETPLACE_WRITE_ENABLED = previous.write;
       if (previous.p2pWrite === undefined) delete process.env.P2P_MARKETPLACE_WRITE_ENABLED;
       else process.env.P2P_MARKETPLACE_WRITE_ENABLED = previous.p2pWrite;
+      store.db.close();
       fs.rmSync(dir, { recursive: true, force: true });
     },
   };

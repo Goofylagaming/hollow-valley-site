@@ -27,9 +27,10 @@ test('PrimePersistence restores completed flags conservatively', () => {
 
 test('Prime fix installer updates live mods with backups', () => {
   const ps1 = read('scripts/windows/Install-HollowValley-PrimeFix.ps1');
-  assert.match(ps1, /DinoStorage\\Scripts\\main\.lua/);
+  assert.ok(ps1.includes(String.raw`DinoStorage\\Scripts\\main\.lua`));
   assert.match(ps1, /CommandBridge\\Scripts\\main\.lua/);
-  assert.match(ps1, /PrimePersistence\\Scripts\\main\.lua/);
+  assert.match(ps1, /Join-Path \$modsRoot .PrimePersistence./);
+  assert.match(ps1, /Join-Path \$primeScripts .main\.lua./);
   assert.match(ps1, /\.bak-\$stamp/);
   assert.match(ps1, /PrimePersistence : 1/);
   assert.match(ps1, /GAME SERVER RESTART/);
