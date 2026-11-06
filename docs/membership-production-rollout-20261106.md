@@ -14,10 +14,11 @@ The verified expansion from PR #324 (`a7d27629f17e1cef7446b65355dec6d1ef24d8f8`)
 
 - Created fresh consistent SQLite backups before enabling features: website `/app/data/backups/membership-expansion-before-enable-20261106.sqlite`; automation `/var/data/backups/membership-expansion-before-enable-20261106.sqlite`. Both copies passed integrity checks.
 - Website users, wallets, transactions, roster, skins, subscriptions, paid invoices, skin claims, and loyalty records matched the pre-rollout backup after migration and Founding grants. Only additive expansion records were initialized.
+- The automation database passed its live integrity check; all historical wallet ledger, skin preset/unlock/grant, progression XP and achievement rows from the backup remain present unchanged. No wallet had a negative balance.
 - Website and wallet deployed successfully. Live website-to-wallet requests verified daily eligibility, the seven reward amounts, arcade settings and leaderboard availability without submitting player reward claims.
 - Live desktop/mobile public pages passed browser checks for the supporter wall, arcade, and admin arcade page; admin settings stayed hidden when signed out. The brief 502 during the persistent-disk restart cleared when the new instance became live.
 - Discord live dry-run found the category, six text channels, one voice channel, three permanent loyalty roles, and all guides already correct. Reconciliation in apply mode confirmed zero writes. No unrelated channels or roles were touched; no duplicate posts were sent.
-- Pre-merge expansion validation: 1,131 tests passed, plus staging API and synthetic signed-in browser checks. Rollout navigation/roadmap validation: 32 tests passed. A restricted-environment localhost connection failure cleared when rerun with test-server access.
+- Pre-merge expansion validation: 1,131 tests passed, plus staging API and synthetic signed-in browser checks. Rollout navigation/roadmap validation: 45 tests passed. A restricted-environment localhost connection failure cleared when rerun with test-server access. Two homepage assertions were updated to the new roadmap asset version.
 - No real Steam/Discord test account is available. Live verification does not claim a real player completed a signed-in purchase, reward claim, or game payout. Those mutable paths were exercised on isolated synthetic staging data, not production players.
 
 ## Entry points
