@@ -3,6 +3,7 @@ const timeline = require('./incidentTimeline');
 const {project} = require('./reportContext');
 const {createHash} = require('node:crypto');
 const {projectIncidentMarketplace} = require('./incidentMarketplaceContext');
+const {projectIncidentPeerMarketplace} = require('./incidentPeerMarketplaceContext');
 const WINDOW_MS = 900000, MAX_EVENTS = 200;
 const fail = (status, message) => { throw Object.assign(Error(message), {status}); };
 const steam = value => typeof value === 'string' && /^\d{17}$/.test(value);
@@ -11,7 +12,7 @@ const stamp = value => {
   return Number.isSafeInteger(at) && at >= WINDOW_MS && new Date(at).toISOString() === value ? at : null;
 };
 
-function createIncidentPlayerContext({db, automation, enabled = () => process.env.INCIDENT_PLAYER_CONTEXT_ENABLED === '1', marketplaceEnabled = () => process.env.INCIDENT_MARKETPLACE_CONTEXT_ENABLED === '1', now = Date.now} = {}) {
+function createIncidentPlayerContext({db, automation, enabled = () => process.env.INCIDENT_PLAYER_CONTEXT_ENABLED === '1', marketplaceEnabled = () => process.env.INCIDENT_MARKETPLACE_CONTEXT_ENABLED === '1', peerMarketplaceEnabled = () => process.env.INCIDENT_PEER_MARKETPLACE_CONTEXT_ENABLED === '1', now = Date.now} = {}) {
   function admin(getUser, binding) {
     const user = getUser();
     if (!Number.isSafeInteger(user?.id) || !steam(user?.steam_id)) fail(403, 'Current linked admin access is required.');
@@ -66,11 +67,13 @@ function createIncidentPlayerContext({db, automation, enabled = () => process.en
     if (!input || Array.isArray(input) || Object.keys(input).some(key => !['steamId', 'occurredAt'].includes(key)) || !steam(input.steamId) || at === null || !Number.isSafeInteger(clock) || clock < WINDOW_MS || clock > 8640000000000000 - WINDOW_MS || at < clock - 90 * 86400000 || at > clock + WINDOW_MS) fail(400, 'A player and valid approximate incident time within the supported window are required.');
     const query = {steamId: input.steamId, occurredAt: input.occurredAt};
     const marketplaceRequested = Boolean(marketplaceEnabled());
+    const peerMarketplaceRequested = Boolean(peerMarketplaceEnabled());
     const results = await Promise.allSettled([
       Promise.resolve().then(() => automation.getAdminAudit({limit: timeline.AUDIT_LIMIT})),
       Promise.resolve().then(() => automation.getAdminRequests({limit: timeline.REQUEST_LIMIT})),
       Promise.resolve().then(() => automation.getAdminReportContext({reporterSteamId: query.steamId, reportedSteamId: null, occurredAt: query.occurredAt})),
-      ...(marketplaceRequested ? [Promise.resolve().then(() => automation.getAdminIncidentMarketplaceContext(query))] : []),
+      marketplaceRequested ? Promise.resolve().then(() => automation.getAdminIncidentMarketplaceContext(query)) : Promise.resolve(null),
+      peerMarketplaceRequested ? Promise.resolve().then(() => automation.getAdminIncidentPeerMarketplaceContext(query)) : Promise.resolve(null),
     ]);
     admin(getUser, actor);
     if (!enabled()) fail(503, 'Player incident context is not enabled.');
@@ -114,6 +117,14 @@ function createIncidentPlayerContext({db, automation, enabled = () => process.en
         const marketplace = projectIncidentMarketplace(results[3].value,query,{start,end,finished});
         available++; hasMoreUnloaded ||= marketplace.truncated; events.push(...marketplace.events);
       } catch {partialSources.push('marketplace');}
+    }
+    if (!peerMarketplaceRequested || !peerMarketplaceEnabled()) disabledSources.push('peer-marketplace');
+    else {
+      try {
+        if (results[4].status !== 'fulfilled') throw Error('Unavailable');
+        const peer = projectIncidentPeerMarketplace(results[4].value,query,{start,end,finished});
+        available++; hasMoreUnloaded ||= peer.truncated; events.push(...peer.events);
+      } catch {partialSources.push('peer-marketplace');}
     }
     if (!available) fail(502, 'Player incident sources are unavailable.');
     events.sort((a,b) => b.at.localeCompare(a.at) || a.source.localeCompare(b.source) || b.id.localeCompare(a.id));

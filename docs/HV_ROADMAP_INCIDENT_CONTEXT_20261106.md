@@ -172,3 +172,60 @@ HV_REPORT_CONTEXT_RETENTION_POLICY.md. Real-source semantics, authenticated
 staging, connection/dinosaur-action sources, P2P marketplace records, complete
 historical search and production delivery remain pending. No live flags, key,
 production data, push, merge or deployment changed.
+
+## Peer marketplace records (homepage v153)
+
+A separate opt-in source now reads existing peer dinosaur-listing rows for the
+selected player/time. INCIDENT_PEER_MARKETPLACE_CONTEXT_ENABLED defaults to 0 on
+both website and automation. The admin-token endpoint is
+GET /api/admin/incident-marketplace/peer-context; the fixed website client never
+calls listing creation, purchase, escrow, cancellation, reconciliation, refunds,
+wallet mutations or Command Bridge functions. The source receives the existing
+economy DB handle and performs SELECT queries without new tracking, retention,
+schema initialization or snapshot parsing.
+
+The exact selected seller can receive creation, latest-update, recorded-sale and
+recorded-cancellation markers. The current saved buyer receives latest-update
+and recorded-sale markers only: the buyer's current association does not establish
+involvement at listing creation/cancellation. Former reservations and cleared or
+replaced buyers cannot be reconstructed from these rows. The response explicitly
+sets currentBuyerAssociationOnly=true, complete=false and gameDeliveryVerified=false.
+The other trader's identity, parked slots, dinosaur snapshot, purchase keys,
+prices, errors and wallet data are not returned. Later current status is not
+retroactively applied to creation/sale/cancellation timestamps; unknown states
+remain unknown. These are stored markers, not confirmed game delivery.
+
+Queries use the same 15-minute either-side window, capped at the request-start
+clock, and the same supported incident-time bounds. At most 51 matching rows are
+read for a 50-event output cap, with explicit truncation. The website validates
+scope, player/time/window, listing IDs, unique event keys, known kinds/statuses,
+role restrictions and identity-withholding markers. Wrong-player or malformed
+responses are withheld as a partial peer source. Disabled sources are labelled
+separately, and a flag turned off during a pending read suppresses those rows.
+The combined timeline remains capped at 200 and uses the same current-admin,
+account and saved-report binding checks. The UI shows seller/buyer role and
+listing reference and explains the incomplete current-buyer association.
+
+99 distinct affected local tests pass. Added source fixtures cover seller/buyer
+scoping, non-retroactive status, cleared/replaced buyer associations, counterparty/
+slot/snapshot privacy, UTC normalization, bounded results, invalid/disabled queries,
+missing schema and read-only DB mode. Actual token-protected HTTP/client checks
+cover both roles, disabled and missing sources and no raw database errors. The
+two-service integration test now includes real peer source reads through the
+website route and admin client with both DBs query-only. Service tests suppress
+bad attribution, oversized/duplicate rows, revoked admins, changed reports and a
+source disabled during a pending response. Desktop1440/phone390 browser fixtures
+render seller and buyer records, exclude seller creation markers from buyer
+results, disclose missing former associations, withhold bad/unavailable replies,
+and prevent disabled source calls. The phone layout was visually checked. The
+existing linked-report and account/role-switch fixtures still pass. CI includes
+the new source tests and path dependencies.
+
+The connection-history audit found that player_presence_sessions timestamps are
+written by polling/external-snapshot reconciliation. They are not durable exact
+join/disconnect logs and were not promoted into verified connection events. A
+trusted connection feed remains required. Dinosaur-action integration, full
+reservation/status-transition history, complete historical search, real-source
+semantics, authenticated staging and production delivery remain unfinished.
+The approved 90-day saved-report context policy is unchanged. No live flags,
+keys, player tracking, retained data, push, merge or deployment changed.

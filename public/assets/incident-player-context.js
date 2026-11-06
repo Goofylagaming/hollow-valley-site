@@ -53,6 +53,7 @@
     if (result.hasMoreUnloaded) panel.append(node('p','Results or source history are limited; additional matching records may be missing.'));
     panel.append(node('p','Operator audits and requests search only their newest 200 and 100 entries. Chat searches at most 500 retained messages. Combat and chat each return at most 50 matches; the combined view shows at most 200.'));
     panel.append(node('p','The optional official marketplace source returns up to 50 stored order timestamps. A current order update is not a complete status history, and a fulfillment timestamp does not verify delivery in the game.'));
+    panel.append(node('p','The optional peer marketplace source returns up to 50 stored listing timestamps. Buyer matches use only the listing’s current saved buyer; older reservations may be missing. Sale timestamps do not verify game delivery.'));
     if (!result.events.length) panel.append(node('p','No matching retained records were returned. This does not establish that nothing happened.'));
     const list = node('ol',''); list.className = 'hv-incident-context-events';
     for (const event of result.events) {
@@ -60,6 +61,7 @@
       row.append(node('strong',time(event.at)+' · '+event.source),node('p',event.category+' · '+event.action+' · '+event.status));
       if (event.source === 'chat') { row.append(node('p',event.text),node('small','Channel: '+event.channel+(event.redacted?' · Some text masked.':''))); }
       else if (event.source === 'combat') row.append(node('p','Selected player: '+event.playerRole+'. Other player identity and location are withheld.'));
+      else if (event.source === 'peer-marketplace') row.append(node('p','Selected player: '+event.participantRole+'. Other trader identity is withheld.'),node('small','Listing reference: '+event.reference));
       else { if (event.actorName || event.actorSteamId) row.append(node('p','Operator: '+(event.actorName || event.actorSteamId))); row.append(node('small','Reference: '+(event.reference || event.id))); }
       list.append(row);
     }

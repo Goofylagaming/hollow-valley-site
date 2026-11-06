@@ -9,7 +9,7 @@ function fixture(t) {
   const db = new DatabaseSync(':memory:'); t.after(() => db.close());
   db.exec('CREATE TABLE users(id INTEGER PRIMARY KEY,steam_id TEXT,is_admin INTEGER)');
   db.prepare('INSERT INTO users VALUES(3,?,1),(4,?,1),(1,?,0)').run(MOD,OTHER,PLAYER);
-  let user = {id:3,steam_id:MOD}, enabled = true, clock = AT, marketplace = false;
+  let user = {id:3,steam_id:MOD}, enabled = true, clock = AT, marketplace = false, peerMarketplace = false;
   const calls = [], text = 'Recorded <img src=x> statement.';
   const raw = {version:1,scope:'report-participant-context',reportedTime:iso(AT-60000),windowStart:iso(AT-960000),windowEnd:iso(AT),associationOnly:true,complete:false,retainedChatLimit:500,
     combat:{available:true,truncated:false,events:[{id:'combat-one',at:iso(AT-30000),attacker:null,victim:'reporter',otherPlayerIdentityWithheld:true,location:'PRIVATE'}]},
@@ -21,9 +21,9 @@ function fixture(t) {
     getAdminRequests: async args => {calls.push(['requests',args]);return {requests:[request]};},
     getAdminReportContext: async args => {calls.push(['context',args]);return raw;},
   };
-  const reader = createIncidentPlayerContext({db,automation,enabled:()=>enabled,marketplaceEnabled:()=>marketplace,now:()=>clock});
+  const reader = createIncidentPlayerContext({db,automation,enabled:()=>enabled,marketplaceEnabled:()=>marketplace,peerMarketplaceEnabled:()=>peerMarketplace,now:()=>clock});
   const input = {steamId:PLAYER,occurredAt:iso(AT-60000)}, binding = '3:'+MOD;
-  return {db,reader,automation,raw,audit,request,calls,input,binding,getUser:()=>user,user:value=>{user=value;},enable:value=>{enabled=value;},enableMarketplace:value=>{marketplace=value;},time:value=>{clock=value;},read:()=>reader.read(()=>user,binding,input)};
+  return {db,reader,automation,raw,audit,request,calls,input,binding,getUser:()=>user,user:value=>{user=value;},enable:value=>{enabled=value;},enableMarketplace:value=>{marketplace=value;},enablePeer:value=>{peerMarketplace=value;},time:value=>{clock=value;},read:()=>reader.read(()=>user,binding,input)};
 }
 
 test('one player/time window merges four read-only sources without forwarding raw details or third-party game identities',async t=>{
@@ -113,8 +113,8 @@ function marketplaceFixture(t){
  f.automation.getAdminIncidentMarketplaceContext=async input=>{f.calls.push(['marketplace',input]);return f.marketplace;};return f;
 }
 test('marketplace reads require their separate flag and project only bounded order facts without claiming game delivery',async t=>{
- const f=marketplaceFixture(t);let result=await f.read();assert.deepEqual(result.disabledSources,['marketplace']);assert.equal(f.calls.some(([name])=>name==='marketplace'),false);
- f.enableMarketplace(true);result=await f.read();assert.deepEqual(result.disabledSources,[]);const event=result.events.find(row=>row.source==='marketplace');assert.equal(event.status,'failed');assert.equal(event.action,'Latest recorded order update');assert.equal(event.gameDeliveryVerified,false);assert.deepEqual(f.calls.at(-1),['marketplace',f.input]);assert.doesNotMatch(JSON.stringify(result),/PRIVATE|payload|error/);
+ const f=marketplaceFixture(t);let result=await f.read();assert.deepEqual(result.disabledSources,['marketplace','peer-marketplace']);assert.equal(f.calls.some(([name])=>name==='marketplace'),false);
+ f.enableMarketplace(true);result=await f.read();assert.deepEqual(result.disabledSources,['peer-marketplace']);const event=result.events.find(row=>row.source==='marketplace');assert.equal(event.status,'failed');assert.equal(event.action,'Latest recorded order update');assert.equal(event.gameDeliveryVerified,false);assert.deepEqual(f.calls.at(-1),['marketplace',f.input]);assert.doesNotMatch(JSON.stringify(result),/PRIVATE|payload|error/);
 });
 test('wrong-player/time, duplicate, excessive or invalid marketplace payloads are withheld and marked partial',async t=>{
  for(const change of [f=>{f.marketplace.steamId=OTHER;},f=>{f.marketplace.occurredAt=iso(AT);},f=>{f.marketplace.gameDeliveryVerified=true;},f=>{f.marketplace.events.push(f.marketplace.events[0]);},f=>{f.marketplace.events=Array(51).fill(f.marketplace.events[0]);},f=>{f.marketplace.events[0].status='PRIVATE';},f=>{f.marketplace.events[0].kind=['latest-update'];},f=>{f.marketplace.events[0].at=iso(AT+1);},f=>{f.automation.getAdminIncidentMarketplaceContext=async()=>{throw Error('PRIVATE');};}]){
@@ -122,5 +122,28 @@ test('wrong-player/time, duplicate, excessive or invalid marketplace payloads ar
  }
 });
 test('disabling marketplace collection while its reply is pending withholds that reply while retaining other sources',async t=>{
- const f=marketplaceFixture(t);f.enableMarketplace(true);let release;const hold=new Promise(r=>{release=r;});f.automation.getAdminIncidentMarketplaceContext=async()=>{await hold;return f.marketplace;};const pending=f.read();await Promise.resolve();f.enableMarketplace(false);release();const result=await pending;assert.deepEqual(result.disabledSources,['marketplace']);assert.equal(result.events.some(row=>row.source==='marketplace'),false);assert.equal(result.events.length,4);
+ const f=marketplaceFixture(t);f.enableMarketplace(true);let release;const hold=new Promise(r=>{release=r;});f.automation.getAdminIncidentMarketplaceContext=async()=>{await hold;return f.marketplace;};const pending=f.read();await Promise.resolve();f.enableMarketplace(false);release();const result=await pending;assert.deepEqual(result.disabledSources,['marketplace','peer-marketplace']);assert.equal(result.events.some(row=>row.source==='marketplace'),false);assert.equal(result.events.length,4);
+});
+
+function peerPayload(f){
+ const listingId='10000000-0000-4000-8000-000000000005';
+ return {version:1,scope:'peer-listing-records',steamId:PLAYER,occurredAt:f.input.occurredAt,windowStart:iso(AT-960000),windowEnd:iso(AT),complete:false,gameDeliveryVerified:false,currentBuyerAssociationOnly:true,truncated:false,events:[{id:listingId+':latest-update',listingId,at:iso(AT-5000),kind:'latest-update',role:'buyer',status:'reserved',counterpartyIdentityWithheld:true,buyerSlot:'PRIVATE',sellerSteamId:OTHER}]};
+}
+function peerFixture(t){
+ const f=fixture(t);f.peer=peerPayload(f);f.automation.getAdminIncidentPeerMarketplaceContext=async input=>{f.calls.push(['peer',input]);return f.peer;};return f;
+}
+test('peer context requires a separate flag and preserves the selected role without forwarding counterparty identities or slots',async t=>{
+ const f=peerFixture(t);let result=await f.read();assert.equal(f.calls.some(([name])=>name==='peer'),false);assert.deepEqual(result.disabledSources,['marketplace','peer-marketplace']);f.enablePeer(true);result=await f.read();const event=result.events.find(row=>row.source==='peer-marketplace');assert.equal(event.participantRole,'buyer');assert.equal(event.status,'reserved');assert.equal(event.counterpartyIdentityWithheld,true);assert.equal(event.gameDeliveryVerified,false);assert.equal(event.currentBuyerAssociationOnly,true);assert.deepEqual(result.disabledSources,['marketplace']);assert.deepEqual(f.calls.at(-1),['peer',f.input]);assert.doesNotMatch(JSON.stringify(result),/PRIVATE|sellerSteamId|buyerSlot/);
+});
+test('peer projection withholds wrong-player/time, duplicate, oversized, unknown-kind and wrongly attributed seller markers',async t=>{
+ for(const change of [f=>{f.peer.steamId=OTHER;},f=>{f.peer.occurredAt=iso(AT);},f=>{f.peer.gameDeliveryVerified=true;},f=>{f.peer.currentBuyerAssociationOnly=false;},f=>{f.peer.events.push(f.peer.events[0]);},f=>{f.peer.events=Array(51).fill(f.peer.events[0]);},f=>{f.peer.events[0].counterpartyIdentityWithheld=false;},f=>{f.peer.events[0].role='other';},f=>{f.peer.events[0].kind='created';f.peer.events[0].id=f.peer.events[0].listingId+':created';f.peer.events[0].status='recorded';},f=>{f.peer.events[0].at=iso(AT+1);},f=>{f.automation.getAdminIncidentPeerMarketplaceContext=async()=>{throw Error('PRIVATE');};}]){
+  const f=peerFixture(t);f.enablePeer(true);change(f);const result=await f.read();assert.deepEqual(result.partialSources,['peer-marketplace']);assert.equal(result.events.some(row=>row.source==='peer-marketplace'),false);assert.doesNotMatch(JSON.stringify(result),/PRIVATE/);
+ }
+});
+test('a pending peer reply is withheld after source disabling, admin revocation or saved-report rebinding',async t=>{
+ for(const mode of ['disable','revoke','report']){
+  const f=mode==='report'?reportFixture(t):peerFixture(t);f.enablePeer(true);const payload=peerPayload(f);let release;const hold=new Promise(r=>{release=r;});f.automation.getAdminIncidentPeerMarketplaceContext=async()=>{await hold;return payload;};const pending=mode==='report'?f.reportRead({role:'reporter',fingerprint:f.details().report.fingerprint}):f.read();await Promise.resolve();
+  if(mode==='disable')f.enablePeer(false);else if(mode==='revoke')f.db.exec('UPDATE users SET is_admin=0 WHERE id=3');else f.db.prepare('UPDATE player_reports SET occurred_at=?').run(iso(AT-30000));release();
+  if(mode==='disable'){const result=await pending;assert.deepEqual(result.disabledSources,['marketplace','peer-marketplace']);assert.equal(result.events.length,4);}else await assert.rejects(pending,{status:mode==='revoke'?403:409});
+ }
 });
