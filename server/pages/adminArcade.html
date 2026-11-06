@@ -1,0 +1,16 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin · Valley Arcade</title>
+<link rel="stylesheet" href="/assets/styles.css?v=17"><link rel="stylesheet" href="/assets/arcade.css?v=1"></head><body><main class="arcade">
+<a href="/admin">Admin</a><h1>Valley Arcade</h1><p id="arcade-status" role="status">Loading…</p>
+<p><a href="/admin-valley-arcade.html">Pause Arcade / emergency controls</a> · <a href="/arcade">Player lobby</a></p>
+<div id="admin-content" hidden><p id="totals"></p>
+<section class="arcade-panel"><h2>Reward tables</h2><p>Changes apply to newly earned crates only. Types: coins (amount), skin (presetId, duplicate: convert or reroll, duplicateCoins), dinosaur (species, growthPercent). Every reward needs an id, label and positive integer weight. No paid crates or subscriber RNG perks.</p>
+<form id="config-form"><label>Configuration JSON<textarea id="config" required></textarea></label><button>Validate & save</button></form></section>
+<section class="arcade-panel"><h2>Grant verified earned rewards</h2><form id="grant-form">
+<label>Player Steam ID<input name="steamId" pattern="[0-9]{17}" required></label>
+<label>Evidence / event receipt ID<input name="requestKey" minlength="8" maxlength="100" pattern="[A-Za-z0-9:_-]+" required></label>
+<label>Verified source<select name="source"><option>event</option><option>quest</option><option>playtime</option><option>achievement</option></select></label>
+<label>Reward<select name="kind"><option>crate</option><option>fragments</option><option>xp</option></select></label>
+<label>Crate family<select name="family"><option>valley</option><option>alpha</option><option>prime</option><option>event</option></select></label>
+<label>Amount<input name="amount" type="number" min="1" max="100" value="1" required></label><button>Grant earned reward</button></form></section>
+<section class="arcade-panel"><h2>Recent reward audit</h2><pre id="audit" style="white-space:pre-wrap;overflow-wrap:anywhere"></pre></section></div>
+</main><script src="/assets/admin-arcade.js?v=1"></script></body></html>

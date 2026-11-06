@@ -64,7 +64,9 @@ test("all production wallet, marketplace, storage, admin and other page scripts 
         assert.equal(actual.indexOf(subscriberBar), actual.indexOf("assets/supporter-stripe-upgrade.js") + 1,
           "Subscriber Bar helper must follow the existing membership controls");
       }
-      assert.deepEqual(actual.filter(src => src !== membership && (page !== "supporter.html" || src !== subscriberBar)), baseline,
+      const additions = page === "supporter.html" ? [subscriberBar, "assets/membership-collection.js", "assets/daily-rewards.js"] : [];
+      for (const src of additions) assert.equal(actual.filter(value => value === src).length, 1);
+      assert.deepEqual(actual.filter(src => src !== membership && !additions.includes(src)), baseline,
         page + ": existing feature scripts must be preserved");
     } else if (page === "skins.html") {
       // v015 intentionally inserts the auto-map and batch-mask helpers before

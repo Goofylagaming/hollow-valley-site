@@ -16,13 +16,14 @@ test("Dino Storage and Dino History stay accessible inside My Stuff while Wallet
   assert.match(nav, /href="\/quests">QUESTS<\/a>/);
 });
 
-test("Dino Storage page contains storage only, without Prime or survivor-listing panels", () => {
+test("Dino Storage page shows its restored Prime tracker and keeps survivor listings in Marketplace", () => {
   const html = read("public/dinostorage/index.html");
   assert.match(html, /Dino Storage\./);
   assert.match(html, /id="storage-grid"/);
   assert.match(html, /mydinos\.js/);
-  assert.doesNotMatch(html, /prime-tracker-card/);
-  assert.doesNotMatch(html, /mydinos-marketplace\.js/);
+  assert.match(html, /id="prime-tracker-card"/);
+  assert.match(html, /mydinos-marketplace\.js/);
+  assert.doesNotMatch(html, /Your survivor listings\./);
 });
 
 test("Dino History no longer loads the DinoStorage frontend", () => {

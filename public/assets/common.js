@@ -224,12 +224,13 @@ window.HDS = (function () {
     ["/mydinos", "♟", "My Characters"],
     ["/dinostorage/", "▣", "Dino Storage"],
     ["/bodydrop", "◉", "Body Drop"],
+    ["/arcade", "✦", "Arcade"],
   ];
 
   function railEnabled(path) {
     return path === "/" || [
       "/profile", "/wallet", "/skins", "/friends", "/groups", "/mydinos",
-      "/dinostorage", "/bodydrop", "/marketplace"
+      "/dinostorage", "/bodydrop", "/marketplace", "/arcade"
     ].some((prefix) => path.startsWith(prefix));
   }
 

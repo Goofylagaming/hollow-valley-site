@@ -291,6 +291,25 @@ async function init() {
 
   if (friendsResult.status === "fulfilled") renderFriends(friendsResult.value);
   else renderUnavailable("profile-friends-count", "profile-friends-detail");
+  const card=document.getElementById("profile-collection-features");
+  if(card){
+    try {
+      const response=await fetch("/api/supporter/rewards/collection");
+      if(response.ok){
+        const book=await response.json(),prefs=book.preferences;
+        const owned=book.collectibles.filter(item=>item.earned_at);
+        const labels=[["Favourite dinosaur",prefs.favourite_dinosaur],["Featured skin",prefs.featured_skin],
+          ["Title",prefs.featured_title],["Achievement",book.achievementIds?.includes(prefs.featured_achievement)||owned.some(i=>i.slug===prefs.featured_achievement)?prefs.featured_achievement:null]];
+        for(const [label,value] of labels.filter(pair=>pair[1])){
+          const p=document.createElement("p");p.textContent=label+" · "+(owned.find(i=>i.slug===value)?.name||value);card.append(p);
+        }
+        const accent=owned.find(i=>i.slug===prefs.accent)?.colour,banner=owned.find(i=>i.slug===prefs.banner)?.colour;
+        if(/^#[a-f0-9]{6}$/i.test(accent||""))card.parentElement.style.borderColor=accent;
+        if(/^#[a-f0-9]{6}$/i.test(banner||""))card.parentElement.style.backgroundImage="linear-gradient(130deg,"+banner+"66,transparent)";
+        card.hidden=!card.childElementCount;
+      }
+    }catch{ /* Other profile features remain available while the collection is offline. */ }
+  }
   await titlesLoaded;
 }
 
