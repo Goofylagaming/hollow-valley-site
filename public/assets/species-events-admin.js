@@ -112,14 +112,27 @@
       text('ops-species-event-message', 'Choose a playable dinosaur and 1–1,000 bonus Valley Coins/min.');
       return;
     }
-    if (!selectedBonuses.has(species) && selectedBonuses.size >= 20) {
-      text('ops-species-event-message', 'An event can contain a maximum of 20 dinosaurs.');
+    if (!selectedBonuses.has(species) && selectedBonuses.size >= 21) {
+      text('ops-species-event-message', 'An event can contain a maximum of 21 dinosaurs.');
       return;
     }
     selectedBonuses.set(species, coins);
     renderSelected();
     preview();
     text('ops-species-event-message', speciesName(species) + ' added to the combined event.');
+  });
+  el('ops-species-event-add-all')?.addEventListener('click', () => {
+    const coins = Number(el('ops-species-event-coins')?.value);
+    if (!Number.isSafeInteger(coins) || coins < 1 || coins > 1000) {
+      text('ops-species-event-message', 'Choose 1–1,000 bonus Valley Coins/min first.');
+      return;
+    }
+    for (const species of speciesNames.keys()) {
+      if (!selectedBonuses.has(species)) selectedBonuses.set(species, coins);
+    }
+    renderSelected();
+    preview();
+    text('ops-species-event-message', 'All dinosaurs added. Existing individual rates were kept; new dinosaurs use +' + coins + ' VC/min.');
   });
   const pingLabels = Object.freeze({
     none: 'no Discord ping',
@@ -134,9 +147,45 @@
     const target = el('ops-species-event-ping');
     if (target) target.disabled = el('ops-species-event-auto-announce')?.checked === false;
   }
+  function scheduleValues() {
+    const scheduleMode = el('ops-species-event-mode')?.value || 'duration';
+    // Queensland has no daylight saving. Never interpret this as browser-local time.
+    function qldTimestamp(value) {
+      if (!value) return null;
+      if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) throw new Error('Choose a valid Queensland date and time.');
+      const date = new Date(value + ':00+10:00');
+      if (!Number.isFinite(date.getTime()) || new Date(date.getTime() + 36000000).toISOString().slice(0,16) !== value)
+        throw new Error('Choose a valid Queensland date and time.');
+      return date.toISOString();
+    }
+    const startsAt = qldTimestamp(el('ops-species-event-start-at')?.value);
+    if (scheduleMode === 'duration') return {
+      scheduleMode, startsAt, durationMinutes: Number(el('ops-species-event-duration')?.value || 0),
+    };
+    const endsAt = qldTimestamp(el('ops-species-event-end-at')?.value);
+    if (!startsAt || !endsAt) throw new Error('Choose both start and end dates in Queensland time.');
+    return { scheduleMode, startsAt, endsAt, timezone: 'Australia/Brisbane',
+      durationMinutes: (Date.parse(endsAt) - Date.parse(startsAt)) / 60000 };
+  }
   function preview() {
+    const range = el('ops-species-event-mode')?.value === 'range';
+    if (el('ops-species-event-duration')) el('ops-species-event-duration').disabled = range;
+    if (el('ops-species-event-start-at')) el('ops-species-event-start-at').required = range;
+    for (const id of ['ops-species-event-end-at', 'ops-species-event-end-label']) {
+      if (el(id)) el(id).hidden = !range;
+    }
+    if (el('ops-species-event-end-at')) {
+      el('ops-species-event-end-at').disabled = !range;
+      el('ops-species-event-end-at').required = range;
+    }
     const bonuses = selectedRates();
-    const duration = Number(el('ops-species-event-duration')?.value) || 0;
+    let duration = 0;
+    try {
+      duration = scheduleValues().durationMinutes;
+      text('ops-species-event-calculated-duration', duration >= 5 && duration <= (range ? 43200 : 720)
+        ? 'Duration: ' + Math.floor(duration / 60) + 'h ' + duration % 60 + 'm (' + duration + ' minutes)'
+        : 'Choose a valid duration: ' + (range ? '5 minutes to 30 days.' : '5–720 minutes.'));
+    } catch (error) { text('ops-species-event-calculated-duration', error.message); }
     const maxRate = Math.max(0, ...bonuses.map(rate => Number(rate.coinsPerMinute) || 0));
     const budget = maxRate * Math.max(0, duration);
     text('ops-species-event-preview',
@@ -148,7 +197,7 @@
         ' One Discord start ping to ' + pingLabels[effectivePing()] + '.'));
   }
   ['ops-species-event-species', 'ops-species-event-coins', 'ops-species-event-duration',
-   'ops-species-event-start-at', 'ops-species-event-title',
+   'ops-species-event-start-at', 'ops-species-event-end-at', 'ops-species-event-mode', 'ops-species-event-title',
    'ops-species-event-auto-announce', 'ops-species-event-ping'].forEach((id) => {
     el(id)?.addEventListener('input', () => { syncPingControl(); preview(); });
   });
@@ -183,10 +232,20 @@
       if (data.species.some((species) => species.id === previous)) select.value = previous;
       renderSelected();
     }
+    renderEvents(data);
+    preview();
+  }
+
+  function renderEvents(data) {
     const events = Array.isArray(data?.events) ? data.events : [];
     const body = el('ops-species-event-list');
     if (body) {
-      body.innerHTML = events.length ? events.map((event) => {
+      body.innerHTML = events.length ? events.map((saved) => {
+        const now = Date.now();
+        const status = saved.status === 'stopped' ? 'stopped'
+          : now >= Date.parse(saved.endsAt) ? 'expired'
+          : now < Date.parse(saved.startsAt) ? 'scheduled' : 'active';
+        const event = { ...saved, status, displayStatus: status === 'expired' ? 'COMPLETED' : status.toUpperCase() };
         const stop = ['active', 'scheduled'].includes(event.status)
           ? '<button type="button" class="small-button" data-stop-event="' +
             escapeHtml(event.id) + '">Stop</button>' : '';
@@ -202,7 +261,7 @@
           ' VC/min</td><td>' +
           escapeHtml(formatDate(event.startsAt)) + ' – ' +
           escapeHtml(formatDate(event.endsAt)) + '</td><td>' +
-          escapeHtml(event.status) +
+          escapeHtml(event.displayStatus || (event.status === 'expired' ? 'COMPLETED' : String(event.status).toUpperCase())) +
           (event.autoAnnounce && pingLabels[event.pingMode] && event.pingMode !== 'none'
             ? ' · start ping: ' + escapeHtml(pingLabels[event.pingMode])
             : '') +
@@ -228,13 +287,13 @@
 
   function draftPayload() {
     const title = el('ops-species-event-title')?.value.trim() || '';
-    const durationMinutes = Number(el('ops-species-event-duration')?.value || 0);
-    const localStart = el('ops-species-event-start-at')?.value || '';
+    const schedule = scheduleValues();
+    const durationMinutes = schedule.durationMinutes;
     const speciesBonuses = selectedRates();
     if (!title || title.length > 90 || !speciesBonuses.length ||
-        speciesBonuses.length > 20 || !Number.isSafeInteger(durationMinutes) ||
-        durationMinutes < 5 || durationMinutes > 720) {
-      throw new Error('Choose 1–20 dinosaurs and a duration of 5–720 minutes.');
+        speciesBonuses.length > 21 || !Number.isSafeInteger(durationMinutes) ||
+        durationMinutes < 5 || durationMinutes > (schedule.scheduleMode === 'range' ? 43200 : 720)) {
+      throw new Error('Choose 1–21 dinosaurs and a valid duration (5–720 minutes, or up to 30 days for an exact schedule).');
     }
     if (new Set(speciesBonuses.map(rate => rate.species)).size !== speciesBonuses.length ||
         speciesBonuses.some(rate => !speciesNames.has(rate.species) ||
@@ -242,9 +301,7 @@
           rate.coinsPerMinute < 1 || rate.coinsPerMinute > 1000)) {
       throw new Error('Each selected dinosaur needs a unique 1–1,000 Valley Coins/min bonus.');
     }
-    if (localStart && !Number.isFinite(new Date(localStart).getTime())) {
-      throw new Error('Choose a valid local date and time.');
-    }
+
     const pingMode = effectivePing();
     if (!Object.hasOwn(pingLabels, pingMode)) {
       throw new Error('Select a valid Discord notification target.');
@@ -255,7 +312,7 @@
       species: speciesBonuses[0].species,
       coinsPerMinute: speciesBonuses[0].coinsPerMinute,
       speciesBonuses, durationMinutes,
-      startsAt: localStart ? new Date(localStart).toISOString() : null,
+      ...schedule,
       autoAnnounce: el('ops-species-event-auto-announce')?.checked !== false,
       pingMode,
     };
@@ -275,7 +332,9 @@
     };
     const copy = 'Start ONE event: ' + draft.title + '\n\n' +
       describeRates(draft.speciesBonuses) + '\nDuration: ' + draft.durationMinutes +
-      ' minutes.\nThis will end automatically and send ONE grouped start and finish announcement. ' +
+      ' minutes.' + (draft.startsAt ? '\nStart: ' + formatDate(draft.startsAt) : '\nStart: now') +
+      (draft.endsAt ? '\nEnd: ' + formatDate(draft.endsAt) : '') +
+      '\nThis will end automatically and send ONE grouped start and finish announcement. ' +
       (draft.pingMode === 'none' ? 'No mass ping will be sent.' :
         'The START announcement will ping ' + pingLabels[draft.pingMode] +
         ' once in #event-start-and-finish.') +
@@ -352,5 +411,6 @@
     const identity = await window.HDS.loadMe();
     if (identity?.loggedIn && identity.user?.is_admin) await refresh();
   }
+  setInterval(() => { if (state && !document.hidden) renderEvents(state); }, 15000);
   init().catch((error) => text('ops-species-event-message', error.message || 'Failed to initialize events.'));
 })();

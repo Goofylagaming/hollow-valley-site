@@ -254,3 +254,91 @@ test('Admin Hub supports adding, removing and editing individual dinosaur bonus 
   assert.match(publicScript, /event\.speciesBonuses/);
   assert.match(publicScript, /bonuses\.map/);
 });
+
+
+test('admin forwards exact Queensland range and includes Kentrosaurus', async (t) => {
+  const originalCreate = automation.createAdminSpeciesCoinEvent;
+  const originalList = automation.getAdminSpeciesCoinEvents;
+  let received;
+  automation.createAdminSpeciesCoinEvent = async payload => { received = payload; return { event: payload }; };
+  automation.getAdminSpeciesCoinEvents = async () => ({ enabled: true, events: [] });
+  t.after(() => { automation.createAdminSpeciesCoinEvent = originalCreate; automation.getAdminSpeciesCoinEvents = originalList; });
+  const server = await serve({ is_admin: 1, steam_id: '76561198038977506' });
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const url = base(server) + '/api/admin-operations/species-coin-events';
+  const listed = await (await fetch(url)).json();
+  assert.ok(listed.species.some(item => item.id === 'kentrosaurus'));
+  const input = { title: 'Weekend', species: 'kentrosaurus', coinsPerMinute: 50,
+    requestId: '516e0f32-d0d5-4b53-bdab-32fdf208ff3d', scheduleMode: 'range', timezone: 'Australia/Brisbane',
+    startsAt: '2026-11-06T09:00:00.000Z', endsAt: '2026-11-08T13:59:00.000Z' };
+  const post = body => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  assert.equal((await post(input)).status, 201);
+  assert.equal(received.endsAt, input.endsAt);
+  assert.equal(received.timezone, input.timezone);
+  assert.equal(received.speciesBonuses[0].species, 'kentrosaurus');
+  assert.equal((await post({ ...input, endsAt: input.startsAt })).status, 400);
+  assert.equal((await post({ ...input, timezone: 'Australia/Sydney' })).status, 400);
+});
+
+test('browser schedule conversion is Queensland-specific and calculates the weekend duration', () => {
+  const vm = require('node:vm');
+  const js = fs.readFileSync(path.join(__dirname, '../public/assets/species-events-admin.js'), 'utf8');
+  const fn = js.slice(js.indexOf('  function scheduleValues()'), js.indexOf('  function preview()'));
+  const values = { 'ops-species-event-mode': 'range', 'ops-species-event-start-at': '2026-11-06T19:00',
+    'ops-species-event-end-at': '2026-11-08T23:59', 'ops-species-event-duration': '60' };
+  const run = () => vm.runInNewContext(fn + ';scheduleValues()', { el: id => ({ value: values[id] }) });
+  const result = run();
+  assert.equal(result.startsAt, '2026-11-06T09:00:00.000Z');
+  assert.equal(result.endsAt, '2026-11-08T13:59:00.000Z');
+  assert.equal(result.durationMinutes, 3179);
+  values['ops-species-event-start-at'] = '2026-02-30T19:00';
+  assert.throws(run, /valid Queensland/);
+  values['ops-species-event-mode'] = 'duration';
+  values['ops-species-event-start-at'] = '';
+  assert.equal(run().startsAt, null);
+  assert.equal(run().durationMinutes, 60);
+});
+
+
+test('browser submits the computed range payload and retains duration mode', () => {
+  const vm = require('node:vm');
+  const js = fs.readFileSync(path.join(__dirname, '../public/assets/species-events-admin.js'), 'utf8');
+  const schedule = js.slice(js.indexOf('  function scheduleValues()'), js.indexOf('  function preview()'));
+  const draft = js.slice(js.indexOf('  function draftPayload()'), js.indexOf("  el('ops-species-event-form')"));
+  const values = { 'ops-species-event-title': 'Weekend', 'ops-species-event-mode': 'range',
+    'ops-species-event-start-at': '2026-11-06T19:00', 'ops-species-event-end-at': '2026-11-08T23:59',
+    'ops-species-event-duration': '60' };
+  const run = () => vm.runInNewContext(schedule + draft + ';draftPayload()', {
+    el: id => ({ value: values[id], checked: true }),
+    selectedRates: () => [{ species: 'kentrosaurus', coinsPerMinute: 50 }],
+    speciesNames: new Map([['kentrosaurus', 'Kentrosaurus']]),
+    effectivePing: () => 'none', pingLabels: { none: 'No ping' },
+  });
+  const range = run();
+  assert.equal(range.durationMinutes, 3179);
+  assert.equal(range.endsAt, '2026-11-08T13:59:00.000Z');
+  assert.equal(range.timezone, 'Australia/Brisbane');
+  values['ops-species-event-mode'] = 'duration';
+  values['ops-species-event-start-at'] = '';
+  const duration = run();
+  assert.equal(duration.durationMinutes, 60);
+  assert.equal(duration.startsAt, null);
+  assert.equal(duration.endsAt, undefined);
+});
+
+
+test('add all dinosaurs includes Kentrosaurus, preserves edited rates and rejects invalid rates', () => {
+  const vm = require('node:vm');
+  const js = fs.readFileSync(path.join(__dirname, '../public/assets/species-events-admin.js'), 'utf8');
+  const handler = js.slice(js.indexOf("  el('ops-species-event-add-all')"), js.indexOf('  const pingLabels'));
+  const selectedBonuses = new Map([['omniraptor', 75]]);
+  const speciesNames = new Map([['omniraptor', 'Omniraptor'], ['kentrosaurus', 'Kentrosaurus']]);
+  let click; let coins = 50;
+  vm.runInNewContext(handler, { el: id => id.endsWith('add-all') ? { addEventListener: (_event, fn) => { click = fn; } } : { value: coins },
+    selectedBonuses, speciesNames, renderSelected() {}, preview() {}, text() {} });
+  click();
+  assert.equal(selectedBonuses.get('omniraptor'), 75);
+  assert.equal(selectedBonuses.get('kentrosaurus'), 50);
+  selectedBonuses.delete('kentrosaurus'); coins = 0; click();
+  assert.equal(selectedBonuses.has('kentrosaurus'), false);
+});

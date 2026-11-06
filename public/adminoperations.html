@@ -201,6 +201,9 @@
                 <label for="ops-species-event-coins">Bonus VC/min to add</label>
                 <input id="ops-species-event-coins" inputmode="numeric" type="number" min="1" max="1000" value="50" style="width:100px;padding:10px;background:#0f172a;color:#fff;border:1px solid #334155">
                 <button type="button" class="small-button" id="ops-species-event-add">+ Add dinosaur</button>
+                <button type="button" class="small-button" id="ops-species-event-add-all">Add all dinosaurs on list</button>
+                <label for="ops-species-event-mode">Schedule</label>
+                <select id="ops-species-event-mode"><option value="duration">Duration (minutes)</option><option value="range">Exact start and end (QLD)</option></select>
                 <label for="ops-species-event-duration">Duration (minutes)</label>
                 <input id="ops-species-event-duration" inputmode="numeric" type="number" min="5" max="720" value="60" required style="width:100px;padding:10px;background:#0f172a;color:#fff;border:1px solid #334155">
               </div>
@@ -212,9 +215,12 @@
                 </table>
               </div>
               <div class="page-toolbar ops-toolbar">
-                <label for="ops-species-event-start-at">Optional scheduled start (your local time)</label>
+                <label for="ops-species-event-start-at">Start date and time (QLD — Australia/Brisbane)</label>
                 <input id="ops-species-event-start-at" type="datetime-local" aria-label="Event start date and time" style="padding:10px;background:#0f172a;color:#fff;border:1px solid #334155">
-                <small>Leave blank to start now. Server presence must remain healthy for rewards.</small>
+                <label id="ops-species-event-end-label" for="ops-species-event-end-at" hidden>End date and time (QLD)</label>
+                <input id="ops-species-event-end-at" type="datetime-local" hidden disabled>
+                <output id="ops-species-event-calculated-duration" aria-live="polite"></output>
+                <small>Queensland — AEST (UTC+10), Australia/Brisbane. In duration mode, leave start blank to start now. Exact schedules: 5 minutes to 30 days. Server presence must remain healthy for rewards.</small>
                 <label><input id="ops-species-event-auto-announce" type="checkbox" checked> Automatically announce start and finish in the dedicated #event-start-and-finish Discord channel</label>
                 <label for="ops-species-event-ping">Notify members on event START</label>
                 <select id="ops-species-event-ping" aria-label="Random Event Discord mention target" style="padding:10px;background:#0f172a;color:#fff;border:1px solid #334155">
@@ -292,7 +298,7 @@
   </div>
   <script src="/assets/common.js?v=21"></script>
   <script src="/assets/adminoperations.js?v=14"></script>
-  <script src="/assets/species-events-admin.js?v=2"></script>
+  <script src="/assets/species-events-admin.js?v=4"></script>
   <script src="/assets/omniraptor-growth-validation.js?v=1"></script>
   <script src="/assets/achievement-review.js?v=1"></script>
 </body>
