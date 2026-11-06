@@ -1,3 +1,4 @@
+const closeFixtureDatabases = require("../test-support/closeFixtureDatabases");
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -33,6 +34,7 @@ test('approved quest boosts are application defaults when env overrides are abse
       if (previous[name] === undefined) delete process.env[name];
       else process.env[name] = previous[name];
     }
+    closeFixtureDatabases(dir);
     fs.rmSync(dir, { recursive: true, force: true });
   });
 

@@ -1,3 +1,4 @@
+const closeFixtureDatabases = require("../test-support/closeFixtureDatabases");
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
@@ -35,6 +36,7 @@ test("daily login reward receives the active supporter multiplier", async (t) =>
       if (value === undefined) delete process.env[name];
       else process.env[name] = value;
     }
+    closeFixtureDatabases(dir);
     fs.rmSync(dir, { recursive: true, force: true });
   });
 

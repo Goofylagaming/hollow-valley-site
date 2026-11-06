@@ -70,7 +70,7 @@ function backupDatabase({source,destination}) {
       // serves requests concurrently; no strict equality assertion here.
       if(copy.counts[table]<0)throw new Error("Invalid copied table row count");
     }
-    const fd=fs.openSync(tmp,"r");
+    const fd=fs.openSync(tmp,"r+");
     try{fs.fsyncSync(fd);}finally{fs.closeSync(fd);}
     fs.chmodSync(tmp,0o600);
     fs.renameSync(tmp,resolvedDestination);

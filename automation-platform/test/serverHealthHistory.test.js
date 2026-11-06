@@ -1,3 +1,4 @@
+const closeFixtureDatabases = require("../test-support/closeFixtureDatabases");
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -22,6 +23,7 @@ function loadHistory(enabled = true) {
       else process.env.AUTOMATION_DB_PATH = previousDb;
       if (previousEnabled === undefined) delete process.env.SERVER_HEALTH_HISTORY_ENABLED;
       else process.env.SERVER_HEALTH_HISTORY_ENABLED = previousEnabled;
+      closeFixtureDatabases(dir);
       fs.rmSync(dir, { recursive: true, force: true });
     },
   };

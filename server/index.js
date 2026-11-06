@@ -274,6 +274,8 @@ function createApp() {
   app.use("/api/skins", skinShareCodeRedaction);
   app.use("/api/skins", skinsRouter);
   app.use("/api/supporter", require("./routes/membershipRewards"));
+  app.use("/api/membership-growth", require("./routes/membershipGrowth"));
+  app.use("/api/community-recognition", require("./routes/membershipRecognition"));
   app.use("/api/subscriber-community", require("./routes/subscriberCommunity"));
   const subscriberFundingRouters = createSubscriberFundingRouters();
   app.use("/api/supporter/progress", subscriberFundingRouters.publicRouter);

@@ -21,6 +21,8 @@ function loadRewards() {
   const rewardsPath = require.resolve('../src/services/playtimeRewardsService');
   delete require.cache[storePath];
   delete require.cache[rewardsPath];
+  delete require.cache[require.resolve("../src/services/questBoostService")];
+  delete require.cache[require.resolve("../src/services/supporterBonusService")];
   const store = require(storePath);
   const rewards = require(rewardsPath);
 
@@ -34,6 +36,7 @@ function loadRewards() {
       if (previous.enabled === undefined) delete process.env.WALLET_PLAYTIME_REWARDS_ENABLED; else process.env.WALLET_PLAYTIME_REWARDS_ENABLED = previous.enabled;
       if (previous.coins === undefined) delete process.env.WALLET_PLAYTIME_COINS_PER_5_MINUTES; else process.env.WALLET_PLAYTIME_COINS_PER_5_MINUTES = previous.coins;
       if (previous.gap === undefined) delete process.env.WALLET_PLAYTIME_MAX_SAMPLE_GAP_SECONDS; else process.env.WALLET_PLAYTIME_MAX_SAMPLE_GAP_SECONDS = previous.gap;
+      store.db.close();
       fs.rmSync(dir, { recursive: true, force: true });
     },
   };

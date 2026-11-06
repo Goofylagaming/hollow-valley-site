@@ -20,12 +20,19 @@ byId("start").onclick=async()=>{
     byId("status").textContent=round.preview||round.prompt;
     if(round.preview||round.game==="reaction") await new Promise(resolve=>setTimeout(resolve,Math.max(0,round.opens-Date.now())));
     byId("status").textContent=round.game==="reaction"?"Green!":round.prompt;
+    const selected=[];
     for(const choice of round.choices){
       const button=document.createElement("button");button.textContent=choice;
       button.onclick=async()=>{
+        let answer=choice;
+        if(round.game==="memory-match"){
+          selected.push(choice);button.disabled=true;
+          if(selected.length<2)return;
+          answer=selected.sort().join(",");
+        }
         area.replaceChildren();
         try{
-          const result=await api("answer",{id:round.id,choice});
+          const result=await api("answer",{id:round.id,choice:answer});
           byId("status").textContent=result.score+" points · "+result.payout+" Valley Coins";await scores();
         }catch(e){showError(e);}finally{byId("start").disabled=false;}
       };area.append(button);

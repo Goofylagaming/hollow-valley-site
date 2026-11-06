@@ -16,7 +16,19 @@ el("deliver").addEventListener("click", run(async () => { const p = await api("/
 async function load() {
   const state = await api("/admin"); el("admin").hidden = false; el("delivery").textContent = JSON.stringify(state.posts, null, 2); el("suggestions").replaceChildren();
   for (const item of state.suggestions) { const row = document.createElement("article"); const text = document.createElement("p"); text.textContent = `${item.text} (${item.status})`; row.append(text);
-    for (const status of ["shortlisted", "closed"]) { const button = document.createElement("button"); button.textContent = status === "shortlisted" ? "Shortlist" : "Close"; button.addEventListener("click", run(async () => { await api(`/admin/suggestions/${item.id}`, { status }); await load(); })); row.append(button); } el("suggestions").append(row);
+    const transitions={submitted:["shortlisted","declined"],shortlisted:["voting","declined"],voting:["selected","declined"],selected:["planned","declined"],planned:["released","declined"]};
+    const choices=state.participation?(transitions[item.status]||[]):["shortlisted","closed"];
+    const option=document.createElement("input");
+    if(state.participation && item.status==="shortlisted"){option.type="number";option.placeholder="Website ballot option ID";row.append(option);}
+    for(const status of choices){
+      const button=document.createElement("button");button.textContent=status;
+      button.addEventListener("click",run(async()=>{
+        if(state.participation) await api("/admin/suggestions/"+item.id+"/review",{stage:status,optionId:Number(option.value)||null});
+        else await api("/admin/suggestions/"+item.id,{status});
+        await load();
+      }));row.append(button);
+    }
+    el("suggestions").append(row);
   }
 }
 load().catch(() => { /* Member suggestion form remains available. */ });

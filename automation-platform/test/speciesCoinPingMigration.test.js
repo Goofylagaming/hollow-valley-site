@@ -1,3 +1,4 @@
+const closeFixtureDatabases = require("../test-support/closeFixtureDatabases");
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { DatabaseSync } = require('node:sqlite');
@@ -43,6 +44,7 @@ test('old active Random Events migrate with NO ping and preserve all stored sett
     else process.env.AUTOMATION_DB_PATH = originalPath;
     if (originalGate === undefined) delete process.env.SPECIES_COIN_EVENTS_ENABLED;
     else process.env.SPECIES_COIN_EVENTS_ENABLED = originalGate;
+    closeFixtureDatabases(directory);
     fs.rmSync(directory, { recursive: true, force: true });
   });
 

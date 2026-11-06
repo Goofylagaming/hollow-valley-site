@@ -19,6 +19,7 @@ function loadEconomy() {
       delete require.cache[storePath];
       if (previous === undefined) delete process.env.AUTOMATION_DB_PATH;
       else process.env.AUTOMATION_DB_PATH = previous;
+      store.db.close();
       fs.rmSync(dir, { recursive: true, force: true });
     },
   };

@@ -59,6 +59,7 @@ function loadQuests() {
         if (value === undefined) delete process.env[envName];
         else process.env[envName] = value;
       }
+      store.db.close();
       fs.rmSync(dir, { recursive: true, force: true });
     },
   };

@@ -20,7 +20,13 @@ async function respond(res,action,successStatus=200) {
   try {return res.status(successStatus).json(await action());}
   catch(error) {return res.status(Number.isInteger(error.status)?error.status:502).json({error:error.message||'Premium skins are temporarily unavailable.',code:error.code||null});}
 }
-router.get('/',(req,res)=>respond(res,()=>client.listCatalog(req.user?.steam_id||null)));
+router.get('/',(req,res)=>respond(res,async()=>{
+  const catalog=await client.listCatalog(req.user?.steam_id||null);
+  if(process.env.COMMUNITY_PARTICIPATION_ENABLED!=="1" || !Array.isArray(catalog?.skins))return catalog;
+  const {skins}=require("../services/communityParticipation").publicCommunity();
+  const credited=new Map(skins.map(s=>[s.skinId,s.credit]));
+  return {...catalog,skins:catalog.skins.map(skin=>credited.has(skin.id)?{...skin,communityCredit:credited.get(skin.id)}:skin)};
+}));
 router.get('/admin',requireAdmin,actor,(req,res)=>respond(res,()=>client.listAdmin(req.user.steam_id)));
 router.post('/admin/seed-drafts',requireAdmin,actor,(req,res)=>respond(res,()=>client.seedDrafts(req.user.steam_id),201));
 router.post('/admin/drafts',requireAdmin,actor,(req,res)=>respond(res,()=>client.draftFromPreset({actorSteamId:req.user.steam_id,presetId:req.body?.presetId,collection:req.body?.collection}),201));

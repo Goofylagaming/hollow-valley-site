@@ -12,12 +12,14 @@ test('one invalid log entry does not block later chat', async () => {
   const previous = {
     path: process.env.CHAT_LOG_PATH,
     url: process.env.CHAT_FEED_URL,
+    combatUrl: process.env.COMBAT_FEED_URL,
     token: process.env.PRESENCE_FEED_TOKEN,
     fetch: global.fetch,
     error: console.error,
   };
   process.env.CHAT_LOG_PATH = file;
   process.env.CHAT_FEED_URL = 'https://automation.example/api/chat-feed/messages';
+  process.env.COMBAT_FEED_URL = 'https://automation.example/api/combat/events';
   process.env.PRESENCE_FEED_TOKEN = 'test-token';
   const attempts = [];
   global.fetch = async (_url, options) => {
@@ -37,7 +39,7 @@ test('one invalid log entry does not block later chat', async () => {
   } finally {
     global.fetch = previous.fetch;
     console.error = previous.error;
-    for (const [key, value] of Object.entries({ CHAT_LOG_PATH: previous.path, CHAT_FEED_URL: previous.url, PRESENCE_FEED_TOKEN: previous.token })) {
+    for (const [key, value] of Object.entries({ CHAT_LOG_PATH: previous.path, CHAT_FEED_URL: previous.url, COMBAT_FEED_URL: previous.combatUrl, PRESENCE_FEED_TOKEN: previous.token })) {
       if (value === undefined) delete process.env[key]; else process.env[key] = value;
     }
     fs.rmSync(dir, { recursive: true, force: true });

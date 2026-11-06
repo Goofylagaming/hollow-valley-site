@@ -1,0 +1,11 @@
+# Membership expansion rollout
+
+The Collection Book and Passport are on My Membership. Daily Rewards uses an explicit website claim. With the new mode active on the wallet, the old automatic payout cannot award coins. A same-day legacy receipt satisfies that day. The new seven-day cycle starts on the next eligible claim. Brisbane midnight opens each new day. Missing one day consumes the cycle's grace, a further miss starts day one, and completing day seven renews grace. Daily payouts use only the 10%, 20%, or 30% tier bonus.
+
+Enable the Collection Book with MEMBERSHIP_COLLECTION_ENABLED. Enable DAILY_LOGIN_REWARDS_ENABLED on the wallet and website together after staging. Use identical wallet identity and ledger configuration across both modes. Daily diagnostics are a read-only admin GET at /api/supporter/rewards/daily/admin/:userId. SUBSCRIBER_COMMUNITY_MODE should remain dry-run until the operator has verified existing guild permissions. Website votes are authoritative.
+
+The community, recognition and growth switches are COMMUNITY_PARTICIPATION_ENABLED, MEMBERSHIP_RECOGNITION_ENABLED and MEMBERSHIP_GROWTH_ENABLED. Founding awards require a deliberately configured FOUNDING_SUBSCRIBER_CUTOFF. Referrals require a separate opt-in flag, MEMBERSHIP_REFERRALS_ENABLED. Gift intents have no checkout. Temporary passes enable early access to approved previews and never populate the paid invoice ledger. Cosmetic token redemption uses the existing skin delivery receipt, with a reservation held through an ambiguous response.
+
+Valley Arcade requires VALLEY_ARCADE_ENABLED=1 on both services and an explicit enable in Admin → Valley Arcade. The default per-account cap is 250,000 VC per Brisbane day. NULL means Unlimited. Emergency disable stops settlements. Games have no wager amount, stake, redemption, negative payout, or cash-out route. VALLEY_CASINO_WAGERING_ENABLED must stay 0. Paid subscriptions already award Valley Coins, so there is a real-money-linked source of coins. Reward-only play does not spend these coins.
+
+Staging uses separate ephemeral databases, synthetic member and moderator identities for route tests, and offline Discord reconciliation. The public staging website has normal authentication. Production flags, live billing products and Discord write settings are separate operator decisions.

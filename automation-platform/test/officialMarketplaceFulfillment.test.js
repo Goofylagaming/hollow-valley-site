@@ -1,3 +1,4 @@
+const closeFixtureDatabases = require("../test-support/closeFixtureDatabases");
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -82,6 +83,8 @@ function loadFixture({ createError = null, existingState = null } = {}) {
       else process.env.MARKETPLACE_WRITE_ENABLED = previous.writes;
       if (previous.fulfillment === undefined) delete process.env.OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED;
       else process.env.OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED = previous.fulfillment;
+      store.db.close();
+      closeFixtureDatabases(dir);
       fs.rmSync(dir, { recursive: true, force: true });
     },
   };
@@ -335,6 +338,8 @@ function loadBridgeFixture() {
         if (value === undefined) delete process.env[envKey];
         else process.env[envKey] = value;
       }
+      store.db.close();
+      closeFixtureDatabases(dir);
       fs.rmSync(dir, { recursive: true, force: true });
     },
   };
