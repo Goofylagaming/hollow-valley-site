@@ -6,6 +6,8 @@ COPY package.json package-lock.json* ./
 RUN npm install --omit=dev
 
 COPY server ./server
+# Shared event request validation used by the website and automation service.
+COPY automation-platform/src/services/eventSchedule.js ./automation-platform/src/services/eventSchedule.js
 COPY public ./public
 COPY landing ./landing
 COPY mydinos ./mydinos

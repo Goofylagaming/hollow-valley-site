@@ -429,3 +429,47 @@ test('group expiry and authoritative disconnect protect all selected species', (
   assert.equal(events.processSnapshot(players, { nowMs: T0 + 600_000 }).coins, 0);
   assert.equal(wallet.getWallet(player).balance, 400);
 });
+
+
+test('QLD weekend schedule persists, transitions at boundaries and pays Kentrosaurus only inside the window', () => {
+  reset();
+  const start = Date.parse('2026-11-06T09:00:00.000Z');
+  const end = Date.parse('2026-11-08T13:59:00.000Z');
+  const payload = { requestId: randomUUID(), scheduleMode: 'range', timezone: 'Australia/Brisbane',
+    startsAt: new Date(start).toISOString(), endsAt: new Date(end).toISOString(), species: 'kentrosaurus' };
+  const created = create(payload, start - 60000);
+  assert.equal(created.event.durationMinutes, 3179);
+  assert.equal(created.event.displayStatus, 'SCHEDULED');
+  assert.equal(created.event.timezone, 'Australia/Brisbane');
+  const row = wallet.db.prepare('SELECT * FROM species_coin_events WHERE id = ?').get(created.event.id);
+  assert.equal(row.starts_at_ms, start);
+  assert.equal(row.ends_at_ms, end);
+  assert.equal(row.schedule_mode, 'range');
+  assert.equal(events.listEvents({ nowMs: start }).events[0].displayStatus, 'ACTIVE');
+  assert.equal(snapshot(start - 1, 'Kentrosaurus').coins, 0);
+  snapshot(start, 'Kentrosaurus');
+  assert.equal(snapshot(start + 60000, 'Kentro').coins, 50);
+  assert.equal(snapshot(end, 'Kentrosaurus').coins, 0);
+  delete require.cache[require.resolve('../src/services/speciesCoinEventService')];
+  const restarted = require('../src/services/speciesCoinEventService');
+  assert.equal(restarted.listEvents({ nowMs: start }).events[0].displayStatus, 'ACTIVE');
+  assert.equal(restarted.listEvents({ nowMs: end }).events[0].displayStatus, 'COMPLETED');
+  assert.equal(create(payload, end + 60000).duplicate, true);
+  assert.throws(() => create({ ...payload, endsAt: new Date(end + 60000).toISOString() }, end), /different event settings/);
+});
+
+test('exact schedules reject ambiguous dates, invalid windows and wrong timezones', () => {
+  reset();
+  const good = { scheduleMode: 'range', timezone: 'Australia/Brisbane',
+    startsAt: new Date(T0).toISOString(), endsAt: new Date(T0 + 3179 * 60000).toISOString() };
+  for (const change of [
+    { endsAt: null }, { startsAt: '2026-11-01T19:00' },
+    { endsAt: good.startsAt }, { endsAt: new Date(T0 - 60000).toISOString() },
+    { timezone: 'Australia/Sydney' }, { scheduleMode: 'unknown' },
+    { startsAt: '2026-02-30T09:00:00.000Z' },
+    { endsAt: new Date(T0 + 31 * 86400000).toISOString() },
+  ]) assert.throws(() => create({ ...good, ...change }));
+  assert.throws(() => create({ durationMinutes: 3179 }), /duration/);
+  assert.throws(() => create({ endsAt: good.endsAt }), /range/);
+  assert.equal(create().event.scheduleMode, 'duration');
+});

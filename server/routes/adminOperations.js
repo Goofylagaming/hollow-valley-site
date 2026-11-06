@@ -6,6 +6,13 @@ const { db } = require("../db");
 const playableSpecies = require("../data/species.json").filter((item) => item.releasedInEvrima !== false);
 const speciesIndex = new Map(playableSpecies.map((item) => [String(item.id), item]));
 
+const { validateSchedule } = require('../../automation-platform/src/services/eventSchedule');
+// Keep event eligibility separate from shop/storage eligibility.
+if (!speciesIndex.has('kentrosaurus')) {
+  const kentro = { id: 'kentrosaurus', name: 'Kentrosaurus' };
+  playableSpecies.push(kentro);
+  speciesIndex.set(kentro.id, kentro);
+}
 const router = express.Router();
 
 function mapAutomationError(error, fallback) {
@@ -376,8 +383,8 @@ router.post("/species-coin-events", async (req, res) => {
   const inputBonuses = input.speciesBonuses == null
     ? [{ species: input.species, coinsPerMinute: input.coinsPerMinute }]
     : input.speciesBonuses;
-  if (!Array.isArray(inputBonuses) || inputBonuses.length < 1 || inputBonuses.length > 20) {
-    return res.status(400).json({ error: "Choose 1–20 playable dinosaurs for this event." });
+  if (!Array.isArray(inputBonuses) || inputBonuses.length < 1 || inputBonuses.length > 21) {
+    return res.status(400).json({ error: "Choose 1–21 playable dinosaurs for this event." });
   }
   const seen = new Set();
   const speciesBonuses = [];
@@ -398,8 +405,8 @@ router.post("/species-coin-events", async (req, res) => {
     speciesBonuses.push({ species: species.id, coinsPerMinute: coins });
   }
   speciesBonuses.sort((a, b) => a.species.localeCompare(b.species));
-  if (!Number.isSafeInteger(input.durationMinutes) || input.durationMinutes < 5 || input.durationMinutes > 720) {
-    return res.status(400).json({ error: "Duration must be 5–720 minutes." });
+  try { validateSchedule(input); } catch (error) {
+    return res.status(400).json({ error: error.message });
   }
   if (input.growthMultiplier !== undefined && input.growthMultiplier !== null) {
     return res.status(400).json({ error: "Species-specific growth is not available until a game-side override is verified." });
@@ -425,6 +432,9 @@ router.post("/species-coin-events", async (req, res) => {
       coinsPerMinute: speciesBonuses[0].coinsPerMinute,
       speciesBonuses,
       durationMinutes: input.durationMinutes,
+      scheduleMode: input.scheduleMode,
+      endsAt: input.endsAt,
+      timezone: input.timezone,
       startsAt: input.startsAt || undefined,
       requestId: input.requestId,
       autoAnnounce: input.autoAnnounce !== false,

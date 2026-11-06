@@ -53,6 +53,10 @@ test('old active Random Events migrate with NO ping and preserve all stored sett
   assert.ok(fields.some(field => field.name === 'announce_route'));
   assert.ok(fields.some(field => field.name === 'species_bonuses_json'), 'additive multi-species field exists');
   const current = events.listEvents({ nowMs: start + 1000 }).events[0];
+  assert.equal(current.scheduleMode, 'duration');
+  assert.equal(current.timezone, null);
+  assert.equal(current.startsAt, new Date(start).toISOString());
+  assert.equal(current.endsAt, new Date(end).toISOString());
   assert.equal(current.id, id);
   assert.equal(current.title, 'PT Test');
   assert.equal(current.coinsPerMinute, 300);

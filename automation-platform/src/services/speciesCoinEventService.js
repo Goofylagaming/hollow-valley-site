@@ -3,19 +3,20 @@ const economy = require('./economyStore');
 const outbox = require('./herbyBotOutboxService');
 const { formatEventTimeQld } = require('./eventTimeFormatter');
 
+const { TIMEZONE, validateSchedule } = require('./eventSchedule');
 const db = economy.db;
 const MINUTE_MS = 60_000;
 const MAX_SAMPLE_GAP_MS = 90_000;
 const MAX_COINS_PER_MINUTE = 1_000;
 const MAX_DURATION_MINUTES = 12 * 60;
-const MAX_EVENT_SPECIES = 20;
+const MAX_EVENT_SPECIES = 21;
 const PING_MODES = Object.freeze(['none', 'community', 'everyone']);
 const ALLOWED_SPECIES = new Set([
   'tyrannosaurus', 'allosaurus', 'carnotaurus', 'ceratosaurus',
   'deinosuchus', 'dilophosaurus', 'herrerasaurus', 'omniraptor',
   'troodon', 'pteranodon', 'diabloceratops', 'dryosaurus',
   'tenontosaurus', 'maiasaura', 'pachycephalosaurus', 'stegosaurus',
-  'triceratops', 'gallimimus', 'hypsilophodon', 'beipiaosaurus',
+  'triceratops', 'gallimimus', 'hypsilophodon', 'beipiaosaurus', 'kentrosaurus',
 ]);
 
 db.exec(
@@ -56,6 +57,12 @@ if (!db.prepare('PRAGMA table_info(species_coin_events)').all()
   db.exec("ALTER TABLE species_coin_events ADD COLUMN announce_route TEXT NOT NULL DEFAULT 'legacy'");
 }
 
+// Additive metadata only; preserve historical timestamps and reward progress.
+for (const [name, definition] of [['schedule_mode', "TEXT NOT NULL DEFAULT 'duration'"], ['timezone', 'TEXT']]) {
+  if (!db.prepare('PRAGMA table_info(species_coin_events)').all().some(column => column.name === name))
+    db.exec('ALTER TABLE species_coin_events ADD COLUMN ' + name + ' ' + definition);
+}
+
 function enabled() {
   return process.env.SPECIES_COIN_EVENTS_ENABLED === 'true';
 }
@@ -68,6 +75,7 @@ function eventError(message, code = 'SPECIES_EVENT_INVALID') {
 
 function canonicalSpecies(value) {
   const species = String(value || '').trim().toLowerCase().replace(/[^a-z]/g, '');
+  if (species === 'kentro') return 'kentrosaurus';
   return ALLOWED_SPECIES.has(species) ? species : null;
 }
 
@@ -145,6 +153,9 @@ function view(row, nowMs = Date.now()) {
     announceRoute: row.announce_route === 'event-announcement' ? 'event-announcement' : 'legacy',
     startsAt: new Date(Number(row.starts_at_ms)).toISOString(),
     endsAt: new Date(Number(row.ends_at_ms)).toISOString(),
+    scheduleMode: row.schedule_mode || 'duration', timezone: row.timezone || null,
+    durationMinutes: (Number(row.ends_at_ms) - Number(row.starts_at_ms)) / MINUTE_MS,
+    displayStatus: statusFor(row, nowMs) === 'expired' ? 'COMPLETED' : statusFor(row, nowMs).toUpperCase(),
     status: statusFor(row, nowMs), createdBy: row.created_by,
     autoAnnounce: Number(row.auto_announce) === 1,
     pingMode: PING_MODES.includes(row.ping_mode) ? row.ping_mode : 'none',
@@ -176,10 +187,9 @@ function validateEvent(input, nowMs) {
   if (!title || title.length > 90 || /[\x00-\x1f]/.test(title)) eventError('Event title must be 1–90 characters');
   const bonuses = validateSpeciesBonuses(input);
   const { species, coinsPerMinute: coins } = bonuses[0];
-  const duration = input.durationMinutes;
-  if (!Number.isSafeInteger(duration) || duration < 5 || duration > MAX_DURATION_MINUTES) {
-    eventError('Event duration must be 5–720 minutes');
-  }
+  let schedule;
+  try { schedule = validateSchedule(input); } catch (error) { eventError(error.message); }
+  const duration = schedule.duration;
   const start = input.startsAt == null ? nowMs : Date.parse(String(input.startsAt));
   if (!Number.isFinite(start) || start < nowMs - 30_000 || start > nowMs + 30 * 86_400_000) {
     eventError('Start time must be now or within the next 30 days');
@@ -199,6 +209,7 @@ function validateEvent(input, nowMs) {
     eventError('Random Event pings require automatic announcements to be enabled');
   }
   return { requestId, title, species, coins, bonuses,
+    scheduleMode: schedule.mode, timezone: schedule.mode === 'range' ? TIMEZONE : null,
     start, end: start + duration * MINUTE_MS, actorSteamId, autoAnnounce, pingMode };
 }
 
@@ -218,6 +229,7 @@ function createEvent(input, { nowMs = Date.now() } = {}) {
           Number(existing.ends_at_ms) !== p.end || existing.created_by !== p.actorSteamId ||
           Number(existing.auto_announce) !== (p.autoAnnounce ? 1 : 0) ||
           existing.ping_mode !== p.pingMode ||
+          existing.schedule_mode !== p.scheduleMode || existing.timezone !== p.timezone ||
           !sameBonuses(rowBonuses(existing), p.bonuses)) {
         eventError('This request ID was already used for different event settings', 'SPECIES_EVENT_CONFLICT');
       }
@@ -241,11 +253,11 @@ function createEvent(input, { nowMs = Date.now() } = {}) {
     const id = randomUUID();
     db.prepare(
       'INSERT INTO species_coin_events ' +
-      '(id, request_id, title, species_key, coins_per_minute, starts_at_ms, ends_at_ms, created_by, auto_announce, ping_mode, announce_route, species_bonuses_json) ' +
-      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      '(id, request_id, title, species_key, coins_per_minute, starts_at_ms, ends_at_ms, created_by, auto_announce, ping_mode, announce_route, species_bonuses_json, schedule_mode, timezone) ' +
+      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     ).run(id, p.requestId, p.title, p.species, p.coins, p.start, p.end,
       p.actorSteamId, p.autoAnnounce ? 1 : 0, p.pingMode,
-      'event-announcement', JSON.stringify(p.bonuses));
+      'event-announcement', JSON.stringify(p.bonuses), p.scheduleMode, p.timezone);
     const row = db.prepare('SELECT * FROM species_coin_events WHERE id = ?').get(id);
     db.exec('COMMIT');
     return { duplicate: false, event: view(row, nowMs) };
