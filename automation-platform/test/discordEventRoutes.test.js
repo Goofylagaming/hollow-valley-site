@@ -1,3 +1,4 @@
+const closeFixtureDatabases = require("../test-support/closeFixtureDatabases");
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -41,6 +42,7 @@ test('HerbyBot event sync is token-protected and website reads the same cached s
       if (value === undefined) delete process.env[key];
       else process.env[key] = value;
     }
+    closeFixtureDatabases(dir);
     fs.rmSync(dir, { recursive: true, force: true });
     resolve();
   })));

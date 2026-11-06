@@ -1,3 +1,4 @@
+const closeFixtureDatabases = require("../test-support/closeFixtureDatabases");
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -55,6 +56,7 @@ function loadFixture() {
       if (previousEnabled === undefined) delete process.env.SKIN_SYSTEM_ENABLED;
       else process.env.SKIN_SYSTEM_ENABLED = previousEnabled;
       store.db.close();
+      closeFixtureDatabases(dir);
       fs.rmSync(dir, { recursive: true, force: true });
     },
   };
