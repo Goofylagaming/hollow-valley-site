@@ -25,6 +25,8 @@ db.exec(`
     ON automation_requests(kind, status, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_automation_requests_steam_kind
     ON automation_requests(steam_id, kind, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_automation_requests_updated
+    ON automation_requests(status, julianday(updated_at) DESC, id DESC);
 
   CREATE TABLE IF NOT EXISTS automation_jobs (
     id TEXT PRIMARY KEY,
@@ -56,6 +58,8 @@ db.exec(`
     ON automation_audit(created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_automation_audit_category_action
     ON automation_audit(category, action, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_automation_audit_updated
+    ON automation_audit(status, julianday(updated_at) DESC, id DESC);
 
   CREATE TABLE IF NOT EXISTS automation_state (
     key TEXT PRIMARY KEY,

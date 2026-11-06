@@ -29,6 +29,8 @@ db.exec(`
     ON combat_events(victim_steam_id, occurred_at DESC);
   CREATE INDEX IF NOT EXISTS idx_combat_events_semantic
     ON combat_events(occurred_at, victim_steam_id, killer_steam_id, source);
+  CREATE INDEX IF NOT EXISTS idx_combat_events_spectator_window
+    ON combat_events(source, julianday(occurred_at), killer_steam_id, victim_steam_id);
 
   CREATE TABLE IF NOT EXISTS combat_players (
     steam_id TEXT PRIMARY KEY,

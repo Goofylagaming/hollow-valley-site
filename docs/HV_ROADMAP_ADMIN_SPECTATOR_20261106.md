@@ -76,7 +76,38 @@ disabled capability remains disabled.
 
 Roadmap original feature wording/ID is preserved, with #27 Building / Testing.
 Its existing votes remain counted historically but no longer occupy active
-ballot slots. Eight ideas remain eligible. Homepage roadmap asset is v155.
+ballot slots. Eight ideas remain eligible. Homepage roadmap asset is v156.
+
+## Retained-history query plans
+
+Producer startup now installs five indexes for the existing spectator queries:
+status plus Julian update time for requests, audits and official orders; source
+plus Julian occurrence time for combat; and Julian checked time plus ID for health.
+The dashboard read still creates no schema and executes no writes. Julian-time
+expressions preserve the existing timestamp comparisons; replacing them with
+lexical string comparisons would change behavior for accepted SQLite date strings
+and offset-bearing combat/order records.
+
+A new isolated-process test loads the real producer schemas, inserts 22,000 old
+combat/health/audit/request rows plus recent boundary cases, and captures the
+actual dashboard SQL for EXPLAIN QUERY PLAN. Combat and failed-order reads use
+source/status and both date bounds; audit/request history uses the new range
+indexes; latest health uses its ordered index without a temporary sort. The test
+also checks exact recent results, excludes future and other-source combat records,
+and confirms reads succeed with SQLite query_only enabled and no data changes.
+All 56 spectator workflow tests and five combat-ingestion tests pass locally for
+this follow-up. The workflow now includes the query-plan test, producer-schema
+change triggers and full Git history for its production-baseline comparisons.
+This replaces a plan that searched all non-null combat attackers before filtering
+source/time and plans that could sort retained health history.
+
+These are query-plan and correctness checks, not a production capacity benchmark.
+Grouping distinct combat times and combining recent errors still require temporary
+work proportional to matching records in the requested window. Counts are not
+silently capped. Index creation consumes disk and startup time, and subsequent
+producer writes maintain these indexes. Existing-database migration time, space,
+write overhead, real retained volume and worst-case 24-hour density need staging
+measurement before deployment. No production migration has been run.
 
 ## Verification and outstanding delivery
 
