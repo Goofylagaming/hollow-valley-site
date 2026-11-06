@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Territory season plans | Hollow Valley</title>
+<link rel="stylesheet" href="/assets/styles.css?v=38"><link rel="stylesheet" href="/assets/ui-v2.css?v=3"><link rel="stylesheet" href="/assets/snapshot-ui.css?v=4"><link rel="stylesheet" href="/assets/admin-seasons.css?v=1"></head>
+<body data-suppress-daily-claim="true"><div class="app-shell"><div id="nav-slot"></div><main class="season-plans">
+<h1>Territory season plans</h1><p>Staff planning only. Saving these dates does not start a season, reset control or award a champion.</p>
+<button id="season-access" type="button">Refresh staff access</button><p id="season-status" role="status" aria-live="polite">Checking staff access…</p>
+<section id="season-account" hidden><p id="season-mode"></p><h2>Saved plans</h2><p>Plans lock at their planned start. Cancelled season references cannot be reused.</p><ul id="season-list"></ul>
+<section id="season-evidence" class="season-review" hidden><h2 id="season-evidence-title">Recorded window evidence</h2><p>Draft preview only. This does not declare official results, a champion, holding time or a defensive streak.</p><p id="season-evidence-summary" role="status" aria-live="polite"></p><p id="season-evidence-window"></p><p id="season-evidence-coverage"></p><ul id="season-evidence-groups"></ul><ul id="season-evidence-excluded"></ul><button id="season-evidence-refresh" type="button">Refresh recorded evidence</button></section>
+<h2 id="season-editor-title">New season plan</h2><button id="season-new" type="button">New plan</button>
+<form id="season-form"><label for="season-id">Season reference</label><input id="season-id" required pattern="season-[a-z0-9][a-z0-9-]{0,56}" maxlength="64" placeholder="season-one" autocomplete="off">
+<label for="season-name">Season name</label><input id="season-name" required maxlength="120" autocomplete="off">
+<label for="season-start">Start date and time</label><input id="season-start" type="datetime-local" step="0.001" required>
+<label for="season-end">End date and time</label><input id="season-end" type="datetime-local" step="0.001" required><p>Enter times in your device’s local timezone. The review also shows the exact UTC dates.</p>
+<button id="season-prepare" type="submit">Review plan</button><button id="season-cancel" type="button" hidden>Review cancellation</button></form>
+<section id="season-review" class="season-review" hidden><h2>Review season change</h2><p id="season-summary"></p><p id="season-dates"></p><p id="season-expiry"></p>
+<button id="season-confirm" type="button">Confirm reviewed change</button><button id="season-discard" type="button">Discard review</button><button id="season-check" type="button" hidden>Check saved request</button><button id="season-retry" type="button" hidden>Retry same request</button></section>
+</section></main></div><script src="/assets/common.js?v=54"></script><script src="/assets/admin-seasons.js?v=2"></script></body></html>

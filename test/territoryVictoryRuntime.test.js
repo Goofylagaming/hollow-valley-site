@@ -11,6 +11,7 @@ const status=require('../server/services/serverStatus');
 const router=require('../server/routes/territoryWars');
 const {territoryGeometry}=require('../server/services/territoryGeometry');
 const OriginalDate=Date;
+const originalSeasonEvidenceFlag=process.env.TERRITORY_SEASON_EVIDENCE_ENABLED;
 let now=OriginalDate.now();
 const a='76561198000000301',b='76561198000000302',outsider='76561198000000303';
 const geometry=territoryGeometry({territoryName:'South Plains'});
@@ -19,9 +20,10 @@ let online=true;
 const originalState=status.getState;
 let sampleAge=0;
 status.getState=()=>({configured:true,online,lastChecked:Number.isFinite(sampleAge)?new OriginalDate(now-sampleAge).toISOString():null,characters:online?[a,b,outsider].map(steamId=>({steamId,location})):[]});
-test.after(()=>{status.getState=originalState;global.Date=OriginalDate;db.close();fs.rmSync(dir,{recursive:true,force:true});});
+test.after(()=>{status.getState=originalState;global.Date=OriginalDate;if(originalSeasonEvidenceFlag===undefined)delete process.env.TERRITORY_SEASON_EVIDENCE_ENABLED;else process.env.TERRITORY_SEASON_EVIDENCE_ENABLED=originalSeasonEvidenceFlag;db.close();fs.rmSync(dir,{recursive:true,force:true});});
 
 test('real declaration and runtime capture freeze only observed lineup fighters; manual control cannot award',async()=>{
+  process.env.TERRITORY_SEASON_EVIDENCE_ENABLED='1'; // Temporary fixture only.
   global.Date=class extends OriginalDate {constructor(...args){super(...(args.length?args:[now]));}static now(){return now;}};
   for(const [id,steam] of [[1,a],[2,b],[3,outsider]]) db.prepare('INSERT INTO users(id,steam_id,username,is_admin) VALUES (?,?,?,1)').run(id,steam,'Fixture '+id);
   db.exec("INSERT INTO territory_groups(id,name,tag,leader_user_id) VALUES (1,'Attackers','ATK',1); INSERT INTO territory_group_members(group_id,user_id,role) VALUES (1,1,'leader'),(1,2,'member')");
@@ -45,6 +47,8 @@ test('real declaration and runtime capture freeze only observed lineup fighters;
       await post('/attack-declare',{eventId});
       const attack=db.prepare('SELECT * FROM territory_attacks WHERE event_id=?').get(eventId);
       assert.ok(db.prepare('SELECT * FROM territory_battle_provenance WHERE attack_id=?').get(attack.id));
+      const frozenTerritory=require('../server/services/territoryBattleContext').createTerritoryBattleContext(db).read(attack.id);
+      assert.equal(frozenTerritory.available,true);assert.equal(frozenTerritory.eventId,eventId);assert.deepEqual(frozenTerritory.territory,{key:'south-plains',name:'South Plains'});
       const identity=db.prepare("SELECT * FROM hv_group_battle_identity WHERE attack_id=? AND side='attacker'").get(attack.id);
       assert.equal(identity.group_id,websiteGroupId);assert.equal(identity.territory_group_id,1);
       links.set(a,{expectedGroupId:websiteGroupId,territoryGroupId:null,expectedRevision:links.get(a).revision});
