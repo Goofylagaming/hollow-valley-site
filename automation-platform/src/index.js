@@ -211,6 +211,7 @@ app.use('/api/website/title-evidence', require('./routes/websiteTitleEvidenceRou
 app.use('/api/admin/achievement-reviews', require('./routes/achievementReviewRoutes'));
 app.use('/api/admin/incident-marketplace', require('./routes/incidentMarketplaceAdminRoutes').createIncidentMarketplaceRouter({db:require('./services/economyStore').db}));
 app.use('/api/admin/incident-operations', require('./routes/incidentOperationsAdminRoutes').createIncidentOperationsRouter({readContext:input=>store.readIncidentOperations(input)}));
+app.use('/api/admin/spectator', require('./routes/adminSpectatorRoutes').createAdminSpectatorRouter({read:input=>store.readAdminSpectator(input)}));
 app.use('/api/admin/challenge-attendance', require('./routes/challengeAttendanceAdminRoutes'));
 
 app.use('/api/website/admin-wallet', (_req, res, next) => {

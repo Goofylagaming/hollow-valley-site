@@ -671,6 +671,7 @@ function getAdminIncidentPeerMarketplaceContext({steamId,occurredAt}) {
 function getAdminIncidentOperationsContext({steamId,occurredAt}) {
   return callAdmin('/incident-operations/context?'+new URLSearchParams({steamId:validateSteamId(steamId),occurredAt:String(occurredAt||'')}));
 }
+function getAdminSpectatorSummary() {return callAdmin('/spectator/summary');}
 
 function getAdminOperationsStatus({ force = false } = {}) {
   return callAdmin(`/status${force ? '?force=1' : ''}`);
@@ -935,6 +936,7 @@ module.exports = {
   getAdminIncidentMarketplaceContext,
   getAdminIncidentPeerMarketplaceContext,
   getAdminIncidentOperationsContext,
+  getAdminSpectatorSummary,
   getAdminOperationsStatus,
   getAdminAudit,
   getAdminRequests,
