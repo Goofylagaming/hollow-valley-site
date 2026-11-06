@@ -48,12 +48,13 @@ function loadFixture() {
     skins,
     policy,
     cleanup() {
-      try { store.db.close?.(); } catch {}
+
       for (const modulePath of paths) delete require.cache[modulePath];
       if (previousDb === undefined) delete process.env.AUTOMATION_DB_PATH;
       else process.env.AUTOMATION_DB_PATH = previousDb;
       if (previousEnabled === undefined) delete process.env.SKIN_SYSTEM_ENABLED;
       else process.env.SKIN_SYSTEM_ENABLED = previousEnabled;
+      store.db.close();
       fs.rmSync(dir, { recursive: true, force: true });
     },
   };

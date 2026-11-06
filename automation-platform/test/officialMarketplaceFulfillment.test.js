@@ -82,6 +82,7 @@ function loadFixture({ createError = null, existingState = null } = {}) {
       else process.env.MARKETPLACE_WRITE_ENABLED = previous.writes;
       if (previous.fulfillment === undefined) delete process.env.OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED;
       else process.env.OFFICIAL_MARKETPLACE_FULFILLMENT_ENABLED = previous.fulfillment;
+      store.db.close();
       fs.rmSync(dir, { recursive: true, force: true });
     },
   };
@@ -335,6 +336,7 @@ function loadBridgeFixture() {
         if (value === undefined) delete process.env[envKey];
         else process.env[envKey] = value;
       }
+      store.db.close();
       fs.rmSync(dir, { recursive: true, force: true });
     },
   };
