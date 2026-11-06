@@ -108,6 +108,9 @@ async function until(fn){for(let i=0;i<300;i++){if(fn())return;await new Promise
       assert.equal(await page.locator('#treasury-shop-form').isVisible(),false);await page.selectOption('#treasury-frame-choice','night');await page.click('#treasury-frame-save');
       await page.waitForFunction(()=>document.getElementById('groups-current-panel').dataset.groupFrame==='night');await idle();assert.equal(economy.getWallet(A).balance,800);assert.equal(economy.getWallet(B).balance,1000);
       assert.equal(await page.locator('#treasury-shop img').count(),0);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);
+      // The saved frame also refreshes Treasury. Finish that authenticated read
+      // before removing cookies, so it cannot hide the panel ahead of the click.
+      await page.waitForLoadState('networkidle');
       await context.clearCookies();await page.click('#treasury-shop-refresh');await page.waitForFunction(()=>document.getElementById('treasury-shop').hidden);
       assert.equal(await page.locator('#treasury-purchase-history').textContent(),'No group purchases yet.');assert.deepEqual(errors,[]);assert.deepEqual(unexpected,[]);
       console.log(`PASS ${width}px owner cosmetic/Territory/event purchases, schedule review, private registrations, lost replies, cancellation races, paid frames and membership`);await context.close();
