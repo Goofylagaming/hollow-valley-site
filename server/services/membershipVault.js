@@ -26,7 +26,7 @@ function readVault(userId, now = Date.now()) {
   }
   const extended = db.prepare(`SELECT m.months,c.slug,c.name FROM membership_extended_milestones m
     JOIN membership_collectibles c ON c.slug=m.collectible_slug ORDER BY m.months`).all();
-  for(const item of extended.filter(item=>verified>=item.months)){
+  for(const item of extended.filter(item=>lifetime.lifetime_paid_months>=item.months)){
     db.prepare("INSERT OR IGNORE INTO membership_user_collectibles(user_id,slug) VALUES (?,?)").run(userId,item.slug);
   }
   const preferences=db.prepare("SELECT accent,banner,favourite_dinosaur,featured_skin,featured_title,featured_achievement,beta_opt_in,wall_opt_in,display_alias FROM membership_profile_preferences WHERE user_id=?").get(userId)||{};

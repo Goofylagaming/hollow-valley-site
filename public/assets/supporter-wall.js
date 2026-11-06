@@ -23,6 +23,7 @@ id("submit").onsubmit=action(async()=>{
   id("status").textContent="Submitted for moderation.";await wall();
 });
 id("withdraw").onclick=action(async()=>{await request("showcase",{optIn:false});id("status").textContent="Card withdrawn.";await wall();});
+id("founding").onclick=action(async()=>{await request("founding",{});id("status").textContent="Founding Subscriber badge and title added to your collection.";});
 wall().catch(e=>id("status").textContent=e.message);
 request("review").then(rows=>{
   id("reviews").hidden=false;

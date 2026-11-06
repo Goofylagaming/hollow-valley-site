@@ -27,10 +27,12 @@ function challenge(game, now) {
       choices:["Higher","Lower"], solution:next>first?"Higher":"Lower" };
   }
   if (game === "memory-match") {
-    const symbols = shuffle(["Egg","Claw","Fern","Nest"]);
-    const position = randomInt(4);
-    return { preview:symbols.join(" · "), hideAfterMs:2000, prompt:"What was in position " + (position+1) + "?",
-      choices:["Egg","Claw","Fern","Nest"], solution:symbols[position], opens:now+2000 };
+    const symbols=shuffle(["Egg","Egg","Claw","Claw","Fern","Fern"]);
+    const target=symbols[randomInt(symbols.length)];
+    const positions=symbols.flatMap((symbol,i)=>symbol===target?[i+1]:[]);
+    const choices=symbols.map((_,i)=>String(i+1));
+    return {preview:symbols.map((s,i)=>(i+1)+" "+s).join(" · "),hideAfterMs:3000,
+      prompt:"Select both cards showing "+target+".",choices,solution:positions.join(","),opens:now+3000};
   }
   if (game === "reaction") {
     const opens = now + randomInt(1800,4500);
@@ -42,8 +44,17 @@ function challenge(game, now) {
     return {prompt:"Complete the track pattern: " + [start,start+step,start+2*step].join(", "),
       choices:shuffle([solution,String(Number(solution)+1),String(Number(solution)-1)]),solution};
   }
+  if(game==="guess-the-dino"){
+    const identities=[
+      ["I have a sail on my back and a long snout. Who am I?","Spinosaurus","Carnotaurus","Stegosaurus"],
+      ["My two brow horns and very short arms gave me a bull-like silhouette. Who am I?","Carnotaurus","Allosaurus","Ankylosaurus"],
+      ["My tail ends in a heavy club. Who am I?","Ankylosaurus","Diplodocus","Parasaurolophus"]
+    ];
+    const [prompt,solution,...others]=identities[randomInt(identities.length)];
+    return {prompt,choices:shuffle([solution,...others]),solution};
+  }
   const [clue,solution,...others]=clues[randomInt(clues.length)];
-  return {prompt:game==="guess-the-dino" ? "Name the dino. " + clue : clue, choices:shuffle([solution,...others]),solution};
+  return {prompt:clue, choices:shuffle([solution,...others]),solution};
 }
 
 function start(steamId, game, now=Date.now()) {

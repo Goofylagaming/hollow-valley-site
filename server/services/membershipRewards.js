@@ -221,6 +221,7 @@ function recordPaidInvoice(invoice, { env = process.env, now = Date.now(), expec
     }
     rebuildPeriodAllowances(subscriber.user_id, subscriptionId);
     awardLoyalty(subscriber.user_id, now);
+    if (env.MEMBERSHIP_COLLECTION_ENABLED === "1") require("./membershipVault").readVault(subscriber.user_id,now);
     db.exec("COMMIT");
   } catch (error) { try { db.exec("ROLLBACK"); } catch {} throw error; }
   return { recorded: true, userId: subscriber.user_id, countsMonth };

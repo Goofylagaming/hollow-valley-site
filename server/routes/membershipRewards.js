@@ -36,6 +36,11 @@ function sendError(res, error) {
 async function summary(user) {
   const result = rewards.rewardSummary(user);
   if (!result.enabled) return result;
+  if(process.env.MEMBERSHIP_GROWTH_ENABLED==="1"){
+    const {db}=require("../db");
+    require("../services/membershipGrowth").migrateGrowth(db);
+    result.monthly.bonusTokens=db.prepare("SELECT count(*) AS n FROM membership_bonus_claim_tokens WHERE user_id=? AND redeemed_at IS NULL AND (expires_at IS NULL OR expires_at>?)").get(user.id,Date.now()).n;
+  }
   result.discord = { ...result.discord, ...require("../services/membershipDiscordQueue").getSyncState(user.id) };
   result.skinVote = skinVote.currentForUser(user);
   if (!/^\d{17}$/.test(String(user.steam_id || ""))) return result;
@@ -91,6 +96,27 @@ router.get("/rewards/collection", async(req, res) => {
     return res.json(book);
   }
   catch (error) { return sendError(res, error); }
+});
+
+router.get("/rewards/admin/seasons",requireAdmin,(req,res)=>{
+  if(process.env.MEMBERSHIP_COLLECTION_ENABLED!=="1")return res.sendStatus(404);
+  const {db}=require("../db");
+  require("../services/membershipCollection").migrate(db,new Date(Date.now()+36000000).toISOString().slice(0,7));
+  res.json(db.prepare("SELECT * FROM membership_seasons ORDER BY brisbane_month DESC,slug").all());
+});
+router.post("/rewards/admin/seasons",requireAdmin,(req,res)=>{
+  if(process.env.MEMBERSHIP_COLLECTION_ENABLED!=="1")return res.sendStatus(404);
+  const {slug,name,month,state,cosmetics="",voteRef="",eventRef="",notes=""}=req.body||{};
+  if(!/^[a-z][a-z0-9-]{1,63}$/.test(slug||"") || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month||"") ||
+    !["draft","preview","live","archived"].includes(state) || typeof name!=="string" || !name.trim() || name.length>80 ||
+    [cosmetics,voteRef,eventRef,notes].some(s=>typeof s!=="string"||s.length>500))return res.sendStatus(400);
+  const {db}=require("../db");
+  require("../services/membershipCollection").migrate(db,new Date(Date.now()+36000000).toISOString().slice(0,7));
+  db.prepare(`INSERT INTO membership_seasons(slug,name,brisbane_month,state,cosmetic_description,vote_ref,public_event_ref,admin_notes)
+    VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(slug) DO UPDATE SET name=excluded.name,brisbane_month=excluded.brisbane_month,state=excluded.state,
+    cosmetic_description=excluded.cosmetic_description,vote_ref=excluded.vote_ref,public_event_ref=excluded.public_event_ref,admin_notes=excluded.admin_notes`)
+    .run(slug,name,month,state,cosmetics,voteRef,eventRef,notes);
+  res.json({slug,state});
 });
 
 router.get("/rewards", async (req, res) => {

@@ -9,11 +9,11 @@
   function safeHex(value){return /^#[a-f0-9]{6}$/i.test(String(value))?value:'#445548';}
   function card(skin,admin=false){
     const pending=(monthly?.claims||[]).find((claim)=>claim.skinId===skin.id && ['pending','reserved'].includes(claim.status));
-    const canClaim=!readOnly && (pending || (catalog.enabled && monthly?.enabled && Number(monthly.remaining)>0));
+    const canClaim=!readOnly && (pending || (catalog.enabled && ((monthly?.enabled && Number(monthly.remaining)>0) || Number(monthly?.bonusTokens)>0)));
     const actions=admin
       ? `${skin.state==='draft'?`<button class="small-button" data-premium-edit="${esc(skin.id)}" ${readOnly?'disabled':''}>Edit in Studio</button><button class="small-button" data-premium-verify="${esc(skin.id)}" ${readOnly?'disabled':''}>Record in-game check</button>`:''}${skin.state!=='draft'?`<button class="small-button" data-premium-publish="${esc(skin.id)}" data-published="${skin.published?'0':'1'}" ${readOnly?'disabled':''}>${skin.published?'Remove from collection':'Publish to collection'}</button>`:''}`
       : skin.owned?'<a class="small-button" href="#my-skins" data-premium-mine>In My Skins</a>':`<button class="small-button" data-premium-claim="${esc(skin.id)}" ${canClaim?'':'disabled'}>${pending?'Retry pending claim':'Choose this skin'}</button>`;
-    return `<article class="premium-card"><div class="premium-palette" aria-label="${esc(skin.name)} colour palette">${(skin.swatches||[]).map((swatch)=>`<span style="background:${safeHex(swatch.color)}" title="${esc(swatch.zone)}"></span>`).join('')}<b>PREMIUM</b></div><div class="premium-card-body"><span class="premium-collection-label">${esc(skin.collectionKey.replaceAll('-',' '))}</span><h3>${esc(skin.name)}</h3><p>${esc(skin.description)}</p><p class="premium-compatibility">${skin.verifiedSpecies?.length?`Verified in-game: ${esc(skin.verifiedSpecies.join(', '))}`:'Draft palette · in-game review pending'}</p>${admin?`<span class="premium-review-state">${esc(skin.state)}</span>`:''}<div class="premium-card-actions">${actions}</div></div></article>`;
+    return `<article class="premium-card"><div class="premium-palette" aria-label="${esc(skin.name)} colour palette">${(skin.swatches||[]).map((swatch)=>`<span style="background:${safeHex(swatch.color)}" title="${esc(swatch.zone)}"></span>`).join('')}<b>PREMIUM</b></div><div class="premium-card-body"><span class="premium-collection-label">${esc(skin.collectionKey.replaceAll('-',' '))}</span><h3>${esc(skin.name)}</h3><p>${esc(skin.description)}</p>${skin.communityCredit ? `<p>${esc(skin.communityCredit)}</p>` : ''}<p class="premium-compatibility">${skin.verifiedSpecies?.length?`Verified in-game: ${esc(skin.verifiedSpecies.join(', '))}`:'Draft palette · in-game review pending'}</p>${admin?`<span class="premium-review-state">${esc(skin.state)}</span>`:''}<div class="premium-card-actions">${actions}</div></div></article>`;
   }
   function render(){
     el('premium-skin-grid').innerHTML=catalog.skins.length?catalog.skins.map((skin)=>card(skin)).join(''):'<div class="premium-empty"><strong>The first collection is being prepared.</strong>Premium skins will appear here after their in-game review. Your existing skins remain in My Skins.</div>';
@@ -23,6 +23,7 @@
       else if(!catalog.enabled || !monthly?.enabled)status='Monthly skin choices are being prepared. Check My Membership for your current benefits.';
       else if(!monthly.periodEnd)status='A verified paid membership period is needed before choosing a monthly skin.';
       else status=`${Number(monthly.remaining)||0} of ${Number(monthly.allowance)||0} skin choices available this paid period. Claimed skins stay yours.`;
+      if(monthly?.bonusTokens)status+=' Bonus premium skin tokens: '+monthly.bonusTokens+'.';
       if(monthly?.claimError)status+=' A previous claim needs another attempt; retry it below.';
     }
     const missingPending=(monthly?.claims||[]).filter((claim)=>['pending','reserved'].includes(claim.status) && !catalog.skins.some((skin)=>skin.id===claim.skinId));

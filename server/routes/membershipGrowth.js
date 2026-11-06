@@ -59,6 +59,10 @@ router.post("/admin/referrals/:recipient/qualify",requireAdmin,(req,res)=>{
   if(process.env.MEMBERSHIP_REFERRALS_ENABLED!=="1") return res.sendStatus(404);
   res.sendStatus(benefits.qualifyReferral(Number(req.params.recipient),req.user.id)?200:409);
 });
+router.get("/digest/preferences",(req,res)=>{
+  const row=db.prepare("SELECT monthly_digest FROM membership_notification_preferences WHERE user_id=?").get(req.user.id);
+  res.json({enabled:Boolean(row?.monthly_digest)});
+});
 router.post("/digest/preferences",(req,res)=>{
   if(typeof req.body?.enabled!=="boolean") return res.sendStatus(400);
   db.prepare("INSERT INTO membership_notification_preferences VALUES (?,?) ON CONFLICT(user_id) DO UPDATE SET monthly_digest=excluded.monthly_digest")

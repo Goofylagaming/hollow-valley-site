@@ -69,6 +69,8 @@ router.post("/founding", requireAuth, (req,res) => {
   if (!verified) return res.sendStatus(403);
   db.prepare("INSERT OR IGNORE INTO membership_collectibles(slug,name,kind) VALUES ('founding-subscriber','Founding Subscriber','title')").run();
   db.prepare("INSERT OR IGNORE INTO membership_user_collectibles(user_id,slug) VALUES (?,'founding-subscriber')").run(req.user.id);
+  db.prepare("INSERT OR IGNORE INTO membership_collectibles(slug,name,kind) VALUES ('founding-subscriber-badge','Founding Subscriber','badge')").run();
+  db.prepare("INSERT OR IGNORE INTO membership_user_collectibles(user_id,slug) VALUES (?,'founding-subscriber-badge')").run(req.user.id);
   res.json({earned:true});
 });
 module.exports = router;

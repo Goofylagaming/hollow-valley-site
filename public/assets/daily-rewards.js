@@ -19,7 +19,7 @@
     }
     const status = document.createElement("p");
     status.textContent = "Day " + current.cycleDay + " of 7 · " + current.amount + " VC including " + current.bonus +
-      " bonus VC · Grace " + (current.graceUsed ? "used" : "available");
+      " bonus VC · Grace " + (state.graceEnabled===false ? "disabled" : current.graceUsed ? "used" : "available");
     panel.append(heading,list,status);
     if (state.eligible) {
       const button = document.createElement("button");

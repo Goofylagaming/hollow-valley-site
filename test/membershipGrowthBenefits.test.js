@@ -40,4 +40,13 @@ test("referrals reject self attribution and wait for a completed paid period",()
   assert.equal(benefits.recordReferral(user.id,user.id,100),false);
   assert.equal(benefits.recordReferral(user.id,admin.id,100),true);
   assert.equal(benefits.qualifyReferral(user.id,admin.id,200),false);
+  const ends=100+30*86400000;
+  db.prepare(`INSERT INTO membership_paid_invoices(invoice_id,user_id,subscription_id,tier,period_start,period_end,billing_reason,amount_paid,paid_at,counts_month)
+    VALUES ('in_fixture',?,'sub_fixture','supporter',100,?,'subscription_cycle',700,'1970-01-01T00:00:00Z',1)`).run(user.id,ends);
+  db.prepare(`INSERT INTO membership_reward_periods(period_key,user_id,subscription_id,period_start,period_end,tier,allowance,source_invoice_id)
+    VALUES ('cycle-fixture',?,'sub_fixture',100,?,'supporter',1,'in_fixture')`).run(user.id,ends);
+  assert.equal(benefits.qualifyReferral(user.id,admin.id,ends-1),false);
+  assert.equal(benefits.qualifyReferral(user.id,admin.id,ends),true);
+  assert.equal(benefits.qualifyReferral(user.id,admin.id,ends+1),true);
+  assert.equal(db.prepare("SELECT count(*) AS n FROM membership_bonus_claim_tokens WHERE user_id=?").get(admin.id).n,1);
 });

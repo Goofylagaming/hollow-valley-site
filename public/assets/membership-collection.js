@@ -58,4 +58,44 @@
     }catch{status.textContent="Connection unavailable. Retry to save.";}finally{save.disabled=false;}
   };
   panel.hidden = false;
+  if(preferences.beta_opt_in){
+    const preview=document.createElement("details");
+    const label=document.createElement("summary");label.textContent="Beta · Collection filter";preview.append(label);
+    const input=document.createElement("input");input.type="search";input.placeholder="Filter collectible names";
+    input.setAttribute("aria-label","Filter collectible names");const matches=document.createElement("ul");
+    function filter(){
+      const results=book.collectibles.filter(i=>i.name.toLowerCase().includes(input.value.toLowerCase()));
+      matches.replaceChildren(...results.map(i=>{const li=document.createElement("li");li.textContent=i.name+" · "+(i.earned_at?"Owned":"Locked");return li;}));
+    }
+    input.oninput=filter;filter();preview.append(input,matches);panel.append(preview);
+  }
+  const digestResponse=await fetch("/api/membership-growth/digest");
+  if(digestResponse.ok){
+    const digest=await digestResponse.json();
+    const entries=["Monthly Valley Coin tier bonus: "+digest.monthlyCoins,"Premium choices remaining: "+digest.skinChoices,"Verified paid months: "+digest.paidMonths];
+    for(const value of [digest.season,digest.nextMilestone,digest.vote,digest.publicEvent]) if(value) entries.push(value);
+    for(const title of digest.preview||[])entries.push("Upcoming preview · "+title);
+    for(const title of digest.shipped||[])entries.push("Shipped · "+title);
+    section("Subscriber digest · "+digest.month,entries);
+    const prefs=await fetch("/api/membership-growth/digest/preferences");
+    if(prefs.ok){
+      const check=document.createElement("input");check.type="checkbox";check.checked=(await prefs.json()).enabled;
+      const label=document.createElement("label");label.append(check,document.createTextNode(" Receive my monthly digest here"));panel.append(label);
+      const delivery=async()=>{
+        const saved=await fetch("/api/membership-growth/digest/deliver",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});
+        if(!saved.ok) throw Error();
+      };
+      check.onchange=async()=>{
+        check.disabled=true;
+        try{
+          const r=await fetch("/api/membership-growth/digest/preferences",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({enabled:check.checked})});
+          if(!r.ok) throw Error();if(check.checked) await delivery();
+          status.textContent="Digest preference saved.";
+        }catch{status.textContent="Unable to confirm digest preference. Reload to check.";}finally{check.disabled=false;}
+      };
+      if(check.checked) await delivery();
+    }
+    const previews=await fetch("/api/membership-growth/previews");
+    if(previews.ok){const items=await previews.json();if(items.length)section("Previews and releases",items.map(i=>i.title+" · "+i.body));}
+  }
 })().catch(() => {});

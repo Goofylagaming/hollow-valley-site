@@ -6,7 +6,7 @@ process.env.DB_PATH=":memory:";
 process.env.AUTOMATION_DB_PATH=":memory:";
 process.env.HOLLOW_VALLEY_API_TOKEN=require("node:crypto").randomUUID();
 for(const flag of ["MEMBERSHIP_COLLECTION_ENABLED","MEMBERSHIP_REWARDS_ENABLED","MEMBERSHIP_RECOGNITION_ENABLED",
-  "MEMBERSHIP_GROWTH_ENABLED","DAILY_LOGIN_REWARDS_ENABLED","VALLEY_ARCADE_ENABLED"]) process.env[flag]="1";
+  "MEMBERSHIP_GROWTH_ENABLED","SUBSCRIBER_COMMUNITY_ENABLED","COMMUNITY_PARTICIPATION_ENABLED","DAILY_LOGIN_REWARDS_ENABLED","VALLEY_ARCADE_ENABLED"]) process.env[flag]="1";
 const test=require("node:test");
 const assert=require("node:assert/strict");
 const express=require("express");
@@ -33,6 +33,7 @@ test("isolated signed-in membership, moderation, growth and Arcade flows",async 
   site.use("/member",require("../server/routes/membershipRewards"));
   site.use("/recognition",require("../server/routes/membershipRecognition"));
   site.use("/growth",require("../server/routes/membershipGrowth"));
+  site.use("/community",require("../server/routes/subscriberCommunity"));
   site.use("/arcade",require("../server/routes/valleyArcade"));
   const url=await serve(site,t);
   async function call(path,body,admin=false){
@@ -68,6 +69,22 @@ test("isolated signed-in membership, moderation, growth and Arcade flows",async 
   const digest=await(await call("/growth/digest/deliver",{})).json();
   assert.equal(digest.paidMonths,0);
   assert.deepEqual(await(await call("/growth/digest/deliver",{})).json(),digest);
+  const community=require("../server/services/subscriberCommunity");
+  const ballots=require("../server/services/membershipSkinVote");
+  community.schema();ballots.ensureSchema();
+  const suggestion=db.prepare("INSERT INTO subscriber_suggestions(user_id,text,created_at) VALUES (501,'Marsh weekend',?)").run(Date.now()).lastInsertRowid;
+  const ballot=db.prepare("INSERT INTO membership_skin_vote_ballots(title,status,opens_at,closes_at,kind) VALUES ('Weekend','open',0,?,'public-weekend-theme')").run(Date.now()+86400000).lastInsertRowid;
+  const option=Number(db.prepare("INSERT INTO membership_skin_vote_options(ballot_id,label,sort_order) VALUES (?,'Marsh',0)").run(ballot).lastInsertRowid);
+  const route="/community/admin/suggestions/"+suggestion+"/review";
+  assert.equal((await call(route,{stage:"shortlisted"},true)).status,200);
+  assert.equal((await call(route,{stage:"voting",optionId:option},true)).status,200);
+  db.prepare("INSERT INTO membership_skin_votes(ballot_id,user_id,option_id) VALUES (?,501,?)").run(ballot,option);
+  db.prepare("UPDATE membership_skin_vote_ballots SET status='closed' WHERE id=?").run(ballot);
+  for(const stage of ["selected","planned","released"]) assert.equal((await call(route,{stage,theme:"marsh-exploration",skinId:"marsh-skin"},true)).status,200);
+  assert.equal((await(await call("/member/rewards/collection")).json()).collectibles.some(i=>i.slug==="community-choice" && i.earned_at),true);
+  assert.deepEqual((await(await call("/community/public")).json()).skins,[]);
+  assert.equal((await call("/community/suggestions/"+suggestion+"/credit",{optIn:true})).status,200);
+  assert.equal((await(await call("/community/public")).json()).skins[0].credit,"Designed with the Community");
   assert.equal((await call("/arcade/settings")).status,403);
   assert.equal((await call("/arcade/settings",{enabled:true,emergency:false,cap:250000},true)).status,200);
   const round=await(await call("/arcade/start",{game:"trivia"})).json();

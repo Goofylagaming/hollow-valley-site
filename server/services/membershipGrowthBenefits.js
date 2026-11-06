@@ -50,8 +50,10 @@ function digest(user, now=Date.now()){
   const vote=require("./membershipSkinVote").currentForUser(user,{now});
   require("./membershipCollection").migrate(db,month);
   const season=db.prepare("SELECT name,public_event_ref FROM membership_seasons WHERE brisbane_month=? AND state='live' ORDER BY slug LIMIT 1").get(month);
-  return {month,season:season?.name||null,publicEvent:season?.public_event_ref||null,
-    skinChoices:summary.monthly?.remaining||0,paidMonths:summary.loyalty?.paidMonths||0,
+  const preview=db.prepare("SELECT title FROM membership_public_previews WHERE kind='preview' AND visible_at<=? AND public_at>? AND ? ORDER BY public_at LIMIT 10").all(now,now,+(summary.entitled||Boolean(activePass(user.id,now))));
+  const shipped=db.prepare("SELECT title FROM membership_public_previews WHERE kind='shipped' AND public_at>=? AND public_at<=? ORDER BY public_at DESC LIMIT 10").all(Date.parse(month+"-01T00:00:00+10:00"),now);
+  return {month,preview:preview.map(p=>p.title),shipped:shipped.map(p=>p.title),season:season?.name||null,publicEvent:season?.public_event_ref||null,
+    monthlyCoins:require("./supporterCoinBonus").monthlyBonusAmount(summary.tier),skinChoices:summary.monthly?.remaining||0,paidMonths:summary.loyalty?.paidMonths||0,
     nextMilestone:summary.loyalty?.nextMilestone?.title||null,vote:vote.ballot?.title||null};
 }
 module.exports={activePass,recordReferral,qualifyReferral,digest};
