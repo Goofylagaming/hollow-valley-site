@@ -65,8 +65,8 @@ test('title routes require same-origin authenticated identity and ignore forged 
 test('retiring title roadmap votes preserves history and frees all active ballot slots', () => {
   const voting = require('../server/services/roadmapCommunity');
   db.prepare('INSERT INTO roadmap_votes (steam_id, feature_id) VALUES (?, 1)').run(a);
-  for (const id of [5,6,19]) voting.setVote(a,id,true);
-  assert.deepEqual(voting.voteSummary(a).myVotes,[5,6,19]);
+  for (const id of [5,6,28]) voting.setVote(a,id,true);
+  assert.deepEqual(voting.voteSummary(a).myVotes,[5,6,28]);
   assert.equal(voting.voteSummary(a).counts[1],1);
   assert.throws(() => voting.setVote(a,1,true), { code: 'FEATURE_NOT_VOTABLE' });
 });
