@@ -162,6 +162,28 @@ omitted shared navigation and headless visibility events remain the same limits
 as the earlier page checks. No real season, source option or deployment was
 activated; hosted/staging verification remains pending.
 
+## Reset inspection remains diagnostic only
+
+The existing /admin/reset keeps owner_name and clears frozen_owner_name, so it
+cannot implement a neutral seasonal rollover with preserved winners. A separate
+read-only /api/territory-season-plans/resetInspection now inspects an explicit
+saved plan and distinct event references. An empty selection lists candidates
+without silently choosing the latest event. Reads create no schema and can run
+with SQLite query_only enabled. Missing control, lineup, registration or Treasury
+history stays unknown. Diagnostics report active/unknown attack states, ambiguous
+or test-mode targets, omitted/missing targets and pending/paid entry obligations.
+Current owner labels are not promoted into verified historical winners.
+
+No executor, refund, cancellation, reset review token or control mutation is
+provided. Every response explicitly keeps executionAvailable/canReset false and
+identifies unresolved archive-write protection and ownership-history gaps. The
+future executor needs transactional target revalidation, cross-process fencing,
+preserved archives and reviewed entry handling before it can be implemented and
+enabled. These diagnostics are API-only; a staff reset-inspection interface still
+needs implementation. Four new local cases and the actual HTTP guard test verify
+no writes, no implicit target, unknown data, obligations, source bounds, role
+revocation, cancelled/ended windows and withheld malformed labels.
+
 Next implementation must obtain reviewed cadence/boundaries and safely
 coordinate active declarations and reset transitions,
 preserve verified outcomes
@@ -173,4 +195,4 @@ current labels. No reset cadence or champion policy has been approved here.
 
 Roadmap #19 displays Working on; its original wording and historical votes stay.
 It leaves active idea voting while five other ideas remain eligible. Homepage
-asset is v168. The full 31-item roadmap and this feature remain incomplete.
+asset is v169. The full 31-item roadmap and this feature remain incomplete.
