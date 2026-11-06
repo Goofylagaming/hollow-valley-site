@@ -441,6 +441,7 @@ function deleteState(key) {
 module.exports = {
   dbPath,
   readIncidentOperations: input => require('./incidentOperationsService').createIncidentOperationsSource({db}).read(input),
+  readAdminSpectator: input => require('./adminSpectatorService').createAdminSpectatorSource({db}).read(input),
   close: () => db.close(),
   createRequest,
   getRequest,

@@ -324,6 +324,7 @@ function createApp() {
   app.use("/api/admin-restore", adminRestoreRouter);
   app.use("/api/admin-operations", adminOperationsRouter);
   app.use("/api/admin-incidents", adminIncidentsRouter);
+  app.use('/api/admin-spectator',require('./routes/adminSpectator'));
   app.use("/api/reports", playerReportsRouter);
   app.use('/api/gallery',require('./routes/gallery'));
   app.use("/api/admin-combat", adminCombatRouter);
@@ -367,6 +368,7 @@ function createApp() {
     admin: "admin.html",
     adminoperations: "adminoperations.html",
     adminincidents: "adminincidents.html",
+    adminspectator: "adminspectator.html",
     adminstatus: "adminstatus.html",
     adminreports: "adminreports.html",
     admincomms: "admincomms.html",

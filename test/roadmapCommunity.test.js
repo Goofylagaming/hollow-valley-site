@@ -94,8 +94,8 @@ test("roadmap ballot limits voting to three idea-stage features per Steam identi
   const initial = voting.voteSummary(steam1);
   assert.equal(initial.maxVotes, 3);
   assert.equal(initial.myVotes.length, 0);
-  assert.equal(initial.eligibleFeatureIds.length, 9);
-  assert.equal(new Set(initial.eligibleFeatureIds).size, 9, "No duplicate roadmap feature IDs");
+  assert.equal(initial.eligibleFeatureIds.length, 8);
+  assert.equal(new Set(initial.eligibleFeatureIds).size, 8, "No duplicate roadmap feature IDs");
 
   for (const id of [4, 5, 19]) voting.setVote(steam1, id, true);
   voting.setVote(steam1, 5, true); // idempotent repeated request
@@ -260,4 +260,9 @@ test('challenge votes remain historical and free the three active ballot slots',
   assert.equal(summary.counts[3],1);
   assert.deepEqual(summary.myVotes,[4,5,19]);
   assert.throws(()=>voting.setVote(id,3,true),{code:'FEATURE_NOT_VOTABLE'});
+});
+
+
+test('spectator development preserves historical votes and frees all active ballot slots',()=>{
+ const steam='76561198000000027';db.prepare('INSERT INTO roadmap_votes(steam_id,feature_id) VALUES(?,27)').run(steam);for(const id of [4,5,19])voting.setVote(steam,id,true);const result=voting.voteSummary(steam);assert.equal(result.counts[27],1);assert.deepEqual(result.myVotes,[4,5,19]);assert.equal(result.eligibleFeatureIds.includes(27),false);assert.throws(()=>voting.setVote(steam,27,true),{code:'FEATURE_NOT_VOTABLE'});assert.equal(db.prepare('SELECT COUNT(*) n FROM roadmap_votes WHERE steam_id=? AND feature_id=27').get(steam).n,1);db.prepare('DELETE FROM roadmap_votes WHERE steam_id=?').run(steam);
 });

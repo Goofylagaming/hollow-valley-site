@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Spectator Dashboard | Hollow Valley Admin</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=38">
+  <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
+  <link rel="stylesheet" href="/assets/snapshot-ui.css?v=5">
+  <link rel="stylesheet" href="/assets/admin-spectator.css?v=1">
+</head>
+<body class="has-my-stuff-rail hv-spectator-page" data-suppress-daily-claim="true">
+  <div class="app-shell"><div id="nav-slot"></div>
+    <main class="hv-spectator">
+      <header><p>ADMIN · READ-ONLY OBSERVATIONS</p><h1>Spectator dashboard.</h1><p>Inspect recorded population, queues, battle records and combat statistics together. This page does not issue game commands or change player accounts.</p></header>
+      <p id="spectator-guard" role="status">Checking current admin access…</p>
+      <section id="spectator-content" hidden>
+        <button type="button" id="spectator-refresh" disabled>Refresh observations</button>
+        <p id="spectator-feedback" role="status" aria-live="polite"></p>
+        <p>Sources can disagree or be incomplete. Recorded status and timestamps do not verify game execution or delivery. Refreshing reads existing data; it does not probe the game server.</p>
+        <div id="spectator-panels" class="hv-spectator-grid" aria-live="polite"></div>
+        <nav aria-label="Investigation tools"><a href="/adminincidents">Incident timeline →</a><a href="/adminreports">Private player reports →</a><a href="/adminoperations">Operations →</a></nav>
+      </section>
+    </main><footer><span>© 2026 Hollow Valley</span><span>ADMIN ONLY</span><a href="/admin">Admin Hub</a></footer>
+  </div>
+  <script src="/assets/common.js?v=22"></script>
+  <script src="/assets/admin-spectator.js?v=1"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+.hv-spectator { padding:125px clamp(16px,5vw,70px) 70px; min-height:80vh; color:#f2e9d6; }
+.hv-spectator header { max-width:850px; margin-bottom:24px; }
+.hv-spectator h1 { font-size:clamp(30px,4vw,54px); }
+.hv-spectator p { line-height:1.7; color:#c5baa5; }
+.hv-spectator [hidden] { display:none !important; }
+.hv-spectator-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; margin:20px 0; }
+.hv-spectator-card { border:1px solid #4c4e3b; background:#101813; padding:20px; border-radius:12px; min-width:0; overflow-wrap:anywhere; }
+.hv-spectator-card h2 { font-size:20px; color:#eccb78; margin-top:0; }
+.hv-spectator-card b { display:block; font-size:28px; color:#f1dfac; }
+.hv-spectator-card ul { padding-left:22px; line-height:1.8; }
+.hv-spectator-card li { margin-bottom:10px; }
+.hv-spectator button { min-height:44px; padding:10px 18px; border:1px solid #cfac59; border-radius:6px; color:#fff0c4; background:#554020; font-size:16px; cursor:pointer; }
+.hv-spectator button:disabled { opacity:.5; cursor:default; }
+.hv-spectator :focus-visible { outline:3px solid #f6d284; outline-offset:3px; }
+.hv-spectator nav { display:flex; gap:20px; flex-wrap:wrap; }
+.hv-spectator-page footer { width:auto !important; min-width:0; flex-wrap:wrap; }
+@media(max-width:760px) { .hv-spectator { padding:105px 14px 40px; }.hv-spectator-grid { grid-template-columns:1fr; } }
