@@ -2,6 +2,7 @@ name: Dynamic challenge tracking
 on:
   pull_request:
     paths:
+      - 'scripts/verify-group-purchases.cjs'
       - 'automation-platform/src/services/dynamicChallengeStore.js'
       - 'automation-platform/src/services/challengeLocationCatalog.js'
       - 'automation-platform/src/services/challengeLocationStore.js'

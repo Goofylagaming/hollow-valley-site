@@ -7,6 +7,16 @@ on:
       - 'automation-platform/src/services/skinGiftService.js'
       - 'automation-platform/src/services/skinParkedApplicationService.js'
       - 'automation-platform/src/services/economyStore.js'
+      - 'automation-platform/src/routes/websiteRoutes.js'
+      - 'automation-platform/src/routes/skinTradingRoutes.js'
+      - 'server/routes/skinTrading.js'
+      - 'server/services/skinTradingClient.js'
+      - 'server/index.js'
+      - 'public/skin-trading.html'
+      - 'public/assets/skin-trading.*'
+      - 'public/marketplace.html'
+      - 'scripts/verify-skin-trading.cjs'
+      - 'test/skinTradingHttp.test.js'
       - 'automation-platform/test/skinTrading*.test.js'
       - 'automation-platform/test/skinGift*.test.js'
       - 'server/services/roadmapCommunity.js'
@@ -30,4 +40,7 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: node --test automation-platform/test/skinTrading.test.js automation-platform/test/skinTradingConcurrency.test.js automation-platform/test/skinGift.test.js automation-platform/test/skinGiftConcurrency.test.js automation-platform/test/skinGiftParked.test.js automation-platform/test/skinGiftWear.test.js test/roadmapCommunity.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js
+      - run: node --test test/skinTradingHttp.test.js test/serverEntrypointSyntax.test.js automation-platform/test/skinTrading.test.js automation-platform/test/skinTradingConcurrency.test.js automation-platform/test/skinGift.test.js automation-platform/test/skinGiftConcurrency.test.js automation-platform/test/skinGiftParked.test.js automation-platform/test/skinGiftWear.test.js test/roadmapCommunity.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js
+      - run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.62.1
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/verify-skin-trading.cjs

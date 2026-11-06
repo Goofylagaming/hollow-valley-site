@@ -30,6 +30,7 @@ router.use(requireWebsiteToken);
 router.use('/premium-skins', require('./premiumSkinsRoutes'));
 router.use('/skin-promos', require('./skinPromoRoutes'));
 router.use('/skin-gifts', require('./skinGiftRoutes'));
+router.use('/skin-trading', require('./skinTradingRoutes').createSkinTradingRouter());
 
 function validateSteamId(value) {
   const steamId = String(value || '').trim();
