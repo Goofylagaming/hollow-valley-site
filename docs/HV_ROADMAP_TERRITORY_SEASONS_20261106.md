@@ -116,6 +116,52 @@ the explicit page event contract in headless Edge. Browser storage stays empty a
 unexpected API calls occur. The phone review screenshot was visually inspected.
 These are not real Steam or hosted staging results.
 
+## Read-only draft-window evidence
+
+The staff page can now inspect recorded evidence for one saved plan through
+/api/territory-season-plans/evidence. It reuses current-role/account binding and
+same-origin JSON guards. The entire plan/source projection uses a read snapshot;
+the evidence operation prepares no missing planning or source tables, even when
+planning is enabled. Existing saved plans remain inspectable while planning is
+paused or read-only. Cancelled and future plans have explicit non-result states;
+missing source tables return unavailable, not zero.
+
+For a started planned window, candidates have an integer declaration time in
+[start, end). Qualifying results also resolve within that same window and no
+later than the captured read clock. They require observed, undisqualified
+provenance, verified sample clocks, a retained winning-participant receipt and a
+valid frozen territory context. Manual/unobserved, unresolved, unverified-clock,
+cross-boundary/future, malformed-result, missing-winner, unknown-territory and
+invalid/self-opposing group identity evidence is excluded with separate counts.
+Corrupt context withholds the whole projection. Invalid declaration times cannot
+be assigned to a season; the preview labels their count across all retained
+history rather than attributing them to this window.
+
+Group attack wins, defensive wins and losses use frozen website identities, not
+today's links or renamed groups. Missing group sides remain explicitly
+unattributed. Frozen territory keys are projected without current event labels.
+Group rows are ordered by ID, not ranked. The response always says it is draft
+window evidence with no runtime season activation or official results. Champion,
+holding time and defensive streaks remain null; these cannot be inferred from
+these battle receipts alone. Completed calendar windows do not establish that a
+real season was played. The read bound is 10,000 candidate declarations and 500
+group/territory references; exceeding it withholds totals, not a partial ranking.
+Source query capacity and real geometry/runtime semantics still need review.
+
+The page clears old counts before an explicit refresh, checks account/role again
+before rendering and verifies the saved plan revision/window. Two-minute expiry
+clears the observation without fetching more source data. Account, role and view
+changes clear pending/visible evidence. Five new source checks cover actual
+declaration-producer compatibility, immutable territory/group attribution,
+excluded and unknown evidence, half-open boundaries, query-only reads, corrupted
+context and oversized windows. All 90 affected local tests pass. Actual-page
+desktop/phone fixtures cover verified totals and exclusions, preview/paused
+reads, expiry without polling and delayed evidence replies after staff revocation.
+The phone evidence screenshot was visually inspected. Synthetic fixture users,
+omitted shared navigation and headless visibility events remain the same limits
+as the earlier page checks. No real season, source option or deployment was
+activated; hosted/staging verification remains pending.
+
 Next implementation must obtain reviewed cadence/boundaries and safely
 coordinate active declarations and reset transitions,
 preserve verified outcomes
@@ -127,4 +173,4 @@ current labels. No reset cadence or champion policy has been approved here.
 
 Roadmap #19 displays Working on; its original wording and historical votes stay.
 It leaves active idea voting while five other ideas remain eligible. Homepage
-asset is v167. The full 31-item roadmap and this feature remain incomplete.
+asset is v168. The full 31-item roadmap and this feature remain incomplete.
