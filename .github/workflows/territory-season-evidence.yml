@@ -1,16 +1,23 @@
-name: Territory season declaration evidence
+name: Territory season planning and declaration evidence
 on:
   pull_request:
     paths:
       - '.env.example'
       - 'server/services/territoryBattleContext.js'
       - 'server/services/territorySeasonPlans.js'
+      - 'server/routes/territorySeasonPlans.js'
+      - 'server/index.js'
+      - 'public/adminseasons.html'
+      - 'public/assets/admin-seasons.*'
+      - 'public/partials/nav.html'
+      - 'scripts/verify-territory-season-plans.cjs'
       - 'server/services/territoryBattleProvenance.js'
       - 'server/services/groupBattleHistory.js'
       - 'server/services/roadmapCommunity.js'
       - 'test/territoryBattleContext.test.js'
       - 'test/territorySeasonPlans.test.js'
       - 'test/territorySeasonPlansConcurrency.test.js'
+      - 'test/territorySeasonPlansHttp.test.js'
       - 'test/territoryBattleProvenance.test.js'
       - 'test/territoryVictoryRuntime.test.js'
       - 'test/groupTerritoryHistory.test.js'
@@ -34,4 +41,7 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: node --test test/territorySeasonPlans.test.js test/territorySeasonPlansConcurrency.test.js test/territoryBattleContext.test.js test/territoryBattleProvenance.test.js test/groupTerritoryHistory.test.js test/groupTerritoryPrestige.test.js test/territoryControl.test.js test/territoryVictoryDelivery.test.js test/territoryVictoryReview.test.js test/territoryVictoryRuntime.test.js test/roadmapCommunity.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js test/serverEntrypointSyntax.test.js
+      - run: node --test test/territorySeasonPlans.test.js test/territorySeasonPlansConcurrency.test.js test/territorySeasonPlansHttp.test.js test/territoryBattleContext.test.js test/territoryBattleProvenance.test.js test/groupTerritoryHistory.test.js test/groupTerritoryPrestige.test.js test/territoryControl.test.js test/territoryVictoryDelivery.test.js test/territoryVictoryReview.test.js test/territoryVictoryRuntime.test.js test/roadmapCommunity.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js test/serverEntrypointSyntax.test.js
+      - run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.62.1
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/verify-territory-season-plans.cjs

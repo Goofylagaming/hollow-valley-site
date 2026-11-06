@@ -1,0 +1,19 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),express=require('express'),{DatabaseSync}=require('node:sqlite');
+const {createTerritorySeasonPlansRouter}=require('../server/routes/territorySeasonPlans');
+const A='76561198000000101',B='76561198000000102';
+test('staff planning HTTP binds current roles/accounts, respects paused receipts and avoids preview storage',async()=>{
+ const db=new DatabaseSync(':memory:');db.exec('CREATE TABLE users(id INTEGER PRIMARY KEY,steam_id TEXT,is_admin INTEGER)');db.prepare('INSERT INTO users VALUES(1,?,1),(2,?,0)').run(A,B);let enabled=false,readOnly=false;const at=Date.now();
+ const app=express();app.use(express.json());app.use((req,_res,next)=>{if(req.get('x-fixture-user'))req.user={id:Number(req.get('x-fixture-user')),steam_id:req.get('x-fixture-user')==='1'?A:B,is_admin:1};next();});app.use('/plans',createTerritorySeasonPlansRouter({db,enabled:()=>enabled,readOnly:()=>readOnly,now:()=>at}));const server=await new Promise(resolve=>{const s=app.listen(0,'127.0.0.1',()=>resolve(s));}),origin='http://127.0.0.1:'+server.address().port;
+ const headers=user=>({'x-fixture-user':String(user),'X-Season-Planner':user+':'+(user===1?A:B),Origin:origin,'Content-Type':'application/json'}),post=(action,body,user=1,extra={})=>fetch(origin+'/plans/'+action,{method:'POST',headers:{...headers(user),...extra},body:JSON.stringify(body)});
+ try{
+  assert.equal((await fetch(origin+'/plans/capabilities')).status,401);assert.equal((await post('read',{},2)).status,403);
+  assert.deepEqual((await(await post('read',{})).json()).seasons,[]);assert.equal(db.prepare("SELECT COUNT(*) n FROM sqlite_master WHERE name='territory_season_plans'").get().n,0);
+  enabled=true;readOnly=true;db.exec('PRAGMA query_only=ON');assert.equal((await post('read',{})).status,200);db.exec('PRAGMA query_only=OFF');assert.equal((await post('prepare',{})).status,403);assert.equal(db.prepare("SELECT COUNT(*) n FROM sqlite_master WHERE name='territory_season_plans'").get().n,0);readOnly=false;
+  assert.equal((await post('read',{},1,{Origin:'https://foreign.invalid'})).status,403);assert.equal((await post('read',{},1,{'X-Season-Planner':'2:'+B})).status,403);assert.equal((await post('read',{actor:2})).status,400);
+  const input={action:'save',seasonId:'season-one',name:'One',expectedRevision:0,startsAt:at+3600000,endsAt:at+7200000};
+  assert.equal((await post('prepare',{...input,actor:2})).status,400);const prepared=await post('prepare',input);assert.equal(prepared.headers.get('cache-control'),'private, no-store');const payload=await prepared.json();assert.equal(payload.actorBinding,'1:'+A);const offer={review:payload.review,digest:payload.digest};assert.equal(db.prepare('SELECT COUNT(*) n FROM territory_season_plans').get().n,0);
+  assert.equal((await post('confirm',{offer,requestId:'http_season_one'})).status,200);enabled=false;assert.equal((await post('receipt',{requestId:'http_season_one'})).status,200);assert.equal((await(await post('confirm',{offer,requestId:'http_season_one'})).json()).duplicate,true);assert.equal((await post('prepare',{...input,seasonId:'season-two'})).status,503);
+  db.exec('UPDATE users SET is_admin=0 WHERE id=1');assert.equal((await post('receipt',{requestId:'http_season_one'})).status,403);db.exec('UPDATE users SET is_admin=1 WHERE id=1');db.prepare('UPDATE users SET steam_id=? WHERE id=1').run(B);assert.equal((await post('read',{})).status,403);
+ }finally{await new Promise(resolve=>server.close(resolve));db.close();}
+});

@@ -31,7 +31,7 @@ function createTerritorySeasonPlans(db,{enabled=()=>process.env.TERRITORY_SEASON
   if(!row){if(latest)fail(503,'Season planning history requires review');return null;}
   const {receipt}=checkedEdit(latest);if(row.operation_id!==latest.id||row.definition_json!==JSON.stringify(receipt.definition))fail(503,'Season planning history requires review');return receipt.definition;
  }
- function definitions(){const rows=db.prepare('SELECT season_id FROM territory_season_plans ORDER BY season_id LIMIT 501').all();if(rows.length>500)fail(503,'Season planning capacity requires review');return rows.map(row=>current(row.season_id));}
+ function definitions(){if(db.prepare('SELECT 1 FROM territory_season_plan_edits e LEFT JOIN territory_season_plans p ON p.season_id=e.season_id WHERE p.season_id IS NULL LIMIT 1').get())fail(503,'Season planning history requires review');const rows=db.prepare('SELECT season_id FROM territory_season_plans ORDER BY season_id LIMIT 501').all();if(rows.length>500)fail(503,'Season planning capacity requires review');return rows.map(row=>current(row.season_id));}
  function validate(action,saved,at){
   if((saved?.revision||0)!==action.expectedRevision)fail(409,'The season changed; review it again');
   if(saved&&(saved.state==='cancelled'||at>=saved.startsAt))fail(409,'Cancelled or started season plans cannot be rewritten');

@@ -30,7 +30,8 @@ regressions, voting and production-page checks. The actual Territory HTTP
 declaration/runtime fixture enables the option only in its temporary database and
 checks the frozen event/key/label for both ordinary and manually disqualified
 results. Existing source-clock, roster and manual-award exclusions still pass.
-No browser flow or season endpoint exists yet; these are synthetic local source
+At that source-only checkpoint there was no browser flow or season endpoint;
+the later planning interface is described below. These remain synthetic local
 checks, not authenticated game staging or production observations.
 
 The context table and row share declaration atomicity, including outer rollbacks
@@ -41,7 +42,7 @@ activation and source/staging validation remain separate release work.
 
 ## Explicit season definition plans
 
-The unmounted territorySeasonPlans service adds staff-only future definitions
+The territorySeasonPlans service adds staff-only future definitions
 behind the independent TERRITORY_SEASON_PLANS_ENABLED flag, whose example is 0.
 Storage initialization is explicit and requires enabled, writable settings.
 Absent-storage inspection does not create tables. The current linked
@@ -66,7 +67,7 @@ Changed retries conflict, and receipt reads are private to the original current
 staff identity. Read-only mode blocks confirmation, including retries, while
 query-only history/receipt reads remain possible. Contradictory current/audit
 state is withheld. This service provides no activation or reset method, scheduler,
-HTTP endpoint, public season display, reward or game command.
+public season display, reward or game command.
 
 All 83 integrated local tests pass. Five new planning checks cover disabled and
 read-only storage behavior, authority/relinking, reviews without writes, expiry,
@@ -77,8 +78,46 @@ busy connections must retry/check the same reference. The existing source,
 runtime, voting and production-page checks also pass. Hosted and authenticated
 staging results remain pending for this unpublished work.
 
-Next implementation must connect staff APIs and review controls, obtain reviewed
-cadence/boundaries, safely coordinate active declarations and reset transitions,
+## Private staff planning page
+
+/api/territory-season-plans exposes current-database linked staff reads, review,
+confirmation and original-actor receipt recovery. X-Season-Planner binds each
+request to the displayed account. POST operations require same-origin JSON and
+strict fields; account/query overrides are rejected. Current role/account checks
+run before and after each operation, with the core repeating authority inside
+the write transaction. Responses are private/no-store. Capabilities and disabled
+or preview reads do not initialize missing planning tables. Writable enabled
+access prepares missing planning storage explicitly. Existing history stays
+readable while new planning is paused; exact saved retries can recover a receipt.
+
+/adminseasons and /adminseasons.html use the existing admin page gate, and the
+staff navigation links the page. The editor shows local device times and exact
+UTC dates before explicit confirmation. Review freezes the action, definition,
+revision and request key. Discard does not write. Lost replies preserve the same
+request for explicit receipt checking or retry. A successful save followed by a
+failed plan-list read also retains that recovery state. Conflicting edits require
+refresh before another review. Expired reviews disable confirmation. Preview and
+paused modes disable new choices. Every display waits for fresh account/role
+verification; delayed responses cannot restore cleared data. Account, role,
+visibility and focus changes clear private views and form values. No browser
+storage, automatic write replay, source polling or season activation is used.
+
+85 affected local tests pass, including current-role/header/field/origin checks,
+paused receipt recovery, preview reads without migrations and retained-history
+consistency. A missing current definition now blocks inspection and overlapping
+new plans while its audit remains, rather than silently freeing its date window.
+Actual-page fixtures pass at 1440px/390px using the real planning API/core and
+synthetic cookie accounts; shared navigation is omitted in the isolated fixture.
+They cover review/discard without writes, local/UTC date review, safe text,
+unreadable save replies, original receipt checking, same-request retry, failed
+post-save list reads, cancellation, expiry, competing staff changes, preview/
+pause, held replies across account/role changes and width. Visibility checks use
+the explicit page event contract in headless Edge. Browser storage stays empty and no
+unexpected API calls occur. The phone review screenshot was visually inspected.
+These are not real Steam or hosted staging results.
+
+Next implementation must obtain reviewed cadence/boundaries and safely
+coordinate active declarations and reset transitions,
 preserve verified outcomes
 and frozen identities, and distinguish unknown holding-time/streak evidence.
 Historical champions and reset previews/confirmation/recovery need private staff
@@ -88,4 +127,4 @@ current labels. No reset cadence or champion policy has been approved here.
 
 Roadmap #19 displays Working on; its original wording and historical votes stay.
 It leaves active idea voting while five other ideas remain eligible. Homepage
-asset is v166. The full 31-item roadmap and this feature remain incomplete.
+asset is v167. The full 31-item roadmap and this feature remain incomplete.
