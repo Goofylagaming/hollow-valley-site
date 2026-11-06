@@ -20,11 +20,12 @@ function createGroupBattleHistory(db) {
     }
   }
   function list(groupId) {
-    if(!exists('territory_battle_provenance'))return [];
+    if(!exists('territory_battle_provenance')||!exists('territory_battle_sample_clock'))return [];
     return db.prepare(`SELECT b.attack_id AS attackId,b.event_id AS eventId,
       b.started_at AS startedAt,b.closed_at AS resolvedAt,b.outcome,i.side,
       i.territory_group_id AS territoryGroupId,i.link_revision AS linkRevision
       FROM hv_group_battle_identity i JOIN territory_battle_provenance b ON b.attack_id=i.attack_id
+      JOIN territory_battle_sample_clock c ON c.attack_id=b.attack_id AND c.verified=1
       WHERE i.group_id=? AND b.closed_at IS NOT NULL AND b.live_observed=1
         AND b.disqualified_reason IS NULL AND b.outcome IN ('capture','defence')
       ORDER BY b.closed_at DESC,b.attack_id DESC LIMIT 50`).all(groupId)
@@ -32,10 +33,11 @@ function createGroupBattleHistory(db) {
   }
   function versus(groupId,otherId){
     if(![groupId,otherId].every(id=>Number.isSafeInteger(id)&&id>0)||groupId===otherId)throw Object.assign(new Error('Two different website groups are required'),{status:400});
-    if(!exists('territory_battle_provenance'))return {available:false,totals:null,battles:[]};
+    if(!exists('territory_battle_provenance')||!exists('territory_battle_sample_clock'))return {available:false,totals:null,battles:[]};
     const from=`FROM hv_group_battle_identity own JOIN hv_group_battle_identity peer ON peer.attack_id=own.attack_id
       AND peer.side<>own.side AND peer.side IN('attacker','defender')
       JOIN territory_battle_provenance b ON b.attack_id=own.attack_id
+      JOIN territory_battle_sample_clock c ON c.attack_id=b.attack_id AND c.verified=1
       WHERE own.group_id=? AND peer.group_id=? AND own.side IN('attacker','defender')
       AND b.closed_at IS NOT NULL AND b.live_observed=1 AND b.disqualified_reason IS NULL AND b.outcome IN('capture','defence')`;
     const won="((b.outcome='capture' AND own.side='attacker') OR (b.outcome='defence' AND own.side='defender'))";
