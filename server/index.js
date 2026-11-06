@@ -285,6 +285,8 @@ function createApp() {
   app.use("/api/skins/premium", require("./routes/premiumSkins"));
   app.use("/api/skins/promos", require("./routes/skinPromos"));
   app.use("/api/skins/gifts", require("./routes/skinGifts"));
+  app.use("/api/skins/trading", require("./routes/skinTrading"));
+  app.use("/api/admin-skin-market", require("./routes/skinMarketModeration"));
   app.use("/api/skins", skinShareCodeRedaction);
   app.use("/api/skins", skinsRouter);
   app.use("/api/supporter", require("./routes/membershipRewards"));
@@ -294,6 +296,10 @@ function createApp() {
   app.use("/api/daily-bonus", dailyBonusRouter);
   app.use("/api/bodydrop", bodydropRouter);
   app.use("/api/server-status", serverStatusRouter);
+  app.use("/api/component-status", require("./routes/componentStatus").createRouter());
+  const statusIncidents = require("./routes/statusIncidents").createRouters();
+  app.use("/api/status-incidents", statusIncidents.publicRouter);
+  app.use("/api/admin/status-incidents", statusIncidents.adminRouter);
   app.use("/api/events", eventsRouter);
   app.use("/api/event-templates", require("./routes/eventTemplates").createRouter());
   app.use("/api/event-schedules", require("./routes/eventSchedules").createRouter());
@@ -309,6 +315,8 @@ function createApp() {
   app.use("/api/community-activity", communityActivityRouter);
   app.use("/api/groups", groupsRouter);
   app.use("/api/group-headquarters", require("./routes/groupHeadquarters"));
+  app.use("/api/group-territory-prestige", require("./routes/groupTerritoryPrestige"));
+  app.use("/api/territory-season-plans", require("./routes/territorySeasonPlans"));
   app.use("/api/group-treasury", require("./routes/groupTreasury"));
   app.use("/api/group-diplomacy", require("./routes/groupDiplomacy"));
   if (TERRITORY_WARS_ADMIN_TEST_ENABLED) {
@@ -321,6 +329,7 @@ function createApp() {
   app.use("/api/admin-restore", adminRestoreRouter);
   app.use("/api/admin-operations", adminOperationsRouter);
   app.use("/api/admin-incidents", adminIncidentsRouter);
+  app.use('/api/admin-spectator',require('./routes/adminSpectator'));
   app.use("/api/reports", playerReportsRouter);
   app.use('/api/gallery',require('./routes/gallery'));
   app.use("/api/admin-combat", adminCombatRouter);
@@ -340,7 +349,7 @@ function createApp() {
   app.use("/api/dinostorage", legacyDirectGameApiRetired);
   app.all(["/api/park", "/api/playerdata", "/api/redeem", "/api/parked", "/api/admin"], legacyDirectGameApiRetired);
 
-  const PAGE_ROUTES = ["death-recaps", "journeys", "skin-gifts", "skin-codes", "gallery", "legacy", "dashboard", "wallet", "quests", "profile", "mydinos", "bodydrop", "friends", "groups", "marketplace", "livemap", "leaderboard", "supporter", "events", "help", "rules", "packs", "updates", "support", "community", "recruitment", "activity", "status", "reports"];
+  const PAGE_ROUTES = ["death-recaps", "journeys", "skin-gifts", "skin-trading", "skin-codes", "gallery", "legacy", "dashboard", "wallet", "quests", "profile", "mydinos", "bodydrop", "friends", "groups", "marketplace", "livemap", "leaderboard", "supporter", "events", "help", "rules", "packs", "updates", "support", "community", "recruitment", "activity", "status", "reports"];
   for (const page of PAGE_ROUTES) {
     app.get(`/${page}`, (req, res) => {
       res.sendFile(path.join(__dirname, "..", "public", `${page}.html`));
@@ -364,6 +373,10 @@ function createApp() {
     admin: "admin.html",
     adminoperations: "adminoperations.html",
     adminincidents: "adminincidents.html",
+    adminspectator: "adminspectator.html",
+    adminskinmarket: "adminskinmarket.html",
+    adminseasons: "adminseasons.html",
+    adminstatus: "adminstatus.html",
     adminreports: "adminreports.html",
     admincomms: "admincomms.html",
     adminrestore: "adminrestore.html",
@@ -418,6 +431,16 @@ function startServer() {
     console.log(`Herby Death Squad portal running on port ${PORT}`);
     console.log("[legacy-api] direct game execution paths retired");
     serverStatusService.start();
+    const stopReportContextCleanup = require('./services/reportContextCleanup').start();
+    server.once('close', stopReportContextCleanup);
+    const stopSteamHealth = require('./services/steamProviderHealth').getDefaultService().start();
+    server.once('close', stopSteamHealth);
+    const stopMarketplaceHealth = require('./services/marketplaceHealth').getDefaultService().start();
+    server.once('close', stopMarketplaceHealth);
+    const stopRconHealth = require('./services/rconHealth').getDefaultService().start();
+    server.once('close', stopRconHealth);
+    const stopDiscordHealth = require('./services/discordBridgeHealth').getDefaultService().start();
+    server.once('close', stopDiscordHealth);
     const membershipDiscordTimer = require("./services/membershipDiscordQueue").start();
     server.once("close", () => { if (membershipDiscordTimer) clearInterval(membershipDiscordTimer); });
     const subscriberFundingTimer = require("./services/subscriberFunding").getDefaultService().start();

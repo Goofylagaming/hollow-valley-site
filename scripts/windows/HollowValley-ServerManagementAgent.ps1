@@ -1,4 +1,4 @@
-# Hollow Valley owner management agent v0.1
+# Hollow Valley owner management agent v0.3 (source-clock status observations)
 # Outbound HTTPS only. No inbound RDP, RCON, WinRM or arbitrary shell endpoint.
 [CmdletBinding()]
 param(
@@ -85,6 +85,7 @@ try {
     }
 
     function Get-Snapshot {
+        $sampledAt = (Get-Date).ToUniversalTime().ToString('o')
         $processes = @(Get-Process -Name 'TheIsleServer-Win64-Shipping' -ErrorAction SilentlyContinue)
         $gamePid = $null
         $started = $null
@@ -102,7 +103,8 @@ try {
             $states[$key] = Get-TaskState -Name $taskNames[$key]
         }
         return @{
-            agentVersion = 'v0.2-readwrite-gated'
+            sampledAt = $sampledAt
+            agentVersion = 'v0.3-status-clock'
             allowTaskWrites = [bool]$AllowTaskWrites
             server = @{
                 pid = $gamePid

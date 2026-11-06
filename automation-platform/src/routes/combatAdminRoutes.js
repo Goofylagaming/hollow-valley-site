@@ -5,6 +5,11 @@ const combatEvents = require('../services/combatEventService');
 
 const router = express.Router();
 router.use(requireAdminToken);
+router.get('/report-context', (req,res)=>{
+  res.set('Cache-Control','private, no-store');
+  try{return res.json(combatEvents.reportContext(req.query));}
+  catch(error){const status=[400,503].includes(error.status)?error.status:503;return res.status(status).json({error:status===400?'A valid report time and participants are required.':'Report context is unavailable.'});}
+});
 
 router.post('/reset-stats', async (req, res) => {
   if (String(req.body?.confirm || '') !== 'RESET COMBAT') {

@@ -1,7 +1,9 @@
 /* Admin-only, read-only incident timeline. Raw messages and private details are not rendered. */
 (function () {
   "use strict";
-  const { api, escapeHtml, loadMe } = window.HDS;
+  const { api, escapeHtml } = window.HDS;
+  const guard = window.HVIncidentContext;
+  let generation = 0;
   const get = (id) => document.getElementById(id);
   const escape = (value) => escapeHtml(String(value ?? "—"));
   const stamp = (value) => {
@@ -12,10 +14,12 @@
   };
 
   async function refresh() {
+    const current = ++generation;
     const button = get("incident-refresh");
     button.disabled = true;
     get("incident-feedback").textContent = "Loading incident history…";
     try {
+      const ticket = await guard.check();
       const query = new URLSearchParams({
         q: get("incident-search").value.trim().slice(0, 120),
         source: get("incident-source").value,
@@ -23,6 +27,8 @@
         limit: "100",
       });
       const result = await api("/api/admin-incidents/timeline?" + query);
+      await guard.check(ticket.binding);
+      if (current !== generation || !guard.valid(ticket)) return;
       const items = Array.isArray(result.events) ? result.events : [];
       get("incident-records").innerHTML = items.length
         ? items.map((item) => {
@@ -43,6 +49,8 @@
       get("incident-feedback").textContent = items.length + " recent event(s) shown" +
         (result.hasMoreUnloaded ? " · Older entries may exist" : "") + partial;
     } catch (error) {
+      if (current !== generation) return;
+      try { await guard.check(); } catch { return; }
       get("incident-records").innerHTML = '<tr><td colspan="7" class="hv-incidents-empty">Incident records could not be loaded.</td></tr>';
       get("incident-feedback").textContent = "The incident service is temporarily unavailable.";
       console.warn("[admin-incidents] timeline load failed", error.status || "request");
@@ -52,8 +60,8 @@
   }
 
   async function init() {
-    const me = await loadMe();
-    const admin = me?.loggedIn && me.user?.is_admin;
+    const ticket = await guard.check();
+    const admin = guard.valid(ticket);
     get("incident-guard").hidden = Boolean(admin);
     get("incident-content").hidden = !admin;
     if (!admin) return;

@@ -89,6 +89,9 @@ async function getRconSnapshot({ force = false, fallbackReason = null } = {}) {
   }
 
   inFlight = (async () => {
+    let health=null,healthRequest=null;
+    try {health=require('./rconHealthService').getDefaultService();healthRequest=health.begin();} catch {}
+    const observe=ok=>{try{health?.complete(healthRequest,ok);}catch{ /* Monitoring cannot change an existing status-read outcome. */ }};
     try {
       const result = await fetchServerStatus({
         host: process.env.RCON_HOST,
@@ -97,6 +100,7 @@ async function getRconSnapshot({ force = false, fallbackReason = null } = {}) {
         timeoutMs: Number(process.env.RCON_TIMEOUT_MS || 6000),
         maxPlayersHint: Number(process.env.MAX_PLAYERS || 0) || null,
       });
+      observe(true);
       cachedAt = Date.now();
       cachedError = null;
       cachedServer = {
@@ -108,6 +112,7 @@ async function getRconSnapshot({ force = false, fallbackReason = null } = {}) {
       };
       return { ...cachedServer, configured: true, cached: false, error: null };
     } catch (error) {
+      observe(false);
       cachedAt = Date.now();
       cachedError = error.message;
       cachedServer = {

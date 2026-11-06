@@ -1,0 +1,44 @@
+name: Cosmetic Territory prestige
+on:
+  pull_request:
+    paths:
+      - '.env.example'
+      - 'server/services/groupTerritoryPrestige.js'
+      - 'server/routes/groupTerritoryPrestige.js'
+      - 'server/index.js'
+      - 'public/groups.html'
+      - 'public/assets/groups.js'
+      - 'public/assets/group-territory-prestige.*'
+      - 'scripts/verify-group-territory-prestige.cjs'
+      - 'server/services/groupBattleHistory.js'
+      - 'server/services/territoryBattleProvenance.js'
+      - 'server/groupsStore.js'
+      - 'server/services/roadmapCommunity.js'
+      - 'public/assets/home-roadmap.js'
+      - 'test/groupTerritoryPrestige.test.js'
+      - 'test/groupTerritoryPrestigeHttp.test.js'
+      - 'test/groupTerritoryPrestigeConcurrency.test.js'
+      - 'test/groupTerritoryHistory.test.js'
+      - 'test/roadmapCommunity.test.js'
+      - '.github/workflows/group-territory-prestige.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      DB_PATH: ':memory:'
+      AUTOMATION_DB_PATH: ':memory:'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node --test test/groupTerritoryPrestige.test.js test/groupTerritoryPrestigeHttp.test.js test/groupTerritoryPrestigeConcurrency.test.js test/serverEntrypointSyntax.test.js test/groupTerritoryHistory.test.js test/territoryBattleProvenance.test.js test/territoryControl.test.js test/groupDiplomacy.test.js test/groupDiplomacyHttp.test.js test/groups.test.js test/groupProgress.test.js test/roadmapCommunity.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js
+      - run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.62.1
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/verify-group-territory-prestige.cjs

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Player Skin Market | Hollow Valley</title>
+<link rel="stylesheet" href="/assets/styles.css?v=38"><link rel="stylesheet" href="/assets/skin-trading.css?v=2"></head>
+<body data-suppress-daily-claim="true"><div class="app-shell"><div id="nav-slot"></div><main class="skin-market">
+<h1>Player skin market</h1><p>Buy and sell transferable permanent skin unlocks for Valley Coins. A sale moves one unlock to the buyer; it does not make a copy. Applied dinosaur appearances stay unchanged.</p>
+<p><a href="/skins">Skin Studio</a> · <a href="/skin-gifts">Skin gifts</a> · <a href="/wallet">Wallet</a></p>
+<button id="trade-refresh" type="button">Refresh market</button><p id="trade-status" role="status" aria-live="polite">Loading your account…</p>
+<p id="trade-signin" hidden><a href="/auth/steam">Sign in with Steam</a> to use the skin market.</p>
+<section id="trade-account" hidden>
+<p id="trade-mode"></p>
+<section id="trade-review" class="trade-review" hidden aria-labelledby="trade-review-title"><h2 id="trade-review-title">Review your choice</h2><p id="trade-review-summary"></p>
+<p>Confirm only after checking the skin and exact price. Purchases move Valley Coins and the unlock together. There is no marketplace fee.</p>
+<button id="trade-confirm" type="button">Confirm</button><button id="trade-discard" type="button">Discard review</button>
+<button id="trade-check" type="button" hidden>Check saved status</button><button id="trade-retry" type="button" hidden>Retry same request</button></section>
+<div class="trade-grid"><section><h2>List a skin</h2><form id="trade-offer"><fieldset disabled>
+<label for="trade-skin">Permanent skin</label><select id="trade-skin" required><option value="">Choose a skin</option></select><button id="trade-more-skins" type="button" disabled>Next eligible skins</button>
+<label for="trade-price">Price in Valley Coins</label><input id="trade-price" type="text" inputmode="numeric" pattern="[0-9]+" maxlength="16" required autocomplete="off">
+<p>Listings last seven days. You keep your unlock until it sells. Resolve pending gifts or skin applications before trading. You can cancel an unsold listing.</p><button id="trade-offer-review" type="submit">Review listing</button></fieldset></form></section>
+<section><h2>Your trade history</h2><div id="trade-history"></div><button id="trade-next-history" type="button" disabled>Next trades</button></section></div>
+<section><h2>Available skins</h2><div id="trade-listings" class="trade-cards"></div><button id="trade-next-listings" type="button" disabled>Next listings</button></section>
+<section><h2>Your listings</h2><div id="trade-own" class="trade-cards"></div><button id="trade-next-own" type="button" disabled>Next of your listings</button></section>
+</section></main></div><script src="/assets/common.js?v=54"></script><script src="/assets/skin-trading.js?v=2"></script></body></html>

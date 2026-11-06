@@ -1,0 +1,7 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),express=require('express');
+test('health client sends only the fixed authenticated GET and propagates shutdown/deadline cancellation',async t=>{
+ const previous={AUTOMATION_SERVICE_URL:process.env.AUTOMATION_SERVICE_URL,HOLLOW_VALLEY_API_TOKEN:process.env.HOLLOW_VALLEY_API_TOKEN};t.after(()=>{for(const [key,value]of Object.entries(previous))if(value===undefined)delete process.env[key];else process.env[key]=value;});
+ const app=express();let requested,seen;const arrived=new Promise(resolve=>{requested=resolve;});app.get('/api/website/marketplace/health',(req,res)=>{seen={method:req.method,url:req.originalUrl,authorization:req.get('authorization')};requested();});const server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));t.after(()=>{server.closeAllConnections();return new Promise(r=>server.close(r));});
+ process.env.AUTOMATION_SERVICE_URL='http://127.0.0.1:'+server.address().port;process.env.HOLLOW_VALLEY_API_TOKEN='synthetic-test-token';const abort=new AbortController(),client=require('../server/services/automationWebsiteClient');const pending=client.getMarketplaceHealth({signal:abort.signal});await arrived;abort.abort();await assert.rejects(pending,error=>error.code==='AUTOMATION_TIMEOUT');assert.deepEqual(seen,{method:'GET',url:'/api/website/marketplace/health',authorization:'Bearer synthetic-test-token'});
+});

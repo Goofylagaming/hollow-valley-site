@@ -18,6 +18,8 @@ db.exec(`
   );
   CREATE INDEX IF NOT EXISTS idx_server_health_checked
     ON server_health_samples(checked_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_server_health_observed
+    ON server_health_samples(julianday(checked_at) DESC, id DESC);
 `);
 
 let sampling = false;

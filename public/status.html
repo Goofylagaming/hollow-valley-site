@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="/assets/styles.css?v=38">
   <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=5">
-  <link rel="stylesheet" href="/assets/status-page.css?v=1">
+  <link rel="stylesheet" href="/assets/status-page.css?v=8">
 </head>
 <body>
   <div class="app-shell">
@@ -41,17 +41,56 @@
           <p id="status-game-detail">Reading the last server snapshot from Hollow Valley automation.</p>
           <small id="status-snapshot-time">No verified snapshot loaded yet</small>
         </article>
+        <article class="hv-status-card" id="status-worker-card" data-state="unknown">
+          <div class="hv-status-card-header"><h3>Command Bridge worker observation</h3><span class="hv-status-pill" id="status-worker-state">Checking</span></div>
+          <p id="status-worker-detail">Checking the management agent's recorded Windows task state. This does not test game commands.</p>
+          <small id="status-worker-time">No verified worker observation yet</small>
+        </article>
+        <article class="hv-status-card" id="status-map-card" data-state="unknown">
+          <div class="hv-status-card-header"><h3>Live Map data check</h3><span class="hv-status-pill" id="status-map-state">Checking</span></div>
+          <p id="status-map-detail">Checking source freshness and whether recorded coordinates can be projected. Account access and browser display are separate checks.</p>
+          <small id="status-map-time">No verified position-source observation yet</small>
+        </article>
+        <article class="hv-status-card" id="status-steam-card" data-state="unknown">
+          <div class="hv-status-card-header"><h3>Steam sign-in provider</h3><span class="hv-status-pill" id="status-steam-state">Checking</span></div>
+          <p id="status-steam-detail">Checking the public provider endpoint. Account linking and profile retrieval are separate checks.</p>
+          <small id="status-steam-time">No verified provider observation yet</small>
+        </article>
+        <article class="hv-status-card" id="status-marketplace-card" data-state="unknown">
+          <div class="hv-status-card-header"><h3>Marketplace catalog</h3><span class="hv-status-pill" id="status-marketplace-state">Checking</span></div>
+          <p id="status-marketplace-detail">Checking a read-only catalog observation. Checkout and delivery are separate checks.</p>
+          <small id="status-marketplace-time">No verified catalog observation yet</small>
+        </article>
+        <article class="hv-status-card" id="status-rcon-card" data-state="unknown">
+          <div class="hv-status-card-header"><h3>RCON read observation</h3><span class="hv-status-pill" id="status-rcon-state">Checking</span></div>
+          <p id="status-rcon-detail">Reading the last existing status-query observation. This does not request game commands or verify the local worker connection.</p>
+          <small id="status-rcon-time">No timestamped RCON read observed</small>
+        </article>
+        <article class="hv-status-card" id="status-discord-card" data-state="unknown">
+          <div class="hv-status-card-header"><h3>Discord bridge contact</h3><span class="hv-status-pill" id="status-discord-state">Checking</span></div>
+          <p id="status-discord-detail">Reading recorded authenticated bridge contact. Gateway readiness and message delivery are separate checks.</p>
+          <small id="status-discord-time">No timestamped bridge contact observed</small>
+        </article>
       </section>
       <section class="hv-status-notes" aria-labelledby="status-notes-heading">
         <h2 id="status-notes-heading">What this page can verify</h2>
         <p><strong>Website process</strong> means the website answered its liveness check. <strong>Website readiness</strong> checks local storage and draining state. <strong>Game server</strong> uses a server snapshot; its last update is shown so delayed data is never mistaken for live player presence.</p>
-        <p>RCON / Command Bridge, Discord bot, Steam sign-in, Marketplace operations and Live Map data are <strong>not independently monitored on this page yet</strong>. An online website does not prove those services work. Component checks and verified incident history are planned in later HV-W01 releases.</p>
+        <p>The Command Bridge worker observation checks a recorded Windows task state; it does not verify command execution. The Live Map data check uses the same projection as the signed-in map but shows no player data. Account access and browser display remain unverified. The Steam provider check only tests a discovery HTTP response; it does not test an account login or link. The Marketplace check only reads active catalog records; it does not test purchases or delivery. The RCON observation reports an existing status read without issuing another query; the local game worker connection and command execution remain unverified. Discord bridge contact only records a completed authenticated polling request. Discord gateway readiness and message delivery are <strong>not independently monitored on this page yet</strong>. Staff-reviewed incident reports below are separate from these checks.</p>
         <a href="/">← Back to Hollow Valley</a>
+      </section>
+      <section class="hv-status-notes" aria-labelledby="status-incidents-heading">
+        <h2 id="status-incidents-heading">Staff-reviewed incident history</h2>
+        <p>Published staff reports describe recorded interruptions and follow-up checks. They are not independent monitoring, and an empty history does not confirm every service is healthy.</p>
+        <p id="status-incidents-message" role="status">Checking incident history…</p>
+        <div id="status-incidents-list"></div>
+        <button type="button" id="status-incidents-more" hidden>Load older reports</button>
       </section>
     </main>
     <footer><span>© 2026 Hollow Valley</span><span>HOLLOW VALLEY · AUSTRALIAN ISLE SERVER</span><a href="/">Home ↑</a></footer>
   </div>
   <script src="/assets/common.js?v=22"></script>
   <script src="/assets/status-page.js?v=1"></script>
+  <script src="/assets/status-incidents.js?v=1"></script>
+  <script src="/assets/status-components.js?v=6"></script>
 </body>
 </html>

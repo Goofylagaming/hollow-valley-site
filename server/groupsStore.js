@@ -65,7 +65,7 @@ function getState(rawSteam){
    SELECT i.id,i.invitee_steam_id AS steamId,COALESCE(u.username,'Steam player') AS username,
    i.created_at AS createdAt FROM hv_group_invites i LEFT JOIN users u ON u.steam_id=i.invitee_steam_id
    WHERE i.group_id=? AND i.status='pending' ORDER BY i.id DESC`).all(g.id)}:null;
- return {current:own,
+ return {current:own,territoryPrestigeAvailable:process.env.GROUP_TERRITORY_PRESTIGE_ENABLED==='1'||Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='hv_group_territory_prestige'").get()),
  closurePending:db.prepare("SELECT c.group_id AS groupId,g.name AS groupName FROM hv_group_treasury_closures c JOIN hv_groups g ON g.id=c.group_id WHERE c.actor=? AND c.state='closed' AND c.remote_complete=0 ORDER BY c.group_id DESC LIMIT 20").all(s),
  incoming:db.prepare(`
    SELECT i.id,i.group_id AS groupId,g.name AS groupName,i.created_at AS createdAt,

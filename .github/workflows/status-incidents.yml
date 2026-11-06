@@ -1,0 +1,100 @@
+name: Staff-reviewed status incidents
+on:
+  pull_request:
+    paths:
+      - ".env.example"
+      - 'server/services/statusIncidentStore.js'
+      - 'server/services/bridgeWorkerHealth.js'
+      - 'server/routes/componentStatus.js'
+      - 'server/services/automationWebsiteClient.js'
+      - 'automation-platform/.env.example'
+      - 'automation-platform/src/services/marketplaceHealthService.js'
+      - 'automation-platform/src/routes/websiteRoutes.js'
+      - 'automation-platform/test/marketplaceHealth.test.js'
+      - 'automation-platform/test/marketplaceHealthHttp.test.js'
+      - 'automation-platform/src/services/economyStore.js'
+      - 'automation-platform/src/services/statusService.js'
+      - 'automation-platform/src/services/rconHealthService.js'
+      - 'automation-platform/src/services/discordBridgeHealthService.js'
+      - 'automation-platform/src/routes/herbyBotRoutes.js'
+      - 'automation-platform/src/middleware/herbyBotAuth.js'
+      - 'automation-platform/test/discordBridgeHealth.test.js'
+      - 'automation-platform/test/discordBridgeHealthHttp.test.js'
+      - 'automation-platform/test/herbyBotOutbox.test.js'
+      - 'automation-platform/test/herbyBotIsolation.test.js'
+      - 'automation-platform/src/adapters/evrimaRcon.js'
+      - 'automation-platform/test/rconHealth.test.js'
+      - 'automation-platform/test/rconHealthHttp.test.js'
+      - 'automation-platform/test/rconHealthWire.test.js'
+      - 'automation-platform/test/statusConcurrency.test.js'
+      - 'automation-platform/test/statusPrivacy.test.js'
+      - 'automation-platform/test/statusErrorClassification.test.js'
+      - 'automation-platform/test/evrimaRcon.test.js'
+      - 'automation-platform/src/services/officialMarketplaceCatalogService.js'
+      - 'automation-platform/test/officialMarketplaceCatalogTiers.test.js'
+      - 'server/routes/map.js'
+      - 'server/services/liveMapProjection.js'
+      - 'server/services/sourceTimestamp.js'
+      - 'server/services/steamProviderHealth.js'
+      - 'server/services/marketplaceHealth.js'
+      - 'server/services/rconHealth.js'
+      - 'server/services/discordBridgeHealth.js'
+      - 'test/discordBridgeHealth.test.js'
+      - 'test/discordBridgeHealthClient.test.js'
+      - 'test/rconHealth.test.js'
+      - 'test/marketplaceHealth.test.js'
+      - 'test/marketplaceHealthClient.test.js'
+      - 'test/steamProviderHealth.test.js'
+      - 'test/steamProviderHttp.test.js'
+      - 'server/authSteam.js'
+      - 'server/services/steamProfile.js'
+      - 'test/steamProfile.test.js'
+      - 'test/ownerEmailAuth.test.js'
+      - 'public/assets/live-map-observation.js'
+      - 'public/assets/livemap.js'
+      - 'public/assets/status-components.js'
+      - 'public/livemap.html'
+      - 'test/liveMapProjection.test.js'
+      - 'test/liveMapStatusHttp.test.js'
+      - 'server/routes/serverManagement.js'
+      - 'scripts/windows/HollowValley-ServerManagementAgent.ps1'
+      - 'test/bridgeWorkerHealth.test.js'
+      - 'test/componentStatusHttp.test.js'
+      - 'server/routes/statusIncidents.js'
+      - 'server/index.js'
+      - 'public/status.html'
+      - 'public/adminstatus.html'
+      - 'public/adminincidents.html'
+      - 'public/partials/nav.html'
+      - 'public/assets/status-editor.*'
+      - 'public/assets/status-incidents.js'
+      - 'public/assets/status-page.*'
+      - 'public/assets/home-roadmap.js'
+      - 'test/statusIncidents*.test.js'
+      - 'test/statusPage.test.js'
+      - 'test/incidentTimeline.test.js'
+      - 'scripts/verify-status-incidents.cjs'
+      - 'scripts/verify-status-editor.cjs'
+      - 'scripts/verify-live-map-source.cjs'
+      - '.github/workflows/status-incidents.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node --test test/discordBridgeHealth.test.js test/discordBridgeHealthClient.test.js automation-platform/test/discordBridgeHealth.test.js automation-platform/test/discordBridgeHealthHttp.test.js automation-platform/test/herbyBotOutbox.test.js automation-platform/test/herbyBotIsolation.test.js test/rconHealth.test.js automation-platform/test/rconHealth.test.js automation-platform/test/rconHealthHttp.test.js automation-platform/test/rconHealthWire.test.js automation-platform/test/statusConcurrency.test.js automation-platform/test/statusPrivacy.test.js automation-platform/test/statusErrorClassification.test.js automation-platform/test/evrimaRcon.test.js test/marketplaceHealthClient.test.js test/marketplaceHealth.test.js automation-platform/test/marketplaceHealth.test.js automation-platform/test/marketplaceHealthHttp.test.js automation-platform/test/officialMarketplaceCatalogTiers.test.js test/marketplaceStorageUiRegression.test.js test/steamProfile.test.js test/ownerEmailAuth.test.js test/steamProviderHealth.test.js test/steamProviderHttp.test.js test/liveMapProjection.test.js test/liveMapStatusHttp.test.js test/mapActivityRoute.test.js test/liveSnapshotFreshness.test.js test/liveMapTerritoryIntegration.test.js test/bridgeWorkerHealth.test.js test/componentStatusHttp.test.js test/serverManagement.test.js test/desktopReadOnlyManagement.test.js test/statusIncidents.test.js test/statusIncidentsHttp.test.js test/statusPage.test.js test/incidentTimeline.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js test/roadmapCommunity.test.js
+      - run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.62.1
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/verify-status-incidents.cjs
+      - run: node scripts/verify-status-editor.cjs
+
+      - run: node scripts/verify-live-map-source.cjs

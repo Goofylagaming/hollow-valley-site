@@ -488,7 +488,9 @@ function renderMe(data) {
   if (!panel) return;
 
   if (!data.connected) {
-    panel.innerHTML = `<div class="empty-roster"><strong>Server offline</strong><span>Your character will appear here when Hollow Valley is back online.</span></div>`;
+    panel.innerHTML = data.sourceStatus === 'verified-offline'
+      ? `<div class="empty-roster"><strong>Game reported offline</strong><span>No live positions are shown.</span></div>`
+      : `<div class="empty-roster"><strong>Live positions unverified</strong><span>The current position source is unavailable or delayed. No player positions are inferred.</span></div>`;
     return;
   }
   if (!data.linked) {
@@ -535,8 +537,8 @@ function renderOthers(data) {
   if (!list) return;
 
   if (!data.connected || !data.others.length) {
-    list.innerHTML = `<div class="empty-roster"><strong>No other survivors</strong><span>${
-      data.connected ? "Nobody else is online right now." : "The live map goes active once the server is connected."
+    list.innerHTML = `<div class="empty-roster"><strong>${data.connected ? "No other characters observed" : "Live roster unverified"}</strong><span>${
+      data.connected ? "No other characters were included in this snapshot." : "Current player presence is not inferred from an unavailable position source."
     }</span></div>`;
     return;
   }
@@ -594,7 +596,7 @@ function renderConnectionStatus(data) {
   if (!data.connected) {
     const lastVerified = activityHistory?.lastVerifiedAt;
     status.textContent = data.configured
-      ? `Server offline · no live positions shown${lastVerified ? ` · last verified activity ${formatVerifiedTime(lastVerified)}` : ""}`
+      ? `${data.sourceStatus === 'verified-offline' ? 'Game reported offline' : 'Live position source unverified'} · no live positions shown${lastVerified ? ` · last verified activity ${formatVerifiedTime(lastVerified)}` : ""}`
       : "Server feed not configured · no live positions shown";
     status.classList.add("offline");
     return;
@@ -710,7 +712,7 @@ async function loadMap() {
   mapLoadInFlight = true;
   const status = document.getElementById("tracker-status");
   try {
-    const data = await api("/api/map/positions");
+    const data = window.HVLiveMapObservation.current(await api("/api/map/positions"));
     lastMapState = data;
     window.HVLiveMapState = data;
     window.dispatchEvent(new CustomEvent("hv:map-state", { detail: data }));
@@ -730,6 +732,8 @@ async function loadMap() {
     renderMarkers(null);
     lastMapState = null;
     window.HVLiveMapState = null;
+    window.dispatchEvent(new CustomEvent("hv:map-state", { detail: null }));
+    renderMe({connected:false,sourceStatus:'unavailable'});
 
     if (err && err.status === 401) {
       if (status) status.textContent = "Sign in to see your character · no player positions are shown";

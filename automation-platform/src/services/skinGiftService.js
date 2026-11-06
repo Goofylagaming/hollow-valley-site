@@ -4,6 +4,7 @@ function createSkinGiftService(store,{now=Date.now,enabled=()=>process.env.SKIN_
   const db=store.db;
   const parked=require('./skinParkedApplicationService').createSkinParkedApplicationService(store);
   const live=require('./skinGiftLiveRecovery').createSkinGiftLiveRecovery(store);
+  const transferable=require('./skinTransferEligibility').createSkinTransferEligibility(store);
   db.exec(`CREATE TABLE IF NOT EXISTS economy_skin_gifts (
     id TEXT PRIMARY KEY,sender TEXT NOT NULL,recipient TEXT NOT NULL,preset_id TEXT NOT NULL,
     request_id TEXT NOT NULL,payload TEXT NOT NULL,unlock_key TEXT NOT NULL,fingerprint TEXT NOT NULL,
@@ -15,15 +16,6 @@ function createSkinGiftService(store,{now=Date.now,enabled=()=>process.env.SKIN_
   const tx=fn=>{db.exec('BEGIN IMMEDIATE');try{const result=fn();db.exec('COMMIT');return result;}catch(e){db.exec('ROLLBACK');throw e;}};
   const gate=()=>{if(!enabled())fail('Skin gifting is not enabled',503);};
   const fingerprint=p=>createHash('sha256').update(JSON.stringify([p.owner_steam_id,p.species,p.skin])).digest('hex');
-  function transferable(sender,presetId) {
-    const preset=store.getSkinPreset(presetId);
-    if(!preset?.active||preset.membershipPremium||preset.isPremium||(preset.published&&Number(preset.price)===0)||preset.owner_steam_id===sender||store.hasSkinGrant(sender,presetId))fail('This skin is not transferable',409);
-    if(db.prepare("SELECT 1 FROM economy_skin_apply_jobs WHERE steam_id=? AND preset_id=? AND status IN ('queued','awaiting_confirmation')").get(sender,presetId))fail('Wait for the pending skin application to finish before gifting',409);
-    if(parked.pending(sender,presetId))fail('A parked skin application is awaiting confirmation; check its outcome before gifting',409);
-    const unlock=db.prepare('SELECT * FROM economy_skin_unlocks WHERE steam_id=? AND preset_id=?').get(sender,presetId);
-    if(!unlock?.idempotency_key)fail('A permanent skin unlock with a receipt is required',409);
-    return {preset,unlock};
-  }
   function offer(user,{recipientSteamId,presetId,requestId,note=''}={}) {
     gate();const sender=store.validateSteamId(user?.steam_id),recipient=store.validateSteamId(recipientSteamId);
     if(sender===recipient||typeof requestId!=='string'||!/^[\w-]{8,128}$/.test(requestId)||typeof note!=='string'||note.length>240)fail('Choose another recipient and a valid gift request');

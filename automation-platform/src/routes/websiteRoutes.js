@@ -30,6 +30,7 @@ router.use(requireWebsiteToken);
 router.use('/premium-skins', require('./premiumSkinsRoutes'));
 router.use('/skin-promos', require('./skinPromoRoutes'));
 router.use('/skin-gifts', require('./skinGiftRoutes'));
+router.use('/skin-trading', require('./skinTradingRoutes').createSkinTradingRouter());
 
 function validateSteamId(value) {
   const steamId = String(value || '').trim();
@@ -310,6 +311,27 @@ router.get('/leaderboards/playtime', (req, res) => {
   } catch (error) {
     res.status(400).json({ error: error.message || 'Unable to read playtime leaderboard.' });
   }
+});
+
+// Website monitoring must not refresh the separate authenticated bot-contact source.
+router.get('/discord/health', (_req, res) => {
+  res.set('Cache-Control', 'private, no-store');
+  if(process.env.STATUS_DISCORD_BRIDGE_HEALTH_ENABLED!=='1')return res.status(503).json({available:false});
+  return res.json({available:true,...require('../services/discordBridgeHealthService').getDefaultService().read()});
+});
+
+// This is a passive source: never invoke getServerSnapshot/getRconSnapshot here.
+router.get('/rcon/health', (_req, res) => {
+  res.set('Cache-Control', 'private, no-store');
+  if(process.env.STATUS_RCON_HEALTH_ENABLED!=='1')return res.status(503).json({available:false});
+  return res.json({available:true,...require('../services/rconHealthService').getDefaultService().read()});
+});
+
+// A health read must not call the catalog endpoint, which performs seeding.
+router.get('/marketplace/health', (_req, res) => {
+  res.set('Cache-Control', 'private, no-store');
+  if(process.env.STATUS_MARKETPLACE_HEALTH_ENABLED!=='1')return res.status(503).json({available:false});
+  return res.json({available:true,...require('../services/marketplaceHealthService').readMarketplaceHealth(economy.db)});
 });
 
 router.get('/marketplace/catalog', (_req, res) => {

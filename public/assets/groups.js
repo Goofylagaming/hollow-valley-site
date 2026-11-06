@@ -60,6 +60,8 @@
   }  function render(){
     if(!state)return;
     const g=state.current,history=state.previous||[],invites=state.incoming||[];
+    $('groups-app').dataset.territoryPrestigeAvailable=String(state.territoryPrestigeAvailable===true);
+    $('groups-current-panel').dataset.currentGroupId=g?String(g.id):'';
     text("groups-total",g?"1":"0");text("groups-current-label",g?g.name:"Not in a group");
     text("groups-member-count",g?g.members.length:0);
     text("groups-invite-count",invites.length);
@@ -97,7 +99,7 @@
     const unfinished=state.closurePending||[];show('groups-closure-recovery',Boolean(unfinished.length));
     $('groups-closure-recovery').innerHTML=unfinished.map(row=>'<div class="groups-row"><span>The group is closed. Finish the Treasury closure check for '+safe(row.groupName)+'.</span><button class="small-button" type="button" data-action="finish-closure" data-group-id="'+safe(row.groupId)+'">Finish closure check</button></div>').join('');
     void refreshProgress();
-    window.dispatchEvent(new CustomEvent('hv:group-state', { detail: { groupId: state?.current?.id || null } }));
+    window.dispatchEvent(new CustomEvent('hv:group-state', { detail: { groupId: state?.current?.id || null,territoryPrestigeAvailable:state?.territoryPrestigeAvailable===true } }));
   }
   async function refresh(){
     state=await api("/api/groups");

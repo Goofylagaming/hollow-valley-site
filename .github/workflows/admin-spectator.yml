@@ -1,0 +1,51 @@
+name: Private spectator dashboard
+on:
+  pull_request:
+    paths:
+      - '.env.example'
+      - 'automation-platform/.env.example'
+      - 'automation-platform/src/index.js'
+      - 'automation-platform/src/services/adminSpectatorService.js'
+      - 'automation-platform/src/services/automationStore.js'
+      - 'automation-platform/src/services/economyStore.js'
+      - 'automation-platform/src/services/combatEventService.js'
+      - 'automation-platform/src/services/serverHealthHistoryService.js'
+      - 'automation-platform/src/config/combatSpecies.js'
+      - 'automation-platform/src/routes/adminSpectatorRoutes.js'
+      - 'automation-platform/test/adminSpectator*.test.js'
+      - 'server/index.js'
+      - 'server/services/adminSpectator.js'
+      - 'server/services/automationWebsiteClient.js'
+      - 'server/services/liveMapProjection.js'
+      - 'server/evrimaMap.js'
+      - 'server/routes/adminSpectator.js'
+      - 'server/services/roadmapCommunity.js'
+      - 'public/adminspectator.html'
+      - 'public/assets/admin-spectator.*'
+      - 'public/assets/home-roadmap.js'
+      - 'public/partials/nav.html'
+      - 'test/adminSpectator*.test.js'
+      - 'test/roadmapCommunity.test.js'
+      - 'scripts/verify-admin-spectator.cjs'
+      - '.github/workflows/admin-spectator.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      DB_PATH: ':memory:'
+      AUTOMATION_DB_PATH: ':memory:'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node --test automation-platform/test/adminSpectatorQueryPlans.test.js automation-platform/test/adminSpectator.test.js test/adminSpectator.test.js test/adminSpectatorHttp.test.js test/roadmapCommunity.test.js test/liveMapProjection.test.js test/serverEntrypointSyntax.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js
+      - run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.62.1
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/verify-admin-spectator.cjs

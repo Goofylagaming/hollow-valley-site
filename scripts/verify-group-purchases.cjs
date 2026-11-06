@@ -108,7 +108,19 @@ async function until(fn){for(let i=0;i<300;i++){if(fn())return;await new Promise
       assert.equal(await page.locator('#treasury-shop-form').isVisible(),false);await page.selectOption('#treasury-frame-choice','night');await page.click('#treasury-frame-save');
       await page.waitForFunction(()=>document.getElementById('groups-current-panel').dataset.groupFrame==='night');await idle();assert.equal(economy.getWallet(A).balance,800);assert.equal(economy.getWallet(B).balance,1000);
       assert.equal(await page.locator('#treasury-shop img').count(),0);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);
-      await context.clearCookies();await page.click('#treasury-shop-refresh');await page.waitForFunction(()=>document.getElementById('treasury-shop').hidden);
+      // End the session at the explicit refresh's request boundary. Clearing
+      // cookies before Playwright finishes its click actionability checks can
+      // let another legitimate read hide the control before it is clicked.
+      // Continue to the real auth middleware with no cookie, rather than
+      // fulfilling a synthetic success/error that would bypass server guards.
+      await page.waitForLoadState('networkidle');
+      await page.locator('#treasury-shop-refresh').waitFor({state:'visible'});
+      await page.route('**/api/group-treasury/purchases',async route=>{
+        await context.clearCookies();const headers=await route.request().allHeaders();delete headers.cookie;
+        await route.continue({headers});
+      });
+      const rejectedRefresh=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/group-treasury/purchases'&&response.status()===401);
+      await page.click('#treasury-shop-refresh');await rejectedRefresh;await page.waitForFunction(()=>document.getElementById('treasury-shop').hidden);
       assert.equal(await page.locator('#treasury-purchase-history').textContent(),'No group purchases yet.');assert.deepEqual(errors,[]);assert.deepEqual(unexpected,[]);
       console.log(`PASS ${width}px owner cosmetic/Territory/event purchases, schedule review, private registrations, lost replies, cancellation races, paid frames and membership`);await context.close();
     }

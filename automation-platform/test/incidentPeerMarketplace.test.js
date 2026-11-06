@@ -1,0 +1,26 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),{DatabaseSync}=require('node:sqlite'),{randomUUID}=require('node:crypto');
+const {createIncidentPeerMarketplaceSource}=require('../src/services/incidentPeerMarketplaceService');
+const AT=Date.parse('2026-11-06T00:00:00.000Z'),iso=value=>new Date(value).toISOString(),SELLER='76561198000000001',BUYER='76561198000000002',OTHER='76561198000000003';
+function fixture(t){
+ const db=new DatabaseSync(':memory:');t.after(()=>db.close());db.exec('CREATE TABLE economy_dino_listings(id TEXT,seller_steam_id TEXT,buyer_steam_id TEXT,created_at TEXT,updated_at TEXT,sold_at TEXT,cancelled_at TEXT,status TEXT,snapshot_json TEXT,error TEXT,original_slot TEXT,buyer_slot TEXT);CREATE TABLE economy_wallets(balance INTEGER);INSERT INTO economy_wallets VALUES(123)');
+ const insert=(values={})=>{const row={id:randomUUID(),seller_steam_id:SELLER,buyer_steam_id:BUYER,created_at:iso(AT-60000),updated_at:iso(AT-30000),sold_at:iso(AT-20000),cancelled_at:iso(AT-10000),status:'transfer_uncertain',snapshot_json:'PRIVATE restore data',error:'PRIVATE token',original_slot:'PRIVATE seller slot',buyer_slot:'PRIVATE buyer slot',...values};db.prepare('INSERT INTO economy_dino_listings VALUES(?,?,?,?,?,?,?,?,?,?,?,?)').run(...Object.values(row));return row;};
+ let enabled=true;const source=createIncidentPeerMarketplaceSource({db,now:()=>AT,enabled:()=>enabled}),input={steamId:SELLER,occurredAt:iso(AT-60000)};return {db,source,insert,input,enable:value=>{enabled=value;}};
+}
+test('seller listing markers are bounded read-only facts without exposing the buyer, snapshots, slots or balances',t=>{
+ const f=fixture(t),listing=f.insert();f.insert({seller_steam_id:OTHER,buyer_steam_id:BUYER});const before=f.db.prepare('SELECT total_changes() n').get().n;f.db.exec('PRAGMA query_only=ON');const value=f.source.read(f.input);assert.equal(value.events.length,4);assert.equal(value.events.every(row=>row.role==='seller'&&row.listingId===listing.id&&row.counterpartyIdentityWithheld),true);assert.equal(value.events.find(row=>row.kind==='latest-update').status,'transfer_uncertain');assert.equal(value.events.filter(row=>row.kind!=='latest-update').every(row=>row.status==='recorded'),true);assert.equal(value.currentBuyerAssociationOnly,true);assert.equal(value.gameDeliveryVerified,false);assert.equal(value.complete,false);assert.doesNotMatch(JSON.stringify(value),new RegExp(BUYER+'|'+OTHER+'|PRIVATE|snapshot_json|slot|balance'));assert.equal(f.db.prepare('SELECT total_changes() n').get().n,before);assert.equal(f.db.prepare('SELECT balance FROM economy_wallets').get().balance,123);
+});
+test('a current buyer receives latest-update and sale markers, never seller creation or cancellation markers',t=>{
+ const f=fixture(t);f.insert({created_at:'2026-11-05 23:59:00',updated_at:'2026-11-05 23:59:30',sold_at:'2026-11-05 23:59:40'});const value=f.source.read({...f.input,steamId:BUYER});assert.deepEqual(value.events.map(row=>row.kind),['sale-timestamp','latest-update']);assert.equal(value.events.every(row=>row.role==='buyer'),true);assert.equal(value.events[0].at,iso(AT-20000));assert.doesNotMatch(JSON.stringify(value),new RegExp(SELLER+'|PRIVATE'));
+ f.db.prepare('UPDATE economy_dino_listings SET buyer_steam_id=?').run(OTHER);assert.deepEqual(f.source.read({...f.input,steamId:BUYER}).events,[]);
+});
+test('out-of-window later status does not rewrite creation, and unknown status remains unknown',t=>{
+ const f=fixture(t);f.insert({updated_at:iso(AT+1),sold_at:iso(AT+1),cancelled_at:null,status:'sold'});let value=f.source.read(f.input);assert.deepEqual(value.events.map(row=>[row.kind,row.status]),[['created','recorded']]);f.db.exec("UPDATE economy_dino_listings SET updated_at=created_at,status='PRIVATE corrupt'");value=f.source.read(f.input);assert.equal(value.events.find(row=>row.kind==='latest-update').status,'unknown');assert.doesNotMatch(JSON.stringify(value),/PRIVATE/);
+});
+test('query input and disabled reads cannot initialize storage, and missing storage does not become empty success',t=>{
+ const db=new DatabaseSync(':memory:');t.after(()=>db.close());let enabled=false;const source=createIncidentPeerMarketplaceSource({db,now:()=>AT,enabled:()=>enabled}),input={steamId:SELLER,occurredAt:iso(AT)};assert.throws(()=>source.read(input),{status:503});enabled=true;
+ for(const bad of [{...input,steamId:[SELLER]},{...input,occurredAt:'2026-11-06'},{...input,occurredAt:iso(AT-91*86400000)},{...input,occurredAt:iso(AT+900001)},{...input,role:'buyer'},{...input,limit:1000}])assert.throws(()=>source.read(bad),{status:400});assert.throws(()=>source.read(input));assert.equal(db.prepare("SELECT count(*) n FROM sqlite_master WHERE type='table'").get().n,0);
+});
+test('source limits and malformed listing IDs disclose incomplete results without forwarding bad data',t=>{
+ const f=fixture(t);for(let i=0;i<20;i++)f.insert();let value=f.source.read(f.input);assert.equal(value.events.length,50);assert.equal(value.truncated,true);f.db.exec('DELETE FROM economy_dino_listings');f.insert({id:'PRIVATE bad id'});value=f.source.read(f.input);assert.deepEqual(value.events,[]);assert.equal(value.truncated,true);assert.doesNotMatch(JSON.stringify(value),/PRIVATE/);
+});

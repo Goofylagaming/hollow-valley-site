@@ -40,7 +40,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install dependencies
+      # Cross-service HTTP tests import website routes as well as automation code.
+      - name: Install website dependencies
+        working-directory: .
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install automation dependencies
         run: npm install --ignore-scripts --no-audit --no-fund
       - name: Run tests
         run: npm test

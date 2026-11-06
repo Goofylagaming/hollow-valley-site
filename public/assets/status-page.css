@@ -25,6 +25,7 @@
 .hv-status-summary button:focus-visible, .hv-status-notes a:focus-visible { outline: 3px solid #d8a928; outline-offset: 4px; }
 .hv-status-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 18px; }
 .hv-status-card { padding: 22px; min-height: 170px; }
+#status-worker-card, #status-map-card, #status-steam-card, #status-marketplace-card, #status-rcon-card, #status-discord-card { grid-column: 1 / -1; min-height: 0; }
 .hv-status-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .hv-status-card h3 { margin: 0; font-size: 1rem; color: #f3ebd4; }
 .hv-status-card p { margin: 22px 0 12px; color: #b8c6b9; line-height: 1.6; font-size: .9rem; }
@@ -37,6 +38,11 @@
 .hv-status-notes p { color: #bcc8bd; line-height: 1.7; font-size: .9rem; }
 .hv-status-notes strong { color: #e6decb; }
 .hv-status-notes a { display: inline-block; margin-top: 8px; color: #f3cb80; text-decoration: underline; text-underline-offset: 4px; }
+.hv-status-incident { border-top: 1px solid #40513f; padding: 20px 0; overflow-wrap: anywhere; }
+.hv-status-incident h3 { color: #f3ebd4; margin: 0 0 8px; }
+.hv-status-incident small { color: #b8c6b9; line-height: 1.7; }
+#status-incidents-more { padding: 12px 18px; border: 1px solid #bfa26a; border-radius: 7px; background: #263629; color: #f8e9b9; cursor: pointer; }
+#status-incidents-more:focus-visible { outline: 3px solid #d8a928; outline-offset: 4px; }
 @media (max-width: 1050px) {
   .hv-status-grid { grid-template-columns: 1fr; }
   .hv-status-card { min-height: 130px; }

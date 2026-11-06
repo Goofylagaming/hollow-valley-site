@@ -57,6 +57,28 @@ router.get("/admin", requireAdmin, (req, res) => {
   try { res.json({ reports: reports.listAdmin({ status: req.query.status, q: req.query.q, limit: req.query.limit }) }); }
   catch (error) { respondError(res, error); }
 });
+router.get('/admin/context-capabilities', requireAuth, requireSteam, (req,res)=>{
+  try{return res.json(require('../services/reportContext').getDefaultReader().capabilities(()=>req.user));}
+  catch(error){return res.status(error.status===403?403:503).json({error:error.status===403?'Current linked admin access is required.':'Report context is unavailable.'});}
+});
+router.get('/admin/:id/context', requireAuth, requireSteam, async (req,res)=>{
+  if(Object.keys(req.query).length)return res.status(400).json({error:'Context uses the saved report only.'});
+  try{return res.json(await require('../services/reportContext').getDefaultReader().read(()=>req.user,req.params.id,req.get('X-Report-Reviewer')));}
+  catch(error){const status=[400,403,404,409,502,503].includes(error.status)?error.status:503;return res.status(status).json({error:status===503?'Report context is unavailable.':error.message});}
+});
+function snapshotError(res,error){const status=[400,403,404,409,410,429,502,503].includes(error.status)?error.status:503;return res.status(status).json({error:status===503?'Saved report context is unavailable.':error.message});}
+router.get('/admin/:id/context-snapshots', requireAuth, requireSteam, (req,res)=>{
+  if(Object.keys(req.query).length)return res.status(400).json({error:'Saved context uses the report reference only.'});
+  try{const binding=req.get('X-Report-Reviewer'),result=require('../services/reportContextSnapshots').getDefaultStore().list(()=>req.user,req.params.id,binding);return res.json({reportId:req.params.id,reviewerBinding:binding,...result});}catch(error){return snapshotError(res,error);}
+});
+router.get('/admin/:id/context-snapshots/:snapshotId', requireAuth, requireSteam, (req,res)=>{
+  if(Object.keys(req.query).length)return res.status(400).json({error:'Saved context uses the report reference only.'});
+  try{const binding=req.get('X-Report-Reviewer'),snapshot=require('../services/reportContextSnapshots').getDefaultStore().read(()=>req.user,req.params.id,binding,req.params.snapshotId);return res.json({available:true,reportId:req.params.id,reviewerBinding:binding,snapshot});}catch(error){return snapshotError(res,error);}
+});
+router.post('/admin/:id/context-snapshots', requireAuth, requireSteam, sameOriginJson, (req,res)=>{
+  if(Object.keys(req.query).length)return res.status(400).json({error:'Saved context uses the report reference only.'});
+  try{const binding=req.get('X-Report-Reviewer'),snapshot=require('../services/reportContextSnapshots').getDefaultStore().save(()=>req.user,req.params.id,binding,req.body);return res.json({reportId:req.params.id,reviewerBinding:binding,snapshot});}catch(error){return snapshotError(res,error);}
+});
 router.get("/admin/:id", requireAdmin, (req, res) => {
   try {
     const result = reports.adminDetail(req.params.id);
@@ -65,6 +87,7 @@ router.get("/admin/:id", requireAdmin, (req, res) => {
   } catch (error) { return respondError(res, error); }
 });
 router.post("/admin/:id/review", requireAdmin, requireSteam, sameOriginJson, (req, res) => {
+  const reviewer=req.get("X-Report-Reviewer");if(reviewer&&reviewer!==req.user.id+":"+req.user.steam_id)return res.status(403).json({error:"The admin account changed. Reload reports."});
   try {
     return res.json(reports.reviewReport(req.params.id, req.user, req.body?.status, req.body?.note));
   } catch (error) { return respondError(res, error); }

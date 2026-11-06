@@ -11,6 +11,7 @@ const progression = require('../services/progressionService');
 
 const router = express.Router();
 router.use(requireHerbyBotToken);
+router.use(require('../services/discordBridgeHealthService').createRequestObserver());
 
 router.get('/status', async (_req, res) => {
   try {

@@ -105,6 +105,8 @@ db.exec(`
     ON economy_marketplace_orders(steam_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_economy_orders_status_created
     ON economy_marketplace_orders(status, created_at ASC);
+  CREATE INDEX IF NOT EXISTS idx_economy_orders_updated
+    ON economy_marketplace_orders(status, julianday(updated_at) DESC);
 
   CREATE TABLE IF NOT EXISTS economy_dino_listings (
     id TEXT PRIMARY KEY,

@@ -26,6 +26,30 @@ Routes provide relationship pages, bounded group-name search, a pair's state/his
 
 If the Territory evidence store does not exist, availability is false and totals remain unknown. An existing store with no eligible shared history reports zero recorded battles. Reads contain result/time/event identifiers, with no fighter roster, Steam identities or live location. Diplomatic declarations do not create, edit or backfill battle outcomes. Current alliance/rival status has no effect on historical scores.
 
+### Sample-clock correction, 06/11/2026
+
+Head-to-head totals and Headquarters battle lists now also require the existing
+territory_battle_sample_clock row with verified=1. A live_observed flag alone
+does not prove the source clock. Legacy unstamped observations, a battle with any
+unstamped accepted observation, and missing clock rows remain excluded. Later
+stamped observations do not repair an earlier unknown clock. When the entire
+clock store is absent, head-to-head availability is false, not a measured zero.
+
+This can lower previously displayed scores that included unknown-clock history.
+It does not rewrite history, backfill clocks, change links, alter battle outcomes,
+or create/remove rewards or commands. A verified observation clock is an added
+evidence condition; it is not a claim that real game integration or staging has
+been verified. All eligible records still contribute to totals; recent lists
+remain limited to 50.
+
+281 distinct affected local checks across Headquarters, diplomacy and dynamic
+challenges pass. New real-provenance tests cover missing/unstamped/mixed clocks,
+late stamped observations, rejected future observations, reverse-group totals,
+missing clock storage and read-only SQL. Existing over-50 history checks continue
+to prove that totals are not derived from the display cap. Homepage asset is v157;
+roadmap #16 and #18 remain Building / Testing. Authenticated staging and
+production delivery remain outstanding.
+
 ## Groups controls and recovery
 
 The independent diplomacy panel works without enabling Headquarters or Treasury. Current members can search active group names, page retained relationships and view a selected group's alliance/rival directions, recent change history and verified all-time battle record. Closed counterparts are historical and cannot receive new changes. Only the current owner gets actionable relationship controls; preview and own-group closure state disable them.

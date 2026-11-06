@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=4">
   <link rel="stylesheet" href="/assets/groups.css?v=6">
   <link rel="stylesheet" href="/assets/group-diplomacy.css?v=1">
+  <link rel="stylesheet" href="/assets/group-territory-prestige.css?v=1">
 </head>
 <body class="has-my-stuff-rail groups-page">
   <div class="app-shell">
@@ -58,6 +59,7 @@
             <button id="groups-leave" type="button" class="small-button">Leave group</button>
           </div>
           <p id="groups-closure-status" role="status" hidden></p>
+          <div id="group-territory-standard" class="territory-standard" hidden></div>
           <button id="groups-cancel-closure" type="button" class="small-button" hidden>Cancel closure check</button>
           <div class="list-heading"><span>MEMBERS</span><span id="groups-capacity"></span></div>
           <div id="groups-members" class="groups-rows"></div>
@@ -77,6 +79,13 @@
             <div id="groups-sent" class="groups-rows"></div>
             <button id="groups-disband" type="button" class="small-button groups-danger">Disband group</button>
           </section>
+        </section>
+        <section class="panel groups-card" id="group-territory-prestige" hidden>
+          <h2>Territory prestige</h2><p>Website cosmetic standards from recorded capture history. They do not change combat power or award currency.</p>
+          <p id="prestige-mode"></p><p id="prestige-status" role="status" aria-live="polite"></p><button id="prestige-refresh" type="button" class="small-button">Refresh prestige</button>
+          <p id="prestige-stats"></p><p id="prestige-saved"></p><form id="prestige-form" class="prestige-controls"><label for="prestige-choice">Territory standard</label><select id="prestige-choice" disabled></select><button id="prestige-choose" class="small-button" type="submit" disabled>Review standard</button></form>
+          <section id="prestige-review" class="prestige-review" hidden><h3>Review your cosmetic choice</h3><p id="prestige-summary"></p><button id="prestige-confirm" type="button" class="small-button">Confirm standard</button><button id="prestige-discard" type="button" class="small-button">Discard review</button><button id="prestige-check" type="button" class="small-button" hidden>Check saved choice</button><button id="prestige-retry" type="button" class="small-button" hidden>Retry same choice</button></section>
+          <details><summary>Recent Territory standard choices</summary><ol id="prestige-history" class="prestige-history"></ol></details><p>Missing or withdrawn evidence can withhold a saved appearance. Refresh checks the current records; this view expires after two minutes.</p>
         </section>
         <section class="panel groups-card" id="group-headquarters" hidden>
           <h2>Group Headquarters</h2><h3 id="hq-name"></h3>
@@ -188,7 +197,8 @@
     <footer><span>© 2026 Hollow Valley</span><span>AUSTRALIAN ISLE SERVER</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="/assets/common.js?v=22"></script>
-  <script src="/assets/groups.js?v=6"></script>
+  <script src="/assets/groups.js?v=7"></script>
+  <script src="/assets/group-territory-prestige.js?v=1"></script>
   <script src="/assets/group-headquarters.js?v=5"></script>
   <script src="/assets/group-territory.js?v=1"></script>
   <script src="/assets/group-treasury.js?v=4"></script>

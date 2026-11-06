@@ -1,0 +1,40 @@
+name: Private death recap evidence and account checks
+on:
+  pull_request:
+    paths:
+      - '.env.example'
+      - 'automation-platform/.env.example'
+      - 'automation-platform/src/services/deathRecapService.js'
+      - 'automation-platform/src/services/combatEventService.js'
+      - 'automation-platform/src/config/combatSpecies.js'
+      - 'automation-platform/src/routes/deathRecapRoutes.js'
+      - 'automation-platform/src/middleware/websiteAuth.js'
+      - 'automation-platform/test/deathRecapService.test.js'
+      - 'server/routes/deathRecaps.js'
+      - 'server/services/automationWebsiteClient.js'
+      - 'public/death-recaps.html'
+      - 'public/assets/death-recaps.js'
+      - 'test/deathRecapsHttp.test.js'
+      - 'scripts/verify-death-recaps.cjs'
+      - '.github/workflows/death-recap-privacy.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      DB_PATH: ':memory:'
+      AUTOMATION_DB_PATH: ':memory:'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node --test test/deathRecapsHttp.test.js automation-platform/test/deathRecapService.test.js automation-platform/test/combatEventService.test.js automation-platform/test/combatRoutes.test.js automation-platform/test/combatDeathSuppression.test.js automation-platform/test/combatCalendarReset.test.js automation-platform/test/websiteAuth.test.js test/gameCombatLine.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js test/serverEntrypointSyntax.test.js
+      - run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.62.1
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/verify-death-recaps.cjs

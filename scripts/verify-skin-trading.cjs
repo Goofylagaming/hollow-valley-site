@@ -1,0 +1,56 @@
+'use strict';
+const assert=require('node:assert/strict'),express=require('express'),fs=require('node:fs'),os=require('node:os'),path=require('node:path'),{DatabaseSync}=require('node:sqlite'),{randomUUID}=require('node:crypto'),{chromium}=require('playwright');
+const temp=fs.mkdtempSync(path.join(os.tmpdir(),'hv-skin-market-browser-'));process.env.AUTOMATION_DB_PATH=path.join(temp,'economy.sqlite');process.env.SKIN_SYSTEM_ENABLED='true';process.env.SKIN_PRESET_CREATE_COST='0';process.env.HOLLOW_VALLEY_API_TOKEN='synthetic-trade-browser-token';
+const storagePath=require.resolve('../automation-platform/src/services/dinoStorageService');require.cache[storagePath]={id:storagePath,filename:storagePath,loaded:true,exports:{}};
+const store=require('../automation-platform/src/services/economyStore'),skins=require('../automation-platform/src/services/skinPresetService'),{createSkinTradingService}=require('../automation-platform/src/services/skinTradingService');
+const db=new DatabaseSync(':memory:');db.exec('CREATE TABLE users(id INTEGER PRIMARY KEY,steam_id TEXT)');
+let enabled=true,preview=false,drop=null,held=null,hold=false,holdList=false;const mutations=[],unexpected=[];
+const service=createSkinTradingService(store,{enabled:()=>enabled}),source=express();source.use(express.json());
+source.use('/api/website/skin-trading',(req,res,next)=>{if(hold&&req.path==='/history'||holdList&&req.path==='/list'&&!req.body.own){hold=false;holdList=false;const json=res.json.bind(res);res.json=value=>{held=()=>{held=null;json(value);};return res;};}next();});
+source.use('/api/website/skin-trading',require('../automation-platform/src/routes/skinTradingRoutes').createSkinTradingRouter({getService:()=>service}));
+const app=express();app.use(express.json());app.use((req,_res,next)=>{const id=Number(String(req.headers.cookie||'').match(/fixture-user=(\d+)/)?.[1]);if(id)req.user=db.prepare('SELECT * FROM users WHERE id=?').get(id);next();});
+app.get('/api/me',(req,res)=>res.json({loggedIn:Boolean(req.user),user:req.user||null,steamLoginConfigured:true}));
+app.use('/api/skins/trading',(req,res,next)=>{if(['offer','buy','cancel'].includes(req.path.slice(1))){mutations.push({action:req.path.slice(1),body:JSON.parse(JSON.stringify(req.body))});if(drop===req.path.slice(1)){drop=null;res.json=()=>{res.status(200).type('application/json');res.write('{',()=>res.destroy());return res;};}}next();});
+app.use('/api/skins/trading',require('../server/routes/skinTrading').createSkinTradingRouter({db,enabled:()=>enabled,readOnly:()=>preview}));
+app.use('/api',(req,res)=>{unexpected.push(req.method+' '+req.originalUrl);res.status(404).json({error:'Unexpected fixture request'});});
+app.get('/skin-trading',(_req,res)=>res.sendFile(path.resolve(__dirname,'../public/skin-trading.html')));app.use(express.static(path.resolve(__dirname,'../public')));
+const listen=app=>new Promise(resolve=>{const server=app.listen(0,'127.0.0.1',()=>resolve(server));});
+const until=async fn=>{for(let i=0;i<200;i++){if(fn())return;await new Promise(resolve=>setTimeout(resolve,25));}throw Error('Fixture observation timed out');};
+(async()=>{let website,automation,browser;try{
+ automation=await listen(source);process.env.AUTOMATION_SERVICE_URL='http://127.0.0.1:'+automation.address().port;website=await listen(app);const url='http://127.0.0.1:'+website.address().port;
+ browser=await chromium.launch({headless:true,executablePath:process.env.HV_TEST_BROWSER||undefined});let iteration=0;
+ for(const width of [1440,390]){
+  iteration++;enabled=true;preview=false;
+  for(const row of store.db.prepare("SELECT id,seller FROM economy_skin_listings WHERE state='active'").all())service.cancel({steam_id:row.seller},{id:row.id,expectedRevision:0});
+  const seller='76561198000'+String(200000+iteration*100).padStart(6,'0'),buyer='76561198000'+String(200001+iteration*100).padStart(6,'0'),creator='76561198000000100',sellerId=iteration*10,buyerId=sellerId+1;
+  db.prepare('INSERT INTO users VALUES(?,?),(?,?)').run(sellerId,seller,buyerId,buyer);
+  const skin=Object.fromEntries(skins.COLOR_KEYS.map(key=>[key,{r:.2,g:.3,b:.4,a:1}]));Object.assign(skin,{skinVariation:1,patternIndex:2,themeIndex:3});
+  const make=async name=>{const {preset}=await skins.createPresetFromStudio({steamId:creator,name,species:'Triceratops',skin,idempotencyKey:randomUUID()});skins.publishPreset({presetId:preset.id,price:100});return preset;};
+  const listed=await make('Listed <img src=x> '+width),sellable=await make('Sellable '+width);
+  const fund=(steamId,amount)=>store.applyWalletTransaction({steamId,amount,kind:'fixture',reason:'Synthetic browser funding',idempotencyKey:randomUUID()});fund(seller,200);fund(buyer,1000);
+  for(const preset of [listed,sellable])skins.purchasePreset({steamId:seller,presetId:preset.id,idempotencyKey:randomUUID()});
+  service.offer({steam_id:seller},{presetId:listed.id,price:200,requestId:randomUUID()});
+  // Real paid unlocks and listings exercise a second server-side browse page.
+  for(let i=0;i<51;i++){const steam='76561198000'+String(300000+iteration*100+i).padStart(6,'0');fund(steam,100);skins.purchasePreset({steamId:steam,presetId:listed.id,idempotencyKey:randomUUID()});service.offer({steam_id:steam},{presetId:listed.id,price:200,requestId:randomUUID()});}
+  const context=await browser.newContext({viewport:{width,height:1000}}),page=await context.newPage(),errors=[];page.on('pageerror',error=>errors.push(error.message));
+  const cookie=id=>context.addCookies([{name:'fixture-user',value:String(id),url}]),ready=()=>page.waitForFunction(()=>document.getElementById('trade-account').hidden===false&&!document.getElementById('trade-refresh').disabled);
+  const pageSize=width<760?6:12;
+  await cookie(sellerId);await page.goto(url+'/skin-trading');await ready();assert.equal(await page.locator('#trade-listings article').count(),pageSize);assert.equal(await page.locator('#trade-listings img').count(),0);
+  let pages=1;while(!await page.locator('#trade-next-listings').isDisabled()){assert.ok(pages++<20);await page.click('#trade-next-listings');await page.waitForFunction(()=>!document.getElementById('trade-refresh').disabled);assert.ok(await page.locator('#trade-listings article').count()<=pageSize);}assert.equal(pages,Math.ceil(52/pageSize));
+  const before=mutations.length;await page.selectOption('#trade-skin',sellable.id);await page.fill('#trade-price','250');await page.click('#trade-offer-review');await page.locator('#trade-review').waitFor();assert.equal(mutations.length,before);await page.click('#trade-discard');assert.equal(mutations.length,before);
+  await page.click('#trade-offer-review');drop='offer';await page.click('#trade-confirm');await page.waitForFunction(()=>!document.getElementById('trade-check').hidden&&!document.getElementById('trade-check').disabled);const offered=mutations.at(-1);await page.click('#trade-check');await ready();assert.equal(mutations.length,before+1);assert.match(await page.locator('#trade-status').textContent(),/confirmed/);
+  assert.equal(service.offerReceipt({steam_id:seller},{requestId:offered.body.requestId}).listing.price,250);
+  enabled=false;await page.click('#trade-refresh');await ready();assert.equal(await page.locator('#trade-offer fieldset').evaluate(el=>el.disabled),true);
+  await page.locator('#trade-own article').filter({hasText:'Sellable '+width}).getByRole('button',{name:'Review cancellation',exact:true}).click();await page.click('#trade-confirm');await ready();assert.ok(service.list({steam_id:seller},{own:true}).listings.some(row=>row.presetId===sellable.id&&row.state==='cancelled'));
+  enabled=true;await cookie(buyerId);await page.click('#trade-refresh');await ready();const first=page.locator('#trade-listings article').first(),noPurchase=mutations.length;await first.getByRole('button',{name:'Review purchase',exact:true}).click();assert.equal(mutations.length,noPurchase);drop='buy';await page.click('#trade-confirm');await page.waitForFunction(()=>!document.getElementById('trade-retry').hidden&&!document.getElementById('trade-retry').disabled);const bought=mutations.at(-1);await page.click('#trade-retry');await ready();assert.equal(mutations.at(-1).body.requestId,bought.body.requestId);assert.equal(store.getWallet(buyer).balance,800);assert.ok(store.hasSkinUnlock(buyer,listed.id));assert.match(await page.locator('#trade-history').textContent(),/Bought/);assert.equal(await page.getByText('Already in your account',{exact:true}).count()>0,true);
+  preview=true;await page.click('#trade-refresh');await ready();assert.equal(await page.locator('#trade-offer fieldset').evaluate(el=>el.disabled),true);preview=false;
+  await page.evaluate(()=>{window.__lateTradeAdds=0;window.__tradeObserver=new MutationObserver(records=>{window.__lateTradeAdds+=records.reduce((sum,row)=>sum+row.addedNodes.length,0);});window.__tradeObserver.observe(document.getElementById('trade-listings'),{childList:true});});
+  holdList=true;const latePage=page.click('#trade-next-listings');await until(()=>held);await cookie(sellerId);held();await latePage;await page.waitForFunction(()=>document.getElementById('trade-account').hidden);assert.equal(await page.evaluate(()=>window.__lateTradeAdds),0);await page.evaluate(()=>window.__tradeObserver.disconnect());await cookie(buyerId);await page.click('#trade-refresh');await ready();
+  const draftWrites=mutations.length;await page.selectOption('#trade-skin',listed.id);await page.fill('#trade-price','150');await page.click('#trade-offer-review');assert.notEqual(await page.locator('#trade-review-summary').textContent(),'');await page.evaluate(()=>window.dispatchEvent(new Event('focus')));assert.equal(await page.locator('#trade-review-summary').textContent(),'');assert.equal(mutations.length,draftWrites);await page.click('#trade-refresh');await ready();
+  hold=true;const pending=page.click('#trade-refresh');await until(()=>held);await cookie(sellerId);await page.evaluate(()=>window.dispatchEvent(new Event('focus')));held();await pending;await page.waitForFunction(()=>document.getElementById('trade-account').hidden);assert.equal(await page.locator('#trade-history').textContent(),'');await page.click('#trade-refresh');await ready();
+  await context.clearCookies();await page.click('#trade-refresh');await page.waitForFunction(()=>!document.getElementById('trade-signin').hidden);assert.equal(await page.locator('#trade-account').isVisible(),false);await cookie(sellerId);await page.click('#trade-refresh');await ready();
+  assert.equal(await page.evaluate(()=>localStorage.length+sessionStorage.length),0);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);assert.deepEqual(errors,[]);assert.deepEqual(unexpected,[]);
+  await page.screenshot({path:path.join(temp,'skin-market-'+width+'.png'),fullPage:true});console.log(JSON.stringify({width,skinTrading:'passed',screenshot:path.join(temp,'skin-market-'+width+'.png')}));await context.close();
+ }
+}finally{if(held)held();if(browser)await browser.close();await Promise.all([website,automation].filter(Boolean).map(server=>new Promise(resolve=>server.close(resolve))));db.close();store.db.close();}
+})().catch(error=>{console.error(error);process.exitCode=1;});

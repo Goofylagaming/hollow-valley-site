@@ -67,10 +67,11 @@ async function callAdmin(path, { method = 'GET', body } = {}) {
   }
 }
 
-async function call(path, { method = 'GET', body, timeoutMs: requestTimeoutMs } = {}) {
+async function call(path, { method = 'GET', body, timeoutMs: requestTimeoutMs, signal: requestSignal } = {}) {
   if (typeof globalThis.fetch !== 'function') throw new Error('A fetch implementation is required');
   const { baseUrl, token, timeoutMs } = requireConfig();
   const controller = new AbortController();
+  const signal = requestSignal ? AbortSignal.any([controller.signal, requestSignal]) : controller.signal;
   const effectiveTimeoutMs = requestTimeoutMs == null ? timeoutMs :
     Math.max(1000, Math.min(30000, Number(requestTimeoutMs) || timeoutMs));
   const timer = setTimeout(() => controller.abort(), effectiveTimeoutMs);
@@ -85,7 +86,7 @@ async function call(path, { method = 'GET', body, timeoutMs: requestTimeoutMs } 
         ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
       },
       body: body === undefined ? undefined : JSON.stringify(body),
-      signal: controller.signal,
+      signal,
     });
     let payload = null;
     try { payload = await response.json(); } catch {}
@@ -263,6 +264,18 @@ function getPlaytimeLeaderboard({ hours = 24 * 31 } = {}) {
 function getCombatLeaderboard({ hours = 24 * 31 } = {}) {
   const safeHours = Math.max(1, Math.min(24 * 31, Number(hours) || 24 * 31));
   return call(`/leaderboards/combat?hours=${safeHours}`);
+}
+
+function getDiscordBridgeHealth({signal}={}) {
+  return call('/discord/health',{signal,timeoutMs:5000});
+}
+
+function getRconHealth({signal}={}) {
+  return call('/rcon/health',{signal,timeoutMs:5000});
+}
+
+function getMarketplaceHealth({signal}={}) {
+  return call('/marketplace/health',{signal,timeoutMs:5000});
 }
 
 function listMarketplaceCatalog() {
@@ -644,6 +657,22 @@ function awardAdminEventBonus({
   });
 }
 
+function getAdminReportContext({reporterSteamId,reportedSteamId,occurredAt}) {
+  const params=new URLSearchParams({reporterSteamId:String(reporterSteamId||''),occurredAt:String(occurredAt||'')});
+  if(reportedSteamId)params.set('reportedSteamId',String(reportedSteamId));
+  return callAdmin('/combat/report-context?'+params.toString());
+}
+function getAdminIncidentMarketplaceContext({steamId,occurredAt}) {
+  return callAdmin('/incident-marketplace/context?'+new URLSearchParams({steamId:validateSteamId(steamId),occurredAt:String(occurredAt||'')}));
+}
+function getAdminIncidentPeerMarketplaceContext({steamId,occurredAt}) {
+  return callAdmin('/incident-marketplace/peer-context?'+new URLSearchParams({steamId:validateSteamId(steamId),occurredAt:String(occurredAt||'')}));
+}
+function getAdminIncidentOperationsContext({steamId,occurredAt}) {
+  return callAdmin('/incident-operations/context?'+new URLSearchParams({steamId:validateSteamId(steamId),occurredAt:String(occurredAt||'')}));
+}
+function getAdminSpectatorSummary() {return callAdmin('/spectator/summary');}
+
 function getAdminOperationsStatus({ force = false } = {}) {
   return callAdmin(`/status${force ? '?force=1' : ''}`);
 }
@@ -860,6 +889,9 @@ module.exports = {
   getMapActivity,
   getPlaytimeLeaderboard,
   getCombatLeaderboard,
+  getDiscordBridgeHealth,
+  getRconHealth,
+  getMarketplaceHealth,
   listMarketplaceCatalog,
   updateMarketplaceCatalogItem,
   listMarketplaceOrders,
@@ -900,6 +932,11 @@ module.exports = {
   confirmAdminEventAttendance,
   confirmAllAdminEventAttendance,
   awardAdminEventBonus,
+  getAdminReportContext,
+  getAdminIncidentMarketplaceContext,
+  getAdminIncidentPeerMarketplaceContext,
+  getAdminIncidentOperationsContext,
+  getAdminSpectatorSummary,
   getAdminOperationsStatus,
   getAdminAudit,
   getAdminRequests,
