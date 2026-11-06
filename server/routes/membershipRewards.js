@@ -98,6 +98,25 @@ router.get("/rewards/collection", async(req, res) => {
   catch (error) { return sendError(res, error); }
 });
 
+router.post("/rewards/admin/milestones",requireAdmin,(req,res)=>{
+  if(process.env.MEMBERSHIP_COLLECTION_ENABLED!=="1")return res.sendStatus(404);
+  const {months,slug,name,kind,colour}=req.body||{};
+  if(![18,24].includes(months)||typeof slug!=="string"||!/^[a-z][a-z0-9-]{1,63}$/.test(slug)||
+    typeof name!=="string"||!name.trim()||name.length>80||!["badge","title","accent","banner"].includes(kind)||
+    (["accent","banner"].includes(kind)&&!/^#[a-f0-9]{6}$/i.test(colour||"")))return res.sendStatus(400);
+  const {db}=require("../db");
+  require("../services/membershipCollection").migrate(db,new Date(Date.now()+36000000).toISOString().slice(0,7));
+  db.exec("BEGIN IMMEDIATE");
+  try{
+    const existing=db.prepare("SELECT kind,name FROM membership_collectibles WHERE slug=?").get(slug);
+    if(existing && (existing.kind!==kind||existing.name!==name)){db.exec("ROLLBACK");return res.sendStatus(409);}
+    db.prepare("INSERT OR IGNORE INTO membership_collectibles(slug,name,kind,listed) VALUES (?,?,?,1)").run(slug,name,kind);
+    if(["accent","banner"].includes(kind))db.prepare("INSERT INTO membership_cosmetic_styles VALUES (?,?) ON CONFLICT(slug) DO UPDATE SET colour=excluded.colour").run(slug,colour);
+    db.prepare("UPDATE membership_extended_milestones SET collectible_slug=? WHERE months=?").run(slug,months);
+    db.exec("COMMIT");res.json({months,slug});
+  }catch(e){db.exec("ROLLBACK");throw e;}
+});
+
 router.get("/rewards/admin/seasons",requireAdmin,(req,res)=>{
   if(process.env.MEMBERSHIP_COLLECTION_ENABLED!=="1")return res.sendStatus(404);
   const {db}=require("../db");

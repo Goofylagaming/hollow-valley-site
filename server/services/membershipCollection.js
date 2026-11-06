@@ -17,6 +17,9 @@ function migrate(db, month) {
         season_slug TEXT REFERENCES membership_seasons(slug),
         listed INTEGER NOT NULL DEFAULT 0 CHECK(listed IN (0,1))
       );
+      CREATE TABLE IF NOT EXISTS membership_cosmetic_styles (
+        slug TEXT PRIMARY KEY REFERENCES membership_collectibles(slug), colour TEXT NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS membership_user_collectibles (
         user_id INTEGER NOT NULL REFERENCES users(id),
         slug TEXT NOT NULL REFERENCES membership_collectibles(slug),
@@ -52,7 +55,8 @@ function collection(db, userId) {
   return {
     skins: db.prepare("SELECT skin_id FROM membership_skin_claims WHERE user_id=? AND status='fulfilled' ORDER BY skin_id").all(userId),
     loyalty: db.prepare("SELECT months,title,frame_id FROM membership_loyalty_rewards WHERE user_id=? ORDER BY months").all(userId),
-    collectibles: db.prepare(`SELECT c.slug,c.name,c.kind,u.earned_at FROM membership_collectibles c
+    collectibles: db.prepare(`SELECT c.slug,c.name,c.kind,u.earned_at,style.colour FROM membership_collectibles c
+      LEFT JOIN membership_cosmetic_styles style ON style.slug=c.slug
       LEFT JOIN membership_user_collectibles u ON c.slug=u.slug AND u.user_id=?
       WHERE c.listed=1 OR u.earned_at IS NOT NULL ORDER BY c.kind,c.name`).all(userId)
   };

@@ -42,6 +42,9 @@ test("isolated signed-in membership, moderation, growth and Arcade flows",async 
   }
   const book=await (await call("/member/rewards/collection")).json();
   assert.equal(book.passport.lifetime,0);
+  const milestone={months:18,slug:"fixture-accent",name:"Fixture accent",kind:"accent",colour:"#336655"};
+  assert.equal((await call("/member/rewards/admin/milestones",milestone,true)).status,200);
+  assert.equal((await call("/member/rewards/collection/preferences",{accent:milestone.slug,wall_opt_in:false,beta_opt_in:false})).status,403);
   assert.deepEqual(book.achievementIds,[]);
   const preferences={wall_opt_in:true,beta_opt_in:false,display_alias:"Marsh"};
   assert.equal((await call("/member/rewards/collection/preferences",{...preferences,featured_skin:"unearned"})).status,403);
