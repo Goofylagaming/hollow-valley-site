@@ -140,7 +140,7 @@ router.post('/arcade/:action', (req,res) => {
     switch(req.params.action) {
       case 'settings': return res.json(arcade.settings());
       case 'configure': return res.json(arcade.configure(body.actor,body));
-      case 'start': return res.json(games.start(body.steamId,body.game));
+      case 'start': return res.json(games.start(body.steamId,body.game,Date.now(),body.requestKey));
       case 'answer': return res.json(games.answer(body.steamId,body.id,body.choice));
       case 'leaderboard': {
         const config=arcade.settings();
@@ -152,6 +152,24 @@ router.post('/arcade/:action', (req,res) => {
       default: return res.sendStatus(404);
     }
   } catch { return res.status(409).json({error:'Round or settings unavailable.'}); }
+});
+
+router.post('/arcade-rewards/:action', (req,res) => {
+  const rewards=require('../services/arcadeRewards');
+  if(!rewards.enabled() || process.env.VALLEY_ARCADE_ENABLED!=='1')return res.sendStatus(404);
+  const b=req.body||{};
+  try {
+    switch(req.params.action) {
+      case 'state': return res.json(rewards.state(b.steamId));
+      case 'daily': return res.json(rewards.daily(b.steamId,b.requestKey));
+      case 'open': return res.json(rewards.open(b.steamId,b.requestKey,b.crateId));
+      case 'craft': return res.json(rewards.craft(b.steamId,b.requestKey,b.family));
+      case 'admin': return res.json(rewards.adminState());
+      case 'configure': return res.json(rewards.configure(b.actor,b.config,b.expectedVersion));
+      case 'grant': return res.json(rewards.grant(b.actor,b.steamId,b.requestKey,b));
+      default: return res.sendStatus(404);
+    }
+  } catch(error) {return res.status(409).json({error:error.message});}
 });
 
 module.exports = router;

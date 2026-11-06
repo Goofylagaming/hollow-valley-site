@@ -46,6 +46,8 @@ function settle(steamId, roundId, score, requested, now = Date.now()) {
   if (process.env.VALLEY_ARCADE_ENABLED !== "1") throw new Error("Arcade disabled");
   if (!Number.isSafeInteger(requested) || requested<0 || !Number.isSafeInteger(score) || score<0) throw new Error("Invalid outcome");
   schema();
+  const rewards=require('./arcadeRewards');
+  if(rewards.enabled()) rewards.schema();
   db.exec("BEGIN IMMEDIATE");
   try {
     const config = db.prepare("SELECT * FROM arcade_settings WHERE id=1").get();
@@ -67,6 +69,7 @@ function settle(steamId, roundId, score, requested, now = Date.now()) {
         VALUES (?,?,?,'arcade_reward','Valley Arcade reward',?,'arcade_round',?)`).run(randomUUID(),steamId,payout,"arcade:"+roundId,roundId);
     }
     db.prepare("UPDATE arcade_rounds SET settled_day=?,score=?,payout=? WHERE id=?").run(day,score,payout,roundId);
+    if(rewards.enabled()) rewards.rewardRound(steamId,roundId,score,now);
     db.exec("COMMIT");
     return {score,payout,duplicate:false};
   } catch (error) { db.exec("ROLLBACK"); throw error; }

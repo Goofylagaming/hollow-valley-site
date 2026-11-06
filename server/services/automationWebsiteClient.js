@@ -828,6 +828,7 @@ function uploadAdminRestore({ steamId, slot, restore, fullNutrients = false }) {
 }
 
 module.exports = {
+  arcadeRewardsRequest: (action, body) => call('/admin-wallet/arcade-rewards/' + action, {method:'POST',body}),
   arcadeRequest: (action, body) => call("/admin-wallet/arcade/" + action, {method:"POST",body}),
   getTitleEvidence: steamIds => call('/title-evidence',{method:'POST',body:{steamIds}}),
   getAchievementReviews: () => callAdmin('/achievement-reviews'),

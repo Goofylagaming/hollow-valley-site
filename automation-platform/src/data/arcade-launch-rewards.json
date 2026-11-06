@@ -1,0 +1,39 @@
+{
+  "dailyPlays": 6,
+  "dailyXp": 25,
+  "winXp": 75,
+  "xpPerLevel": 500,
+  "crates": {
+    "valley": [
+      {"id":"coins-500","label":"500 Valley Coins","type":"coins","amount":500,"weight":8500},
+      {"id":"coins-1500","label":"1,500 Valley Coins","type":"coins","amount":1500,"weight":1000},
+      {"id":"verdant-warden","label":"Verdant Warden skin","type":"skin","presetId":"arcade-verdant-warden-v1","duplicate":"convert","duplicateCoins":500,"weight":400},
+      {"id":"omni-25","label":"25% Omniraptor entitlement","type":"dinosaur","species":"omniraptor","growthPercent":25,"weight":75},
+      {"id":"trike-25","label":"25% Triceratops entitlement","type":"dinosaur","species":"triceratops","growthPercent":25,"weight":25}
+    ],
+    "alpha": [
+      {"id":"coins-1500","label":"1,500 Valley Coins","type":"coins","amount":1500,"weight":7000},
+      {"id":"coins-5000","label":"5,000 Valley Coins","type":"coins","amount":5000,"weight":1500},
+      {"id":"emberwake","label":"Emberwake skin","type":"skin","presetId":"arcade-emberwake-v1","duplicate":"convert","duplicateCoins":2500,"weight":800},
+      {"id":"frostveil","label":"Frostveil skin","type":"skin","presetId":"arcade-frostveil-v1","duplicate":"convert","duplicateCoins":2500,"weight":400},
+      {"id":"carno-49","label":"49% Carnotaurus entitlement","type":"dinosaur","species":"carnotaurus","growthPercent":49,"weight":200},
+      {"id":"trike-49","label":"49% Triceratops entitlement","type":"dinosaur","species":"triceratops","growthPercent":49,"weight":100}
+    ],
+    "prime": [
+      {"id":"coins-5000","label":"5,000 Valley Coins","type":"coins","amount":5000,"weight":5500},
+      {"id":"coins-10000","label":"10,000 Valley Coins","type":"coins","amount":10000,"weight":2000},
+      {"id":"verdant-warden","label":"Verdant Warden skin","type":"skin","presetId":"arcade-verdant-warden-v1","duplicate":"convert","duplicateCoins":5000,"weight":1000},
+      {"id":"emberwake","label":"Emberwake skin","type":"skin","presetId":"arcade-emberwake-v1","duplicate":"convert","duplicateCoins":2500,"weight":800},
+      {"id":"rex-49","label":"49% Tyrannosaurus entitlement","type":"dinosaur","species":"tyrannosaurus","growthPercent":49,"weight":400},
+      {"id":"rex-75","label":"75% Tyrannosaurus entitlement","type":"dinosaur","species":"tyrannosaurus","growthPercent":75,"weight":200},
+      {"id":"rex-100","label":"100% Tyrannosaurus entitlement","type":"dinosaur","species":"tyrannosaurus","growthPercent":100,"weight":100}
+    ],
+    "event": [
+      {"id":"coins-1000","label":"1,000 Valley Coins","type":"coins","amount":1000,"weight":7500},
+      {"id":"coins-3000","label":"3,000 Valley Coins","type":"coins","amount":3000,"weight":1500},
+      {"id":"frostveil","label":"Frostveil skin","type":"skin","presetId":"arcade-frostveil-v1","duplicate":"convert","duplicateCoins":2500,"weight":800},
+      {"id":"deino-25","label":"25% Deinosuchus entitlement","type":"dinosaur","species":"deinosuchus","growthPercent":25,"weight":150},
+      {"id":"deino-49","label":"49% Deinosuchus entitlement","type":"dinosaur","species":"deinosuchus","growthPercent":49,"weight":50}
+    ]
+  }
+}
