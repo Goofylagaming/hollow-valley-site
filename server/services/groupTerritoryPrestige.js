@@ -17,7 +17,7 @@ function createGroupTerritoryPrestige(db,{now=Date.now,enabled=()=>process.env.G
   CREATE TABLE IF NOT EXISTS hv_group_territory_prestige(group_id INTEGER PRIMARY KEY,choice TEXT NOT NULL,revision INTEGER NOT NULL,proof TEXT,policy TEXT NOT NULL,updated_at INTEGER NOT NULL,operation_id TEXT NOT NULL);
   CREATE TABLE IF NOT EXISTS hv_group_territory_prestige_edits(id TEXT PRIMARY KEY,group_id INTEGER NOT NULL,actor TEXT NOT NULL,request_id TEXT NOT NULL,payload_json TEXT NOT NULL,receipt_json TEXT NOT NULL,at INTEGER NOT NULL,UNIQUE(actor,request_id));
   CREATE INDEX IF NOT EXISTS hv_group_territory_prestige_history ON hv_group_territory_prestige_edits(group_id,at DESC,id DESC);`);}
- const clock=()=>{const at=now();if(!Number.isSafeInteger(at)||at<0||at>8640000000000000)fail('The prestige clock cannot be verified',503);return at;};
+ const clock=()=>{const at=now();if(!Number.isSafeInteger(at)||at<0||at>8640000000000000-120000)fail('The prestige clock cannot be verified',503);return at;};
  const steam=value=>{if(typeof value!=='string'||!/^\d{17}$/.test(value))fail('A current linked account is required',403);return value;};
  const tables=()=>exists(db,'hv_group_territory_prestige')&&exists(db,'hv_group_territory_prestige_edits');
  function checkedEdit(row){
@@ -58,22 +58,26 @@ function createGroupTerritoryPrestige(db,{now=Date.now,enabled=()=>process.env.G
   if(latest?.id!==row.operation_id||!Number.isSafeInteger(row.revision)||row.revision<1||!Number.isSafeInteger(row.updated_at)||row.updated_at<0||row.updated_at>at||receipt.id!==row.operation_id||receipt.groupId!==groupId||receipt.choice!==row.choice||receipt.revision!==row.revision||receipt.at!==row.updated_at||receipt.policy!==row.policy||receipt.proof!==row.proof)fail('Prestige history requires review',503);
   return {available:true,choice:row.choice,revision:row.revision,updatedAt:row.updated_at,policy:row.policy};
  }
- function read(rawActor){
-  const actor=steam(rawActor),own=group(actor),at=clock(),source=evidence(own.id,at),saved=selection(own.id,at);
+ function read(rawActor,{authorize=null}={}){
+  const actor=steam(rawActor);db.exec('SAVEPOINT group_prestige_read');try{if(authorize)authorize();const own=group(actor),at=clock(),source=evidence(own.id,at),saved=selection(own.id,at);
   const choices=[{id:'none',label:'No Territory standard',captures:0,eligible:true},...POLICY.tiers.map(tier=>({...tier,eligible:source.available&&source.totals.captures>=tier.captures}))];
   const effective=saved.available&&saved.policy===POLICY_DIGEST&&enabled()&&ready()&&choices.some(tier=>tier.id===saved.choice&&tier.eligible)?saved.choice:'none';
-  return {groupId:own.id,name:own.name,canEdit:own.owner===actor&&!own.closing,closing:own.closing,enabled:Boolean(enabled()),readOnly:Boolean(readOnly()),policyReady:ready(),policyDigest:POLICY_DIGEST,metric:POLICY.metric,choices,evidence:source,selection:saved,effectiveChoice:effective,gameplayBenefits:false};
+  const edits=tables()?db.prepare('SELECT * FROM hv_group_territory_prestige_edits WHERE group_id=? ORDER BY rowid DESC LIMIT 20').all(own.id).map(row=>{const value=checkedEdit(row);return {choice:value.choice,revision:value.revision,at:value.at};}):[];
+  const result={groupId:own.id,name:own.name,canEdit:own.owner===actor&&!own.closing,closing:own.closing,enabled:Boolean(enabled()),readOnly:Boolean(readOnly()),policyReady:ready(),policyDigest:POLICY_DIGEST,metric:POLICY.metric,choices,evidence:source,selection:saved,effectiveChoice:effective,gameplayBenefits:false,readAt:at,expiresAt:at+120000,edits};db.exec('RELEASE group_prestige_read');return result;
+  }catch(error){db.exec('ROLLBACK TO group_prestige_read;RELEASE group_prestige_read');throw error;}
  }
  function receipt(rawActor,{requestId}={}){const actor=steam(rawActor);key(requestId);if(!tables())fail('Prestige history is unavailable',503);const row=db.prepare('SELECT * FROM hv_group_territory_prestige_edits WHERE actor=? AND request_id=?').get(actor,requestId);if(!row)fail('Prestige receipt not found',404);return {receipt:checkedEdit(row)};}
- function select(rawActor,{expectedGroupId,choice,expectedRevision,expectedProof,expectedPolicy,requestId}={}){
+ function select(rawActor,{expectedGroupId,choice,expectedRevision,expectedProof,expectedPolicy,requestId}={},{authorize=null}={}){
   const actor=steam(rawActor);key(requestId);if(!Number.isSafeInteger(expectedGroupId)||expectedGroupId<1||!Number.isSafeInteger(expectedRevision)||expectedRevision<0||!['none',...POLICY.tiers.map(tier=>tier.id)].includes(choice)||typeof expectedPolicy!=='string'||!/^[a-f0-9]{64}$/.test(expectedPolicy)||!(expectedProof===null||typeof expectedProof==='string'&&/^[a-f0-9]{64}$/.test(expectedProof)))fail('Review an exact group, choice, revision and policy');
   if(readOnly())fail('This preview cannot change Territory standards',403);if(!tables())fail('Prestige storage is not initialized',503);
   const payload=JSON.stringify({groupId:expectedGroupId,choice,expectedRevision,expectedProof,expectedPolicy});
-  db.exec('BEGIN IMMEDIATE');try{
+  db.exec('BEGIN IMMEDIATE');try{if(authorize)authorize();
    const old=db.prepare('SELECT * FROM hv_group_territory_prestige_edits WHERE actor=? AND request_id=?').get(actor,requestId);if(old){if(old.payload_json!==payload)fail('Conflicting prestige request',409);const value={receipt:checkedEdit(old),duplicate:true};db.exec('COMMIT');return value;}
    const own=group(actor);if(own.id!==expectedGroupId)fail('Group membership changed; refresh the review',409);if(own.owner!==actor||own.closing)fail('Only the current owner of an open group can select a standard',403);
    const at=clock(),state=selection(own.id,at);if(state.revision!==expectedRevision)fail('The saved standard changed; refresh before selecting',409);if(expectedPolicy!==POLICY_DIGEST)fail('The cosmetic policy changed; review it again',409);
    if(choice!=='none'){if(!enabled()||!ready())fail('A reviewed Territory prestige policy is not enabled',503);const source=evidence(own.id,at),tier=POLICY.tiers.find(tier=>tier.id===choice);if(!source.available||source.proof!==expectedProof||source.totals.captures<tier.captures)fail('Capture evidence changed or does not qualify this standard',409);}
+   if(state.choice===choice&&state.policy===expectedPolicy)fail('This standard is already selected',409);
+   if(db.prepare('SELECT COUNT(*) n FROM hv_group_territory_prestige_edits WHERE group_id=? AND at>=?').get(own.id,at-60000).n>=20)fail('Please wait before changing the Territory standard again',429);
    if(expectedRevision>=Number.MAX_SAFE_INTEGER)fail('The prestige revision requires review',503);const id=randomUUID(),revision=expectedRevision+1,result={id,groupId:own.id,choice,revision,proof:expectedProof,policy:expectedPolicy,at};
    db.prepare('INSERT INTO hv_group_territory_prestige VALUES(?,?,?,?,?,?,?) ON CONFLICT(group_id) DO UPDATE SET choice=excluded.choice,revision=excluded.revision,proof=excluded.proof,policy=excluded.policy,updated_at=excluded.updated_at,operation_id=excluded.operation_id').run(own.id,choice,revision,expectedProof,expectedPolicy,at,id);
    db.prepare('INSERT INTO hv_group_territory_prestige_edits VALUES(?,?,?,?,?,?,?)').run(id,own.id,actor,requestId,payload,JSON.stringify(result),at);db.exec('COMMIT');return {receipt:result,duplicate:false};

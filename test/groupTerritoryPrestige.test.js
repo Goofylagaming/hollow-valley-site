@@ -42,3 +42,7 @@ test('actual battle provenance supplies frozen group and winning-participant evi
  assert.equal(f.service.read(A).evidence.totals.captures,1);f.service.select(A,f.input());f.db.exec('UPDATE hv_group_territory_links SET group_id=2,revision=2');assert.equal(f.service.read(A).effectiveChoice,'pioneer-standard');assert.equal(f.service.read(C).evidence.totals.captures,0);
  f.db.exec('UPDATE territory_battle_sample_clock SET verified=0 WHERE attack_id=1');assert.equal(f.service.read(A).effectiveChoice,'none');
 });
+
+test('public-boundary authorization runs inside the choice transaction and rolls back on rejection',t=>{
+ const f=fixture(t);f.battle(1);const request=f.input();assert.throws(()=>f.service.select(A,request,{authorize:()=>{f.db.prepare('UPDATE hv_groups SET owner_steam_id=? WHERE id=1').run(B);throw Object.assign(Error('Synthetic account rejection'),{status:403});}}),{status:403});assert.equal(f.db.prepare('SELECT owner_steam_id FROM hv_groups WHERE id=1').get().owner_steam_id,A);assert.equal(f.service.read(A).selection.revision,0);
+});

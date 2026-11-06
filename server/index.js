@@ -314,6 +314,7 @@ function createApp() {
   app.use("/api/community-activity", communityActivityRouter);
   app.use("/api/groups", groupsRouter);
   app.use("/api/group-headquarters", require("./routes/groupHeadquarters"));
+  app.use("/api/group-territory-prestige", require("./routes/groupTerritoryPrestige"));
   app.use("/api/group-treasury", require("./routes/groupTreasury"));
   app.use("/api/group-diplomacy", require("./routes/groupDiplomacy"));
   if (TERRITORY_WARS_ADMIN_TEST_ENABLED) {
