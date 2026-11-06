@@ -1,10 +1,10 @@
 const { randomUUID } = require('node:crypto');
 const store = require('./economyStore');
 const evidenceReview = require('./achievementEvidenceReview').createAchievementEvidenceReview(store.db);
+const sourceTimeEvidence = require('./progressionSourceTime');
 
-const PLAYTIME_XP_PER_5_MINUTES = 10;
+const { PLAYTIME_XP_PER_5_MINUTES, MAX_LEVEL, xpToReachLevel, levelFromXp } = require('./progressionRules');
 const LEVEL_REWARD_VC = 100;
-const MAX_LEVEL = 999;
 
 const QUEST_XP = Object.freeze({
   'daily-consecutive-1h': 250,
@@ -103,6 +103,10 @@ store.db.exec(`
   );
 `);
 
+const sourceTimes=sourceTimeEvidence.createProgressionSourceTimeStore(store.db);
+const achievementSourceTimes=require('./achievementSourceTime').createAchievementSourceTimeStore(store.db);
+const levelSources=require('./achievementProgressionSource').createLevelSourceStore(store.db);
+
 function parseJson(value) {
   try { return JSON.parse(value || '{}'); } catch { return {}; }
 }
@@ -111,24 +115,6 @@ function validateDiscordId(value) {
   const id = String(value || '').trim();
   if (!/^\d{15,22}$/.test(id)) throw new Error('Invalid Discord ID');
   return id;
-}
-
-function xpToReachLevel(level) {
-  const target = Math.max(1, Math.min(MAX_LEVEL, Math.floor(Number(level) || 1)));
-  const steps = target - 1;
-  return steps * 250 + 25 * steps * (steps - 1);
-}
-
-function levelFromXp(xp) {
-  const total = Math.max(0, Math.floor(Number(xp) || 0));
-  let low = 1;
-  let high = MAX_LEVEL;
-  while (low < high) {
-    const mid = Math.ceil((low + high) / 2);
-    if (xpToReachLevel(mid) <= total) low = mid;
-    else high = mid - 1;
-  }
-  return low;
 }
 
 function rankForLevel(level) {
@@ -313,6 +299,8 @@ function unlockEligibleAchievements(steamId) {
   const counters = countersFor(steam);
   const unlocked = [];
 
+  store.db.exec('SAVEPOINT progression_achievement_unlock');
+  try {
   for (const definition of ACHIEVEMENTS) {
     if (Number(counters[definition.type] || 0) < Number(definition.threshold || 0)) continue;
     const result = store.db.prepare(`
@@ -325,8 +313,13 @@ function unlockEligibleAchievements(steamId) {
       value: Number(counters[definition.type] || 0),
       ...(counters.evidence?.[definition.type] ? { evidence:counters.evidence[definition.type] } : {}),
     }));
-    if (Number(result.changes || 0) > 0) unlocked.push({ ...definition });
+    if (Number(result.changes || 0) > 0) {
+      achievementSourceTimes.recordNewAward(steam,definition.id);
+      unlocked.push({ ...definition });
+    }
   }
+  store.db.exec('RELEASE progression_achievement_unlock');
+  } catch(error) { store.db.exec('ROLLBACK TO progression_achievement_unlock; RELEASE progression_achievement_unlock'); throw error; }
   return unlocked;
 }
 
@@ -374,6 +367,7 @@ function awardXp({
   referenceType = null,
   referenceId = null,
   metadata = {},
+  sourceTime = null,
 }) {
   const steam = store.validateSteamId(steamId);
   const xpAmount = Number(amount);
@@ -405,12 +399,13 @@ function awardXp({
     const nextXp = Number(before.xp || 0) + xpAmount;
     const newLevel = levelFromXp(nextXp);
 
+    const ledgerId=randomUUID();
     store.db.prepare(`
       INSERT INTO progression_xp_ledger
         (id, steam_id, amount, source, reason, idempotency_key, reference_type, reference_id, metadata_json)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      randomUUID(),
+      ledgerId,
       steam,
       xpAmount,
       xpSource,
@@ -420,6 +415,8 @@ function awardXp({
       referenceId ? String(referenceId) : null,
       JSON.stringify(metadata || {})
     );
+    sourceTimes.recordNewGrant(ledgerId,{source:xpSource,referenceType,sourceTime});
+    levelSources.record(ledgerId,{steamId:steam,oldXp:Number(before.xp || 0),newXp:nextXp,oldLevel,newLevel});
 
     store.db.prepare(`
       UPDATE progression_players
@@ -489,6 +486,7 @@ function trackOnlinePlayers(players, { nowMs = Date.now() } = {}) {
         referenceType: 'playtime_interval',
         referenceId: String(sequence),
         metadata: { intervalMinutes: 5, sequence },
+        sourceTime: {at:Number(nowMs),basis:'playtime-observation'},
       });
       if (!result.duplicate) {
         summary.intervalsAwarded += 1;
@@ -540,6 +538,7 @@ function syncQuestXp(steamId) {
       referenceType: 'quest',
       referenceId: `${row.quest_id}:${row.period_key}`,
       metadata: { questId: row.quest_id, periodKey: row.period_key, achievedAt: row.achieved_at },
+      sourceTime: {at:sourceTimeEvidence.parseSourceTimestamp(row.achieved_at),basis:'quest-achievement'},
     });
     if (!result.duplicate) awarded += amount;
   }
@@ -570,6 +569,7 @@ function syncEventXp(steamId) {
       referenceType: 'event',
       referenceId: row.event_id,
       metadata: { eventId: row.event_id, eventTitle: row.event_title, confirmedAt: row.confirmed_at },
+      sourceTime: {at:sourceTimeEvidence.parseSourceTimestamp(row.confirmed_at),basis:'event-confirmation'},
     });
     if (!result.duplicate) awarded += 1000;
   }

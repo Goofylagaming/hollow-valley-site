@@ -1,0 +1,42 @@
+"use strict";
+const test=require('node:test'),assert=require('node:assert/strict');
+process.env.AUTOMATION_DB_PATH=':memory:';process.env.SKIN_SYSTEM_ENABLED='true';
+const economy=require('../src/services/economyStore'),progression=require('../src/services/progressionService'),skins=require('../src/services/skinPresetService');
+const {createAchievementSourceTimeStore}=require('../src/services/achievementSourceTime'),{createSeasonTrackStore,describe}=require('../src/services/seasonTrackStore');
+const sources=createAchievementSourceTimeStore(economy.db),A='76561198000000401',B='76561198000000402',C='76561198000000403';
+const START=Date.now()-60000,iso=x=>new Date(x).toISOString();
+economy.ensureWallet(A);economy.ensureWallet(B);economy.ensureWallet(C);
+test.after(()=>{require('../src/services/automationStore').close();economy.db.close();});
+const preset=(id,owner,price=0)=>economy.db.prepare(`INSERT INTO economy_skin_presets(id,owner_steam_id,species,name,skin_json,published,price) VALUES(?,?,'Rex','Synthetic','{}',1,?)`).run(id,owner,price);
+const badge=id=>progression.getProfile(id,{sync:true}).achievements.find(x=>x.id==='skins-10');
+test('real paid skin purchase creates one dated badge and separately reviewed season points without extra coins or permanent XP',async()=>{
+ let clock=START-1000;const seasons=createSeasonTrackStore(economy.db,{now:()=>clock});
+ const def={id:'synthetic-skin-season',title:'Synthetic skin season',startsAt:iso(START),endsAt:iso(START+86400000),settlesAt:iso(START+2*86400000),retainUntil:iso(START+30*86400000),free:true,sources:[],tiers:[{xp:55,title:'Synthetic milestone'}],achievementPoints:{policy:'qualifying-source-time',awards:[{id:'skins-10',xp:55}]}},digest=describe(def).digest;
+ seasons.stage(def,{reviewer:B,digest});seasons.changeState(def.id,{reviewer:B,digest,action:'publish',expectedRevision:1});clock=START;seasons.enroll(def.id,A);
+ for(let i=0;i<9;i++)preset('owned-'+i,A);preset('paid-tenth',B,25);assert.equal(badge(A),undefined);
+ economy.db.prepare('UPDATE economy_wallets SET balance=100 WHERE steam_id=?').run(A);
+ const result=await skins.purchasePreset({steamId:A,presetId:'paid-tenth',idempotencyKey:'synthetic-skin-purchase-001'});assert.equal(result.duplicate,false);
+ assert.equal(badge(A).title,'Valley Collector');const source=sources.read(A,'skins-10');assert.equal(source.available,true);assert.equal(source.basis,'recorded-skin-ownership-crossing');
+ const retry=await skins.purchasePreset({steamId:A,presetId:'paid-tenth',idempotencyKey:'synthetic-skin-purchase-001'});assert.equal(retry.duplicate,true);
+ assert.equal(economy.getWallet(A).balance,75);assert.equal(progression.getProfile(A,{sync:false}).xp,0);
+ clock=Date.now()+1000;seasons.reconcile(def.id,A);assert.equal(seasons.progress(def.id,A).xp,55);assert.equal(economy.getWallet(A).balance,75);
+ economy.db.prepare("UPDATE economy_skin_presets SET active=0 WHERE id='paid-tenth'").run();assert.equal(sources.read(A,'skins-10').sourceAt,source.sourceAt);assert.equal(seasons.progress(def.id,A).xp,55,'a historical ownership milestone is not ongoing ownership');
+ const original=economy.db.prepare('SELECT evidence_json FROM progression_skin_ownership_sources WHERE steam_id=?').get(A).evidence_json;
+ economy.db.prepare('UPDATE progression_skin_ownership_sources SET evidence_json=? WHERE steam_id=?').run('[]',A);assert.equal(seasons.progress(def.id,A).xp,0);
+ economy.db.prepare('UPDATE progression_skin_ownership_sources SET evidence_json=? WHERE steam_id=?').run(original,A);assert.equal(seasons.progress(def.id,A).xp,55);
+});
+test('personal grant crossings retain their original source date; preexisting badges never receive timing on retry',()=>{
+ for(let i=0;i<9;i++)preset('grant-owned-'+i,C);preset('grant-tenth',B);
+ economy.db.prepare('INSERT INTO progression_achievements(steam_id,achievement_id,metadata_json) VALUES(?,?,?)').run(C,'skins-10',JSON.stringify({type:'owned_skins',threshold:10,value:10}));
+ economy.grantSkinPreset({steamId:C,presetId:'grant-tenth'});assert.equal(badge(C).title,'Valley Collector');assert.equal(sources.read(C,'skins-10'),null,'unlock retry cannot stamp an old award as new');
+ const actor='76561198000000404';economy.ensureWallet(actor);for(let i=0;i<9;i++)preset('fresh-grant-'+i,actor);
+ economy.grantSkinPreset({steamId:actor,presetId:'grant-tenth'});assert.equal(badge(actor).metadata.value,10);const first=sources.read(actor,'skins-10');assert.equal(first.available,true);
+ economy.revokeSkinGrant({steamId:actor,presetId:'grant-tenth'});economy.grantSkinPreset({steamId:actor,presetId:'grant-tenth'});assert.equal(sources.read(actor,'skins-10').sourceAt,first.sourceAt);
+});
+test('an audit failure during a paid purchase leaves neither the entitlement nor a debit and can be retried once',async()=>{
+ const actor='76561198000000405';economy.ensureWallet(actor);for(let i=0;i<9;i++)preset('rollback-'+i,actor);preset('rollback-tenth',B,25);economy.db.prepare('UPDATE economy_wallets SET balance=100 WHERE steam_id=?').run(actor);
+ economy.db.exec("CREATE TRIGGER refuse_skin_source BEFORE INSERT ON progression_skin_ownership_sources BEGIN SELECT RAISE(ABORT,'crossing unavailable'); END");
+ const request={steamId:actor,presetId:'rollback-tenth',idempotencyKey:'synthetic-rollback-purchase-001'};
+ await assert.rejects(async()=>skins.purchasePreset(request),/crossing unavailable/);assert.equal(economy.getWallet(actor).balance,100);assert.equal(economy.hasSkinUnlock(actor,'rollback-tenth'),false);
+ economy.db.exec('DROP TRIGGER refuse_skin_source');await skins.purchasePreset(request);assert.equal(economy.getWallet(actor).balance,75);assert.equal(badge(actor).title,'Valley Collector');assert.equal(sources.read(actor,'skins-10').available,true);
+});

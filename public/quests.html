@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=4">
   <link rel="stylesheet" href="/assets/dynamic-challenges.css?v=1">
+  <link rel="stylesheet" href="/assets/season-track.css?v=1">
 </head>
 <body>
   <div class="app-shell">
@@ -103,11 +104,40 @@
           <button id="dynamic-cancel" type="button" class="small-button">Cancel review</button>
         </div>
       </section>
+      <section id="season-track" hidden aria-labelledby="season-heading">
+        <p class="overline green">FREE SEASON TRACK</p>
+        <h2 id="season-heading">Your season in the Valley</h2>
+        <p>Join a season for free and follow your progress through its milestones. Only activity with a supported source time counts; unknown history is excluded. Joining does not issue coins or cosmetic rewards. Your permanent levels and existing quest rewards continue separately.</p>
+        <p id="season-status" role="status" aria-live="polite">Loading seasons…</p>
+        <p id="season-preview"></p>
+        <button id="season-refresh" type="button" class="small-button">Refresh season progress</button>
+        <div id="season-catalog"></div>
+        <button id="season-more" type="button" class="small-button" hidden>More seasons</button>
+        <div id="season-details" hidden>
+          <h3 id="season-title"></h3>
+          <p id="season-dates"></p>
+          <p id="season-retention"></p>
+          <p id="season-achievement-rules" hidden></p>
+          <p id="season-participation"></p>
+          <p id="season-points"></p>
+          <p id="season-evidence"></p>
+          <div id="season-tiers"></div>
+          <button id="season-sync" type="button" class="small-button">Update saved progress</button>
+          <button id="season-choice" type="button" class="small-button">Review joining</button>
+        </div>
+        <div id="season-review" hidden>
+          <h3>Review your season choice</h3>
+          <p id="season-review-text"></p>
+          <button id="season-confirm" type="button" class="small-button">Confirm season choice</button>
+          <button id="season-cancel" type="button" class="small-button">Cancel season review</button>
+        </div>
+      </section>
     </main>
     <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="/assets/common.js?v=22"></script>
   <script src="/assets/quests.js?v=8"></script>
   <script src="/assets/dynamic-challenges.js?v=5"></script>
+  <script src="/assets/season-track.js?v=8"></script>
 </body>
 </html>

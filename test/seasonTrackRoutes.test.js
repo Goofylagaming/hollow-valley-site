@@ -1,0 +1,55 @@
+"use strict";
+const test = require('node:test'), assert = require('node:assert/strict'), express = require('express');
+const { DatabaseSync } = require('node:sqlite'), { randomBytes, randomUUID } = require('node:crypto');
+process.env.DB_PATH = ':memory:';
+const { db: users } = require('../server/db');
+const { describe, createSeasonTrackStore } = require('../automation-platform/src/services/seasonTrackStore');
+const service = require('../automation-platform/src/services/seasonTrackService');
+const A = '76561198000000401', B = '76561198000000402', START = Date.parse('2027-01-01T00:00:00Z');
+for (const key of ['SEASON_TRACK_ENABLED','SEASON_TRACK_MANAGEMENT_ENABLED','SEASON_TRACK_READ_ONLY','SKIN_STUDIO_READ_ONLY','RENDER_SERVICE_ID','RENDER_EXTERNAL_URL','PUBLIC_SITE_URL','STEAM_REALM','STEAM_RETURN_URL']) delete process.env[key];
+const db = new DatabaseSync(':memory:');
+db.exec('CREATE TABLE progression_xp_ledger(id TEXT PRIMARY KEY,steam_id TEXT,amount INTEGER,source TEXT,reference_type TEXT,created_at TEXT);CREATE TABLE progression_xp_source_times(ledger_id TEXT PRIMARY KEY,source_at INTEGER,basis TEXT)');
+let now = START - 1000;
+const store = createSeasonTrackStore(db, { now: () => now });
+const def = { id: 'synthetic-route-season', title: 'Synthetic private season', startsAt: new Date(START).toISOString(), endsAt: new Date(START + 56 * 86400000).toISOString(), settlesAt: new Date(START + 57 * 86400000).toISOString(), retainUntil: new Date(START + 147 * 86400000).toISOString(), free: true,
+  sources: [{ source: 'quest', policy: 'achievement-time' }], tiers: [{ xp: 10, title: 'First milestone' }] };
+const digest = describe(def).digest; store.stage(def, { reviewer: A, digest }); store.changeState(def.id, { action: 'publish', reviewer: A, digest, expectedRevision: 1 }); now = START;
+const originalGet = service.get; service.get = () => store;
+users.prepare('INSERT INTO users(id,steam_id,username) VALUES(1,?,\'A\'),(2,?,\'B\')').run(A, B);
+const listen = app => new Promise(resolve => { const server = app.listen(0, '127.0.0.1', () => resolve({ server, url: `http://127.0.0.1:${server.address().port}` })); });
+test('real website proxy and token API bind current accounts, guard writes and preserve paused deletion', async () => {
+  process.env.HOLLOW_VALLEY_API_TOKEN = randomBytes(32).toString('hex');
+  let calls = 0;
+  const internal = express(); internal.use(express.json()); internal.use((_req, _res, next) => { calls++; next(); }); internal.use('/api/website/season-track', require('../automation-platform/src/routes/websiteSeasonTrackRoutes'));
+  const web = express(); web.use(express.json()); web.use((req, _res, next) => { if (req.get('x-fixture-user')) req.user = { id: Number(req.get('x-fixture-user')), steam_id: req.get('x-fixture-steam') }; next(); }); web.use('/api/season-track', require('../server/routes/seasonTrack'));
+  const backend = await listen(internal), frontend = await listen(web); process.env.AUTOMATION_SERVICE_URL = backend.url;
+  const url = frontend.url + '/api/season-track';
+  const get = (suffix, id = '1', steam = A) => fetch(url + suffix, { headers: { 'x-fixture-user': id, 'x-fixture-steam': steam } });
+  const post = (suffix, body, extra = {}) => fetch(url + suffix, { method: 'POST', headers: { Origin: frontend.url, 'Content-Type': 'application/json', 'x-fixture-user': '1', 'x-fixture-steam': A, ...extra }, body: JSON.stringify(body) });
+  const join = { id: def.id, selected: true, expectedRevision: 0, requestKey: randomUUID(), seasonDigest: digest, steamId: B };
+  try {
+    assert.equal((await get('/capabilities')).status, 200); assert.equal((await get('/catalog')).status, 503); assert.equal(calls, 0);
+    process.env.SEASON_TRACK_ENABLED = '1';
+    assert.equal((await fetch(url + '/catalog')).status, 401);
+    assert.equal((await get('/catalog', '1', B)).status, 403); assert.equal(calls, 0);
+    const catalog = await get('/catalog'); assert.match(catalog.headers.get('cache-control'), /no-store/); assert.equal((await catalog.json()).items.length, 1);
+    assert.equal((await get('/catalog?before[]=2')).status, 400);
+    assert.equal((await post('/participation', join, { Origin: 'https://other.invalid' })).status, 403);
+    assert.equal((await post('/participation', join, { 'sec-fetch-site': 'cross-site' })).status, 403);
+    assert.equal((await post('/participation', join, { 'Content-Type': 'text/plain' })).status, 403);
+    process.env.SKIN_STUDIO_READ_ONLY = '1'; assert.equal((await post('/participation', join)).status, 403); delete process.env.SKIN_STUDIO_READ_ONLY;
+    assert.equal((await post('/participation', join)).status, 200); assert.equal(store.status(def.id, A).participating, true); assert.equal(store.status(def.id, B).participating, false);
+    db.prepare('INSERT INTO progression_xp_ledger VALUES(?,?,?,?,?,?)').run('route-xp', A, 10, 'quest', 'quest', new Date(now).toISOString()); db.prepare('INSERT INTO progression_xp_source_times VALUES(?,?,?)').run('route-xp', now, 'quest-achievement');
+    assert.equal((await get('/' + def.id)).status, 200); assert.equal(store.progress(def.id, A).xp, 0, 'GET never reconciles sources');
+    assert.equal((await post('/sync', { id: def.id })).status, 400);
+    assert.equal((await post('/sync', { id: def.id, expectedRevision: 1, seasonDigest: digest })).status, 200); assert.equal(store.progress(def.id, A).xp, 10);
+    process.env.SEASON_TRACK_ENABLED = '0'; process.env.SEASON_TRACK_MANAGEMENT_ENABLED = '1';
+    assert.equal((await post('/sync', { id: def.id, expectedRevision: 1, seasonDigest: digest })).status, 503);
+    assert.equal((await get('/' + def.id)).status, 200);
+    const leave = { ...join, selected: false, expectedRevision: 1, requestKey: randomUUID() };
+    assert.equal((await post('/participation', leave)).status, 200); assert.equal(store.status(def.id, A).participating, false);
+    process.env.SEASON_TRACK_ENABLED = '1'; const retried = await post('/participation', join); assert.equal((await retried.json()).current.participating, false);
+    users.prepare('DELETE FROM users WHERE id=1').run(); const before = calls; assert.equal((await get('/' + def.id)).status, 403); assert.equal(calls, before);
+    assert.equal((await fetch(backend.url + '/api/website/season-track/catalog', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })).status, 401);
+  } finally { service.get = originalGet; await Promise.all([new Promise(r => backend.server.close(r)), new Promise(r => frontend.server.close(r))]); db.close(); users.close(); }
+});

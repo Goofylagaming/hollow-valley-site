@@ -67,10 +67,12 @@ test("all production wallet, marketplace, storage, admin and other page scripts 
       assert.deepEqual(actual.filter(src => src !== membership && (page !== "supporter.html" || src !== subscriberBar)), baseline,
         page + ": existing feature scripts must be preserved");
     } else if (page === "quests.html") {
-      const dynamic="assets/dynamic-challenges.js";
+      const dynamic="assets/dynamic-challenges.js",season="assets/season-track.js";
       assert.equal(actual.filter(src=>src===dynamic).length,1,"Dynamic challenge controls must load once");
       assert.equal(actual.indexOf(dynamic),actual.indexOf("assets/quests.js")+1,"Dynamic challenges follow the original quest controller");
-      assert.deepEqual(actual.filter(src=>src!==dynamic),baseline,"Original quest scripts retain their order");
+      assert.equal(actual.filter(src=>src===season).length,1,"Season controls must load once");
+      assert.equal(actual.indexOf(season),actual.indexOf(dynamic)+1,"Season controls follow existing quest modules");
+      assert.deepEqual(actual.filter(src=>src!==dynamic&&src!==season),baseline,"Original quest scripts retain their order");
     } else if (page === "skins.html") {
       // v015 intentionally inserts the auto-map and batch-mask helpers before
       // the original viewer. The entire pre-existing script order is preserved.

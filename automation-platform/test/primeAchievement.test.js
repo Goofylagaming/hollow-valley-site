@@ -24,6 +24,7 @@ test('Prime badge requires observed Prime, survives later lives and awards no cu
   const earned = badge(a);
   assert.equal(earned.title,'Prime Survivor');
   assert.equal(earned.metadata.value,1);
+  assert.equal(require('../src/services/achievementSourceTime').createAchievementSourceTimeStore(store.db).read(a,'prime-observed').sourceAt,Date.UTC(2026,10,1,0,1));
   snapshot(a,false,2,'Gallimimus');
   assert.deepEqual(badge(a),earned,'permanent across dinosaur lives');
   assert.equal(badge(b),undefined,'account isolation');
@@ -33,6 +34,7 @@ test('Prime badge requires observed Prime, survives later lives and awards no cu
   assert.equal(firstSeenPrime.prime_started_at,null,'do not invent attainment time');
   snapshot(b,false,4);
   assert.equal(badge(b).title,'Prime Survivor','preexisting observation persists before first profile read');
+  assert.equal(require('../src/services/achievementSourceTime').createAchievementSourceTimeStore(store.db).read(b,'prime-observed').sourceAt,Date.UTC(2026,10,1,0,3));
   snapshot(c,false,5);
   snapshot(c,true,4);
   assert.equal(badge(c),undefined,'old snapshots cannot create Prime evidence');

@@ -34,6 +34,7 @@ test('authenticated immutable result unlocks only frozen winners with no rewards
     for(const id of [a,b]) {
       const profile=progression.getProfile(id);
       assert.equal(profile.achievements.find(x=>x.id==='territory-victory').title,'Territory Victor');
+      assert.equal(require('../src/services/achievementSourceTime').createAchievementSourceTimeStore(store.db).read(id,'territory-victory').sourceAt,payload.resolvedAt);
       assert.equal(profile.xp,0);assert.equal(store.getWallet(id).balance,0);
     }
     assert.equal(progression.getProfile(c).achievements.some(x=>x.id==='territory-victory'),false);

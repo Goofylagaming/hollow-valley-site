@@ -2,6 +2,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
+const { parseSourceTimestamp } = require('./progressionSourceTime');
+const { createPrimeObservationStore, speciesKey } = require('./primeObservationStore');
 
 const dbPath = process.env.AUTOMATION_DB_PATH || path.join(__dirname, '..', '..', 'data', 'automation.sqlite');
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
@@ -84,6 +86,7 @@ db.exec([
 ].join("\n"));
 
 const BOUNDS = { minX: -607000, maxX: 509000, minY: -505000, maxY: 607000 };
+const primeObservations = createPrimeObservationStore(db);
 const WIDTH_UNITS = BOUNDS.maxY - BOUNDS.minY;
 const HEIGHT_UNITS = BOUNDS.maxX - BOUNDS.minX;
 const MAP_VERSION = 'Gateway_v0.21.7';
@@ -101,12 +104,7 @@ function maxSampleGapMs(env = process.env) {
 }
 
 function normalizeSpecies(value) {
-  return String(value || '')
-    .trim()
-    .toLowerCase()
-    .replace(/^bp_/, '')
-    .replace(/_c$/, '')
-    .replace(/[^a-z0-9]/g, '');
+  return speciesKey(value);
 }
 
 function displaySpecies(value) {
@@ -119,11 +117,6 @@ function growthFraction(value) {
   if (!Number.isFinite(number)) return null;
   const fraction = number > 1.5 ? number / 100 : number;
   return Math.max(0, Math.min(1, fraction));
-}
-
-function safeIso(value) {
-  const time = new Date(value);
-  return Number.isFinite(time.getTime()) ? time.toISOString() : new Date().toISOString();
 }
 
 function projectLatLong(lat, long) {
@@ -546,7 +539,8 @@ function updateLife(player, sampledAt, env = process.env) {
       return getLife(life.id);
     }
   }
-  if (needsNewLife(life, player)) {
+  const created = needsNewLife(life, player);
+  if (created) {
     if (life) closeLife(life, sampledAt, 'species-or-growth-reset');
     life = createLife(player, sampledAt);
   }
@@ -560,6 +554,7 @@ function updateLife(player, sampledAt, env = process.env) {
 
   const primeNow = player.isPrime === true;
   const primePreviously = life.is_prime === 1;
+  const firstPositive = primeNow && (created || (!primePreviously && life.prime_started_at===null && life.prime_preexisting===0));
   const addPrimeSeconds = continuous && primeNow && primePreviously ? deltaSeconds : 0;
   const primeStartedAt = life.prime_started_at || (primeNow && !primePreviously ? sampledAt : null);
   const growth = growthFraction(player.growth);
@@ -605,18 +600,26 @@ function updateLife(player, sampledAt, env = process.env) {
     life.id
   );
 
-  return getLife(life.id);
+  const saved = getLife(life.id);
+  if (firstPositive) primeObservations.record(saved,{observedAt:sampledMs,kind:created?'first-seen-prime':'observed-transition'});
+  return saved;
 }
 
-function recordSnapshot(players = [], sampledAt = new Date().toISOString(), options = {}) {
+function recordSnapshot(players = [], sampledAt, options = {}) {
   const env = options.env || process.env;
   if (!enabled(env)) return { skipped: true, reason: 'disabled', tracked: 0 };
-  const timestamp = safeIso(sampledAt);
+  const sourceAt = parseSourceTimestamp(sampledAt);
+  if (sourceAt===null || sourceAt>Date.now()+120000) return {skipped:true,reason:'invalid-source-time',tracked:0};
+  const timestamp = new Date(sourceAt).toISOString();
   let tracked = 0;
   for (const player of players) {
     try {
-      if (updateLife(player, timestamp, env)) tracked += 1;
+      db.exec('SAVEPOINT prime_snapshot');
+      const updated = updateLife(player, timestamp, env);
+      db.exec('RELEASE prime_snapshot');
+      if (updated) tracked += 1;
     } catch (error) {
+      try { db.exec('ROLLBACK TO prime_snapshot; RELEASE prime_snapshot'); } catch {}
       console.warn('[prime-tracker]', player?.steamId || 'unknown', error.message);
     }
   }
