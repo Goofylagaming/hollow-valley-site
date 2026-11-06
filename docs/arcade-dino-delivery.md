@@ -1,0 +1,11 @@
+# Automatic Arcade dinosaur delivery
+
+Adds automatic delivery of existing ready and newly earned dinosaur entitlements to DinoStorage through the existing HTTP-pull `dino_grant` protocol. No game-mod changes or live-dinosaur mutations. Uses the official species class paths and exact configured growth; no Prime status is added.
+
+The durable delivery row and HTTP command queue insertion commit on the same SQLite connection. Storage admission runs before enqueue. Full/unavailable storage retries after 60 seconds. The worker runs every 15 seconds. Confirmation must come from DinoStorage for the correct command and Steam account. Missing/uncertain dispatches never replay; terminal failures remain owned for administrator review. Existing rewards automatically backfill when enabled.
+
+New additive table: `arcade_dino_deliveries`. Enable only on automation with `VALLEY_ARCADE_DINO_DELIVERY_ENABLED=1`, after both services pass staging and production readiness. Requires existing configured HTTP-pull bridge and sole-publisher acknowledgement; existing membership capacity policy is preserved. Delivery status and slot appear in Arcade. Existing grant protocol metadata uses the historical `marketplacePurchase` marker with an `arcade:` identifier; no purchase/order/payment is created.
+
+Deployment: back up existing databases; merge tested PR; wait for website readiness and branch synchronization; trigger automation deployment (auto-deploy off); verify both merge revisions; merge the new flag into automation environment; wait for the configuration deployment and check worker, queue and logs. No synthetic grants on production. Disable the flag to stop new submissions; already queued commands may finish. Do not delete queue rows or replay uncertain commands. Do not restore stale databases over player activity.
+
+Tests cover configured species/growth, atomic rollback, concurrent publishing, capacity retry, wrong-owner/source results, acknowledgement versus confirmation, lost history, duplicate crate opens, and delivery without wallet debit. Hosted staging runs the same delivery tests with a disposable database and simulated game acknowledgements; production checks do not create a real dinosaur merely for testing.

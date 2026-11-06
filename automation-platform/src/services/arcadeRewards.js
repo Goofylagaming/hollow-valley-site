@@ -242,7 +242,11 @@ function state(steam,now=Date.now()) {
   const id=economy.validateSteamId(steam);schema();assertOpen();
   const c=config(),day=arcade.dayKey(now);
   const xp=db.prepare('SELECT xp FROM arcade_profiles WHERE steam_id=?').get(id)?.xp||0;
-  return {xp,level:Math.min(100,Math.floor(xp/500)+1),xpPerLevel:500,
+  const deliveries=db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='arcade_dino_deliveries'").get()
+    ? db.prepare(`SELECT d.entitlement_id,d.status,d.message,d.command_json FROM arcade_dino_deliveries d
+      JOIN arcade_entitlements e ON e.id=d.entitlement_id WHERE e.steam_id=?`).all(id)
+      .map(({command_json,...row})=>({...row,slot:JSON.parse(command_json).args?.args?.[0]||null})) : [];
+  return {deliveryEnabled:process.env.VALLEY_ARCADE_DINO_DELIVERY_ENABLED==='1',deliveries,xp,level:Math.min(100,Math.floor(xp/500)+1),xpPerLevel:500,
     balance:economy.getWallet(id).balance,day,dailyClaimed:!!db.prepare('SELECT 1 FROM arcade_reward_receipts WHERE steam_id=? AND request_key=?').get(id,`daily:${day}`),
     playsRemaining:Math.max(0,c.dailyPlays-(db.prepare('SELECT used FROM arcade_daily_plays WHERE steam_id=? AND day=?').get(id,day)?.used||0)),
     fragmentCosts,fragments:db.prepare('SELECT family,quantity FROM arcade_fragments WHERE steam_id=?').all(id),

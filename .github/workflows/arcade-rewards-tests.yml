@@ -16,4 +16,4 @@ jobs:
         with:
           node-version: '22'
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: node --test test/arcadeRewardsRoute.test.js test/membershipExpansionStaging.test.js automation-platform/test/arcadeRewards.test.js automation-platform/test/arcadeRewardsConcurrency.test.js automation-platform/test/arcadeSkinCatalog.test.js automation-platform/test/valleyArcade.test.js automation-platform/test/expansionWalletConcurrency.test.js
+      - run: node --test test/arcadeRewardsRoute.test.js test/membershipExpansionStaging.test.js automation-platform/test/arcadeRewards.test.js automation-platform/test/arcadeDinoDelivery.test.js automation-platform/test/arcadeRewardsConcurrency.test.js automation-platform/test/arcadeSkinCatalog.test.js automation-platform/test/valleyArcade.test.js automation-platform/test/expansionWalletConcurrency.test.js

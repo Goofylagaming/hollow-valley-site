@@ -138,3 +138,9 @@ test('Arcade launch staging crosses the real authenticated HTTP boundary and unl
   assert.equal((await call('/daily',{})).value.duplicate,true); // committed receipt is readable during pause
   assert.equal((await call('/craft',{family:'valley',requestKey:'paused-craft'})).status,409);
 });
+
+test('automatic Arcade DinoStorage delivery passes in an isolated disposable database', async()=>{
+  const {execFile}=require('node:child_process');
+  const run=require('node:util').promisify(execFile);
+  await run(process.execPath,['--test',require('node:path').resolve(__dirname,'../automation-platform/test/arcadeDinoDelivery.test.js')],{timeout:25000});
+});

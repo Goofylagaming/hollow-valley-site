@@ -46,7 +46,12 @@
       craft.disabled=count<current.fragmentCosts[c.family];
       card.append(node('h3',c.family.toUpperCase()),node('p',`${count} / ${current.fragmentCosts[c.family]} fragments`),dropTable(c.odds),craft);return card;
     }));
-    el('entitlements').replaceChildren(...current.entitlements.map(e=>node('li',`${e.reward.species} · ${e.reward.growthPercent}% growth · ${e.status} entitlement · ${e.id}`)));
+    el('entitlements').replaceChildren(...current.entitlements.map(e=>{
+      const delivery=(current.deliveries||[]).find(d=>d.entitlement_id===e.id);
+      const label=delivery?.status==='delivered'?`Delivered to DinoStorage · slot ${delivery.slot}`:
+        delivery?.message||(current.deliveryEnabled?'Queued for automatic DinoStorage delivery':'Delivery is paused; your reward remains owned');
+      return node('li',`${e.reward.species} · ${e.reward.growthPercent}% growth · ${label} · ${e.id}`);
+    }));
     if(!current.entitlements.length)el('entitlements').append(node('li','No dinosaur entitlements yet.'));
     el('history').replaceChildren(...current.history.map(h=>node('li',`${new Date(h.opened_at).toLocaleString()} · ${h.family} · ${h.reward.label}`)));
   }
