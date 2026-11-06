@@ -24,7 +24,11 @@ router.use((req,res,next) => {
 router.get("/wall", (_req,res) => {
   const entries = db.prepare(`SELECT alias,dinosaur FROM membership_showcase
     WHERE approved=1 ORDER BY alias COLLATE NOCASE`).all();
-  res.json({ entries });
+  const supporters=db.prepare(`SELECT p.display_alias AS alias FROM membership_profile_preferences p
+    WHERE p.wall_opt_in=1 AND p.display_alias IS NOT NULL AND EXISTS
+      (SELECT 1 FROM membership_paid_invoices i WHERE i.user_id=p.user_id AND i.counts_month=1 AND i.revoked=0)
+    ORDER BY p.display_alias COLLATE NOCASE`).all();
+  res.json({entries,supporters});
 });
 
 function safeLabel(value) {

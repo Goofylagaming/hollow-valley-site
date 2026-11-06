@@ -66,4 +66,38 @@ router.post("/digest/preferences",(req,res)=>{
   res.json({enabled:req.body.enabled});
 });
 router.get("/digest",(req,res)=>res.json(benefits.digest(req.user)));
+router.post("/admin/previews",requireAdmin,(req,res)=>{
+  const {title,body,kind,hours,publicAt}=req.body||{};
+  if(!["preview","shipped"].includes(kind)||!Number.isInteger(hours)||hours<12||hours>24||!Number.isSafeInteger(publicAt)) return res.sendStatus(400);
+  const safe=require("../services/subscriberCommunity").safeText;
+  try {
+    if(title.length>80 || !safe(title) || !safe(body)) return res.sendStatus(400);
+  } catch{return res.sendStatus(400);}
+  const visibleAt=kind==="shipped"?publicAt:publicAt-hours*3600000;
+  const result=db.prepare("INSERT INTO membership_public_previews(title,body,approved_by,visible_at,public_at,kind) VALUES (?,?,?,?,?,?)")
+    .run(title,body,req.user.id,visibleAt,publicAt,kind);
+  res.status(201).json({id:Number(result.lastInsertRowid),visibleAt,publicAt});
+});
+router.get("/previews",(req,res)=>{
+  const rewards=require("../services/membershipRewards");
+  const paid=rewards.entitlement(require("../db").getSupporterStatus(req.user.id)).entitled;
+  const rows=db.prepare(`SELECT id,title,body,kind,public_at FROM membership_public_previews
+    WHERE public_at<=? OR (? AND visible_at<=?) ORDER BY public_at DESC LIMIT 20`).all(Date.now(),+(paid||Boolean(benefits.activePass(req.user.id))),Date.now());
+  res.json(rows);
+});
+router.post("/digest/deliver",(req,res)=>{
+  const pref=db.prepare("SELECT monthly_digest FROM membership_notification_preferences WHERE user_id=?").get(req.user.id);
+  if(!pref?.monthly_digest) return res.sendStatus(409);
+  const data=benefits.digest(req.user);
+  const now=Date.now();
+  data.updates=db.prepare(`SELECT title,kind FROM membership_public_previews WHERE public_at<=?
+    AND public_at>=? ORDER BY public_at DESC LIMIT 20`).all(now,Date.parse(data.month+"-01T00:00:00+10:00"));
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    db.prepare("INSERT OR IGNORE INTO membership_digest_content VALUES (?,?,?)").run(req.user.id,data.month,JSON.stringify(data));
+    db.prepare("INSERT OR IGNORE INTO membership_digest_delivery VALUES (?,?,'delivered')").run(req.user.id,data.month);
+    const saved=db.prepare("SELECT body FROM membership_digest_content WHERE user_id=? AND month=?").get(req.user.id,data.month);
+    db.exec("COMMIT");return res.json(JSON.parse(saved.body));
+  } catch(e){db.exec("ROLLBACK");throw e;}
+});
 module.exports = router;

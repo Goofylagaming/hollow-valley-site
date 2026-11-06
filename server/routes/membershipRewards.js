@@ -1,7 +1,7 @@
 "use strict";
 
 const express = require("express");
-const { requireAuth } = require("../middleware/requireAuth");
+const { requireAuth, requireAdmin } = require("../middleware/requireAuth");
 const { skinMutationGuard } = require("../middleware/skinStudioSafety");
 const rewards = require("../services/membershipRewards");
 const { syncPaidHistory } = require("../services/membershipHistory");
@@ -57,6 +57,17 @@ async function daily(req, res) {
     return res.json(result);
   } catch (error) { return sendError(res,error); }
 }
+router.get("/rewards/daily/admin/:userId",requireAdmin,async(req,res)=>{
+  if(process.env.DAILY_LOGIN_REWARDS_ENABLED!=="1") return res.sendStatus(404);
+  const id=Number(req.params.userId);
+  const store=require("../db");
+  const player=store.db.prepare("SELECT steam_id FROM users WHERE id=?").get(id);
+  if(!player?.steam_id) return res.sendStatus(404);
+  try {
+    const tier=rewards.entitlement(store.getSupporterStatus(id)).tier;
+    return res.json(await require("../services/automationWebsiteClient").dailyLogin("diagnostics",{steamId:player.steam_id,tier}));
+  }catch(error){return sendError(res,error);}
+});
 router.get("/rewards/daily", daily);
 router.post("/rewards/daily", daily);
 

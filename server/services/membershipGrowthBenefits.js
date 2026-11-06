@@ -1,7 +1,7 @@
 "use strict";
 
 const { db } = require("../db");
-const { migrateGrowth } = require("./membershipGrowth");
+
 const rewards = require("./membershipRewards");
 
 function activePass(userId, now=Date.now()) {
