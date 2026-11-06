@@ -257,6 +257,13 @@ function createApp() {
   app.use("/auth/owner", authOwnerRouter);
   app.use("/api/internal/commandbridge", legacyDirectGameApiRetired);
   app.use("/api/internal/supporter-memberships", supporterInternalRouter);
+  app.use("/api/valley-arcade", require("./routes/valleyArcade"));
+  app.use('/api/arcade', require('./routes/arcadeRewards'));
+  app.get(['/arcade','/arcade/'], (_req,res) => res.sendFile(path.join(__dirname,'..','public','arcade.html')));
+  app.get(['/admin/arcade','/admin/arcade/'], requireAdmin, (_req,res) => {
+    res.set('Cache-Control','private, no-store');
+    res.sendFile(path.join(__dirname,'pages','adminArcade.html'));
+  });
   app.use("/api/internal/membership-rewards", require("./routes/membershipRewardsInternal"));
   app.use("/api/species", speciesRouter);
   app.use("/api/wallet", walletRouter);
@@ -273,6 +280,9 @@ function createApp() {
   app.use("/api/skins", skinShareCodeRedaction);
   app.use("/api/skins", skinsRouter);
   app.use("/api/supporter", require("./routes/membershipRewards"));
+  app.use("/api/membership-growth", require("./routes/membershipGrowth"));
+  app.use("/api/community-recognition", require("./routes/membershipRecognition"));
+  app.use("/api/subscriber-community", require("./routes/subscriberCommunity"));
   const subscriberFundingRouters = createSubscriberFundingRouters();
   app.use("/api/supporter/progress", subscriberFundingRouters.publicRouter);
   app.use("/api/supporter", supporterRouter);
@@ -316,7 +326,6 @@ function createApp() {
   app.use("/api/dinostorage", legacyDirectGameApiRetired);
   app.all(["/api/park", "/api/playerdata", "/api/redeem", "/api/parked", "/api/admin"], legacyDirectGameApiRetired);
 
-  const PAGE_ROUTES = ["legacy", "dashboard", "wallet", "quests", "profile", "mydinos", "bodydrop", "friends", "groups", "marketplace", "livemap", "leaderboard", "supporter", "events", "status"];
   const PAGE_ROUTES = ["legacy", "dashboard", "wallet", "quests", "profile", "mydinos", "bodydrop", "friends", "groups", "marketplace", "livemap", "leaderboard", "supporter", "events", "help", "rules", "packs", "updates", "support", "community", "recruitment", "activity", "status", "reports"];
   for (const page of PAGE_ROUTES) {
     app.get(`/${page}`, (req, res) => {
@@ -396,6 +405,8 @@ function startServer() {
     console.log("[legacy-api] direct game execution paths retired");
     serverStatusService.start();
     const membershipDiscordTimer = require("./services/membershipDiscordQueue").start();
+    const subscriberCommunityTimer = require("./services/subscriberCommunity").start();
+    server.once("close", () => { if (subscriberCommunityTimer) clearInterval(subscriberCommunityTimer); });
     server.once("close", () => { if (membershipDiscordTimer) clearInterval(membershipDiscordTimer); });
     const subscriberFundingTimer = require("./services/subscriberFunding").getDefaultService().start();
     server.once("close", () => { if (subscriberFundingTimer) clearInterval(subscriberFundingTimer); });
@@ -406,6 +417,8 @@ function startServer() {
         catch (error) { console.warn("[territory-wars] admin-test runtime warning:", error.message); }
       }, 15_000);
       runtimeTimer.unref?.();
+      const victoryTimer = require('./services/territoryVictoryOutbox').start();
+      server.once('close', () => { if(victoryTimer) clearInterval(victoryTimer); });
       // Combat ingestion is a separate rollout; do not assume automation has its endpoint.
       if (process.env.TERRITORY_WARS_COMBAT_SYNC_ENABLED === "1") {
         require("./services/territoryCombatSync").start();

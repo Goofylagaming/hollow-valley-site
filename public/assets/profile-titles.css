@@ -1,0 +1,41 @@
+.profile-title-panel {
+  margin-block: 1.5rem;
+  padding: 1.25rem;
+  border: 1px solid #315d45;
+  border-radius: 14px;
+  background: #0b2119;
+  color: #e4eedf;
+  overflow-wrap: anywhere;
+}
+.profile-title-panel .list-heading { flex-wrap: wrap; gap: .5rem; }
+.profile-title-panel > p { line-height: 1.6; }
+#profile-title-current { font-size: 1.35rem; font-weight: 700; color: #e5c875; }
+#profile-title-form { display: flex; flex-wrap: wrap; gap: .75rem; align-items: end; }
+#profile-title-form label { flex-basis: 100%; font-weight: 600; }
+#profile-title-choice {
+  flex: 1 1 180px;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 44px;
+  border: 1px solid #68977b;
+  border-radius: 8px;
+  padding: .65rem;
+  background: #071a12;
+  color: #e4eedf;
+  font: inherit;
+}
+#profile-title-save {
+  min-height: 44px;
+  padding: .65rem 1rem;
+  border: 1px solid #c7aa5e;
+  border-radius: 8px;
+  background: #284835;
+  color: #fff0ba;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+#profile-title-form :focus-visible { outline: 3px solid #e5c875; outline-offset: 3px; }
+#profile-title-form :disabled { opacity: .6; cursor: not-allowed; }
+#profile-title-status { min-height: 1.6em; }
+#profile-title-catalog { grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }

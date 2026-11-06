@@ -11,6 +11,9 @@ let data = {
   mostLevels: [],
 };
 let activeTab = "mostKills";
+function playerLabel(row) {
+  return escapeHtml(row.username||'Unknown')+(row.selectedTitle?.name?`<small class="leaderboard-title" style="display:block">${escapeHtml(row.selectedTitle.name)}</small>`:'');
+}
 
 function combatEmptyMessage() {
   return data.combatFeedEnabled
@@ -29,7 +32,7 @@ function combatTable(title, rows, metric, note = "") {
             : Number(row.kd || 0).toFixed(2);
         return `<tr>
           <td>${i + 1}</td>
-          <td>${escapeHtml(row.username || "Unknown")}</td>
+          <td>${playerLabel(row)}</td>
           <td>${Number(row.kills || 0).toLocaleString()}</td>
           <td>${Number(row.deaths || 0).toLocaleString()}</td>
           <td>${value}</td>
@@ -97,7 +100,7 @@ function renderSimple() {
         const value = activeTab === "mostLevels"
           ? `Lv ${Number(row.level || 1).toLocaleString()} · ${Number(row.xp || 0).toLocaleString()} XP · ${escapeHtml(row.rank?.name || "Hollow Valley")}`
           : Number(row.playtime_minutes || 0).toLocaleString();
-        return `<tr><td>${i + 1}</td><td>${escapeHtml(row.username || "Unknown")}</td><td>${value}</td></tr>`;
+        return `<tr><td>${i + 1}</td><td>${playerLabel(row)}</td><td>${value}</td></tr>`;
       }).join("");
 
   container.innerHTML = `<table class="leaderboard-table">

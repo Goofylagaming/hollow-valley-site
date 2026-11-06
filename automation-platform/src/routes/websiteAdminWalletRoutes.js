@@ -25,6 +25,21 @@ function validateSteamId(value) {
   return steamId;
 }
 
+router.post('/daily-login/:action', (req, res) => {
+  if (process.env.DAILY_LOGIN_REWARDS_ENABLED !== '1') return res.sendStatus(404);
+  const daily = require('../services/dailyLoginWallet');
+  const { steamId, tier, day } = req.body || {};
+  if (!/^\d{17}$/.test(steamId)) return res.sendStatus(400);
+  if (req.params.action === 'diagnostics') {
+    const claims=economy.db.prepare(`SELECT reference_id AS day,amount,kind FROM economy_wallet_ledger
+      WHERE steam_id=? AND kind IN ('daily_login_reward','daily_login_bonus') ORDER BY reference_id DESC LIMIT 30`).all(steamId);
+    return res.json({eligibility:daily.dailyStatus(steamId,tier),claims});
+  }
+  if (req.params.action === 'status') return res.json(daily.dailyStatus(steamId,tier));
+  if (req.params.action === 'claim') return res.json(daily.claimDaily(steamId,tier,day));
+  return res.sendStatus(404);
+});
+
 router.post('/credit', async (req, res) => {
   try {
     const steamId = validateSteamId(req.body?.steamId);
@@ -114,6 +129,47 @@ router.post('/supporter-bonus', async (req, res) => {
   } catch (error) {
     return res.status(400).json({ error: error.message || 'Unable to credit monthly supporter bonus.' });
   }
+});
+
+router.post('/arcade/:action', (req,res) => {
+  if (process.env.VALLEY_ARCADE_ENABLED !== '1') return res.sendStatus(404);
+  const arcade=require('../services/valleyArcade');
+  const games=require('../services/valleyArcadeGames');
+  const body=req.body || {};
+  try {
+    switch(req.params.action) {
+      case 'settings': return res.json(arcade.settings());
+      case 'configure': return res.json(arcade.configure(body.actor,body));
+      case 'start': return res.json(games.start(body.steamId,body.game,Date.now(),body.requestKey));
+      case 'answer': return res.json(games.answer(body.steamId,body.id,body.choice));
+      case 'leaderboard': {
+        const config=arcade.settings();
+        if (!config.enabled || config.emergency) return res.sendStatus(404);
+        const rows=economy.db.prepare(`SELECT sum(score) AS score FROM arcade_rounds
+          WHERE settled_day=? GROUP BY steam_id ORDER BY score DESC LIMIT 10`).all(arcade.dayKey(Date.now()));
+        return res.json(rows);
+      }
+      default: return res.sendStatus(404);
+    }
+  } catch { return res.status(409).json({error:'Round or settings unavailable.'}); }
+});
+
+router.post('/arcade-rewards/:action', (req,res) => {
+  const rewards=require('../services/arcadeRewards');
+  if(!rewards.enabled() || process.env.VALLEY_ARCADE_ENABLED!=='1')return res.sendStatus(404);
+  const b=req.body||{};
+  try {
+    switch(req.params.action) {
+      case 'state': return res.json(rewards.state(b.steamId));
+      case 'daily': return res.json(rewards.daily(b.steamId,b.requestKey));
+      case 'open': return res.json(rewards.open(b.steamId,b.requestKey,b.crateId));
+      case 'craft': return res.json(rewards.craft(b.steamId,b.requestKey,b.family));
+      case 'admin': return res.json(rewards.adminState());
+      case 'configure': return res.json(rewards.configure(b.actor,b.config,b.expectedVersion));
+      case 'grant': return res.json(rewards.grant(b.actor,b.steamId,b.requestKey,b));
+      default: return res.sendStatus(404);
+    }
+  } catch(error) {return res.status(409).json({error:error.message});}
 });
 
 module.exports = router;

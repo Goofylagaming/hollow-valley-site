@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Valley Arcade | Hollow Valley</title><link rel="stylesheet" href="/assets/styles.css?v=17">
+<link rel="stylesheet" href="/assets/ui-v2.css?v=3"><link rel="stylesheet" href="/assets/arcade.css?v=1"></head>
+<body><div class="app-shell"><div id="nav-slot"></div><main class="arcade">
+<header><p class="overline">PLAY · EARN · COLLECT</p><h1>Valley Arcade</h1>
+<p>Free challenges. Earned crates. Your next discovery.</p><p>No purchases, stakes, trading or cash-out. Subscriber benefits never change crate odds.</p></header>
+<p><a href="/arcade-skins.html">Explore Emberwake, Frostveil & Verdant Warden →</a></p>
+<p id="arcade-status" role="status" aria-live="polite">Loading your Arcade…</p>
+<div id="arcade-content" hidden><section class="arcade-panel"><h2>Your progress</h2><p id="progress"></p><progress id="xp" max="500" value="0"></progress>
+<p id="plays"></p><button id="daily">Claim daily XP + fragment</button></section>
+<section class="arcade-panel"><h2>Daily free challenges</h2><p>Correct answers earn Arcade XP, a Valley fragment and Valley Coins. Plays reset at midnight Brisbane time.</p>
+<label>Challenge <select id="game"><option value="trivia">Dino Trivia</option><option value="daily-puzzle">Daily Puzzle</option><option value="guess-the-dino">Guess the Dino</option></select></label>
+<button id="play">Play free</button><p id="question"></p><div id="answers"></div></section>
+<section class="arcade-panel"><h2>Your crates</h2><p>Odds below include duplicate protection. Each earned crate keeps its original reward table.</p><div id="crates" class="arcade-grid"></div></section>
+<section class="arcade-panel"><h2>Fragments & reward tables</h2><div id="catalog" class="arcade-grid"></div></section>
+<section class="arcade-panel" id="my-rewards"><h2>My Stuff → Arcade</h2><p>Coins go to your Wallet and skins unlock in Skin Studio. Dinosaur entitlements stay here for controlled fulfilment; they do not change your live dinosaur.</p>
+<p><a href="/wallet">Wallet</a> · <a href="/skins">Skin Studio</a> · <a href="/dinostorage/">DinoStorage</a></p><ul id="entitlements"></ul></section>
+<section class="arcade-panel"><h2>Opening history</h2><ul id="history"></ul></section></div>
+</main></div><script src="/assets/common.js?v=25"></script><script src="/assets/arcade.js?v=1"></script></body></html>

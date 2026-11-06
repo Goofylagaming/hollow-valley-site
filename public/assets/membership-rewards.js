@@ -91,32 +91,48 @@
         : "No verified paid months are recorded yet. Earlier payments count once they have been verified."
       : next ? `${Math.max(0, Number(next.months) - months)} more paid ${Number(next.months) - months === 1 ? "month" : "months"} to ${next.title || "your next reward"}. Your progress stays with you if you take a break.`
         : "Your earned rewards stay with you. Thank you for supporting the Valley.";
+    const explanation = '<p>Earn permanent Discord loyalty roles at <strong>3 paid months — Valley Companion</strong>, <strong>6 paid months — Ancient Guardian</strong> and <strong>12 paid months — Heart of the Valley</strong>.</p><p>Roles are awarded automatically after qualifying payments are verified. Keep your Discord account linked; role updates can take up to an hour. Once earned, every loyalty role stays permanently, even if you cancel or your paid membership ends. You keep earlier roles as you earn the next ones.</p><p>Only qualifying paid membership months count. Free trials and unpaid periods do not add progress.</p>';
+    const progressDetail = next && months !== null
+      ? `<p><strong>${months} / ${Number(next.months)} paid months towards ${escape(next.title || "your next role")}</strong></p>`
+      : months !== null && milestones.length ? '<p><strong>All loyalty milestones earned</strong></p>' : '';
+    const schedule = loyalty.schedule || {};
+    const paymentDate = date(schedule.nextPaymentAt);
+    const renewalDate = date(schedule.renewalDueAt);
+    const unlockDate = date(schedule.expectedUnlockAt);
+    const billing = schedule.manualRenewalRequired === true
+      ? `<p><strong>Manual renewal required${renewalDate ? ` by ${escape(renewalDate)}` : ""}.</strong> Renew your membership or resume automatic renewal to keep adding paid months. <a href="#supporter-status">Manage membership</a></p>`
+      : paymentDate ? `<p><strong>Next payment expected: ${escape(paymentDate)}</strong> · Automatic renewal</p>`
+        : '<p>Your next payment date is unavailable. Check your membership status to renew or confirm your billing details.</p>';
+    const unlock = next ? unlockDate
+      ? `<p><strong>Expected ${escape(next.title || "loyalty role")} unlock: ${escape(unlockDate)}</strong></p><p>${schedule.manualRenewalRequired === true ? "Estimate assumes you renew by the date above and continue paying monthly." : "Estimate assumes each upcoming monthly payment succeeds."} Your role is awarded after qualifying payments are verified. Dates use Brisbane time.</p>`
+      : '<p>Your next loyalty unlock date will appear once your paid monthly schedule is verified. Renewing adds progress towards your next role.</p>' : '';
+    const timing = `<div class="membership-note">${billing}${unlock}</div>`;
     const history = loyalty.canSyncHistory === true ? `<div class="membership-history"><div><button type="button" class="small-button" data-membership-history-sync>Verify paid history</button><p class="membership-history-message" role="status" aria-live="polite"></p></div><small>Checks payments on your current subscription. Previously recorded paid months are kept.${date(loyalty.historySyncedAt) ? ` Last checked ${date(loyalty.historySyncedAt)}.` : ""}</small></div>` : "";
-    return `<section class="membership-loyalty" aria-labelledby="membership-loyalty-title"><div class="membership-section-title"><div><span class="membership-kicker">LOYALTY REWARDS</span><h3 id="membership-loyalty-title">${escape(heading)}</h3></div>${next && months !== null ? `<span class="membership-next">Next: ${Number(next.months)} months</span>` : ""}</div><p>${escape(detail)}</p>${milestones.length ? `<div class="membership-progress" role="progressbar" aria-label="Progress towards the next loyalty reward" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress}"><span style="width:${progress}%"></span></div><ol class="membership-milestones">${milestones.map((milestone) => `<li class="${milestone.earned === true ? "is-earned" : "is-locked"}"><span class="membership-milestone-icon" aria-hidden="true">${milestone.earned === true ? "✓" : "◇"}</span><div><b>${Number(milestone.months)} months</b><strong>${escape(milestone.title || "Loyalty reward")}</strong><small>${milestone.earned === true ? `Earned${date(milestone.earnedAt) ? ` · ${date(milestone.earnedAt)}` : ""}` : "Permanent reward when earned"}</small></div></li>`).join("")}</ol>` : '<div class="membership-note">Loyalty milestones will appear when the rewards programme is available.</div>'}${history}</section>`;
+    return `<section class="membership-loyalty" aria-labelledby="membership-loyalty-title"><div class="membership-section-title"><div><span class="membership-kicker">LOYALTY REWARDS</span><h3 id="membership-loyalty-title">${escape(heading)}</h3></div>${next && months !== null ? `<span class="membership-next">Next: ${Number(next.months)} months</span>` : ""}</div>${explanation}<p>${escape(detail)}</p>${progressDetail}${milestones.length && months !== null ? `<div class="membership-progress" role="progressbar" aria-label="Progress towards the next loyalty reward" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress}"><span style="width:${progress}%"></span></div><ol class="membership-milestones">${milestones.map((milestone) => `<li class="${milestone.earned === true ? "is-earned" : "is-locked"}"><span class="membership-milestone-icon" aria-hidden="true">${milestone.earned === true ? "✓" : "◇"}</span><div><b>${Number(milestone.months)} months</b><strong>${escape(milestone.title || "Loyalty reward")}</strong><small>${milestone.earned === true ? `Earned${date(milestone.earnedAt) ? ` · ${date(milestone.earnedAt)}` : ""}` : "Permanent reward when earned"}</small></div></li>`).join("")}</ol>` : '<div class="membership-note">Loyalty milestones will appear when the rewards programme is available.</div>'}${timing}${history}</section>`;
   }
 
 
   function renderSkinVote(vote = {}) {
     if (vote.enabled !== true) return "";
     if (vote.eligible !== true) {
-      return `<section class="membership-skin-vote" aria-labelledby="membership-skin-vote-title"><span class="membership-kicker">MEMBER SKIN VOTE</span><h3 id="membership-skin-vote-title">Help choose what comes next.</h3><p>Active members get one equal vote in premium skin polls. Higher tiers get more monthly skin choices, not more voting power.</p><a href="#tier-grid">View membership tiers <span aria-hidden="true">→</span></a></section>`;
+      return `<section class="membership-skin-vote" aria-labelledby="membership-skin-vote-title"><span class="membership-kicker">SUBSCRIBER VOTE</span><h3 id="membership-skin-vote-title">Help choose what comes next.</h3><p>Active members get one equal vote on premium skins, public event themes and community choices. Higher tiers get more monthly skin choices, not more voting power.</p><a href="#tier-grid">View membership tiers <span aria-hidden="true">→</span></a></section>`;
     }
     if (vote.open !== true || !vote.ballot) {
       const winner = vote.lastWinner?.label
         ? `<p class="membership-notice">Last winner: <strong>${escape(vote.lastWinner.label)}</strong></p>`
         : "";
-      return `<section class="membership-skin-vote" aria-labelledby="membership-skin-vote-title"><span class="membership-kicker">MEMBER SKIN VOTE</span><h3 id="membership-skin-vote-title">No vote open right now.</h3><p>Your next premium skin poll will appear here when the candidates are ready.</p>${winner}</section>`;
+      return `<section class="membership-skin-vote" aria-labelledby="membership-skin-vote-title"><span class="membership-kicker">SUBSCRIBER VOTE</span><h3 id="membership-skin-vote-title">No vote open right now.</h3><p>Your next subscriber vote will appear here when the choices are ready.</p>${winner}</section>`;
     }
     const options = Array.isArray(vote.options) ? vote.options : [];
     const selected = Number(vote.selectedOptionId);
     const closes = date(vote.ballot.closesAt);
     return `<section class="membership-skin-vote" aria-labelledby="membership-skin-vote-title">
-      <div class="membership-section-title"><div><span class="membership-kicker">MEMBER SKIN VOTE</span><h3 id="membership-skin-vote-title">${escape(vote.ballot.title || "Choose the next premium skin")}</h3></div><span class="membership-next">${closes ? `Closes ${escape(closes)}` : "Open now"}</span></div>
-      <p>One vote per active member. You can change your choice until voting closes.</p>
+      <div class="membership-section-title"><div><span class="membership-kicker">SUBSCRIBER VOTE</span><h3 id="membership-skin-vote-title">${escape(vote.ballot.title || "Choose what comes next")}</h3></div><span class="membership-next">${closes ? `Closes ${escape(closes)}` : "Open now"}</span></div>
+      <p>One vote per active member. You can change your choice until voting closes. Discord reactions do not count; public events stay open to everyone.</p>
       <form id="membership-skin-vote-form">
         <div class="membership-vote-options">${options.map((option) => `<label class="membership-vote-option">
           <input type="radio" name="optionId" value="${Number(option.id)}"${Number(option.id) === selected ? " checked" : ""}>
-          <span><strong>${escape(option.label)}</strong><small>${escape(option.description || "Premium skin candidate")}</small></span>
+          <span><strong>${escape(option.label)}</strong><small>${escape(option.description || "Community choice")}</small></span>
           <b>${count(option.votes) ?? 0}</b>
         </label>`).join("")}</div>
         <div class="membership-form-actions"><button type="submit" class="small-button"${options.length ? "" : " disabled"}>Save my vote</button><p id="membership-skin-vote-message" role="status" aria-live="polite"></p></div>

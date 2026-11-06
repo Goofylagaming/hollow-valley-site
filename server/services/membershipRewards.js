@@ -221,6 +221,7 @@ function recordPaidInvoice(invoice, { env = process.env, now = Date.now(), expec
     }
     rebuildPeriodAllowances(subscriber.user_id, subscriptionId);
     awardLoyalty(subscriber.user_id, now);
+    if (env.MEMBERSHIP_COLLECTION_ENABLED === "1") require("./membershipVault").readVault(subscriber.user_id,now);
     db.exec("COMMIT");
   } catch (error) { try { db.exec("ROLLBACK"); } catch {} throw error; }
   return { recorded: true, userId: subscriber.user_id, countsMonth };
@@ -288,10 +289,43 @@ function appearanceFor(userId, active, { now = Date.now() } = {}) {
   };
 }
 
+function loyaltySchedule(userId, membership, active, months, next, now) {
+  const renewalAt = Date.parse(active.expiresAt);
+  const available = active.entitled && Number.isFinite(renewalAt) && renewalAt > now;
+  const autoRenew = available && Number(membership?.auto_renew) === 1;
+  const latest = db.prepare(`SELECT p.period_start,p.period_end FROM membership_reward_periods p
+    JOIN membership_paid_invoices i ON i.invoice_id=p.source_invoice_id
+    WHERE p.user_id=? AND p.subscription_id=? AND i.revoked=0
+    ORDER BY p.period_end DESC LIMIT 1`).get(userId, membership?.stripe_subscription_id || "");
+  const remaining = next ? next.months - months : 0;
+  let expectedUnlockAt = null;
+  // Only extrapolate from a verified monthly cycle matching the paid-access end.
+  if (available && remaining > 0 && latest?.period_end === renewalAt &&
+      (latest.period_end - latest.period_start) / 86400000 >= 27 &&
+      (latest.period_end - latest.period_start) / 86400000 <= 32) {
+    const boundary = new Date(renewalAt);
+    const anchorDay = Math.max(boundary.getUTCDate(), new Date(latest.period_start).getUTCDate());
+    const targetMonth = boundary.getUTCMonth() + remaining - 1;
+    const lastDay = new Date(Date.UTC(boundary.getUTCFullYear(), targetMonth + 1, 0)).getUTCDate();
+    const expected = new Date(renewalAt);
+    expected.setUTCDate(1);
+    expected.setUTCMonth(targetMonth);
+    expected.setUTCDate(Math.min(anchorDay, lastDay));
+    expectedUnlockAt = expected.toISOString();
+  }
+  return {
+    nextPaymentAt: autoRenew ? active.expiresAt : null,
+    renewalDueAt: available && !autoRenew ? active.expiresAt : null,
+    manualRenewalRequired: available && !autoRenew,
+    expectedUnlockAt,
+  };
+}
+
 function rewardSummary(user, { env = process.env, now = Date.now() } = {}) {
   if (!enabled(env)) return { enabled: false };
   ensureSchema();
-  const active = entitlement(getSupporterStatus(user.id), { env, now });
+  const membership = getSupporterStatus(user.id);
+  const active = entitlement(membership, { env, now });
   const period = currentPeriod(user.id, { env, now });
   const claims = db.prepare(`SELECT claim_id AS id, skin_id AS skinId, status, period_key FROM membership_skin_claims
     WHERE user_id = ? AND status != 'released' ORDER BY created_at DESC`).all(user.id);
@@ -300,6 +334,7 @@ function rewardSummary(user, { env = process.env, now = Date.now() } = {}) {
   const earned = db.prepare("SELECT months, earned_at FROM membership_loyalty_rewards WHERE user_id = ?").all(user.id);
   const milestones = MILESTONES.map(m => ({ ...m, earned: earned.some(e => e.months === m.months), earnedAt: earned.find(e => e.months === m.months)?.earned_at || null }));
   const history = db.prepare("SELECT synced_at, complete FROM membership_history_sync WHERE user_id = ?").get(user.id);
+  const nextMilestone = milestones.find(m => !m.earned) || null;
   return {
     enabled: true, tier: active.tier, tierLabel: active.tierLabel,
     entitled: active.entitled, benefitsUntil: active.expiresAt,
@@ -312,7 +347,8 @@ function rewardSummary(user, { env = process.env, now = Date.now() } = {}) {
       catalogueReady: false,
       claims: claims.map(({ period_key, ...claim }) => ({ ...claim, currentPeriod: period?.period_key === period_key })),
     },
-    loyalty: { paidMonths: months, milestones, nextMilestone: milestones.find(m => !m.earned) || null,
+    loyalty: { paidMonths: months, milestones, nextMilestone,
+      schedule: loyaltySchedule(user.id, membership, active, months, nextMilestone, now),
       historyVerified: months > 0 || Boolean(history?.complete), historySyncedAt: history?.synced_at || null,
       historyScope: "current-subscription-and-recorded-periods",
       canSyncHistory: Boolean(getSupporterStatus(user.id)?.stripe_subscription_id) },
@@ -334,6 +370,17 @@ function updateAppearance(user, input, options = {}) {
     ON CONFLICT(user_id) DO UPDATE SET frame_id = excluded.frame_id, badge_visible = excluded.badge_visible, updated_at = datetime('now')`)
     .run(user.id, input.frameId, input.badgeVisible ? 1 : 0);
   return rewardSummary(user, options);
+}
+
+function finishSkinClaim(claim,state) {
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const changed=db.prepare("UPDATE membership_skin_claims SET status=?, updated_at=datetime('now') WHERE claim_id=? AND status='pending'").run(state,claim.claim_id).changes;
+    if(changed && state==="released" && claim.period_key.startsWith("bonus-token:")) {
+      db.prepare("UPDATE membership_bonus_claim_tokens SET redeemed_at=NULL WHERE grant_key=? AND user_id=?").run(claim.period_key.slice(12),claim.user_id);
+    }
+    db.exec("COMMIT");
+  } catch(e){db.exec("ROLLBACK");throw e;}
 }
 
 async function claimSkin(user, skinId, { env = process.env, now = Date.now(), client = null } = {}) {
@@ -359,14 +406,26 @@ async function claimSkin(user, skinId, { env = process.env, now = Date.now(), cl
       claim = db.prepare("SELECT * FROM membership_skin_claims WHERE user_id = ? AND skin_id = ?").get(user.id, skinId);
       if (!claim || claim.status === "released") {
         const period = currentPeriod(user.id, { env, now });
-        if (!period) throw new MembershipError(409, "PAID_PERIOD_REQUIRED", "Verify your paid membership history before choosing a monthly skin.");
-        const used = db.prepare("SELECT COUNT(*) AS count FROM membership_skin_claims WHERE user_id = ? AND period_key = ? AND status != 'released'").get(user.id, period.period_key).count;
-        if (used >= period.allowance) throw new MembershipError(409, "MONTHLY_CHOICES_USED", "You have used this billing period's skin choices.");
+        let periodKey = period?.period_key;
+        const used = period ? db.prepare("SELECT COUNT(*) AS count FROM membership_skin_claims WHERE user_id = ? AND period_key = ? AND status != 'released'").get(user.id,periodKey).count : 0;
+        if (!period || used >= period.allowance) {
+          let token;
+          if (env.MEMBERSHIP_GROWTH_ENABLED === "1") {
+            require("./membershipGrowth").migrateGrowth(db);
+            token = db.prepare(`SELECT grant_key FROM membership_bonus_claim_tokens WHERE user_id=?
+              AND redeemed_at IS NULL AND (expires_at IS NULL OR expires_at>?)
+              ORDER BY expires_at IS NULL,expires_at,granted_at,grant_key LIMIT 1`).get(user.id,now);
+          }
+          if (!token && !period) throw new MembershipError(409, "PAID_PERIOD_REQUIRED", "Verify your paid membership history before choosing a monthly skin.");
+          if (!token) throw new MembershipError(409, "MONTHLY_CHOICES_USED", "You have used this billing period's skin choices.");
+          db.prepare("UPDATE membership_bonus_claim_tokens SET redeemed_at=? WHERE grant_key=?").run(now,token.grant_key);
+          periodKey = "bonus-token:" + token.grant_key;
+        }
         const claimId = randomUUID();
         db.prepare(`INSERT INTO membership_skin_claims(claim_id, user_id, steam_id, period_key, skin_id, status)
           VALUES (?, ?, ?, ?, ?, 'pending') ON CONFLICT(user_id, skin_id) DO UPDATE SET
           claim_id = excluded.claim_id, steam_id = excluded.steam_id, period_key = excluded.period_key,
-          status = 'pending', updated_at = datetime('now')`).run(claimId, user.id, String(user.steam_id), period.period_key, skinId);
+          status = 'pending', updated_at = datetime('now')`).run(claimId, user.id, String(user.steam_id), periodKey, skinId);
         claim = db.prepare("SELECT * FROM membership_skin_claims WHERE claim_id = ?").get(claimId);
       }
       db.exec("COMMIT");
@@ -380,13 +439,13 @@ async function claimSkin(user, skinId, { env = process.env, now = Date.now(), cl
       throw new Error("Membership skin receipt could not be verified");
     }
     const state = result?.alreadyOwned === true ? "released" : "fulfilled";
-    db.prepare("UPDATE membership_skin_claims SET status = ?, updated_at = datetime('now') WHERE claim_id = ? AND status = 'pending'").run(state, claim.claim_id);
+    finishSkinClaim(claim,state);
     return { ok: true, claimId: claim.claim_id, skinId, alreadyOwned: result?.alreadyOwned === true, duplicate: Boolean(result?.duplicate) };
   } catch (error) {
     // Unknown delivery outcomes retain the same reservation and claim ID.
     // A retry must ask the automation receipt ledger, never grant a new skin.
     if ([400, 403, 404].includes(error?.status) || error?.code === "PREMIUM_SKIN_UNAVAILABLE") {
-      db.prepare("UPDATE membership_skin_claims SET status = 'released', updated_at = datetime('now') WHERE claim_id = ? AND status = 'pending'").run(claim.claim_id);
+      finishSkinClaim(claim,"released");
       throw new MembershipError(error.status, "SKIN_NOT_AVAILABLE", "This skin is no longer available. Your choice has been returned.");
     }
     throw new MembershipError(503, "SKIN_CHOICE_PENDING", "Your skin choice is reserved. Retry this same skin to finish delivery; it will not use another choice.");

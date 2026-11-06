@@ -2,6 +2,44 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const client = require("../public/assets/membership-rewards");
 
+test("loyalty billing dates use Brisbane time and clearly qualify manual renewal estimates", () => {
+  const payload = rewards();
+  payload.loyalty.schedule = {
+    nextPaymentAt: "2026-11-23T20:59:54Z", expectedUnlockAt: "2026-12-23T20:59:54Z",
+  };
+  let html = client.renderRewards(payload);
+  assert.match(html, /Next payment expected: 24 Nov 2026/);
+  assert.match(html, /unlock: 24 Dec 2026/);
+  assert.match(html, /each upcoming monthly payment succeeds/);
+  payload.loyalty.schedule = {
+    manualRenewalRequired: true, renewalDueAt: "2026-11-23T20:59:54Z", expectedUnlockAt: "2026-12-23T20:59:54Z",
+  };
+  html = client.renderRewards(payload);
+  assert.match(html, /Manual renewal required by 24 Nov 2026/);
+  assert.match(html, /Estimate assumes you renew by the date above/);
+  assert.doesNotMatch(html, /Next payment expected:/);
+  payload.loyalty.schedule = {};
+  html = client.renderRewards(payload);
+  assert.match(html, /next payment date is unavailable/);
+  assert.doesNotMatch(html, /unlock:|Invalid Date/);
+});
+
+test("subscriber loyalty explains automatic permanent roles and progress at each threshold", () => {
+  for (const [months, nextMonths, nextTitle] of [[2, 3, "Valley Companion"], [5, 6, "Ancient Guardian"], [11, 12, "Heart of the Valley"]]) {
+    const milestones = [[3, "Valley Companion"], [6, "Ancient Guardian"], [12, "Heart of the Valley"]]
+      .map(([threshold, title]) => ({ months: threshold, title, earned: months >= threshold }));
+    const markup = client.renderRewards(rewards({ entitled: false, loyalty: { paidMonths: months, milestones } }));
+    assert.ok(markup.includes(`${months} / ${nextMonths} paid months towards ${nextTitle}`));
+    assert.ok(markup.includes(`1 more paid month to ${nextTitle}`));
+    assert.match(markup, /Roles are awarded automatically/);
+    assert.match(markup, /stays permanently, even if you cancel/);
+    assert.match(markup, /Free trials and unpaid periods do not add progress/);
+  }
+  const milestones = [3, 6, 12].map(months => ({ months, earned: true }));
+  assert.match(client.renderRewards(rewards({ loyalty: { paidMonths: 12, milestones } })), /All loyalty milestones earned/);
+  assert.doesNotMatch(client.renderRewards(rewards({ loyalty: { milestones } })), /role="progressbar"/);
+});
+
 function rewards(overrides = {}) {
   return {
     enabled: true,

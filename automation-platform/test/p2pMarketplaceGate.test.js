@@ -1,3 +1,4 @@
+const closeFixtureDatabases = require("../test-support/closeFixtureDatabases");
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -31,6 +32,7 @@ test('individual dino selling inherits marketplace writes unless P2P gate explic
     else process.env.MARKETPLACE_WRITE_ENABLED = previous.write;
     if (previous.p2pWrite === undefined) delete process.env.P2P_MARKETPLACE_WRITE_ENABLED;
     else process.env.P2P_MARKETPLACE_WRITE_ENABLED = previous.p2pWrite;
+    closeFixtureDatabases(dir);
     fs.rmSync(dir, { recursive: true, force: true });
   });
 

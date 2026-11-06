@@ -1,5 +1,6 @@
 const { randomUUID } = require('node:crypto');
 const store = require('./economyStore');
+const evidenceReview = require('./achievementEvidenceReview').createAchievementEvidenceReview(store.db);
 
 const PLAYTIME_XP_PER_5_MINUTES = 10;
 const LEVEL_REWARD_VC = 100;
@@ -33,6 +34,12 @@ const RANKS = Object.freeze([
 ]);
 
 const ACHIEVEMENTS = Object.freeze([
+  { id: 'territory-victory', title: 'Territory Victor', description: 'Participate in a verified Territory War capture.', type: 'territory_victories', threshold: 1 },
+  { id: 'life-survival-10h', title: 'Enduring Survivor', description: 'Survive 10 recorded hours on one dinosaur life.', type: 'life_survival_seconds', threshold: 36000 },
+  { id: 'nested-adult', title: 'Valley Born', description: 'Grow a verified nested dinosaur from juvenile to adult in one observed life.', type: 'nested_adult', threshold: 1 },
+  { id: 'prime-observed', title: 'Prime Survivor', description: 'Have a dinosaur observed as Prime by the server.', type: 'prime_observed', threshold: 1 },
+  { id: 'combat-species-5', title: 'Versatile Hunter', description: 'Kill players of five different recorded dinosaur species.', type: 'combat_species', threshold: 5 },
+  { id: 'skins-10', title: 'Valley Collector', description: 'Own 10 distinct active skins through creation, purchase or a personal grant.', type: 'owned_skins', threshold: 10 },
   { id: 'first-level', title: 'Moving Up', description: 'Reach level 2.', type: 'level', threshold: 2 },
   { id: 'level-10', title: 'Valley Regular', description: 'Reach level 10.', type: 'level', threshold: 10 },
   { id: 'level-25', title: 'Valley Tracker', description: 'Reach level 25.', type: 'level', threshold: 25 },
@@ -166,6 +173,8 @@ function latestPlayerName(steamId) {
 }
 
 function readAchievements(steamId) {
+  const pending = evidenceReview.inspect(steamId);
+  const withdrawn = evidenceReview.withdrawn(steamId);
   return store.db.prepare(`
     SELECT achievement_id, metadata_json, unlocked_at
     FROM progression_achievements
@@ -178,6 +187,7 @@ function readAchievements(steamId) {
       title: definition?.title || row.achievement_id,
       description: definition?.description || '',
       unlockedAt: row.unlocked_at,
+      ...(withdrawn.has(row.achievement_id) ? {verificationStatus:'withdrawn'} : pending.has(row.achievement_id) ? {verificationStatus:'under-review'} : {}),
       metadata: parseJson(row.metadata_json),
     };
   });
@@ -205,12 +215,97 @@ function countConfirmedEvents(steamId) {
 
 function countersFor(steamId) {
   const player = ensurePlayer(steamId);
+  const survival = survivalEvidence(steamId);
+  const nested = nestedAdultEvidence(steamId);
   return {
     level: Number(player.level) || 1,
     playtime_minutes: Number(player.playtime_intervals || 0) * 5,
     quests: countQuestCompletions(steamId),
     events: countConfirmedEvents(steamId),
+    combat_species: countCombatSpecies(steamId),
+    prime_observed: hasObservedPrime(steamId),
+    nested_adult: nested ? 1 : 0,
+    territory_victories: countTerritoryVictories(steamId),
+    life_survival_seconds: Number(survival?.value || 0),
+    evidence: {
+      life_survival_seconds: survival ? { lifeId:survival.id, observedThrough:survival.achieved_at } : null,
+      nested_adult: nested ? { lifeId:nested.id, juvenileAt:nested.juvenile_at, adultAt:nested.adult_at } : null,
+    },
+    // Catalog availability (including shared premium presets) is not ownership.
+    // EXISTS prevents multiple entitlement paths from counting a preset twice.
+    owned_skins: Number(store.db.prepare(`
+      SELECT COUNT(*) AS count FROM economy_skin_presets p
+      WHERE p.active = 1 AND (
+        p.owner_steam_id = ? OR
+        EXISTS (SELECT 1 FROM economy_skin_unlocks u WHERE u.preset_id = p.id AND u.steam_id = ?) OR
+        EXISTS (SELECT 1 FROM economy_skin_grants g WHERE g.preset_id = p.id AND g.steam_id = ? AND g.revoked_at IS NULL)
+      )
+    `).get(steamId, steamId, steamId).count),
   };
+}
+
+function countCombatSpecies(steamId) {
+  // Progression may start before the optional combat service migrates its table.
+  if (!store.db.prepare('PRAGMA table_info(combat_events)').all().some(c => c.name === 'victim_species')) return 0;
+  return Number(store.db.prepare(`SELECT COUNT(DISTINCT victim_species) AS count
+    FROM combat_events WHERE killer_steam_id = ? AND killer_steam_id <> victim_steam_id
+    AND victim_species IS NOT NULL`).get(steamId).count);
+}
+
+function countTerritoryVictories(steamId) {
+  if(!store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='progression_territory_winners'").get()) return 0;
+  return Number(store.db.prepare('SELECT COUNT(*) AS n FROM progression_territory_winners WHERE steam_id=?').get(steamId).n);
+}
+
+function survivalEvidence(steamId) {
+  const tables = store.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('vl_lives','vl_records','vl_events')").all();
+  if (tables.length !== 3) return null;
+  const combatAvailable = store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='combat_events'").get();
+  const noUnimportedDeath = combatAvailable ? `AND NOT EXISTS (
+    SELECT 1 FROM combat_events c WHERE c.victim_steam_id=l.steam_id
+    AND (CAST(strftime('%s',c.occurred_at) AS INTEGER)*1000 + CAST(substr(strftime('%f',c.occurred_at),4,3) AS INTEGER))
+      BETWEEN l.started_at AND r.achieved_at)` : '';
+  return store.db.prepare(`SELECT l.id,r.value,r.achieved_at FROM vl_lives l
+    JOIN vl_records r ON r.subject=l.id AND r.scope='all' AND r.metric='survival_seconds'
+    WHERE l.steam_id=? AND r.value>=36000
+    AND r.achieved_at<=l.last_at AND r.value*1000<=r.achieved_at-l.started_at
+    AND (l.ended_at IS NULL OR l.ended_at>=r.achieved_at)
+    AND NOT EXISTS (SELECT 1 FROM vl_events d WHERE json_extract(d.payload,'$.type')='combat_death'
+      AND json_extract(d.payload,'$.steamId')=l.steam_id
+      AND d.occurred_at BETWEEN l.started_at AND r.achieved_at)
+    ${noUnimportedDeath} ORDER BY r.achieved_at,l.id LIMIT 1`).get(steamId) || null;
+}
+
+function hasObservedPrime(steamId) {
+  const columns = new Set(store.db.prepare('PRAGMA table_info(prime_tracker_lives)').all().map(c => c.name));
+  if (!['steam_id', 'is_prime', 'prime_started_at', 'prime_preexisting'].every(c => columns.has(c))) return 0;
+  // Recognize observed status, including preexisting Prime. This does not infer
+  // natural attainment, original attainment time, or Prime from growth alone.
+  return store.db.prepare(`SELECT 1 FROM prime_tracker_lives WHERE steam_id = ?
+    AND (is_prime = 1 OR prime_started_at IS NOT NULL OR prime_preexisting = 1) LIMIT 1`).get(steamId) ? 1 : 0;
+}
+
+function nestedAdultEvidence(steamId) {
+  const tables = store.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('vl_lives','vl_parents','vl_growth_milestones','vl_events')").all();
+  if (tables.length !== 4) return null;
+  // Do not wait for the periodic Legacy importer to notice a known death.
+  const combatAvailable = store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='combat_events'").get();
+  const noUnimportedDeath = combatAvailable ? `AND NOT EXISTS (
+    SELECT 1 FROM combat_events c WHERE c.victim_steam_id=l.steam_id
+    AND (CAST(strftime('%s',c.occurred_at) AS INTEGER)*1000 + CAST(substr(strftime('%f',c.occurred_at),4,3) AS INTEGER))
+      BETWEEN g.juvenile_at AND g.adult_at)` : '';
+  return store.db.prepare(`SELECT l.id,g.juvenile_at,g.adult_at FROM vl_lives l
+    JOIN vl_growth_milestones g ON g.life_id=l.id
+    WHERE l.steam_id=? AND g.adult_at>g.juvenile_at
+    AND (l.ended_at IS NULL OR l.ended_at>=g.adult_at)
+    AND EXISTS (SELECT 1 FROM vl_parents p WHERE p.child=l.id)
+    AND EXISTS (SELECT 1 FROM vl_events h WHERE h.id='hatch:'||l.id
+      AND json_extract(h.payload,'$.type')='hatch'
+      AND length(trim(json_extract(h.payload,'$.evidence')))>0)
+    AND NOT EXISTS (SELECT 1 FROM vl_events d WHERE json_extract(d.payload,'$.type')='combat_death'
+      AND json_extract(d.payload,'$.steamId')=l.steam_id
+      AND d.occurred_at BETWEEN g.juvenile_at AND g.adult_at)
+    ${noUnimportedDeath} ORDER BY g.adult_at,l.id LIMIT 1`).get(steamId) || null;
 }
 
 function unlockEligibleAchievements(steamId) {
@@ -228,6 +323,7 @@ function unlockEligibleAchievements(steamId) {
       type: definition.type,
       threshold: definition.threshold,
       value: Number(counters[definition.type] || 0),
+      ...(counters.evidence?.[definition.type] ? { evidence:counters.evidence[definition.type] } : {}),
     }));
     if (Number(result.changes || 0) > 0) unlocked.push({ ...definition });
   }
@@ -511,7 +607,7 @@ function readProfile(steamId) {
     questsCompleted: countQuestCompletions(steam),
     eventsAttended: countConfirmedEvents(steam),
     achievements: readAchievements(steam),
-    achievementCount: readAchievements(steam).length,
+    achievementCount: readAchievements(steam).filter(a=>a.verificationStatus!=='withdrawn').length,
   };
 }
 
@@ -580,13 +676,27 @@ function getLeaderboard({ limit = 100 } = {}) {
     rank: rankForLevel(row.level),
     verifiedPlaytimeMinutes: Number(row.playtime_intervals || 0) * 5,
     achievementCount: Number(store.db.prepare(
-      'SELECT COUNT(*) AS count FROM progression_achievements WHERE steam_id = ?'
+      `SELECT COUNT(*) AS count FROM progression_achievements a WHERE steam_id = ?
+       AND NOT EXISTS (SELECT 1 FROM progression_achievement_review_state s
+         WHERE s.steam_id=a.steam_id AND s.achievement_id=a.achievement_id AND s.status='withdrawn')`
     ).get(row.steam_id)?.count || 0),
   }));
 }
 
 function achievementDefinitions() {
   return ACHIEVEMENTS.map((item) => ({ ...item }));
+}
+
+// Public title decoration needs saved evidence, not profile synchronization or rewards.
+function getTitleEvidence(steamIds) {
+  if(!Array.isArray(steamIds)||steamIds.length>800||steamIds.some(id=>typeof id!=='string'||!/^\d{17}$/.test(id))) {
+    throw Object.assign(new Error('Up to 800 valid Steam identities are required'),{status:400});
+  }
+  const ids=[...new Set(steamIds)];
+  const query=store.db.prepare(`SELECT a.achievement_id FROM progression_achievements a WHERE a.steam_id=?
+    AND NOT EXISTS (SELECT 1 FROM progression_achievement_review_state s WHERE s.steam_id=a.steam_id AND s.achievement_id=a.achievement_id AND s.status='withdrawn')
+    AND NOT EXISTS (SELECT 1 FROM progression_achievement_evidence_reviews r WHERE r.steam_id=a.steam_id AND r.achievement_id=a.achievement_id AND r.status='pending')`);
+  return ids.map(steamId=>({steamId,achievementIds:query.all(steamId).map(a=>a.achievement_id)}));
 }
 
 module.exports = {
@@ -611,4 +721,5 @@ module.exports = {
   steamIdForDiscord,
   getLeaderboard,
   achievementDefinitions,
+  getTitleEvidence,
 };

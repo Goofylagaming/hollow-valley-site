@@ -28,6 +28,7 @@ function loadFixture() {
       delete require.cache[catalogPath];
       if (previousDb === undefined) delete process.env.AUTOMATION_DB_PATH;
       else process.env.AUTOMATION_DB_PATH = previousDb;
+      store.db.close();
       fs.rmSync(dir, { recursive: true, force: true });
     },
   };

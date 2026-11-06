@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=4">
   <link rel="stylesheet" href="/assets/membership-rewards.css?v=3">
+  <link rel="stylesheet" href="/assets/profile-titles.css?v=1">
 </head>
 <body class="has-my-stuff-rail">
   <div class="app-shell">
@@ -53,6 +54,7 @@
                 </div>
               </div>
             </div>
+            <div id="profile-collection-features" hidden></div>
             <div class="profile-current-rank">
               <small>CURRENT DINO RANK</small>
               <strong id="profile-hero-rank">Hypsilophodon</strong>
@@ -143,6 +145,18 @@
             <div class="summary-tile"><small>NEXT DINO RANK</small><b id="profile-next-rank">Dryosaurus · Lv 5</b></div>
           </div>
 
+          <section class="profile-title-panel" aria-labelledby="profile-title-heading">
+            <div class="list-heading"><span id="profile-title-heading">EARNED PROFILE TITLE</span><small>verified account milestones</small></div>
+            <p id="profile-title-current">Loading your title…</p>
+            <p>Choose a title earned through verified progression. Titles are cosmetic and do not spend coins.</p>
+            <form id="profile-title-form">
+              <label for="profile-title-choice">Your title</label>
+              <select id="profile-title-choice" disabled><option value="">No title</option></select>
+              <button type="submit" id="profile-title-save" disabled>Save title</button>
+            </form>
+            <p id="profile-title-status" role="status" aria-live="polite"></p>
+            <div id="profile-title-catalog" class="profile-achievements"></div>
+          </section>
           <div class="list-heading"><span>DINO RANK LADDER</span><small>milestone ranks</small></div>
           <div class="profile-rank-ladder" id="profile-rank-ladder"></div>
 
@@ -155,6 +169,6 @@
   </div>
   <script src="/assets/common.js?v=22"></script>
   <script src="/assets/membership-rewards.js?v=3"></script>
-  <script src="/assets/profile.js?v=3"></script>
+  <script src="/assets/profile.js?v=7"></script>
 </body>
 </html>

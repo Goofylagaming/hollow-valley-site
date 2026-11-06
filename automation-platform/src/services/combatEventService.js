@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
 const questChallenges = require('./questBoostService');
+const { canonicalCombatSpecies } = require('../config/combatSpecies');
 
 const dbPath = process.env.AUTOMATION_DB_PATH || path.join(__dirname, '..', '..', 'data', 'automation.sqlite');
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
@@ -44,6 +45,11 @@ db.exec(`
 `);
 
 const HOUR_MS = 60 * 60 * 1000;
+// Additive upgrade: historical events retain unknown species, never inferred
+// from a player's current dinosaur or another occurrence.
+if (!db.prepare('PRAGMA table_info(combat_events)').all().some(c => c.name === 'victim_species')) {
+  db.exec('ALTER TABLE combat_events ADD COLUMN victim_species TEXT');
+}
 const DAY_MS = 24 * HOUR_MS;
 const BRISBANE_OFFSET_MS = 10 * HOUR_MS;
 
@@ -111,6 +117,7 @@ function normalizeEvent(input = {}, env = process.env) {
     killerName: killerSteamId ? cleanName(input.killerName) : null,
     victimSteamId,
     victimName: cleanName(input.victimName),
+    victimSpecies: canonicalCombatSpecies(input.victimSpecies),
     source: sourceName(env),
   };
 }
@@ -147,7 +154,14 @@ function sameEvent(row, event) {
     (row.killer_name || null) === event.killerName &&
     row.victim_steam_id === event.victimSteamId &&
     (row.victim_name || null) === event.victimName &&
+    compatibleSpecies(row, event) &&
     row.source === event.source;
+}
+
+function compatibleSpecies(row, event) {
+  // Mixed-version replay stays idempotent without enriching or erasing the
+  // original evidence. Two contradictory known species still fail closed.
+  return !row.victim_species || !event.victimSpecies || row.victim_species === event.victimSpecies;
 }
 
 function upsertPlayer(steamId, displayName) {
@@ -190,6 +204,9 @@ function ingestEvent(input, { env = process.env } = {}) {
 
   const semanticExisting = getSemanticEvent(event);
   if (semanticExisting) {
+    if (!compatibleSpecies(semanticExisting, event)) {
+      throw feedError('COMBAT_EVENT_CONFLICT', 'Combat occurrence already exists with different species evidence.');
+    }
     return { duplicate: true, event: semanticExisting, questChallenges: trackQuestChallenges(semanticExisting) };
   }
 
@@ -204,14 +221,17 @@ function ingestEvent(input, { env = process.env } = {}) {
 
     const semanticRaced = getSemanticEvent(event);
     if (semanticRaced) {
+      if (!compatibleSpecies(semanticRaced, event)) {
+        throw feedError('COMBAT_EVENT_CONFLICT', 'Combat occurrence already exists with different species evidence.');
+      }
       db.exec('COMMIT');
       return { duplicate: true, event: semanticRaced, questChallenges: trackQuestChallenges(semanticRaced) };
     }
 
     db.prepare(`
       INSERT INTO combat_events
-        (id, occurred_at, killer_steam_id, killer_name, victim_steam_id, victim_name, source)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+        (id, occurred_at, killer_steam_id, killer_name, victim_steam_id, victim_name, source, victim_species)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       event.id,
       event.occurredAt,
@@ -219,7 +239,8 @@ function ingestEvent(input, { env = process.env } = {}) {
       event.killerName,
       event.victimSteamId,
       event.victimName,
-      event.source
+      event.source,
+      event.victimSpecies
     );
 
     upsertPlayer(event.victimSteamId, event.victimName);

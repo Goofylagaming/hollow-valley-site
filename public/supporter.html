@@ -49,15 +49,22 @@
         <div id="supporter-account-status" class="summary-grid"></div>
         <div class="list-heading supporter-membership-heading"><span>MEMBERSHIP STATUS</span><small>Stripe + rewards</small></div>
         <div id="supporter-status" class="summary-grid"></div>
+        <section id="daily-rewards" hidden></section>
+        <section id="membership-collection" hidden><h2>My Membership Collection Book</h2></section>
         <section id="membership-rewards" class="membership-rewards" aria-label="My Membership rewards" aria-busy="true">
           <div class="membership-empty"><strong>My Membership</strong><p>Loading your rewards…</p></div>
         </section>
+        <p><a href="/supporter-wall.html">Supporter wall and showcase</a></p>
+        <p><a href="/valley-arcade.html">Play Valley Arcade</a> · Daily rewards and Arcade are open to every player.</p>
+        <p><a href="/subscriber-community.html">Subscriber suggestions and community updates →</a></p>
       </section>
     </main>
     <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="assets/common.js?v=21"></script>
-  <script src="/assets/membership-rewards.js?v=3"></script>
+  <script defer src="/assets/daily-rewards.js"></script>
+  <script defer src="/assets/membership-collection.js"></script>
+  <script src="/assets/membership-rewards.js?v=6"></script>
   <script src="assets/supporter.js?v=14"></script>
   <script src="assets/supporter-stripe-upgrade.js?v=1"></script>
   <script src="/assets/subscriber-progress.js?v=2"></script>

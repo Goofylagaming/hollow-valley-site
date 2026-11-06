@@ -36,6 +36,39 @@ function loadProgression() {
   };
 }
 
+test('collector badge counts distinct personal entitlements and persists without rewards', (t) => {
+  const fixture = loadProgression();
+  t.after(fixture.cleanup);
+  const { store, progression } = fixture;
+  const a = '76561198000000901', b = '76561198000000902';
+  store.ensureWallet(a); store.ensureWallet(b);
+  const insert = store.db.prepare(`INSERT INTO economy_skin_presets
+    (id,owner_steam_id,species,name,skin_json,active,is_premium) VALUES (?,?,'Rex',?,'{}',?,?)`);
+  for (let i = 0; i < 12; i++) insert.run('catalog'+i,b,'Catalog '+i,1,1);
+  for (let i = 0; i < 9; i++) insert.run('owned'+i,a,'Owned '+i,1,0);
+  insert.run('inactive',a,'Inactive',0,0);
+  // Two entitlement paths to one skin still count once.
+  store.db.prepare('INSERT INTO economy_skin_unlocks (steam_id,preset_id) VALUES (?,?)').run(a,'owned0');
+  store.db.prepare('INSERT INTO economy_skin_grants (steam_id,preset_id,revoked_at) VALUES (?,?,?)').run(a,'catalog0','2026-11-01');
+  const badge = () => progression.getProfile(a).achievements.find(x => x.id === 'skins-10');
+  assert.equal(badge(), undefined, 'shared premium catalog, inactive skins and revoked grants do not count');
+  store.db.prepare('INSERT INTO economy_skin_grants (steam_id,preset_id) VALUES (?,?)').run(a,'catalog1');
+  const earned = badge();
+  assert.equal(earned.title, 'Valley Collector');
+  assert.equal(earned.metadata.value, 10);
+  store.db.prepare("UPDATE economy_skin_grants SET revoked_at='2026-11-05' WHERE steam_id=?").run(a);
+  assert.deepEqual(badge(), earned, 'earned achievement remains permanent');
+  assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM progression_achievements WHERE steam_id=? AND achievement_id='skins-10'").get(a).n,1);
+  assert.equal(store.getWallet(a).balance,0);
+  assert.equal(progression.getProfile(a).xp,0);
+  const c = '76561198000000903';
+  store.ensureWallet(c);
+  assert.equal(progression.getProfile(c).achievements.some(x => x.id === 'skins-10'),false);
+  for (let i=0;i<10;i++) store.db.prepare('INSERT INTO economy_skin_unlocks (steam_id,preset_id) VALUES (?,?)').run(c,'catalog'+i);
+  assert.equal(progression.getProfile(c).achievements.find(x => x.id === 'skins-10').metadata.value,10);
+  assert.equal(store.getWallet(c).balance,0);
+});
+
 test('permanent XP levels award exactly 100 VC once per level', (t) => {
   const fixture = loadProgression();
   t.after(fixture.cleanup);

@@ -49,6 +49,9 @@ function ensureSchema() {
     CREATE INDEX IF NOT EXISTS idx_membership_skin_votes_option
       ON membership_skin_votes(ballot_id, option_id);
   `);
+  if (!db.prepare("PRAGMA table_info(membership_skin_vote_ballots)").all().some(column => column.name === "kind")) {
+    db.exec("ALTER TABLE membership_skin_vote_ballots ADD COLUMN kind TEXT NOT NULL DEFAULT 'premium-skin'");
+  }
 }
 
 function enabled(env = process.env) {
@@ -171,6 +174,7 @@ function currentForUser(user, { env = process.env, now = Date.now() } = {}) {
     ballot: {
       id: ballot.id,
       title: ballot.title,
+      kind: ballot.kind,
       opensAt: new Date(ballot.opens_at).toISOString(),
       closesAt: new Date(ballot.closes_at).toISOString(),
     },
@@ -210,6 +214,12 @@ function createBallot(actor, input, { env = process.env, now = Date.now() } = {}
   normalizeExpired(now);
   if (activeBallot(now)) throw new SkinVoteError(409, "SKIN_VOTE_ALREADY_OPEN", "Close the current member skin vote before opening another.");
   const title = cleanText(input?.title || "Choose next month's premium skin", MAX_TITLE, "vote title");
+  const kind = input?.kind || "premium-skin";
+  const standardKinds = ["premium-skin", "public-event-theme", "community-choice"];
+  const publicKinds = ["community-challenge", "roadmap-priority", "community-improvement", "public-weekend-theme"];
+  if (!standardKinds.includes(kind) && !(process.env.COMMUNITY_PARTICIPATION_ENABLED === "1" && publicKinds.includes(kind))) {
+    throw new SkinVoteError(400, "INVALID_SKIN_VOTE", "Choose a premium skin, public event theme or community choice ballot.");
+  }
   const options = normalizeOptions(input?.options);
   const durationDays = Number(input?.durationDays);
   if (!Number.isSafeInteger(durationDays) || durationDays < 1 || durationDays > MAX_DURATION_DAYS) {
@@ -219,9 +229,9 @@ function createBallot(actor, input, { env = process.env, now = Date.now() } = {}
   db.exec("BEGIN IMMEDIATE");
   try {
     const inserted = db.prepare(`
-      INSERT INTO membership_skin_vote_ballots(title,status,opens_at,closes_at,created_by)
-      VALUES (?,'open',?,?,?)
-    `).run(title, now, closesAt, Number(actor.id) || null);
+      INSERT INTO membership_skin_vote_ballots(title,status,opens_at,closes_at,created_by,kind)
+      VALUES (?,'open',?,?,?,?)
+    `).run(title, now, closesAt, Number(actor.id) || null, kind);
     const ballotId = Number(inserted.lastInsertRowid);
     const insertOption = db.prepare(`
       INSERT INTO membership_skin_vote_options(ballot_id,label,description,sort_order)
@@ -255,6 +265,7 @@ function adminState({ env = process.env, now = Date.now() } = {}) {
     enabled: true,
     current: ballot ? {
       id: ballot.id,
+      kind: ballot.kind,
       title: ballot.title,
       opensAt: new Date(ballot.opens_at).toISOString(),
       closesAt: new Date(ballot.closes_at).toISOString(),

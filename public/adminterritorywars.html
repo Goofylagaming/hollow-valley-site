@@ -141,9 +141,25 @@
 
         <p class="tw-note">All controls are protected by the existing Hollow Valley admin middleware. The automatic control engine uses registered event lineups, live South Plains presence, the two-minute contest arm, thirty-second boundary grace, and ten-minute post-capture protection.</p>
       </section>
+      <section class="tw-card" aria-labelledby="victory-delivery-heading">
+        <div class="tw-card-head"><h3 id="victory-delivery-heading">Victory badge delivery</h3><button type="button" id="victory-delivery-refresh">Refresh</button></div>
+        <div class="tw-card-body">
+          <p>Review held results after correcting the delivery problem. Retrying sends the same recorded result; it does not change winners.</p>
+          <div id="victory-delivery-list" class="tw-list"></div>
+          <form id="victory-delivery-form" style="display:grid;gap:10px;max-width:560px">
+            <label for="victory-delivery-choice">Result to retry</label>
+            <select id="victory-delivery-choice" required disabled></select>
+            <label for="victory-delivery-reason">Review reason</label>
+            <input id="victory-delivery-reason" required minlength="10" maxlength="500" placeholder="Explain what was checked or corrected">
+            <button id="victory-delivery-retry" disabled>Queue retry</button>
+          </form>
+          <p id="victory-delivery-status" role="status" aria-live="polite"></p>
+        </div>
+      </section>
     </main>
   </div>
   <script src="/assets/common.js?v=20"></script>
   <script src="/assets/admin-territory-wars.js?v=5"></script>
+  <script src="/assets/territory-victory-review.js?v=1"></script>
 </body>
 </html>

@@ -64,7 +64,9 @@ test("all production wallet, marketplace, storage, admin and other page scripts 
         assert.equal(actual.indexOf(subscriberBar), actual.indexOf("assets/supporter-stripe-upgrade.js") + 1,
           "Subscriber Bar helper must follow the existing membership controls");
       }
-      assert.deepEqual(actual.filter(src => src !== membership && (page !== "supporter.html" || src !== subscriberBar)), baseline,
+      const additions = page === "supporter.html" ? [subscriberBar, "assets/membership-collection.js", "assets/daily-rewards.js"] : [];
+      for (const src of additions) assert.equal(actual.filter(value => value === src).length, 1);
+      assert.deepEqual(actual.filter(src => src !== membership && !additions.includes(src)), baseline,
         page + ": existing feature scripts must be preserved");
     } else if (page === "skins.html") {
       // v015 intentionally inserts the auto-map and batch-mask helpers before
@@ -105,6 +107,11 @@ test("all production wallet, marketplace, storage, admin and other page scripts 
     } else if (page === "adminoperations.html") {
       const speciesAdmin = "assets/species-events-admin.js";
       const growthProbe = "assets/omniraptor-growth-validation.js";
+      const achievementReview = "assets/achievement-review.js";
+      assert.equal(actual.filter(src => src === achievementReview).length, 1,
+        "Achievement review controls must load exactly once");
+      assert.ok(actual.indexOf(achievementReview) > actual.indexOf("assets/adminoperations.js"),
+        "Achievement review loads after the existing operations controls");
       assert.equal(actual.filter(src => src === speciesAdmin).length, 1,
         "Timed species event admin script must load exactly once");
       assert.equal(actual.filter(src => src === growthProbe).length, 1,
@@ -113,7 +120,7 @@ test("all production wallet, marketplace, storage, admin and other page scripts 
         "Species event controls load after the existing operations controls");
       assert.ok(actual.indexOf(growthProbe) > actual.indexOf(speciesAdmin),
         "Read-only Omniraptor validation loads after the existing species event controls");
-      assert.deepEqual(actual.filter(src => src !== speciesAdmin && src !== growthProbe), baseline,
+      assert.deepEqual(actual.filter(src => src !== speciesAdmin && src !== growthProbe && src !== achievementReview), baseline,
         "Existing Admin Operations scripts must retain their original order");
     } else if (page === "events.html") {
       const randomEvents = "assets/events-species-bonuses.js";

@@ -34,6 +34,9 @@ test('combat feed endpoint is separately authenticated, idempotent and disabled 
   });
 
   t.after(() => new Promise((resolve) => server.close(() => {
+    require(servicePath)._test.db.close();
+    require('../src/services/economyStore').db.close();
+    require('../src/services/combatDeathSuppressionService')._test.db.close();
     delete require.cache[servicePath];
     delete require.cache[routePath];
     delete require.cache[authPath];
@@ -53,6 +56,7 @@ test('combat feed endpoint is separately authenticated, idempotent and disabled 
     killerName: 'Hunter',
     victimSteamId: '76561198000001102',
     victimName: 'Grazer',
+    victimSpecies: 'BP_Diabloceratops_C',
   };
 
   let response = await fetch(base + '/api/combat/events', {
@@ -84,6 +88,7 @@ test('combat feed endpoint is separately authenticated, idempotent and disabled 
   });
   assert.equal(response.status, 201);
   assert.equal((await response.json()).duplicate, false);
+  assert.equal(require(servicePath)._test.db.prepare('SELECT victim_species FROM combat_events WHERE id=?').get(payload.eventId).victim_species,'diabloceratops');
 
   response = await fetch(base + '/api/combat/events', {
     method: 'POST',

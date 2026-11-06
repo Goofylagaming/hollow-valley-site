@@ -19,6 +19,7 @@ function mapAutomationError(error, fallback) {
 }
 
 router.use(requireAdmin);
+router.use('/achievement-reviews',require('./achievementReview'));
 
 router.get('/chat', async (_req, res) => {
   res.set('Cache-Control', 'no-store');

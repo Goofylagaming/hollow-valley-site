@@ -34,7 +34,8 @@ test("an existing production database receives a consistent, independently reada
   assert.equal(saved.counts.wallets,2);
   assert.equal(saved.counts.roster,1);
   assert.equal(fs.existsSync(dst),true);
-  assert.equal(fs.statSync(dst).mode & 0o077,0,"Backup must be owner-only");
+  // Render enforces POSIX permissions. Windows reports synthesized mode bits.
+  if (process.platform !== "win32") assert.equal(fs.statSync(dst).mode & 0o077,0,"Backup must be owner-only");
   assert.equal(fs.existsSync(dst+".incomplete"),false);
   const db=new DatabaseSync(dst,{readOnly:true});
   try{

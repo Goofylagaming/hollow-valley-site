@@ -1,3 +1,4 @@
+const closeFixtureDatabases = require("../test-support/closeFixtureDatabases");
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -31,6 +32,7 @@ test('map activity is aggregate-only and available without a live server snapsho
   const server = await listen();
   t.after(async () => {
     await close(server);
+    closeFixtureDatabases(dir);
     fs.rmSync(dir, { recursive: true, force: true });
   });
 

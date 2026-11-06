@@ -1,0 +1,41 @@
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const os=require('node:os');
+const path=require('node:path');
+const express=require('express');
+const dir=fs.mkdtempSync(path.join(os.tmpdir(),'hv-review-proxy-'));
+process.env.AUTOMATION_DB_PATH=path.join(dir,'test.sqlite');
+process.env.AUTOMATION_ADMIN_TOKEN='review-admin-fixture';
+const store=require('../automation-platform/src/services/economyStore');
+require('../automation-platform/src/services/progressionService');
+const steam='76561198000000881',actor='76561198000000882';
+test.after(()=>{store.db.close();fs.rmSync(dir,{recursive:true,force:true});});
+test('website review uses authenticated admin identity and the real protected automation API',async()=>{
+  store.db.prepare('INSERT INTO progression_achievements(steam_id,achievement_id,metadata_json) VALUES (?,?,?)').run(steam,'nested-adult','{}');
+  store.db.prepare('INSERT INTO progression_achievement_evidence_reviews VALUES (?,?,?,?,?,?)').run(steam,'nested-adult','combat-death','test-death',1,'pending');
+  const app=express();app.use(express.json());
+  app.use('/api/admin/achievement-reviews',require('../automation-platform/src/routes/achievementReviewRoutes'));
+  app.use((req,res,next)=>{const role=req.get('x-test-role');if(role)req.user={is_admin:role==='admin',steam_id:req.get('x-test-steam')||actor};next();});
+  app.use('/review',require('../server/routes/achievementReview'));
+  const server=await new Promise(resolve=>{const s=app.listen(0,'127.0.0.1',()=>resolve(s));});
+  const base=`http://127.0.0.1:${server.address().port}`;process.env.AUTOMATION_SERVICE_URL=base;
+  const headers={'x-test-role':'admin','Content-Type':'application/json',Origin:base};
+  const body={requestId:'web-decision-1',steamId:steam,achievementId:'nested-adult',expectedRevision:0,decision:'withdraw',reason:'Confirmed death before adulthood',actorSteamId:'76561198000000999'};
+  const post=(extra={},payload=body)=>fetch(base+'/review',{method:'POST',headers:{...headers,...extra},body:JSON.stringify(payload)});
+  try {
+    assert.equal((await fetch(base+'/review')).status,401);
+    assert.equal((await fetch(base+'/review',{headers:{'x-test-role':'member'}})).status,403);
+    assert.equal((await post({Origin:'https://elsewhere.invalid'})).status,403);
+    assert.equal((await post({'x-test-steam':'invalid'})).status,403);
+    assert.equal((await post({'Content-Type':'text/plain'})).status,403);
+    const list=await fetch(base+'/review',{headers});assert.equal(list.headers.get('cache-control'),'no-store');
+    assert.equal((await list.json()).reviews[0].steamId,steam);
+    assert.equal((await post()).status,200);
+    const action=JSON.parse(store.db.prepare('SELECT payload_json FROM progression_achievement_review_actions').get().payload_json);
+    assert.equal(action.actorSteamId,actor,'client-supplied actor is discarded');
+    assert.equal((await (await post()).json()).duplicate,true);
+    assert.equal((await post({}, {...body,requestId:'web-decision-2'})).status,409);
+    assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM progression_achievement_review_actions').get().n,1);
+  } finally {await new Promise(resolve=>server.close(resolve));}
+});
