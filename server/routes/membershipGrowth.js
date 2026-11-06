@@ -39,4 +39,31 @@ router.post("/gift-intents", (req,res) => {
   if (intent.sender !== req.user.id || intent.recipient !== recipient) return res.sendStatus(409);
   res.json({checkoutEnabled:false});
 });
+const benefits = require("../services/membershipGrowthBenefits");
+router.get("/pass", (req,res) => res.json({pass:benefits.activePass(req.user.id)}));
+router.post("/admin/passes",requireAdmin,(req,res)=>{
+  const {grantKey,userId,tier,startsAt,expiresAt}=req.body||{};
+  if(typeof grantKey!=="string" || !/^[a-zA-Z0-9_-]{8,100}$/.test(grantKey) || !Number.isSafeInteger(userId) ||
+    !["supporter","guardian","legend"].includes(tier) || !Number.isSafeInteger(startsAt) || !Number.isSafeInteger(expiresAt) ||
+    expiresAt<=startsAt || !db.prepare("SELECT 1 FROM users WHERE id=?").get(userId)) return res.sendStatus(400);
+  db.prepare("INSERT OR IGNORE INTO membership_passes VALUES (?,?,?,?,?,?)").run(grantKey,userId,tier,startsAt,expiresAt,req.user.id);
+  const pass=db.prepare("SELECT * FROM membership_passes WHERE grant_key=?").get(grantKey);
+  if(pass.user_id!==userId || pass.tier!==tier || pass.starts_at!==startsAt || pass.expires_at!==expiresAt || pass.granted_by!==req.user.id) return res.sendStatus(409);
+  res.json({source:"pass",expiresAt});
+});
+router.post("/referrals",(req,res)=>{
+  if(process.env.MEMBERSHIP_REFERRALS_ENABLED!=="1") return res.sendStatus(404);
+  res.sendStatus(benefits.recordReferral(req.user.id,req.body?.referrer)?200:409);
+});
+router.post("/admin/referrals/:recipient/qualify",requireAdmin,(req,res)=>{
+  if(process.env.MEMBERSHIP_REFERRALS_ENABLED!=="1") return res.sendStatus(404);
+  res.sendStatus(benefits.qualifyReferral(Number(req.params.recipient),req.user.id)?200:409);
+});
+router.post("/digest/preferences",(req,res)=>{
+  if(typeof req.body?.enabled!=="boolean") return res.sendStatus(400);
+  db.prepare("INSERT INTO membership_notification_preferences VALUES (?,?) ON CONFLICT(user_id) DO UPDATE SET monthly_digest=excluded.monthly_digest")
+    .run(req.user.id,+req.body.enabled);
+  res.json({enabled:req.body.enabled});
+});
+router.get("/digest",(req,res)=>res.json(benefits.digest(req.user)));
 module.exports = router;
