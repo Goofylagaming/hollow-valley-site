@@ -2,6 +2,17 @@ name: Player skin trading
 on:
   pull_request:
     paths:
+      - '.env.example'
+      - 'automation-platform/.env.example'
+      - 'automation-platform/src/index.js'
+      - 'automation-platform/src/services/skinMarketModeration.js'
+      - 'automation-platform/src/routes/skinMarketModerationRoutes.js'
+      - 'automation-platform/test/skinMarketModeration.test.js'
+      - 'server/routes/skinMarketModeration.js'
+      - 'test/skinMarketModerationHttp.test.js'
+      - 'public/adminskinmarket.html'
+      - 'public/assets/admin-skin-market.js'
+      - 'scripts/verify-skin-market-reviews.cjs'
       - 'automation-platform/src/services/skinTradingService.js'
       - 'automation-platform/src/services/skinTransferEligibility.js'
       - 'automation-platform/src/services/skinGiftService.js'
@@ -40,7 +51,8 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: node --test test/skinTradingHttp.test.js test/serverEntrypointSyntax.test.js automation-platform/test/skinTrading.test.js automation-platform/test/skinTradingConcurrency.test.js automation-platform/test/skinGift.test.js automation-platform/test/skinGiftConcurrency.test.js automation-platform/test/skinGiftParked.test.js automation-platform/test/skinGiftWear.test.js test/roadmapCommunity.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js
+      - run: node --test test/skinMarketModerationHttp.test.js automation-platform/test/skinMarketModeration.test.js test/skinTradingHttp.test.js test/serverEntrypointSyntax.test.js automation-platform/test/skinTrading.test.js automation-platform/test/skinTradingConcurrency.test.js automation-platform/test/skinGift.test.js automation-platform/test/skinGiftConcurrency.test.js automation-platform/test/skinGiftParked.test.js automation-platform/test/skinGiftWear.test.js test/roadmapCommunity.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js
       - run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright@1.62.1
       - run: npx playwright install --with-deps chromium
       - run: node scripts/verify-skin-trading.cjs
+      - run: node scripts/verify-skin-market-reviews.cjs

@@ -285,6 +285,7 @@ function createApp() {
   app.use("/api/skins/promos", require("./routes/skinPromos"));
   app.use("/api/skins/gifts", require("./routes/skinGifts"));
   app.use("/api/skins/trading", require("./routes/skinTrading"));
+  app.use("/api/admin-skin-market", require("./routes/skinMarketModeration"));
   app.use("/api/skins", skinShareCodeRedaction);
   app.use("/api/skins", skinsRouter);
   app.use("/api/supporter", require("./routes/membershipRewards"));
@@ -370,6 +371,7 @@ function createApp() {
     adminoperations: "adminoperations.html",
     adminincidents: "adminincidents.html",
     adminspectator: "adminspectator.html",
+    adminskinmarket: "adminskinmarket.html",
     adminstatus: "adminstatus.html",
     adminreports: "adminreports.html",
     admincomms: "admincomms.html",

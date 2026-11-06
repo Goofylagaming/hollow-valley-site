@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path'),{Worker}=require('node:worker_threads'),{randomUUID}=require('node:crypto');
 const workerSource=`const {parentPort,workerData:d}=require('node:worker_threads');process.env.AUTOMATION_DB_PATH=d.database;
-const store=require(d.storePath),service=require(d.servicePath).createSkinTradingService(store,{enabled:()=>true});
+const store=require(d.storePath),service=d.moderationPath?require(d.moderationPath).createSkinMarketModeration(store,{enabled:()=>true,readOnly:()=>false}):require(d.servicePath).createSkinTradingService(store,{enabled:()=>true});
 parentPort.once('message',()=>{try{parentPort.postMessage({result:service[d.action](d.user,d.input)});}catch(e){parentPort.postMessage({error:e.message,status:e.status});}finally{store.db.close();}});parentPort.postMessage({ready:true});`;
 async function worker(data){
  const instance=new Worker(workerSource,{eval:true,workerData:data});let readyResolve,readyReject,resultResolve,resultReject;
@@ -22,7 +22,7 @@ test('independent trading workers serialize competing buyers, exact retries and 
   const {preset}=await skins.createPresetFromStudio({steamId:creator.steam_id,name:'Trade race',species:'Triceratops',skin,idempotencyKey:randomUUID()});skins.publishPreset({presetId:preset.id,price:100});fund(seller,100);skins.purchasePreset({steamId:seller.steam_id,presetId:preset.id,idempotencyKey:randomUUID()});
   return {preset,id:service.offer(seller,{presetId:preset.id,price:200,requestId:randomUUID()}).listing.id};
  }
- async function race(actions){const racers=await Promise.all(actions.map(async([action,user,input])=>{const child=await worker({database,storePath,servicePath,action,user,input});children.push(child);return child;}));racers.forEach(child=>child.start());const results=await Promise.all(racers.map(child=>child.result));await Promise.all(racers.map(child=>child.exit));return results;}
+ async function race(actions){const racers=await Promise.all(actions.map(async([action,user,input])=>{const child=await worker({database,storePath,servicePath,moderationPath:action==='change'?require.resolve('../src/services/skinMarketModeration'):null,action,user,input});children.push(child);return child;}));racers.forEach(child=>child.start());const results=await Promise.all(racers.map(child=>child.result));await Promise.all(racers.map(child=>child.exit));return results;}
  const buy=id=>({id,expectedRevision:0,expectedPrice:200,requestId:randomUUID()});
  try{
   const first=await fixture(),outcomes=await race([['buy',a,buy(first.id)],['buy',b,buy(first.id)]]);
@@ -34,6 +34,13 @@ test('independent trading workers serialize competing buyers, exact retries and 
   const third=await fixture(),before=store.getWallet(b.steam_id).balance,decision=await race([['buy',b,buy(third.id)],['cancel',seller,{id:third.id,expectedRevision:0}]]);
   assert.equal(decision.filter(row=>row.result).length,1);assert.equal(decision.filter(row=>row.status===409).length,1);
   const sold=store.db.prepare('SELECT state FROM economy_skin_listings WHERE id=?').get(third.id).state==='sold';assert.equal(store.hasSkinUnlock(b.steam_id,third.preset.id),sold);assert.equal(store.hasSkinUnlock(seller.steam_id,third.preset.id),!sold);assert.equal(store.getWallet(b.steam_id).balance,before-(sold?200:0));
-  for(const {id}of[first,second,third]){const ledger=store.db.prepare("SELECT COUNT(*) n,COALESCE(SUM(amount),0) net FROM economy_wallet_ledger WHERE reference_type='skin_trade' AND reference_id=?").get(id);assert.equal(ledger.net,0);assert.ok([0,2].includes(ledger.n));}
+  const staff={steam_id:'76561198000000504'},fourth=await fixture(),fourthRequest=buy(fourth.id),beforeHold=store.getWallet(b.steam_id).balance;
+  const held=await race([['buy',b,fourthRequest],['change',staff,{action:'hold',target:fourth.preset.id,active:true,expectedRevision:0,requestId:randomUUID(),reason:'Reviewed resale hold racing with settlement'}]]);
+  assert.ok(held[1].result);const paid=Boolean(held[0].result);assert.ok(paid||held[0].status===409);assert.equal(store.getWallet(b.steam_id).balance,beforeHold-(paid?200:0));assert.equal(store.hasSkinUnlock(b.steam_id,fourth.preset.id),paid);
+  if(paid)assert.equal(service.buy(b,fourthRequest).duplicate,true);else assert.throws(()=>service.buy(b,fourthRequest),{status:409});
+  const fifth=await fixture(),beforeWithdraw=store.getWallet(b.steam_id).balance;
+  const withdrawn=await race([['buy',b,buy(fifth.id)],['change',staff,{action:'withdraw',target:fifth.id,expectedRevision:0,requestId:randomUUID(),reason:'Reviewed listing withdrawal racing with settlement'}]]);
+  assert.equal(withdrawn.filter(row=>row.result).length,1);assert.equal(withdrawn.filter(row=>row.status===409).length,1);const bought=Boolean(withdrawn[0].result);assert.equal(store.getWallet(b.steam_id).balance,beforeWithdraw-(bought?200:0));assert.equal(store.hasSkinUnlock(b.steam_id,fifth.preset.id),bought);
+  for(const {id}of[first,second,third,fourth,fifth]){const ledger=store.db.prepare("SELECT COUNT(*) n,COALESCE(SUM(amount),0) net FROM economy_wallet_ledger WHERE reference_type='skin_trade' AND reference_id=?").get(id);assert.equal(ledger.net,0);assert.ok([0,2].includes(ledger.n));}
  }finally{await Promise.all(children.map(child=>child.stop()));store.db.close();const target=path.resolve(dir);assert.equal(path.dirname(target),path.resolve(os.tmpdir()));assert.ok(path.basename(target).startsWith('hv-skin-trade-race-'));fs.rmSync(target,{recursive:true,force:true});}
 });

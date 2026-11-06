@@ -106,10 +106,17 @@ fixture changes, addressing the script-only coverage gap observed on #328.
 
 Roadmap #21 remains Building / Testing. Original wording is preserved. Historical
 votes remain stored but no longer consume an active ballot slot; seven ideas
-remain eligible. Homepage roadmap asset is v159.
+remain eligible. Homepage roadmap asset is v161, with the visible development
+label `Working on` per the user's standing instruction.
 
-Remaining: moderation and support operations, broader creator/palette lifecycle
-compatibility, production terms,
+Staff listing withdrawal, design resale holds, private support history and the
+review/confirm staff page now have local service/API and desktop/phone checks.
+See HV_ROADMAP_SKIN_MARKET_REVIEWS_20261106.md for scope, separate disabled
+management flags, audit consistency and role protections. The latest combined
+local run passes 151 checks. Neither player trading nor moderation is delivered.
+
+Remaining: real moderation/support operation verification, broader creator/palette
+lifecycle compatibility, production terms,
 policy/retention approval, performance measurements, authenticated staging and
 production verification. The full feature is not delivered. No automatic rewards,
 external messages, real transfers, merge, deployment or source activation are

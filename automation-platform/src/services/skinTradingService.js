@@ -1,5 +1,6 @@
 'use strict';
 const {randomUUID,createHash}=require('node:crypto');
+const {prepareSkinMarketModeration,readSkinMarketHold}=require('./skinMarketModeration');
 const DAY=86400000,MAX=BigInt(Number.MAX_SAFE_INTEGER);
 const fail=(message,status=400)=>{throw Object.assign(new Error(message),{status});};
 const key=value=>{if(typeof value!=='string'||!/^[A-Za-z0-9_-]{8,128}$/.test(value))fail('A valid request reference is required');return value;};
@@ -21,12 +22,13 @@ function createSkinTradingService(store,{now=Date.now,enabled=()=>process.env.SK
   request_id TEXT NOT NULL,unlock_receipt TEXT NOT NULL,created_at INTEGER NOT NULL,UNIQUE(buyer,request_id));
   CREATE INDEX IF NOT EXISTS economy_skin_trade_buyer ON economy_skin_trades(buyer,created_at DESC,listing_id DESC);
   CREATE INDEX IF NOT EXISTS economy_skin_trade_seller ON economy_skin_trades(seller,created_at DESC,listing_id DESC);`);
+ if(initialize)prepareSkinMarketModeration(db);
  const clock=()=>{const at=now();if(!Number.isSafeInteger(at)||at<0||at>8640000000000000-7*DAY)fail('The trading clock cannot be verified',503);return at;};
  const gate=()=>{if(!enabled())fail('Skin trading is not enabled',503);};
  const actor=user=>store.validateSteamId(user?.steam_id);
  const tx=fn=>{db.exec('BEGIN IMMEDIATE');try{const value=fn();db.exec('COMMIT');return value;}catch(error){db.exec('ROLLBACK');throw error;}};
  const activeGift=(steam,id,at)=>Boolean(db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='economy_skin_gifts'").get()&&db.prepare("SELECT 1 FROM economy_skin_gifts WHERE sender=? AND preset_id=? AND state='pending' AND expires_at>?").get(steam,id,at));
- const transferable=(steam,id,at)=>{if(activeGift(steam,id,at))fail('This skin has a pending gift; resolve it before trading',409);inspect ||= require('./skinTransferEligibility').createSkinTransferEligibility(store);return inspect(steam,id);};
+ const transferable=(steam,id,at)=>{const hold=readSkinMarketHold(db,id);if(hold.at!==null&&hold.at>at)fail('The skin hold clock cannot be verified',503);if(hold.active)fail('This skin is on hold for resale; contact staff before trading',409);if(activeGift(steam,id,at))fail('This skin has a pending gift; resolve it before trading',409);inspect ||= require('./skinTransferEligibility').createSkinTransferEligibility(store);return inspect(steam,id);};
  const summary=(row,at)=>{const value=JSON.parse(row.summary_json);return {id:row.id,presetId:row.preset_id,name:value.name,species:value.species,price:row.price,createdAt:row.created_at,expiresAt:row.expires_at,state:row.state==='active'&&row.expires_at<=at?'expired':row.state,revision:row.state==='active'&&row.expires_at>at?0:1};};
  function offer(user,input={}){
   gate();const seller=actor(user),requestId=key(input.requestId),cost=price(input.price),presetId=key(input.presetId),at=clock();
@@ -46,6 +48,7 @@ function createSkinTradingService(store,{now=Date.now,enabled=()=>process.env.SK
   const seller=actor(user),at=clock();key(id);if(expectedRevision!==0)fail('Review the original listing revision',409);
   return tx(()=>{const row=db.prepare('SELECT * FROM economy_skin_listings WHERE id=? AND seller=?').get(id,seller);if(!row)fail('Listing not found',404);
    if(row.state==='cancelled')return {listing:summary(row,at),duplicate:true};if(row.state!=='active')fail('This listing is already closed',409);
+   if(!Number.isSafeInteger(row.created_at)||row.created_at>at)fail('The listing clock cannot be verified',503);
    db.prepare("UPDATE economy_skin_listings SET state='cancelled',decided_at=? WHERE id=?").run(at,id);
    return {listing:summary({...row,state:'cancelled'},at),duplicate:false};});
  }
@@ -61,6 +64,7 @@ function createSkinTradingService(store,{now=Date.now,enabled=()=>process.env.SK
    if(old){if(old.listing_id!==id||old.price!==cost)fail('Conflicting purchase request',409);return {id,price:cost,duplicate:true};}
    const row=db.prepare('SELECT * FROM economy_skin_listings WHERE id=?').get(id);
    if(!row||row.state!=='active'||row.expires_at<=at)fail('This listing is no longer available',409);
+   if(!Number.isSafeInteger(row.created_at)||row.created_at>at)fail('The listing clock cannot be verified',503);
    if(row.seller===buyer)fail('You cannot buy your own listing',409);if(row.price!==cost)fail('The listed price changed; review it again',409);
    const {preset,unlock}=transferable(row.seller,row.preset_id,at);
    if(unlock.idempotency_key!==row.unlock_key||fingerprint(preset)!==row.fingerprint)fail('The listed skin or its ownership changed',409);
@@ -84,7 +88,7 @@ function createSkinTradingService(store,{now=Date.now,enabled=()=>process.env.SK
   const where=own?'seller=?':"state='active' AND expires_at>?",args=own?[steam]:[at];
   if(before)args.push(before.at,before.at,key(before.id));
   const rows=db.prepare(`SELECT * FROM economy_skin_listings WHERE ${where}${before?' AND (created_at<? OR (created_at=? AND id<?))':''} ORDER BY created_at DESC,id DESC LIMIT ?`).all(...args,limit+1),page=rows.slice(0,limit),last=page.at(-1);
-  return {listings:page.map(row=>({...summary(row,at),mine:row.seller===steam,owned:store.getSkinPreset(row.preset_id)?.owner_steam_id===steam||store.hasSkinUnlock(steam,row.preset_id)||store.hasSkinGrant(steam,row.preset_id)})),next:rows.length>limit?{at:last.created_at,id:last.id}:null};
+  return {listings:page.map(row=>({...summary(row,at),held:readSkinMarketHold(db,row.preset_id).active,mine:row.seller===steam,owned:store.getSkinPreset(row.preset_id)?.owner_steam_id===steam||store.hasSkinUnlock(steam,row.preset_id)||store.hasSkinGrant(steam,row.preset_id)})),next:rows.length>limit?{at:last.created_at,id:last.id}:null};
  }
  function receipt(user,{requestId}={}){
   const buyer=actor(user);key(requestId);
