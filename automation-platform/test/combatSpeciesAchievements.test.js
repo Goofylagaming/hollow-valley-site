@@ -50,12 +50,14 @@ test('five distinct event-time species earn one permanent badge without XP or cu
   for (const sp of ['Troodon','Gallimimus','Dryosaurus']) combat.ingestEvent(event(sp));
   assert.equal(badge(),undefined);
   const line = '[2026.10.04-03.26.00:123][101]LogTheIsleKillData: [2026.10.04-14.26.00] Hunter [76561198000001001] Dino: Tyrannosaurus, Female, 0.8 - Killed the following player: Victim, [76561198000001002], Dino: Diabloceratops, Gender: Male, Growth: 0.7, at: X=1 Y=2 Z=3';
-  combat.ingestEvent({eventId:'parsed-event-five',...parseCombatLine(line)});
+  const fifth={eventId:'parsed-event-five',...parseCombatLine(line)};
+  combat.ingestEvent(fifth);
   // Existing combat quest payouts are separate; unlocking this badge adds none.
   const balanceBeforeBadge = store.getWallet(a).balance;
   const earned = badge();
   assert.equal(earned.title,'Versatile Hunter');
   assert.equal(earned.metadata.value,5);
+  assert.equal(require('../src/services/achievementSourceTime').createAchievementSourceTimeStore(store.db).read(a,'combat-species-5').sourceAt,Date.parse(fifth.occurredAt));
   assert.deepEqual(badge(),earned);
   assert.equal(progression.getProfile(b).achievements.some(x=>x.id==='combat-species-5'),false);
   assert.equal(store.getWallet(a).balance,balanceBeforeBadge);

@@ -16,6 +16,7 @@ const app=express();app.use(express.json());app.use((req,_res,next)=>{const id=S
 app.get('/api/me',(req,res)=>res.json({loggedIn:Boolean(req.user),user:req.user||null,steamLoginConfigured:true}));
 app.get('/api/quests',(_req,res)=>res.json({trackingEnabled:true,activeBoostPercent:5,quests:[{id:'daily-consecutive-1h',cadence:'daily',thresholdSeconds:3600,progressSeconds:600,completed:false}],challenges:[]}));
 app.get('/api/server-status',(_req,res)=>res.json({configured:false}));
+app.get('/api/season-track/capabilities',(_req,res)=>res.json({enabled:false,managementAvailable:false,readOnly:true}));
 app.post('/api/wallet/daily-login/claim',(_req,res)=>res.json({duplicate:true,amount:0}));
 app.use('/api/dynamic-challenges',(req,res,next)=>{
   if(req.method==='POST')writes++;

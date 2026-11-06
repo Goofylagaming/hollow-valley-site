@@ -15,41 +15,46 @@ const router = require("../server/routes/roadmapCommunity");
 const steam1 = "76561198000000001";
 const steam2 = "76561198000000002";
 
+test('season-track development retains historical votes while freeing active ballot slots',()=>{
+ const steam='76561198000000044';db.prepare('INSERT INTO roadmap_votes(steam_id,feature_id) VALUES(?,4)').run(steam);
+ for(const id of [5,6,28])voting.setVote(steam,id,true);const result=voting.voteSummary(steam);assert.equal(result.counts[4],1);assert.deepEqual(result.myVotes,[5,6,28]);assert.throws(()=>voting.setVote(steam,4,true),{code:'FEATURE_NOT_VOTABLE'});assert.equal(db.prepare('SELECT count(*) n FROM roadmap_votes WHERE steam_id=? AND feature_id=4').get(steam).n,1);db.prepare('DELETE FROM roadmap_votes WHERE steam_id=?').run(steam);
+});
+
 test('Territory Seasons development retains historical votes without consuming active ballot slots',()=>{
- const steam='76561198000000019';db.prepare('INSERT INTO roadmap_votes(steam_id,feature_id) VALUES(?,19)').run(steam);for(const id of [4,5,28])voting.setVote(steam,id,true);
- const result=voting.voteSummary(steam);assert.equal(result.counts[19],1);assert.deepEqual(result.myVotes,[4,5,28]);assert.equal(result.eligibleFeatureIds.includes(19),false);assert.throws(()=>voting.setVote(steam,19,true),{code:'FEATURE_NOT_VOTABLE'});assert.equal(db.prepare('SELECT COUNT(*) n FROM roadmap_votes WHERE steam_id=? AND feature_id=19').get(steam).n,1);db.prepare('DELETE FROM roadmap_votes WHERE steam_id=?').run(steam);
+ const steam='76561198000000019';db.prepare('INSERT INTO roadmap_votes(steam_id,feature_id) VALUES(?,19)').run(steam);for(const id of [5,6,28])voting.setVote(steam,id,true);
+ const result=voting.voteSummary(steam);assert.equal(result.counts[19],1);assert.deepEqual(result.myVotes,[5,6,28]);assert.equal(result.eligibleFeatureIds.includes(19),false);assert.throws(()=>voting.setVote(steam,19,true),{code:'FEATURE_NOT_VOTABLE'});assert.equal(db.prepare('SELECT COUNT(*) n FROM roadmap_votes WHERE steam_id=? AND feature_id=19').get(steam).n,1);db.prepare('DELETE FROM roadmap_votes WHERE steam_id=?').run(steam);
 });
 
 test('Territory prestige development preserves retired votes and active ballot capacity',()=>{
- const steam='76561198000000020';db.prepare('INSERT INTO roadmap_votes(steam_id,feature_id) VALUES(?,20)').run(steam);for(const id of [4,5,28])voting.setVote(steam,id,true);
- const result=voting.voteSummary(steam);assert.equal(result.counts[20],1);assert.deepEqual(result.myVotes,[4,5,28]);assert.equal(result.eligibleFeatureIds.includes(20),false);assert.throws(()=>voting.setVote(steam,20,true),{code:'FEATURE_NOT_VOTABLE'});assert.equal(db.prepare('SELECT COUNT(*) n FROM roadmap_votes WHERE steam_id=? AND feature_id=20').get(steam).n,1);db.prepare('DELETE FROM roadmap_votes WHERE steam_id=?').run(steam);
+ const steam='76561198000000020';db.prepare('INSERT INTO roadmap_votes(steam_id,feature_id) VALUES(?,20)').run(steam);for(const id of [5,6,28])voting.setVote(steam,id,true);
+ const result=voting.voteSummary(steam);assert.equal(result.counts[20],1);assert.deepEqual(result.myVotes,[5,6,28]);assert.equal(result.eligibleFeatureIds.includes(20),false);assert.throws(()=>voting.setVote(steam,20,true),{code:'FEATURE_NOT_VOTABLE'});assert.equal(db.prepare('SELECT COUNT(*) n FROM roadmap_votes WHERE steam_id=? AND feature_id=20').get(steam).n,1);db.prepare('DELETE FROM roadmap_votes WHERE steam_id=?').run(steam);
 });
 
 test('skin trading development preserves retired votes and frees active ballot slots',()=>{
  const steam='76561198000000021';db.prepare('INSERT INTO roadmap_votes(steam_id,feature_id) VALUES(?,21)').run(steam);
- for(const id of [4,5,28])voting.setVote(steam,id,true);
- const result=voting.voteSummary(steam);assert.equal(result.counts[21],1);assert.deepEqual(result.myVotes,[4,5,28]);assert.equal(result.eligibleFeatureIds.includes(21),false);
+ for(const id of [5,6,28])voting.setVote(steam,id,true);
+ const result=voting.voteSummary(steam);assert.equal(result.counts[21],1);assert.deepEqual(result.myVotes,[5,6,28]);assert.equal(result.eligibleFeatureIds.includes(21),false);
  assert.throws(()=>voting.setVote(steam,21,true),{code:'FEATURE_NOT_VOTABLE'});assert.equal(db.prepare('SELECT COUNT(*) n FROM roadmap_votes WHERE steam_id=? AND feature_id=21').get(steam).n,1);
  db.prepare('DELETE FROM roadmap_votes WHERE steam_id=?').run(steam);
 });
 
 test('Event Engine development retains historical votes and frees active ballot slots',()=>{
  const steam='76561198000000014';db.prepare('INSERT INTO roadmap_votes(steam_id,feature_id) VALUES(?,14)').run(steam);
- for(const id of [4,5,28])voting.setVote(steam,id,true);
- const result=voting.voteSummary(steam);assert.equal(result.counts[14],1);assert.deepEqual(result.myVotes,[4,5,28]);assert.throws(()=>voting.setVote(steam,14,true),{code:'FEATURE_NOT_VOTABLE'});
+ for(const id of [5,6,28])voting.setVote(steam,id,true);
+ const result=voting.voteSummary(steam);assert.equal(result.counts[14],1);assert.deepEqual(result.myVotes,[5,6,28]);assert.throws(()=>voting.setVote(steam,14,true),{code:'FEATURE_NOT_VOTABLE'});
  assert.equal(db.prepare('SELECT count(*) n FROM roadmap_votes WHERE steam_id=? AND feature_id=14').get(steam).n,1);db.prepare('DELETE FROM roadmap_votes WHERE steam_id=?').run(steam);
 });
 test('diplomacy votes remain recorded and no longer occupy the active ballot during development',()=>{
  const steam='76561198000000018';db.prepare('INSERT INTO roadmap_votes(steam_id,feature_id) VALUES(?,18)').run(steam);
- for(const id of [4,5,28])voting.setVote(steam,id,true);
- const summary=voting.voteSummary(steam);assert.equal(summary.counts[18],1);assert.deepEqual(summary.myVotes,[4,5,28]);assert.throws(()=>voting.setVote(steam,18,true),{code:'FEATURE_NOT_VOTABLE'});
+ for(const id of [5,6,28])voting.setVote(steam,id,true);
+ const summary=voting.voteSummary(steam);assert.equal(summary.counts[18],1);assert.deepEqual(summary.myVotes,[5,6,28]);assert.throws(()=>voting.setVote(steam,18,true),{code:'FEATURE_NOT_VOTABLE'});
  assert.equal(db.prepare('SELECT COUNT(*) n FROM roadmap_votes WHERE steam_id=? AND feature_id=18').get(steam).n,1);db.prepare('DELETE FROM roadmap_votes WHERE steam_id=?').run(steam);
 });
 
 test('Treasury votes stay historical and free active ballot slots during development',()=>{
   const steam='76561198000000017';db.prepare('INSERT INTO roadmap_votes (steam_id,feature_id) VALUES (?,17)').run(steam);
-  for(const id of [4,5,28])voting.setVote(steam,id,true);
-  const summary=voting.voteSummary(steam);assert.equal(summary.counts[17],1);assert.deepEqual(summary.myVotes,[4,5,28]);
+  for(const id of [5,6,28])voting.setVote(steam,id,true);
+  const summary=voting.voteSummary(steam);assert.equal(summary.counts[17],1);assert.deepEqual(summary.myVotes,[5,6,28]);
   assert.throws(()=>voting.setVote(steam,17,true),{code:'FEATURE_NOT_VOTABLE'});
   assert.equal(db.prepare('SELECT COUNT(*) n FROM roadmap_votes WHERE steam_id=? AND feature_id=17').get(steam).n,1);
   db.prepare('DELETE FROM roadmap_votes WHERE steam_id=?').run(steam);
@@ -58,9 +63,9 @@ test('Treasury votes stay historical and free active ballot slots during develop
 test('Headquarters votes remain recorded while all active ballot slots are available',()=>{
   const steam='76561198000000016';
   db.prepare('INSERT INTO roadmap_votes (steam_id,feature_id) VALUES (?,16)').run(steam);
-  for(const id of [4,5,28])voting.setVote(steam,id,true);
+  for(const id of [5,6,28])voting.setVote(steam,id,true);
   const summary=voting.voteSummary(steam);
-  assert.equal(summary.counts[16],1);assert.deepEqual(summary.myVotes,[4,5,28]);
+  assert.equal(summary.counts[16],1);assert.deepEqual(summary.myVotes,[5,6,28]);
   assert.throws(()=>voting.setVote(steam,16,true),{code:'FEATURE_NOT_VOTABLE'});
   assert.equal(db.prepare('SELECT COUNT(*) n FROM roadmap_votes WHERE steam_id=? AND feature_id=16').get(steam).n,1);
   db.prepare('DELETE FROM roadmap_votes WHERE steam_id=?').run(steam);
@@ -68,17 +73,17 @@ test('Headquarters votes remain recorded while all active ballot slots are avail
 
 test('discovery votes remain historical without using active ballot slots',()=>{
   const steam='76561198000000010';db.prepare('INSERT INTO roadmap_votes (steam_id,feature_id) VALUES (?,10)').run(steam);
-  for(const id of [4,5,28])voting.setVote(steam,id,true);
-  const result=voting.voteSummary(steam);assert.equal(result.counts[10],1);assert.deepEqual(result.myVotes,[4,5,28]);
+  for(const id of [5,6,28])voting.setVote(steam,id,true);
+  const result=voting.voteSummary(steam);assert.equal(result.counts[10],1);assert.deepEqual(result.myVotes,[5,6,28]);
   assert.throws(()=>voting.setVote(steam,10,true),{code:'FEATURE_NOT_VOTABLE'});db.prepare('DELETE FROM roadmap_votes WHERE steam_id=?').run(steam);
 });
 
 test('journey votes remain historical while development frees active slots',()=>{
   const steam='76561198000000011';
   db.prepare('INSERT INTO roadmap_votes (steam_id,feature_id) VALUES (?,11)').run(steam);
-  for(const id of [4,5,28])voting.setVote(steam,id,true);
+  for(const id of [5,6,28])voting.setVote(steam,id,true);
   const result=voting.voteSummary(steam);
-  assert.equal(result.counts[11],1);assert.deepEqual(result.myVotes,[4,5,28]);
+  assert.equal(result.counts[11],1);assert.deepEqual(result.myVotes,[5,6,28]);
   assert.throws(()=>voting.setVote(steam,11,true),{code:'FEATURE_NOT_VOTABLE'});
   db.prepare('DELETE FROM roadmap_votes WHERE steam_id=?').run(steam);
 });
@@ -86,9 +91,9 @@ test('journey votes remain historical while development frees active slots',()=>
 test('gallery votes remain historical while development frees the active slots',()=>{
   const steam='76561198000000024';
   db.prepare('INSERT INTO roadmap_votes (steam_id,feature_id) VALUES (?,24)').run(steam);
-  for(const id of [4,5,28])voting.setVote(steam,id,true);
+  for(const id of [5,6,28])voting.setVote(steam,id,true);
   const result=voting.voteSummary(steam);
-  assert.equal(result.counts[24],1);assert.deepEqual(result.myVotes,[4,5,28]);
+  assert.equal(result.counts[24],1);assert.deepEqual(result.myVotes,[5,6,28]);
   assert.throws(()=>voting.setVote(steam,24,true),{code:'FEATURE_NOT_VOTABLE'});
   db.prepare('DELETE FROM roadmap_votes WHERE steam_id=?').run(steam);
 });
@@ -96,9 +101,9 @@ test('gallery votes remain historical while development frees the active slots',
 test('promotional skin code votes remain historical while development frees the active slots',()=>{
   const steam='76561198000000023';
   db.prepare('INSERT INTO roadmap_votes (steam_id,feature_id) VALUES (?,23)').run(steam);
-  for(const id of [4,5,28])voting.setVote(steam,id,true);
+  for(const id of [5,6,28])voting.setVote(steam,id,true);
   const result=voting.voteSummary(steam);
-  assert.equal(result.counts[23],1);assert.deepEqual(result.myVotes,[4,5,28]);
+  assert.equal(result.counts[23],1);assert.deepEqual(result.myVotes,[5,6,28]);
   assert.throws(()=>voting.setVote(steam,23,true),{code:'FEATURE_NOT_VOTABLE'});
   db.prepare('DELETE FROM roadmap_votes WHERE steam_id=?').run(steam);
 });
@@ -112,26 +117,26 @@ test("roadmap ballot limits voting to three idea-stage features per Steam identi
   const initial = voting.voteSummary(steam1);
   assert.equal(initial.maxVotes, 3);
   assert.equal(initial.myVotes.length, 0);
-  assert.equal(initial.eligibleFeatureIds.length, 5);
-  assert.equal(new Set(initial.eligibleFeatureIds).size, 5, "No duplicate roadmap feature IDs");
+  assert.equal(initial.eligibleFeatureIds.length, 4);
+  assert.equal(new Set(initial.eligibleFeatureIds).size, 4, "No duplicate roadmap feature IDs");
 
-  for (const id of [4, 5, 28]) voting.setVote(steam1, id, true);
+  for (const id of [5, 6, 28]) voting.setVote(steam1, id, true);
   voting.setVote(steam1, 5, true); // idempotent repeated request
-  assert.deepEqual(voting.voteSummary(steam1).myVotes, [4, 5, 28]);
+  assert.deepEqual(voting.voteSummary(steam1).myVotes, [5, 6, 28]);
   assert.equal(voting.voteSummary(steam1).counts[5], 1);
-  assert.throws(() => voting.setVote(steam1, 6, true), { code: "VOTE_LIMIT" });
+  assert.throws(() => voting.setVote(steam1, 30, true), { code: "VOTE_LIMIT" });
 
-  for (const id of [1, 2, 3, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 21, 22, 23, 24, 31, 0, 100]) {
+  for (const id of [1, 2, 3, 4, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 21, 22, 23, 24, 31, 0, 100]) {
     assert.throws(() => voting.setVote(steam1, id, true), { code: "FEATURE_NOT_VOTABLE" });
   }
   assert.throws(() => voting.setVote("not-steam", 1, true), { code: "STEAM_REQUIRED" });
   assert.throws(() => voting.setVote(steam1, 28, "true"), { code: "INVALID_BALLOT" });
 
   voting.setVote(steam1, 28, false);
-  voting.setVote(steam1, 6, true);
-  assert.deepEqual(voting.voteSummary(steam1).myVotes, [4, 5, 6]);
-  voting.setVote(steam2, 4, true);
-  assert.equal(voting.voteSummary().counts[4], 2);
+  voting.setVote(steam1, 30, true);
+  assert.deepEqual(voting.voteSummary(steam1).myVotes, [5, 6, 30]);
+  voting.setVote(steam2, 5, true);
+  assert.equal(voting.voteSummary().counts[5], 2);
   assert.equal(voting.voteSummary().myVotes.length, 0);
   assert.equal(voting.voteSummary().requiresSteam, true);
 });
@@ -152,9 +157,9 @@ test("retired #25 votes remain in historical totals but free all three active ba
   assert.equal(summary.eligibleFeatureIds.includes(26), false);
   assert.deepEqual(summary.myVotes, []);
   assert.equal(summary.eligibleFeatureIds.includes(25), false);
-  for (const feature of [4, 5, 28]) voting.setVote(steam3, feature, true);
-  assert.deepEqual(voting.voteSummary(steam3).myVotes, [4, 5, 28]);
-  assert.throws(() => voting.setVote(steam3, 6, true), { code: "VOTE_LIMIT" });
+  for (const feature of [5, 6, 28]) voting.setVote(steam3, feature, true);
+  assert.deepEqual(voting.voteSummary(steam3).myVotes, [5, 6, 28]);
+  assert.throws(() => voting.setVote(steam3, 30, true), { code: "VOTE_LIMIT" });
   assert.throws(() => voting.setVote(steam3, 25, true), { code: "FEATURE_NOT_VOTABLE" });
   assert.throws(() => voting.setVote(steam3, 26, true), { code: "FEATURE_NOT_VOTABLE" });
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM roadmap_votes WHERE steam_id = ? AND feature_id IN (25, 26)").get(steam3).n, 2);
@@ -165,24 +170,24 @@ test("retired #25 votes remain in historical totals but free all three active ba
 test("retired world-event votes remain recorded without occupying active slots", () => {
   const steam = "76561198000000009";
   db.prepare("INSERT INTO roadmap_votes (steam_id, feature_id) VALUES (?, 15)").run(steam);
-  for (const id of [4,5,28]) voting.setVote(steam, id, true);
-  assert.deepEqual(voting.voteSummary(steam).myVotes, [4,5,28]);
+  for (const id of [5,6,28]) voting.setVote(steam, id, true);
+  assert.deepEqual(voting.voteSummary(steam).myVotes, [5,6,28]);
   assert.equal(voting.voteSummary().counts[15], 1);
 });
 
 test("skin-collection votes stay recorded after development starts without consuming an active vote", () => {
   const steam = "76561198000000022";
   db.prepare("INSERT INTO roadmap_votes (steam_id, feature_id) VALUES (?, 22)").run(steam);
-  for (const id of [4,5,28]) voting.setVote(steam,id,true);
-  assert.deepEqual(voting.voteSummary(steam).myVotes,[4,5,28]);
+  for (const id of [5,6,28]) voting.setVote(steam,id,true);
+  assert.deepEqual(voting.voteSummary(steam).myVotes,[5,6,28]);
   assert.equal(voting.voteSummary().counts[22],1);
 });
 
 test("achievement votes remain historical after development starts", () => {
   const steam = "76561198000000012";
   db.prepare("INSERT INTO roadmap_votes (steam_id, feature_id) VALUES (?, 2)").run(steam);
-  for (const id of [4,5,28]) voting.setVote(steam,id,true);
-  assert.deepEqual(voting.voteSummary(steam).myVotes,[4,5,28]);
+  for (const id of [5,6,28]) voting.setVote(steam,id,true);
+  assert.deepEqual(voting.voteSummary(steam).myVotes,[5,6,28]);
   assert.equal(voting.voteSummary().counts[2],1);
   assert.throws(() => voting.setVote(steam,2,true), {code:"FEATURE_NOT_VOTABLE"});
 });
@@ -273,14 +278,14 @@ test("homepage includes a parsable, accessible voting UI and protected admin pag
 test('challenge votes remain historical and free the three active ballot slots',()=>{
   const id='76561198000000031';
   db.prepare('INSERT INTO roadmap_votes (steam_id,feature_id) VALUES (?,3)').run(id);
-  for(const feature of [4,5,28])voting.setVote(id,feature,true);
+  for(const feature of [5,6,28])voting.setVote(id,feature,true);
   const summary=voting.voteSummary(id);
   assert.equal(summary.counts[3],1);
-  assert.deepEqual(summary.myVotes,[4,5,28]);
+  assert.deepEqual(summary.myVotes,[5,6,28]);
   assert.throws(()=>voting.setVote(id,3,true),{code:'FEATURE_NOT_VOTABLE'});
 });
 
 
 test('spectator development preserves historical votes and frees all active ballot slots',()=>{
- const steam='76561198000000027';db.prepare('INSERT INTO roadmap_votes(steam_id,feature_id) VALUES(?,27)').run(steam);for(const id of [4,5,28])voting.setVote(steam,id,true);const result=voting.voteSummary(steam);assert.equal(result.counts[27],1);assert.deepEqual(result.myVotes,[4,5,28]);assert.equal(result.eligibleFeatureIds.includes(27),false);assert.throws(()=>voting.setVote(steam,27,true),{code:'FEATURE_NOT_VOTABLE'});assert.equal(db.prepare('SELECT COUNT(*) n FROM roadmap_votes WHERE steam_id=? AND feature_id=27').get(steam).n,1);db.prepare('DELETE FROM roadmap_votes WHERE steam_id=?').run(steam);
+ const steam='76561198000000027';db.prepare('INSERT INTO roadmap_votes(steam_id,feature_id) VALUES(?,27)').run(steam);for(const id of [5,6,28])voting.setVote(steam,id,true);const result=voting.voteSummary(steam);assert.equal(result.counts[27],1);assert.deepEqual(result.myVotes,[5,6,28]);assert.equal(result.eligibleFeatureIds.includes(27),false);assert.throws(()=>voting.setVote(steam,27,true),{code:'FEATURE_NOT_VOTABLE'});assert.equal(db.prepare('SELECT COUNT(*) n FROM roadmap_votes WHERE steam_id=? AND feature_id=27').get(steam).n,1);db.prepare('DELETE FROM roadmap_votes WHERE steam_id=?').run(steam);
 });

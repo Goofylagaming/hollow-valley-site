@@ -39,6 +39,7 @@ test('ten hours must belong to one observed life, with saved evidence and no rew
   assert.equal(earned.metadata.value,36000);
   assert.equal(earned.metadata.evidence.lifeId,originalLife);
   assert.equal(earned.metadata.evidence.observedThrough,now);
+  assert.equal(require('../src/services/achievementSourceTime').createAchievementSourceTimeStore(store.db).read(a,'life-survival-10h').sourceAt,now);
   now+=900001;legacy.snapshot([p(a)],now);
   assert.deepEqual(badge(a),earned,'permanent after an observation gap');
   assert.equal(store.getWallet(a).balance,0);

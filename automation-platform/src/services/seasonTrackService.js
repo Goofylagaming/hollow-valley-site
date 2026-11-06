@@ -1,0 +1,42 @@
+"use strict";
+const { createSeasonTrackStore } = require('./seasonTrackStore');
+const enabled = () => process.env.SEASON_TRACK_ENABLED === '1';
+const available = () => enabled() || process.env.SEASON_TRACK_MANAGEMENT_ENABLED === '1';
+function open() {
+  // Operator initialization is explicit. Visiting the page never installs an XP
+  // trigger, creates a season catalog or grants permanent XP via reconciliation.
+  const { db } = require('./economyStore');
+  const tables = new Set(db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(row => row.name));
+  if (!['progression_seasons', 'progression_season_audit', 'progression_season_enrollments', 'progression_season_evidence',
+    'progression_season_source_positions', 'progression_season_choices', 'progression_season_requests', 'progression_season_retention', 'progression_season_maintenance',
+    'progression_season_achievement_cursors', 'progression_season_achievement_evidence', 'progression_xp_source_times'].every(name => tables.has(name)) ||
+      !db.prepare("SELECT 1 FROM sqlite_master WHERE type='trigger' AND name='progression_season_source_insert'").get()) {
+    throw Object.assign(new Error('Reviewed season tracking is not ready'), { status: 503 });
+  }
+  return createSeasonTrackStore(db, { initialize: false, writable: () => {
+    if (process.env.SEASON_TRACK_READ_ONLY === '1') throw Object.assign(new Error('Season progress is read-only'), { status: 403 });
+  } });
+}
+function get() {
+  if (!available()) throw Object.assign(new Error('Season tracking is not enabled'), { status: 503 });
+  return open();
+}
+function maintain() {
+  if (process.env.SEASON_TRACK_MAINTENANCE_ENABLED !== '1' || process.env.SEASON_TRACK_READ_ONLY === '1') return { skipped: true };
+  return open().maintain();
+}
+function collect() {
+  if (process.env.SEASON_TRACK_COLLECTION_ENABLED !== '1' || !enabled() || process.env.SEASON_TRACK_READ_ONLY === '1') return { skipped: true };
+  return open().collect();
+}
+let timer = null, cancelTimer = clearInterval;
+function start({ schedule = setInterval, cancel = clearInterval, report = area => console.error('[season-track]',area==='collection'?'progress collection is unavailable':'retention cleanup is unavailable') } = {}) {
+  if (timer !== null || (process.env.SEASON_TRACK_MAINTENANCE_ENABLED !== '1' && process.env.SEASON_TRACK_COLLECTION_ENABLED !== '1')) return timer;
+  const run = () => {
+    try { const result = maintain(); if (result.unavailable) report('maintenance'); } catch { report('maintenance'); }
+    try { const result = collect(); if (result.unavailable) report('collection'); } catch { report('collection'); }
+  };
+  run(); cancelTimer = cancel; timer = schedule(run, 60000); timer.unref?.(); return timer;
+}
+function stop() { if (timer !== null) cancelTimer(timer); timer = null; }
+module.exports = { get, enabled, available, maintain, collect, start, stop };

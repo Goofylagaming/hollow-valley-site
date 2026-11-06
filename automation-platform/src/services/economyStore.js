@@ -291,6 +291,8 @@ db.exec(`
   }
 })();
 
+require('./skinOwnershipSource').initializeSkinOwnershipSource(db);
+
 function validateSteamId(value) {
   const steamId = String(value || '').trim();
   if (!/^\d{17}$/.test(steamId)) throw new Error('Invalid Steam ID');

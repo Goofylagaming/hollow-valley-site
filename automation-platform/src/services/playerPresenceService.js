@@ -10,6 +10,7 @@ const supporterBonuses = require('./supporterBonusService');
 const rconControl = require('./rconControlService');
 const externalServerSnapshot = require('./externalServerSnapshotService');
 const primeTracker = require('./primeTrackerService');
+const { parseSourceTimestamp } = require('./progressionSourceTime');
 
 const dbPath = process.env.AUTOMATION_DB_PATH || path.join(__dirname, '..', '..', 'data', 'automation.sqlite');
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
@@ -352,8 +353,8 @@ async function ingestExternalPresenceSnapshot(input = {}) {
     throw presenceFeedError('PRESENCE_SAMPLE_INVALID', 'sampleId must be 8-180 safe characters');
   }
 
-  const sampledAtMs = Date.parse(String(input.sampledAt || ''));
-  if (!Number.isFinite(sampledAtMs)) {
+  const sampledAtMs = parseSourceTimestamp(input.sampledAt);
+  if (sampledAtMs === null) {
     throw presenceFeedError('PRESENCE_SAMPLE_INVALID', 'sampledAt must be a valid ISO-8601 timestamp');
   }
   if (sampledAtMs > Date.now() + 120000) {
@@ -508,15 +509,20 @@ async function samplePresence({ force = false } = {}) {
     const nowIso = new Date().toISOString();
     const newPlayers = findNewPlayers(players);
     const reconciliation = reconcilePresence(players, nowIso);
+    const observedAt = snapshot.checkedAt || nowIso;
+    const observedMs = parseSourceTimestamp(observedAt);
+    const freshEvidence = snapshot.source !== 'external-presence' && !snapshot.cached && !snapshot.stale && observedMs !== null && observedMs <= Date.now()+120000;
     // The external feed is recorded at ingestion, not again when polled from
     // cache. RCON must be a fresh observation, timestamped by its actual check.
-    if (snapshot.source !== 'external-presence' && !snapshot.cached) {
+    let primeTracking = { skipped: true, reason: 'cached-or-external-source' };
+    if (freshEvidence) {
       const characters = new Map((snapshot.characters || []).map(p => [String(p.steamId), p]));
-      require("./valleyLegacyService").recordSnapshot(players.map(p => ({
+      const observations = players.map(p => ({
         ...characters.get(p.steamId), ...p,
-      })), snapshot.checkedAt || nowIso);
+      }));
+      require("./valleyLegacyService").recordSnapshot(observations, observedAt);
+      primeTracking = recordPrimeSnapshot(observations, observedAt);
     }
-    const primeTracking = recordPrimeSnapshot(players, nowIso);
     const sample = recordPresenceSample(players, nowIso);
     prunePresenceSamples({ retentionHours: Number(process.env.PLAYER_PRESENCE_RETENTION_HOURS || 24 * 31) });
 
@@ -561,7 +567,7 @@ async function samplePresence({ force = false } = {}) {
 
     let progressionRewards;
     try {
-      progressionRewards = progression.trackOnlinePlayers(players, { nowMs: Date.parse(nowIso) });
+      progressionRewards = freshEvidence ? progression.trackOnlinePlayers(players, { nowMs: observedMs }) : { skipped: true, reason: 'not-fresh-authoritative-snapshot' };
     } catch (error) {
       console.warn('[progression]', error.message);
       progressionRewards = { skipped: true, reason: 'progression-error', error: error.message };

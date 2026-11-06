@@ -1,0 +1,132 @@
+"use strict";
+const { parseSourceTimestamp } = require('./progressionSourceTime');
+const { createHash } = require('node:crypto');
+const digest = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+const { deriveLifeSource } = require('./achievementLifeSource');
+const { deriveCombatSource, deriveTerritorySource } = require('./achievementBattleSource');
+const { deriveLevelSource, derivePlaytimeSource, sourceInfrastructure } = require('./achievementProgressionSource');
+const { derivePrimeSource, primeInfrastructure } = require('./primeObservationStore');
+const { deriveSkinOwnershipSource, skinOwnershipInfrastructure } = require('./skinOwnershipSource');
+const CONTRACTS = Object.freeze({
+  'quest-1': { type: 'quests', threshold: 1, basis: 'quest-threshold' },
+  'quest-25': { type: 'quests', threshold: 25, basis: 'quest-threshold' },
+  'quest-100': { type: 'quests', threshold: 100, basis: 'quest-threshold' },
+  'event-1': { type: 'events', threshold: 1, basis: 'paid-confirmation-threshold' },
+  'event-10': { type: 'events', threshold: 10, basis: 'paid-confirmation-threshold' },
+  'event-25': { type: 'events', threshold: 25, basis: 'paid-confirmation-threshold' },
+  'nested-adult': { type: 'nested_adult', threshold: 1, basis: 'nested-adult-observation' },
+  'life-survival-10h': { type: 'life_survival_seconds', threshold: 36000, basis: 'life-survival-observation' },
+  'combat-species-5': { type: 'combat_species', threshold: 5, basis: 'combat-species-threshold' },
+  'territory-victory': { type: 'territory_victories', threshold: 1, basis: 'territory-capture-resolution' },
+  'first-level': { type: 'level', threshold: 2, basis: 'level-triggering-xp-source' },
+  'level-10': { type: 'level', threshold: 10, basis: 'level-triggering-xp-source' },
+  'level-25': { type: 'level', threshold: 25, basis: 'level-triggering-xp-source' },
+  'level-50': { type: 'level', threshold: 50, basis: 'level-triggering-xp-source' },
+  'level-100': { type: 'level', threshold: 100, basis: 'level-triggering-xp-source' },
+  'playtime-1h': { type: 'playtime_minutes', threshold: 60, basis: 'playtime-interval-threshold' },
+  'playtime-25h': { type: 'playtime_minutes', threshold: 1500, basis: 'playtime-interval-threshold' },
+  'playtime-100h': { type: 'playtime_minutes', threshold: 6000, basis: 'playtime-interval-threshold' },
+  'playtime-250h': { type: 'playtime_minutes', threshold: 15000, basis: 'playtime-interval-threshold' },
+  'playtime-500h': { type: 'playtime_minutes', threshold: 30000, basis: 'playtime-interval-threshold' },
+  'prime-observed': { type: 'prime_observed', threshold: 1, basis: 'first-prime-observation' },
+  'skins-10': { type: 'owned_skins', threshold: 10, basis: 'recorded-skin-ownership-crossing' },
+});
+function createAchievementSourceTimeStore(db, { now = Date.now, initialize = true } = {}) {
+  if (initialize) db.exec(`CREATE TABLE IF NOT EXISTS progression_achievement_sources (
+    position INTEGER PRIMARY KEY AUTOINCREMENT,steam_id TEXT NOT NULL,achievement_id TEXT NOT NULL,
+    award_digest TEXT NOT NULL,source_at INTEGER NOT NULL,basis TEXT NOT NULL,evidence_digest TEXT NOT NULL,
+    recorded_at INTEGER NOT NULL,UNIQUE(steam_id,achievement_id));
+    CREATE INDEX IF NOT EXISTS progression_achievement_source_account ON progression_achievement_sources(steam_id,position);
+    CREATE TRIGGER IF NOT EXISTS progression_achievement_source_delete AFTER DELETE ON progression_achievements BEGIN
+      DELETE FROM progression_achievement_sources WHERE steam_id=OLD.steam_id AND achievement_id=OLD.achievement_id;
+    END;`);
+  const award = (steamId, achievementId) => db.prepare('SELECT metadata_json,unlocked_at FROM progression_achievements WHERE steam_id=? AND achievement_id=?').get(steamId, achievementId);
+  function derive(steamId, achievementId, options) {
+    const contract = Object.hasOwn(CONTRACTS, achievementId) ? CONTRACTS[achievementId] : null;
+    if (!contract) return null;
+    const saved = award(steamId, achievementId);
+    if (!saved) return null;
+    let meta; try { meta = JSON.parse(saved.metadata_json); } catch { return null; }
+    if (meta?.type !== contract.type || meta.threshold !== contract.threshold || !Number.isFinite(meta.value) || meta.value < contract.threshold) return null;
+    if (achievementId==='skins-10') {
+      if (!Number.isSafeInteger(meta.value)) return null;
+      const source=deriveSkinOwnershipSource(db,steamId,{asOf:now()});
+      return source ? {awardDigest:digest(saved),basis:contract.basis,sourceAt:source.sourceAt,evidenceDigest:digest(source.evidence)} : null;
+    }
+    if (achievementId==='prime-observed') {
+      if (meta.value!==1) return null;
+      const source=derivePrimeSource(db,steamId,{asOf:now()});
+      return source ? {awardDigest:digest(saved),basis:contract.basis,sourceAt:source.sourceAt,evidenceDigest:digest(source.evidence)} : null;
+    }
+    if (contract.type==='level' || contract.type==='playtime_minutes') {
+      if (!Number.isSafeInteger(meta.value)) return null;
+      const source=contract.type==='level' ? deriveLevelSource(db,steamId,contract.threshold) : derivePlaytimeSource(db,steamId,contract.threshold);
+      return source ? {awardDigest:digest(saved),basis:contract.basis,sourceAt:source.sourceAt,evidenceDigest:digest(source.evidence)} : null;
+    }
+    if (achievementId === 'nested-adult' || achievementId === 'life-survival-10h') {
+      const source = deriveLifeSource(db, steamId, achievementId, meta, { ...options, asOf: now() });
+      return source ? { awardDigest: digest(saved), basis: contract.basis, sourceAt: source.sourceAt, evidenceDigest: digest(source.evidence) } : null;
+    }
+    if (achievementId === 'combat-species-5' || achievementId === 'territory-victory') {
+      if (!Number.isSafeInteger(meta.value)) return null;
+      const source = achievementId === 'combat-species-5' ? deriveCombatSource(db,steamId) : deriveTerritorySource(db,steamId,{asOf:now()});
+      return source ? { awardDigest: digest(saved), basis: contract.basis, sourceAt: source.sourceAt, evidenceDigest: digest(source.evidence) } : null;
+    }
+    if (!Number.isSafeInteger(meta.value)) return null;
+    const quest = contract.type === 'quests';
+    const table = quest ? 'economy_quest_achievements' : 'event_attendance';
+    const columns = new Set(db.prepare(`PRAGMA table_info(${table})`).all().map(row => row.name));
+    const needed = quest ? ['steam_id','quest_id','period_key','achieved_at'] : ['steam_id','event_id','status','confirmed_at'];
+    if (!needed.every(name => columns.has(name))) return null;
+    const rows = quest ? db.prepare('SELECT quest_id,period_key,achieved_at FROM economy_quest_achievements WHERE steam_id=? LIMIT 10001').all(steamId) :
+      db.prepare("SELECT event_id,confirmed_at FROM event_attendance WHERE steam_id=? AND status='paid' LIMIT 10001").all(steamId);
+    // An unknown clock could precede the apparent threshold. Never substitute a
+    // later known completion, the unlock date or the collector's receiving time.
+    if (rows.length < contract.threshold || rows.length > 10000) return null;
+    const entries = rows.map(row => ({ key: quest ?
+      (typeof row.quest_id === 'string' && row.quest_id.trim() && row.quest_id.length <= 256 && typeof row.period_key === 'string' && row.period_key.trim() && row.period_key.length <= 128 ? JSON.stringify([row.quest_id,row.period_key]) : null) : row.event_id,
+      raw: quest ? row.achieved_at : row.confirmed_at, at: parseSourceTimestamp(quest ? row.achieved_at : row.confirmed_at) }));
+    if (entries.some(row => typeof row.key !== 'string' || !row.key.trim() || row.key.length > 512 || row.at === null)) return null;
+    if (new Set(entries.map(row => row.key)).size !== entries.length) return null;
+    entries.sort((a, b) => a.at - b.at || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+    const selected = entries.slice(0, contract.threshold);
+    return { awardDigest: digest(saved), basis: contract.basis, sourceAt: selected.at(-1).at, evidenceDigest: digest(selected) };
+  }
+  function recordNewAward(steamId, achievementId) {
+    if (!db.isTransaction) throw new Error('Achievement timing requires its unlock transaction');
+    const existing = db.prepare('SELECT 1 FROM progression_achievement_sources WHERE steam_id=? AND achievement_id=?').get(steamId, achievementId);
+    if (existing) return false;
+    const value = derive(steamId, achievementId, { capture: true }), at = now();
+    if (!value || value.sourceAt > at + 120000) return false;
+    const saved = award(steamId, achievementId), unlockedAt = parseSourceTimestamp(saved.unlocked_at);
+    if (unlockedAt === null || value.sourceAt > unlockedAt + 120000) return false;
+    db.prepare('INSERT INTO progression_achievement_sources(steam_id,achievement_id,award_digest,source_at,basis,evidence_digest,recorded_at) VALUES(?,?,?,?,?,?,?)')
+      .run(steamId, achievementId, value.awardDigest, value.sourceAt, value.basis, value.evidenceDigest, at);
+    return true;
+  }
+  function read(steamId, achievementId) {
+    const saved = db.prepare('SELECT * FROM progression_achievement_sources WHERE steam_id=? AND achievement_id=?').get(steamId, achievementId);
+    if (!saved) return null;
+    const value = derive(steamId, achievementId);
+    if (!value || saved.award_digest !== value.awardDigest || saved.source_at !== value.sourceAt || saved.basis !== value.basis || saved.evidence_digest !== value.evidenceDigest ||
+        !Number.isSafeInteger(saved.recorded_at) || saved.recorded_at > now() || saved.recorded_at < saved.source_at - 120000) return { available: false };
+    // Inspection never creates reviews or repairs an award. Any existing pending
+    // review/withdrawal independently withholds this timing from future consumers.
+    for (const [table, condition] of [['progression_achievement_review_state',"status='withdrawn'"], ['progression_achievement_evidence_reviews',"status='pending'"]]) {
+      if (db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(table) &&
+          db.prepare(`SELECT 1 FROM ${table} WHERE steam_id=? AND achievement_id=? AND ${condition} LIMIT 1`).get(steamId, achievementId)) return { available: false };
+    }
+    if (saved.source_at > now()) return { available: false };
+    return { available: true, sourceAt: saved.source_at, basis: saved.basis, recordedAt: saved.recorded_at, position: saved.position,
+      awardDigest: saved.award_digest, evidenceDigest: saved.evidence_digest };
+  }
+  return { recordNewAward, read };
+}
+function checkAchievementInfrastructure(db,awards) {
+  for (const award of awards) {
+    if (award.id==='skins-10' && !skinOwnershipInfrastructure(db)) throw Object.assign(new Error('Prepare the skin ownership crossing audit before reviewing these season points'),{status:503});
+    if (award.id==='prime-observed' && !primeInfrastructure(db)) throw Object.assign(new Error('Prepare the Prime observation audit before reviewing these season points'),{status:503});
+    if (!sourceInfrastructure(db,CONTRACTS[award.id]?.type)) throw Object.assign(new Error('Prepare the level/playtime source audit before reviewing these season points'),{status:503});
+  }
+}
+module.exports = { createAchievementSourceTimeStore, CONTRACTS, checkAchievementInfrastructure };
