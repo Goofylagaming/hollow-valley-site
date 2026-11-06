@@ -1,6 +1,7 @@
 // Internal evidence only. No player endpoint, badge, currency or game command.
 const {MAX_LIVE_SAMPLE_AGE_MS}=require('./liveSnapshotFreshness');
-function createBattleProvenance(db) {
+function createBattleProvenance(db, { seasonEvidenceEnabled = () => process.env.TERRITORY_SEASON_EVIDENCE_ENABLED === '1' } = {}) {
+  const context = require('./territoryBattleContext').createTerritoryBattleContext(db,{enabled:seasonEvidenceEnabled});
   const outbox=require('./territoryVictoryOutbox').createVictoryOutbox(db);
   const groupHistory=require('./groupBattleHistory').createGroupBattleHistory(db);
   db.exec(`CREATE TABLE IF NOT EXISTS territory_battle_provenance (
@@ -31,6 +32,7 @@ function createBattleProvenance(db) {
         .run(attackId,eventId,at,testing?'testing':initialScore!==-100?'nonstandard-start':null);
       db.prepare('INSERT INTO territory_battle_sample_clock VALUES (?,1)').run(attackId);
       groupHistory.freeze(attackId,{attackerGroupId,defenderGroupId});
+      context.freeze(attackId,eventId,at);
       db.exec('RELEASE battle_identity_begin');
     } catch(error) {
       db.exec('ROLLBACK TO battle_identity_begin');db.exec('RELEASE battle_identity_begin');throw error;

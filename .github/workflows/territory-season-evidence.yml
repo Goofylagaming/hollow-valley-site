@@ -1,0 +1,34 @@
+name: Territory season declaration evidence
+on:
+  pull_request:
+    paths:
+      - '.env.example'
+      - 'server/services/territoryBattleContext.js'
+      - 'server/services/territoryBattleProvenance.js'
+      - 'server/services/groupBattleHistory.js'
+      - 'server/services/roadmapCommunity.js'
+      - 'test/territoryBattleContext.test.js'
+      - 'test/territoryBattleProvenance.test.js'
+      - 'test/territoryVictoryRuntime.test.js'
+      - 'test/groupTerritoryHistory.test.js'
+      - 'test/roadmapCommunity.test.js'
+      - 'public/assets/home-roadmap.js'
+      - '.github/workflows/territory-season-evidence.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      DB_PATH: ':memory:'
+      AUTOMATION_DB_PATH: ':memory:'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node --test test/territoryBattleContext.test.js test/territoryBattleProvenance.test.js test/groupTerritoryHistory.test.js test/groupTerritoryPrestige.test.js test/territoryControl.test.js test/territoryVictoryDelivery.test.js test/territoryVictoryReview.test.js test/territoryVictoryRuntime.test.js test/roadmapCommunity.test.js test/hvRoadmapIntegration.test.js test/hvUx01NavigationHome.test.js test/productionUiRelease.test.js test/serverEntrypointSyntax.test.js
