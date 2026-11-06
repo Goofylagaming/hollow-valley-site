@@ -56,7 +56,7 @@ test('status page is public, read-only and reachable without adding crowded navi
   assert.match(index, /href="\/status"/);
   assert.match(server, /"status"/);
   assert.match(server, /"reports"/);
-  assert.match(roadmap, /29: \{ status: 'building'/);
+  assert.match(roadmap, /29: \{ status: 'partial'/);
   assert.match(roadmap, /View status page/);
   assert.match(sourceHome, /status\?\.online && !status\?\.stale/);
   assert.match(source, /request\('\/healthz'\)/);
