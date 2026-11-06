@@ -98,7 +98,13 @@ function shortlist(actor, id, status) {
 }
 function state(actor) {
   admin(actor); schema();
-  return { posts: db.prepare("SELECT key,channel,state,message_id FROM subscriber_community_posts ORDER BY created_at DESC LIMIT 100").all(), suggestions: db.prepare("SELECT id,text,status FROM subscriber_suggestions ORDER BY id DESC LIMIT 100").all() };
+  let suggestions;
+  if(process.env.COMMUNITY_PARTICIPATION_ENABLED==="1"){
+    require("./communityParticipation").schema();
+    suggestions=db.prepare(`SELECT s.id,s.text,coalesce(r.stage,s.status) AS status FROM subscriber_suggestions s
+      LEFT JOIN membership_suggestion_reviews r ON r.suggestion_id=s.id ORDER BY s.id DESC LIMIT 100`).all();
+  } else suggestions=db.prepare("SELECT id,text,status FROM subscriber_suggestions ORDER BY id DESC LIMIT 100").all();
+  return {posts:db.prepare("SELECT key,channel,state,message_id FROM subscriber_community_posts ORDER BY created_at DESC LIMIT 100").all(),suggestions,participation:process.env.COMMUNITY_PARTICIPATION_ENABLED==="1"};
 }
 async function request(path, method, body, env, fetchImpl) {
   if (!env.DISCORD_ROLE_BOT_TOKEN || env.DISCORD_GUILD_ID !== GUILD) fail(503, "Subscriber Discord configuration is incomplete.");

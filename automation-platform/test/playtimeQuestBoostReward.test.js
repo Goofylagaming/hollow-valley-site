@@ -52,6 +52,7 @@ function loadRewardFixture() {
         if (previous[name] === undefined) delete process.env[name];
         else process.env[name] = previous[name];
       }
+      store.db.close();
       fs.rmSync(dir, { recursive: true, force: true });
     },
   };

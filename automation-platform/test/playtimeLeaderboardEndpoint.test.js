@@ -1,3 +1,4 @@
+const closeFixtureDatabases = require("../test-support/closeFixtureDatabases");
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -42,6 +43,7 @@ test('website playtime leaderboard is token-protected and strips Steam IDs', asy
   const server = await listen();
   t.after(async () => {
     await close(server);
+    closeFixtureDatabases(dir);
     fs.rmSync(dir, { recursive: true, force: true });
   });
 

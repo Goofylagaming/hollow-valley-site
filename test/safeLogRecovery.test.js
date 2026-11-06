@@ -11,8 +11,8 @@ test('Safe Log recovery captures logout state without destructive park/death act
 
   assert.match(lua, /TIPlayerController:PrepareSafeLogout/);
   assert.match(lua, /BP_SurvivalGameMode_C:K2_OnLogout/);
-  assert.match(lua, /pending\/.*steam/);
-  assert.match(lua, /completed\/.*steam/);
+  assert.match(lua, /return PENDING_DIR .*tostring\(steam\).*\.json/);
+  assert.match(lua, /return COMPLETED_DIR .*tostring\(steam\).*\.json/);
 
   assert.doesNotMatch(lua, /SetHealth\s*\(\s*0\s*\)/);
   assert.doesNotMatch(lua, /ActivateDeadbody/);

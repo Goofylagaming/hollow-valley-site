@@ -1,0 +1,30 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict');
+const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+const {Worker}=require('node:worker_threads');
+test('independent connections open one crate and craft one inventory item only once',async t=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'hv-arcade-rewards-'));
+  process.env.AUTOMATION_DB_PATH=path.join(dir,'test.sqlite');
+  process.env.VALLEY_ARCADE_ENABLED='1';process.env.VALLEY_ARCADE_REWARDS_ENABLED='1';
+  const service=require('../src/services/arcadeRewards'),arcade=require('../src/services/valleyArcade');
+  const store=require('../src/services/economyStore');
+  t.after(()=>{store.db.close();fs.rmSync(dir,{recursive:true,force:true});});
+  arcade.configure('test',{enabled:true,emergency:false,cap:10000});
+  const steam='76561198000000155';
+  const crate=service.grant('test',steam,'event-race-1',{kind:'crate',family:'valley',amount:1,source:'event'}).crateIds[0];
+  service.grant('test',steam,'event-race-2',{kind:'fragments',family:'valley',amount:10,source:'event'});
+  const code=`const {parentPort,workerData:d}=require('node:worker_threads');const s=require(d.module);
+    s.schema();parentPort.once('message',()=>{try{
+      const a=s.open(d.steam,'race-open-'+d.i,d.crate);
+      const b=s.craft(d.steam,'race-craft-shared','valley');parentPort.postMessage({a,b});
+    }catch(e){parentPort.postMessage({error:e.message});}});parentPort.postMessage('ready');`;
+  const workers=Array.from({length:4},(_,i)=>new Worker(code,{eval:true,workerData:{i,steam,crate,module:require.resolve('../src/services/arcadeRewards')}}));
+  const message=w=>new Promise((resolve,reject)=>{w.once('message',resolve);w.once('error',reject);});
+  t.after(()=>Promise.all(workers.map(w=>w.terminate())));
+  await Promise.all(workers.map(message));const results=workers.map(message);workers.forEach(w=>w.postMessage('go'));
+  const rows=await Promise.all(results);assert.ok(rows.every(r=>!r.error),JSON.stringify(rows));
+  assert.equal(new Set(rows.map(r=>r.b.crateId)).size,1);
+  assert.equal(store.db.prepare("SELECT count(*) AS n FROM economy_wallet_ledger WHERE kind='arcade_crate'").get().n,1);
+  assert.equal(service.state(steam).crates.length,1);
+  await Promise.all(workers.map(w=>w.terminate()));
+});
