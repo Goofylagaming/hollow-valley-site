@@ -3,20 +3,33 @@
   // Update this release register whenever a roadmap item ships. Dates are the
   // verified production release date in Brisbane, never the date of a draft.
   const releases = {
-    2: { status: 'building', note: 'Collector, five-species combat, observed-Prime, verified hatch-to-adult and ten-hour life badges are in development using ownership and recorded server evidence. Territory capture badges have local provenance, frozen participants, retry-safe delivery and audited admin retry controls. Late contradictions to life-based awards are flagged for review. Audited withdrawal and restoration have local admin API and website review controls. Defensive victory rules, biome badges and staging verification remain pending. Production delivery is not yet verified.' },
-    1: { status: 'building', note: 'Earned profile title selection from verified account achievements is in development. Selected titles now have locally tested display across leaderboard categories with fresh achievement verification. Reputation from combat, helping players and Territory Wars, plus Discord and overlay title display, remain pending. Production delivery is not yet verified.' },
-    22: { status: 'partial', note: 'The private Collection Book, membership Passport and owned profile selections are enabled in production as of 06/11/2026. Claimed skins and earned recognition remain permanent. Starter palettes still require in-game review and publication before claims open. Broader rarity tiers remain planned.' },
-    15: { status: 'partial', note: 'Admin-confirmed event announcements use HerbyBot. Opt-in experimental growth requests are available to admins; gameplay effect and recovery remain unverified. Automatic events, species bonuses and private in-game delivery remain pending.' },
+    1: { status: 'building', note: "Expanded reputation and earned profile titles are being worked on. The selected-title and leaderboard controls have passed development checks; broader reputation, Discord and overlay display are not released." },
+    2: { status: 'building', note: "Expanded achievement badges are being worked on, including observed Prime, combat, nesting, life milestones and verified Territory captures. Review controls are tested in development. The new badge rollout is not live." },
+    3: { status: 'building', note: "New daily and weekly challenge tracking and player controls are developed and tested. Location verification, event evidence and reward rules still need release checks. The new challenge system is not live; existing quests remain available." },
+    4: { status: 'building', note: "A free season track, progress tracking, enrollment and staff planning tools are developed and tested. Season dates, rewards and release checks remain unfinished. No live season or season reward collection has started." },
     7: { status: 'complete', added: '2026-10-23', note: 'Live: species XP, 50 mastery levels, statistics and milestone titles. Additional skins and profile cosmetics remain future extensions.' },
+    8: { status: 'partial', note: "Live in Valley Legacy: recorded parent/child links and lineage display. Automatic hatch detection and inherited-mutation verification are still being worked on." },
     9: { status: 'complete', added: '2026-10-23', note: 'Live: nest listings, egg availability, requests, host approval and automatic closure. An accepted request reserves an advertised egg; it does not verify an in-game hatch.' },
-    8: { status: 'partial', note: 'Available in Valley Legacy: verified parent/child links and lineage display. Automatic hatch detection and inherited-mutation verification are still pending.' },
-    13: { status: 'partial', note: 'Available: seasonal and all-time records, Hall of Fame, presence, combat and gameplay-coin connections. Verified Territory capture participation now has a local, retry-safe records connection; staging and production verification remain pending. Group-battle records are still pending.' },
-    26: { status: 'building', note: 'HV-W01.3: authenticated private reports, bounded media links and admin-only moderation are in development behind an opt-in runtime flag. Automated chat/combat evidence correlation remains planned.' },
-    25: { status: 'building', note: 'HV-W01.2: protected incident timeline is in development, with recent operator audits and automation request outcomes. Game chat/combat correlation and long-term historical search remain planned.' },
-    25: { status: 'building', note: 'HV-W01.2: protected incident timeline is in development, with recent operator audits and automation request outcomes. Game chat/combat correlation and long-term historical search remain planned.' },
-    26: { status: 'building', note: 'HV-W01.3: authenticated private reports, bounded media links and admin-only moderation are in development behind an opt-in runtime flag. Automated chat/combat evidence correlation remains planned.' },
-    29: { status: 'building', note: 'HV-W01.1: public read-only status page in development. Independent RCON, Discord, Marketplace, Steam and Live Map monitors, plus incident history, are not yet available.' },
-    31: { status: 'building', note: 'Building / Testing. Completion has not yet been verified.' }
+    10: { status: 'building', note: "Location discovery catalogs, consent and visit tracking are developed and tested. Real map locations and tracking still need validation before release. Discovery collection is not live." },
+    11: { status: 'building', note: "Private opt-in dinosaur journeys, history, deletion and retention controls are developed and tested. Real journey evidence and release checks are unfinished. Journey tracking is not live." },
+    12: { status: 'building', note: "Private death recaps with trusted-source filtering, delayed disclosure and account checks are developed and tested. Privacy timing, real game evidence and release verification remain unfinished. The new recaps are not live." },
+    13: { status: 'partial', note: "Live: recorded seasonal/all-time statistics and Hall of Fame in Valley Legacy. The new verified Territory capture connection and group-battle records are still being worked on; the expanded records are not released." },
+    14: { status: 'building', note: "Event templates, scheduling, registration, planned teams and staff-reported results are developed and tested. Automatic game verification and rewards are unfinished. The new Event Engine is not live." },
+    15: { status: 'partial', note: "Live: admin-confirmed event announcements through HerbyBot. Fully automatic world events, species bonuses and connected in-game effects are still being worked on." },
+    16: { status: 'building', note: "Group descriptions, emblems, ranks, screenshot sharing and recorded battle history are developed and tested. Real Territory evidence and release verification remain unfinished. The expanded Group Headquarters controls are not live." },
+    17: { status: 'building', note: "Group donations, Treasury balances, cosmetic spending and receipt recovery are developed and tested. Closing is blocked while funds or unresolved requests remain. Pricing, event evidence and release checks are unfinished. Treasury spending is not live." },
+    18: { status: 'building', note: "Alliance proposals, rivalries and recorded head-to-head history are developed and tested. Real Territory evidence and release checks remain unfinished. The new diplomacy system is not live." },
+    19: { status: 'building', note: "Territory season planning and recorded battle-evidence previews are developed and tested. Season resets, historical champions, holding time and defensive streaks remain unfinished. No Territory season or automatic reset is live." },
+    20: { status: 'building', note: "Cosmetic Territory standards and group review/selection controls are developed and tested. Thresholds, verified Territory evidence and release checks remain unfinished. The new prestige system is not live and grants no combat advantage." },
+    21: { status: 'building', note: "Player skin listings, transaction recovery and staff listing/resale controls are developed and tested. Trading terms and release checks remain unfinished. Player skin trading is not live." },
+    22: { status: 'partial', note: "Live: the private Collection Book, membership Passport and owned profile selections. Claimed skins and earned recognition remain permanent. Starter palettes need in-game review and publication; broader rarity tiers and collections are still being worked on." },
+    23: { status: 'building', note: "One-time promotional skin codes, owned-skin gifts and receipt recovery are developed and tested. Production terms and release checks remain unfinished. The new skin gifting and code-redemption features are not live." },
+    24: { status: 'building', note: "Screenshot galleries, moderation, profile links and competition controls are developed and tested. Competition rules, rewards and release checks remain unfinished. The new gallery is not live." },
+    25: { status: 'building', note: "Private incident investigations, retained history lookup and recorded marketplace context are developed and tested. Complete game-action history, source validation and release checks remain unfinished. The expanded incident tools are not live." },
+    26: { status: 'building', note: "Private player reports, staff evidence review and saved chat/combat context are developed and tested. Saved context has an approved 90-day retention period, but configuration and release checks remain unfinished. The new report/evidence tools are not live." },
+    27: { status: 'building', note: "A private read-only spectator dashboard is developed and tested. Real-source verification and FPS integration remain unfinished. The new dashboard is not live." },
+    29: { status: 'partial', note: "Live: the public website and game-server status page. Expanded service checks and staff-reviewed incident history are developed and tested but are not live. Existing status signals do not verify every game action, Discord message or marketplace delivery." },
+    31: { status: 'building', note: "Territory Wars remains in development and testing. Battle evidence, group identity and source-clock checks have been improved. Live game verification, season integration and release checks remain unfinished; the full system is not marked complete." },
   };
   const stages = [
     { title: 'Progression & identity', subtitle: 'Build a lasting place in the Valley', features: [
@@ -89,7 +102,7 @@
       let statusText = 'Idea Stage';
       if (release?.status === 'complete') statusText = '✓ Complete, added ' + release.added.split('-').reverse().join('/');
       if (release?.status === 'partial') statusText = 'Partially available';
-      if (release?.status === 'building') statusText = 'Building / Testing';
+      if (release?.status === 'building') statusText = 'Working on';
       featureSummary.append(element('span', 'roadmap-feature-status is-' + feature.dataset.roadmapStatus, statusText));
       feature.append(featureSummary, element('p', '', description));
       if (release) {
@@ -97,6 +110,10 @@
         if ([7, 8, 9, 13].includes(id)) {
           const link = element('a', '', 'Open Valley Legacy →');
           link.href = '/legacy';
+          note.append(' ', link);
+        } else if (id === 22) {
+          const link = element('a', '', 'Open Collection Book →');
+          link.href = '/supporter';
           note.append(' ', link);
         } else if (id === 26) {
           const link = element('a', '', 'Player Reports →');

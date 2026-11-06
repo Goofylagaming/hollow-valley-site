@@ -73,10 +73,12 @@ test("all 31 feature descriptions, voting and the three active vote slots surviv
   const roadmap=read("public/assets/home-roadmap.js");
   const votes=read("server/services/roadmapCommunity.js");
   const home=read("public/index.html");
-  for(const id of [25,26,29]){
+  for(const id of [25,26]){
     assert.match(roadmap,new RegExp(id+": \\{ status: 'building'"));
     assert.doesNotMatch(votes,new RegExp("24, 25, 26, 29"));
   }
+  assert.match(roadmap,/29: \{ status: 'partial'/);
+  assert.match(roadmap,/Working on/);
   assert.match(roadmap,/View status page/);
   assert.match(roadmap,/Player Reports/);
   assert.equal((roadmap.match(/\[\d+, '[^']+'/g)||[]).length,31);
@@ -108,7 +110,7 @@ test("integrated homepage retains read-only status, releases and personal progre
   const release=read("public/assets/site-updates.js");
   assert.match(home,/href="\/status"/);
   assert.match(home,/home-updates-list/);
-  assert.match(home,/home-roadmap\.js\?v=26/);
+  assert.match(home,/home-roadmap\.js\?v=171/);
   assert.match(client,/status\?\.online && !status\?\.stale/);
   assert.match(client,/home-profile-progress/);
   assert.doesNotMatch(release,/\.innerHTML\s*=/);
