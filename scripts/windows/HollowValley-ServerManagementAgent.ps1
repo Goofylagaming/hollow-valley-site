@@ -8,7 +8,8 @@ param(
     [string]$TokenFile = 'C:\HollowValley\Secrets\management-agent-token.txt',
     [int]$PollSeconds = 20,
     [switch]$StatusOnly,
-    [switch]$AllowTaskWrites
+    [switch]$AllowTaskWrites,
+    [switch]$AllowGrowthWrites
 )
 
 $ErrorActionPreference = 'Stop'
@@ -28,7 +29,7 @@ $expectedTokenFile = if ($production) {
 if ($TokenFile -ne $expectedTokenFile) {
     throw 'Management site and token-file environments do not match.'
 }
-if ($AllowTaskWrites -and -not $production) {
+if (($AllowTaskWrites -or $AllowGrowthWrites) -and -not $production) {
     throw 'Management writes cannot be enabled for the staging agent.'
 }
 if (-not (Test-Path -LiteralPath $TokenFile)) {
@@ -38,6 +39,14 @@ $token = (Get-Content -LiteralPath $TokenFile -Raw).Trim()
 if ($token.Length -lt 32) { throw 'Dedicated management token is too short.' }
 $apiBase = $SiteUrl.TrimEnd('/') + '/api/binarylane-management'
 $headers = @{ Authorization = "Bearer $token" }
+$growthHelper = Join-Path $PSScriptRoot 'HollowValley-GrowthConfig.ps1'
+$growthAvailable = Test-Path -LiteralPath $growthHelper
+if ($growthAvailable) { . $growthHelper }
+if ($AllowGrowthWrites -and (-not $AllowTaskWrites -or -not $growthAvailable)) {
+    throw 'Growth writes require the helper and the existing local task-write gate.'
+}
+$growthIni = 'C:\HollowValley\TheIsleServer\TheIsle\Saved\Config\WindowsServer\Game.ini'
+$growthReceipt = 'C:\HollowValley\Management\growth-receipt.json'
 
 # Prevent a duplicate agent when Task Scheduler restarts this process.
 $mutex = [System.Threading.Mutex]::new($false, 'Global\HollowValleyServerManagementAgent')
@@ -102,8 +111,11 @@ try {
             $states[$key] = Get-TaskState -Name $taskNames[$key]
         }
         return @{
-            agentVersion = 'v0.2-readwrite-gated'
+            agentVersion = 'v0.3-growth-config'
             allowTaskWrites = [bool]$AllowTaskWrites
+            growth = $(if ($growthAvailable) {
+                Get-HVGrowthStatus -Path $growthIni -ReceiptPath $growthReceipt -WritesEnabled ([bool]$AllowGrowthWrites) -StartedAt $started -RconReady $rconOwned
+            } else { @{ supported = $false; writesEnabled = $false } })
             server = @{
                 pid = $gamePid
                 processCount = $processes.Count
@@ -175,6 +187,34 @@ try {
         return ('{0}: task={1}; processDetected={2}' -f $name,(Get-TaskState -Name $name),(Find-RunningAgent -Target $target))
     }
 
+    function Invoke-ApprovedGrowthAction {
+        param([psobject]$Job)
+        if (-not $AllowGrowthWrites -or -not $AllowTaskWrites -or -not $production) { throw 'Local growth gate is disabled.' }
+        if ($Job.action -cne 'set_growth_config' -or $Job.target -cne 'game_ini' -or
+            $Job.multiplier -notin @(1,2,3,4,5,10) -or $Job.id -cnotmatch '^[a-f0-9-]{36}$') { throw 'Invalid growth job.' }
+        if (-not (Test-Path -LiteralPath (Split-Path -Parent $growthReceipt))) { throw 'Growth receipt directory has not been installed.' }
+        $snapshot = Get-Snapshot
+        if ($snapshot.server.processCount -ne 1 -or -not $snapshot.server.rconOwnedByGame -or
+            $snapshot.tasks.scheduled_restart -ne 'Ready' -or $snapshot.growth.state -in @('pending_restart','needs_inspection')) {
+            throw 'Game or restart state is unsafe for a configuration write.'
+        }
+        if ($snapshot.growth.configHash -cne $Job.expectedHash) { throw 'Configuration changed since review.' }
+        $receipt = @{ jobId = [string]$Job.id; stage = 'writing'; multiplier = [int]$Job.multiplier }
+        # Journal before mutation. An interrupted write blocks further work, never replays it.
+        Write-HVGrowthReceipt -Path $growthReceipt -Receipt $receipt
+        $result = Set-HVGrowthDocument -Path $growthIni -Multiplier $Job.multiplier -ExpectedHash $Job.expectedHash -JobId $Job.id
+        $after = Get-Snapshot
+        if ($after.server.startedAt -cne $snapshot.server.startedAt -or $after.tasks.scheduled_restart -ne 'Ready') {
+            throw 'Game/restart state changed during the write; inspect the retained backup.'
+        }
+        $receipt.stage = 'written'
+        $receipt.configHash = $result.Hash
+        $receipt.backup = $result.Backup
+        $receipt.writtenAt = [datetimeoffset]::UtcNow.ToString('o')
+        Write-HVGrowthReceipt -Path $growthReceipt -Receipt $receipt
+        return "Saved $($Job.multiplier)x growth; backup retained and read-back verified. Awaiting scheduled restart."
+    }
+
     $mode = if ($AllowTaskWrites) { 'allowlisted task writes enabled' } else { 'read-only' }
     Write-Host "Hollow Valley management agent starting (outbound HTTPS; $mode)."
     while ($true) {
@@ -194,15 +234,23 @@ try {
                 $job = $next.job
                 $resultState = 'failed'
                 $resultMessage = 'Action not executed.'
+                $growthJob = $job.action -ceq 'set_growth_config'
                 try {
-                    $resultMessage = Invoke-ApprovedTaskAction -Job $job
-                    $resultState = 'succeeded'
+                    if ($growthJob) {
+                        $resultMessage = Invoke-ApprovedGrowthAction -Job $job
+                        $resultState = 'written'
+                    } else {
+                        $resultMessage = Invoke-ApprovedTaskAction -Job $job
+                        $resultState = 'succeeded'
+                    }
                 } catch {
                     $resultMessage = $_.Exception.Message
+                    if ($growthJob) { $resultState = 'unknown' }
                 }
 
                 # Lost results become UNKNOWN, never automatically retried.
-                $null = Send-Json -Path ("/jobs/$($job.id)/result") -Body @{
+                $resultPath = if ($growthJob) { "/growth/$($job.id)/result" } else { "/jobs/$($job.id)/result" }
+                $null = Send-Json -Path $resultPath -Body @{
                     leaseToken = [string]$job.leaseToken
                     state = $resultState
                     message = $resultMessage

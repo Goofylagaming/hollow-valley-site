@@ -82,6 +82,23 @@
           </section>
 
 
+          <section class="ops-panel" id="persistent-growth-controls" hidden>
+            <div class="list-heading"><span>SERVER GROWTH SETTING</span><small>Owner only · saved on the game server</small></div>
+            <p class="section-intro">Choose the server-wide growth setting to use after the next normal scheduled restart. Saving does not restart the game or announce a change.</p>
+            <p id="ops-persistent-growth-current">Reading the game server configuration…</p>
+            <div class="page-toolbar ops-toolbar">
+              <label for="ops-persistent-growth-value">Growth setting</label>
+              <select id="ops-persistent-growth-value" style="padding:10px;background:#0f172a;color:#fff;border:1px solid #334155">
+                <option value="1">1×</option><option value="2">2×</option><option value="3">3×</option>
+                <option value="4">4×</option><option value="5" selected>5×</option><option value="10">10×</option>
+              </select>
+              <button class="small-button" id="ops-persistent-growth-save" type="button" disabled>Save for next restart</button>
+              <button class="small-button" id="ops-persistent-growth-refresh" type="button">Refresh status</button>
+            </div>
+            <p id="ops-persistent-growth-message" role="status" aria-live="polite">Checking availability…</p>
+            <p class="section-intro">A backup is kept before each write. “Saved” confirms the file on disk; it does not mean the running game has changed. Check gameplay after the restart before publishing an announcement.</p>
+          </section>
+
           <section class="ops-panel" id="growth-controls">
             <div class="list-heading"><span>EXPERIMENTAL GROWTH TEST</span><small>Admin only · effect unverified</small></div>
             <p class="section-intro">Send the same bounded 2× or 3× candidate used in manual testing. Its effect and scope remain unverified and may affect all players. This does not update the Windows Game.ini.</p>
@@ -100,7 +117,7 @@
 
           <section class="ops-panel" id="feature-announcements">
             <div class="list-heading"><span>FEATURE ANNOUNCEMENTS</span><small>Admin only · HerbyBot</small></div>
-            <p class="section-intro">Announce verified growth changes or community events from the Admin Hub. Queue to Discord announcements and/or the server-progress updates channel. In-game broadcasting will require the private Windows RCON host bridge; it is not enabled here.</p>
+            <p class="section-intro">Messages only: selecting a growth rate here does not change the server setting. Announce verified growth changes or community events from the Admin Hub. Queue to Discord announcements and/or the server-progress updates channel. In-game broadcasting will require the private Windows RCON host bridge; it is not enabled here.</p>
             <div class="page-toolbar ops-toolbar">
               <label for="ops-feature-type">Type</label>
               <select id="ops-feature-type" style="padding:10px;background:#0f172a;color:#fff;border:1px solid #334155">
@@ -297,7 +314,8 @@
     <footer><span>© 2026 Hollow Valley</span><span>ISLE SERVER · HOME OF THE HERBY DEATH SQUAD</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="/assets/common.js?v=21"></script>
-  <script src="/assets/adminoperations.js?v=14"></script>
+  <script src="/assets/persistent-growth.js?v=1"></script>
+  <script src="/assets/adminoperations.js?v=15"></script>
   <script src="/assets/species-events-admin.js?v=4"></script>
   <script src="/assets/omniraptor-growth-validation.js?v=1"></script>
   <script src="/assets/achievement-review.js?v=1"></script>
