@@ -85,6 +85,21 @@ function normalizeHeartbeat(source = {}) {
       [key, (Array.isArray(logs[key]) ? logs[key] : []).slice(-12).map(scrubLogLine)])),
     agentVersion: clampText(source.agentVersion, 40),
     allowTaskWrites: source.allowTaskWrites === true,
+    growth: normalizeGrowth(source.growth),
+  };
+}
+
+function normalizeGrowth(value = {}) {
+  const g = value && typeof value === "object" ? value : {};
+  return {
+    supported: g.supported === true,
+    writesEnabled: g.writesEnabled === true,
+    configuredMultiplier: Number.isFinite(g.configuredMultiplier) ? g.configuredMultiplier : null,
+    configHash: /^[a-f0-9]{64}$/.test(g.configHash || "") ? g.configHash : null,
+    state: ["unverified", "pending_restart", "restart_observed", "needs_inspection"].includes(g.state) ? g.state : "unverified",
+    jobId: /^[a-f0-9-]{36}$/.test(g.jobId || "") ? g.jobId : null,
+    message: clampText(g.message, 300),
+    gameplayVerified: false,
   };
 }
 

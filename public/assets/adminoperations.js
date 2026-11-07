@@ -573,6 +573,7 @@ async function init() {
 
   guard.hidden = true;
   content.hidden = false;
+  if (me.financeOwnerAccess) window.HVPersistentGrowth?.init();
   try {
     if (localStorage.getItem("ops-chat-minimized") === "true") {
       document.getElementById("ops-chat-body").hidden = true;

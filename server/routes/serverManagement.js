@@ -3,6 +3,7 @@
 const express = require("express");
 const { timingSafeEqual } = require("node:crypto");
 const management = require("../services/serverManagement");
+const growth = require("../services/persistentGrowth");
 
 // Owner endpoints MUST also be mounted behind requireFinanceOwner in index.js.
 const ownerRouter = express.Router();
@@ -28,7 +29,7 @@ function requireAgent(req, res, next) {
 }
 function sameOriginOwnerWrite(req, res, next) {
   if (!req.is("application/json")
-      || req.get("x-hv-owner-action") !== "enable-start-v1") {
+      || req.get("x-hv-owner-action") !== (req.path === "/growth" ? "growth-config-v1" : "enable-start-v1")) {
     return res.status(403).json({ error: "Invalid management request headers." });
   }
   try {
@@ -46,6 +47,15 @@ function sameOriginOwnerWrite(req, res, next) {
 ownerRouter.get("/", (_req, res) => {
   try { res.json(management.ownerOverview()); }
   catch (e) { rejectError(res, e); }
+});
+ownerRouter.get("/growth", (_req, res) => {
+  try { res.json(growth.overview()); } catch (e) { rejectError(res, e); }
+});
+ownerRouter.post("/growth", sameOriginOwnerWrite, (req, res) => {
+  try {
+    const { multiplier, expectedHash, requestId, confirmation } = req.body || {};
+    res.status(202).json({ job: growth.queue({ multiplier, expectedHash, requestId, confirmation, ownerSteamId: req.user?.steam_id }) });
+  } catch (e) { rejectError(res, e); }
 });
 ownerRouter.post("/jobs", sameOriginOwnerWrite, (req, res) => {
   try {
@@ -80,7 +90,7 @@ agentRouter.get("/probe", (_req, res) => {
 
 agentRouter.get("/next", (_req, res) => {
   try {
-    res.json({ job: management.leaseNextJob(), writesEnabled: management.writesEnabled() });
+    res.json({ job: management.leaseNextJob() || growth.lease(), writesEnabled: management.writesEnabled() });
   } catch (e) { rejectError(res, e); }
 });
 agentRouter.post("/jobs/:id/result", (req, res) => {
@@ -91,6 +101,12 @@ agentRouter.post("/jobs/:id/result", (req, res) => {
       state: req.body?.state,
       message: req.body?.message,
     });
+    res.json({ ok: true });
+  } catch (e) { rejectError(res, e); }
+});
+agentRouter.post("/growth/:id/result", (req, res) => {
+  try {
+    growth.complete({ id: req.params.id, leaseToken: req.body?.leaseToken, state: req.body?.state, message: req.body?.message });
     res.json({ ok: true });
   } catch (e) { rejectError(res, e); }
 });

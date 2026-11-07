@@ -108,6 +108,10 @@ test("all production wallet, marketplace, storage, admin and other page scripts 
       const speciesAdmin = "assets/species-events-admin.js";
       const growthProbe = "assets/omniraptor-growth-validation.js";
       const achievementReview = "assets/achievement-review.js";
+      const persistentGrowth = "assets/persistent-growth.js";
+      assert.equal(actual.filter(src => src === persistentGrowth).length, 1);
+      assert.equal(actual.indexOf(persistentGrowth), actual.indexOf("assets/adminoperations.js") - 1,
+        "Persistent growth helper loads before owner-only initialization");
       assert.equal(actual.filter(src => src === achievementReview).length, 1,
         "Achievement review controls must load exactly once");
       assert.ok(actual.indexOf(achievementReview) > actual.indexOf("assets/adminoperations.js"),
@@ -120,7 +124,7 @@ test("all production wallet, marketplace, storage, admin and other page scripts 
         "Species event controls load after the existing operations controls");
       assert.ok(actual.indexOf(growthProbe) > actual.indexOf(speciesAdmin),
         "Read-only Omniraptor validation loads after the existing species event controls");
-      assert.deepEqual(actual.filter(src => src !== speciesAdmin && src !== growthProbe && src !== achievementReview), baseline,
+      assert.deepEqual(actual.filter(src => src !== speciesAdmin && src !== growthProbe && src !== achievementReview && src !== persistentGrowth), baseline,
         "Existing Admin Operations scripts must retain their original order");
     } else if (page === "events.html") {
       const randomEvents = "assets/events-species-bonuses.js";

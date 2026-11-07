@@ -15,6 +15,7 @@ $productionUrl = 'https://hollowvalleyisle.com'
 $baseArgs = '-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' +
     $scriptPath + '" -SiteUrl "' + $productionUrl + '" -TokenFile "' + $prodToken + '"'
 $writeArgs = $baseArgs + ' -AllowTaskWrites'
+$growthArgs = $writeArgs + ' -AllowGrowthWrites'
 
 $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
 $principal = [Security.Principal.WindowsPrincipal]::new($identity)
@@ -25,7 +26,7 @@ $task = Get-ScheduledTask -TaskName $taskName -ErrorAction Stop
 $actions = @($task.Actions)
 if ($actions.Count -ne 1 -or
     $actions[0].Execute -notmatch '(?i)(^|\\)powershell\.exe$' -or
-    $actions[0].Arguments -notin @($baseArgs, $writeArgs) -or
+    $actions[0].Arguments -notin @($baseArgs, $writeArgs, $growthArgs) -or
     $task.Principal.UserId -notmatch '(?i)(^SYSTEM$|\\SYSTEM$)') {
     throw 'Unexpected production management Scheduled Task configuration. No changes made.'
 }
@@ -44,7 +45,9 @@ if ($Mode -eq 'Enable') {
         throw 'Confirmation did not match. No changes made.'
     }
 }
-$arguments = if ($Mode -eq 'Enable') { $writeArgs } else { $baseArgs }
+$arguments = if ($Mode -eq 'Enable') {
+    if ($actions[0].Arguments -ceq $growthArgs) { $growthArgs } else { $writeArgs }
+} else { $baseArgs }
 if ($actions[0].Arguments -ceq $arguments) {
     Write-Host "Production agent already configured for Mode=$Mode. Nothing changed."
     exit 0

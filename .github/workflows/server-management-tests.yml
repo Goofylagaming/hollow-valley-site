@@ -6,13 +6,20 @@ on:
     paths:
       - 'server/index.js'
       - 'server/services/serverManagement.js'
+      - 'server/services/persistentGrowth.js'
       - 'server/routes/serverManagement.js'
       - 'server/pages/adminServerManagement.html'
       - 'public/assets/admin-server-management.*'
+      - 'public/assets/persistent-growth.js'
+      - 'public/adminoperations.html'
       - 'public/assets/common.js'
       - 'public/admin.html'
       - 'public/partials/nav.html'
       - 'scripts/windows/*ServerManagement*.ps1'
+      - 'scripts/windows/*Growth*.ps1'
+      - 'scripts/windows/Set-HollowValley-ManagementWriteMode.ps1'
+      - 'scripts/verify-persistent-growth.cjs'
+      - 'test/persistentGrowth.test.js'
       - 'test/serverManagement.test.js'
       - '.github/workflows/server-management-tests.yml'
   workflow_dispatch:
@@ -32,4 +39,14 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - name: BinaryLane owner-only access and no-replay tests
-        run: node --test test/serverManagement.test.js test/financeOwner.test.js test/adminPagesRoute.test.js
+        run: node --test test/persistentGrowth.test.js test/serverManagement.test.js test/financeOwner.test.js test/adminPagesRoute.test.js test/desktopReadOnlyManagement.test.js
+      - run: npm install --no-save --package-lock=false playwright
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/verify-persistent-growth.cjs
+  windows-growth-fixtures:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Windows PowerShell 5.1 configuration backup and read-back tests
+        shell: powershell
+        run: ./scripts/windows/Test-HollowValley-GrowthConfig.ps1
