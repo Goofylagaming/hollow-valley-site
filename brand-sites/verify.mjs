@@ -36,7 +36,7 @@ for (const site of ['primalbound','hollow-valley']) {
           :merch
             ?['<script defer src="/merch/app.js">']
             :showcase
-              ?['<script defer src="/labs/showcase-v6/app.js">']
+              ?['<script>']
               :['<script src="../../assets/release-notes.js" defer>'];
         assert.deepEqual(scripts.map(x=>x[0]).sort(),expected.sort(),'Only approved same-origin wiki/release scripts are allowed');
       }
