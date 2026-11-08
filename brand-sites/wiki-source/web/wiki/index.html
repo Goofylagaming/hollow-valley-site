@@ -11,7 +11,7 @@
 <section class="wiki-topic" id="newer-web-preview-features-w27-1-w42"><h2>Newer Web Preview features: W27.1–W42 <a class="heading-anchor" href="#newer-web-preview-features-w27-1-w42" aria-label="Copy section link">#</a></h2>
 <p><strong>Earlier verified Web Preview W38.0</strong> was LIVE on Render at deployed commit <code>cd879109f7be66d6d600a16d5ed01cecf16b1974</code> (27 October 2026, 19:09 AEST). The successful Render build ran <strong>728 gameplay tests</strong>, wrote <code>build-manifest.json</code> and attached exact-commit <code>web/update-notes.json</code> through the required <code>release-info.mjs</code> matching gameplay manifest SHA-256 <code>3b3a5cd8b470bed5f9aa9e7e4d804607f3b6c3092af76deb27df7f167df9b2bf</code>; source candidate notes also record 33 cloud tests. The merged batch included W37 companion features but <strong>no separate LIVE W37 release</strong>. These <strong>Web-only</strong> rules remain independent of World/Desktop. This section documents W27.1–W42 gameplay and save compatibility, not just patch notes.</p>
 <h4 id="w42-connected-workspaces-and-frontier-preparation">W42 — Connected Workspaces &amp; Frontier Preparation <a class="heading-anchor" href="#w42-connected-workspaces-and-frontier-preparation" aria-label="Link to heading">#</a></h4>
-<p><strong>Verified LIVE Web-only release.</strong> The successful <a href="https://github.com/Goofylagaming/primalbound/blob/b4254da2a8fc229523c60751a60d05fc60c4ba74/web/update-notes.json">W42 Render deployment at commit WIKITOKEN0END</a> finished on <strong>30 October 2026 at 22:38 AEST</strong>, with <strong>995 passing gameplay tests</strong> and release notes attached by the required matching gameplay manifest SHA-256 <code>b713490b6385785c25bdb91f0becfd0f7d221f293bba0f12898c75b41973208c</code>. This is one published <strong>W42 combined release</strong>, including work developed under earlier W41 candidates; do not treat unverified intermediate W41 builds as separately LIVE. Existing W27.1–W40.5 instructions below remain valid unless an updated screen or review flow is specifically described here.</p>
+<p><strong>Verified LIVE Web-only release.</strong> The successful <a href="https://primalboundgame.com/web/release-info.json">W42 Render deployment at commit <code>b4254da2a8fc229523c60751a60d05fc60c4ba74</code></a> finished on <strong>30 October 2026 at 22:38 AEST</strong>, with <strong>995 passing gameplay tests</strong> and release notes attached by the required matching gameplay manifest SHA-256 <code>b713490b6385785c25bdb91f0becfd0f7d221f293bba0f12898c75b41973208c</code>. This is one published <strong>W42 combined release</strong>, including work developed under earlier W41 candidates; do not treat unverified intermediate W41 builds as separately LIVE. Existing W27.1–W40.5 instructions below remain valid unless an updated screen or review flow is specifically described here.</p>
 <h4 id="navigate-the-connected-web-workspaces">Navigate the connected Web workspaces <a class="heading-anchor" href="#navigate-the-connected-web-workspaces" aria-label="Link to heading">#</a></h4>
 <ol>
 <li><strong>Choose the activity from the named navigation rail</strong> (or open the <strong>navigation drawer</strong> on a phone). The connected forest-and-bronze workspace keeps a list or browser, the selected item&#39;s detail and the current action apart. Selecting a record normally <strong>opens its details</strong>; it does not spend, collect, dispatch or change your save. Large resource totals are abbreviated in the header; hover/focus or use their accessible labels for exact amounts. A wallet shortcut opens the corresponding <strong>Resource Guide</strong>.
@@ -60,9 +60,9 @@
 </li>
 <li>The <strong>Device Save</strong> dialog exposes a current export and available local-account recovery, even during setup-pending access. A failed save-options download still offers current-save export. Continue to preserve <strong>independent Device and Account campaigns</strong> as documented in W40.5; there is no automatic account merge.
 </li></ol>
-<p><strong>Save compatibility:</strong> Verified W42 uses <strong>Web save format 29</strong>. Upgrading preserves the <strong>original device recovery bytes</strong> and the <strong>previous cloud revision</strong>, while retaining existing equipment/inventory, crafting orders, eggs, missions/assignments, progression, currencies, owned companions, histories, earned trophies and previous W27–W40.5 mechanics. New Pack Bonds require real new shared activity and are <strong>not backdated</strong>. Export the Device Save JSON and a confirmed Cloud History revision before switching accounts or updating; do not import format-29 data into an older Web build, and <strong>never import Web saves into World/Desktop</strong> (its independent local profiles use schema 330). Source: <a href="https://github.com/Goofylagaming/primalbound/blob/b4254da2a8fc229523c60751a60d05fc60c4ba74/web/update-notes.json">exact deployed W42 notes</a>.</p>
+<p><strong>Save compatibility:</strong> Verified W42 uses <strong>Web save format 29</strong>. Upgrading preserves the <strong>original device recovery bytes</strong> and the <strong>previous cloud revision</strong>, while retaining existing equipment/inventory, crafting orders, eggs, missions/assignments, progression, currencies, owned companions, histories, earned trophies and previous W27–W40.5 mechanics. New Pack Bonds require real new shared activity and are <strong>not backdated</strong>. Export the Device Save JSON and a confirmed Cloud History revision before switching accounts or updating; do not import format-29 data into an older Web build, and <strong>never import Web saves into World/Desktop</strong> (its independent local profiles use schema 330). Source: <a href="https://primalboundgame.com/web/release-info.json">exact deployed W42 notes</a>.</p>
 <h4 id="w40-5-keep-device-and-account-campaigns-separate">W40.5 — Keep Device &amp; Account Campaigns Separate <a class="heading-anchor" href="#w40-5-keep-device-and-account-campaigns-separate" aria-label="Link to heading">#</a></h4>
-<p><strong>Verified LIVE Web-only update.</strong> Render deployed <a href="https://github.com/Goofylagaming/primalbound/blob/2dbeb7d21ab88e4c254c108f7c8cf709ddce1be4/web/update-notes.json">W40.5 gameplay notes at commit WIKITOKEN0END</a> on <strong>30 October 2026 at 12:27 AEST</strong>. The successful build ran <strong>823 tests</strong>, generated <code>build-manifest.json</code> and attached the exact-commit player notes with gameplay manifest SHA-256 <code>dd1d5dec0fe90b807e467811a4c04c0c0311f308a94e113a05a5b89c85dfe11e</code>. W40.5 is an account/device campaign recovery fix, <strong>not</strong> new battle content.</p>
+<p><strong>Verified LIVE Web-only update.</strong> Render deployed <a href="https://github.com/Goofylagaming/primalbound/blob/2dbeb7d21ab88e4c254c108f7c8cf709ddce1be4/web/update-notes.json">W40.5 gameplay notes at commit <code>2dbeb7d21ab88e4c254c108f7c8cf709ddce1be4</code></a> on <strong>30 October 2026 at 12:27 AEST</strong>. The successful build ran <strong>823 tests</strong>, generated <code>build-manifest.json</code> and attached the exact-commit player notes with gameplay manifest SHA-256 <code>dd1d5dec0fe90b807e467811a4c04c0c0311f308a94e113a05a5b89c85dfe11e</code>. W40.5 is an account/device campaign recovery fix, <strong>not</strong> new battle content.</p>
 <ol>
 <li><strong>Recognise your two Web campaigns.</strong> Your browser&#39;s <strong>Device Save</strong> is separate from the last campaign loaded for a signed-in <strong>Player Account</strong>. A lost or expired account session must not copy that account campaign over the original device campaign. Progress for different accounts remains separate rather than being automatically merged.
 </li>
@@ -76,7 +76,7 @@
 </li></ol>
 <p><strong>Save compatibility:</strong> W40.5 keeps <strong>Web format 23</strong>. Existing companions, Bones, currencies, rewards, missions, progression and account ownership are unchanged; no extra rewards or retroactive campaign migration are implied. Do not load format-23 Web saves in older Web builds or import them into <strong>World/Desktop</strong> (which uses its own local profile schema).</p>
 <h4 id="w40-4-fieldwork-loadouts-and-save-reliability">W40.4 — Fieldwork, Loadouts &amp; Save Reliability <a class="heading-anchor" href="#w40-4-fieldwork-loadouts-and-save-reliability" aria-label="Link to heading">#</a></h4>
-<p><strong>This is one verified LIVE Web release containing the combined W39–W40.4 development work, not proof of separate published W39, W40.0, W40.1, W40.2 or W40.3 releases.</strong> The verified Render Web Preview deploy is <a href="https://github.com/Goofylagaming/primalbound/blob/58d490df606de617a52736fc41a1be250693b887/web/update-notes.json">commit WIKITOKEN0END</a>, LIVE on <strong>28 October 2026 at 07:25 AEST</strong>. Its successful build attached these exact-commit gameplay notes against the required gameplay manifest SHA-256 <code>e87818bf0da5c6fa7ccef495dc09149ac09ee9a11d0004552fb4885356b45550</code>. These changes affect <strong>Primalbound Web only</strong>.</p>
+<p><strong>This is one verified LIVE Web release containing the combined W39–W40.4 development work, not proof of separate published W39, W40.0, W40.1, W40.2 or W40.3 releases.</strong> The verified Render Web Preview deploy is <a href="https://github.com/Goofylagaming/primalbound/blob/58d490df606de617a52736fc41a1be250693b887/web/update-notes.json">commit <code>58d490df606de617a52736fc41a1be250693b887</code></a>, LIVE on <strong>28 October 2026 at 07:25 AEST</strong>. Its successful build attached these exact-commit gameplay notes against the required gameplay manifest SHA-256 <code>e87818bf0da5c6fa7ccef495dc09149ac09ee9a11d0004552fb4885356b45550</code>. These changes affect <strong>Primalbound Web only</strong>.</p>
 <h4 id="earn-regional-standing-and-optional-research">Earn regional standing and optional research <a class="heading-anchor" href="#earn-regional-standing-and-optional-research" aria-label="Link to heading">#</a></h4>
 <ol>
 <li>Open <strong>Operations → Regional Outlooks → Regional research</strong> for the selected one of <strong>20 Web regions</strong>. Earn standing by fully clearing and <strong>extracting</strong> an eligible route: a full <strong>Survey</strong> or <strong>Recover</strong> return grants <strong>2 standing</strong>, while another completed ordinary route grants <strong>1</strong>. Partial returns, failed routes and Challenge returns give <strong>no standing</strong>. Existing work is not back-credited.
@@ -256,7 +256,7 @@
 <li>The five Frontier Hunts remain clearable with the existing 200% total Growth cap; no extra Growth tier is needed.
 </li></ul>
 <h4 id="w31-prime-frontier-hunts-w31">W31 — Prime Frontier Hunts — W31 <a class="heading-anchor" href="#w31-prime-frontier-hunts-w31" aria-label="Link to heading">#</a></h4>
-<p>After clearing <strong>stage 10,000</strong> and <strong>all five Prime Trial ranks</strong>, enter <strong>Prime Frontier</strong>. Meet proof requirements such as Prime team roles, at least <strong>125% total Prime Growth</strong>, a full three-piece set, any hybrid and a cleared Prime Territory Ancient Trail. Clear each of the <strong>five</strong> hunts once for its fixed Bones/Prime/Shards trophy reward. Replays consume stamina but cannot duplicate first-clear rewards, set gear or DNA.</p>
+<p>After clearing <strong>stage 10,000</strong> and <strong>all five Prime Trial ranks</strong>, enter <strong>Prime Frontier</strong>. Each hunt has its own proof: three distinct active roles and one awakened Prime; an active awakened Prime at <strong>125% total Growth</strong>; an active companion wearing a full three-piece set; a hybrid in the active team; or a fully cleared five-node Ancient Trail with Prime Territory that you successfully extracted. Clear each of the <strong>five</strong> hunts once for its fixed Bones/Prime/Shards trophy reward. Replays consume stamina but cannot duplicate first-clear rewards, set gear or DNA.</p>
 <p>Verified notes:</p>
 <ul>
 <li>Prime Frontier opens after stage 10,000 and all five Prime Trial ranks, adding five finite advanced Guardian Hunts.
@@ -322,10 +322,10 @@
 <li>Format 8 saves migrate to 9 while preserving campaign progress, Trial clears, mastery and weekly claims. Older builds cannot overwrite format 9.
 </li></ul>
 <h4 id="w27-1-prime-trials-and-protected-saves-w27-1">W27.1 — Prime Trials and protected saves — W27.1 <a class="heading-anchor" href="#w27-1-prime-trials-and-protected-saves-w27-1" aria-label="Link to heading">#</a></h4>
-<p>After beating campaign <strong>stage 10,000</strong>, begin the three optional Prime Trial ranks. First clears give fixed rewards; each rank can pay repeat rewards up to <strong>three times per week</strong> and then stays playable without payout. Unlock/select <strong>one active Prime Mastery</strong> for Trial fights only. The <strong>Tactical Grounds</strong> offers free, rewardless practice of campaign fights and Prime Trials. If another tab saves first, download this tab&#39;s progress or reload the newer saved campaign instead of overwriting it.</p>
+<p>After beating campaign <strong>stage 10,000</strong>, begin the optional Prime Trials. W27.1 introduced three ranks; W42 has five. First clears give fixed rewards; each rank can pay repeat rewards up to <strong>three times per week</strong> and then stays playable without payout. Unlock/select <strong>one active Prime Mastery</strong> for Trial fights only. The <strong>Tactical Grounds</strong> offers free, rewardless practice of campaign fights and Prime Trials. If another tab saves first, download this tab&#39;s progress or reload the newer saved campaign instead of overwriting it.</p>
 <p>Verified notes:</p>
 <ul>
-<li>Clear campaign stage 10,000 to unlock three optional Prime Trial ranks with distinct guardian attacks and custom mutation attacks at later ranks.
+<li>In W27.1, clearing campaign stage 10,000 unlocked the original three optional Prime Trial ranks with distinct guardian attacks and custom mutation attacks at later ranks.
 </li>
 <li>First clears grant fixed rewards; each rank pays repeat rewards up to three times per week. Capped ranks remain playable without rewards.
 </li>
@@ -1022,7 +1022,7 @@
 <p>Bosses / Guardians <strong>always drop gear</strong>.</p>
 <p>If you simply need a better third dinosaur loadout, farming a cleared Guardian is much more reliable than farming ordinary stages.</p>
 <h3 id="dungeons">Dungeons <a class="heading-anchor" href="#dungeons" aria-label="Link to heading">#</a></h3>
-<p>A successful full Dungeon clear guarantees one gear drop.</p>
+<p>A full Dungeon clear awards one gear item if the route has an eligible item at your cleared campaign stage. The gear roll is fixed when you enter. If the pool is empty, the run can still pay its other rewards.</p>
 <p>Dungeon gear is useful for filling weak slots:</p>
 <ul>
 <li>early dungeon → Common;
@@ -1031,6 +1031,7 @@
 </li>
 <li>stage-120+ dungeons → Epic.
 </li></ul>
+<p>The rarity examples above apply to the original routes. Tier 2 and higher routes use their own tier's Legendary pool. Clear the relevant campaign stage to qualify for each item or Workshop gear recipe.</p>
 <h3 id="mutant-guardians">Mutant Guardians <a class="heading-anchor" href="#mutant-guardians" aria-label="Link to heading">#</a></h3>
 <p>This is the best source of <strong>equipment sets</strong>.</p>
 <p>Every Mutant Guardian run drops a targeted set piece from one of its supported sets.</p>
@@ -1369,7 +1370,7 @@
 </li></ul>
 <p><strong>W35 earned relic blueprints and Archive Field Tonics also require Research Insight.</strong> Review the complete per-recipe material and Insight cost before confirming. New accepted orders reserve Insight along with other materials, and cancellation of an uncollected order refunds it. Existing queued orders retain their original identity, costs and completion times.</p>
 <p>Materials are <strong>reserved immediately</strong> when you accept an order.</p>
-<p>The queue runs sequentially.</p>
+<p>The queue runs sequentially on the schedule shown when each order is accepted. Later batches can start and finish before you collect earlier batches.</p>
 <p>Completed items remain safely waiting until you collect them.</p>
 <p>If the gear inventory is full, completed equipment is <strong>not deleted</strong>.</p>
 <h3 id="queue-capacity">Queue capacity <a class="heading-anchor" href="#queue-capacity" aria-label="Link to heading">#</a></h3>
@@ -1399,7 +1400,8 @@
 <li>×10
 </li></ul>
 <h3 id="cancelled-orders">Cancelled orders <a class="heading-anchor" href="#cancelled-orders" aria-label="Link to heading">#</a></h3>
-<p>Cancelling an uncollected order:</p>
+<p>Use Cancel on an order that is waiting or still crafting. The Workshop shows Collect once it is ready. Cancelling an order leaves later orders on their original schedule.</p>
+<p>Cancellation:</p>
 <ul>
 <li>returns all reserved materials;
 </li>
@@ -1473,6 +1475,10 @@
 </li>
 <li>not be away on Sanctuary Missions;
 </li>
+<li>be active in the collection (return retired parents in Sanctuary first);
+</li>
+<li>have no shared close ancestry within two generations;
+</li>
 <li>not be resting from previous breeding.
 </li></ul>
 <p>Cost:</p>
@@ -1489,7 +1495,7 @@
 <ul>
 <li><strong>2</strong>
 </li></ul>
-<p>Hatched offspring capacity:</p>
+<p>Offspring capacity (pending eggs reserve space toward this cap):</p>
 <ul>
 <li><strong>20</strong>
 </li></ul>
@@ -1572,7 +1578,7 @@
 </section>
 <section class="wiki-topic" id="28-sanctuary-missions"><h2>28. Sanctuary Missions <a class="heading-anchor" href="#28-sanctuary-missions" aria-label="Copy section link">#</a></h2>
 <p>Sanctuary Missions use <strong>reserve dinosaurs</strong>.</p>
-<p>Active battle-party dinosaurs cannot be dispatched.</p>
+<p>Active battle-party dinosaurs, retired companions and companions already away cannot be dispatched. Return retired companions from their Sanctuary profiles first.</p>
 <p>Crew size:</p>
 <ul>
 <li><strong>1 or 2 companions</strong>
@@ -1624,7 +1630,7 @@
 </li>
 <li>gives <strong>no reward</strong>.
 </li></ul>
-<p>Once a mission is complete, collect it instead.</p>
+<p>Once a mission is complete, collect it instead. Collection credits Bones, Herbs and Stone and makes the crew available again. You can collect several returned teams together; if one selected team is unavailable or still travelling, the entire collection is refused.</p>
 <hr>
 </section>
 <section class="wiki-topic" id="29-daily-login-rewards"><h2>29. Daily Login Rewards <a class="heading-anchor" href="#29-daily-login-rewards" aria-label="Copy section link">#</a></h2>
@@ -1913,10 +1919,10 @@
 <section class="wiki-topic" id="37-saves-cloud-accounts-and-recovery-w40-5"><h2>37. Saves, cloud accounts and recovery (W40.5) <a class="heading-anchor" href="#37-saves-cloud-accounts-and-recovery-w40-5" aria-label="Copy section link">#</a></h2>
 <p>Primalbound Web can keep a <strong>Device Save</strong> in this browser and, where account services are available, a separate <strong>Cloud Save</strong>. Cloud account login uses a username/password separate from Hollow Valley or Steam accounts. <strong>These saves do not merge automatically.</strong> Desktop/World has a separate save system and does not automatically share these characters or resources.</p>
 <h3 id="current-save-safety-w40-5">Current save safety — W40.5 <a class="heading-anchor" href="#current-save-safety-w40-5" aria-label="Link to heading">#</a></h3>
-<p>The latest verified Web schema is <strong>format 23</strong> (unchanged by W40.5). W40.5 protects the independent Device Save when account sign-in expires or the player changes accounts; local account copies can be loaded without signing in or uploading, and unsafe sign-out/replacement stops on stale or unreadable device data. W40.4 device upgrades keep the prior local recovery copy and cloud upgrades retain the exact previous cloud revision; large history and Fossil Archive records are stored compactly. Always export a Device JSON and a confirmed Cloud History backup before switching versions, moving accounts or importing data. Review stale-tab and invalid-save warnings. Older Web clients must <strong>not</strong> load format-23 campaigns. World/Desktop&#39;s local saves cannot be converted or merged.</p>
+<p>The current W42 Web save format is <strong>29</strong>. W40.5 used format 23; its recovery rules below still explain how device and cloud campaigns stay separate. W40.5 protects the independent Device Save when account sign-in expires or the player changes accounts; local account copies can be loaded without signing in or uploading, and unsafe sign-out/replacement stops on stale or unreadable device data. W40.4 device upgrades keep the prior local recovery copy and cloud upgrades retain the exact previous cloud revision; large history and Fossil Archive records are stored compactly. Always export a Device JSON and a confirmed Cloud History backup before switching versions, moving accounts or importing data. Review stale-tab and invalid-save warnings. Use a client that supports the format of your save. Older clients cannot safely load a newer-format campaign. World/Desktop&#39;s local saves cannot be converted or merged.</p>
 <h3 id="protected-w27-w40-5-format-migrations">Protected W27–W40.5 format migrations <a class="heading-anchor" href="#protected-w27-w40-5-format-migrations" aria-label="Link to heading">#</a></h3>
 <p>Web milestones progress through <strong>8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 16</strong>: W27.1 to W31 established formats 8–13; W31.1/W31.2 kept 13; W32.0 added Challenge Expedition records in format 14; <strong>W33.0 adds persistent five-floor dungeon runs in format 15</strong>, while <strong>W34.0 Dungeon Practice is simulation-only and retains format 15 with no migration; W34.1 changes only paid dungeon entry stamina and retains format 15, checkpoints, pending cargo and earned clears; </strong>W35.0 migrates format 15 → 16<strong> to store bounded Ancient Hunt proof, active-entry/report and first-clear records without overwriting old Operations, Dungeon cargo, workshop queues or existing campaigns</strong>. Existing dungeon clears, attempts and best floors migrate intact, without back-paying earlier rewards. Completed reward cargo may remain pending until it can be collected safely, and reloading during an active dungeon fight permits retreat rather than replaying that floor. <strong>W36.0 keeps format 16</strong> and indexes existing records without a migration or automatic reward collection. <strong>Never downgrade</strong> a format-16 save into an older Web client (and do not open format-15 saves in clients older than W33): export the Device Save and confirmed Cloud History revisions first, follow stale-tab warnings and keep recovery copies. World/Desktop has unrelated local profile files and no automatic Web account conversion.</p>
-<p><strong>W40.5 compatibility note:</strong> There is <strong>no Web save-format change beyond 23</strong>. Existing account saves, disconnected account copies and the separate device slot remain distinct across session loss, sign-out, cloud switching, explicit import and local recovery. If verification fails, download/export and inspect the current save instead of overwriting another slot. The W40.4 format-23 migration rules above still apply; World/Desktop schema 330 is unrelated.</p>
+<p><strong>W40.5 compatibility note:</strong> There is <strong>no save-format change in W40.5 itself</strong>. Existing account saves, disconnected account copies and the separate device slot remain distinct across session loss, sign-out, cloud switching, explicit import and local recovery. If verification fails, download/export and inspect the current save instead of overwriting another slot. The W40.4 format-23 migration rules above still apply; World/Desktop schema 330 is unrelated.</p>
 <h3 id="starting-or-reconnecting-a-cloud-account">Starting or reconnecting a cloud account <a class="heading-anchor" href="#starting-or-reconnecting-a-cloud-account" aria-label="Link to heading">#</a></h3>
 <ol>
 <li>Open <strong>Player Account</strong> and sign in or create a Web account where available.
