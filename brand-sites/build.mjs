@@ -25,3 +25,6 @@ console.log('Built two isolated static sites; no dependencies, secrets or game s
 await import('./studio-expand.mjs');
 // Overlay the separately reviewed customer-facing catalogue after the studio expansion.
 await import('./publish-merch.mjs');
+
+// Publish hidden interactive HVS showcase demo.
+await import('./publish-showcase-v6.mjs');
