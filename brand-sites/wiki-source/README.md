@@ -3,17 +3,17 @@
 The live Primalbound Render static service builds `brand-sites/dist/primalbound`.
 The existing homepage, `/web/` and `/world/` are preserved.
 
-The Web wiki snapshot, historical release archive and verified notes include the 30 October 2026 W42 LIVE release (commit `b4254da2a8fc229523c60751a60d05fc60c4ba74`, Web format 29; 995 passing tests and matching gameplay notes manifest). W40.5 and older notes remain preserved. Previous W40.4 and older patch notes are retained. The World wiki snapshot and release archive now include the published, non-draft M36.7 Windows ZIP released 6 November 2026 (tag `m36-7-build-42133151186`). The M36.6 and earlier entries remain intact. M36.7 includes launcher navigation, seven Guardian appearances, companion species visuals, Mosswatch courtyard navigation, panel close behavior and unchanged World schema 330; Web and World saves remain separate.
+The Web wiki snapshot, historical release archive and verified notes include the 8 November 2026 W43 LIVE release (commit `0331298fecaee1f2a35b71769021deaa3a3512b7`, Web format 30; 1,042 passing tests and matching gameplay notes manifest). W42 (format 29, 995 tests) remains documented historically. W40.5 and older notes remain preserved. Previous W40.4 and older patch notes are retained. The World wiki snapshot and release archive now include the published, non-draft M36.7 Windows ZIP released 6 November 2026 (tag `m36-7-build-42133151186`). The M36.6 and earlier entries remain intact. M36.7 includes launcher navigation, seven Guardian appearances, companion species visuals, Mosswatch courtyard navigation, panel close behavior and unchanged World schema 330; Web and World saves remain separate.
 
 The last build step in `brand-sites/build.mjs` imports `publish-wikis.mjs`, which replaces only:
-- `/web/wiki/index.html` (Web Preview W42 verified how-to, including W27.1–W42 save compatibility, workspace navigation, Pack Bonds, behaviour specialisations, field focuses, companion retirement, breeding pair plans, Prime Forge preparation, format-29 backups, and older W40.5 device/account recovery, Field opportunities, regional research, loadouts and targeted fossil recovery; all W38.0 and earlier chapters retained)
+- `/web/wiki/index.html` (Web Preview W43 verified how-to, including W27.1–W43 save compatibility, Bleed/Poison/Vulnerable, Guardian warnings, Auto Journey, sweep queues, offline work, Prime Ascent, format-30 backups, earlier workspace navigation, Pack Bonds, behaviour specialisations, field focuses, companion retirement, breeding pair plans, Prime Forge preparation, format-29 history, and older W40.5 device/account recovery, Field opportunities, regional research, loadouts and targeted fossil recovery; all W38.0 and earlier chapters retained)
 - `/world/wiki/index.html` (M36.7 Windows playtest; preserves M36.6 wild species and checksum recovery, adds Guardian/companion species visuals, launcher and courtyard guidance, unchanged World schema 330)
 - `/assets/wiki.css`
 - `/assets/wiki.js`
 
 Source snapshots in `brand-sites/wiki-source/` come from
-`Goofylagaming/primalbound`, branch `feature/primalbound-web-world-wikis`,
-generated from two canonical guides on the notes branch:
+`Goofylagaming/primalbound`, branch `notes/primalbound-world-parity`,
+generated from the two canonical player guides:
 `docs/PRIMALBOUND_WEB_COMPLETE_PLAYER_GUIDE.md` and
 `docs/PRIMALBOUND_WORLD_DESKTOP_COMPLETE_PLAYER_GUIDE.md`.
 
