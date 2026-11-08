@@ -25,8 +25,8 @@ for (const site of ['primalbound','hollow-valley']) {
         // The Primalbound staging preview and generated marketing/wiki pages must be noindexed;
         // do not pretend unrelated council/tradie/GigMatch demos received staging injection.
         const externalDemo=site==='hollow-valley'&&[
-          join('council','index.html'),join('tradie','index.html'),join('gigmatch','index.html')
-        ].some(p=>file.endsWith(p));
+          join('council',''),join('tradie',''),join('gigmatch','')
+        ].some(directory=>file.includes(directory));
         if(!externalDemo)assert.match(html,/noindex,nofollow/);
       }
       assert.match(html,/<h1>/);
