@@ -2,6 +2,30 @@
   "schema": 1,
   "web": [
     {
+      "version": "W60",
+      "title": "Beyond the Rift — W60",
+      "notes": [
+        "Ancient Rift routes preview the Bones, recovery or temporary perk on offer.",
+        "Fossil routes hold more Bones at deeper levels. Event routes grant the shown perk.",
+        "Rift Guardians rotate between Faultline, Sunder Break and Packbreaker Cleave. Their signatures and Bleed or Poison affinities are shown before battle.",
+        "Guardian results show signature warnings, damage and how many signature strikes landed.",
+        "World Map clues reveal regional Survey Camps, Fossil Beds and Ancient Hunt trails as you clear stages and qualify for local fossil recovery.",
+        "Survey Camps open two-encounter regional expeditions after Logistics I. Review the route first, then extract fossils, Bones and regional standing.",
+        "Bred companions earn an extra 5% innate Attack at 75% natural Growth and another 5% at full Growth, raising the hatchling bonus cap to 30%.",
+        "Breeding reviews show the hatchling Growth bonus and individual companion records show how much is earned.",
+        "Save a Sanctuary training project for one companion. Track natural Growth and equipped gear goals, then rehearse with that companion in Training Grounds.",
+        "The Set Field Guide lists piece sources, tier requirements and level-one fitting previews for the selected companion.",
+        "Upgrade a set piece with Bones and an identical unequipped, unlocked level-one spare in place of Stone. Review the spare before confirming.",
+        "Save and reapply an Auto Journey formation and its stop rules. Add a remaining pack Health threshold to stop before the next automatic fight.",
+        "Prepare an Offline Journey and resolve up to 20 frontier fights when you return. It uses the same stop rules as live Auto Journey.",
+        "Expedition Chronicle links map discoveries, campaign Guardian clears, Rift depth and standout companions across Profile and Journal.",
+        "Choose which Chronicle achievements to include in a copyable expedition card.",
+        "Offline victories still advance the campaign after a long absence. Only fights completed in the current contract period count toward it."
+      ],
+      "commit": "73db44a88f5473c5914a1ed305f383e982cdfdc9",
+      "source": "https://primalboundgame.com/web/release-info.json"
+    },
+    {
       "version": "W50",
       "title": "Ancient Rift & Expedition Updates — W50",
       "notes": [
