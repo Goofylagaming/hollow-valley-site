@@ -28,12 +28,15 @@ for (const site of ['primalbound','hollow-valley']) {
         const wiki=file.endsWith(join('wiki','index.html'));
         const notes=file.endsWith(join('patch-notes','index.html'));
         const merch=file.endsWith(join('merch','index.html'))&&site==='hollow-valley';
-        assert.ok(wiki||notes||merch,'Unapproved script on marketing page: '+file);
+        const showcase=file.endsWith(join('labs','showcase-v6','index.html'))&&site==='hollow-valley';
+        assert.ok(wiki||notes||merch||showcase,'Unapproved script on marketing page: '+file);
         const expected=wiki
           ?['<script src="../../assets/wiki.js" defer>','<script src="../../assets/release-notes.js" defer>']
           :merch
             ?['<script defer src="/merch/app.js">']
-            :['<script src="../../assets/release-notes.js" defer>'];
+            :showcase
+              ?['<script defer src="/labs/showcase-v6/app.js">']
+              :['<script src="../../assets/release-notes.js" defer>'];
         assert.deepEqual(scripts.map(x=>x[0]).sort(),expected.sort(),'Only approved same-origin wiki/release scripts are allowed');
       }
       for(const [,url] of html.matchAll(/href="([^"]+)"/g)) {
