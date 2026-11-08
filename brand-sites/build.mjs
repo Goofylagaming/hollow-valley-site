@@ -27,3 +27,6 @@ await import('./publish-merch.mjs');
 
 // Publish hidden interactive HVS showcase demo.
 await import('./publish-showcase-v6.mjs');
+
+// Public HVS GigMatch musician / venue concept demo.
+await import('./publish-gigmatch.mjs');
