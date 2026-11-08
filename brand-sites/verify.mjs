@@ -30,15 +30,18 @@ for (const site of ['primalbound','hollow-valley']) {
         const notes=file.endsWith(join('patch-notes','index.html'));
         const merch=file.endsWith(join('merch','index.html'))&&site==='hollow-valley';
         const gigmatch=file.includes(join('gigmatch'))&&site==='hollow-valley';
+        const hvsDemo=(file.includes(join('tradie'))||file.includes(join('council')))&&site==='hollow-valley';
         const showcase=hiddenShowcase;
-        assert.ok(wiki||notes||merch||gigmatch||showcase,'Unapproved script on marketing page: '+file);
+        assert.ok(wiki||notes||merch||gigmatch||hvsDemo||showcase,'Unapproved script on marketing page: '+file);
         const expected=wiki
           ?['<script src="../../assets/wiki.js" defer>','<script src="../../assets/release-notes.js" defer>']
           :merch
             ?['<script defer src="/merch/app.js">']
             :gigmatch
               ?['<script>']
-              :showcase
+              :hvsDemo
+                ?['<script>']
+                :showcase
                 ?['<script>']
                 :['<script src="../../assets/release-notes.js" defer>'];
         assert.deepEqual(scripts.map(x=>x[0]).sort(),expected.sort(),'Only approved same-origin wiki/release scripts are allowed');
