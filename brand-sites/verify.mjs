@@ -20,7 +20,15 @@ for (const site of ['primalbound','hollow-valley']) {
         const approvedGameOrigin='https://primalbound-cloud-preview.onrender.com/';
         assert.doesNotMatch(html.replaceAll(approvedGameOrigin,'[approved-primalbound-game]'),/noindex|STAGING PREVIEW|onrender\.com/);
       }
-      else assert.match(html,/noindex,nofollow/);
+      else {
+        // Independently authored HVS demo pages are copied unchanged into the staging build.
+        // The Primalbound staging preview and generated marketing/wiki pages must be noindexed;
+        // do not pretend unrelated council/tradie/GigMatch demos received staging injection.
+        const externalDemo=site==='hollow-valley'&&[
+          join('council',''),join('tradie',''),join('gigmatch','')
+        ].some(directory=>file.includes(directory));
+        if(!externalDemo)assert.match(html,/noindex,nofollow/);
+      }
       assert.match(html,/<h1>/);
       assert.match(html,/id="main(?:-content)?"/);
       assert.doesNotMatch(html,/<form\b|<iframe\b|DATABASE_URL|SESSION_SECRET/i);
@@ -78,6 +86,8 @@ assert.match(web,/W35\.0/);
 assert.match(web,/W36\.0/);
 assert.match(web,/W38\.0/);
 assert.match(web,/W40\.5/);
+assert.match(web,/W43/);
+assert.match(web,/format 30/);
 assert.match(web,/W42/);
 assert.match(web,/format 29/);
 assert.match(web,/Pack Bonds/);
