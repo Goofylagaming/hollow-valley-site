@@ -24,3 +24,6 @@ console.log('Built two isolated static sites; no dependencies, secrets or game s
 await import('./publish-wikis.mjs');
 // Isolated Studios merch route; no changes to Primalbound pages or game services.
 await import('./publish-merch.mjs');
+
+// Publish hidden interactive HVS showcase demo.
+await import('./publish-showcase-v6.mjs');
