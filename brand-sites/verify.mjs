@@ -11,6 +11,8 @@ for(const site of ['primalbound','hollow-valley']){
  const scripts=[...html.matchAll(/<script\b[^>]*>/gi)].map(x=>x[0]);
  if(path.endsWith('/merch/index.html')) {
    assert.deepEqual(scripts,['<script defer src="/merch/app.js">'],'Only the local merch filter script is allowed');
+ }else if(path.endsWith('/labs/showcase-v6/index.html')) {
+   assert.deepEqual(scripts,['<script defer src="/labs/showcase-v6/app.js">'],'Only the local showcase script is allowed');
  }else{
    assert.equal(scripts.length,0,'Unexpected script in static site: '+path);
  }
