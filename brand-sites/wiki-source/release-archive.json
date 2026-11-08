@@ -2,6 +2,42 @@
   "schema": 1,
   "web": [
     {
+      "version": "W50",
+      "title": "Ancient Rift & Expedition Updates — W50",
+      "notes": [
+        "Ancient Rift opens after Stage 10,000 with branching routes, rising difficulty, temporary perks, carried Health and a Guardian every fifth depth.",
+        "Resume a saved Rift run or bank all held Bones when leaving. Recover half after defeat. Settled runs update the weekly depth record.",
+        "Settled Rift runs unlock cosmetic titles at depths 5, 15 and 30. Expedition Profile shows your best depth and highest earned title.",
+        "Expedition Profile shows campaign progress, favourites, your rarest companion, active pack power, Codex progress and selected trophies.",
+        "Generate or preview a pack share code with species, formation, talents, behaviours, gear templates and Prime mastery.",
+        "Review and apply a shared formation using available companions you already own. Your gear and training stay in place.",
+        "Training Grounds can compare your pack against a shared build in the same 20 practice fights per pack.",
+        "Hatchery family trees show clickable relatives and let you search companions or filter by generation.",
+        "Compare selected parents side by side and see the odds, stat effects and bonus ranges for possible inherited mutations.",
+        "Save a Breeding Project to track a target species and gene pair, matching hatchlings, and the selected pair’s chance per egg.",
+        "New eggs can discover or inherit rare cosmetic patterns, shown on hatchlings in the Hatchery.",
+        "Assign reserve companions to five Sanctuary habitats. Favourites appear first, with Prime, Hybrid and generation labels and links to family records.",
+        "Three reserve residents unlock a permanent cosmetic decoration for their habitat.",
+        "Related residents who share a habitat appear together in family groups.",
+        "Played campaign victories progress Species Mastery once per participating natural species. The Codex shows cosmetic titles and mastery borders.",
+        "Mastered species unlock a gold Codex portrait frame at 50 victories and a Legend emblem at 250.",
+        "The Outpost overview loads on demand to keep the initial download smaller.",
+        "The Expedition World Map shows region unlocks, campaign completion, the current frontier, local species discoveries and regional research.",
+        "Select a region to open its campaign route or jump to Operations, Fossil Archive, Regional Outlooks, Ancient Hunts or Outpost Research.",
+        "Open named local Ancient Hunts and eligible fossil targets directly from a region on the map.",
+        "Open the Expedition Event Calendar to see the active and upcoming weekend events in AEST.",
+        "Sanctuary Missions dispatched during Supply Weekend earn double supplies, even when collected after the event ends.",
+        "Gathering cycles that finish during Supply Weekend yield double resources, including offline work within the eight-hour limit.",
+        "Fossil Spotlight adds up to 10 percentage points of rare specimen chance to targeted fossil recovery, within the 42% cap.",
+        "Species Spotlight awards 25% more base Bones for a new campaign clear with a standing companion of the featured species.",
+        "Regional Invasion and Special Operation weekends unlock tougher Hunt and Escort routes with richer Bones cargo in reached regions.",
+        "Guardian Outbreak ends in a Guardian fight. Clear all three nodes and extract for a one-time 500 Bones bonus per campaign.",
+        "Outpost Journey and Weekly records load when you open Rewards & Records, keeping the initial download smaller."
+      ],
+      "commit": "da4a7c159cfe7241cd2361290a39bf1cea758668",
+      "source": "https://primalboundgame.com/web/release-info.json"
+    },
+    {
       "version": "W43",
       "title": "Prime Ascent and Auto Journey Controls — W43",
       "notes": [
