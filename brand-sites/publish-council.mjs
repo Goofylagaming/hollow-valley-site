@@ -38,5 +38,8 @@ render();preview(0);
 </script></body></html>`;
 
 await writeFile(out+'styles.css',css);
-await writeFile(out+'index.html',html);
+const indexHtml=process.argv.includes('--production')
+  ? html
+  : html.replace('</head>','<meta name="robots" content="noindex,nofollow"></head>');
+await writeFile(out+'index.html',indexHtml);
 console.log('Published HVS AI Service Triage council concept demo at /council/.');

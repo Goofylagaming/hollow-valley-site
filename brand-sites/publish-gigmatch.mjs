@@ -21,8 +21,11 @@ const musician=shell('HVS GigMatch — Musician Dashboard',`<a class="back" href
 const about=shell('HVS GigMatch — How it works',`<a class="back" href="/gigmatch/">← GigMatch demo home</a><div class="readme"><section class="hero"><div class="eyebrow">Concept overview</div><h1>What GigMatch would do.</h1><p class="lead">The platform connects venues that need live music with performers who are available, suitable and within budget.</p></section><section><h2>Venue side</h2><ul><li>Search by date, genre, location, act type and budget.</li><li>Only show performers whose connected calendar indicates they are available.</li><li>Send offers, find last-minute replacements and manage recurring entertainment.</li><li>Save favourite performers and see upcoming bookings.</li></ul></section><section><h2>Musician side</h2><ul><li>Maintain a professional profile, genres, fee range, travel radius and media links.</li><li>Connect Google Calendar, Outlook or iCal using Busy / Available privacy.</li><li>Receive matched gigs and direct offers.</li><li>Accept, decline or counter an offer and block conflicting dates.</li></ul></section><section><h2>Questions to ask musicians</h2><ul><li>How do you currently get most of your gigs?</li><li>What is the most annoying part of finding or organising gigs?</li><li>Would you connect your calendar if GigMatch could only see Busy / Available?</li><li>What information do you need before accepting a gig?</li><li>Should your price be public, a range, “from”, or hidden?</li><li>Would last-minute nearby gig alerts be useful?</li><li>Would you rather apply for gigs, have venues contact you, or both?</li><li>What would stop you using a platform like this?</li><li>What would this need to do before you would genuinely use it?</li></ul></section><section><h2>Prototype limits</h2><p class="muted">This public demo uses sample data and browser localStorage. Real accounts, real calendar sync, notifications, payments, contracts and external integrations are not enabled.</p></section></div>`);
 
 await writeFile(out+'styles.css',css);
-await writeFile(out+'index.html',home);
-await writeFile(out+'venue/index.html',venue);
-await writeFile(out+'musician/index.html',musician);
-await writeFile(out+'about/index.html',about);
+const forEnvironment=html=>process.argv.includes('--production')
+  ? html
+  : html.replace('</head>','<meta name="robots" content="noindex,nofollow"></head>');
+await writeFile(out+'index.html',forEnvironment(home));
+await writeFile(out+'venue/index.html',forEnvironment(venue));
+await writeFile(out+'musician/index.html',forEnvironment(musician));
+await writeFile(out+'about/index.html',forEnvironment(about));
 console.log('Published HVS GigMatch demo into Hollow Valley Studios static output.');
