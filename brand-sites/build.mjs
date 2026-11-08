@@ -30,3 +30,9 @@ await import('./publish-showcase-v6.mjs');
 
 // Public HVS GigMatch musician / venue concept demo.
 await import('./publish-gigmatch.mjs');
+
+// Public HVS Tradie AI Business Assistant demo.
+await import('./publish-tradie.mjs');
+
+// Public HVS council/facilities Service Triage concept demo.
+await import('./publish-council.mjs');
