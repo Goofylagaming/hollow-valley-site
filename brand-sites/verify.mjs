@@ -13,7 +13,8 @@ for (const site of ['primalbound','hollow-valley']) {
       if (info.isDirectory()){await walk(file);continue;}
       if(!file.endsWith('.html'))continue;
       const html=await readFile(file,'utf8');
-      if(production) {
+      const hiddenShowcase=file.endsWith(join('labs','showcase-v6','index.html'))&&site==='hollow-valley';
+      if(production && !hiddenShowcase) {
         // The live W42 game/account origin is an explicit exception.
         // All other Render preview links and staging indicators stay blocked.
         const approvedGameOrigin='https://primalbound-cloud-preview.onrender.com/';
@@ -28,7 +29,7 @@ for (const site of ['primalbound','hollow-valley']) {
         const wiki=file.endsWith(join('wiki','index.html'));
         const notes=file.endsWith(join('patch-notes','index.html'));
         const merch=file.endsWith(join('merch','index.html'))&&site==='hollow-valley';
-        const showcase=file.endsWith(join('labs','showcase-v6','index.html'))&&site==='hollow-valley';
+        const showcase=hiddenShowcase;
         assert.ok(wiki||notes||merch||showcase,'Unapproved script on marketing page: '+file);
         const expected=wiki
           ?['<script src="../../assets/wiki.js" defer>','<script src="../../assets/release-notes.js" defer>']
