@@ -35,7 +35,7 @@ for (const site of ['primalbound','hollow-valley']) {
       const scripts=[...html.matchAll(/<script\b[^>]*>/gi)];
       if(scripts.length){
         const wiki=file.endsWith(join('wiki','index.html'));
-        const notes=file.endsWith(join('patch-notes','index.html'));
+        const notes=file.endsWith(join('patch-notes','index.html'))||(site==='primalbound'&&file===join(base,'patch-notes','web','index.html'));
         const merch=file.endsWith(join('merch','index.html'))&&site==='hollow-valley';
         const gigmatch=file.includes(join('gigmatch'))&&site==='hollow-valley';
         const hvsDemo=(file.includes(join('tradie'))||file.includes(join('council')))&&site==='hollow-valley';
@@ -155,9 +155,9 @@ for(const [notes,label,expectedVersion] of [[webNotes,'web','W31'],[worldNotes,'
 }
 for(const [guide,label] of [[web,'web'],[world,'world']]){
  assert.ok(guide.includes('data-release-list="'+label+'"'),'Guide release updates missing');
- assert.ok(guide.includes('href="/'+label+'/patch-notes/"'),'Patch notes cross-link missing');
+ assert.ok(guide.includes('href="'+(label==='web'?'/patch-notes/web/':'/world/patch-notes/')+'"'),'Patch notes cross-link missing');
 }
-assert.ok(notesHome.includes('href="/web/patch-notes/"')&&notesHome.includes('href="/world/patch-notes/"'));
+assert.ok(notesHome.includes('href="/patch-notes/web/"')&&notesHome.includes('href="/world/patch-notes/"'));
 assert.ok(notesJs.includes('normalizeWeb')&&notesJs.includes('normalizeWorld'),'Live release listeners missing');
 assert.ok(notesCss.includes('.release-card'),'Patch note styles missing');
 const merchHome=await readFile(join(root,'hollow-valley','index.html'),'utf8');
@@ -189,3 +189,9 @@ assert.match(merchHtml,/download.*verification|delivery QA/i);
 assert.match(merchHtml,/All other product development is paused/);
 assert.doesNotMatch(merchHtml,/class="catalogue-tools"/);
 console.log('PASS: '+count+' pages, wiki/patch notes, owner-provided Book 1 and Chromie Fourthwall links; other new products on hold.');
+
+// The branded /web/* gateway serves gameplay; keep the public archive outside it.
+const webNotesAlias=await readFile(join(base,'patch-notes/web/index.html'),'utf8');
+assert.equal(webNotesAlias,webNotes,'Legacy static archive and gateway-safe route must stay identical');
+assert.ok(webNotesAlias.includes('href="https://primalboundgame.com/patch-notes/web/"'),'Web archive canonical URL must avoid the game gateway');
+assert.ok(!web.includes('href="/web/patch-notes/"')&&!notesHome.includes('href="/web/patch-notes/"'),'Published guide links must use the gateway-safe archive');

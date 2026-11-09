@@ -68,8 +68,9 @@ const files=[
  ['world/wiki/index.html',wiki('world',worldSource)],
  ['patch-notes/index.html',hub()],
  ['web/patch-notes/index.html',notesPage('web')],
+ ['patch-notes/web/index.html',notesPage('web')],
  ['world/patch-notes/index.html',notesPage('world')]
 ];
 for(const file of ['wiki.css','wiki.js','release-notes.css','release-notes.js'])files.push(['assets/'+file,await readFile(join(src,'assets',file),'utf8')]);
-for(const [name,data] of files){const file=join(out,name);await mkdir(dirname(file),{recursive:true});await writeFile(file,data,'utf8');}
+for(const [name,data] of files){const file=join(out,name);await mkdir(dirname(file),{recursive:true});await writeFile(file,data.replaceAll('/web/patch-notes/','/patch-notes/web/'),'utf8');}
 console.log('Published two guide addenda, three patch-note routes and the read-only live release feed.');
