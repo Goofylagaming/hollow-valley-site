@@ -2,6 +2,24 @@
   "schema": 1,
   "web": [
     {
+      "version": "W65",
+      "title": "W65 — Difficulty Ladder",
+      "notes": [
+        "Open Expedition → Difficulty Ladder for opt-in Normal, Veteran and Apex tracks. Existing Normal campaign progress is unchanged.",
+        "Clear a Normal stage before its Veteran challenge, then clear Veteran before Apex. Each harder ladder progresses in order from stage 1.",
+        "Veteran enemies gain 35% Health and 20% Attack; Apex gains 80% Health and 50% Attack on top of existing encounter difficulty.",
+        "Review actual enemy stats, your formation and exact first-clear Bones and Prime before confirming. There is no entry cost.",
+        "First Veteran clears award 1.5× base Bones and Prime; Apex awards 2.5×. Replays give no rewards. No extra gear, DNA or Shards.",
+        "Ladder victories do not advance Normal or start Auto Journey. Defeats and the 120-round limit leave progress and currency unchanged.",
+        "Existing battle, assignment and Offline Journey protections apply. Changed reviews and duplicate results cannot partially apply or pay twice.",
+        "Existing saves stay compatible. Cloud saving blocks older tabs from removing ladder progress; explicit backup recovery remains available."
+      ],
+      "published": "2026-11-09",
+      "commit": "c4a89d4a28fec23e1686b035491414f6b0655f77",
+      "source": "https://primalboundgame.com/web/release-info.json",
+      "save_compatibility": "Web save format 30 unchanged. Optional version-1 Veteran/Apex ladder progress is stored after the first ladder clear; older saves are compatible. Ordinary cloud saving blocks older tabs from silently removing/reducing ladder progress, while explicit archived-history recovery remains possible. Normal campaign, account API and independent World/Desktop schema-330 saves are unchanged. No automatic ladder wins, no replay rewards, no Web↔World migration."
+    },
+    {
       "version": "W64",
       "title": "W64 — Gear Forge",
       "notes": [
