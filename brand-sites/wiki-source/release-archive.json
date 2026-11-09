@@ -2,6 +2,22 @@
   "schema": 1,
   "web": [
     {
+      "version": "W61.2",
+      "title": "Buildcraft Comparisons — W61.2",
+      "notes": [
+        "Review gear + battle party now compares your current combat build with the saved build before you confirm a switch.",
+        "See starting Attack and Health before and after, with signed changes calculated by the existing campaign battle engine.",
+        "Compare team and formation effects, then expand each side to inspect companions, abilities, behaviours and active equipment-set bonuses.",
+        "Starting stats are not a win prediction or a preview of frozen Rift and expedition crews. Conditional combat effects are listed separately.",
+        "The comparison is read-only and loads on demand. A failed download leaves the existing gear review and cancellation controls usable.",
+        "Saved builds, gear-only applying and assignment protection are preserved. No combat balance, currency costs or save-format changes are introduced."
+      ],
+      "published": "2026-11-09",
+      "commit": "d4d394c034014a2a88114208ab40114299065cc8",
+      "source": "https://primalboundgame.com/web/release-info.json",
+      "save_compatibility": "Web save format 30 unchanged; existing named equipment presets, gear-only applying and atomic team/formation assignment protections remain compatible. Device/Account campaigns stay independent; no Web↔World import or save migration."
+    },
+    {
       "version": "W61.1",
       "title": "Buildcraft Foundations — W61.1",
       "notes": [
