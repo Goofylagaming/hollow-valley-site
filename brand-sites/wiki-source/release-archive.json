@@ -2,6 +2,30 @@
   "schema": 1,
   "web": [
     {
+      "version": "W70",
+      "title": "Legacy, Mastery & Bloodlines — W66–W70",
+      "notes": [
+        "Open Legacy & Collections in the Expedition Journal for 15 new permanent milestones and a searchable species collection.",
+        "Earn up to 15 Legacy points and invest them in capped Attack, Health or Nursery Knowledge tracks. Reviewed respec is free.",
+        "Spend species mastery points across nine nodes in Predator, Warden and Adaptation branches. Individuals of a species share one tree.",
+        "Mastery ranks at 10, 25, 50, 100 and 250 wins grant one point each. Respec preserves recorded wins.",
+        "Upgrade each of five habitats through three levels with a Bones and Stone preview before spending.",
+        "Habitat levels shorten new-egg incubation while three eligible reserve residents are present. Existing egg ready times do not change.",
+        "Sequence companions at 25% Growth to record fixed dominant or carrier alleles for Keen Instinct and Deep Vitality. Sequencing is free.",
+        "New eggs inherit recessive alleles from both parents. Expressed traits grant +2% innate Attack or +3% innate Health.",
+        "Preview dominant, carrier and expressed offspring odds. Partner advice can target a species, gene pair and recessive trait together.",
+        "Genomes are saved when eggs are created and never reroll on hatching or reload. Original genes and mutation inheritance remain intact.",
+        "Reviewed progression changes reject stale confirmations and are blocked during active battles, held assignments or prepared Offline Journeys.",
+        "Save format 32 preserves old progress. Cloud saving protects new milestone claims, purchased habitats and recorded genomes from erasure.",
+        "Legacy and mastery bonuses use real combat calculations and new expedition snapshots without rewriting base creature or gear stats.",
+        "Claim the new milestone rewards once per save. Browsing, planning and respec never pay duplicate currency."
+      ],
+      "published": "2026-11-10",
+      "commit": "5ebfccaaad8d0751e16c1d1b61d1664836732999",
+      "source": "https://primalboundgame.com/web/release-info.json",
+      "save_compatibility": "Web save format 32; conservative import of older supported saves, protected Legacy/milestone records, purchased habitat levels and persistent genomes. Existing eggs and frozen assignments retain their terms. Explicit archived recovery remains separate. World schema 330 and World saves are unchanged."
+    },
+    {
       "version": "W65",
       "title": "W65 — Difficulty Ladder",
       "notes": [
