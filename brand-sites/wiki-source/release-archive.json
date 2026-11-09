@@ -2,6 +2,45 @@
   "schema": 1,
   "web": [
     {
+      "version": "W64",
+      "title": "W64 — Gear Forge",
+      "notes": [
+        "Open Armoury → Gear Forge to review upgrades, duplicate use, set-slot reforging and salvage in one place.",
+        "Upgrade directly to a chosen level up to 10, with the exact combined Bones and Stone cost shown before confirmation.",
+        "Choose the exact level-one duplicate set piece to consume for a one-level upgrade; the normal Bones cost applies and no Stone is spent.",
+        "Reforge an unused level-one set piece to a chosen slot in the same set and tier for 600 Bones and 15 Stone per tier. No random roll.",
+        "Locked, equipped and saved-build items cannot be consumed or reforged. Saved-build protection also applies to existing breakdown and duplicate tools.",
+        "Forge reviews show item stats and worn-gear contributions, require confirmation, and reject changed items or insufficient resources without partial spending.",
+        "Active battles, prepared Offline Journeys and affected assigned crews are protected. Existing item identities, balances and save format are preserved."
+      ],
+      "published": "2026-11-09",
+      "commit": "7cd7f1d52d1a452d889d6925d3f1b5e3c38e431e",
+      "source": "https://primalboundgame.com/web/release-info.json",
+      "save_compatibility": "Web save format 30 unchanged. Existing gear item identities and presets remain compatible; reviewed forge upgrades, deterministic same-set/tier reforging and salvage never bypass locked, worn or saved-build protections. No auto-salvage, account API change or Web↔World migration."
+    },
+    {
+      "version": "W63.1",
+      "title": "W62 Automation 2.0 + W63.1 Boss Tactics",
+      "notes": [
+        "Six Journey profiles provide explicit safety settings without starting a fight, changing your pack or enabling spending.",
+        "Set a target stage, a maximum fight count, a required power margin and your own gear-storage stop threshold.",
+        "Live and Offline Journeys share the new limits and show why they stopped. Offline runs keep the existing 20-fight cap.",
+        "Delayed automatic fights recheck the current frontier, pack and rules; cancelling during loading cannot restart the battle.",
+        "Journey loadouts remember the new limits. Prepared offline rules are locked, and old saves and loadouts remain compatible.",
+        "Boss tactics briefings explain signature timing, phase thresholds, preparation and Bleed or Poison affinities.",
+        "Boss battles show the current phase and the next scheduled signature. Existing combat balance and save format are unchanged.",
+        "Auto Equip and paid Growth remain separate opt-ins. No automatic salvage, purchases or World save changes are introduced."
+      ],
+      "published": "2026-11-09",
+      "commit": "ab01ecd3aab3c87639fb54c2231e4be7e0e903b2",
+      "bundled_features": [
+        "W62",
+        "W63.1"
+      ],
+      "source": "https://primalboundgame.com/web/release-info.json",
+      "save_compatibility": "W62 Automation 2.0 and W63.1 Boss Tactics shipped in one verified Web deployment, not two independently verified LIVE versions. Web save format 30 unchanged. Existing Journey presets and old prepared Offline Journeys preserve legacy compatibility; World/Desktop remains independent."
+    },
+    {
       "version": "W61.2",
       "title": "Buildcraft Comparisons — W61.2",
       "notes": [
