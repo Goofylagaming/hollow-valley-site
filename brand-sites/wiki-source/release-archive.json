@@ -2,6 +2,24 @@
   "schema": 1,
   "web": [
     {
+      "version": "W61.1",
+      "title": "Buildcraft Foundations — W61.1",
+      "notes": [
+        "Activate a saved equipment build together with its battle crew and Frontline, Centre and Rear order after one review.",
+        "Keep applying equipment only when you do not want to switch your current party or formation.",
+        "Compare before-and-after formation, equipment, gear stats and set effects before confirming a combined switch.",
+        "Missing gear, outside owners, retired companions and active battles block activation without a partial change.",
+        "Prepared Offline Journeys and affected Sanctuary, expedition, dungeon, Ancient Hunt or Rift crews are protected from loadout changes.",
+        "Loadout confirmation now reports the result actually committed, including a battle or equipment change that happened during confirmation.",
+        "Saved-build selectors have readable dark styling and larger text on mobile browsers.",
+        "Existing equipment presets work without recreation. No currency is spent; talents, abilities and Auto Journey rules stay unchanged."
+      ],
+      "published": "2026-11-09",
+      "commit": "a806169d8cd2503d4453fc3f38c7bf7890bdc1c0",
+      "source": "https://primalboundgame.com/web/release-info.json",
+      "save_compatibility": "Web format 30 unchanged; existing named equipment presets remain compatible. Device and Account campaigns remain distinct; no Web↔World import."
+    },
+    {
       "version": "W60",
       "title": "Beyond the Rift — W60",
       "notes": [
