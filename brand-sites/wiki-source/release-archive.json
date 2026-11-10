@@ -2,6 +2,20 @@
   "schema": 1,
   "web": [
     {
+      "version": "W80 activation",
+      "title": "Safer Community Activation",
+      "notes": [
+        "Community setup can now resolve an approved existing player username to its account ID without exposing an account-search endpoint.",
+        "Invalid or missing moderator usernames stop activation rather than granting access to another account.",
+        "Existing private profiles, clan permissions, solo saves and co-op progress remain unchanged. Season Zero is not launched."
+      ],
+      "commit": "c3a0433ce091ef32cc7b5b2cad56ab516c6e568e",
+      "source": "https://primalboundgame.com/web/release-info.json",
+      "save_compatibility": "Community, shared dungeons and Clan Lodge enabled on 11 November 2026 with owner-approved moderation. Web format 33 and solo/co-op progress unchanged; Season Zero unscheduled. World saves remain separate.",
+      "published": "2026-11-11",
+      "notes_commit": "0c44cd7a869215a79f3225a578cd9684917c87f8"
+    },
+    {
       "version": "W80",
       "title": "Discoveries, Relic Hunts & Community Foundations",
       "notes": [
