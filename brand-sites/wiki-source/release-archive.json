@@ -2,6 +2,24 @@
   "schema": 1,
   "web": [
     {
+      "version": "W72.1",
+      "title": "Expedition Itineraries & Biome Adaptation — W71–W72 candidate (W71.1–W72.1, first LIVE candidate slice)",
+      "notes": [
+        "Compare generated Survey, Recovery, Deep Hunt and Adapted Trail itineraries for your selected region, crew and supply kit.",
+        "Inspect actual encounters, final threat, potential Bones, fossil counts and exact supply costs before dispatch.",
+        "Preparing an itinerary only updates the form. Dispatch still reviews and freezes the real route; only cleared cargo can be extracted.",
+        "Optional Adapted Trails add five biome hazard profiles across all 20 regions without changing ordinary routes or held expeditions.",
+        "Match the displayed crew role and supply kit to reduce biome threat by four percentage points each; duplicate roles do not stack.",
+        "Review hazard costs, reward modifiers and counters before spending. Frozen biome terms persist across reloads and cloud saves.",
+        "Changed biome receipts, encounters or cargo are rejected at battle, extraction and cloud validation rather than granting altered rewards.",
+        "Existing W70 Legacy, mastery and genetic bonuses remain in expedition snapshots. Web save format stays 32; World saves stay separate."
+      ],
+      "published": "2026-11-10",
+      "commit": "a39af80e476f8baf5cb8d703bb4393a63a29e75d",
+      "source": "https://primalboundgame.com/web/release-info.json",
+      "save_compatibility": "Web format 32 unchanged from W70. Existing campaign, eggs, progression, balance, accounts and ordinary/held operations remain compatible. Optional biome terms are version-1 frozen operation receipts in raw/compact format-32 saves and protected cloud backups. No forced upgrade, database migration or World/Desktop schema-330 save change. Interrupted earned cargo may be extracted once; changed receipts or fabricated cargo are rejected. World and Web saves remain separate."
+    },
+    {
       "version": "W70",
       "title": "Legacy, Mastery & Bloodlines — W66–W70",
       "notes": [
