@@ -1,3 +1,13 @@
+# W80 integration release, verified 10 November 2026
+
+Game build `f47a466e94d2916dcd53d7c03e98829e923980cb` is live on the canonical /web/ gateway, cloud origin and static origin. All three manifests match `33644798351d93e0f5348a93961910bfe92972714e5e87c2cf074517acb3ab98`; the actual canonical entry asset matches cloud. The release includes the exact 27 ordered notes (`e63df7725024910f842786755ae961476c3db6bd`). Web format 33; World remains separate. Community, shared dungeons and Lodge are shipped but disabled; Season Zero is unscheduled. This is one integrated release, not separate live W73–W79 versions.
+
+Full how-to chapters cover discovery calendars/claims, relic sequences and rewards, optional season enrollment/tiers, private profiles, packs, server-owned co-op, moderation, shared dungeon rounds, personal/clan rewards, vault permissions and Lodge crafting. Historical chapters and every previous release remain intact. No World changes.
+
+Publish only through the existing manual Primalbound static service `srv-dbfd3t29lscs739ls85g` after full staging and production CI. Do not change gameplay services, flags, moderation accounts, DNS or other brands from this documentation release.
+
+---
+
 ## Verified W71.1–W72.1 LIVE candidate guide synchronization — 10 November 2026, 21:16 AEST
 
 Web Render service `srv-dbbd4j6q1p3s73c5uacg` deployed `a39af80e476f8baf5cb8d703bb4393a63a29e75d` LIVE on branch `ai/primalbound-independent-web`. Its production build passed 1,654 Web tests (zero failures), original startup budget, emitted a matching build manifest and attached eight reviewed notes to gameplay SHA-256 `5fe5f7cbb597f1f090431dfa42d34fac42207a646b08bf1fc346780594fe962b`. W71.1 itinerary comparison and W72.1 optional biome adaptation constitute the first playable LIVE candidate batch, not completion of W71–W80. Web save format **32** remains unchanged. The detailed source guide, this static Web snapshot and exact historical release archive are synchronized; prior W70/W27.1–W31.2 text and World M36.7 wiki remain preserved. Publication requires passing staging/production static builds and manual deployment of **only** the existing Primalbound Render static service `srv-dbfd3t29lscs739ls85g`; autoDeploy stays off. No gameplay, player saves, DNS, binaries or other service changes.
@@ -70,3 +80,4 @@ The browser checks the read-only release feeds on page load. It uses no credenti
 Reviewed gameplay releases should also update the detailed Markdown guide and the corresponding Notion guide, especially when instructions, key bindings, balance, save formats or recovery procedures change. The wiki addenda show immediate verified release summaries, **not** fabricated documentation. During the recurring documentation synchronization, apply the reviewed notes to the correct sections, rebuild the static wiki snapshots and use the existing staging + CI + Render production checks.
 
 Never silently rewrite player saves, the game, its databases, DNS or the separate Hollow Valley website as part of documentation sync.
+
