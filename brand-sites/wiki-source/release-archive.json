@@ -13,7 +13,7 @@
       "source": "https://primalboundgame.com/web/release-info.json",
       "save_compatibility": "Community, shared dungeons and Clan Lodge enabled on 11 November 2026 with owner-approved moderation. Web format 33 and solo/co-op progress unchanged; Season Zero unscheduled. World saves remain separate.",
       "published": "2026-11-11",
-      "notes_commit": "0c44cd7a869215a79f3225a578cd9684917c87f8"
+      "notes_commit": "c3a0433ce091ef32cc7b5b2cad56ab516c6e568e"
     },
     {
       "version": "W80",
