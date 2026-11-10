@@ -2,8 +2,8 @@
   "schema": 1,
   "web": [
     {
-      "version": "W80 activation",
-      "title": "Safer Community Activation",
+      "version": "W80.1",
+      "title": "Safer Community Activation (W80 maintenance)",
       "notes": [
         "Community setup can now resolve an approved existing player username to its account ID without exposing an account-search endpoint.",
         "Invalid or missing moderator usernames stop activation rather than granting access to another account.",
