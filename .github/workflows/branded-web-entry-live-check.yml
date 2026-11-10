@@ -1,0 +1,52 @@
+name: Verify published branded Web play links
+on:
+  push:
+    branches: ['fix/primalbound-branded-web-entry']
+    paths: ['.github/workflows/branded-web-entry-live-check.yml']
+permissions:
+  contents: read
+jobs:
+  verify-public:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Follow actual published play links and check game/API identity
+        run: |
+          mkdir -p evidence
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          import {createHash} from 'node:crypto';
+          const canonical='https://primalboundgame.com/web/';
+          async function get(url){const r=await fetch(url,{signal:AbortSignal.timeout(60000),headers:{'Cache-Control':'no-cache','User-Agent':'Primalbound-release-verification'}});const body=await r.text();assert.equal(r.status,200,url);return {url:r.url,body};}
+          const checks=[];
+          for(const base of ['https://primalboundgame.com/','https://primalbound-site.onrender.com/']){
+            const home=await get(base);
+            const links=[...home.body.matchAll(/<a\b[^>]*href="([^"]+)"[^>]*>([^<]*(?:Play on the web|Enter Primalbound Web)[^<]*)<\/a>/g)].map(m=>({url:m[1],text:m[2]}));
+            assert.equal(links.length,2,base+' play button count');
+            for(const link of links)assert.equal(link.url,canonical,base+' '+link.text);
+            assert.doesNotMatch(home.body,/href="https:\/\/primalbound-(?:web|cloud)-preview\.onrender\.com/);
+            checks.push({homepage:base,playLinks:links});
+          }
+          const entry=await get(canonical);assert.equal(new URL(entry.url).hostname,'primalboundgame.com');
+          const branded=JSON.parse((await get(canonical+'release-info.json')).body);
+          const cloud=JSON.parse((await get('https://primalbound-cloud-preview.onrender.com/release-info.json')).body);
+          assert.equal(branded.version,cloud.version);assert.equal(branded.manifest_sha256,cloud.manifest_sha256);
+          const raw=await get(canonical+'build-manifest.json');assert.equal(createHash('sha256').update(raw.body).digest('hex'),branded.manifest_sha256);
+          const main=Object.values(JSON.parse(raw.body)).find(x=>x.isEntry);assert.ok(main&&entry.body.includes(main.file));
+          const asset=await get(canonical+main.file);assert.ok(asset.body.length>100&&!asset.body.toLowerCase().startsWith('<!doctype html'));
+          const health=JSON.parse((await get(canonical+'api/health')).body);assert.equal(health.ok,true);assert.equal(health.accountsConfigured,true);
+          const capabilities=JSON.parse((await get(canonical+'api/capabilities')).body);assert.equal(capabilities.accounts,true);assert.equal(capabilities.cloudSaves,true);
+          const result={checkedAt:new Date().toISOString(),siteCommit:'fb49d201d0cdeee88565295c1e78e0746ecde094',checks,gameURL:entry.url,gameCommit:branded.version,manifest:branded.manifest_sha256,cloudMatches:true,health,capabilities,noPlayerWrites:true};
+          fs.writeFileSync('evidence/branded-web-live-verification.json',JSON.stringify(result,null,2));console.log(JSON.stringify(result,null,2));
+          JS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: branded-web-live-verification
+          path: evidence/
+          retention-days: 3
+# Public GETs only. No login, account changes, deployment, database mutation or announcement.
