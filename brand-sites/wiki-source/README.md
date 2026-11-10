@@ -1,3 +1,11 @@
+# Community activation, verified 11 November 2026
+
+Community, shared dungeons and Clan Lodge activation was verified at 2026-11-10T21:34:17Z (11 November 2026, 07:34 AEST). Canonical game build `c3a0433ce091ef32cc7b5b2cad56ab516c6e568e` serves reviewed maintenance notes `0c44cd7a869215a79f3225a578cd9684917c87f8` and unchanged gameplay manifest `33644798351d93e0f5348a93961910bfe92972714e5e87c2cf074517acb3ab98`. The owner-selected existing Goofy account resolves through the fail-closed moderator configuration. Public community status is enabled; health reports PostgreSQL/accounts configured; unauthenticated state, Lodge, moderation and cloud-save requests remain denied. Season Zero is unscheduled. Web format 33, solo saves and World saves are unchanged.
+
+Guide status labels and the stale version badge now reflect activation, with all how-to chapters and historical release notes preserved. The original W80 archive entry records its initial disabled state; a new maintenance entry records the deployed activation support. Publish only through Primalbound static service `srv-dbfd3t29lscs739ls85g` after staging and production checks. Other brands, gameplay configuration, accounts, DNS and World are outside this documentation change.
+
+---
+
 # W80 integration release, verified 10 November 2026
 
 Game build `f47a466e94d2916dcd53d7c03e98829e923980cb` is live on the canonical /web/ gateway, cloud origin and static origin. All three manifests match `33644798351d93e0f5348a93961910bfe92972714e5e87c2cf074517acb3ab98`; the actual canonical entry asset matches cloud. The release includes the exact 27 ordered notes (`e63df7725024910f842786755ae961476c3db6bd`). Web format 33; World remains separate. Community, shared dungeons and Lodge are shipped but disabled; Season Zero is unscheduled. This is one integrated release, not separate live W73–W79 versions.
