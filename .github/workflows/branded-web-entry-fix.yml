@@ -1,0 +1,91 @@
+name: Verify and fix branded Primalbound Web entry
+on:
+  push:
+    branches: ['fix/primalbound-branded-web-entry']
+    paths: ['.github/workflows/branded-web-entry-fix.yml']
+permissions:
+  contents: write
+jobs:
+  verify-and-fix:
+    if: github.ref == 'refs/heads/fix/primalbound-branded-web-entry'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Read-only preflight of the real branded game and current cloud origin
+        run: |
+          mkdir -p evidence
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          import {createHash} from 'node:crypto';
+          const game='https://primalboundgame.com/web/',cloud='https://primalbound-cloud-preview.onrender.com/';
+          async function get(url){const r=await fetch(url,{signal:AbortSignal.timeout(60000),headers:{'Cache-Control':'no-cache','User-Agent':'Primalbound-release-verification'}});assert.equal(r.status,200,url);return {url:r.url,body:await r.text()};}
+          const home=await get('https://primalboundgame.com/');
+          const entry=await get(game),a=await get(game+'release-info.json'),b=await get(cloud+'release-info.json');
+          assert.equal(new URL(entry.url).hostname,'primalboundgame.com','Branded entry must not redirect to Render');
+          const branded=JSON.parse(a.body),hosted=JSON.parse(b.body);
+          assert.match(branded.version,/^[a-f0-9]{40}$/);
+          assert.equal(branded.version,hosted.version,'Branded and cloud game must be the same deployed build');
+          assert.equal(branded.manifest_sha256,hosted.manifest_sha256);
+          const raw=await get(game+'build-manifest.json'),manifest=JSON.parse(raw.body);
+          assert.equal(createHash('sha256').update(raw.body).digest('hex'),branded.manifest_sha256);
+          const main=Object.values(manifest).find(x=>x.isEntry);
+          assert.ok(main&&entry.body.includes(main.file),'Branded Web page must serve the actual game, not a landing-page loop');
+          const asset=await get(game+main.file);assert.ok(asset.body.length>100&&!asset.body.toLowerCase().startsWith('<!doctype html'));
+          const health=JSON.parse((await get(cloud+'api/health')).body);assert.equal(health.ok,true);
+          fs.writeFileSync('evidence/public-preflight.json',JSON.stringify({checkedAt:new Date().toISOString(),brandedURL:entry.url,gameCommit:branded.version,manifest:branded.manifest_sha256,cloudMatches:true,entryAsset:main.file,health,oldHomepageRenderLinks:(home.body.match(/href="https:\/\/primalbound-cloud-preview.onrender.com\//g)||[]).length},null,2));
+          fs.writeFileSync('evidence/home-before.html',home.body);
+          console.log('Branded game is live and matches cloud commit '+branded.version+'. Safe to correct primary homepage links.');
+          JS
+      - name: Apply narrowly checked source and regression assertions
+        run: |
+          python3 - <<'PY'
+          import hashlib,pathlib
+          def read(path,sha):
+              p=pathlib.Path(path);b=p.read_bytes()
+              assert hashlib.sha1(b'blob '+str(len(b)).encode()+b'\0'+b).hexdigest()==sha,'Source changed: '+path
+              return p,b.decode()
+          def once(s,a,b):
+              assert s.count(a)==1,repr(a)
+              return s.replace(a,b,1)
+          p,s=read('brand-sites/build.mjs','57708d114257f43703a1c2fa867f5d19e7521f1a')
+          s=once(s,"// The branded /web/ path is a gateway; W42 gameplay and its account API live here.\nconst game = 'https://primalbound-cloud-preview.onrender.com/';","// Public play links use the stable branded gateway; its deployment is verified separately.\nconst game = 'https://primalboundgame.com/web/';\n// Only the static fallback landing page needs an alternate origin to avoid a self-link.\nconst hostedGame = 'https://primalbound-cloud-preview.onrender.com/';")
+          s=once(s,'A browser RPG with its own cloud account service. Play through the current game host while the branded website provides guides and updates.','A browser RPG with its own cloud account service. Play at primalboundgame.com/web/ and find guides and release notes here.')
+          s=once(s,"${button(game,'Continue to Primalbound Web')}","${button(hostedGame,'Open hosted game fallback')}")
+          s=once(s,'Continue opens the current Primalbound Web game on its hosted account service. Sign in with your existing Web account, and retain backups of device-only saves. World and Web progress remains separate.','The normal play address is primalboundgame.com/web/. This static fallback page opens the matching hosted game only when the branded gateway is unavailable. Sign in with your existing Web account; device-only saves belong to their original browser address, so retain a JSON backup before changing addresses. World and Web progress remains separate.')
+          p.write_text(s)
+          p,s=read('brand-sites/verify.mjs','9a3eec3191218f35da85085d29031ac6de97de47')
+          s=once(s,'// The live W42 game/account origin is an explicit exception.','// The explicitly labelled static fallback may use the verified game/account origin.')
+          s=once(s,"if(production) assert.ok(intro.includes('href=\"https://primalbound-cloud-preview.onrender.com/\"'),'Production must link to the active W42 gameplay host, not the gateway');","if(production) assert.ok(intro.includes('href=\"https://primalbound-cloud-preview.onrender.com/\"')&&intro.includes('Open hosted game fallback'),'Static fallback must be explicit and must not loop');")
+          s += '''\n// Primary Web entrypoints must stay branded; the separate static fallback above is intentional.\nfor(const site of ['primalbound','hollow-valley']){\n const home=await readFile(join(root,site,'index.html'),'utf8');\n const playLinks=[...home.matchAll(/<a\\b[^>]*href="([^"]+)"[^>]*>([^<]*(?:Play on the web|Enter Primalbound Web|Play Primalbound Web)[^<]*)<\\/a>/g)];\n assert.equal(playLinks.length,site==='primalbound'?2:1,'Missing expected Web play buttons');\n for(const [,url] of playLinks)assert.equal(url,'https://primalboundgame.com/web/','Primary Web play buttons must use the canonical branded route');\n assert.doesNotMatch(home,/href="https:\\/\\/primalbound-(?:web|cloud)-preview\\.onrender\\.com/,'Homepage must not send players directly to preview hostnames');\n}\n'''
+          p.write_text(s)
+          pathlib.Path('brand-sites/WEB-ENTRYPOINT.md').write_text('''# Primalbound Web play entry\n\nPrimary Play on the web / Enter Primalbound Web buttons use `https://primalboundgame.com/web/`, the stable branded game gateway. A public preflight must confirm that it serves the same release commit, gameplay manifest and actual entry asset as the deployed cloud game before changing or publishing these links. A Render hostname alone does not prove a game is outdated.\n\nThe static-only `/web/` landing page retains an explicitly labelled hosted fallback instead of linking to itself; normal branded traffic is served by the existing game gateway. No gateway, DNS, authentication cookie, cloud save or deployment branch changes are made by this link fix. Browser-local saves remain origin-specific: use the existing cloud account or export a JSON backup from the original address rather than starting a new save accidentally.\n\nThe static validator checks all primary Web play buttons and rejects direct preview-host homepage destinations. This marketing-link fix is not a new gameplay release and must not trigger a duplicate HerbyBot announcement.\n''')
+          PY
+          git diff --check
+          node brand-sites/build.mjs --production
+          node brand-sites/verify.mjs --production
+          node brand-sites/build.mjs
+          node brand-sites/verify.mjs
+          git diff --stat
+      - name: Retain tested source on this private branch only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$GITHUB_REF" = 'refs/heads/fix/primalbound-branded-web-entry'
+          git add brand-sites/build.mjs brand-sites/verify.mjs brand-sites/WEB-ENTRYPOINT.md
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'Use branded Primalbound Web play links and guard against preview-host regressions'
+          git rev-parse HEAD > evidence/tested-commit.txt
+          git -c http.https://github.com/.extraheader="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)" push origin HEAD:refs/heads/fix/primalbound-branded-web-entry
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: branded-web-entry-evidence
+          path: evidence/
+          retention-days: 3
+# No production deploy, DNS, account write, season configuration or announcement.
