@@ -15,7 +15,7 @@ for (const site of ['primalbound','hollow-valley']) {
       const html=await readFile(file,'utf8');
       const hiddenShowcase=file.endsWith(join('labs','showcase-v6','index.html'))&&site==='hollow-valley';
       if(production && !hiddenShowcase) {
-        // The live W42 game/account origin is an explicit exception.
+        // The explicitly labelled static fallback may use the verified game/account origin.
         // All other Render preview links and staging indicators stay blocked.
         const approvedGameOrigin='https://primalbound-cloud-preview.onrender.com/';
         assert.doesNotMatch(html.replaceAll(approvedGameOrigin,'[approved-primalbound-game]'),/noindex|STAGING PREVIEW|onrender\.com/);
@@ -139,7 +139,7 @@ for(const html of [web,world]) {
 const intro=await readFile(join(base,'web/index.html'),'utf8');
 const approvedGameLinks=['https://primalbound-cloud-preview.onrender.com/'];
 assert.ok(approvedGameLinks.some(url=>intro.includes('href="'+url+'"')),'Unrecognized Web game destination');
-if(production) assert.ok(intro.includes('href="https://primalbound-cloud-preview.onrender.com/"'),'Production must link to the active W42 gameplay host, not the gateway');
+if(production) assert.ok(intro.includes('href="https://primalbound-cloud-preview.onrender.com/"')&&intro.includes('Open hosted game fallback'),'Static fallback must be explicit and must not loop');
 assert.ok(!intro.includes('href="https://primalboundgame.com/web/"'),'Web gateway must not redirect its Play button to itself');
 const worldIntro=await readFile(join(base,'world/index.html'),'utf8');
 assert.match(worldIntro,/primalbound-downloads\/releases\/latest/);
@@ -195,3 +195,12 @@ const webNotesAlias=await readFile(join(base,'patch-notes/web/index.html'),'utf8
 assert.equal(webNotesAlias,webNotes,'Legacy static archive and gateway-safe route must stay identical');
 assert.ok(webNotesAlias.includes('href="https://primalboundgame.com/patch-notes/web/"'),'Web archive canonical URL must avoid the game gateway');
 assert.ok(!web.includes('href="/web/patch-notes/"')&&!notesHome.includes('href="/web/patch-notes/"'),'Published guide links must use the gateway-safe archive');
+
+// Primary Web entrypoints must stay branded; the separate static fallback above is intentional.
+for(const site of ['primalbound','hollow-valley']){
+ const home=await readFile(join(root,site,'index.html'),'utf8');
+ const playLinks=[...home.matchAll(/<a\b[^>]*href="([^"]+)"[^>]*>([^<]*(?:Play on the web|Enter Primalbound Web|Play Primalbound Web)[^<]*)<\/a>/g)];
+ assert.equal(playLinks.length,site==='primalbound'?2:1,'Missing expected Web play buttons');
+ for(const [,url] of playLinks)assert.equal(url,'https://primalboundgame.com/web/','Primary Web play buttons must use the canonical branded route');
+ assert.doesNotMatch(home,/href="https:\/\/primalbound-(?:web|cloud)-preview\.onrender\.com/,'Homepage must not send players directly to preview hostnames');
+}
