@@ -275,6 +275,7 @@ function createApp() {
   app.use("/api/map", mapRouter);
   app.use("/api/dashboard", dashboardRouter);
   app.use("/api/mydinos", mydinosRouter);
+  app.use("/api/player-milestones", require("./routes/playerMilestones"));
   app.use("/api/marketplace", marketplaceRouter);
   app.use("/api/skins/premium", require("./routes/premiumSkins"));
   app.use("/api/skins", skinShareCodeRedaction);

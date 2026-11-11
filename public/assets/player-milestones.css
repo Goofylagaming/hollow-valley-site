@@ -1,0 +1,8 @@
+.player-milestone-toasts{position:fixed;right:1rem;bottom:1rem;width:min(400px,calc(100vw - 2rem));z-index:1000;display:grid;gap:.6rem;pointer-events:none}
+.player-milestone-toast{display:flex;gap:1rem;align-items:start;background:#152820;color:#f2faf5;border:1px solid #75bd8c;border-radius:10px;padding:1rem;box-shadow:0 6px 24px #0006;pointer-events:auto;font-size:.95rem}
+.player-milestone-toast button{color:inherit;background:transparent;border:0;font-size:1.3rem;cursor:pointer;margin-left:auto}
+.player-milestone-settings{margin-top:1.5rem;padding:1.25rem}
+.player-milestone-settings p{line-height:1.5}
+.player-milestone-controls{display:grid;gap:.8rem;margin:1rem 0}
+.player-milestone-controls label{display:flex;align-items:center;gap:.7rem}
+.player-milestone-controls input{width:1.2rem;height:1.2rem;accent-color:#75bd8c}

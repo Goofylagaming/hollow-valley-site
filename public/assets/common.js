@@ -374,6 +374,11 @@ window.HDS = (function () {
     const managementOwnerLink = document.getElementById("server-management-owner-nav-link");
     if (managementOwnerLink) managementOwnerLink.hidden = !Boolean(me?.financeOwnerAccess);
     await claimDailyLoginBonus(me);
+    if (me?.user?.steam_id && !document.querySelector('script[data-player-milestones]')) {
+      const script = document.createElement('script');
+      script.src = '/assets/player-milestones.js?v=1'; script.dataset.playerMilestones = 'true';
+      document.body.append(script);
+    }
 
     document.getElementById("auth-area")?.addEventListener("click", (event) => {
       const link = event.target.closest("a");

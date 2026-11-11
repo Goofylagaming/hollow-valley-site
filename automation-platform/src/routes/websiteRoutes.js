@@ -27,6 +27,16 @@ const progression = require('../services/progressionService');
 
 const router = express.Router();
 router.use(requireWebsiteToken);
+router.get('/milestones/:steamId', (req, res) => {
+  res.set('Cache-Control', 'private, no-store');
+  try { res.json(require('../services/playerMilestoneService').feed(validateSteamId(req.params.steamId), req.query.after)); }
+  catch { res.status(400).json({ error: 'Unable to read player notifications' }); }
+});
+router.post('/milestones/:steamId/preferences', (req, res) => {
+  res.set('Cache-Control', 'private, no-store');
+  try { res.json({ preferences: require('../services/playerMilestoneService').get().setPreferences(validateSteamId(req.params.steamId), req.body) }); }
+  catch { res.status(400).json({ error: 'Invalid player notification settings' }); }
+});
 router.use('/premium-skins', require('./premiumSkinsRoutes'));
 
 function validateSteamId(value) {

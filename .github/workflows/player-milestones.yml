@@ -1,0 +1,31 @@
+name: Private player zone notifications
+on:
+  pull_request:
+    paths:
+      - 'automation-platform/src/services/playerMilestone*'
+      - 'automation-platform/src/services/playerPresenceService.js'
+      - 'automation-platform/src/services/externalServerSnapshotService.js'
+      - 'automation-platform/src/routes/websiteRoutes.js'
+      - 'automation-platform/test/playerMilestones.test.js'
+      - 'server/routes/playerMilestones.js'
+      - 'server/services/automationWebsiteClient.js'
+      - 'public/assets/player-milestones*'
+      - 'public/assets/common.js'
+      - 'scripts/player-milestones-browser-smoke.cjs'
+      - 'test/playerMilestoneHttp.test.js'
+      - '.github/workflows/player-milestones.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node --test test/playerMilestoneHttp.test.js automation-platform/test/playerMilestones.test.js automation-platform/test/presenceFeedEndpoint.test.js automation-platform/test/playerPresence.test.js automation-platform/test/primeZoneReset.test.js automation-platform/test/rconControl.test.js
+      - run: npm install --no-save --package-lock=false playwright
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/player-milestones-browser-smoke.cjs
