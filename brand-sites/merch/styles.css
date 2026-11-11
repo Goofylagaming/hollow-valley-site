@@ -217,3 +217,6 @@ h1,h2{letter-spacing:-.055em;line-height:1.11}
 .visual-chromie{background:#f6f7f5}
 .chromie-product-image{display:block;width:100%;height:100%;object-fit:contain;object-position:center;background:#f6f7f5}
 .chromie-view-label{color:#39524b;background:rgba(255,255,255,.86);border-radius:4px;padding:3px 7px;letter-spacing:.12em}
+
+/* Keep the existing shop header within narrow phone screens. */
+@media(max-width:360px){.nav-shell{flex-wrap:wrap}}
