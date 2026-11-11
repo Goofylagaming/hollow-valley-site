@@ -1,3 +1,4 @@
+import { socialLinks, socialStyles } from './social-links.mjs';
 import { mkdir, writeFile, rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('./dist/', import.meta.url));
