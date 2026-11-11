@@ -40,6 +40,7 @@ function saveSnapshot({ sampleId, sampledAt, players = [], maxPlayers = null }) 
       stamina: Number.isFinite(player.stamina) ? player.stamina : null,
       hunger: Number.isFinite(player.hunger) ? player.hunger : null,
       thirst: Number.isFinite(player.thirst) ? player.thirst : null,
+      ...require('./playerMilestoneStore').telemetry(player),
       isPrime: player.isPrime === true,
       mutations: Array.isArray(player.mutations) ? player.mutations : [],
       location: player.location || null,

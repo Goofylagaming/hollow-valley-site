@@ -29,6 +29,7 @@
     26: { status: 'building', note: "Private player reports, staff evidence review and saved chat/combat context are developed and tested. Saved context has an approved 90-day retention period, but configuration and release checks remain unfinished. The new report/evidence tools are not live." },
     27: { status: 'building', note: "A private read-only spectator dashboard is developed and tested. Real-source verification and FPS integration remain unfinished. The new dashboard is not live." },
     29: { status: 'partial', note: "Live: the public website and game-server status page. Expanded service checks and staff-reviewed incident history are developed and tested but are not live. Existing status signals do not verify every game action, Discord message or marketplace delivery." },
+    30: { status: 'building', note: 'Private browser sanctuary, patrol and migration alerts with per-life counters and profile toggles are in release validation. The Windows companion and verified in-game notification delivery remain unfinished.' },
     31: { status: 'building', note: "Territory Wars remains in development and testing. Battle evidence, group identity and source-clock checks have been improved. Live game verification, season integration and release checks remain unfinished; the full system is not marked complete." },
   };
   const stages = [

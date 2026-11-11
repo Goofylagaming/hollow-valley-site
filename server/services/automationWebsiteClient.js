@@ -828,6 +828,8 @@ function uploadAdminRestore({ steamId, slot, restore, fullNutrients = false }) {
 }
 
 module.exports = {
+  getPlayerMilestones: (steamId, after) => call('/milestones/' + encodeURIComponent(validateSteamId(steamId)) + (after === undefined ? '' : '?after=' + encodeURIComponent(String(after)))),
+  setPlayerMilestonePreferences: (steamId, body) => call('/milestones/' + encodeURIComponent(validateSteamId(steamId)) + '/preferences', { method: 'POST', body }),
   arcadeRewardsRequest: (action, body) => call('/admin-wallet/arcade-rewards/' + action, {method:'POST',body}),
   arcadeRequest: (action, body) => call("/admin-wallet/arcade/" + action, {method:"POST",body}),
   getTitleEvidence: steamIds => call('/title-evidence',{method:'POST',body:{steamIds}}),

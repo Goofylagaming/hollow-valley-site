@@ -249,6 +249,7 @@ function presenceFeedError(code, message) {
 }
 
 function finiteOrNull(value) {
+  if (value === null || value === undefined || typeof value === 'boolean' || (typeof value === 'string' && !value.trim())) return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
 }
@@ -326,6 +327,7 @@ function normalizeExternalPlayers(input) {
       stamina: finiteOrNull(player.stamina ?? player.Stamina),
       hunger: finiteOrNull(player.hunger ?? player.Hunger),
       thirst: finiteOrNull(player.thirst ?? player.Thirst),
+      ...require('./playerMilestoneStore').telemetry(player),
       isPrime: player.isPrime === true || player.PrimeElder === true || String(player.PrimeElder || '').toLowerCase() === 'true',
       mutations: normalizeMutations(player.mutations ?? player.Mutations),
       location: normalizeLocation(player.location ?? player.Location),
@@ -408,6 +410,7 @@ async function ingestExternalPresenceSnapshot(input = {}) {
     const reconciliation = reconcilePresence(players, sampledAt);
     require("./valleyLegacyService").recordSnapshot(players, sampledAt);
     const primeTracking = recordPrimeSnapshot(players, sampledAt);
+    require('./playerMilestoneService').recordSnapshot(players, sampledAt);
     const sample = recordPresenceSample(players, sampledAt);
     prunePresenceSamples({
       retentionHours: Number(process.env.PLAYER_PRESENCE_RETENTION_HOURS || 24 * 31),
@@ -509,6 +512,7 @@ async function samplePresence({ force = false } = {}) {
     // cache. RCON must be a fresh observation, timestamped by its actual check.
     if (snapshot.source !== 'external-presence' && !snapshot.cached) {
       const characters = new Map((snapshot.characters || []).map(p => [String(p.steamId), p]));
+      require('./playerMilestoneService').recordSnapshot(players.map(p => ({ ...characters.get(p.steamId), ...p })), snapshot.checkedAt || nowIso);
       require("./valleyLegacyService").recordSnapshot(players.map(p => ({
         ...characters.get(p.steamId), ...p,
       })), snapshot.checkedAt || nowIso);
