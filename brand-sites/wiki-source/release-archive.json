@@ -1,0 +1,883 @@
+{
+  "schema": 1,
+  "web": [
+    {
+      "version": "W81.1",
+      "title": "Safer Packs, Reports and Private Invitations",
+      "notes": [
+        "Report packs for moderator review without removing members or earned progress. Restricted packs leave discovery and cannot start new activity.",
+        "Reports retain the text seen at report time. Changed content can be reported again without losing earlier evidence.",
+        "Opt in to pack invitations while keeping your profile private with a separate code. Turning invitations off revokes it and clears pending invitations.",
+        "Pack dissolution now requires the exact pack name. Shared-dungeon safeguards, solo saves and earned records remain intact."
+      ],
+      "commit": "066d29b7427ef500f297e60b2f69c9b04f90ad55",
+      "source": "https://primalboundgame.com/web/release-info.json",
+      "save_compatibility": "Additive community safety records preserve existing accounts, pack memberships, lodge and treasury, committed dungeon settlement and solo progress. Web format 33 unchanged; Season Zero remains unscheduled. World saves remain separate.",
+      "published": "2026-11-11",
+      "notes_commit": "2514da2ce907f51f3ebaceba6340462b8eb28630"
+    },
+    {
+      "version": "W80.1",
+      "title": "Safer Community Activation",
+      "notes": [
+        "Community setup can now resolve an approved existing player username to its account ID without exposing an account-search endpoint.",
+        "Invalid or missing moderator usernames stop activation rather than granting access to another account.",
+        "Existing private profiles, clan permissions, solo saves and co-op progress remain unchanged. Season Zero is not launched."
+      ],
+      "commit": "c3a0433ce091ef32cc7b5b2cad56ab516c6e568e",
+      "source": "https://primalboundgame.com/web/release-info.json",
+      "save_compatibility": "Community, shared dungeons and Clan Lodge enabled on 11 November 2026 with owner-approved moderation. Web format 33 and solo/co-op progress unchanged; Season Zero unscheduled. World saves remain separate.",
+      "published": "2026-11-11",
+      "notes_commit": "c3a0433ce091ef32cc7b5b2cad56ab516c6e568e"
+    },
+    {
+      "version": "W80",
+      "title": "Discoveries, Relic Hunts & Community Foundations",
+      "notes": [
+        "Format 33 preserves existing progress, held expeditions and exploration records. World saves remain separate.",
+        "Explore seeded Lost Surveys, Predator Migrations and Exposed Ruins across all 20 regions, changing every six hours.",
+        "Review real encounters and exact supplies, then recheck the server calendar at confirmation. Expired reviews spend nothing.",
+        "Complete and extract all three discovery encounters for evidence once per region and window. Partial runs pay only normal cleared cargo.",
+        "Follow three ordered relic hunts, then explicitly claim permanent collection records and one-time rewards. These relics are not equipment.",
+        "Join an optional 28-day Season Zero when it is explicitly scheduled. Earn points from eligible discoveries without resetting core progress.",
+        "Review and claim season rewards at 3, 9 and 18 discoveries. Earned rewards and eligible held runs survive season closing.",
+        "Opening the board never grants rewards. Cloud checks protect recorded clues, claims and enrollment from ordinary older-save overwrites.",
+        "Community foundations include opt-in profiles, packs, co-op expeditions, shared objectives and moderated showcases when enabled.",
+        "Choose Private, Unlisted or Public profiles, select shared fields and revoke old links by making a profile private.",
+        "Create packs of up to 24 members, send targeted invitations, assign officers, transfer ownership or leave. Member rosters stay private.",
+        "Play three co-op routes with standard server-run crews. Four assignment wins from at least two members complete an expedition.",
+        "Assault, Guard and Scout counter enemy stances. The server calculates co-op damage and credit; solo combat stats are never imported.",
+        "Complete weekly pack objectives for one-time badges and points. Only listed packs appear in server-scored weekly rankings.",
+        "Post companion, build, relic or co-op cards. Solo-save showcases are labelled separately from server-earned achievements.",
+        "Delete posts, block explorers or report content privately. Configured moderators can hide or restore content with an audit trail.",
+        "Community writes check permissions, account identity, revisions and retry IDs. Solo currency and World saves are untouched.",
+        "Community stays disabled until the owner enables it and configures moderators. Season Zero remains unscheduled.",
+        "Enter Ironroot Depths with two or three clan members and fight the same three shared encounters on server-resolved rounds.",
+        "Register a named cloud companion; co-op experience and crafted equipment stay server-owned and separate from solo-save power.",
+        "Approve your own optional supplies and offline behaviour before departure. Closing the app does not remove your committed companion.",
+        "Earn personal materials and experience at cleared checkpoints, plus separate Clan Credits and vault resources for a full clear.",
+        "Donate verified co-op items, use permissioned withdrawals and inspect the clan transaction history. Solo imports cannot create vault items.",
+        "Build a Workshop for provisions and personal gear, or expand the Storehouse using earned Clan Credits and shared timber.",
+        "Full-vault rewards wait safely in overflow. Repeat requests cannot duplicate rewards, and removed members retain committed personal loot.",
+        "Treasury spending does not reduce lifetime credit earned or weekly rankings. Officers need explicit quartermaster permission for shared assets.",
+        "Premium purchases remain deferred. No paid currency, season launch or Web/World save merging is included."
+      ],
+      "commit": "f47a466e94d2916dcd53d7c03e98829e923980cb",
+      "bundled_features": [
+        "W73",
+        "W74",
+        "W75",
+        "W76",
+        "W77",
+        "W78",
+        "W79",
+        "W80",
+        "Shared Dungeons & Clan Lodge"
+      ],
+      "source": "https://primalboundgame.com/web/release-info.json",
+      "save_compatibility": "Web format 33 preserves existing progress and held operations; older cloud uploads cannot erase protected discoveries, relic claims or season records. Community remains disabled; Season Zero unscheduled. Server-owned co-op data remains separate from solo saves. World saves unchanged.",
+      "published": "2026-11-10",
+      "notes_commit": "e63df7725024910f842786755ae961476c3db6bd"
+    },
+    {
+      "version": "W72.1",
+      "title": "Expedition Itineraries & Biome Adaptation — W71–W72 candidate (W71.1–W72.1, first LIVE candidate slice)",
+      "notes": [
+        "Compare generated Survey, Recovery, Deep Hunt and Adapted Trail itineraries for your selected region, crew and supply kit.",
+        "Inspect actual encounters, final threat, potential Bones, fossil counts and exact supply costs before dispatch.",
+        "Preparing an itinerary only updates the form. Dispatch still reviews and freezes the real route; only cleared cargo can be extracted.",
+        "Optional Adapted Trails add five biome hazard profiles across all 20 regions without changing ordinary routes or held expeditions.",
+        "Match the displayed crew role and supply kit to reduce biome threat by four percentage points each; duplicate roles do not stack.",
+        "Review hazard costs, reward modifiers and counters before spending. Frozen biome terms persist across reloads and cloud saves.",
+        "Changed biome receipts, encounters or cargo are rejected at battle, extraction and cloud validation rather than granting altered rewards.",
+        "Existing W70 Legacy, mastery and genetic bonuses remain in expedition snapshots. Web save format stays 32; World saves stay separate."
+      ],
+      "published": "2026-11-10",
+      "commit": "a39af80e476f8baf5cb8d703bb4393a63a29e75d",
+      "source": "https://primalboundgame.com/web/release-info.json",
+      "save_compatibility": "Web format 32 unchanged from W70. Existing campaign, eggs, progression, balance, accounts and ordinary/held operations remain compatible. Optional biome terms are version-1 frozen operation receipts in raw/compact format-32 saves and protected cloud backups. No forced upgrade, database migration or World/Desktop schema-330 save change. Interrupted earned cargo may be extracted once; changed receipts or fabricated cargo are rejected. World and Web saves remain separate."
+    },
+    {
+      "version": "W70",
+      "title": "Legacy, Mastery & Bloodlines — W66–W70",
+      "notes": [
+        "Open Legacy & Collections in the Expedition Journal for 15 new permanent milestones and a searchable species collection.",
+        "Earn up to 15 Legacy points and invest them in capped Attack, Health or Nursery Knowledge tracks. Reviewed respec is free.",
+        "Spend species mastery points across nine nodes in Predator, Warden and Adaptation branches. Individuals of a species share one tree.",
+        "Mastery ranks at 10, 25, 50, 100 and 250 wins grant one point each. Respec preserves recorded wins.",
+        "Upgrade each of five habitats through three levels with a Bones and Stone preview before spending.",
+        "Habitat levels shorten new-egg incubation while three eligible reserve residents are present. Existing egg ready times do not change.",
+        "Sequence companions at 25% Growth to record fixed dominant or carrier alleles for Keen Instinct and Deep Vitality. Sequencing is free.",
+        "New eggs inherit recessive alleles from both parents. Expressed traits grant +2% innate Attack or +3% innate Health.",
+        "Preview dominant, carrier and expressed offspring odds. Partner advice can target a species, gene pair and recessive trait together.",
+        "Genomes are saved when eggs are created and never reroll on hatching or reload. Original genes and mutation inheritance remain intact.",
+        "Reviewed progression changes reject stale confirmations and are blocked during active battles, held assignments or prepared Offline Journeys.",
+        "Save format 32 preserves old progress. Cloud saving protects new milestone claims, purchased habitats and recorded genomes from erasure.",
+        "Legacy and mastery bonuses use real combat calculations and new expedition snapshots without rewriting base creature or gear stats.",
+        "Claim the new milestone rewards once per save. Browsing, planning and respec never pay duplicate currency."
+      ],
+      "published": "2026-11-10",
+      "commit": "5ebfccaaad8d0751e16c1d1b61d1664836732999",
+      "source": "https://primalboundgame.com/web/release-info.json",
+      "save_compatibility": "Web save format 32; conservative import of older supported saves, protected Legacy/milestone records, purchased habitat levels and persistent genomes. Existing eggs and frozen assignments retain their terms. Explicit archived recovery remains separate. World schema 330 and World saves are unchanged."
+    },
+    {
+      "version": "W65",
+      "title": "W65 — Difficulty Ladder",
+      "notes": [
+        "Open Expedition → Difficulty Ladder for opt-in Normal, Veteran and Apex tracks. Existing Normal campaign progress is unchanged.",
+        "Clear a Normal stage before its Veteran challenge, then clear Veteran before Apex. Each harder ladder progresses in order from stage 1.",
+        "Veteran enemies gain 35% Health and 20% Attack; Apex gains 80% Health and 50% Attack on top of existing encounter difficulty.",
+        "Review actual enemy stats, your formation and exact first-clear Bones and Prime before confirming. There is no entry cost.",
+        "First Veteran clears award 1.5× base Bones and Prime; Apex awards 2.5×. Replays give no rewards. No extra gear, DNA or Shards.",
+        "Ladder victories do not advance Normal or start Auto Journey. Defeats and the 120-round limit leave progress and currency unchanged.",
+        "Existing battle, assignment and Offline Journey protections apply. Changed reviews and duplicate results cannot partially apply or pay twice.",
+        "Existing saves stay compatible. Cloud saving blocks older tabs from removing ladder progress; explicit backup recovery remains available."
+      ],
+      "published": "2026-11-09",
+      "commit": "c4a89d4a28fec23e1686b035491414f6b0655f77",
+      "source": "https://primalboundgame.com/web/release-info.json",
+      "save_compatibility": "Web save format 30 unchanged. Optional version-1 Veteran/Apex ladder progress is stored after the first ladder clear; older saves are compatible. Ordinary cloud saving blocks older tabs from silently removing/reducing ladder progress, while explicit archived-history recovery remains possible. Normal campaign, account API and independent World/Desktop schema-330 saves are unchanged. No automatic ladder wins, no replay rewards, no Web↔World migration."
+    },
+    {
+      "version": "W64",
+      "title": "W64 — Gear Forge",
+      "notes": [
+        "Open Armoury → Gear Forge to review upgrades, duplicate use, set-slot reforging and salvage in one place.",
+        "Upgrade directly to a chosen level up to 10, with the exact combined Bones and Stone cost shown before confirmation.",
+        "Choose the exact level-one duplicate set piece to consume for a one-level upgrade; the normal Bones cost applies and no Stone is spent.",
+        "Reforge an unused level-one set piece to a chosen slot in the same set and tier for 600 Bones and 15 Stone per tier. No random roll.",
+        "Locked, equipped and saved-build items cannot be consumed or reforged. Saved-build protection also applies to existing breakdown and duplicate tools.",
+        "Forge reviews show item stats and worn-gear contributions, require confirmation, and reject changed items or insufficient resources without partial spending.",
+        "Active battles, prepared Offline Journeys and affected assigned crews are protected. Existing item identities, balances and save format are preserved."
+      ],
+      "published": "2026-11-09",
+      "commit": "7cd7f1d52d1a452d889d6925d3f1b5e3c38e431e",
+      "source": "https://primalboundgame.com/web/release-info.json",
+      "save_compatibility": "Web save format 30 unchanged. Existing gear item identities and presets remain compatible; reviewed forge upgrades, deterministic same-set/tier reforging and salvage never bypass locked, worn or saved-build protections. No auto-salvage, account API change or Web↔World migration."
+    },
+    {
+      "version": "W63.1",
+      "title": "W62 Automation 2.0 + W63.1 Boss Tactics",
+      "notes": [
+        "Six Journey profiles provide explicit safety settings without starting a fight, changing your pack or enabling spending.",
+        "Set a target stage, a maximum fight count, a required power margin and your own gear-storage stop threshold.",
+        "Live and Offline Journeys share the new limits and show why they stopped. Offline runs keep the existing 20-fight cap.",
+        "Delayed automatic fights recheck the current frontier, pack and rules; cancelling during loading cannot restart the battle.",
+        "Journey loadouts remember the new limits. Prepared offline rules are locked, and old saves and loadouts remain compatible.",
+        "Boss tactics briefings explain signature timing, phase thresholds, preparation and Bleed or Poison affinities.",
+        "Boss battles show the current phase and the next scheduled signature. Existing combat balance and save format are unchanged.",
+        "Auto Equip and paid Growth remain separate opt-ins. No automatic salvage, purchases or World save changes are introduced."
+      ],
+      "published": "2026-11-09",
+      "commit": "ab01ecd3aab3c87639fb54c2231e4be7e0e903b2",
+      "bundled_features": [
+        "W62",
+        "W63.1"
+      ],
+      "source": "https://primalboundgame.com/web/release-info.json",
+      "save_compatibility": "W62 Automation 2.0 and W63.1 Boss Tactics shipped in one verified Web deployment, not two independently verified LIVE versions. Web save format 30 unchanged. Existing Journey presets and old prepared Offline Journeys preserve legacy compatibility; World/Desktop remains independent."
+    },
+    {
+      "version": "W61.2",
+      "title": "Buildcraft Comparisons — W61.2",
+      "notes": [
+        "Review gear + battle party now compares your current combat build with the saved build before you confirm a switch.",
+        "See starting Attack and Health before and after, with signed changes calculated by the existing campaign battle engine.",
+        "Compare team and formation effects, then expand each side to inspect companions, abilities, behaviours and active equipment-set bonuses.",
+        "Starting stats are not a win prediction or a preview of frozen Rift and expedition crews. Conditional combat effects are listed separately.",
+        "The comparison is read-only and loads on demand. A failed download leaves the existing gear review and cancellation controls usable.",
+        "Saved builds, gear-only applying and assignment protection are preserved. No combat balance, currency costs or save-format changes are introduced."
+      ],
+      "published": "2026-11-09",
+      "commit": "d4d394c034014a2a88114208ab40114299065cc8",
+      "source": "https://primalboundgame.com/web/release-info.json",
+      "save_compatibility": "Web save format 30 unchanged; existing named equipment presets, gear-only applying and atomic team/formation assignment protections remain compatible. Device/Account campaigns stay independent; no Web↔World import or save migration."
+    },
+    {
+      "version": "W61.1",
+      "title": "Buildcraft Foundations — W61.1",
+      "notes": [
+        "Activate a saved equipment build together with its battle crew and Frontline, Centre and Rear order after one review.",
+        "Keep applying equipment only when you do not want to switch your current party or formation.",
+        "Compare before-and-after formation, equipment, gear stats and set effects before confirming a combined switch.",
+        "Missing gear, outside owners, retired companions and active battles block activation without a partial change.",
+        "Prepared Offline Journeys and affected Sanctuary, expedition, dungeon, Ancient Hunt or Rift crews are protected from loadout changes.",
+        "Loadout confirmation now reports the result actually committed, including a battle or equipment change that happened during confirmation.",
+        "Saved-build selectors have readable dark styling and larger text on mobile browsers.",
+        "Existing equipment presets work without recreation. No currency is spent; talents, abilities and Auto Journey rules stay unchanged."
+      ],
+      "published": "2026-11-09",
+      "commit": "a806169d8cd2503d4453fc3f38c7bf7890bdc1c0",
+      "source": "https://primalboundgame.com/web/release-info.json",
+      "save_compatibility": "Web format 30 unchanged; existing named equipment presets remain compatible. Device and Account campaigns remain distinct; no Web↔World import."
+    },
+    {
+      "version": "W60",
+      "title": "Beyond the Rift — W60",
+      "notes": [
+        "Ancient Rift routes preview the Bones, recovery or temporary perk on offer.",
+        "Fossil routes hold more Bones at deeper levels. Event routes grant the shown perk.",
+        "Rift Guardians rotate between Faultline, Sunder Break and Packbreaker Cleave. Their signatures and Bleed or Poison affinities are shown before battle.",
+        "Guardian results show signature warnings, damage and how many signature strikes landed.",
+        "World Map clues reveal regional Survey Camps, Fossil Beds and Ancient Hunt trails as you clear stages and qualify for local fossil recovery.",
+        "Survey Camps open two-encounter regional expeditions after Logistics I. Review the route first, then extract fossils, Bones and regional standing.",
+        "Bred companions earn an extra 5% innate Attack at 75% natural Growth and another 5% at full Growth, raising the hatchling bonus cap to 30%.",
+        "Breeding reviews show the hatchling Growth bonus and individual companion records show how much is earned.",
+        "Save a Sanctuary training project for one companion. Track natural Growth and equipped gear goals, then rehearse with that companion in Training Grounds.",
+        "The Set Field Guide lists piece sources, tier requirements and level-one fitting previews for the selected companion.",
+        "Upgrade a set piece with Bones and an identical unequipped, unlocked level-one spare in place of Stone. Review the spare before confirming.",
+        "Save and reapply an Auto Journey formation and its stop rules. Add a remaining pack Health threshold to stop before the next automatic fight.",
+        "Prepare an Offline Journey and resolve up to 20 frontier fights when you return. It uses the same stop rules as live Auto Journey.",
+        "Expedition Chronicle links map discoveries, campaign Guardian clears, Rift depth and standout companions across Profile and Journal.",
+        "Choose which Chronicle achievements to include in a copyable expedition card.",
+        "Offline victories still advance the campaign after a long absence. Only fights completed in the current contract period count toward it."
+      ],
+      "commit": "73db44a88f5473c5914a1ed305f383e982cdfdc9",
+      "source": "https://primalboundgame.com/web/release-info.json"
+    },
+    {
+      "version": "W50",
+      "title": "Ancient Rift & Expedition Updates — W50",
+      "notes": [
+        "Ancient Rift opens after Stage 10,000 with branching routes, rising difficulty, temporary perks, carried Health and a Guardian every fifth depth.",
+        "Resume a saved Rift run or bank all held Bones when leaving. Recover half after defeat. Settled runs update the weekly depth record.",
+        "Settled Rift runs unlock cosmetic titles at depths 5, 15 and 30. Expedition Profile shows your best depth and highest earned title.",
+        "Expedition Profile shows campaign progress, favourites, your rarest companion, active pack power, Codex progress and selected trophies.",
+        "Generate or preview a pack share code with species, formation, talents, behaviours, gear templates and Prime mastery.",
+        "Review and apply a shared formation using available companions you already own. Your gear and training stay in place.",
+        "Training Grounds can compare your pack against a shared build in the same 20 practice fights per pack.",
+        "Hatchery family trees show clickable relatives and let you search companions or filter by generation.",
+        "Compare selected parents side by side and see the odds, stat effects and bonus ranges for possible inherited mutations.",
+        "Save a Breeding Project to track a target species and gene pair, matching hatchlings, and the selected pair’s chance per egg.",
+        "New eggs can discover or inherit rare cosmetic patterns, shown on hatchlings in the Hatchery.",
+        "Assign reserve companions to five Sanctuary habitats. Favourites appear first, with Prime, Hybrid and generation labels and links to family records.",
+        "Three reserve residents unlock a permanent cosmetic decoration for their habitat.",
+        "Related residents who share a habitat appear together in family groups.",
+        "Played campaign victories progress Species Mastery once per participating natural species. The Codex shows cosmetic titles and mastery borders.",
+        "Mastered species unlock a gold Codex portrait frame at 50 victories and a Legend emblem at 250.",
+        "The Outpost overview loads on demand to keep the initial download smaller.",
+        "The Expedition World Map shows region unlocks, campaign completion, the current frontier, local species discoveries and regional research.",
+        "Select a region to open its campaign route or jump to Operations, Fossil Archive, Regional Outlooks, Ancient Hunts or Outpost Research.",
+        "Open named local Ancient Hunts and eligible fossil targets directly from a region on the map.",
+        "Open the Expedition Event Calendar to see the active and upcoming weekend events in AEST.",
+        "Sanctuary Missions dispatched during Supply Weekend earn double supplies, even when collected after the event ends.",
+        "Gathering cycles that finish during Supply Weekend yield double resources, including offline work within the eight-hour limit.",
+        "Fossil Spotlight adds up to 10 percentage points of rare specimen chance to targeted fossil recovery, within the 42% cap.",
+        "Species Spotlight awards 25% more base Bones for a new campaign clear with a standing companion of the featured species.",
+        "Regional Invasion and Special Operation weekends unlock tougher Hunt and Escort routes with richer Bones cargo in reached regions.",
+        "Guardian Outbreak ends in a Guardian fight. Clear all three nodes and extract for a one-time 500 Bones bonus per campaign.",
+        "Outpost Journey and Weekly records load when you open Rewards & Records, keeping the initial download smaller."
+      ],
+      "commit": "da4a7c159cfe7241cd2361290a39bf1cea758668",
+      "source": "https://primalboundgame.com/web/release-info.json"
+    },
+    {
+      "version": "W43",
+      "title": "Prime Ascent and Auto Journey Controls — W43",
+      "notes": [
+        "Auto Journey returns to Continue Journey if it cannot start the next fight, including when a mutant Guardian needs more gear space.",
+        "Armour Break applies Vulnerable. The pack deals 15% more strike damage for the next two rounds, with a visible timer.",
+        "Iron Carapace, Venom Flood and Frost Howl enemies show Bleed and Poison affinities. Weakness adds 50% status damage and resistance halves it.",
+        "Bleed and Poison deal damage over the next three rounds. Enemy health shows the remaining rounds for each effect.",
+        "Reapplying Bleed or Poison refreshes that effect without stacking. The combat log shows status damage and names Armour Break attacks.",
+        "Early Guardian warnings stay visible until the strike round, counting down from two rounds to the next round.",
+        "The live combat log shows each companion hit by a Guardian signature and the damage they took.",
+        "Battle results show rounds fought, surviving companions on victory, and enemy health remaining on defeat. The log explains skipped Stun attacks.",
+        "Auto Journey can pause before a campaign Guardian so you can review your pack and start the fight manually.",
+        "Auto Journey can also stop after the final battle of an Expedition Tier, so you choose when to enter the next tier.",
+        "Set a stamina threshold to stop Auto Journey when your available stamina is at or below that amount. Set it to zero to turn the rule off.",
+        "With Auto Journey enabled, opt in to Auto Equip after frontier victories. It respects active set bonuses and gear equipped by other companions.",
+        "Queue up to five 2x, 5x or 10x sweep batches for a cleared stage. Review the total stamina cost. A blocked batch cancels all costs and rewards.",
+        "Auto Growth can train participating companions by 1% after a frontier victory, if the whole purchase leaves your chosen Bones reserve intact.",
+        "Auto Journey can stop when gear storage reaches 90% full, including gear earned from the latest victory.",
+        "Offline Activity distinguishes pending work that completed between visits on this browser when a previous visit is available.",
+        "Homestead now shows pending gathering rewards, completed Workshop orders, eggs ready to hatch and missions ready to collect.",
+        "The Offline Activity report lists gathering cycles and skill XP, flags the eight-hour cap, and breaks completed Workshop batches down by recipe.",
+        "Prime Ascent adds fifteen optional challenges after all five original Frontier trophies: Initiate, Veteran and Apex ranks for each family.",
+        "Ascent entry is free. First victories earn rank trophies; repeat victories improve clear-count, round and survivor records without currency or stat rewards.",
+        "Ascent freezes your formation and encounter, saves between rounds, and lets you resume or leave without losing earlier trophies.",
+        "Ascent entry review shows each companion, role, position, Attack and Health before you confirm the frozen formation.",
+        "Ascent flags gear held by reserve companions and links to the Armoury for comparison. Equipment transfers remain manual.",
+        "Veteran Ascent adds the family mutation; Apex increases its attack pressure and speeds up signature cycles. The existing growth cap is unchanged.",
+        "Ascent warnings remain visible when the guardian is stunned, so the next scheduled signature attack is still announced.",
+        "Campaign and dungeon practice replays distinguish incoming guardian warnings from signature attacks that have already landed.",
+        "New replays show the recorded strike round, affected companions and damage from each guardian signature.",
+        "Older replay frames remain readable when detailed timing or target records are unavailable.",
+        "Campaign and dungeon practice replays show clearer Guardian attack information.",
+        "Growth, Prime awakening, stamina, genetics, mutation, Titan and reward actions load on demand to keep startup within its existing size limits.",
+        "Existing campaigns are preserved by the save update; invalid Ascent records are rejected instead of silently reset.",
+        "Gathering collection and assignment tools load on demand to keep startup small."
+      ],
+      "published": "2026-11-08",
+      "commit": "0331298fecaee1f2a35b71769021deaa3a3512b7",
+      "source": "https://primalboundgame.com/web/release-info.json"
+    },
+    {
+      "version": "W42",
+      "title": "Connected Workspaces & Frontier Preparation — W42",
+      "notes": [
+        "A connected forest-and-bronze interface separates browsing, selected details and current activities, with a named rail and phone navigation drawer.",
+        "Large header totals use compact summaries. Exact balances remain in tooltips and accessible labels; wallet shortcuts open the matching Resource Guide.",
+        "Crafting separates recipe collections, selected requirements and active orders. Real unlock counts, batch reviews, queue limits and refunds remain.",
+        "Gathering previews stay separate from the worker. Homestead plots have their own workspace; one worker, saved partial cycles and the eight-hour cap remain.",
+        "Facility details show current benefits, upgrade paths and material shortfalls. Reviews return focus, and large balances wrap on narrow screens.",
+        "Resource Guide and Journal use selected panels and compact navigation, retaining searches, tier filters, pages and exact activity destinations.",
+        "Field Contracts separate objectives from rewards. Journey goals and Trophy Hall get clearer selection, progress and showcase workspaces.",
+        "Creature Codex has group filters, a 24-species browser and one full record. Search owned companion names and open their exact individual records.",
+        "Sanctuary separates collection, pack setup and missions. Browse 24 companions per page without losing individual identities or deployment restrictions.",
+        "Growth separates natural training, Prime progression and collection upgrades, with owned-companion search and selected budgets or milestones.",
+        "Training plans show remaining Bones, awakening Essence and funding gaps. Plans spend nothing and never bypass Growth, campaign or Trial requirements.",
+        "Armoury separates inventory, saved builds, breakdown and the Set Field Guide. Paged item details retain ownership, locks and replacement reviews.",
+        "Companion records separate care, behaviour, Pack Bonds, field history and retirement. Family views and long names fit below the header on phones.",
+        "Hatchery has breeding, saved pairs, eggs/genes, offspring and family workspaces. Hatching selects the actual new companion; renaming retains its identity.",
+        "Talent investment and build reallocation have separate tools and companion pages. Templates, custom allocations and saved builds retain their reviews.",
+        "Gene Traits and DNA Lab use searchable selections. Hybrid blueprints show exact mutant guardian sources, recovered stages and future first clears.",
+        "Prime Forge separates awakening, Trials, Frontier and Mastery. Existing gates and rewards remain; a cold-page Frontier battle now advances correctly.",
+        "Dungeons have tier categories, route search and separate current-run/report views. Titan Hunts separate challenges, biome mastery and results.",
+        "Field Operations separates route setup, searchable crew and its log. Fossil planning/evidence and selected research retain exact Journal destinations.",
+        "Training Grounds separates setup, reports and replay. Free 20-sample practice, pack comparisons, cancellation and stale-report protection remain.",
+        "Outpost separates expedition/pack, supplies/recovery, rewards/records and services. Ready badges do not collect anything; Train opens the clicked companion.",
+        "Outpost and Expedition rest controls now follow the same AEST day as their rewards.",
+        "Expedition separates routes, Journey settings and tier caches. Battle summaries show recorded rewards and correct returns; held cargo still needs collection.",
+        "Legacy & Saves separates progress, contracts, backups, recovery and reset. Critical save warnings and existing reset confirmations stay visible.",
+        "Recovery archives group previous, device and account copies with search and 24-copy pages. Changed copies must be downloaded again before removal.",
+        "Account workspaces separate connection, downloads and selected cloud revisions. Unsupported revisions stay downloadable with restore disabled.",
+        "Account and save dialogs retain pending locks, Escape and keyboard focus return. Save, version and conflict warnings remain visible across workspaces.",
+        "Device Save offers current backups and local account recovery, including setup-pending access. Its dialog now opens above the whole game, clear of the header.",
+        "A failed save-options download still offers a current-save export. Unavailable recovery storage no longer claims a previous copy exists.",
+        "Companions earn Pack Bonds through shared first campaign clears and fully collected operations, dungeons and victorious Ancient Hunts.",
+        "Familiar, Trusted and Bonded need 3, 10 and 25 shared ventures. The strongest pair adds 1, 2 or 3 rare-specimen points on ordinary operations, capped at 42%.",
+        "Bonds add no combat stats or currency and do not alter challenge or Prime Territory chances. Dispatch freezes the pair and bonus; no past Bonds are invented.",
+        "Review free Instinctive, Bold, Watchful or Nurturing behaviours per companion. Bold deals/takes 5% more damage; Watchful deals/takes 5% less.",
+        "Nurturing directs existing healing to the ally missing most Health. Changes require closed battles and collected assignments; held parties stay frozen.",
+        "At 25% natural Growth, compatible roles can review a free specialisation in the same behaviour slot. These add no base stats, Growth cap or inherited advantage.",
+        "Sentinel takes 10% less Frontline damage but deals 5% less. Finisher deals 12% more at 35% enemy Health or less, but 5% less above it.",
+        "Triage improves existing healing by 15% below half Health and reduces it by 10% otherwise. It grants no new healing or revival.",
+        "At 25% natural Growth, support, guard and hunter roles can choose Herbalist, Excavator or Quartermaster field focuses in that same behaviour slot.",
+        "Field focuses trade 10% Mission cargo: Herbalist +Herbs/-Stone, Excavator +Stone/-Bones, Quartermaster +Bones/-Herbs, rounded down after crew bonuses.",
+        "Each field focus counts once per crew and adds no combat bonus. Reviews show cargo tradeoffs; dispatch freezes choices without changing held rewards.",
+        "The same 12 favourites work across Sanctuary, records, Hatchery and mission filters. Marking a favourite adds no stats or breeding bonus.",
+        "Retire and return reserve companions freely while keeping identity, Growth, gear, talents and history. Active, assigned and resting parents cannot retire.",
+        "Retired companions stay owned but cannot deploy, practise, breed or join assignments until returned. Retirement frees no nursery space or rewards.",
+        "Save three named breeding pairs with exact individuals and parent order. Plans cost nothing, retain unavailable parents and never substitute another companion.",
+        "Breeding rechecks parents, genes, nursery terms, availability and current resources. Duplicate or changed confirmations cannot create extra eggs or rerolls.",
+        "Hatching and naming recheck the actual egg or individual after loading. Accepted hatches keep one birth identity and credit the current weekly contract once.",
+        "Mission and recruitment recheck availability and resources; repeated starts cannot spend twice. Loading failures retain progress and offer a retry.",
+        "Save format 29 retains original device recovery bytes and the prior cloud revision on upgrade. Existing inventory, orders, eggs and assignments stay intact.",
+        "Prime Forge's new Preparation workspace tracks campaign, Trial, team, Growth, equipment, hybrid, Research and route requirements.",
+        "Review remaining training, hybrid, Research and supply budgets, then open the relevant existing action screen.",
+        "Viewing the guide spends nothing and never trains, equips, deploys, dispatches or claims rewards.",
+        "Earned Frontier trophies stay complete in the guide when you change your pack or equipment.",
+        "Prime Growth text clarifies that its bonuses affect innate stats before flat equipment. Balance, the 200% cap and save format 29 are unchanged."
+      ],
+      "published": "2026-10-30",
+      "commit": "b4254da2a8fc229523c60751a60d05fc60c4ba74",
+      "source": "https://github.com/Goofylagaming/primalbound/blob/b4254da2a8fc229523c60751a60d05fc60c4ba74/web/update-notes.json"
+    },
+    {
+      "version": "W40.5",
+      "title": "Keep Device & Account Campaigns Separate — W40.5",
+      "notes": [
+        "Expired sign-in and sync conflicts no longer replace a separate device campaign with loaded account progress.",
+        "Disconnected account progress stays saved under its original account. Signing into another account keeps both local campaigns.",
+        "The sign-in panel can load a saved local account copy without signing in or uploading it. Your device campaign is retained as a recovery copy.",
+        "Cloud switches, imports and local recovery keep account and device recovery copies. Cancelling local recovery leaves stored campaigns unchanged.",
+        "Signing out verifies the latest device campaign before switching back. Newer or unreadable device saves stay protected.",
+        "Existing save format 23, gameplay, rewards and progression are unchanged."
+      ],
+      "published": "2026-10-30",
+      "commit": "2dbeb7d21ab88e4c254c108f7c8cf709ddce1be4",
+      "source": "https://github.com/Goofylagaming/primalbound/blob/2dbeb7d21ab88e4c254c108f7c8cf709ddce1be4/web/update-notes.json"
+    },
+    {
+      "version": "W40.4",
+      "title": "Fieldwork, Loadouts & Save Reliability — W40.4",
+      "notes": [
+        "Earn permanent regional standing: full Survey and Recover returns give 2 points; other complete ordinary routes give 1. Partial and Challenge returns give none.",
+        "Regions now track Field Scout, Regional Surveyor and Trailkeeper ranks, full Survey/Recover evidence, and full returns in all four weather outlooks.",
+        "Field Supply Permit costs 5 Insight after 6 standing plus Survey and Recover evidence. It removes one extra weather supply, Herbs first, otherwise Stone.",
+        "Specimen Index costs 8 Insight after 12 standing, Survey/Recover and all four full outlook returns. It adds 2 rare points within the existing 42% cap.",
+        "Regional research is optional and applies to future weather jobs only. Kits retain their costs; already dispatched jobs keep their original terms.",
+        "Twenty regions now offer persistent field opportunities: Exposed Fossil Beds, Herb Blooms, Migrating Herds and Predator Pressure.",
+        "Earn Field Scout standing in a region to plan its opportunity. Three future opportunities are visible, and there are no expiry timers or login windows.",
+        "Each opportunity uses a fixed route type and clear threat, Bones and supply tradeoffs. It replaces other conditions and cannot stack with weather or Challenges.",
+        "Migrating Herds follow one known regional creature across all three encounters and fossil finds. Predator Pressure ends with an already-available threat.",
+        "Compy encounters in new opportunities now use the Compsognathus portrait and fossil identity. Existing standard-route records stay intact.",
+        "Clear all three nodes and extract to earn completion Herbs or Stone and advance the opportunity. Partial returns keep only cleared base cargo.",
+        "Retreating, failing or changing the clock does not reroll an opportunity. Normal campaign progress may reveal more eligible encounters.",
+        "Planners and held-run cards distinguish cleared cargo from full-route-only materials, with targets and final specimen chance shown before dispatch.",
+        "Malformed, stale or overflowing collection holds all rewards together, including materials, standing and opportunity progress.",
+        "Regional Outlooks now has separate Weather, Field opportunities and Regional research categories to keep its controls easier to browse.",
+        "Older campaigns and held jobs keep their original terms. Regional standing and opportunity records start from actual new collections.",
+        "Returning from a locked-region Journal preview now selects an available region in the planner, so its displayed region and dispatch review agree.",
+        "Original standard, weather and Challenge route generation stays intact. Existing Growth caps, combat stats and Ancient requirements are unchanged.",
+        "Save five named equipment loadouts for one to three companions, using the exact items you own, including their current upgrades.",
+        "Review item, Attack, Health and set-effect changes before applying a loadout. Empty saved slots remove worn gear; all listed changes apply together.",
+        "Loadouts can transfer items within their recorded crew. Missing items, unavailable companions or gear worn outside that crew block the whole change.",
+        "Equipment loadouts keep your active party and formation unchanged. Saving, replacing and forgetting a loadout do not move or destroy gear.",
+        "Save format 23 keeps existing progress, worn gear, held jobs and saved loadouts intact. Equipment loadouts also travel with save backups.",
+        "The Outpost loads detailed crafting-goal checks only when needed, reducing its initial download while keeping held-order status available.",
+        "Plan targeted Recover expeditions for 166 natural species in the Fossil Archive. Search, species groups and pages keep the catalog manageable.",
+        "Biology I and the species’ cleared discovery stage unlock its dig. Reserve 1 Stone plus your kit; recover three finds with 10% fewer Bones.",
+        "Pale Thunderer and Riftback Sovereign now have earnable fossil requirements. Their 45/60-fragment gates and other preparations remain unchanged.",
+        "Targeted finds stay frozen at dispatch. Extract only cleared cargo; duplicates remain possible. Hybrids, DNA and exclusive gear are not dig rewards.",
+        "Large companion histories and Fossil Archives now store more compactly, leaving room for names and held expeditions within the existing cloud limit.",
+        "The update keeps an original device recovery copy before upgrading its save. Cloud upgrades also preserve the exact previous revision.",
+        "Compact saves work with device imports, account recovery and cloud history. Stale tabs and invalid saves remain blocked from replacing newer progress.",
+        "Save compatibility: W40.4 uses Web save format 23. Existing campaigns, companions, equipment, saved loadouts and pending rewards remain compatible; protect an original device recovery copy and the previous cloud revision, preserve held operations, and do not downgrade a format-23 save. World/Desktop local saves are unrelated."
+      ],
+      "published": "2026-10-28",
+      "commit": "58d490df606de617a52736fc41a1be250693b887",
+      "source": "https://github.com/Goofylagaming/primalbound/blob/58d490df606de617a52736fc41a1be250693b887/web/update-notes.json"
+    },
+    {
+      "version": "W38.0",
+      "title": "Living Regions: Regional Outlooks — W38.0",
+      "notes": [
+        "Twenty regions now have four named outlooks each, with a three-return forecast that waits while you are offline.",
+        "Choose Regional outlook in Operations to trade encounter threat, Bones and rare specimen chances. Normal route conditions remain available.",
+        "Wet, dry and rough outlooks show their extra Herb or Stone entry costs. Rare specimens keep their existing 42% chance ceiling.",
+        "Extract a regional-weather run after clearing at least one node to move that region’s forecast. Empty retreats and elapsed time do not move it.",
+        "Partial returns move the outlook but earn no full-route honours or survey completion. Weather cannot stack with Challenges or Prime Territory.",
+        "Dispatched crews, conditions, encounters and cargo stay frozen. Active operations show their original outlook and specimen chance.",
+        "Region records in the Journal now link directly to their Regional Outlook board. Locked regions can be inspected before their routes unlock.",
+        "Dispatch rechecks complete current terms and rejects changed quotes. Battle loading rejects changed operations and old node results.",
+        "Invalid or overflowing cargo remains held without partial rewards or forecast changes. Duplicate extraction never advances conditions twice.",
+        "Save format 18 preserves older campaigns and held jobs, and starts regional outlook records without inventing past visits.",
+        "The same LIVE build also contains individual companion names and field records, three reviewed Talent Builds per creature, and the cosmetic 91-entry Trophy Hall with six saved showcases. These originated in a W37 development batch; no separately verified LIVE W37 release has been identified.",
+        "Save compatibility: W38.0 uses Web save format 18. Format-16 saves upgrade through format-17 companion/talent/showcase metadata without fabricating past deeds, then add bounded regional outlook counters without inventing old visits. Previous saves, progression, frozen operations and held rewards remain intact. Export confirmed Device/Cloud backups and never downgrade a format-18 save. World/Desktop local saves are unrelated."
+      ],
+      "published": "2026-10-27",
+      "commit": "cd879109f7be66d6d600a16d5ed01cecf16b1974",
+      "source": "https://github.com/Goofylagaming/primalbound/blob/cd879109f7be66d6d600a16d5ed01cecf16b1974/web/update-notes.json"
+    },
+    {
+      "version": "W36.0",
+      "title": "Unified Expedition Journal — W36.0",
+      "notes": [
+        "The Expedition Journal connects creatures, regions, Guardians, fossils, expeditions, Ancient Hunts, lineages, research and trophies.",
+        "Search records, filter by status and browse 24 per page. Guardian records also have campaign-tier filters.",
+        "Searches and filters in the nine record sections stay selected when you open an activity and return during the same visit.",
+        "See returned teams, hatch-ready eggs, finished orders and held expedition or Hunt rewards together. Collection stays manual.",
+        "Record links open the relevant Codex entry, fossil set, family record, research project or Hunt.",
+        "Search species and companion names. Fossil records show species names alongside their familiar names.",
+        "Guardian links preview the encounter while keeping its locks, entry rules and your campaign frontier intact.",
+        "Journey milestones keep their chapters, pins and claim controls inside the Journal. The Outpost shortcut opens them directly.",
+        "Existing saves, companions, orders, eggs, cargo and rewards are preserved. Viewing the Journal grants no rewards or progress.",
+        "Save compatibility: W36.0 retains Web save format 16 without migration. The Journal reads existing campaign records without collecting cargo, granting milestones, unlocking Guardians, altering accounts or changing economy. Existing companions, egg/hatchery work, family records, research, crafting, expeditions, dungeon checkpoints, trophies and held Hunt rewards remain preserved; export Device and confirmed Cloud backups before switching builds. Never open format-16 saves in older Web clients; World/Desktop uses unrelated local profiles."
+      ],
+      "published": "2026-10-27",
+      "commit": "eaceb4689e372b7078c9124219aeb3e152998897",
+      "source": "https://github.com/Goofylagaming/primalbound/blob/eaceb4689e372b7078c9124219aeb3e152998897/web/update-notes.json"
+    },
+    {
+      "version": "W35.0",
+      "title": "Ancient Hunts & Relic Blueprints — W35.0",
+      "notes": [
+        "Operations → Ancient Hunts adds five natural Ancient boss encounters: Moss-Crowned Colossus, Ashmaw, Drowned Monarch, Pale Thunderer and Riftback Sovereign. These are separate from Mutant Guardians and Ancient Dungeon routes.",
+        "Unlock each Hunt through extracted regional Survey or Recover evidence, the matching Ancient Trail, unique fossil-fragment research, Ancient Studies rank, a cleared stage gate and a one-time Research Insight weakness analysis. Check the in-game requirements before paying.",
+        "Stage gates are 1,000 / 2,500 / 4,500 / 6,500 / 9,000, and entry stamina is 25 / 30 / 35 / 40 / 45 in the same boss order. Hunts freeze your formation, equipment, enemies and rewards after you confirm; companions away on missions are ineligible.",
+        "Fight five distinct signature patterns: Colossus root cover, Ashmaw eruption/exhaustion, Monarch land/water phases, Thunderer's interceptable charge and Riftback's pulses and Centre-anchor counterplay.",
+        "First collected victories grant Bones, Prime Essence, Research Insight, permanent trophy crests, Ancient Codex records and earned Legendary relic blueprints; repeats grant reduced Bones and a limited Insight bonus. Hunts do not grant Mutant DNA, Shards, set gear or campaign progress.",
+        "Craft Mossguard Sigil, Ashen Heart, Monarch Pearl, Stormcall Charm and Riftback Compass in the Workshop after earning their first-clear blueprints. Recipes require Crafting 20/25/30/35/40, cleared stages, existing resources and Research Insight; relics use the existing relic slot and do not auto-equip.",
+        "Archive Field Tonic is a separate Workshop recipe at Crafting 5 and Biology I. It costs 250 Bones, four Herbs and two Insight, uses existing tonic storage/cooldowns, and does not replace the previous tonic recipe.",
+        "Crafting reviews remain open when time passes, but confirmation revalidates the live queue and resources. New orders reserve Insight alongside materials; saved legacy orders keep their identity and finish time.",
+        "Prepared Hunts can resume after reload. Reloading during combat interrupts the attempt without payout; won rewards remain pending if any currency/Insight capacity check fails, preventing partial collection or duplicate trophies. Existing operations and Ancient Trails keep their saved encounters and rewards.",
+        "Save compatibility: W35.0 migrates Web saves from format 15 → 16. Existing campaigns, companions, dungeon checkpoints, pending cargo, operations, research and queued crafting are preserved; migration creates no retroactive first-clear trophies or blueprints. Export Device and confirmed Cloud backups and never load a format-16 Web save in an older client. World/Desktop local saves remain separate."
+      ],
+      "published": "2026-10-27",
+      "commit": "4f41a8d0d9bc251a6700ccd18a0dde4ad2f47fa9",
+      "source": "https://github.com/Goofylagaming/primalbound/blob/4f41a8d0d9bc251a6700ccd18a0dde4ad2f47fa9/web/update-notes.json"
+    },
+    {
+      "version": "W34.1",
+      "title": "More Dungeon Runs, Less Stamina — W34.1",
+      "notes": [
+        "All 30 Ancient Dungeon entry costs are halved and rounded up. Check the cost shown on a route card before entering; stamina is paid once per complete five-floor run.",
+        "The six original dungeons (Fangwood Depths, Sunken Catacombs, Obsidian Trials, Crystal Labyrinth, Stormscar Gauntlet and Eternal Prime Trial) now cost 3, 4, 5, 6, 8 and 9 stamina respectively.",
+        "The 24 later tier-scaled routes cost 9–13 stamina. All existing stage unlocks, route groups and full-clear rewards stay the same.",
+        "Training Grounds → Dungeon Runs practice remains free and rewardless. Real runs retain five-floor combat, progress checkpoints, survivor Health carryover and reward-collection rules.",
+        "Save compatibility: W34.1 keeps Web save format 15 without a migration. Existing dungeon checkpoints, pending cargo and earned clears are preserved. Export Device/Cloud recovery copies before changing builds; do not load format-15 Web campaigns into an older Web client. World/Desktop local saves remain separate."
+      ],
+      "published": "2026-10-26",
+      "commit": "484f8984eaa870483493b1516111b5cabac27173",
+      "source": "https://github.com/Goofylagaming/primalbound/blob/484f8984eaa870483493b1516111b5cabac27173/web/update-notes.json"
+    },
+    {
+      "version": "W34.0",
+      "title": "Dungeon Practice & Pack Comparisons — W34.0",
+      "notes": [
+        "Open Training Grounds → Dungeon Runs, or Practice on one of 30 dungeon cards, for free full-route rehearsals. Locked routes may be previewed but are not unlocked.",
+        "Compare the current Frontline/Centre/Rear formation with up to five saved packs; each uses its own currently equipped gear, Growth, genes, talents, Prime and other current combat bonuses.",
+        "Each pack attempts 20 deterministic five-floor samples with real encounter, carried Health, 20% survivor healing, downed-member and 120-round cap rules; a cap counts as unresolved.",
+        "Review full clears, defeats, unresolved samples, average floors, most common stopping floor, per-floor reach and clear counts, Health before rest, recovered HP and the first sample's floor-by-floor replay.",
+        "Practice gives no stamina costs, rewards, XP, gear, progression or real dungeon records, and never changes equipment, active runs or pending cargo. Simulation results are not calibrated live win odds.",
+        "Companions away on Sanctuary Missions can be rehearsed, but must return to join real dungeon runs. Formation and mission changes invalidate reports that are no longer current.",
+        "Save compatibility: W34.0 keeps Web campaign format 15 without a new migration; W33.0 dungeon checkpoints, campaign, cloud/device saves and previously earned rewards remain unchanged. Never load a format-15 Web save in an older Web client; World/Desktop local saves are separate."
+      ],
+      "published": "2026-10-26",
+      "commit": "f9af13a2c7851a8554009761d3cf4a2ea71b84e2",
+      "source": "https://github.com/Goofylagaming/primalbound/blob/f9af13a2c7851a8554009761d3cf4a2ea71b84e2/web/update-notes.json"
+    },
+    {
+      "version": "W33.0",
+      "title": "Playable Dungeon Expeditions — W33.0",
+      "notes": [
+        "All 30 dungeons now contain five playable battles, including an elite sentinel and a final Guardian, instead of an instant power check.",
+        "Pay the existing 5–25 stamina entry cost once. Your party, equipment, route and reward roll are fixed when the expedition begins.",
+        "Health carries between floors. Survivors recover 20% maximum Health after a clear; downed companions remain down for the run.",
+        "Pause between floors and resume after loading. Reloading during a fight ends the attempt safely, keeping cleared-floor consolation Bones.",
+        "Full clears award the existing Bones, Prime Essence and Shards, plus gear. Tier 2–10 routes now give one Legendary item from their tier.",
+        "Rewards collect atomically; full storage keeps cargo pending. Retreat grants cleared-floor Bones only, with no stamina refund.",
+        "Previous dungeon clears and best-floor records are preserved. The dungeon catalog now loads on demand to keep the Outpost quick.",
+        "Companions on Sanctuary Missions must return before entering or continuing a dungeon.",
+        "W33.0 migrates valid Web campaign saves from format 14 to format 15, adding a persistent five-floor dungeon run, run serial and last report; previous clears, attempts and best-floor records remain intact without retroactive rewards. A reload during battle interrupts the run, allowing retreat only; completed cargo stays pending if safe collection fails. Never open format-15 saves in older Web builds; World/Desktop saves remain separate."
+      ],
+      "published": "2026-10-26",
+      "source": "https://github.com/Goofylagaming/primalbound/blob/13ac62b3f70f9e28bc0a42e336935c2b0cdad0f8/web/update-notes.json"
+    },
+    {
+      "version": "W32.0",
+      "title": "Challenge Expeditions — W32.0",
+      "notes": [
+        "The Operations Challenge Board adds five permanent contracts: solo, herbivore, no Prime, no set equipment, and a full Prime crew.",
+        "Clear every node and extract to earn cosmetic medals. Attempts and best progress are saved, with no weekly expiry.",
+        "Challenge routes use your latest unlocked regional tier and stay fixed for the same contract, region and stage. Bring appropriate tier gear.",
+        "Operation battles now preserve the crew formation chosen at dispatch. Existing saves migrate with empty challenge records.",
+        "Operation nodes no longer become interrupted during a live battle. Reloading during combat still protects cleared cargo for extraction.",
+        "Operation victories show the actual secured Bones and fossil cargo, with a reminder to extract before collecting.",
+        "W32.0 migrates existing Web campaign saves from format 13 to format 14, adding empty Challenge Expedition records without changing existing campaign, Prime, Frontier or Operations progress. Older Web builds must not open format-14 saves; Web and World/Desktop saves remain separate."
+      ],
+      "published": "2026-10-26",
+      "commit": "7308a0e27f4d4d4651fe7d40b5815bdf28e04704",
+      "source": "https://github.com/Goofylagaming/primalbound/blob/7308a0e27f4d4d4651fe7d40b5815bdf28e04704/web/update-notes.json"
+    },
+    {
+      "version": "W31.2",
+      "title": "30 Ancient Dungeons, Lower Stamina Costs — W31.2",
+      "notes": [
+        "Dungeon stamina costs are lower: the six original routes now cost 5–18 stamina, and the 24 new routes cost 18–25.",
+        "The dungeon roster grows from 6 to 30 five-floor expeditions, unlocked from stage 800 through the Tier 10 finale at stage 10,000.",
+        "New routes are grouped by Expedition Tier and scale their threats and rewards with campaign progress.",
+        "W31.2 does not announce a new save format after W31's format 13. Continue using current builds and export saves before changing versions."
+      ],
+      "published": "2026-10-26",
+      "commit": "3a3ca37a91c8f69dfc2b2fb7d3435a9e07b0fdd6",
+      "source": "https://github.com/Goofylagaming/primalbound/blob/3a3ca37a91c8f69dfc2b2fb7d3435a9e07b0fdd6/web/update-notes.json"
+    },
+    {
+      "version": "W31.1",
+      "title": "Endgame Boss Balance — W31.1",
+      "notes": [
+        "Prime Trial and Frontier Guardians are rebalanced for their already-scaled Tier 10 encounters, making the Trial ladder beatable as Prime Growth unlocks.",
+        "The five Frontier Hunts remain clearable with the existing 200% total Growth cap; no extra Growth tier is needed.",
+        "W31.1 does not announce a new save format after W31's format 13."
+      ],
+      "published": "2026-10-26",
+      "commit": "3aed8e8b6479894aad58fc546326991376281071",
+      "source": "https://github.com/Goofylagaming/primalbound/blob/3aed8e8b6479894aad58fc546326991376281071/web/update-notes.json"
+    },
+    {
+      "version": "W31",
+      "title": "Prime Frontier Hunts — W31",
+      "notes": [
+        "Prime Frontier opens after stage 10,000 and all five Prime Trial ranks, adding five finite advanced Guardian Hunts.",
+        "Entry proofs cover Prime team roles, 125% Prime Growth, a complete three-piece set, any hybrid, and a cleared Prime Territory Ancient Trail.",
+        "First clears award fixed Bones, Prime Essence and Mutation Shards. Replays cost stamina and cannot award repeat rewards, set gear or DNA.",
+        "Save format 13 records Frontier trophies and Prime Territory mastery. Format 12 campaign and Prime Trial progress carries forward."
+      ],
+      "published": "2026-10-26",
+      "commit": "1b48c38f20ac0f5016cc45b84d84373966c5e54b",
+      "source": "https://primalbound-web-preview.onrender.com/release-info.json"
+    },
+    {
+      "version": "W30",
+      "title": "Prime Growth & the Five Prime Tiers — W30",
+      "notes": [
+        "Fully grown, awakened Prime companions can continue from 100% to 200% total growth through four post-campaign tiers.",
+        "Prime Trial Ranks I–IV unlock the next 25% Prime Growth tier in order. Rank V remains the final trial.",
+        "Each Prime Growth tier adds +5% Attack and Health, up to +20% at 200% total growth.",
+        "Prime Growth costs Bones. The +1% and +10% buttons preview the exact price and never make partial purchases.",
+        "Prime Growth requires 100% natural Growth and an awakened Prime. Missions, breeding and hatchling Growth bonuses keep their natural 100% cap.",
+        "Format 11 saves retain campaign, natural Growth and Prime Trial progress; Prime Growth begins at 0% and unlocks from cleared trials."
+      ],
+      "published": "2026-10-26",
+      "commit": "848e373ed2e9057899401f45d2f34f969b92beac",
+      "source": "https://primalbound-web-preview.onrender.com/release-info.json"
+    },
+    {
+      "version": "W29",
+      "title": "Pack Formations & Role Tactics — W29",
+      "notes": [
+        "Set Frontline, Centre and Rear. Saved order shapes campaign battles, Prime Trials, training and operation crews.",
+        "Tanks and Guardians intercept up front; Brawlers open strong, Support heals in Centre, and Hunters or Ambushers strike from Rear.",
+        "Centre Defenders guard adjacent positions. Scouts in Centre or Rear see guardian warnings earlier; one role-based formation synergy can activate.",
+        "Saved packs retain their member order. Switching or rearranging companions never moves gear or changes growth.",
+        "Format 10 saves migrate to format 11 with the existing companion order and campaign progress preserved."
+      ],
+      "published": "2026-10-26",
+      "commit": "8bf39832",
+      "source": "https://primalbound-web-preview.onrender.com/release-info.json"
+    },
+    {
+      "version": "W28",
+      "title": "Expedition Operations & Fossil Research — W28",
+      "notes": [
+        "Survey, Hunt, Recover, Escort and Explore cleared regions. Logistics unlocks five-node Deep Routes; Ancient Studies opens named-Guardian Ancient Trails.",
+        "Dispatch locks the route, reward preview and crew loadout. Choose route conditions and kits, fight each node, then extract cargo or press on.",
+        "Four fossil types per species. Unique finds build milestones; duplicates grant Insight for Biology, Logistics, Craftsmanship, Guardian and Ancient research.",
+        "Extraction credits Bones, fossils and Insight once. An interrupted node cannot be replayed; cleared cargo stays safe and companions or gear are never lost.",
+        "Format 9 saves migrate to 10 with campaign, Trial and weekly records intact. Operations leave campaign battle rewards and the 100% Growth cap unchanged."
+      ],
+      "published": "2026-10-26",
+      "commit": "112d268f22b1ae142804af1c7b95453e24edfb55",
+      "source": "https://primalbound-web-preview.onrender.com/release-info.json"
+    },
+    {
+      "version": "W27.2",
+      "title": "Prime Trial Ascension — W27.2",
+      "notes": [
+        "Two optional endgame fights add Rank IV’s Veilstalker and Rank V’s Frosthowl, each with a distinct warning and signature mutation attack.",
+        "Ranks IV–V unlock Veilbreaker and The Unbroken Crown, trial-only masteries. Campaign battles and the 100% Growth cap stay unchanged.",
+        "Format 8 saves migrate to 9 while preserving campaign progress, Trial clears, mastery and weekly claims. Older builds cannot overwrite format 9."
+      ],
+      "published": "2026-10-26",
+      "commit": "d4d70889d1b8332db88d4bc677022a15b251f54c",
+      "source": "https://primalbound-web-preview.onrender.com/release-info.json"
+    },
+    {
+      "version": "W27.1",
+      "title": "Prime Trials and protected saves — W27.1",
+      "notes": [
+        "Clear campaign stage 10,000 to unlock three optional Prime Trial ranks with distinct guardian attacks and custom mutation attacks at later ranks.",
+        "First clears grant fixed rewards; each rank pays repeat rewards up to three times per week. Capped ranks remain playable without rewards.",
+        "Clearing ranks unlocks Prime Masteries. Choose one active bonus that applies in Prime Trials only; campaign battles and Growth remain unchanged.",
+        "Preview campaign encounters and Prime Trials in the Tactical Grounds. Practice costs no stamina and never changes your save.",
+        "Existing campaigns gain a separate Prime Trial record when loaded. Older game versions recognize the updated save format and will not overwrite it.",
+        "If another tab saves first, this tab pauses saving and offers download or reload. Previous-save recovery rechecks that the reviewed copy is still current.",
+        "Battle calculations now load when you enter a fight instead of during the opening page load."
+      ],
+      "published": "2026-10-26",
+      "commit": "12c7eff4d7f5459702c88d103a00bed36070e75d",
+      "source": "https://primalbound-web-preview.onrender.com/release-info.json"
+    }
+  ],
+  "world": [
+    {
+      "version": "M36.7",
+      "title": "Primalbound World M36.7 — Windows playtest",
+      "notes": [
+        "Play World opens your installed adventure directly and returns to the launcher when you quit. Play Current Version lets you keep playing offline or skip an offered update.",
+        "Check for Updates offers verified Windows updates, and Patch Notes opens the public release notes. Primalbound Web is available separately in your browser.",
+        "If an update stops before its backup is ready, the updater leaves the installed game files in place.",
+        "Seven dinosaur guardians now have their own species appearances in expedition encounters. Look for the clubbed tail of Ankylosaurus, the long claws of Therizinosaurus, and the sail of Spinosaurus.",
+        "Carnotaurus, Triceratops and Allosaurus use their original stylised designs in the wild and in guardian encounters.",
+        "Named Carnotaurus, Triceratops, Allosaurus and Deinosuchus campaign guardians use their matching authored creature appearances. Their health, damage, titles and combat collision stay unchanged.",
+        "Companion appearances follow their creature species instead of being overridden by legacy companion metadata.",
+        "Mosswatch's Lodge, Nursery, Genetics Lab, Companion Armoury, Training Grounds, Archive and Herbalist now form connected town courtyards. Services sit away from combat camps and boundary hills; the Growth/Prime platform clears the houses. Existing Homestead plots and the village board keep their space.",
+        "Music and sound settings, Mutant Set Collection and Quick Gear Guide each have one Close action. Close and Escape return to the existing pause menu.",
+        "The HUD and profile screen show the installed patch version. Exploration guidance returns after sound captions without displaying an obsolete milestone.",
+        "Save and Quit stops sound effects before closing.",
+        "The campaign save format remains unchanged, with existing local profiles and recovery history."
+      ],
+      "published": "2026-11-06",
+      "tag": "m36-7-build-42133151186",
+      "source": "https://github.com/Goofylagaming/primalbound-downloads/releases/tag/m36-7-build-42133151186"
+    },
+    {
+      "version": "M36.6",
+      "title": "Primalbound World M36.6 — Windows playtest",
+      "notes": [
+        "Meet 19 smaller dinosaur species in ordinary World expedition encounters: Allosaurus, Carnotaurus, Ceratosaurus, Dilophosaurus, Herrerasaurus, Omniraptor, Austroraptor, Deinosuchus, Pteranodon, Diabloceratops, Dryosaurus, Tenontosaurus, Maiasaura, Pachycephalosaurus, Stegosaurus, Triceratops, Gallimimus, Hypsilophodon and Beipiaosaurus. The species are original procedural visuals, not extracted The Isle meshes; Pteranodon currently fights on the ground.",
+        "Use R to approach ordinary route markers and Begin Encounter. Wild species use smaller silhouettes and matching names. The animated Mini Rex still appears at stages 5, 15, 25, and so on; existing Guardians remain at stages 10, 20, 30, and so on.",
+        "Ordinary stage health, damage, Coins/Bones, companion effects, first-clear/replay rewards and progression are unchanged. These wild enemy visuals do not add new ownable dinosaurs or unlocks.",
+        "Fixed World local-save checksum verification after JSON serialization. New checksums cover the re-readable payload; existing valid profile envelopes, previously verified recovery backups and cloud checksum formats remain supported. Invalid or tampered saves remain rejected.",
+        "Load checkpoint and Keyboard Controls text stay inside the scrollable pause menu rather than wrapping vertically; lower Account & Save Recovery controls remain reachable on smaller windows.",
+        "M36.6 retains World campaign schema 330 with no reset or migration of local profiles, inventory, companions, homesteads, currencies, equipment, settings or updater behavior. Back up your JSON before an optional update; World and Web saves stay separate."
+      ],
+      "published": "2026-10-28",
+      "tag": "m36-6-build-40615216698",
+      "source": "https://github.com/Goofylagaming/primalbound-downloads/releases/tag/m36-6-build-40615216698"
+    },
+    {
+      "version": "M36.5",
+      "title": "Primalbound World M36.5 — Windows playtest",
+      "notes": [
+        "Mini Rex now replaces the fifth non-Guardian encounter in each ten-stage expedition route (stages 5, 15, 25, ...), starting with Mosswatch stage 5. Use the route marker and Begin Encounter to find its smaller animated T. rex.",
+        "Mini Rex has a smaller collider and nameplate but keeps ordinary stage health, damage, Coins/Bones, progress, and companion stagger/hamstring effects. Every tenth-stage Guardian and the other ordinary encounters are unchanged.",
+        "Fixed graphics-quality callback errors when short-lived enemy models were removed in combat or between stages.",
+        "Save schema 330, M36.4 campaign progress, local profiles, JSON recovery points, game settings and cloud-sync restrictions are unchanged. Keep a backup, and use the optional launcher update or PLAY CURRENT VERSION."
+      ],
+      "published": "2026-10-27",
+      "tag": "m36-5-build-40506051466",
+      "source": "https://github.com/Goofylagaming/primalbound-downloads/releases/tag/m36-5-build-40506051466"
+    },
+    {
+      "version": "M36.4",
+      "title": "Primalbound World M36.4 — Windows playtest",
+      "notes": [
+        "Discover three more optional regional events across the visited World map: Rare Nest / Track Chain, Severe Storm and Rare Bestiary Sighting. Events remain deterministic, non-expiring and claimable once per map.",
+        "New rewards use the existing Bones and physical-material economy. Nest and Bestiary events add the matching sighting or track evidence to the Living Bestiary; no event grants DNA, Prime Essence or Mutation Shards.",
+        "Fixed regional event completion IDs after JSON reload so already resolved events stay resolved after restarting the game.",
+        "The pause panel stays within the visible screen, with scrolling for its lower options on small or portrait windows.",
+        "Existing event claims and campaign saves remain valid. M36.4 adds no campaign save-schema change."
+      ],
+      "published": "2026-10-25",
+      "tag": "m36-4-build-40183013083",
+      "source": "https://github.com/Goofylagaming/primalbound-downloads/releases/tag/m36-4-build-40183013083"
+    },
+    {
+      "version": "M36.3",
+      "title": "Primalbound World M36.3 — Windows playtest",
+      "notes": [
+        "Melee, ranged and magic impacts now each have a distinct sound cue. Raising shield guard, releasing a ranged shot and casting a spell also have their own cues.",
+        "The cues use the existing Effects volume and mute settings. Sound captions identify each hit and ability, including when audio is muted.",
+        "M36.3 keeps schema-330 campaign progress, local profiles, recovery points, M35 preferences, offline play and gated cloud sync. It does not migrate or reset existing saves."
+      ],
+      "published": "2026-10-25",
+      "tag": "m36-3-build-40176102545",
+      "source": "https://github.com/Goofylagaming/primalbound-downloads/releases/tag/m36-3-build-40176102545"
+    },
+    {
+      "version": "M36.2",
+      "title": "Primalbound World M36.2 — Windows playtest",
+      "notes": [
+        "The Low graphics startup check now applies the actual Low preset before Mosswatch loads.",
+        "Exported Windows verification samples the running game's process working set while the world is loaded. An unavailable or zero memory reading can no longer pass the 512 MiB check.",
+        "M36.2 changes no campaign progress or player settings; existing schema-330 saves and recovery data stay intact."
+      ],
+      "published": "2026-10-25",
+      "tag": "m36-2-build-40172644628",
+      "source": "https://github.com/Goofylagaming/primalbound-downloads/releases/tag/m36-2-build-40172644628"
+    },
+    {
+      "version": "M36.1",
+      "title": "Primalbound World M36.1 — Windows playtest",
+      "notes": [
+        "The Explorer Field Guide now lists each owned companion’s current growth, next growth milestone, Prime eligibility or awakening, and training XP. A species page filters that list to the matching creature.",
+        "The Mosswatch Lodge now displays route trophies only after mastery is earned, with visible Rank I, II or III crests. Collecting the mission that reaches a rank updates the Lodge display immediately.",
+        "M36.1 keeps the existing schema-330 campaign, local profiles, recovery points, offline play and gated cloud sync. No existing save is migrated or reset by this update."
+      ],
+      "published": "2026-10-25",
+      "tag": "m36-1-build-40167782425",
+      "source": "https://github.com/Goofylagaming/primalbound-downloads/releases/tag/m36-1-build-40167782425"
+    },
+    {
+      "version": "M36",
+      "title": "Primalbound World M36 — Windows playtest",
+      "notes": [
+        "Keep up to eight separate local profiles with individual campaign saves. M36 wraps the existing schema-330 campaign in a verified profile envelope and imports older progress without changing its source save.",
+        "Recover damaged local progress from the verified backup or one of the ten retained save points. Export a standalone JSON backup, or validate an imported backup into a new profile so an existing profile stays intact.",
+        "Keep playing offline without an account. Cloud sync stays gated because the configured account service does not yet advertise M36 World-save support; local saves remain on this device.",
+        "Open and manage local profiles without replacing another profile. Earlier schema-330 progress can be imported as a separate local profile, and JSON backups can be exported or imported safely.",
+        "M36 adds no campaign gameplay schema. Existing schema-330 progress, M35 settings, the optional updater and all earlier World content remain available."
+      ],
+      "published": "2026-10-25",
+      "tag": "m36-build-40164659532",
+      "source": "https://github.com/Goofylagaming/primalbound-downloads/releases/tag/m36-build-40164659532"
+    },
+    {
+      "version": "M35",
+      "title": "Primalbound World M35 — Windows playtest",
+      "notes": [
+        "Set Low, Balanced or High graphics, choose display size and window mode, and set a frame cap. Shadow, effect and model quality can be tuned separately for slower or faster Windows PCs.",
+        "Adjust HUD and text size, sound cue captions, camera shake, damage flash and screen effect intensity. M35 settings live in their own local preferences file and do not modify campaign saves.",
+        "Open the Explorer Journal to reach Creatures, Regions, Guardians, Fossils, Expeditions, Lineages, Research and Trophies. New optional returns and rewards produce a quiet review notice; nothing is claimed automatically.",
+        "Load imported raptor and tyrannosaur models in the background while procedural fallbacks remain visible. Build larger management screens and creature previews only when opened; generate region layouts only for visited maps.",
+        "Reuse common magic and ranged projectiles and floating combat text through bounded pools; Low effects reduces nonessential projectile visuals.",
+        "Play Current Version now opens the current milestone scene. M35 keeps campaign progress at schema 330 and retains M34 audio, M33 models and fossil collections, and all earlier World content."
+      ],
+      "published": "2026-10-25",
+      "tag": "m35-build-40157680693",
+      "source": "https://github.com/Goofylagaming/primalbound-downloads/releases/tag/m35-build-40157680693"
+    },
+    {
+      "version": "M34",
+      "title": "Primalbound World M34 — Windows playtest",
+      "notes": [
+        "Keep the original Sanctuary, exploration and combat music, now layered with eight generated ambience loops for settlements and biome families: forest, wetland, coast, volcanic, ice/crystal, ruins/bones and rift.",
+        "Adjust Master, Music, Ambience, Effects and Interface volume and mute independently. Existing M24 music and SFX preferences migrate automatically; audio settings stay separate from campaign progress.",
+        "Hear original offline cues for Workshop completions, egg hatches, expedition returns, Prime awakenings, Guardian telegraphs, special attacks and mutant phases. Visual Guardian warnings remain available when sound is muted.",
+        "M34 adds no campaign save schema. Existing schema-330 progress, species models, palaeontology collection, and all inherited world content remain intact."
+      ],
+      "published": "2026-10-25",
+      "tag": "m34-build-40155072845",
+      "source": "https://github.com/Goofylagaming/primalbound-downloads/releases/tag/m34-build-40155072845"
+    },
+    {
+      "version": "M33",
+      "title": "Primalbound World M33 — Windows playtest",
+      "notes": [
+        "See species-specific 3D models for the Field Guide roster, six hybrids and six Mutant Guardians. Deinosuchus keeps a crocodilian silhouette and Triceratops keeps its ceratopsian frill and horns; stable species IDs still drive every saved creature.",
+        "Excavate named fossil sites to add deterministic, species-linked specimens to the permanent collection. Build the physical Mosswatch Fossil Archive, then study two duplicate specimens to add a palaeontology record while keeping one specimen for display.",
+        "Open the Palaeontology Index anywhere to review collection progress, research and trophy milestones. The Archive displays collected creature models and trophies; research actions require the physical Archive and do not spend Bones or add combat power.",
+        "Inspect 3D creature models from the Field Guide atlas and Sanctuary roster. Visual profiles include preferred model, fallback family, scale, collision and mount-anchor data; unavailable optional models use their registered fallback while saves keep species IDs.",
+        "M33 stores collection records in schema 330 at `user://m33_progress.json`. It safely imports verified M32 progress without changing the source save and keeps palaeontology progress when starting a new campaign.",
+        "M32 regional events and Expedition Operations, M31 explorer identity and controls, M30 facilities and shared stockpile, and all earlier content remain available. The verified launcher and self-updater remain in place."
+      ],
+      "published": "2026-10-25",
+      "tag": "m33-build-40152406523",
+      "source": "https://github.com/Goofylagaming/primalbound-downloads/releases/tag/m33-build-40152406523"
+    },
+    {
+      "version": "M32",
+      "title": "Primalbound World M32 — Windows playtest",
+      "notes": [
+        "Discover optional, biome- and tier-shaped regional events across visited maps. Rare herd sightings connect stable species IDs and track evidence to the Living Bestiary; event rewards are deterministic, claims are atomic and permanent, and events never expire or rotate with the calendar.",
+        "The Lodge and Sanctuary now explain the first Bones route and reserve-crew setup: make one starter a reserve at the Companion Armoury, then collect 40 Bones from Fernwood Foraging after 15 minutes.",
+        "Dispatch active-play Expedition Operations at Mosswatch’s physical Expedition Board. Choose a visited map, objective, saved companion pack and reviewed supplies; operation seeds, costs and base/deep rewards are saved at dispatch.",
+        "Travel to the marked field objectives, resolve local encounters and choose to extract after three steps or continue for two more. Retreat gives no reward, while the optional five-step Trailblazer route awards a permanent clear/depth record and no currency.",
+        "Open the Field Events & Readiness index from the Journal or pause menu anywhere. It quietly counts event opportunities, Lodge returns, ready eggs, completed Workbench orders, claimable Field Contracts and Journey rewards.",
+        "M32 stores progress in schema 320 at `user://m32_progress.json`. It imports valid M31 progress without changing the source save; event claims, active operation snapshots and challenge records persist through reloads and a new campaign.",
+        "M31 explorer identity, owned-item class loadouts, remappable controls, companion roster, M30 facilities and shared stockpile, and the existing verified launcher/self-updater remain available."
+      ],
+      "published": "2026-10-25",
+      "tag": "m32-build-40148616542",
+      "source": "https://github.com/Goofylagaming/primalbound-downloads/releases/tag/m32-build-40148616542"
+    },
+    {
+      "version": "M31",
+      "title": "Primalbound World M31 — Windows playtest",
+      "notes": [
+        "Edit a saved explorer profile with visible body, head, hair and color choices.",
+        "Save Melee, Ranged and Magic equipment-ID presets. Applying a preset uses only equipment already owned; missing pieces stay missing and stale reviews are rejected.",
+        "Remap movement, interaction, equipment, journal, companion commands and shield guard. Escape remains the pause key, duplicate bindings are refused, settings reload correctly, and the Squad screen uses the mapped Assist/Passive control.",
+        "Search the Sanctuary companion roster by name or species and filter Active, Reserve and Away/Ready records. Review growth, health and equipment, with missing-member warnings for saved packs.",
+        "Stop soundtrack playback before a saved quit or window close; release music streams during shutdown.",
+        "M31 stores new profile and class-preset data in schema 310 at `user://m31_progress.json`. It safely migrates M30.1 progress, leaves that source save unchanged, and keeps the verified launcher and self-updater."
+      ],
+      "published": "2026-10-25",
+      "tag": "m31-build-40144512527",
+      "source": "https://github.com/Goofylagaming/primalbound-downloads/releases/tag/m31-build-40144512527"
+    },
+    {
+      "version": "M30.1",
+      "title": "Primalbound World M30.1 — Windows playtest",
+      "notes": [
+        "Research local plants at the Herbalist Hut to unlock Refined and Prime Tonics. Craft batches of 1, 5 or 10; advanced tonics restore more explorer and companion health, but cannot revive a downed companion.",
+        "Upgrade the Fossil Archive, Genetics Wing, Nursery, Lodge, Herbalist and Training Yard to reveal new physical details: researched fossils and plants, specimen racks, incubator spaces, Lodge trophies, practice dummies and the Prime dais.",
+        "M30.1 stores its new research and tonic stock in schema 301 at `user://m30_1_progress.json`. It imports a valid M30 save into the new file and leaves the M30 save untouched; M30 and earlier progression remains available."
+      ],
+      "published": "2026-10-24",
+      "tag": "m30-1-build-40139225024",
+      "source": "https://github.com/Goofylagaming/primalbound-downloads/releases/tag/m30-1-build-40139225024"
+    },
+    {
+      "version": "M30",
+      "title": "Primalbound World M30 — Windows playtest",
+      "notes": [
+        "Upgrade six global Mosswatch facilities at their physical stations: Expedition Lodge, Nursery Shelter, Training Yard, Fossil Archive, Herbalist Hut and Genetics Research Wing. Facility levels and costs use existing Expedition Coins and materials; no construction currency is added.",
+        "The Lodge facility guide now shows the quick Bones routes: Fernwood Foraging (40 Bones / 15 minutes) and Fossil Recovery (120 Bones / 30 minutes), plus their frontier gates and collection point.",
+        "Nursery Level II and III add third and fourth incubator spaces. Nursery levels speed up only newly created eggs; saved hatch times do not change after an upgrade.",
+        "Research recovered Ancient Fragments at the Fossil Archive for up to +15% Fossil Excavation yield. Craft 1, 5 or 10 Herbal Tonics at a time from River Reed and Mosswood Fibre; tonics heal the explorer and living active companions but cannot revive a downed companion.",
+        "Run a paid Training Yard Growth Drill for the current active party. Practice sessions and Prime awakening remain available; facility levels change future actions only.",
+        "Existing Lodge route durations and mission slot thresholds remain unchanged. Mission rewards, crew and finish times stay frozen after dispatch.",
+        "M30 uses schema 300 in `user://m30_progress.json`, imports validated M29 progress into its own save and leaves the source file unchanged. Starting a new expedition preserves M29 Journey records and M30 facility progress."
+      ],
+      "published": "2026-10-24",
+      "tag": "m30-build-40135515150",
+      "source": "https://github.com/Goofylagaming/primalbound-downloads/releases/tag/m30-build-40135515150"
+    }
+  ]
+}
