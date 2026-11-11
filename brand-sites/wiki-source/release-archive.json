@@ -2,6 +2,21 @@
   "schema": 1,
   "web": [
     {
+      "version": "W81.1",
+      "title": "Safer Packs, Reports and Private Invitations",
+      "notes": [
+        "Report packs for moderator review without removing members or earned progress. Restricted packs leave discovery and cannot start new activity.",
+        "Reports retain the text seen at report time. Changed content can be reported again without losing earlier evidence.",
+        "Opt in to pack invitations while keeping your profile private with a separate code. Turning invitations off revokes it and clears pending invitations.",
+        "Pack dissolution now requires the exact pack name. Shared-dungeon safeguards, solo saves and earned records remain intact."
+      ],
+      "commit": "066d29b7427ef500f297e60b2f69c9b04f90ad55",
+      "source": "https://primalboundgame.com/web/release-info.json",
+      "save_compatibility": "Additive community safety records preserve existing accounts, pack memberships, lodge and treasury, committed dungeon settlement and solo progress. Web format 33 unchanged; Season Zero remains unscheduled. World saves remain separate.",
+      "published": "2026-11-11",
+      "notes_commit": "2514da2ce907f51f3ebaceba6340462b8eb28630"
+    },
+    {
       "version": "W80.1",
       "title": "Safer Community Activation",
       "notes": [

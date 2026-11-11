@@ -1,3 +1,11 @@
+# Community safety, verified 11 November 2026
+
+Canonical Primalbound Web game build `066d29b7427ef500f297e60b2f69c9b04f90ad55` was verified live at 2026-11-11T01:17:39Z (11:17 AEST). Reviewed notes `2514da2ce907f51f3ebaceba6340462b8eb28630` match gameplay manifest `4572e18e0f2893d93f370578a07816dc5808af71458b93d978affdea60e864b5`. PR160 selectively adds private invitation opt-in/codes/revocation, report-time evidence and safe re-reporting, pack restriction without deleting existing records, and exact-name owner dissolution. The existing CommunityService remains; alternative PR151 is unmerged. Web format 33 and existing accounts/saves remain compatible; Season Zero is unscheduled. The guide/archive label W81.1 identifies this safety batch after W81, not completion of W82.
+
+The 80 existing Web chapters, all original section IDs, historical notes and separate World source are preserved. CI verified 1,719 Web tests, 210 server tests, 9 PostgreSQL tests and native browser coverage on desktop/mobile/narrow-mobile for the exact tested game tree. This documentation change does not modify gameplay, accounts, saves, DNS or other brands. Publish only through manual Primalbound static service `srv-dbfd3t29lscs739ls85g` after full staging/production validation.
+
+---
+
 # Community activation, verified 11 November 2026
 
 Community, shared dungeons and Clan Lodge activation was verified at 2026-11-10T21:34:17Z (11 November 2026, 07:34 AEST). Canonical game build `c3a0433ce091ef32cc7b5b2cad56ab516c6e568e` serves reviewed maintenance notes `0c44cd7a869215a79f3225a578cd9684917c87f8` and unchanged gameplay manifest `33644798351d93e0f5348a93961910bfe92972714e5e87c2cf074517acb3ab98`. The owner-selected existing Goofy account resolves through the fail-closed moderator configuration. Public community status is enabled; health reports PostgreSQL/accounts configured; unauthenticated state, Lodge, moderation and cloud-save requests remain denied. Season Zero is unscheduled. Web format 33, solo saves and World saves are unchanged.
