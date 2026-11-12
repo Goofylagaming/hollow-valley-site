@@ -58,7 +58,10 @@ for (const site of ['primalbound','hollow-valley']) {
         if(url.startsWith('#')){assert.ok(html.includes('id="'+url.slice(1)+'"'),file+': '+url);continue;}
         if(!url.startsWith('/'))continue;
         if(url.startsWith('/#')){const home=await readFile(resolve(base,'index.html'),'utf8');assert.ok(home.includes('id="'+url.slice(2)+'"'));continue;}
-        const target=resolve(base,'.'+url+(url.endsWith('/')?'index.html':''));
+        const [pathname,fragment]=url.split('#');
+        const cleanPath=pathname.split('?')[0];
+        const target=resolve(base,'.'+cleanPath+(cleanPath.endsWith('/')?'index.html':''));
+        if(fragment){const destination=await readFile(target,'utf8');assert.ok(destination.includes('id="'+fragment+'"'),file+': '+url);}
         assert.ok(target.startsWith(base),'Unexpected link outside site');
         await stat(target);
       }
