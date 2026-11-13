@@ -85,8 +85,31 @@ export async function procurement(get=request) {
   if(pkg.license_id!=='CC-BY-4.0')throw new Error('Queensland licence requires review');
   const resources=pkg.resources.filter(r=>r.format?.toUpperCase()==='CSV').sort((a,b)=>String(b.last_modified||b.created).localeCompare(String(a.last_modified||a.created)));
   if(!resources.length)throw new Error('No Queensland CSV resource');
-  const resource=resources[0],csv=await get(resource.url,{json:false});
-  return parse(csv,{columns:true,bom:true,skip_empty_lines:true,trim:true}).map(r=>mapProcurement(r,resource)).filter(Boolean);
+  const resource=resources[0];
+  let rows;
+  if (resource.datastore_active) {
+    rows = [];
+    const pageSize = 500;
+    let total;
+    do {
+      const params = new URLSearchParams({resource_id: resource.id, limit: String(pageSize), offset: String(rows.length), sort: '_id asc'});
+      const {result} = await get(new URL(`datastore_search?${params}`, QLD).href);
+      if (!Array.isArray(result?.records) || !result.records.length ||
+          !Number.isInteger(result.total) || result.total > 50000 ||
+          (total !== undefined && result.total !== total)) {
+        throw new Error('Incomplete Queensland DataStore snapshot');
+      }
+      total = result.total;
+      rows.push(...result.records);
+    } while (rows.length < total);
+    if (rows.length !== total || new Set(rows.map(row => row._id)).size !== total) {
+      throw new Error('Inconsistent Queensland DataStore pagination');
+    }
+  } else {
+    const csv = await get(resource.url,{json:false});
+    rows = parse(csv,{columns:true,bom:true,skip_empty_lines:true,trim:true});
+  }
+  return rows.map(row => mapProcurement(row,resource)).filter(Boolean);
 }
 export async function syncAll(db,connectors={logan,brisbane,qld:procurement}) {
   const results=[];
@@ -94,3 +117,4 @@ export async function syncAll(db,connectors={logan,brisbane,qld:procurement}) {
     try {results.push(ingest(db,id,await collect()));} catch(e){sourceFailure(db,id,e);results.push({source:id,error:e.message});}
   }return results;
 }
+
