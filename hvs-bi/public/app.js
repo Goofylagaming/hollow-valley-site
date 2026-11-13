@@ -1,0 +1,18 @@
+let token='';
+const $=id=>document.getElementById(id),say=text=>{$('message').textContent=text;};
+async function api(path,body){const r=await fetch(path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+token,...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined});if(!r.ok){const e=await r.json();throw new Error(e.error);}return r;}
+const action=fn=>async()=>{try{await fn();}catch(e){say(e.message);}};
+function checks(id,values,selected){$(id).replaceChildren();for(const value of values){const label=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.value=value;input.checked=selected.includes(value);label.append(input,document.createTextNode(value));$(id).append(label);}}
+async function refresh(){
+ const me=await(await api('/api/me')).json();$('dashboard').hidden=false;$('login').hidden=true;
+ checks('trades',me.trades,me.preferences.trades);checks('locations',me.locations,me.preferences.locations);$('consent').checked=me.email_consent;$('checkout').disabled=!me.billing_enabled;$('portal').disabled=!me.billing_enabled;
+ if(!me.entitled){$('cards').replaceChildren();say('Your pilot access is not active. Test billing must be configured, or the operator can issue a temporary local preview.');return;}
+ const data=await(await api('/api/opportunities')).json();$('count').textContent=data.rows.length+' matching signals';$('cards').replaceChildren();$('health').textContent=data.health.map(s=>`${s.id}: ${s.status} · last synced ${s.last_success||'never'}`).join(' | ');
+ if(!data.rows.length)$('cards').textContent='No matching records. Try broader filters or check source health.';
+ for(const row of data.rows){const card=document.createElement('article');const type=document.createElement('p');type.className='eyebrow';type.textContent=row.kind.replaceAll('_',' ')+' / '+row.location;const title=document.createElement('h3');title.textContent=row.title;const text=document.createElement('p');text.textContent=row.description||row.status;const meta=document.createElement('p');meta.className='meta';meta.textContent=[row.suburb,row.trades.join(', '),row.timing].filter(Boolean).join(' · ');const flags=document.createElement('p');flags.className='flags';flags.textContent=row.flags.join(' · ');const link=document.createElement('a');link.href=row.source_url;link.target='_blank';link.rel='noopener noreferrer';link.textContent='View official source ↗';const attribution=document.createElement('small');attribution.textContent=row.attribution+' · '+row.licence;card.append(type,title,text,meta,flags,link,attribution);$('cards').append(card);}
+ say('Filters loaded. Source data is normalized and trade-tagged by HVS.');
+}
+$('enter').onclick=action(async()=>{token=$('key').value.trim();$('key').value='';await refresh();});
+$('save').onclick=action(async()=>{const checked=id=>[...$(id).querySelectorAll('input:checked')].map(i=>i.value);await api('/api/preferences',{trades:checked('trades'),locations:checked('locations'),email_consent:$('consent').checked});await refresh();});
+for(const format of ['pdf','csv'])$(format).onclick=action(async()=>{const blob=await(await api('/api/report.'+format)).blob(),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='hvs-bi.'+format;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
+for(const [id,path] of [['checkout','checkout'],['portal','billing-portal']])$(id).onclick=action(async()=>{const result=await(await api('/api/'+path,{})).json();const url=new URL(result.url);if(url.protocol!=='https:'||!['checkout.stripe.com','billing.stripe.com'].includes(url.hostname))throw new Error('Unexpected billing destination');location.assign(url.href);});

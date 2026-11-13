@@ -1,0 +1,6 @@
+{
+  "name": "hvs-bi-pilot", "version": "0.1.0", "private": true, "type": "module",
+  "engines": {"node": ">=24.0.0"},
+  "scripts": {"start": "node src/server.mjs", "test": "node --test test/*.test.mjs", "sync": "node src/cli.mjs sync", "report": "node src/cli.mjs report", "weekly": "node src/cli.mjs weekly"},
+  "dependencies": {"csv-parse": "7.0.3", "pdfkit": "0.20.2", "stripe": "23.1.0"}
+}

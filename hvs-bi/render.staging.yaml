@@ -1,0 +1,36 @@
+# Reference only. Do not apply without reviewing cost and approving a STAGING deployment.
+# Standalone service: no production domain, database, game integrations or shared secrets.
+services:
+  - type: web
+    name: hvs-bi-pilot-staging
+    runtime: node
+    branch: feature/hvs-bi-pilot-20261113
+    rootDir: hvs-bi
+    buildCommand: npm ci --ignore-scripts && npm test
+    startCommand: npm start
+    autoDeploy: false
+    plan: starter
+    healthCheckPath: /healthz
+    disk:
+      name: hvs-bi-staging-data
+      mountPath: /var/data/hvs-bi
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: 24.22.0
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: BI_DB_PATH
+        value: /var/data/hvs-bi/bi.sqlite
+      - key: BI_REPORT_DIR
+        value: /var/data/hvs-bi/reports
+      - key: BI_PUBLIC_URL
+        sync: false
+      - key: BI_SCHEDULE_ENABLED
+        value: "false"
+      - key: BI_EMAIL_ENABLED
+        value: "false"
+      - key: BI_STRIPE_ENABLED
+        value: "false"
