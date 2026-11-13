@@ -105,6 +105,11 @@ async function runStartupReadOnlyDiagnostics() {
 }
 
 app.disable('x-powered-by');
+app.use('/herby-admin', (req,res,next) => process.env.HERBY_ADMIN_RELAY_ENABLED === 'true'
+  ? require('./services/herbyBotAdminRelay').relay.front(req,res)
+  : require('./routes/herbyBotAdminProxy')(req,res,next));
+app.use('/api/herbybot/admin-relay', require('./middleware/herbyBotAuth').requireHerbyBotToken,
+  express.json({limit:'400kb'}), require('./services/herbyBotAdminRelay').relay.router);
 app.use(express.json({ limit: '64kb' }));
 app.use(express.static(publicDir, { extensions: ['html'] }));
 
