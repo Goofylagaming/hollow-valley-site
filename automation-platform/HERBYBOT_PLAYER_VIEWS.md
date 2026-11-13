@@ -27,7 +27,14 @@ remain server-side. No real-money billing is introduced. Run
 `node --test automation-platform/test/herbyBotRewards.test.js` for real temporary
 wallet tests covering duplicate, conflict, relink, disabled and tampered requests.
 
-`HERBY_ADMIN_PROXY_ENABLED=true` enables the fixed `/herby-admin` proxy to the
+The current background worker uses `HERBY_ADMIN_RELAY_ENABLED=true` on both
+services. The worker makes authenticated outbound polls; the API holds bounded
+requests in memory and never replays claimed requests. Cookie isolation, current
+staff roles and CSRF remain enforced by the bot. The relay supports only the admin
+namespace and does not expose the legacy bot API. Test with
+`node --test automation-platform/test/herbyBotAdminRelay.test.js`.
+
+For a future web/private-service bot, `HERBY_ADMIN_PROXY_ENABLED=true` enables the fixed `/herby-admin` proxy to the
 configured private bot hostname in `HERBY_ADMIN_INTERNAL_URL`. All private views
 remain protected by the bot dashboard's signed session/current role checks.
 Encoded path escapes and methods other than GET/HEAD/POST are rejected. The
