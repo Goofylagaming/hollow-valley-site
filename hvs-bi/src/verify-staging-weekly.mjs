@@ -16,9 +16,10 @@ export async function verifyStagingWeekly() {
   try {
     const customer = createCustomer(db, 'weekly-verification@example.invalid');
     const trade = process.env.BI_VERIFY_STAGING_TRADE;
-    if (trade) {
+    const location = process.env.BI_VERIFY_STAGING_LOCATION;
+    if (trade || location) {
       db.prepare('UPDATE customers SET preferences=? WHERE id=?')
-        .run(JSON.stringify({trades:[trade], locations:[]}), customer.id);
+        .run(JSON.stringify({trades:trade?[trade]:[], locations:location?[location]:[]}), customer.id);
     }
     const now = Math.floor(Date.now() / 1000);
     db.prepare('INSERT INTO subscriptions VALUES(?,?,?,?,?,?)')
@@ -32,6 +33,9 @@ export async function verifyStagingWeekly() {
     if (trade && csv.some(row => !row.trades.split('; ').includes(trade))) {
       throw new Error('Weekly CSV contains a row outside the selected trade');
     }
+    if (location && csv.some(row => row.location !== location)) {
+      throw new Error('Weekly CSV contains a row outside the selected location');
+    }
     const preview = JSON.parse(await readFile(join(report, 'email-preview.json'), 'utf8'));
     const counts = Object.fromEntries(['logan','brisbane','qld'].map(source =>
       [source, csv.filter(row => row.id.startsWith(source + ':')).length]));
@@ -39,7 +43,7 @@ export async function verifyStagingWeekly() {
     const job = db.prepare('SELECT status FROM jobs WHERE id=?').get('weekly:' + result.week)?.status;
     if (result.customers !== 1 || job !== 'complete' || delivery !== 'dry_run' ||
         pdf.subarray(0,5).toString() !== '%PDF-' || !pdf.toString('ascii').trimEnd().endsWith('%%EOF') ||
-        Object.values(counts).some(count => !count) || csv.length !== Object.values(counts).reduce((sum,n)=>sum+n,0) ||
+        csv.length === 0 || result.sources.length !== 3 || csv.length !== Object.values(counts).reduce((sum,n)=>sum+n,0) ||
         preview.attachments.map(a=>a.filename).sort().join(',') !== 'opportunities.csv,opportunities.pdf') {
       throw new Error('Weekly dry-run output did not pass verification');
     }
@@ -50,7 +54,7 @@ export async function verifyStagingWeekly() {
         await copyFile(join(report,file),join('reports/verified-weekly',file));
       }
     }
-    console.log('HVS BI WEEKLY VERIFIED ' + JSON.stringify({week:result.week,trade,job,delivery,counts,pdfBytes:pdf.length,csvRows:csv.length}));
+    console.log('HVS BI WEEKLY VERIFIED ' + JSON.stringify({week:result.week,trade,location,job,delivery,counts,pdfBytes:pdf.length,csvRows:csv.length}));
   } finally {
     db.close();
     await rm(dir,{recursive:true,force:true});
