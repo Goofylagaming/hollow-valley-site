@@ -72,18 +72,34 @@ export async function pdfReport(rows,{label='Weekly opportunities',health=[],gen
   for (const feed of feedOrder) {
     const entries = grouped.get(feed);
     if (!entries?.length) continue;
-    if (doc.y > 590) doc.addPage();
-    doc.moveDown().fillColor('#173e38').fontSize(16).text(feedLabels.get(feed) || 'Other sources');
+    const lines = [{ text: feedLabels.get(feed) || 'Other sources', size: 16, color: '#173e38', gap: 12 }];
     for (const r of entries) {
-      if(doc.y>625)doc.addPage();
-      doc.moveDown().fillColor('#173e38').fontSize(13).text(concise(r.title, 150));
-      doc.fillColor('#334155').fontSize(10).text(concise(`${r.kind.replaceAll('_',' ')} | ${r.location} / ${r.suburb||'area unspecified'}`, 110));
-      doc.text(concise(r.status, 105));
-      doc.text(`Potential trades: ${concise(r.trades.join(', ')||'unclassified', 95)}`);
-      if(r.timing)doc.text(`Published timing window: ${concise(r.timing, 75)}`);
-      if(cautionFlags.some(flag => r.flags.includes(flag)))doc.text('Older source information. Check current status.');
-      doc.fillColor('#156b61').text('Official source / verify this record',{link:r.source_url,underline:true});
-      doc.fillColor('#64748b').fontSize(8).text(concise(`${r.attribution}. ${r.licence}. Reference: ${r.source_id||r.id}`, 170));
+      const add = (text, style = {}) => lines.push({ text, size: 10, color: '#334155', gap: 0, ...style });
+      add(concise(r.title, 150), {size: 13, color: '#173e38', gap: 9});
+      add(concise(`${r.kind.replaceAll('_',' ')} | ${r.location} / ${r.suburb||'area unspecified'}`, 110));
+      add(concise(r.status, 105));
+      add(`Potential trades: ${concise(r.trades.join(', ')||'unclassified', 95)}`);
+      if (r.timing) add(`Published timing window: ${concise(r.timing, 75)}`);
+      if (cautionFlags.some(flag => r.flags.includes(flag))) add('Older source information. Check current status.');
+      add('Official source / verify this record', {color: '#156b61', link: r.source_url});
+      add(concise(`${r.attribution}. ${r.licence}. Reference: ${r.source_id||r.id}`, 170), {size: 8, color: '#64748b'});
+    }
+    const width = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+    const bottom = 785; // Leave room for the page footer.
+    const pageCapacity = bottom - doc.page.margins.top;
+    const sectionHeight = scale => lines.reduce((height, line) =>
+      height + line.gap * scale + doc.fontSize(line.size * scale).heightOfString(line.text, {width}), 0);
+    let scale = 1;
+    let height = sectionHeight(scale);
+    if (height > pageCapacity) {
+      scale = pageCapacity / height;
+      height = sectionHeight(scale);
+    }
+    if (doc.y + height > bottom) doc.addPage();
+    for (const line of lines) {
+      doc.y += line.gap * scale;
+      doc.fontSize(line.size * scale).fillColor(line.color)
+        .text(line.text, {width, link: line.link, underline: Boolean(line.link)});
     }
   }
   const range=doc.bufferedPageRange();
