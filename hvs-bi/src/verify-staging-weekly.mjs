@@ -15,6 +15,11 @@ export async function verifyStagingWeekly() {
   const db = openStore(':memory:');
   try {
     const customer = createCustomer(db, 'weekly-verification@example.invalid');
+    const trade = process.env.BI_VERIFY_STAGING_TRADE;
+    if (trade) {
+      db.prepare('UPDATE customers SET preferences=? WHERE id=?')
+        .run(JSON.stringify({trades:[trade], locations:[]}), customer.id);
+    }
     const now = Math.floor(Date.now() / 1000);
     db.prepare('INSERT INTO subscriptions VALUES(?,?,?,?,?,?)')
       .run('staging-verification', customer.id, 'trialing', now + 3600, 0, now);
@@ -24,6 +29,9 @@ export async function verifyStagingWeekly() {
     const report = join(dir, result.week, customer.id);
     const pdf = await readFile(join(report, 'opportunities.pdf'));
     const csv = parse(await readFile(join(report, 'opportunities.csv')), {columns: true, skip_empty_lines: true});
+    if (trade && csv.some(row => !row.trades.split('; ').includes(trade))) {
+      throw new Error('Weekly CSV contains a row outside the selected trade');
+    }
     const preview = JSON.parse(await readFile(join(report, 'email-preview.json'), 'utf8'));
     const counts = Object.fromEntries(['logan','brisbane','qld'].map(source =>
       [source, csv.filter(row => row.id.startsWith(source + ':')).length]));
@@ -42,7 +50,7 @@ export async function verifyStagingWeekly() {
         await copyFile(join(report,file),join('reports/verified-weekly',file));
       }
     }
-    console.log('HVS BI WEEKLY VERIFIED ' + JSON.stringify({week:result.week,job,delivery,counts,pdfBytes:pdf.length,csvRows:csv.length}));
+    console.log('HVS BI WEEKLY VERIFIED ' + JSON.stringify({week:result.week,trade,job,delivery,counts,pdfBytes:pdf.length,csvRows:csv.length}));
   } finally {
     db.close();
     await rm(dir,{recursive:true,force:true});
