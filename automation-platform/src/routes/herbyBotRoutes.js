@@ -12,6 +12,26 @@ const progression = require('../services/progressionService');
 const router = express.Router();
 router.use(requireHerbyBotToken);
 
+// Disabled until the companion HerbyBot release has passed staging validation.
+router.get('/player-view/:discordId/:view', async (req, res) => {
+  res.set('Cache-Control', 'private, no-store');
+  if (process.env.HERBYBOT_PLAYER_VIEWS_ENABLED !== 'true') return res.sendStatus(404);
+  try {
+    const { playerView } = require('../services/herbyBotPlayerView');
+    const result = await playerView(req.params.discordId, req.params.view, {
+      progression,
+      economy: require('../services/economyStore'),
+      prime: require('../services/primeTrackerService'),
+      status: require('../services/statusService'),
+    });
+    return res.json(result);
+  } catch (error) {
+    const status = error.message === 'NOT_LINKED' ? 404 :
+      ['INVALID_ID', 'INVALID_VIEW'].includes(error.message) ? 400 : 503;
+    return res.status(status).json({ error: 'Player information unavailable. Check your account link or try later.' });
+  }
+});
+
 router.get('/status', async (_req, res) => {
   try {
     const publicStatus = await getPublicStatus();
