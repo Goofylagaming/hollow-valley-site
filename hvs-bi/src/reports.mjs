@@ -40,20 +40,28 @@ export function rankForSummary(rows, time = new Date()) {
 }
 export async function pdfReport(rows,{label='Weekly opportunities',health=[],generatedAt=new Date()}={}) {
   const shortlist = rankForSummary(rows, generatedAt);
+  const feedLabels = new Map([
+    ['logan', 'Logan'],
+    ['brisbane', 'Brisbane'],
+    ['qld', 'Queensland Procurement']
+  ]);
   const doc=new PDFDocument({size:'A4',margin:45,bufferPages:true,info:{Title:'HVS BI - Construction Intelligence'}}),chunks=[];
   const result=new Promise((resolve,reject)=>{doc.on('data',c=>chunks.push(c));doc.on('end',()=>resolve(Buffer.concat(chunks)));doc.on('error',reject);});
   doc.fillColor('#173e38').fontSize(11).text('HOLLOW VALLEY STUDIOS / BUSINESS INTELLIGENCE');
   doc.moveDown().fontSize(25).text('Construction opportunities');
   doc.fontSize(12).fillColor('#334155').text(label).text(generatedAt.toLocaleString('en-AU',{timeZone:'Australia/Brisbane'})+' Brisbane');
   doc.moveDown().fontSize(10).text(`Showing ${shortlist.length} priority records. The full CSV contains ${rows.length} matching records.`);
+  doc.moveDown(0.5).fontSize(11).text('Feed summary');
+  doc.fontSize(10);
+  for (const [feed, name] of feedLabels) {
+    const matches = rows.filter(row => row.source === feed).length;
+    const shortlisted = shortlist.filter(row => row.source === feed).length;
+    doc.text(`${name}  |  ${matches} matches  |  ${shortlisted} shortlisted`);
+  }
+  doc.moveDown(0.5);
   doc.text('Check project status and eligibility with the official source before acting.');
   for(const s of health)doc.text(`${s.id}: ${s.status}; last successful sync ${s.last_success||'never'}`);
   if(!shortlist.length)doc.moveDown().text('No priority records for this report.');
-  const feedLabels = new Map([
-    ['logan', 'Logan'],
-    ['brisbane', 'Brisbane'],
-    ['qld', 'Queensland Procurement']
-  ]);
   const grouped = new Map();
   for (const row of shortlist) {
     const feed = row.source || 'unknown';
