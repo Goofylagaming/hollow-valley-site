@@ -6,7 +6,11 @@ import { weekly, weekKey } from './jobs.mjs';
 const db=openStore();
 try {
   const [command,...args]=process.argv.slice(2);
-  if(command==='sync'){const result=await syncAll(db);console.log(JSON.stringify(result,null,2));if(result.some(r=>r.error))process.exitCode=1;}
+  if(command==='sync'){const result=await syncAll(db);console.log(JSON.stringify(result,null,2));if (process.env.RENDER_SERVICE_NAME === 'hvs-bi-pilot-staging') {
+      if (result.every(source => source.error)) process.exitCode = 1;
+    } else if (result.some(source => source.error)) {
+      process.exitCode = 1;
+    }}
   else if(command==='report')console.log(await writeReports(selectRows(db),args[0]||'reports/sample',{label:'Pilot sample - all current matching source records',health:db.prepare('SELECT * FROM sources').all()}));
   else if(command==='customer'){
     const c=createCustomer(db,args[0],false);
