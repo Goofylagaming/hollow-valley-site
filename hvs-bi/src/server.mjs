@@ -49,6 +49,13 @@ export function makeServer(db,{env=process.env}={}) {
         const session=await stripeClient(env).billingPortal.sessions.create({customer:c.stripe_customer,return_url:env.BI_PUBLIC_URL+'/'});return json(200,{url:session.url});
       }
       if(!entitled(db,c.id))return json(403,{error:'An active, recently verified pilot entitlement is required'});
+      if (req.method === 'GET' && env.RENDER_SERVICE_NAME === 'hvs-bi-pilot-staging' &&
+          ['/api/verified-weekly.pdf','/api/verified-weekly.csv'].includes(url.pathname)) {
+        const extension = url.pathname.endsWith('.pdf') ? 'pdf' : 'csv';
+        const data = await readFile('reports/verified-weekly/opportunities.' + extension);
+        res.setHeader('Content-Type', extension === 'pdf' ? 'application/pdf' : 'text/csv');
+        return res.end(data);
+      }
       const rows=selectRows(db,JSON.parse(c.preferences)),health=db.prepare('SELECT * FROM sources').all();
       if(req.method==='GET'&&url.pathname==='/api/opportunities')return json(200,{rows,health});
       if(req.method==='GET'&&url.pathname==='/api/report.csv'){res.setHeader('Content-Type','text/csv');res.setHeader('Content-Disposition','attachment; filename="hvs-bi.csv"');return res.end(csvReport(rows));}

@@ -35,6 +35,13 @@ export async function verifyStagingWeekly() {
         preview.attachments.map(a=>a.filename).sort().join(',') !== 'opportunities.csv,opportunities.pdf') {
       throw new Error('Weekly dry-run output did not pass verification');
     }
+    if (process.env.BI_SAVE_STAGING_WEEKLY === 'true') {
+      const {mkdir, copyFile} = await import('node:fs/promises');
+      await mkdir('reports/verified-weekly', {recursive:true});
+      for (const file of ['opportunities.pdf','opportunities.csv']) {
+        await copyFile(join(report,file),join('reports/verified-weekly',file));
+      }
+    }
     console.log('HVS BI WEEKLY VERIFIED ' + JSON.stringify({week:result.week,job,delivery,counts,pdfBytes:pdf.length,csvRows:csv.length}));
   } finally {
     db.close();
