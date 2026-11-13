@@ -17,11 +17,20 @@ export function rankForSummary(rows, time = new Date()) {
   const relevance = row => Number(row.trades.length > 0) * 2 -
     cautionFlags.filter(flag => row.flags.includes(flag)).length;
   const recency = row => Date.parse(row.published_at || row.source_updated_at || row.changed_at) || 0;
-  return rows.filter(row => !row.flags.includes('deadline_passed') &&
+  const ranked = rows.filter(row => !row.flags.includes('deadline_passed') &&
     !(row.closes_at && new Date(row.closes_at) < time))
     .sort((a,b) => relevance(b) - relevance(a) || recency(b) - recency(a) ||
-      String(a.id).localeCompare(String(b.id)))
-    .slice(0, shortlistLimit);
+      String(a.id).localeCompare(String(b.id)));
+  const firstByFeed = new Map();
+  for (const row of ranked) {
+    if (row.source && !firstByFeed.has(row.source)) firstByFeed.set(row.source, row);
+  }
+  const selected = new Set([...firstByFeed.values()].slice(0, shortlistLimit));
+  for (const row of ranked) {
+    if (selected.size === shortlistLimit) break;
+    selected.add(row);
+  }
+  return ranked.filter(row => selected.has(row));
 }
 export async function pdfReport(rows,{label='Weekly opportunities',health=[],generatedAt=new Date()}={}) {
   const shortlist = rankForSummary(rows, generatedAt);

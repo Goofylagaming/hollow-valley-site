@@ -60,6 +60,19 @@ test('weekly shortlist favours classified recent work and CSV retains every matc
  assert.deepEqual(ranked.map(row=>row.id),['10','09','08','07','06','05','04','03']);
  assert.equal(csvReport(rows).split('\r\n').length,13);
 });
+test('weekly shortlist represents each eligible feed without dropping CSV records',()=>{
+ const logan=Array.from({length:10},(_,i)=>({
+   id:`logan:${i}`,source:'logan',trades:['civil'],flags:[],published_at:'2026-11-13'
+ }));
+ const brisbane={...logan[0],id:'brisbane:1',source:'brisbane',published_at:'2026-10-01'};
+ const qld={...brisbane,id:'qld:1',source:'qld'};
+ const rows=[...logan,brisbane,qld];
+ assert.equal(rankForSummary(rows).length,8);
+ assert.deepEqual(new Set(rankForSummary(rows).map(row=>row.source)),new Set(['logan','brisbane','qld']));
+ const expired={...qld,flags:['deadline_passed']};
+ assert.ok(!rankForSummary([...logan,brisbane,expired]).some(row=>row.source==='qld'));
+ assert.equal(csvReport(rows).split('\r\n').length,13);
+});
 test('CSV injection and valid PDF output including no matches',async()=>{
  const r=record('x','=HYPERLINK("evil")');assert.match(csvReport([r]),/'=HYPERLINK/);
  assert.equal((await pdfReport([])).subarray(0,4).toString(),'%PDF');
