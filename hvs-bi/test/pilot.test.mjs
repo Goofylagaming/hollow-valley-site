@@ -8,7 +8,7 @@ import { openStore, ingest, createCustomer, entitled, sourceFailure } from '../s
 import { normalize, selectRows, validatePreferences } from '../src/model.mjs';
 import { mapLogan, mapBrisbane, mapProcurement, logan, syncAll, request } from '../src/connectors.mjs';
 import { saveSubscription, stripeClient, handleWebhook } from '../src/billing.mjs';
-import { csvReport, pdfReport } from '../src/reports.mjs';
+import { csvReport, pdfReport, rankForSummary } from '../src/reports.mjs';
 import { scheduledDue, weekKey, weekly, deliver } from '../src/jobs.mjs';
 import { makeServer } from '../src/server.mjs';
 const record=(id='x',title='Roof replacement')=>normalize({id,source:'test',title,kind:'infrastructure_plan',status:'planned',location:'Logan',source_url:'https://example.com',dataset_url:'https://example.com',flags:['not_a_tender'],licence:'CC BY 4.0',attribution:'Test fixture'});
@@ -49,6 +49,16 @@ test('source redirects cannot escape approved hosts',async()=>{
 test('source outage preserves records and reports failure',async()=>{
  const db=openStore(':memory:');ingest(db,'test',[record()]);const result=await syncAll(db,{test:async()=>{throw new Error('offline');}});
  assert.ok(result[0].error);assert.equal(selectRows(db).length,1);assert.equal(db.prepare('SELECT status FROM sources').get().status,'failed');db.close();
+});
+test('weekly shortlist favours classified recent work and CSV retains every match',()=>{
+ const rows=Array.from({length:12},(_,i)=>({
+   id:String(i).padStart(2,'0'), trades:i===0?[]:['civil'], flags:i===1?['source_stale']:[],
+   published_at:`2026-11-${String(i+1).padStart(2,'0')}`,
+   closes_at:i===11?'2026-11-12':null
+ }));
+ const ranked=rankForSummary(rows,new Date('2026-11-14'));
+ assert.deepEqual(ranked.map(row=>row.id),['10','09','08','07','06','05','04','03']);
+ assert.equal(csvReport(rows).split('\r\n').length,13);
 });
 test('CSV injection and valid PDF output including no matches',async()=>{
  const r=record('x','=HYPERLINK("evil")');assert.match(csvReport([r]),/'=HYPERLINK/);
@@ -111,3 +121,4 @@ test('HTTP authentication, customer isolation, exports and persistent preference
  assert.equal((await(await fetch(url+'/api/me',{headers:{Authorization:'Bearer '+b.token}})).json()).preferences.trades.length,0);
  }finally{await new Promise(r=>server.close(r));db.close();}
 });
+
