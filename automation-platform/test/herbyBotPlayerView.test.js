@@ -6,6 +6,8 @@ const services = {
     getProfile: (id, options) => { assert.equal(id, 'linked'); assert.equal(options.sync, false);
       return { level: 3, xp: 40, questsCompleted: 2, secret: 'PRIVATE' }; } },
   economy: { getWallet: id => { assert.equal(id, 'linked'); return { balance: 50, token: 'PRIVATE' }; } },
+  quests: { getQuestStatus: id => { assert.equal(id,'linked'); return {quests:[{
+    title:'Daily playtime',cadence:'daily',progressSeconds:60,thresholdSeconds:300,completed:false,steamId:'PRIVATE'}]}; } },
   prime: { trackerState: () => ({ activeLife: {}, progress: { isPrime: true }, location: 'PRIVATE' }) },
   status: { getServerSnapshot: async () => ({ online: true, characters: [
     { steamId: 'other', species: 'PRIVATE' }, { steamId: 'linked', species: 'Rex', growth: 0.5, location: 'PRIVATE' }] }) },

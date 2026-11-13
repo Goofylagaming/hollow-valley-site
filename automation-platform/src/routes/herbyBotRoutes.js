@@ -12,6 +12,19 @@ const progression = require('../services/progressionService');
 const router = express.Router();
 router.use(requireHerbyBotToken);
 
+router.post('/rewards/settle', (req, res) => {
+  res.set('Cache-Control', 'private, no-store');
+  try {
+    const result = require('../services/herbyBotRewards').settle(req.body?.payload,
+      req.body?.signature, { economy:require('../services/economyStore'), progression });
+    return res.json(result);
+  } catch (error) {
+    const status = {DISABLED:503, UNAUTHORIZED:403, INVALID:400, CONFLICT:409, NOT_LINKED:422}[error.message] || 503;
+    return res.status(status).json({error:'Reward could not be settled', code:
+      ['DISABLED','UNAUTHORIZED','INVALID','CONFLICT','NOT_LINKED'].includes(error.message) ? error.message : 'UNAVAILABLE'});
+  }
+});
+
 // Disabled until the companion HerbyBot release has passed staging validation.
 router.get('/player-view/:discordId/:view', async (req, res) => {
   res.set('Cache-Control', 'private, no-store');
@@ -22,6 +35,7 @@ router.get('/player-view/:discordId/:view', async (req, res) => {
       progression,
       economy: require('../services/economyStore'),
       prime: require('../services/primeTrackerService'),
+      quests: require('../services/questBoostService'),
       status: require('../services/statusService'),
     });
     return res.json(result);

@@ -9,7 +9,10 @@ async function playerView(discordId, view, services) {
     const profile = services.progression.getProfile(steamId, { sync: false });
     fields = view === 'player'
       ? { level: profile.level, xp: profile.xp, questsCompleted: profile.questsCompleted }
-      : { completed: profile.questsCompleted };
+      : { completed: profile.questsCompleted, quests: services.quests.getQuestStatus(steamId).quests.slice(0,12).map(q=>({
+          title:String(q.title).slice(0,120), cadence:q.cadence,
+          progressSeconds:Number(q.progressSeconds)||0, thresholdSeconds:Number(q.thresholdSeconds)||0,
+          completed:q.completed === true })) };
   } else if (view === 'wallet') {
     fields = { balance: services.economy.getWallet(steamId).balance };
   } else if (view === 'prime') {
@@ -22,7 +25,8 @@ async function playerView(discordId, view, services) {
       : { status: snapshot.online ? 'not_in_game' : 'server_offline' };
   }
   fields = Object.fromEntries(Object.entries(fields).filter(([,v]) =>
-    ['string', 'boolean'].includes(typeof v) || (typeof v === 'number' && Number.isFinite(v))));
+    ['string', 'boolean'].includes(typeof v) || (typeof v === 'number' && Number.isFinite(v)) ||
+    (view === 'quests' && Array.isArray(v))));
   return { fields };
 }
 module.exports = { playerView };

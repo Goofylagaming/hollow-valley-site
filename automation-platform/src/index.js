@@ -105,6 +105,7 @@ async function runStartupReadOnlyDiagnostics() {
 }
 
 app.disable('x-powered-by');
+app.use('/herby-admin', require('./routes/herbyBotAdminProxy'));
 app.use(express.json({ limit: '64kb' }));
 app.use(express.static(publicDir, { extensions: ['html'] }));
 
