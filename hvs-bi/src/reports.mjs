@@ -21,14 +21,20 @@ export function rankForSummary(rows, time = new Date()) {
     !(row.closes_at && new Date(row.closes_at) < time))
     .sort((a,b) => relevance(b) - relevance(a) || recency(b) - recency(a) ||
       String(a.id).localeCompare(String(b.id)));
-  const firstByFeed = new Map();
+  const byFeed = new Map();
   for (const row of ranked) {
-    if (row.source && !firstByFeed.has(row.source)) firstByFeed.set(row.source, row);
+    const feed = row.source || 'unknown';
+    if (!byFeed.has(feed)) byFeed.set(feed, []);
+    byFeed.get(feed).push(row);
   }
-  const selected = new Set([...firstByFeed.values()].slice(0, shortlistLimit));
-  for (const row of ranked) {
-    if (selected.size === shortlistLimit) break;
-    selected.add(row);
+  const selected = new Set();
+  const target = Math.min(shortlistLimit, ranked.length);
+  for (let round = 0; round < shortlistLimit && selected.size < target; round++) {
+    const candidates = new Set([...byFeed.values()].map(feed => feed[round]).filter(Boolean));
+    for (const row of ranked) {
+      if (candidates.has(row)) selected.add(row);
+      if (selected.size === target) break;
+    }
   }
   return ranked.filter(row => selected.has(row));
 }

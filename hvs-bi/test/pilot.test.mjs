@@ -66,12 +66,17 @@ test('weekly shortlist represents each eligible feed without dropping CSV record
  }));
  const brisbane={...logan[0],id:'brisbane:1',source:'brisbane',published_at:'2026-10-01'};
  const qld={...brisbane,id:'qld:1',source:'qld'};
- const rows=[...logan,brisbane,qld];
- assert.equal(rankForSummary(rows).length,8);
- assert.deepEqual(new Set(rankForSummary(rows).map(row=>row.source)),new Set(['logan','brisbane','qld']));
+ const expand=row=>Array.from({length:4},(_,i)=>({...row,id:`${row.source}:${i}`}));
+ const rows=[...logan,...expand(brisbane),...expand(qld)];
+ const counts=rows=>rankForSummary(rows).reduce((result,row)=>{
+   result[row.source]=(result[row.source]||0)+1;
+   return result;
+ },{});
+ assert.deepEqual(counts(rows),{logan:3,brisbane:3,qld:2});
+ assert.deepEqual(counts([...logan,brisbane,...expand(qld)]),{logan:4,brisbane:1,qld:3});
  const expired={...qld,flags:['deadline_passed']};
  assert.ok(!rankForSummary([...logan,brisbane,expired]).some(row=>row.source==='qld'));
- assert.equal(csvReport(rows).split('\r\n').length,13);
+ assert.equal(csvReport(rows).split('\r\n').length,19);
 });
 test('CSV injection and valid PDF output including no matches',async()=>{
  const r=record('x','=HYPERLINK("evil")');assert.match(csvReport([r]),/'=HYPERLINK/);
