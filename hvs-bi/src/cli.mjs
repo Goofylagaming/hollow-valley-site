@@ -6,7 +6,7 @@ import { weekly, weekKey } from './jobs.mjs';
 const db=openStore();
 try {
   const [command,...args]=process.argv.slice(2);
-  if(command==='sync'){const result=await syncAll(db);console.log(JSON.stringify(result,null,2));if (process.env.RENDER_SERVICE_NAME === 'hvs-bi-pilot-staging') {
+  if(command==='sync'){ if(process.env.BI_VERIFY_STAGING_WEEKLY==='true') await (await import('./verify-staging-weekly.mjs')).verifyStagingWeekly();const result=await syncAll(db);console.log(JSON.stringify(result,null,2));if (process.env.RENDER_SERVICE_NAME === 'hvs-bi-pilot-staging') {
       if (result.every(source => source.error)) process.exitCode = 1;
     } else if (result.some(source => source.error)) {
       process.exitCode = 1;
