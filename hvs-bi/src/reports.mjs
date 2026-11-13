@@ -49,16 +49,34 @@ export async function pdfReport(rows,{label='Weekly opportunities',health=[],gen
   doc.text('Check project status and eligibility with the official source before acting.');
   for(const s of health)doc.text(`${s.id}: ${s.status}; last successful sync ${s.last_success||'never'}`);
   if(!shortlist.length)doc.moveDown().text('No priority records for this report.');
-  for(const r of shortlist){
-    if(doc.y>625)doc.addPage();
-    doc.moveDown().fillColor('#173e38').fontSize(13).text(concise(r.title, 150));
-    doc.fillColor('#334155').fontSize(10).text(concise(`${r.kind.replaceAll('_',' ')} | ${r.location} / ${r.suburb||'area unspecified'}`, 110));
-    doc.text(concise(r.status, 105));
-    doc.text(`Potential trades: ${concise(r.trades.join(', ')||'unclassified', 95)}`);
-    if(r.timing)doc.text(`Published timing window: ${concise(r.timing, 75)}`);
-    if(cautionFlags.some(flag => r.flags.includes(flag)))doc.text('Older source information. Check current status.');
-    doc.fillColor('#156b61').text('Official source / verify this record',{link:r.source_url,underline:true});
-    doc.fillColor('#64748b').fontSize(8).text(concise(`${r.attribution}. ${r.licence}. Reference: ${r.source_id||r.id}`, 170));
+  const feedLabels = new Map([
+    ['logan', 'Logan'],
+    ['brisbane', 'Brisbane'],
+    ['qld', 'Queensland Procurement']
+  ]);
+  const grouped = new Map();
+  for (const row of shortlist) {
+    const feed = row.source || 'unknown';
+    if (!grouped.has(feed)) grouped.set(feed, []);
+    grouped.get(feed).push(row);
+  }
+  const feedOrder = new Set([...feedLabels.keys(), ...grouped.keys()]);
+  for (const feed of feedOrder) {
+    const entries = grouped.get(feed);
+    if (!entries?.length) continue;
+    if (doc.y > 590) doc.addPage();
+    doc.moveDown().fillColor('#173e38').fontSize(16).text(feedLabels.get(feed) || 'Other sources');
+    for (const r of entries) {
+      if(doc.y>625)doc.addPage();
+      doc.moveDown().fillColor('#173e38').fontSize(13).text(concise(r.title, 150));
+      doc.fillColor('#334155').fontSize(10).text(concise(`${r.kind.replaceAll('_',' ')} | ${r.location} / ${r.suburb||'area unspecified'}`, 110));
+      doc.text(concise(r.status, 105));
+      doc.text(`Potential trades: ${concise(r.trades.join(', ')||'unclassified', 95)}`);
+      if(r.timing)doc.text(`Published timing window: ${concise(r.timing, 75)}`);
+      if(cautionFlags.some(flag => r.flags.includes(flag)))doc.text('Older source information. Check current status.');
+      doc.fillColor('#156b61').text('Official source / verify this record',{link:r.source_url,underline:true});
+      doc.fillColor('#64748b').fontSize(8).text(concise(`${r.attribution}. ${r.licence}. Reference: ${r.source_id||r.id}`, 170));
+    }
   }
   const range=doc.bufferedPageRange();
   for(let i=range.start;i<range.start+range.count;i++){doc.switchToPage(i);doc.fontSize(8).fillColor('#64748b').text(`HVS BI pilot | ${i+1} / ${range.count}`,45,805,{lineBreak:false});}
