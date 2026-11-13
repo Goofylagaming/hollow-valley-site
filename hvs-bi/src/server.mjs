@@ -56,10 +56,11 @@ export function makeServer(db,{env=process.env}={}) {
         res.setHeader('Content-Type', extension === 'pdf' ? 'application/pdf' : 'text/csv');
         return res.end(data);
       }
-      const rows=selectRows(db,JSON.parse(c.preferences)),health=db.prepare('SELECT * FROM sources').all();
+      const preferences=JSON.parse(c.preferences);
+      const rows=selectRows(db,preferences),health=db.prepare('SELECT * FROM sources').all();
       if(req.method==='GET'&&url.pathname==='/api/opportunities')return json(200,{rows,health});
       if(req.method==='GET'&&url.pathname==='/api/report.csv'){res.setHeader('Content-Type','text/csv');res.setHeader('Content-Disposition','attachment; filename="hvs-bi.csv"');return res.end(csvReport(rows));}
-      if(req.method==='GET'&&url.pathname==='/api/report.pdf'){res.setHeader('Content-Type','application/pdf');return res.end(await pdfReport(rows,{label:'Current matching records',health}));}
+      if(req.method==='GET'&&url.pathname==='/api/report.pdf'){res.setHeader('Content-Type','application/pdf');return res.end(await pdfReport(rows,{label:'Current matching records',health,preferences}));}
       return json(404,{error:'Not found'});
     }catch(e){console.error('Request failed:',e.name);return json(e.status||400,{error:'Request could not be completed. Check configuration or input; no live payments are supported.'});}
   });

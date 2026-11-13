@@ -38,7 +38,7 @@ export function rankForSummary(rows, time = new Date()) {
   }
   return ranked.filter(row => selected.has(row));
 }
-export async function pdfReport(rows,{label='Weekly opportunities',health=[],generatedAt=new Date()}={}) {
+export async function pdfReport(rows,{label='Weekly opportunities',health=[],generatedAt=new Date(),preferences}={}) {
   const shortlist = rankForSummary(rows, generatedAt);
   const feedLabels = new Map([
     ['logan', 'Logan'],
@@ -50,6 +50,12 @@ export async function pdfReport(rows,{label='Weekly opportunities',health=[],gen
   doc.fillColor('#173e38').fontSize(11).text('HOLLOW VALLEY STUDIOS / BUSINESS INTELLIGENCE');
   doc.moveDown().fontSize(25).text('Construction opportunities');
   doc.fontSize(12).fillColor('#334155').text(label).text(generatedAt.toLocaleString('en-AU',{timeZone:'Australia/Brisbane'})+' Brisbane');
+  if (preferences) {
+    const trades = preferences.trades.map(trade => trade[0].toUpperCase() + trade.slice(1));
+    doc.moveDown(0.5).fontSize(10)
+      .text(`Trades: ${trades.join(', ') || 'All trades'}`)
+      .text(`Locations: ${preferences.locations.join(', ') || 'All locations'}`);
+  }
   doc.moveDown().fontSize(10).text(`Showing ${shortlist.length} priority records. The full CSV contains ${rows.length} matching records.`);
   doc.moveDown(0.5).fontSize(11).text('Feed summary');
   doc.fontSize(10);

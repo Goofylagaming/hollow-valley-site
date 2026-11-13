@@ -37,10 +37,12 @@ export async function weekly(db,{env=process.env,time=new Date(),sync=syncAll}={
     for(const c of db.prepare('SELECT * FROM customers').all()){
       if(c.stripe_customer)await reconcileCustomer(db,c,stripeClient(env),env.BI_STRIPE_PRICE_ID);
       if(!entitled(db,c.id))continue;
-      const rows=selectRows(db,JSON.parse(c.preferences),{since,time});
-      const files=await writeReports(rows,join(env.BI_REPORT_DIR||'reports',week,c.id),{label:'New and changed records in the last seven days',health,generatedAt:time});
+      const preferences = JSON.parse(c.preferences);
+      const rows=selectRows(db,preferences,{since,time});
+      const files=await writeReports(rows,join(env.BI_REPORT_DIR||'reports',week,c.id),{label:'New and changed records in the last seven days',health,generatedAt:time,preferences});
       await deliver(db,c,week,files,env);count++;
     }
     db.prepare("UPDATE jobs SET status='complete',updated_at=? WHERE id=?").run(nowISO(),id);return {week,customers:count,sources};
   }catch(e){db.prepare("UPDATE jobs SET status='failed',updated_at=? WHERE id=?").run(nowISO(),id);throw e;}
 }
+
