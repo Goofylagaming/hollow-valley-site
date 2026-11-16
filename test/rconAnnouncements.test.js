@@ -73,6 +73,9 @@ test('in-place BinaryLane restart patch is fail-closed, two-save safe, and previ
   assert.match(patch, /Assert-PowerShellSyntax -Source \$revised/);
   assert.match(patch, /Copy-Item -LiteralPath \$RestartScriptPath -Destination \$backup/);
   assert.match(patch, /\[System\.IO\.File\]::Replace/);
+  assert.match(patch, /\$atomicBackup = /);
+  assert.match(patch, /\[System\.IO\.File\]::Replace\(\$temp, \$RestartScriptPath, \$atomicBackup\)/);
+  assert.doesNotMatch(patch, /\[System\.IO\.File\]::Replace\(\$temp, \$RestartScriptPath, \$null\)/);
   assert.match(patch, /Both 5-minute and 1-minute warning blocks are already installed/);
   assert.doesNotMatch(patch, /Stop-Process|StartHollowValley\.bat|Restart-Computer/);
 });
