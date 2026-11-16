@@ -59,3 +59,20 @@ test('scheduled restart warning is updated without changing save/restart flow', 
   assert.match(restart, /Stop-Process -Force/);
   assert.match(restart, /Test-RconReady/);
 });
+
+test('in-place BinaryLane restart patch is fail-closed, two-save safe, and preview-first', () => {
+  const patch = read('scripts/windows/Enable-HollowValley-ExtraRestartWarnings.ps1');
+  assert.match(patch, /\[switch\]\$Apply/);
+  assert.match(patch, /500-second countdown/);
+  assert.match(patch, /Start-Sleep -Seconds 295/);
+  assert.match(patch, /Start-Sleep -Seconds 205/);
+  assert.match(patch, /Start-Sleep -Seconds 60/);
+  assert.match(patch, /Sending 5-minute restart warning/);
+  assert.match(patch, /Sending 1-minute restart warning/);
+  assert.match(patch, /after.*two verified saves succeed/);
+  assert.match(patch, /Assert-PowerShellSyntax -Source \$revised/);
+  assert.match(patch, /Copy-Item -LiteralPath \$RestartScriptPath -Destination \$backup/);
+  assert.match(patch, /\[System\.IO\.File\]::Replace/);
+  assert.match(patch, /Both 5-minute and 1-minute warning blocks are already installed/);
+  assert.doesNotMatch(patch, /Stop-Process|StartHollowValley\.bat|Restart-Computer/);
+});
