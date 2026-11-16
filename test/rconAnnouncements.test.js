@@ -33,7 +33,7 @@ test('the sender uses announced RCON packets and cannot manipulate game state', 
   assert.match(sender, /Password Accepted/);
   assert.match(sender, /0x02,\s*\[byte\]0x10/);
   assert.match(sender, /240 UTF-8 bytes/);
-  assert.match(sender, /-Preview/);
+  assert.match(sender, /\[switch\]\$Preview/);
   assert.match(sender, /Global\\HollowValleyRconAnnouncements/);
   assert.match(sender, /TotalMinutes -lt 15/);
   assert.doesNotMatch(sender, /Stop-Process|Restart-Computer|toggleglobalchat|0x50/);
