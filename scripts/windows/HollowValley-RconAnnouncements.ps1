@@ -62,7 +62,7 @@ function Send-EvrimaAnnouncement {
     try {
         $connect = $client.ConnectAsync($RconHost, $RconPort)
         if (-not $connect.Wait(5000)) { throw 'RCON connection timed out.' }
-        $client.EndConnect($connect)
+        # ConnectAsync returns a Task; Wait above completes it. EndConnect is only for BeginConnect.
         $stream = $client.GetStream()
         $stream.ReadTimeout = 5000
         $stream.WriteTimeout = 5000
