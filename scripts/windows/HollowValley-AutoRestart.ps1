@@ -183,9 +183,9 @@ try {
     # 11:51 / 23:51 - warn exactly once. A warning failure is recorded but does
     # not itself make a safe save/restart impossible.
     try {
-        Send-RconCommand -Code ([byte]0x10) -Arguments 'Game is restarting in 10 minutes' | Out-Null
+        Send-RconCommand -Code ([byte]0x10) -Arguments 'Server is restarting in 10 minutes, please find a safe place whilst the restart takes place.' | Out-Null
         Write-Log 'RCON restart warning sent.'
-        Send-RestartTelemetry -Event 'warning_sent' -Details @{ text = 'Game is restarting in 10 minutes' } | Out-Null
+        Send-RestartTelemetry -Event 'warning_sent' -Details @{ text = 'Server is restarting in 10 minutes, please find a safe place whilst the restart takes place.' } | Out-Null
     } catch {
         Write-Log "RCON restart warning failed: $($_.Exception.Message)"
     }
