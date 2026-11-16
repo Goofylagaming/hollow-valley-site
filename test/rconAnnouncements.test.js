@@ -31,6 +31,8 @@ test('announcements contain the requested links, calendar and feature details', 
 test('the sender uses announced RCON packets and cannot manipulate game state', () => {
   assert.match(sender, /0x01/);
   assert.match(sender, /Password Accepted/);
+  assert.match(sender, /ConnectAsync/);
+  assert.doesNotMatch(sender, /\$client\.EndConnect\(/);
   assert.match(sender, /0x02,\s*\[byte\]0x10/);
   assert.match(sender, /240 UTF-8 bytes/);
   assert.match(sender, /\[switch\]\$Preview/);
