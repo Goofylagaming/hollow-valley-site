@@ -101,7 +101,7 @@ Disable-ScheduledTask -TaskName 'Hollow Valley RCON Links', 'Hollow Valley RCON 
 Instead, download **Enable-HollowValley-ExtraRestartWarnings.ps1** from the approved branch or reviewed commit. It recognizes the observed live sequence and **fails closed** if the structure is different. Default run is preview; the -Apply flag is required to modify the live file.
 
 ~~~powershell
-$commit = '3ec86cc091637c623de78ef5eca778b481d2126c'
+$commit = '0920a49f88884292180b4b331ea8d71358dc594e'
 $url = "https://raw.githubusercontent.com/Goofylagaming/hollow-valley-site/$commit/scripts/windows/Enable-HollowValley-ExtraRestartWarnings.ps1"
 $patcher = 'C:\HollowValley\Scripts\Enable-HollowValley-ExtraRestartWarnings.ps1'
 Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $patcher
@@ -123,3 +123,5 @@ Get-ScheduledTask -TaskName 'Hollow Valley 12 Hour Restart' | Get-ScheduledTaskI
 ~~~
 
 If the messages are not visible to a connected player during the next scheduled restart, review C:\HollowValley\Logs\scheduled-restart.log and the backup path. Never test this by manually starting the real restart task: doing so would run its save and stop sequence. For rollback, stop before the *next* scheduled restart and restore the matching backup file shown by the patcher.
+
+**Windows PowerShell 5.1 hotfix (16 November 2026):** The first edition used a null third argument in `[System.IO.File]::Replace` and failed with `The path is not of a legal form`. The revised script uses a unique non-null backup path for the atomic replacement, while retaining the separately created timestamped backup. If a prior apply failed, verify the file does not contain either `HV-RCON-5M-BEGIN` or `HV-RCON-1M-BEGIN` before retrying. Do not manually start the restart task to test.
