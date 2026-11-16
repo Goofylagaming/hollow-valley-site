@@ -92,3 +92,34 @@ To send one real test broadcast deliberately (with a player online), omit -Previ
 ~~~powershell
 Disable-ScheduledTask -TaskName 'Hollow Valley RCON Links', 'Hollow Valley RCON Tips'
 ~~~
+
+
+### Additional 5-minute / 1-minute notices on existing BinaryLane restart script
+
+**Important:** On 16 November 2026, the actual live BinaryLane restart script was observed to be a *different implementation* from the repository-tracked HollowValley-AutoRestart.ps1. The live script calls Send-HollowValleyAnnouncement.ps1, waits 500 seconds, verifies two saves, then waits another 60 seconds before stopping the game and relying on the watchdog. Do **not** overwrite that live two-save implementation with the repository version.
+
+Instead, download **Enable-HollowValley-ExtraRestartWarnings.ps1** from the approved branch or reviewed commit. It recognizes the observed live sequence and **fails closed** if the structure is different. Default run is preview; the -Apply flag is required to modify the live file.
+
+~~~powershell
+$commit = '3ec86cc091637c623de78ef5eca778b481d2126c'
+$url = "https://raw.githubusercontent.com/Goofylagaming/hollow-valley-site/$commit/scripts/windows/Enable-HollowValley-ExtraRestartWarnings.ps1"
+$patcher = 'C:\HollowValley\Scripts\Enable-HollowValley-ExtraRestartWarnings.ps1'
+Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $patcher
+
+# Read-only structure validation
+& $patcher
+
+# Install only after preview reports success
+& $patcher -Apply
+~~~
+
+This patch preserves the existing 10-minute warning, replaces the 500-second countdown with 295 seconds + 5-minute RCON notice + 205 seconds, and adds the 1-minute RCON notice only after both existing saves succeeded, immediately before the original final 60-second wait. It also removes the accidental double full stop in the 10-minute notice. All extra announcements are best-effort and do not abort the save/restart procedure if RCON is unavailable. A timestamped .bak-5m1m-... copy of the live script is created before the atomic replacement. The Windows Scheduled Task is not started or modified, and no game server restart is performed. The timings are approximate due to RCON execution and save overhead.
+
+To confirm the patch without starting the restart task:
+
+~~~powershell
+Select-String -Path 'C:\HollowValley\Scripts\HollowValley-AutoRestart.ps1' -Pattern 'HV-RCON-5M-BEGIN|HV-RCON-1M-BEGIN|Server is restarting in 10 minutes' -Context 1,3
+Get-ScheduledTask -TaskName 'Hollow Valley 12 Hour Restart' | Get-ScheduledTaskInfo | Format-List LastRunTime,LastTaskResult,NextRunTime
+~~~
+
+If the messages are not visible to a connected player during the next scheduled restart, review C:\HollowValley\Logs\scheduled-restart.log and the backup path. Never test this by manually starting the real restart task: doing so would run its save and stop sequence. For rollback, stop before the *next* scheduled restart and restore the matching backup file shown by the patcher.
