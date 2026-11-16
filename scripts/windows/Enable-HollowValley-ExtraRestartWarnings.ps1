@@ -154,7 +154,12 @@ try {
     [System.IO.File]::WriteAllText($temp, $revised, [System.Text.UTF8Encoding]::new($true))
     # Same-volume replacement is atomic on NTFS; the separately saved backup
     # permits easy manual rollback. No game process is touched.
-    [System.IO.File]::Replace($temp, $RestartScriptPath, $null)
+    # Windows PowerShell 5.1 / .NET Framework requires a valid, non-null
+    # destination backup path for File.Replace; $null can throw ArgumentException.
+    # Keep the independent preflight backup above and create a second atomic
+    # rollback copy during replacement. Neither operation touches the game.
+    $atomicBackup = "$RestartScriptPath.atomic-backup-$([guid]::NewGuid().ToString('N'))"
+    [System.IO.File]::Replace($temp, $RestartScriptPath, $atomicBackup)
 } finally {
     if (Test-Path -LiteralPath $temp) {
         Remove-Item -LiteralPath $temp -Force -ErrorAction SilentlyContinue
