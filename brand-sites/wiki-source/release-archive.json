@@ -2,6 +2,26 @@
   "schema": 1,
   "web": [
     {
+      "version": "W82.2",
+      "title": "Stone & Wild: Fieldwork, Gear & Habitats",
+      "notes": [
+        "Operations adds crew portraits, a clearer dispatch sheet, frozen crew records, route progress and held-cargo status.",
+        "The Armoury adds a selected-companion portrait and individual record, with clearer loadout, inventory, equipment bonuses and item comparison.",
+        "Journey milestones now include progress totals, a phone chapter picker and a direct jump to your current or pinned goal.",
+        "Journey settings now groups profile previews, live rules, saved setups and Offline Journey controls, with time allowance and prepared-run locks.",
+        "Habitat pages add resident portraits, family groups, decoration progress and individual assignments, with search and 24 residents per page."
+      ],
+      "commit": "43dbf0821227a841b1557b588f156f37daff1a5c",
+      "candidate_commit": "bbc61a4dbbb72b150d6891f8941e14d7c4d3d910",
+      "publication_status": "published-official-web",
+      "source": "https://primalboundgame.com/web/release-info.json",
+      "save_compatibility": "The second Stone & Wild interface pass retains W82 save format 34, existing individual companions, equipment, cargo, goals, family records, decorations, accounts and cloud saves. The numbered roadmap remains W82, with W83 next. Season Zero remains unscheduled; World/Desktop saves and updates remain separate.",
+      "notes_commit": "babd726bae98a8ee10dcd0e4439eab5e76fd7378",
+      "manifest_sha256": "32a9c31fea451f333438a952e81014686106fc6b7e0913dfe57f960c5d5332de",
+      "published": "2026-11-19",
+      "verification_scope": "Normal production CI 44367193446, verify-deployment job 135026386131, verified the exact release, five reviewed notes, gameplay manifest, all activity assets and account capabilities across the four game hosts, including the official branded /web/ game. The retained unmodified metadata response is from https://primalbound-cloud-preview.onrender.com/release-info.json and matches that verified release. Static guide publication and announcement receipts are separate release actions."
+    },
+    {
       "version": "W82.1",
       "title": "Stone & Wild: New Game Interface",
       "notes": [
