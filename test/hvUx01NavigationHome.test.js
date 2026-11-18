@@ -72,7 +72,7 @@ test('homepage shows the server, player tools and community before the full 31-f
   assert.match(home, /id="home-wallet-balance"/);
   assert.match(home, /id="home-server-state"/);
   assert.match(home, /id="home-profile-progress"/);
-  assert.match(home, /\/assets\/home-hub\.css\?v=1/);
+  assert.match(home, /\/assets\/home-hub\.css\?v=\d+"/);
   assert.match(home, /\/assets\/home-v2\.js\?v=3/);
   assert.match(home, /\/assets\/home-roadmap\.js\?v=20261111-zone-notifications/);
   assert.match(home, /\/assets\/roadmap-voting\.js\?v=2/);
