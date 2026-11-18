@@ -3,14 +3,47 @@
 .home-hub-eyebrow { margin:0 0 10px; color:#95e7b2; font-size:10px; font-weight:800; letter-spacing:.18em; }
 .snapshot-welcome.home-hub-welcome {
   min-height:98px;
+  justify-content:space-between; flex-wrap:wrap; gap:15px 22px;
   padding:22px clamp(20px,4vw,54px);
   border:1px solid rgba(97,170,113,.3); border-radius:12px;
   background:linear-gradient(110deg,#071e19ed,#0b2c21d9),url('/assets/images/hollow-valley-banner.png') center/cover;
 }
 .snapshot-welcome.home-hub-welcome::before { display:none; }
 .snapshot-welcome.home-hub-welcome h1 { margin:0; font:600 clamp(25px,2.7vw,40px)/1.18 Georgia,serif; color:#f5ecce; }
-.snapshot-welcome.home-hub-welcome h1 span { color:#a6e9bb; }
+.home-hub-welcome-copy { flex:1 1 440px; min-width:0; }
+.snapshot-welcome.home-hub-welcome h1 span { color:#a6e9bb; overflow-wrap:anywhere; }
 .snapshot-welcome.home-hub-welcome p:last-child { margin:9px 0 0; font-size:12px; line-height:1.6; color:#c2d1c5; }
+
+.home-hub-welcome-links { display:flex; flex-wrap:wrap; align-items:stretch; gap:9px; }
+.home-hub-welcome-links > a {
+  display:inline-flex; align-items:center; gap:8px; min-height:42px;
+  max-width:100%; padding:8px 12px; color:#f4ebd4;
+  border:1px solid #52725d; border-radius:8px; background:#082019;
+  font-size:12px; font-weight:750; text-decoration:none;
+}
+.home-hub-welcome-links > a:hover { border-color:#bbebc8; background:#123d2b; }
+.home-hub-guide-icon {
+  width:19px; height:19px; flex:none; fill:none; stroke:#8df1b0;
+  stroke-width:1.65; stroke-linecap:round; stroke-linejoin:round;
+}
+.home-hub-shortcut-arrow { width:14px; height:14px; }
+.home-hub-guide-label { min-width:0; }
+.home-hub-guide-label strong, .home-hub-guide-label small { display:block; }
+.home-hub-guide-label small { margin-top:2px; color:#c0e7cd; font-size:10px; font-weight:650; line-height:1.35; }
+.home-hub-welcome-links > .home-hub-guide-link,
+.home-hub-intro-links > .home-hub-guide-link,
+.my-stuff-nav a[href="/how-to/"] {
+  border:1px solid #76ea9f;
+  background:#0c3122;
+  box-shadow:0 0 0 1px #52e89130, 0 0 9px #52e89138;
+}
+.home-hub-intro-links > .home-hub-guide-link:hover,
+.home-hub-welcome-links > .home-hub-guide-link:hover,
+.my-stuff-nav a[href="/how-to/"]:hover {
+  border-color:#b6f5c9;
+  background:#184c35;
+}
+.my-stuff-nav a[href="/how-to/"] .home-hub-guide-icon { display:block; width:14px; height:14px; margin:auto; }
 
 .home-overview { grid-template-columns:minmax(0,1.4fr) minmax(280px,.75fr); margin:18px 0 28px; align-items:stretch; }
 .home-overview .snapshot-home-hero { display:flex; flex-direction:column; }
@@ -70,7 +103,8 @@
 .home-main.snapshot-home .home-roadmap .roadmap-intro { font-size:13px; max-width:800px; }
 .home-main.snapshot-home .home-roadmap .roadmap-feature summary { overflow-wrap:anywhere; }
 .home-hub-intro-links a:focus-visible,.home-hub-player-grid a:focus-visible,
-.home-hub-community-grid a:focus-visible,.home-hub-section-heading a:focus-visible {
+.home-hub-community-grid a:focus-visible,.home-hub-section-heading a:focus-visible,
+.home-hub-welcome-links a:focus-visible,.my-stuff-nav a[href="/how-to/"]:focus-visible {
   outline:2px solid #e9d694; outline-offset:4px;
 }
 @media(max-width:1100px) {
