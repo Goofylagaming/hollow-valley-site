@@ -2,6 +2,43 @@
   "schema": 1,
   "web": [
     {
+      "version": "W82.1",
+      "title": "Stone & Wild: New Game Interface",
+      "notes": [
+        "The Stone & Wild interface begins with forest colours, parchment headings and painted creature portraits across the game.",
+        "Quick activity navigation and a complete field-guide drawer keep all 23 activities available on desktop and phones.",
+        "Sanctuary now has a portrait gallery and larger individual dossiers, with existing companion care and collection controls.",
+        "The DNA Lab presents hybrid artwork, lineage, abilities and exact evolution requirements together, plus a full-size artwork view.",
+        "New portraits cover Velociraptor, Triceratops, Ankylosaurus, Veilstalker, Tidefang, Ironhide and Bicephalon, including mutant encounters."
+      ],
+      "commit": "f5c57b5c588e0bd7bf20b3ca1a75bbabd3e80cdf",
+      "candidate_commit": "b9184b8d6d1bf24e1d13db1ce58fee14b7be140d",
+      "publication_status": "published-official-web",
+      "source": "https://primalboundgame.com/web/release-info.json",
+      "save_compatibility": "The first Stone & Wild interface pass retains W82 save format 34, existing companion IDs, resources, costs, progression and recovery. No World/Desktop change or season launch.",
+      "notes_commit": "df59780a3d8f988ade5bb0749672f8245e0827e4",
+      "manifest_sha256": "2420ad5381dca8ead4f8bdc9b1301a0a7632f84265806c5a600d6f46b8e7b97f",
+      "published": "2026-11-18",
+      "verification_scope": "Official branded /web/ game and account/cloud service; complete rollout receipt is recorded in Primalbound PR #171."
+    },
+    {
+      "version": "W82",
+      "title": "Season Challenges and Saved Rewards",
+      "notes": [
+        "Season Zero now includes daily and weekly discovery challenges with clear progress, AEST reset times and supply rewards.",
+        "Claim 300 Bones and 3 Herbs for 3 daily discoveries, or 1,200 Bones, 3 Prime Essence and 2 Shards for 12 weekly discoveries.",
+        "Eligible expeditions count toward their dispatch day and week, even when full extraction finishes after a reset or season close.",
+        "Earned challenge rewards stay available after closing. Review each claim and keep its record across reloads and backup restores.",
+        "Save format 34 preserves older progress. Cloud sync now protects challenge evidence and claims from being erased or moved by an older upload."
+      ],
+      "commit": "22fca6ae6ae9a8a9755440d2c7949ad4ae209e1c",
+      "source": "https://primalboundgame.com/web/release-info.json",
+      "save_compatibility": "Web format 34 preserves supported older progress and held expeditions; challenge evidence and claims survive supported backups and protected cloud synchronization. Season Zero is not launched by this release. World saves remain separate.",
+      "published": "2026-11-18",
+      "notes_commit": "bed1d0947658a7d26d0b2feb096b09a78378cc25",
+      "manifest_sha256": "41f0f46d72f2b6ecc1ef116412e63d34e1aa3fd5500dd14974fd66abb92d34d7"
+    },
+    {
       "version": "W81.1",
       "title": "Safer Packs, Reports and Private Invitations",
       "notes": [
