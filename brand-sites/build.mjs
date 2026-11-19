@@ -41,3 +41,5 @@ await import('./publish-tradie.mjs');
 
 // Public HVS council/facilities Service Triage concept demo.
 await import('./publish-council.mjs');
+
+await import('./publish-daymark.mjs');
