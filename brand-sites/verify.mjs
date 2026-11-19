@@ -14,7 +14,13 @@ for (const site of ['primalbound','hollow-valley']) {
       if(!file.endsWith('.html'))continue;
       const html=await readFile(file,'utf8');
       const hiddenShowcase=file.endsWith(join('labs','showcase-v6','index.html'))&&site==='hollow-valley';
-      if(production && !hiddenShowcase) {
+      const daymark=site==='hollow-valley'&&file===join(base,'daymark','index.html');
+      const staffCopy=site==='hollow-valley'&&['weekday','saturday'].some(v=>file===join(base,'daymark','staff',v,'index.html'));
+      if(staffCopy){
+        assert.doesNotMatch(html,/workbooks\/|\$[0-9]|Roster cost|Wage budget|demo\.js|data-desk|mailto:/i,'The staff copy must contain only the published shifts');
+        assert.match(html,/noindex,nofollow/);
+      }
+      if(production && !hiddenShowcase && !staffCopy) {
         // The explicitly labelled static fallback may use the verified game/account origin.
         // All other Render preview links and staging indicators stay blocked.
         const approvedGameOrigin='https://primalbound-cloud-preview.onrender.com/';
@@ -40,8 +46,8 @@ for (const site of ['primalbound','hollow-valley']) {
         const gigmatch=file.includes(join('gigmatch'))&&site==='hollow-valley';
         const hvsDemo=(file.includes(join('tradie'))||file.includes(join('council')))&&site==='hollow-valley';
         const showcase=hiddenShowcase;
-        assert.ok(wiki||notes||merch||gigmatch||hvsDemo||showcase,'Unapproved script on marketing page: '+file);
-        const expected=wiki
+        assert.ok(wiki||notes||merch||gigmatch||hvsDemo||showcase||daymark,'Unapproved script on marketing page: '+file);
+        const expected=daymark?['<script src="./demo.js" defer>']:wiki
           ?['<script src="../../assets/wiki.js" defer>','<script src="../../assets/release-notes.js" defer>']
           :merch
             ?['<script defer src="/merch/app.js">']
