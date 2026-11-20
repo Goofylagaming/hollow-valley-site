@@ -1,5 +1,5 @@
 import {readFile,readdir,stat} from 'node:fs/promises';
-import {resolve,join} from 'node:path';
+import {relative,resolve,join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import assert from 'node:assert/strict';
 const root=fileURLToPath(new URL('./dist/', import.meta.url));
@@ -37,8 +37,13 @@ for (const site of ['primalbound','hollow-valley']) {
       }
       assert.match(html,/<h1>/);
       assert.match(html,/id="main(?:-content)?"/);
-      assert.doesNotMatch(html,/<form\b|<iframe\b|DATABASE_URL|SESSION_SECRET/i);
-      const scripts=[...html.matchAll(/<script\b[^>]*>/gi)];
+      const websitesOffer=site==='hollow-valley'&&file===join(base,'websites','index.html');
+      if(websitesOffer){
+        assert.match(html,/<form\b[^>]*\bid="hvs-form"/);
+        assert.equal((html.match(/<form\b/gi)||[]).length,1,'The websites offer has one enquiry form');
+        assert.doesNotMatch(html,/<iframe\b|DATABASE_URL|SESSION_SECRET/i);
+      }else assert.doesNotMatch(html,/<form\b|<iframe\b|DATABASE_URL|SESSION_SECRET/i);
+      const scripts=[...html.matchAll(/<script\b[^>]*>/gi)].filter(tag=>!/type=["']application\/ld\+json["']/i.test(tag[0]));
       if(scripts.length){
         const wiki=file.endsWith(join('wiki','index.html'));
         const notes=file.endsWith(join('patch-notes','index.html'))||(site==='primalbound'&&file===join(base,'patch-notes','web','index.html'));
@@ -46,8 +51,8 @@ for (const site of ['primalbound','hollow-valley']) {
         const gigmatch=file.includes(join('gigmatch'))&&site==='hollow-valley';
         const hvsDemo=(file.includes(join('tradie'))||file.includes(join('council')))&&site==='hollow-valley';
         const showcase=hiddenShowcase;
-        assert.ok(wiki||notes||merch||gigmatch||hvsDemo||showcase||daymark,'Unapproved script on marketing page: '+file);
-        const expected=daymark?['<script src="./demo.js" defer>']:wiki
+        assert.ok(wiki||notes||merch||gigmatch||hvsDemo||showcase||daymark||websitesOffer,'Unapproved script on marketing page: '+file);
+        const expected=websitesOffer?['<script>']:daymark?['<script src="./demo.js" defer>']:wiki
           ?['<script src="../../assets/wiki.js" defer>','<script src="../../assets/release-notes.js" defer>']
           :merch
             ?['<script defer src="/merch/app.js">']
@@ -213,3 +218,79 @@ for(const site of ['primalbound','hollow-valley']){
  for(const [,url] of playLinks)assert.equal(url,'https://primalboundgame.com/web/','Primary Web play buttons must use the canonical branded route');
  assert.doesNotMatch(home,/href="https:\/\/primalbound-(?:web|cloud)-preview\.onrender\.com/,'Homepage must not send players directly to preview hostnames');
 }
+
+const hvs=resolve(root,'hollow-valley');
+const setupCheckout='https://buy.stripe.com/dRm6oIffs4n1fdBc831oI00';
+const publishedRoutes=[
+ 'https://hollowvalleystudios.com/',
+ 'https://hollowvalleystudios.com/websites/',
+ 'https://hollowvalleystudios.com/tradie/',
+ 'https://hollowvalleystudios.com/daymark/',
+ 'https://hollowvalleystudios.com/council/',
+ 'https://hollowvalleystudios.com/gigmatch/',
+ 'https://hollowvalleystudios.com/gigmatch/about/',
+ 'https://hollowvalleystudios.com/gigmatch/musician/',
+ 'https://hollowvalleystudios.com/gigmatch/venue/',
+ 'https://hollowvalleystudios.com/merch/'
+];
+const sitemap=await readFile(join(hvs,'sitemap.xml'),'utf8');
+assert.deepEqual([...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match=>match[1]),publishedRoutes,'Sitemap must list the live Hollow Valley routes');
+const robots=await readFile(join(hvs,'robots.txt'),'utf8');
+assert.equal(robots,production?'User-agent: *\nAllow: /\n\nSitemap: https://hollowvalleystudios.com/sitemap.xml\n':'User-agent: *\nDisallow: /\n');
+assert.equal(await readFile(join(root,'primalbound','robots.txt'),'utf8'),production?'User-agent: *\nAllow: /\n':'User-agent: *\nDisallow: /\n');
+await assert.rejects(stat(join(root,'primalbound','sitemap.xml')));
+const stripeUrls=[];
+async function scanPublished(dir){
+ for(const name of await readdir(dir)){
+  const file=resolve(dir,name),info=await stat(file);
+  if(info.isDirectory()){await scanPublished(file);continue;}
+  if(!/\.(html|js|css|xml|txt)$/.test(file))continue;
+  const text=await readFile(file,'utf8');
+  assert.doesNotMatch(text,/\+\s*GST|GST\s+included|\bGST\b/i,file+' must stay free of GST wording');
+  stripeUrls.push(...[...text.matchAll(/https:\/\/(?:buy|checkout)\.stripe\.com\/[A-Za-z0-9]+/g)].map(match=>match[0]+'\n'+relative(hvs,file)));
+ }
+}
+await scanPublished(hvs);
+assert.deepEqual([...new Set(stripeUrls)],[setupCheckout+'\nwebsites/index.html'],'Only the AUD $500 setup Payment Link is published');
+const websites=await readFile(join(hvs,'websites','index.html'),'utf8');
+assert.match(websites,/content="Managed websites for Queensland tradies and local businesses:/);
+assert.match(websites,/rel="canonical" href="https:\/\/hollowvalleystudios\.com\/websites\/"/);
+assert.match(websites,/property="og:title" content="Managed Business Websites in Queensland \| Hollow Valley Studios"/);
+assert.match(websites,/name="twitter:card" content="summary"/);
+assert.match(websites,/Free demo · No meeting required/);
+assert.match(websites,/No meeting required/);
+assert.match(websites,/href="#hvs-enquire"/);
+assert.match(websites,/id="hvs-pay-link" href="https:\/\/buy\.stripe\.com\/dRm6oIffs4n1fdBc831oI00" target="_blank" rel="noopener noreferrer"/);
+const offerLd=JSON.parse(websites.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
+const businessTypes=[].concat(offerLd['@graph'][0]['@type']);
+assert.deepEqual(businessTypes,['ProfessionalService','LocalBusiness','Organization']);
+assert.equal(offerLd['@graph'][1].offers.price,'500.00');
+assert.equal(offerLd['@graph'][1].offers.priceCurrency,'AUD');
+assert.equal(offerLd['@graph'][1].offers.priceSpecification[1].price,'50.00');
+const studioHome=await readFile(join(hvs,'index.html'),'utf8');
+assert.match(studioHome,/rel="canonical" href="https:\/\/hollowvalleystudios\.com\/"/);
+assert.match(studioHome,/property="og:site_name" content="Hollow Valley Studios"/);
+assert.match(studioHome,/href="\/websites\/#hvs-enquire"/);
+assert.doesNotMatch(studioHome,/buy\.stripe\.com|checkout\.stripe\.com/);
+const homeLd=JSON.parse(studioHome.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
+assert.ok([].concat(homeLd['@graph'][0]['@type']).includes('LocalBusiness'));
+assert.match(await readFile(join(hvs,'daymark','index.html'),'utf8'),/Can we cover Saturday\?/);
+assert.match(await readFile(join(hvs,'council','index.html'),'utf8'),/HVS Civic AI/);
+if(production){
+ const indexable=[];
+ async function collectIndexable(dir){
+  for(const name of await readdir(dir)){
+   const file=resolve(dir,name),info=await stat(file);
+   if(info.isDirectory()){await collectIndexable(file);continue;}
+   if(!file.endsWith('.html'))continue;
+   const rel=relative(hvs,file).replaceAll('\\','/');
+   if(rel==='404.html')continue;
+   const html=await readFile(file,'utf8');
+   if(/noindex/i.test(html))continue;
+   indexable.push('https://hollowvalleystudios.com/'+(rel==='index.html'?'':rel.replace(/index\.html$/,'')));
+  }
+ }
+ await collectIndexable(hvs);
+ assert.deepEqual(indexable.sort(),publishedRoutes.slice().sort(),'Sitemap must match every indexable Hollow Valley page');
+}
+console.log('PASS: Hollow Valley checkout, GST-free pricing, Open Graph and sitemap.');
