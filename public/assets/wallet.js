@@ -12,7 +12,7 @@ function formatDuration(seconds) {
 function walletActivityLabel(transaction) {
   const kind = String(transaction?.kind || "");
   if (kind === "playtime_reward") return "Playtime reward";
-  if (kind === "daily_login") return "Daily login";
+  if (kind === "daily_login" || kind === "daily_login_bonus" || kind === "daily_login_reward") return "Daily login";
   if (kind === "event_reward") return "Event reward";
   if (kind === "event_attendance_reward") return "Event attendance";
   if (kind === "event_bonus_reward") return "Event bonus";
@@ -81,11 +81,24 @@ async function loadWallet() {
 
   try {
     const bonus = await api("/api/daily-bonus");
+    const bonusState = document.getElementById("wallet-bonus-state");
+    const bonusButton = document.getElementById("wallet-claim-daily");
     if (bonus.claimed) {
-      document.getElementById("wallet-bonus-state").textContent = "Claimed";
-      const bonusButton = document.getElementById("wallet-claim-daily");
-      bonusButton.disabled = true;
-      bonusButton.textContent = "Come back tomorrow";
+      if (bonusState) bonusState.textContent = "Claimed";
+      if (bonusButton) {
+        bonusButton.disabled = true;
+        bonusButton.textContent = "Come back tomorrow";
+      }
+    } else if (bonus.enabled === false) {
+      if (bonusState) bonusState.textContent = "Unavailable";
+      if (bonusButton) {
+        bonusButton.disabled = true;
+        bonusButton.textContent = "Unavailable";
+      }
+    } else if (bonus.mode === "streak" && bonus.claimable && bonusButton) {
+      if (bonusState) bonusState.textContent = "Ready";
+      bonusButton.disabled = false;
+      bonusButton.textContent = "Claim today's reward";
     }
   } catch (error) {
     console.warn("Daily bonus state unavailable", error);
@@ -146,17 +159,32 @@ loadWallet();
 
 document.getElementById("wallet-claim-daily")?.addEventListener("click", async (event) => {
   const button = event.currentTarget;
+  const previousLabel = button.textContent;
   button.disabled = true;
-  button.textContent = "Rolling…";
+  button.textContent = "Claiming…";
   try {
     const result = await api("/api/daily-bonus/claim", { method: "POST" });
-    document.getElementById("wallet-balance").textContent = Number(result.wallet?.balance || 0).toLocaleString();
-    document.getElementById("wallet-bonus-state").textContent = "Claimed";
-    button.textContent = `+${result.amount} Valley Coin!`;
+    const balance = Number(result.wallet?.balance);
+    if (Number.isFinite(balance)) {
+      document.getElementById("wallet-balance").textContent = balance.toLocaleString();
+    }
+    const state = document.getElementById("wallet-bonus-state");
+    if (result.duplicate) {
+      if (state) state.textContent = result.claimed ? "Claimed" : "Ready";
+      button.disabled = Boolean(result.claimed);
+      button.textContent = result.claimed ? "Already claimed" : "Claim today's reward";
+    } else {
+      if (state) state.textContent = "Claimed";
+      button.disabled = true;
+      button.textContent = `+${Number(result.amount).toLocaleString()} Valley Coin`;
+    }
+    if (!result.duplicate && Number(result.amount) > 0) {
+      document.dispatchEvent(new CustomEvent("hds:daily-login-bonus", { detail: result }));
+    }
     setTimeout(loadWallet, 1200);
   } catch (error) {
     button.disabled = false;
-    button.textContent = "Roll daily bonus";
+    button.textContent = previousLabel;
     alert(error.message || "Could not claim daily bonus.");
   }
 });

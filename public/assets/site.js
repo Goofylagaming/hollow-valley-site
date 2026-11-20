@@ -173,12 +173,15 @@ function walletActivityDetail(transaction) {
     if (multiplier > 1) parts.push(`×${multiplier} supporter`);
     return parts.length ? parts.join(" · ") : transaction?.reason || "";
   }
-  if (kind === "daily_login_bonus") {
-    const base = Number(metadata.baseAmount);
+  if (kind === "daily_login_bonus" || kind === "daily_login_reward") {
+    const base = Number(metadata.baseAmount ?? metadata.base);
     const multiplier = Number(metadata.supporterMultiplier || 1);
+    const bonus = Number(metadata.bonus || metadata.supporterBonusCoins || 0);
     const parts = [];
     if (Number.isFinite(base)) parts.push(`${base.toLocaleString()} base daily reward`);
     if (multiplier > 1) parts.push(`×${multiplier} supporter`);
+    if (bonus > 0) parts.push(`+${bonus.toLocaleString()} tier bonus`);
+    if (metadata.cycleDay) parts.push(`day ${metadata.cycleDay} of 7`);
     return parts.length ? parts.join(" · ") : transaction?.reason || "";
   }
   return transaction?.reason || "";
@@ -187,7 +190,7 @@ function walletActivityDetail(transaction) {
 function walletActivityLabel(transaction) {
   const kind = String(transaction?.kind || "");
   if (kind === "playtime_reward") return "Playtime reward";
-  if (kind === "daily_login_bonus") return "Daily login bonus";
+  if (kind === "daily_login_bonus" || kind === "daily_login_reward") return "Daily login bonus";
   if (kind === "marketplace_purchase") return "Marketplace purchase";
   if (kind === "marketplace_refund") return "Marketplace refund";
   if (kind === "marketplace_p2p_hold") return "Dino purchase";

@@ -29,7 +29,14 @@
         try {
           const result = await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({day:state.day})});
           if (!result.ok) throw new Error();
-          render(await result.json());
+          const payload = await result.json();
+          render(payload);
+          const awarded = Number(payload?.claim?.amount ?? payload?.amount) || 0;
+          if (payload?.eligible === false && awarded > 0) {
+            document.dispatchEvent(new CustomEvent("hds:daily-login-bonus", {
+              detail: { duplicate: false, amount: awarded, awarded: true },
+            }));
+          }
         } catch { status.textContent = "Claim status unavailable. Retry to check your receipt."; button.disabled = false; }
       };
       panel.append(button);

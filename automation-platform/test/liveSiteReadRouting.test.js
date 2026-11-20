@@ -29,7 +29,10 @@ test('wallet, quests and marketplace routes use the website automation client', 
   const quests = readRepoFile('server/routes/quests.js');
   const marketplace = readRepoFile('server/routes/marketplace.js');
   assert.match(wallet, /automation\.getWallet/);
-  assert.match(wallet, /automation\.getDailyLoginBonus/);
+  assert.match(wallet, /dailyLoginGateway/);
+  const dailyLogin = readRepoFile('server/services/dailyLoginGateway.js');
+  assert.match(dailyLogin, /automation\.getDailyLoginBonus/);
+  assert.match(dailyLogin, /automation\.dailyLogin/);
   assert.match(quests, /automation\.getQuests/);
   assert.match(marketplace, /automation\.listMarketplaceCatalog/);
   assert.match(marketplace, /automation\.listDinoMarketplaceListings/);

@@ -2,6 +2,7 @@ const express = require("express");
 const { getWallet: getLegacyWallet } = require("../db");
 const { requireAuth, requireAdmin } = require("../middleware/requireAuth");
 const automation = require("../services/automationWebsiteClient");
+const dailyLogin = require("../services/dailyLoginGateway");
 
 const router = express.Router();
 
@@ -33,7 +34,7 @@ router.get("/daily-login", requireAuth, async (req, res) => {
     return res.status(400).json({ error: "Your Steam account is not linked." });
   }
   try {
-    return res.json(await automation.getDailyLoginBonus(String(req.user.steam_id)));
+    return res.json(await dailyLogin.readDailyLogin(req.user));
   } catch (error) {
     return automationError(res, error, "Unable to read daily login bonus.");
   }
@@ -44,7 +45,10 @@ router.post("/daily-login/claim", requireAuth, async (req, res) => {
     return res.status(400).json({ error: "Your Steam account is not linked." });
   }
   try {
-    const result = await automation.claimDailyLoginBonus(String(req.user.steam_id));
+    // Logged-in page loads call this automatically. While streak rewards are
+    // enabled it must not award coins; the explicit daily-bonus and supporter
+    // claim routes are the payout paths.
+    const result = await dailyLogin.claimDailyLogin(req.user, { explicit: false });
     return res.status(result.duplicate ? 200 : 201).json(result);
   } catch (error) {
     return automationError(res, error, "Unable to claim daily login bonus.");

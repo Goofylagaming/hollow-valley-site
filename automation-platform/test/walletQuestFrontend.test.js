@@ -20,10 +20,15 @@ test('wallet route uses Steam-linked automation economy', () => {
 
 test('daily bonus route uses Steam-linked automation economy with no legacy wallet credit', () => {
   const route = read('server/routes/dailybonus.js');
-  assert.match(route, /automation\.getDailyLoginBonus/);
-  assert.match(route, /automation\.claimDailyLoginBonus/);
+  const gateway = read('server/services/dailyLoginGateway.js');
+  assert.match(route, /dailyLoginGateway/);
+  assert.match(gateway, /automation\.getDailyLoginBonus/);
+  assert.match(gateway, /automation\.claimDailyLoginBonus/);
+  assert.match(gateway, /automation\.dailyLogin/);
   assert.equal(route.includes('creditWallet'), false);
+  assert.equal(gateway.includes('creditWallet'), false);
   assert.equal(route.includes('Math.random'), false);
+  assert.equal(gateway.includes('Math.random'), false);
 });
 
 test('quest route uses automatic verified-playtime quests and disables manual claims', () => {
