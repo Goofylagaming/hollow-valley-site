@@ -146,13 +146,88 @@ window.HDS = (function () {
     target.textContent = me?.loggedIn && me?.user?.username ? me.user.username : "Survivor";
   }
 
+  function dailyNoticeStyle(extra) {
+    return [
+      "position:fixed",
+      "z-index:1000",
+      "max-width:min(420px,calc(100vw - 2rem))",
+      "display:flex",
+      "gap:0.75rem",
+      "align-items:center",
+      "padding:0.85rem 1rem",
+      "border-radius:10px",
+      "box-shadow:0 6px 24px #0006",
+      "font:600 14px/1.4 inherit",
+      extra,
+    ].join(";");
+  }
+
+  function showDailyLoginAward(detail) {
+    if (!detail || detail.duplicate || detail.automaticClaimSuppressed || detail.awarded === false) return;
+    const amount = Number(detail.amount);
+    if (!(amount > 0) || document.getElementById("hds-daily-login-award")) return;
+    const note = document.createElement("div");
+    note.id = "hds-daily-login-award";
+    note.setAttribute("role", "status");
+    note.style.cssText = dailyNoticeStyle("right:1rem;bottom:1rem;background:#152820;color:#f2faf5;border:1px solid #75bd8c");
+    note.textContent = `Daily login reward · +${amount.toLocaleString()} Valley Coin`;
+    document.body.append(note);
+    setTimeout(() => note.remove(), 8000);
+  }
+
+  function showDailyRewardReady(status) {
+    if (document.getElementById("hds-daily-reward-ready")) return;
+    if (document.getElementById("daily-rewards") || document.getElementById("wallet-claim-daily")) return;
+    const dayKey = status?.dayKey || status?.day || "";
+    const storageKey = dayKey ? `hds-daily-reward-dismissed:${dayKey}` : "";
+    try {
+      if (storageKey && sessionStorage.getItem(storageKey) === "1") return;
+    } catch { /* private browsing can block storage */ }
+    const amount = Number(status?.amount) || 0;
+    const wrap = document.createElement("div");
+    wrap.id = "hds-daily-reward-ready";
+    wrap.setAttribute("role", "status");
+    wrap.style.cssText = dailyNoticeStyle("left:1rem;bottom:1rem;background:#17160f;color:#f3e6c8;border:1px solid #5b4822");
+    const link = document.createElement("a");
+    link.href = "/supporter#daily-rewards";
+    link.style.cssText = "color:inherit;text-decoration:none";
+    link.textContent = amount > 0
+      ? `Daily reward ready · ${amount.toLocaleString()} Valley Coin. Claim today's reward.`
+      : "Daily reward ready. Claim today's reward.";
+    const close = document.createElement("button");
+    close.type = "button";
+    close.setAttribute("aria-label", "Dismiss daily reward notice");
+    close.textContent = "×";
+    close.style.cssText = "margin-left:auto;color:inherit;background:transparent;border:0;font-size:1.3rem;cursor:pointer";
+    close.addEventListener("click", () => {
+      try { if (storageKey) sessionStorage.setItem(storageKey, "1"); } catch { /* ignore */ }
+      wrap.remove();
+    });
+    wrap.append(link, close);
+    document.body.append(wrap);
+  }
+
   async function claimDailyLoginBonus(me) {
     if (!me?.loggedIn) return null;
     // A design/review workspace should not make account writes on page load.
     if (document.body.dataset.suppressDailyClaim === "true") return null;
     try {
+      const status = await api("/api/wallet/daily-login");
+      // Streak rewards are claimed from the supporter page or wallet button.
+      // A page load must not post the legacy automatic payout.
+      if (status?.mode === "streak" || status?.automaticClaim === false) {
+        if (status.claimable && !status.claimed) showDailyRewardReady(status);
+        return status;
+      }
+    } catch (err) {
+      if (![400, 401, 503].includes(Number(err?.status))) {
+        console.warn("Daily login bonus check failed", err);
+      }
+      return null;
+    }
+    try {
       const result = await api("/api/wallet/daily-login/claim", { method: "POST" });
-      if (!result?.duplicate && Number(result?.amount) > 0) {
+      if (!result?.automaticClaimSuppressed && !result?.duplicate && Number(result?.amount) > 0) {
         document.dispatchEvent(new CustomEvent("hds:daily-login-bonus", { detail: result }));
       }
       return result;
@@ -163,6 +238,10 @@ window.HDS = (function () {
       return null;
     }
   }
+
+  document.addEventListener("hds:daily-login-bonus", (event) => {
+    showDailyLoginAward(event.detail);
+  });
 
   function normalizePath(pathname) {
     const normalized = String(pathname || "/").replace(/\/+$/, "");

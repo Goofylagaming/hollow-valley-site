@@ -81,10 +81,16 @@ test("Wallet is restored as a dedicated Steam-linked page", () => {
 
 test("daily bonus route uses the Steam-linked automation wallet only", () => {
   const route = read("server/routes/dailybonus.js");
-  assert.match(route, /getDailyLoginBonus/);
-  assert.match(route, /claimDailyLoginBonus/);
+  const gateway = read("server/services/dailyLoginGateway.js");
+  assert.match(route, /dailyLoginGateway/);
+  assert.match(route, /explicit:\s*true/);
+  assert.match(gateway, /getDailyLoginBonus/);
+  assert.match(gateway, /claimDailyLoginBonus/);
+  assert.match(gateway, /dailyLogin\(/);
   assert.equal(route.includes("creditWallet"), false);
+  assert.equal(gateway.includes("creditWallet"), false);
   assert.equal(route.includes("Math.random"), false);
+  assert.equal(gateway.includes("Math.random"), false);
 });
 
 test("marketplace exposes order history and richer P2P listing details without changing write gates", () => {
