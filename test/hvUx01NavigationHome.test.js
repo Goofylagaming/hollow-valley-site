@@ -96,7 +96,7 @@ test('Help page is a real page and links only to available tools or verified Dis
   const server = read('server/index.js');
   assert.match(server, /"supporter", "events", "help"/);
   assert.match(html, /Help Centre/);
-  assert.match(html, /https:\/\/discord\.gg\/herbydeathsquadgames/);
+  assert.match(html, /https:\/\/discord\.gg\/hollowvalley/);
   assert.match(html, /href="\/profile"/);
   assert.match(html, /href="\/dinostorage\/"/);
   assert.match(html, /href="\/wallet"/);

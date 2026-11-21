@@ -1,7 +1,7 @@
 // Shared helpers used by every page: API wrapper, auth state, injected navigation and test UI shell.
 window.HDS = (function () {
   const PUBLIC_TAGLINE = "WELCOME TO THE AUSTRALIAN ISLE SERVER - HOLLOW VALLEY";
-  const DISCORD_INVITE = "https://discord.gg/hollowvalleyisle";
+  const DISCORD_INVITE = "https://discord.gg/hollowvalley";
 
   function normalizePublicBranding() {
     document.querySelectorAll('a[href*="discord.gg/herbydeathsquadgames"]').forEach((link) => {
