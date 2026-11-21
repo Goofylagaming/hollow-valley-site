@@ -316,6 +316,57 @@ function buildAdminPreviewState(user, requestedTerritory) {
   };
 }
 
+function buildRedesignOverlay(user) {
+  const redesign = require("./territoryRedesign");
+  const catalog = require("./territoryZones");
+  const holdings = redesign.overlayHoldings() || [];
+  const focus = holdings.find((item) => item.attack) || holdings[0] || null;
+  const drawn = holdings.map((item) => {
+    const geometry = catalog.byKey(item.key)?.geometry;
+    const payload = zonePayload(geometry);
+    if (!payload) return null;
+    payload.holderTag = item.ownerTag || null;
+    payload.holderName = item.ownerName || null;
+    payload.territoryName = item.name;
+    return payload;
+  }).filter(Boolean);
+  return {
+    ok: true,
+    redesign: true,
+    generatedAt: new Date().toISOString(),
+    viewer: {
+      mode: user?.is_admin ? "admin" : "player",
+      side: "spectator",
+      role: null,
+      groupName: null,
+      groupTag: null,
+      inBattlefield: false,
+      inClaim: false,
+    },
+    event: focus ? {
+      id: focus.key,
+      name: focus.name,
+      status: "live",
+      territoryName: focus.name,
+      owner: focus.ownerLabel,
+      challenger: focus.attack?.attackerLabel || null,
+    } : null,
+    attack: focus?.attack ? {
+      id: focus.attack.id,
+      status: focus.attack.status,
+      attacker: focus.attack.attackerLabel,
+      defender: focus.ownerLabel,
+    } : null,
+    timer: { phase: "control-live", label: "Territory holdings", endsAt: null },
+    control: { owner: focus?.ownerControl ?? 100, challenger: focus?.challengerControl ?? 0 },
+    zones: drawn[0] || null,
+    holdings: drawn,
+    intel: { attackerDirection: null, generalized: true, exactOpponentPositionsExposed: false },
+    server: { online: false, configured: false, lastChecked: null },
+    preview: { active: false, available: Boolean(user?.is_admin), allTerritories: false, territoryName: null, territoryValue: null, territories: [], zones: [], readOnly: true },
+  };
+}
+
 function buildOverlayState(user, {
   requestedMode,
   preview = false,
@@ -323,6 +374,9 @@ function buildOverlayState(user, {
 } = {}) {
   if (preview && user?.is_admin) {
     return buildAdminPreviewState(user, previewTerritory);
+  }
+  if (process.env.TERRITORY_WARS_REDESIGN_ENABLED === "1") {
+    return buildRedesignOverlay(user);
   }
   const latest = latestEvent();
   // Removing a Territory Wars area hides its overlay but never deletes the

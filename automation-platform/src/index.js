@@ -206,6 +206,9 @@ app.use('/api/admin', (_req, res, next) => {
 
 app.use('/api/website/legacy', require('./routes/valleyLegacyRoutes'));
 app.use('/api/website/territory-results', require('./routes/websiteTerritoryResultRoutes'));
+app.use('/api/website/territory-combat', require('./routes/websiteTerritoryCombatRoutes'));
+app.use('/api/website/territory-holder-rewards', require('./routes/websiteTerritoryRewardRoutes'));
+app.use('/api/website/territory-season-archives', require('./routes/websiteTerritorySeasonRoutes'));
 app.use('/api/website/title-evidence', require('./routes/websiteTitleEvidenceRoutes'));
 app.use('/api/admin/achievement-reviews', require('./routes/achievementReviewRoutes'));
 

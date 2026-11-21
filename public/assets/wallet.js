@@ -23,6 +23,7 @@ function walletActivityLabel(transaction) {
   if (kind === "marketplace_p2p_sale") return "Dino sold";
   if (kind === "skin_preset_create") return "Skin preset";
   if (kind === "admin_credit") return "Admin credit";
+  if (kind === "territory_hold_reward") return "Territory hold";
   return transaction?.reason || "Valley Coin activity";
 }
 

@@ -28,6 +28,10 @@ db.exec(`
    members_snapshot TEXT NOT NULL DEFAULT '[]');
  CREATE INDEX IF NOT EXISTS hv_group_history_member ON hv_group_history(steam_id,id DESC);
 `);
+if (!db.prepare("PRAGMA table_info(hv_groups)").all().some((column) => column.name === "tag")) {
+  db.exec("ALTER TABLE hv_groups ADD COLUMN tag TEXT");
+}
+db.exec("CREATE UNIQUE INDEX IF NOT EXISTS hv_active_group_tag ON hv_groups(tag) WHERE status='active' AND tag IS NOT NULL AND tag <> ''");
 const CAPACITY=12;
 function fail(message,status=400){const error=new Error(message);error.status=status;throw error;}
 function steamId(value){const id=String(value??"").trim();if(!/^\d{17}$/.test(id))fail("A linked 17-digit Steam account is required.");return id;}
@@ -39,7 +43,7 @@ function atomic(fn){
 }
 function account(s){return db.prepare("SELECT steam_id,username,avatar FROM users WHERE steam_id=?").get(s);}
 function current(s){return db.prepare(`
- SELECT g.id,g.name,g.owner_steam_id AS ownerSteamId,g.created_at AS createdAt,
+ SELECT g.id,g.name,g.tag,g.owner_steam_id AS ownerSteamId,g.created_at AS createdAt,
  m.role,m.joined_at AS joinedAt FROM hv_group_members m
  JOIN hv_groups g ON g.id=m.group_id WHERE m.steam_id=? AND g.status='active'`).get(s);}
 function membersOf(gid){return db.prepare(`
@@ -151,6 +155,19 @@ function exitGroup(rawSteam,rawTarget){
    return getState(s);
  });
 }
+function setTag(rawSteam, rawTag) {
+  const s = steamId(rawSteam);
+  const tag = String(rawTag ?? "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (tag.length < 2 || tag.length > 6) fail("Group tag must be 2 to 6 letters or numbers.");
+  return atomic(() => {
+    const g = ownerGroup(s);
+    if (db.prepare("SELECT id FROM hv_groups WHERE status='active' AND tag=? AND id!=?").get(tag, g.id)) {
+      fail("That group tag is already in use.", 409);
+    }
+    db.prepare("UPDATE hv_groups SET tag=? WHERE id=?").run(tag, g.id);
+    return getState(s);
+  });
+}
 function disband(rawSteam){
  const s=steamId(rawSteam);
  return atomic(()=>{
@@ -163,4 +180,4 @@ function disband(rawSteam){
    return getState(s);
  });
 }
-module.exports={CAPACITY,getState,createGroup,invite,actOnInvite,cancelInvite,exitGroup,disband};
+module.exports={CAPACITY,getState,createGroup,invite,actOnInvite,cancelInvite,exitGroup,disband,setTag};

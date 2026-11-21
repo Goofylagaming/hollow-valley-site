@@ -37,6 +37,7 @@
 .tw-zone-shape{vector-effect:non-scaling-stroke;fill:rgba(216,169,40,.025);stroke:#d8a928;stroke-width:1.1;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:7 5}
 .tw-zone-shape.claim{fill:rgba(165,74,63,.04);stroke:#f0b948;stroke-width:1.35;stroke-dasharray:4 4}
 .tw-zone-label{font:700 13px Inter,Arial,sans-serif;letter-spacing:2px;fill:#f2d477;paint-order:stroke;stroke:#0a0a08;stroke-width:4px;stroke-linejoin:round}
+.tw-holder-tag{font-size:11px;letter-spacing:1px;fill:#d7ec9a}
 .tw-map-hud[data-mode="player"] .tw-leader,.tw-map-hud[data-mode="player"] .tw-admin{display:none!important}
 .tw-map-hud[data-mode="leader"] .tw-admin{display:none!important}
 @media(max-width:900px){.tw-map-top{grid-template-columns:130px 160px 130px}.tw-left{width:190px}.tw-control{width:64%}.tw-direction{right:8px;top:8px}.tw-map-top{top:8px}}

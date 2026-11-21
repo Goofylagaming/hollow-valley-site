@@ -852,6 +852,10 @@ function captureTerritory(event, attack, atMs, actorUserId = null) {
 }
 
 function processEventRuntime(eventInput) {
+  if (process.env.TERRITORY_WARS_REDESIGN_ENABLED === "1") {
+    require("../services/territoryRedesign").tick(Date.now());
+    return null;
+  }
   let event = eventInput ? eventById(eventInput.id) : latestEventRaw();
   if (!event) return null;
   const nowMs = Date.now();
@@ -1055,6 +1059,9 @@ function ensurePreviewSouthPlainsEvent() {
 }
 
 router.get("/state", (_req, res) => {
+  if (process.env.TERRITORY_WARS_REDESIGN_ENABLED === "1") {
+    return res.json(require("../services/territoryRedesign").publicState());
+  }
   ensurePreviewSouthPlainsEvent();
   res.json({ ok: true, ...publicState() });
 });
@@ -1074,6 +1081,9 @@ router.get("/invites", requireAuth, (req, res) => {
 });
 
 router.get("/me", requireAuth, (req, res) => {
+  if (process.env.TERRITORY_WARS_REDESIGN_ENABLED === "1") {
+    return res.json(require("../services/territoryRedesign").playerState(req.user));
+  }
   const group = groupForUser(req.user.id);
   const eventRaw = processEventRuntime(latestEventRaw());
   res.json({
@@ -1195,6 +1205,13 @@ router.post("/event-register", requireAuth, (req, res) => {
 });
 
 router.post("/lineup", requireAuth, (req, res) => {
+  if (process.env.TERRITORY_WARS_REDESIGN_ENABLED === "1") {
+    try {
+      return res.json(require("../services/territoryRedesign").setLineup(req.user.steam_id, req.body?.territoryKey, req.body?.steamIds || req.body?.userIds));
+    } catch (error) {
+      return res.status(error.status || 400).json({ error: error.message });
+    }
+  }
   const access = requireGroupRole(req, ["leader", "officer"]);
   if (access.error) return res.status(403).json({ error: access.error });
   const event = eventById(req.body?.eventId) || processEventRuntime(latestEventRaw());
@@ -1246,6 +1263,13 @@ router.post("/lineup", requireAuth, (req, res) => {
 });
 
 router.post("/attack-declare", requireAuth, (req, res) => {
+  if (process.env.TERRITORY_WARS_REDESIGN_ENABLED === "1") {
+    try {
+      return res.json(require("../services/territoryRedesign").declareAttack(req.user.steam_id, req.body?.territoryKey || req.body?.territory));
+    } catch (error) {
+      return res.status(error.status || 400).json({ error: error.message });
+    }
+  }
   const access = requireGroupRole(req, ["leader", "officer"]);
   if (access.error) return res.status(403).json({ error: access.error });
   const event = processEventRuntime(eventById(req.body?.eventId) || latestEventRaw());
@@ -1522,6 +1546,42 @@ router.post("/admin/force-capture", requireAdmin, (req, res) => {
     addLog(event.id, "defence", `${event.owner_name} retained ${event.territory_name}`, req.user.id);
   }
   res.json({ ok: true, event: decorateEvent(eventById(event.id)), log: eventLog(event.id) });
+});
+
+function requireTerritoryInternal(req, res, next) {
+  const crypto = require("node:crypto");
+  const expected = String(process.env.TERRITORY_WARS_INTERNAL_TOKEN || "").trim();
+  if (!expected) return res.status(503).json({ error: "Territory Wars internal authentication is not configured." });
+  const bearer = String(req.get("authorization") || "").match(/^Bearer\s+(.+)$/i)?.[1]?.trim() || "";
+  const left = Buffer.from(bearer);
+  const right = Buffer.from(expected);
+  if (!left.length || left.length !== right.length || !crypto.timingSafeEqual(left, right)) {
+    return res.status(401).json({ error: "Unauthorized Territory Wars request." });
+  }
+  if (process.env.TERRITORY_WARS_REDESIGN_ENABLED !== "1") {
+    return res.status(404).json({ error: "Territory Wars redesign is not enabled." });
+  }
+  return next();
+}
+
+router.get("/internal/state", requireTerritoryInternal, (_req, res) => {
+  res.json(require("../services/territoryRedesign").publicState());
+});
+
+router.post("/internal/attack", requireTerritoryInternal, (req, res) => {
+  try {
+    const territoryKey = req.body?.territoryKey || req.body?.territory || null;
+    res.json(require("../services/territoryRedesign").declareForDiscord(req.body?.discordId, territoryKey));
+  } catch (error) {
+    res.status(error.status || 400).json({ error: error.message });
+  }
+});
+
+router.post("/admin/holdings/reset", requireAdmin, (req, res) => {
+  if (process.env.TERRITORY_WARS_REDESIGN_ENABLED !== "1") {
+    return res.status(404).json({ error: "Territory Wars redesign is not enabled." });
+  }
+  res.json(require("../services/territoryRedesign").resetHoldings());
 });
 
 // The authenticated app drives ticks in-process; no unauthenticated HTTP loopback route.

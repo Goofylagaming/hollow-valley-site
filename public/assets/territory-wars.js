@@ -475,9 +475,128 @@ function renderEventEntry(data) {
   renderAttack(data);
 }
 
+function escapeText(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[ch]));
+}
+
+function renderRedesignPublic(data) {
+  const focus = (data.holdings || []).find((item) => item.attack) || (data.holdings || [])[0];
+  text("tw-territory-name", "Four territories");
+  text("tw-event-name", data.window?.open
+    ? "War window is open. A group can walk an unclaimed zone or finish a declared challenge."
+    : "Protected outside the Saturday 7pm–9pm Brisbane window. Challenges can still be declared.");
+  text("tw-owner-name", focus?.ownerLabel || "Unclaimed");
+  text("tw-challenger-name", focus?.attack?.attackerLabel || "Open");
+  text("tw-status", data.window?.open ? "Window open" : "Protected");
+  text("tw-control-score", focus ? String(focus.controlScore) : "—");
+  text("tw-owner-percent", `${focus?.ownerControl ?? 100}%`);
+  text("tw-challenger-percent", `${focus?.challengerControl ?? 0}%`);
+  text("tw-starts", data.window?.label || "Saturday window");
+  text("tw-ends", "Contests pause when the window closes");
+  text("tw-protection", data.window?.nextStart ? `Next window ${formatDate(data.window.nextStart)}` : "None");
+  text("tw-presence", "Claim zone presence captures. Kills only nudge momentum.");
+  text("tw-registration-count", String((data.holdings || []).length));
+  const list = document.getElementById("tw-holdings");
+  if (list) {
+    list.hidden = false;
+    list.innerHTML = (data.holdings || []).map((item) => `
+      <article class="tw-holding">
+        <strong>${escapeText(item.name)}</strong>
+        <span>Held by ${escapeText(item.ownerLabel || "nobody")}</span>
+        <small>${item.attack ? `${escapeText(item.attack.attackerLabel)} challenging · ${escapeText(item.attack.status)}` : "No active challenge"} · claim radius ${escapeText(item.claimRadius)} map units</small>
+      </article>`).join("");
+  }
+  const log = document.getElementById("tw-event-log");
+  if (log) {
+    log.innerHTML = (data.log || []).length
+      ? data.log.map((row) => `<div class="tw-log-row"><strong>${escapeText(row.kind)}</strong> ${escapeText(row.message)}</div>`).join("")
+      : `<div class="tw-empty">No Territory War activity yet.</div>`;
+  }
+  const board = document.getElementById("tw-leaderboard");
+  if (board) {
+    const rows = data.season?.standings || [];
+    board.innerHTML = rows.length
+      ? rows.map((row) => `<div class="tw-log-row"><strong>${escapeText(row.tag ? `[${row.tag}] ${row.name}` : row.name)}</strong> ${escapeText(row.hours)} hours held</div>`).join("")
+      : `<div class="tw-empty">Season hold time appears here once a season is enabled.</div>`;
+  }
+}
+
+function renderRedesignPlayer(data) {
+  currentPlayerState = data;
+  setHidden("tw-login-state", true);
+  setHidden("tw-group-create-state", !data.group);
+  setHidden("tw-group-current-state", !data.group);
+  if (!data.group) {
+    const empty = document.getElementById("tw-group-create-state");
+    if (empty) {
+      empty.hidden = false;
+      empty.innerHTML = `<p class="tw-muted">Territory Wars uses your website Group. Create one on the Groups page, then set a 2–6 character tag.</p><div class="tw-actions"><a class="tw-button primary" href="/groups/">Open Groups</a></div>`;
+    }
+    return;
+  }
+  text("tw-group-name", data.group.tag ? `[${data.group.tag}] ${data.group.name}` : data.group.name);
+  text("tw-group-role", data.group.role === "owner" ? "Owner" : "Member");
+  const roster = document.getElementById("tw-group-roster");
+  if (roster) {
+    roster.innerHTML = (data.group.members || []).map((member) => `<div>${escapeText(member.username)} · ${escapeText(member.role)}</div>`).join("");
+  }
+  if (data.group.role !== "owner") return;
+  const entry = document.getElementById("tw-event-entry-state");
+  if (entry) entry.hidden = false;
+  const emptyEntry = document.getElementById("tw-event-entry-empty");
+  if (emptyEntry) emptyEntry.hidden = true;
+  text("tw-entry-event-name", "Website Group lineup");
+  text("tw-entry-event-detail", data.group.tag ? "Tag set. Pick a territory, save up to six fighters, then declare." : "Set a group tag on the Groups page before declaring.");
+  const lineup = document.getElementById("tw-lineup-state");
+  if (lineup) lineup.hidden = false;
+  const list = document.getElementById("tw-lineup-list");
+  if (list) {
+    const selected = new Set((data.lineup || []).map((row) => row.steamId));
+    list.innerHTML = `<label class="tw-field">Territory<select id="tw-redesign-territory">${(data.holdings || []).map((item) => `<option value="${escapeText(item.key)}">${escapeText(item.name)}</option>`).join("")}</select></label>`
+      + (data.group.members || []).map((member) => `<label class="tw-check"><input type="checkbox" value="${escapeText(member.steamId)}" ${selected.has(member.steamId) ? "checked" : ""}> ${escapeText(member.username)}</label>`).join("");
+  }
+  const actions = document.getElementById("tw-lineup-actions");
+  if (actions) actions.hidden = false;
+  const save = document.getElementById("tw-save-lineup");
+  if (save) {
+    save.onclick = async () => {
+      const territoryKey = document.getElementById("tw-redesign-territory")?.value;
+      const steamIds = [...document.querySelectorAll("#tw-lineup-list input:checked")].map((node) => node.value);
+      try {
+        const result = await api("/api/territory-wars/lineup", { method: "POST", body: JSON.stringify({ territoryKey, steamIds }) });
+        renderRedesignPlayer(result);
+        setMessage("tw-lineup-message", "Lineup saved. New fighters during a live contest wait 10 minutes.");
+      } catch (error) {
+        setMessage("tw-lineup-message", error.message || "Could not save lineup.", true);
+      }
+    };
+  }
+  const attackState = document.getElementById("tw-attack-state");
+  if (attackState) attackState.hidden = false;
+  const declare = document.getElementById("tw-declare-attack");
+  if (declare) {
+    declare.hidden = false;
+    declare.onclick = async () => {
+      const territoryKey = document.getElementById("tw-redesign-territory")?.value;
+      if (!territoryKey || !confirm("Declare a challenge? A five-minute warning starts now. The fight only moves during the Saturday window.")) return;
+      try {
+        await api("/api/territory-wars/attack-declare", { method: "POST", body: JSON.stringify({ territoryKey }) });
+        setMessage("tw-attack-message", "Challenge declared.");
+        await loadPublicState();
+      } catch (error) {
+        setMessage("tw-attack-message", error.message || "Could not declare.", true);
+      }
+    };
+  }
+}
+
 async function loadPublicState() {
   try {
     const data = await api("/api/territory-wars/state");
+    if (data.redesign) {
+      renderRedesignPublic(data);
+      return;
+    }
     renderEvent(data.event);
     renderPresence(data.presence);
     renderLog(data.log);
@@ -522,6 +641,10 @@ async function loadPlayerState() {
 
   try {
     const data = await api("/api/territory-wars/me");
+    if (data.redesign) {
+      renderRedesignPlayer(data);
+      return;
+    }
     currentPlayerState = data;
     renderGroup(data);
     renderEventEntry(data);
