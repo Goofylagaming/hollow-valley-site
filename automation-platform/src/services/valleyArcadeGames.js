@@ -4,18 +4,13 @@ const { randomInt, randomUUID, randomBytes, createHash } = require("node:crypto"
 const arcade = require("./valleyArcade");
 const { db, validateSteamId } = require("./economyStore");
 const games = ["higher-lower","trivia","memory-match","daily-puzzle","reaction","guess-the-dino"];
-const clues = [
-  ["Which dinosaur carried three facial horns?", "Triceratops","Stegosaurus","Allosaurus"],
-  ["Which dinosaur had plates along its back?", "Stegosaurus","Tyrannosaurus","Iguanodon"],
-  ["Which dinosaur had a long neck?", "Diplodocus","Velociraptor","Triceratops"]
-];
+const { trivia, guess } = require("../data/arcade-questions");
 // Correct-answer Valley Coin payout. Shared by every game, including the three lobby additions.
 const PAYOUT = 500;
 const REACTION_COUNTDOWN_MS = 3000;
 const REACTION_WINDOW_MS = 1500;
 const REACTION_MIN_MS = 120;
 const MEMORY_PAIRS = ["Egg","Egg","Claw","Claw","Fern","Fern"];
-
 function shuffle(values) {
   const result = [...values];
   for (let i=result.length-1;i>0;i--) {
@@ -64,15 +59,10 @@ function challenge(game, now) {
       choices:shuffle([solution,String(Number(solution)+1),String(Number(solution)-1)]),solution};
   }
   if(game==="guess-the-dino"){
-    const identities=[
-      ["I have a sail on my back and a long snout. Who am I?","Spinosaurus","Carnotaurus","Stegosaurus"],
-      ["My two brow horns and very short arms gave me a bull-like silhouette. Who am I?","Carnotaurus","Allosaurus","Ankylosaurus"],
-      ["My tail ends in a heavy club. Who am I?","Ankylosaurus","Diplodocus","Parasaurolophus"]
-    ];
-    const [prompt,solution,...others]=identities[randomInt(identities.length)];
+    const [prompt,solution,...others]=guess[randomInt(guess.length)];
     return {prompt,choices:shuffle([solution,...others]),solution};
   }
-  const [clue,solution,...others]=clues[randomInt(clues.length)];
+  const [clue,solution,...others]=trivia[randomInt(trivia.length)];
   return {prompt:clue, choices:shuffle([solution,...others]),solution};
 }
 
