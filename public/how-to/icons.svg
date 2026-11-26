@@ -15,4 +15,5 @@
   <symbol id="chevron" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
   <symbol id="user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3"/><path d="M5 20v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1"/></symbol>
   <symbol id="chat" viewBox="0 0 24 24"><path d="M21 11a8 8 0 0 1-8 8H8l-5 2 2-5V9a5 5 0 0 1 5-5h4a7 7 0 0 1 7 7Z"/><path d="M9 12h.1m3-.1h.1m3 0h.1"/></symbol>
+  <symbol id="arcade" viewBox="0 0 24 24"><path d="M12 3v6m0 6v6M3 12h6m6 0h6M6.2 6.2l4.2 4.2m3.2 3.2 4.2 4.2M17.8 6.2l-4.2 4.2m-3.2 3.2-4.2 4.2"/></symbol>
 </svg>

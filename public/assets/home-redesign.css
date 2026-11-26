@@ -49,6 +49,12 @@
 .snapshot-home .card-art-quests { background-image:url('/assets/images/home-quests.webp'); }
 .snapshot-home .card-art-skins { background-image:url('/assets/images/home-skins.webp'); }
 .snapshot-home .card-art-marketplace { background-image:url('/assets/images/home-marketplace.webp'); }
+.snapshot-home .card-art-arcade {
+  background-image:
+    linear-gradient(180deg, rgba(8, 24, 16, .05), rgba(8, 24, 16, .42)),
+    url('/assets/images/hollow-valley-home-art.webp');
+  background-position: center 42%;
+}
 .home-explore-links { display:grid; grid-template-columns:1fr 1fr; gap:15px; margin:16px 0; }
 .home-explore-links a { display:flex; align-items:center; gap:18px; padding:22px; border:1px solid #37513d; border-radius:9px; background:linear-gradient(110deg,#0d291ee8,#0b2118f2),url('/assets/gateway-map.webp') center/cover; }
 .home-explore-links a > span { color:#dac189; font-size:25px; }

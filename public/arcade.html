@@ -1,20 +1,95 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Valley Arcade | Hollow Valley</title><link rel="stylesheet" href="/assets/styles.css?v=17">
-<link rel="stylesheet" href="/assets/ui-v2.css?v=3"><link rel="stylesheet" href="/assets/arcade.css?v=1"></head>
-<body><div class="app-shell"><div id="nav-slot"></div><main class="arcade">
-<header><p class="overline">PLAY · EARN · COLLECT</p><h1>Valley Arcade</h1>
-<p>Free challenges. Earned crates. Your next discovery.</p><p>No purchases, stakes, trading or cash-out. Subscriber benefits never change crate odds.</p></header>
-<p><a href="/arcade-skins.html">Explore Emberwake, Frostveil & Verdant Warden →</a></p>
-<p id="arcade-status" role="status" aria-live="polite">Loading your Arcade…</p>
-<div id="arcade-content" hidden><section class="arcade-panel"><h2>Your progress</h2><p id="progress"></p><progress id="xp" max="500" value="0"></progress>
-<p id="plays"></p><button id="daily">Claim daily XP + fragment</button></section>
-<section class="arcade-panel"><h2>Daily free challenges</h2><p>Correct answers earn Arcade XP, a Valley fragment and Valley Coins. Plays reset at midnight Brisbane time.</p>
-<label>Challenge <select id="game"><option value="trivia">Dino Trivia</option><option value="daily-puzzle">Daily Puzzle</option><option value="guess-the-dino">Guess the Dino</option></select></label>
-<button id="play">Play free</button><p id="question"></p><div id="answers"></div></section>
-<section class="arcade-panel"><h2>Your crates</h2><p>Odds below include duplicate protection. Each earned crate keeps its original reward table.</p><div id="crates" class="arcade-grid"></div></section>
-<section class="arcade-panel"><h2>Fragments & reward tables</h2><div id="catalog" class="arcade-grid"></div></section>
-<section class="arcade-panel" id="my-rewards"><h2>My Stuff → Arcade</h2><p>Coins go to your Wallet and skins unlock in Skin Studio. Dinosaur rewards are delivered automatically to DinoStorage when delivery is enabled and storage space is available. Delivery does not change your live dinosaur. Refresh to check delivery progress.</p>
-<p><a href="/wallet">Wallet</a> · <a href="/skins">Skin Studio</a> · <a href="/dinostorage/">DinoStorage</a></p><ul id="entitlements"></ul></section>
-<section class="arcade-panel"><h2>Opening history</h2><ul id="history"></ul></section></div>
-</main></div><script src="/assets/common.js?v=2026112001"></script><script src="/assets/arcade.js?v=2"></script></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Valley Arcade | Hollow Valley</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=38">
+  <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
+  <link rel="stylesheet" href="/assets/snapshot-ui.css?v=5">
+  <link rel="stylesheet" href="/assets/arcade.css?v=3">
+</head>
+<body>
+  <div class="app-shell">
+    <div id="nav-slot"></div>
+    <main class="arcade">
+      <header>
+        <p class="overline">PLAY · EARN · COLLECT</p>
+        <h1>Valley Arcade</h1>
+        <p>Free challenges. Earned crates. Your next discovery.</p>
+        <p>No purchases, stakes, trading or cash-out. Subscriber benefits never change crate odds.</p>
+      </header>
+      <p><a href="/arcade-skins">Explore Emberwake, Frostveil &amp; Verdant Warden →</a></p>
+      <p id="arcade-status" role="status" aria-live="polite">Loading your Arcade…</p>
+
+      <section id="arcade-signed-out" class="arcade-panel" hidden>
+        <h2>Sign in to play</h2>
+        <p>Valley Arcade is free for every player. Sign in with the Steam account you use on Hollow Valley.</p>
+        <a class="arcade-signin" id="arcade-signin" href="/auth/steam?returnTo=%2Farcade">Sign in with Steam</a>
+      </section>
+
+      <section class="arcade-panel" id="arcade-challenges" aria-labelledby="arcade-challenges-heading">
+        <h2 id="arcade-challenges-heading">Daily free challenges</h2>
+        <p>Correct answers earn Arcade XP, a Valley fragment and Valley Coins. Plays reset at midnight Brisbane time.</p>
+        <!--
+          Game cards are rendered from GAME_CARDS in arcade.js.
+          PR 2 appends Higher/Lower, Memory Match and Reaction there.
+          The server scores every answer. Do not send a score from the browser.
+        -->
+        <div id="arcade-games" class="arcade-grid" role="list" aria-label="Challenges"></div>
+        <button type="button" id="play">Play free</button>
+        <p id="question"></p>
+        <div id="answers" role="group" aria-label="Answers"></div>
+      </section>
+
+      <div id="arcade-content" hidden>
+        <section class="arcade-panel" aria-labelledby="arcade-progress-heading">
+          <h2 id="arcade-progress-heading">Your progress</h2>
+          <p id="progress"></p>
+          <progress id="xp" max="500" value="0" aria-label="Progress toward the next Arcade level"></progress>
+          <p id="plays"></p>
+          <button type="button" id="daily">Claim daily XP + fragment</button>
+        </section>
+
+        <section class="arcade-panel" aria-labelledby="arcade-crates-heading">
+          <h2 id="arcade-crates-heading">Your crates</h2>
+          <p>Odds include duplicate protection and use the same reward weights. Each earned crate keeps its original reward table.</p>
+          <!-- PR 2 plays the crate-open animation in #arcade-crate-stage. Leave it hidden. -->
+          <div id="arcade-crate-stage" hidden aria-hidden="true"></div>
+          <div id="crates" class="arcade-grid"></div>
+        </section>
+
+        <section class="arcade-panel" aria-labelledby="arcade-catalog-heading">
+          <h2 id="arcade-catalog-heading">Fragments &amp; reward tables</h2>
+          <div id="catalog" class="arcade-grid"></div>
+        </section>
+
+        <section class="arcade-panel" id="my-rewards" aria-labelledby="arcade-stuff-heading">
+          <h2 id="arcade-stuff-heading">My Stuff → Arcade</h2>
+          <p>Coins go to your Wallet and skins unlock in Skin Studio. Dinosaur rewards are delivered automatically to Dino Storage when delivery is enabled and storage space is available. Delivery does not change your live dinosaur. Refresh to check delivery progress.</p>
+          <p><a href="/wallet">Wallet</a> · <a href="/skins">Skin Studio</a> · <a href="/dinostorage/">Dino Storage</a></p>
+          <ul id="entitlements"></ul>
+        </section>
+
+        <section class="arcade-panel" aria-labelledby="arcade-history-heading">
+          <h2 id="arcade-history-heading">Opening history</h2>
+          <ul id="history"></ul>
+        </section>
+
+        <!--
+          PR 2 leaderboard panel.
+          Remove the hidden attribute and fill #arcade-leaderboard-list from the server.
+          Never accept a score or a time from the browser, and never show Steam IDs.
+        -->
+        <section id="arcade-leaderboard" class="arcade-panel" hidden aria-labelledby="arcade-leaderboard-heading">
+          <h2 id="arcade-leaderboard-heading">Leaderboard</h2>
+          <ol id="arcade-leaderboard-list"></ol>
+        </section>
+      </div>
+    </main>
+  </div>
+  <script src="/assets/common.js?v=2026112001"></script>
+  <script src="/assets/arcade-present.js?v=1"></script>
+  <script src="/assets/arcade.js?v=3"></script>
+</body>
+</html>

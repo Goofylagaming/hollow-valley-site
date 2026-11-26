@@ -269,10 +269,22 @@ function createApp() {
   app.use("/api/internal/supporter-memberships", supporterInternalRouter);
   app.use("/api/valley-arcade", require("./routes/valleyArcade"));
   app.use('/api/arcade', require('./routes/arcadeRewards'));
-  app.get(['/arcade','/arcade/'], (_req,res) => res.sendFile(path.join(__dirname,'..','public','arcade.html')));
-  app.get(['/admin/arcade','/admin/arcade/'], requireAdmin, (_req,res) => {
-    res.set('Cache-Control','private, no-store');
-    res.sendFile(path.join(__dirname,'pages','adminArcade.html'));
+  app.get(['/valley-arcade', '/valley-arcade/', '/valley-arcade.html'], (_req, res) => {
+    res.redirect(301, '/arcade');
+  });
+  app.get(['/admin-valley-arcade', '/admin-valley-arcade/', '/admin-valley-arcade.html'], (_req, res) => {
+    res.redirect(301, '/admin/arcade');
+  });
+  app.get(['/arcade', '/arcade/'], (_req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'arcade.html')));
+  app.get(['/arcade-skins', '/arcade-skins/'], (_req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'arcade-skins.html'));
+  });
+  app.get(['/admin/arcade', '/admin/arcade/'], (req, res, next) => {
+    if (!req.user) return res.redirect(302, '/auth/steam?returnTo=' + encodeURIComponent('/admin/arcade'));
+    return requireAdmin(req, res, next);
+  }, (_req, res) => {
+    res.set('Cache-Control', 'private, no-store');
+    res.sendFile(path.join(__dirname, 'pages', 'adminArcade.html'));
   });
   app.use("/api/internal/membership-rewards", require("./routes/membershipRewardsInternal"));
   app.use("/api/species", speciesRouter);
