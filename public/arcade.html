@@ -7,93 +7,148 @@
   <link rel="stylesheet" href="/assets/styles.css?v=38">
   <link rel="stylesheet" href="/assets/ui-v2.css?v=3">
   <link rel="stylesheet" href="/assets/snapshot-ui.css?v=5">
-  <link rel="stylesheet" href="/assets/arcade.css?v=3">
-  <link rel="stylesheet" href="/assets/arcade-extras.css?v=2">
+  <link rel="stylesheet" href="/assets/arcade.css?v=4">
+  <link rel="stylesheet" href="/assets/arcade-extras.css?v=3">
 </head>
-<body>
+<body class="arcade-page">
   <div class="app-shell">
     <div id="nav-slot"></div>
-    <main class="arcade">
-      <header>
-        <p class="overline">PLAY · EARN · COLLECT</p>
-        <h1>Valley Arcade</h1>
-        <p>Free challenges. Earned crates. Your next discovery.</p>
-        <p>No purchases, stakes, trading or cash-out. Subscriber benefits never change crate odds.</p>
+    <main class="arcade arcade-lobby">
+      <header class="arcade-hero">
+        <div class="arcade-hero-title">
+          <button type="button" id="arcade-drawer-toggle" aria-controls="arcade-rail" aria-expanded="false" aria-label="Open arcade menu">
+            <span></span><span></span><span></span>
+          </button>
+          <div>
+            <p class="arcade-kicker">Play · Earn · Collect</p>
+            <h1>Valley Arcade</h1>
+          </div>
+        </div>
+        <div class="arcade-hero-stats">
+          <p class="arcade-stat"><small>Valley Coins</small><strong id="arcade-coins">—</strong></p>
+          <div class="arcade-xp">
+            <div class="arcade-xp-label"><small>Arcade XP</small><strong id="arcade-level">Level —</strong></div>
+            <progress id="xp" max="500" value="0" aria-label="Progress toward the next Arcade level"></progress>
+          </div>
+          <p class="arcade-stat" id="plays">Sign in to see plays left today</p>
+          <a class="arcade-signin" id="arcade-signin" href="/auth/steam?returnTo=%2Farcade">Sign in with Steam</a>
+          <a class="arcade-account" id="arcade-account" href="/profile" hidden>Player</a>
+          <div id="arcade-sound-slot"></div>
+        </div>
       </header>
-      <p><a href="/arcade-skins">Explore Emberwake, Frostveil &amp; Verdant Warden →</a></p>
+      <p class="arcade-disclaimer">No purchases, stakes, trading or cash-out. Subscriber benefits never change crate odds.</p>
       <p id="arcade-status" role="status" aria-live="polite">Loading your Arcade…</p>
+      <div id="arcade-recent" class="arcade-recent" hidden>
+        <h2 class="arcade-sr" id="arcade-recent-heading">Recent wins</h2>
+      </div>
 
-      <section id="arcade-signed-out" class="arcade-panel" hidden>
-        <h2>Sign in to play</h2>
-        <p>Valley Arcade is free for every player. Sign in with the Steam account you use on Hollow Valley.</p>
-        <a class="arcade-signin" id="arcade-signin" href="/auth/steam?returnTo=%2Farcade">Sign in with Steam</a>
-      </section>
+      <div class="arcade-shell">
+        <button type="button" id="arcade-drawer-backdrop" class="arcade-drawer-backdrop" hidden tabindex="-1" aria-label="Close arcade menu"></button>
+        <aside id="arcade-rail" aria-label="Arcade menu">
+          <button type="button" id="arcade-drawer-close" class="arcade-drawer-close">Close</button>
+          <section class="arcade-rail-panel" aria-labelledby="arcade-rail-games-heading">
+            <h2 id="arcade-rail-games-heading">Games</h2>
+            <nav id="arcade-rail-games" aria-labelledby="arcade-rail-games-heading"></nav>
+          </section>
+          <section class="arcade-rail-panel" aria-labelledby="arcade-rail-rewards-heading">
+            <h2 id="arcade-rail-rewards-heading">Rewards</h2>
+            <a class="arcade-row" href="#arcade-daily"><span class="arcade-icon" aria-hidden="true">D</span><span class="arcade-row-copy"><strong>Daily claim</strong><small>Claim daily XP + fragment</small></span></a>
+            <a class="arcade-row" href="#arcade-crates"><span class="arcade-icon" aria-hidden="true">C</span><span class="arcade-row-copy"><strong>Crates</strong><small>Open earned crate</small></span></a>
+            <a class="arcade-row" href="#arcade-fragments"><span class="arcade-icon" aria-hidden="true">F</span><span class="arcade-row-copy"><strong>Fragments</strong><small>Combine fragments</small></span></a>
+            <a class="arcade-row" href="#arcade-skins"><span class="arcade-icon" aria-hidden="true">S</span><span class="arcade-row-copy"><strong>Skins</strong><small>Emberwake, Frostveil &amp; Verdant Warden</small></span></a>
+          </section>
+          <section class="arcade-rail-panel" aria-labelledby="arcade-rail-stuff-heading">
+            <h2 id="arcade-rail-stuff-heading">My Stuff</h2>
+            <a class="arcade-row" href="#my-rewards"><span class="arcade-icon" aria-hidden="true">I</span><span class="arcade-row-copy"><strong>Inventory</strong><small>Your Arcade rewards</small></span></a>
+            <a class="arcade-row" href="#arcade-history"><span class="arcade-icon" aria-hidden="true">H</span><span class="arcade-row-copy"><strong>History</strong><small>Opening history</small></span></a>
+          </section>
+        </aside>
 
-      <section class="arcade-panel" id="arcade-challenges" aria-labelledby="arcade-challenges-heading">
-        <h2 id="arcade-challenges-heading">Daily free challenges</h2>
-        <p>Correct answers earn Arcade XP, a Valley fragment and Valley Coins. Plays reset at midnight Brisbane time.</p>
-        <!--
-          Game cards are rendered from GAME_CARDS in arcade.js.
-          PR 2 appends Higher/Lower, Memory Match and Reaction there.
-          The server scores every answer. Do not send a score from the browser.
-        -->
-        <div id="arcade-games" class="arcade-grid" role="list" aria-label="Challenges"></div>
-        <button type="button" id="play">Play free</button>
-        <p id="question"></p>
-        <div id="answers" role="group" aria-label="Answers"></div>
-      </section>
+        <div class="arcade-main">
+          <section id="arcade-signed-out" class="arcade-panel" hidden>
+            <h2>Sign in to play</h2>
+            <p>Valley Arcade is free for every player. Sign in with the Steam account you use on Hollow Valley.</p>
+          </section>
 
-      <div id="arcade-content" hidden>
-        <section class="arcade-panel" aria-labelledby="arcade-progress-heading">
-          <h2 id="arcade-progress-heading">Your progress</h2>
-          <p id="progress"></p>
-          <progress id="xp" max="500" value="0" aria-label="Progress toward the next Arcade level"></progress>
-          <p id="plays"></p>
-          <button type="button" id="daily">Claim daily XP + fragment</button>
-        </section>
+          <!--
+            PR 2 leaderboard panel.
+            Remove the hidden attribute and fill #arcade-leaderboard-list from the server.
+            Never accept a score or a time from the browser, and never show Steam IDs.
+          -->
+          <section id="arcade-leaderboard" class="arcade-panel" hidden aria-labelledby="arcade-leaderboard-heading">
+            <h2 id="arcade-leaderboard-heading">Leaderboard</h2>
+            <ol id="arcade-leaderboard-list"></ol>
+          </section>
 
-        <section class="arcade-panel" aria-labelledby="arcade-crates-heading">
-          <h2 id="arcade-crates-heading">Your crates</h2>
-          <p>Odds include duplicate protection and use the same reward weights. Each earned crate keeps its original reward table.</p>
-          <!-- PR 2 plays the crate-open animation in #arcade-crate-stage. Leave it hidden. -->
-          <div id="arcade-crate-stage" hidden aria-hidden="true"></div>
-          <div id="crates" class="arcade-grid"></div>
-        </section>
+          <section class="arcade-panel" id="arcade-challenges" aria-labelledby="arcade-challenges-heading">
+            <h2 id="arcade-challenges-heading">Daily free challenges</h2>
+            <p>Correct answers earn Arcade XP, a Valley fragment and Valley Coins. Plays reset at midnight Brisbane time.</p>
+            <!--
+              Game cards are rendered from GAME_CARDS in arcade.js.
+              PR 2 appends Higher/Lower, Memory Match and Reaction there.
+              The server scores every answer. Do not send a score from the browser.
+            -->
+            <div id="arcade-games" class="arcade-grid" role="list" aria-label="Challenges"></div>
+            <section id="arcade-stage" class="arcade-stage" hidden aria-labelledby="arcade-stage-title">
+              <div class="arcade-stage-head">
+                <h3 id="arcade-stage-title">Challenge</h3>
+                <button type="button" id="arcade-how" aria-expanded="false" aria-controls="arcade-how-panel">How it works</button>
+              </div>
+              <p id="arcade-how-panel" hidden></p>
+              <button type="button" id="play">Play free</button>
+              <p id="question"></p>
+              <div id="answers" role="group" aria-label="Answers"></div>
+            </section>
+          </section>
 
-        <section class="arcade-panel" aria-labelledby="arcade-catalog-heading">
-          <h2 id="arcade-catalog-heading">Fragments &amp; reward tables</h2>
-          <div id="catalog" class="arcade-grid"></div>
-        </section>
+          <section class="arcade-panel" id="arcade-skins" aria-labelledby="arcade-skins-heading">
+            <h2 id="arcade-skins-heading">Skins</h2>
+            <p><a href="/arcade-skins">Explore Emberwake, Frostveil &amp; Verdant Warden →</a></p>
+          </section>
 
-        <section class="arcade-panel" id="my-rewards" aria-labelledby="arcade-stuff-heading">
-          <h2 id="arcade-stuff-heading">My Stuff → Arcade</h2>
-          <p>Coins go to your Wallet and skins unlock in Skin Studio. Dinosaur rewards are delivered automatically to Dino Storage when delivery is enabled and storage space is available. Delivery does not change your live dinosaur. Refresh to check delivery progress.</p>
-          <p><a href="/wallet">Wallet</a> · <a href="/skins">Skin Studio</a> · <a href="/dinostorage/">Dino Storage</a></p>
-          <ul id="entitlements"></ul>
-        </section>
+          <div id="arcade-content" hidden>
+            <section class="arcade-panel" id="arcade-daily" aria-labelledby="arcade-daily-heading">
+              <h2 id="arcade-daily-heading">Daily claim</h2>
+              <p id="progress"></p>
+              <button type="button" id="daily">Claim daily XP + fragment</button>
+            </section>
 
-        <section class="arcade-panel" aria-labelledby="arcade-history-heading">
-          <h2 id="arcade-history-heading">Opening history</h2>
-          <ul id="history"></ul>
-        </section>
+            <section class="arcade-panel" id="arcade-crates" aria-labelledby="arcade-crates-heading">
+              <h2 id="arcade-crates-heading">Your crates</h2>
+              <p>Odds include duplicate protection and use the same reward weights. Each earned crate keeps its original reward table.</p>
+              <!-- PR 2 plays the crate-open animation in #arcade-crate-stage. Leave it hidden. -->
+              <div id="arcade-crate-stage" hidden aria-hidden="true"></div>
+              <div id="crates" class="arcade-grid"></div>
+            </section>
 
-        <!--
-          PR 2 leaderboard panel.
-          Remove the hidden attribute and fill #arcade-leaderboard-list from the server.
-          Never accept a score or a time from the browser, and never show Steam IDs.
-        -->
-        <section id="arcade-leaderboard" class="arcade-panel" hidden aria-labelledby="arcade-leaderboard-heading">
-          <h2 id="arcade-leaderboard-heading">Leaderboard</h2>
-          <ol id="arcade-leaderboard-list"></ol>
-        </section>
+            <section class="arcade-panel" id="arcade-fragments" aria-labelledby="arcade-catalog-heading">
+              <h2 id="arcade-catalog-heading">Fragments &amp; reward tables</h2>
+              <div id="catalog" class="arcade-grid"></div>
+            </section>
+
+            <section class="arcade-panel" id="my-rewards" aria-labelledby="arcade-stuff-heading">
+              <h2 id="arcade-stuff-heading">My Stuff → Arcade</h2>
+              <p>Coins go to your Wallet and skins unlock in Skin Studio. Dinosaur rewards are delivered automatically to Dino Storage when delivery is enabled and storage space is available. Delivery does not change your live dinosaur. Refresh to check delivery progress.</p>
+              <p><a href="/wallet">Wallet</a> · <a href="/skins">Skin Studio</a> · <a href="/dinostorage/">Dino Storage</a></p>
+              <ul id="entitlements"></ul>
+            </section>
+
+            <section class="arcade-panel" id="arcade-history" aria-labelledby="arcade-history-heading">
+              <h2 id="arcade-history-heading">Opening history</h2>
+              <ul id="history"></ul>
+            </section>
+          </div>
+        </div>
       </div>
     </main>
   </div>
-  <script src="/assets/common.js?v=2026112001"></script>
-  <script src="/assets/arcade-present.js?v=1"></script>
-  <script src="/assets/arcade-fx.js?v=3"></script>
-  <script src="/assets/arcade-games.js?v=5"></script>
-  <script src="/assets/arcade-leaderboard.js?v=3"></script>
-  <script src="/assets/arcade.js?v=5"></script>
+  <script src="/assets/common.js?v=2026112601"></script>
+  <script src="/assets/arcade-present.js?v=2"></script>
+  <script src="/assets/arcade-fx.js?v=4"></script>
+  <script src="/assets/arcade-games.js?v=6"></script>
+  <script src="/assets/arcade-leaderboard.js?v=4"></script>
+  <script src="/assets/arcade-shell.js?v=1"></script>
+  <script src="/assets/arcade-recent.js?v=1"></script>
+  <script src="/assets/arcade.js?v=6"></script>
 </body>
 </html>

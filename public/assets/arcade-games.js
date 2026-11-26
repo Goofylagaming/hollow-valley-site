@@ -302,5 +302,11 @@
     if (game === "higher-lower") return playHigher(round);
     if (game === "memory-match") return playMemory(round);
   }
-  window.HollowValleyArcadeGames = { handles, play, games: GAMES };
+  function stop() {
+    switchTicket += 1;
+    epoch += 1;
+    activeId = null;
+    clearKeys();
+  }
+  window.HollowValleyArcadeGames = { handles, play, games: GAMES, stop };
 })();

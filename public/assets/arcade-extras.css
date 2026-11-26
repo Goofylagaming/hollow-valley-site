@@ -23,7 +23,8 @@
 .arcade-prize{font-size:1.35rem;color:#e7cf91}
 @keyframes arcade-shake{0%,100%{transform:rotate(0)}25%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}75%{transform:rotate(-2deg)}}
 @keyframes arcade-lid{to{transform:translateY(-22px) rotate(-8deg)}}
+.arcade-rail a,.arcade-rail button,#arcade-drawer-toggle,#arcade-drawer-close,.arcade-how,.arcade-row,.arcade-hero a{min-height:44px;min-width:44px}
 @media (prefers-reduced-motion:reduce){
-  .arcade-chest,.arcade-chest-lid{animation:none}
+  .arcade-chest,.arcade-chest-lid,.arcade-recent,#arcade-recent-list,#arcade-rail{animation:none;transition:none}
 }
 #arcade-crate-stage.is-static .arcade-chest,#arcade-crate-stage.is-static .arcade-chest-lid{animation:none}
