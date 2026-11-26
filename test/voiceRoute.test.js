@@ -314,6 +314,7 @@ test('voice page, navigation, and server entry stay off the map position feed', 
   assert.match(client, /\/api\/voice\/diagnosis/);
   assert.match(client, /The voice room did not connect/);
   assert.match(page, /Positions are updating slowly/);
+  assert.match(read('public/assets/voice.css'), /\.hv-voice-panel p\.hv-voice-slow/);
   assert.match(read('public/voice.html'), /id="voice-slow-notice"/);
   assert.match(read('.env.example'), /VOICE_MAX_SNAPSHOT_AGE_MS=60000/);
   assert.match(read('render.yaml'), /key: VOICE_MAX_SNAPSHOT_AGE_MS\n\s+value: "60000"/);
