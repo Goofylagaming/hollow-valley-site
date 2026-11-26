@@ -60,12 +60,19 @@
     if (result.tooSlow || result.expired) return "Too slow. That round has closed.";
     return "No correct answer this time. Your owned rewards are safe.";
   }
-  async function finish(result, host) {
+  async function finish(result, host, stillCurrent) {
+    const current = () => typeof stillCurrent !== "function" || stillCurrent();
+    if (!current()) {
+      try {
+        if (window.HollowValleyArcade && window.HollowValleyArcade.refresh) await window.HollowValleyArcade.refresh();
+      } catch (error) { status(error.message); }
+      return;
+    }
     clearKeys();
     window.HollowValleyArcadeFx && window.HollowValleyArcadeFx.playResult(result);
     const line = document.createElement("p");
     line.textContent = describe(result);
-    if (host) host.replaceChildren(line);
+    if (current() && host) host.replaceChildren(line);
     status(line.textContent);
     if (window.HollowValleyArcade && window.HollowValleyArcade.refresh) await window.HollowValleyArcade.refresh();
   }
@@ -198,8 +205,11 @@
     let done = false;
     let release = () => {};
     const settled = new Promise(resolve => { release = resolve; });
-    async function recover(message) {
+    function stillMine() { return mine === attempt && round.id === activeId; }
+    async function recover(message, fromTap) {
+      if (!stillMine() || (!fromTap && done)) return;
       clearKeys();
+      if (!fromTap && (done || !stillMine())) return;
       if (message) {
         status(message);
         const line = document.createElement("p");
@@ -226,8 +236,8 @@
       go.disabled = true;
       const body = { id: round.id, choice: "Tap" };
       if (token) body.token = token;
-      try { await finish(await post("/answer", body), host); }
-      catch (error) { await recover(error.message); }
+      try { await finish(await post("/answer", body), host, stillMine); }
+      catch (error) { await recover(error.message, true); }
       release();
     }
     go.addEventListener("click", () => tap());
@@ -238,7 +248,10 @@
       while (!done && mine === attempt && round.id === activeId) {
         let signal;
         try { signal = await post("/signal", { id: round.id }); }
-        catch (error) { await recover(error.message); break; }
+        catch (error) {
+          if (!done) await recover(error.message);
+          break;
+        }
         if (done || mine !== attempt || round.id !== activeId) break;
         if (signal.state === "countdown") {
           readout.textContent = String(signal.count);
@@ -261,7 +274,7 @@
         await sleep(150);
       }
     } finally {
-      if (!token) release();
+      if (!done && !token) release();
     }
     await settled;
   }
