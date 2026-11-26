@@ -150,8 +150,12 @@ function answer(steamId, id, choice, now=Date.now(), token=null) {
   } else if (round.game==="memory-match") {
     const board=JSON.parse(round.board_json||"[]");
     const state=JSON.parse(round.flip_json||'{"matched":[]}');
-    const matched=Array.isArray(state.matched)?state.matched.length:0;
-    correct=board.length>0 && matched>=board.length && now>=round.opens && now<=round.closes;
+    const matched=Array.isArray(state.matched)?state.matched:[];
+    // A board finished inside the window stays a win. A later retry must not expire it.
+    if (board.length>0 && matched.length>=board.length) {
+      const at=Number.isInteger(state.completedAt)?state.completedAt:round.closes;
+      return arcade.settle(steamId, id, 1, PAYOUT, at);
+    }
   } else {
     correct=choice===round.solution && now>=round.opens && now<=round.closes;
   }
@@ -204,10 +208,11 @@ function flip(steamId, id, position, now=Date.now()) {
     state.matched=Array.isArray(state.matched)?state.matched:[];
     if (round.settled_day) {
       response={complete:round.settled_score>0, duplicate:true, score:round.settled_score, payout:round.settled_payout, matchedPositions:state.matched};
-    } else if (now<round.opens || now>round.closes) {
-      pendingSettle={score:0, payout:0, response:{expired:true, complete:false, matchedPositions:state.matched}};
     } else if (state.matched.length>=board.length) {
-      pendingSettle={score:1, payout:PAYOUT, response:{complete:true, matchedPositions:state.matched}};
+      const at=Number.isInteger(state.completedAt)?state.completedAt:round.closes;
+      pendingSettle={score:1, payout:PAYOUT, at, response:{complete:true, matchedPositions:state.matched}};
+    } else if (now<round.opens || now>round.closes) {
+      pendingSettle={score:0, payout:0, at:now, response:{expired:true, complete:false, matchedPositions:state.matched}};
     } else if (state.matched.includes(pos) || state.pending===pos) {
       response={position:pos, symbol:board[pos-1], matched:state.matched.includes(pos), pending:state.pending===pos,
         matchedPositions:state.matched, complete:false};
@@ -220,15 +225,17 @@ function flip(steamId, id, position, now=Date.now()) {
       const matched=board[first-1]===board[pos-1];
       state.pending=null;
       if (matched) state.matched=[...state.matched, first, pos].sort((a,b)=>a-b);
+      if (state.matched.length>=board.length) state.completedAt=now;
       saveFlip(id, state);
       response={position:pos, symbol:board[pos-1], pair:{position:first, symbol:board[first-1]},
         matched, mismatch:!matched, matchedPositions:state.matched, complete:state.matched.length>=board.length};
-      if (response.complete) pendingSettle={score:1, payout:PAYOUT, response};
+      if (response.complete) pendingSettle={score:1, payout:PAYOUT, at:now, response};
     }
     db.exec("COMMIT");
   } catch (error) { db.exec("ROLLBACK"); throw error; }
   if (!pendingSettle) return response;
-  return {...pendingSettle.response, ...arcade.settle(steamId, id, pendingSettle.score, pendingSettle.payout, now)};
+  const at=Number.isInteger(pendingSettle.at)?pendingSettle.at:now;
+  return {...pendingSettle.response, ...arcade.settle(steamId, id, pendingSettle.score, pendingSettle.payout, at)};
 }
 
 module.exports={games, start, answer, signal, flip, PAYOUT, REACTION_MIN_MS, REACTION_WINDOW_MS, REACTION_COUNTDOWN_MS};

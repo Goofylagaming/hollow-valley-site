@@ -144,6 +144,40 @@ test("hidden games stay server-judged and do not leak a perfect play", async (t)
     assert.equal(games.answer(reaction, guessed.id, "Tap", guessedRow.opens + 400, stored(guessed.id).go_token).duplicate, true);
   });
 
+  await t.test("a memory board finished in time still pays after the round clock", () => {
+    const steam = "76561198000000644";
+    const startAt = Date.parse("2026-11-24T13:59:00.000Z");
+    const completedAt = startAt + 30000;
+    const round = games.start(steam, "memory-match", startAt);
+    const row = stored(round.id);
+    db.prepare("UPDATE arcade_challenges SET flip_json=? WHERE round_id=?").run(
+      JSON.stringify({ pending: null, matched: [1, 2, 3, 4, 5, 6], completedAt }), round.id);
+    economy.ensureWallet(steam);
+    const before = economy.getWallet(steam).balance;
+    const late = games.flip(steam, round.id, 1, row.closes + 5000);
+    assert.equal(late.complete, true);
+    assert.equal(late.score, 1);
+    assert.equal(late.payout, 500);
+    assert.equal(late.expired, undefined);
+    assert.equal(economy.getWallet(steam).balance, before + 500);
+    assert.equal(db.prepare("SELECT settled_day FROM arcade_rounds WHERE id=?").get(round.id).settled_day, "2026-11-24");
+    const retry = games.answer(steam, round.id, "late", row.closes + 9000);
+    assert.equal(retry.duplicate, true);
+    assert.equal(retry.score, 1);
+
+    const unanswered = games.start(steam, "memory-match", startAt + 70000);
+    db.prepare("UPDATE arcade_challenges SET flip_json=? WHERE round_id=?").run(
+      JSON.stringify({ pending: null, matched: [1, 2, 3, 4, 5, 6], completedAt: startAt + 71000 }), unanswered.id);
+    const paid = games.answer(steam, unanswered.id, "nope", stored(unanswered.id).closes + 8000);
+    assert.equal(paid.score, 1);
+    assert.equal(paid.payout, 500);
+
+    const open = games.start(steam, "memory-match", startAt + 140000);
+    const missed = games.flip(steam, open.id, 1, stored(open.id).closes + 1000);
+    assert.equal(missed.score, 0);
+    assert.equal(missed.expired, true);
+  });
+
   await t.test("an older challenge table picks up the new columns", () => {
     db.exec("DROP TABLE arcade_challenges");
     db.exec(`CREATE TABLE arcade_challenges (
