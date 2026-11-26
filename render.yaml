@@ -65,3 +65,18 @@ services:
         value: 100
       - key: BODYDROP_COOLDOWN_SECONDS
         value: 600
+
+      # Browser proximity voice. Names only; set values in the Render dashboard.
+      # Leave VOICE_ENABLED unset or 0 until LiveKit credentials are in place.
+      - key: VOICE_ENABLED
+        sync: false
+      - key: LIVEKIT_URL
+        sync: false
+      - key: LIVEKIT_API_KEY
+        sync: false
+      - key: LIVEKIT_API_SECRET
+        sync: false
+      - key: LIVEKIT_ROOM
+        sync: false
+      - key: VOICE_UNITS_PER_METER
+        sync: false

@@ -65,6 +65,15 @@ async function poll() {
     state.lastError = snapshot.error || null;
     state.source = "automation-cache";
     state.stale = Boolean(snapshot.error);
+    // Voice reads these only when the automation payload already includes them.
+    // The website still does not open RCON, FTP, or CommandBridge.
+    if (typeof snapshot.ServerOnline === "boolean") state.serverOnline = snapshot.ServerOnline;
+    else delete state.serverOnline;
+    if (typeof snapshot.RconOnline === "boolean") state.rconOnline = snapshot.RconOnline;
+    else delete state.rconOnline;
+    state.voiceSampledAt = (typeof snapshot.GeneratedAt === "string" && snapshot.GeneratedAt)
+      || snapshot.checkedAt
+      || null;
     if (!state.stale) {
       try { snapshots.save('server-status', state); } catch { console.warn('[server-status] snapshot persistence failed'); }
     }
