@@ -67,7 +67,7 @@ const guess = [
   ["I am a feathered raptor and a pack hunter. Who am I?", "Omniraptor", "Triceratops", "Gallimimus"],
   ["I am a small carnivore that becomes more threatening in a group, and I am not the raptor. Who am I?", "Troodon", "Omniraptor", "Tenontosaurus"],
   ["I forage, I have feathers and long claws, and I am not a raptor. Who am I?", "Beipiaosaurus", "Omniraptor", "Pteranodon"],
-  ["I am a quick herbivore scout, built to cover distance rather than to fight. Who am I?", "Gallimimus", "Deinosuchus", "Tyrannosaurus"],
+  ["I am a quick omnivore scout, built to cover distance rather than to fight. Who am I?", "Gallimimus", "Deinosuchus", "Tyrannosaurus"],
   ["I am a small land carnivore, nimble, and I am not the raptor. Who am I?", "Herrerasaurus", "Omniraptor", "Pachycephalosaurus"]
 ];
 

@@ -32,6 +32,13 @@ test("trivia and guess-the-dino use a 60 item Hollow Valley pool", () => {
   assertBank("guess", guess);
   const overlap = trivia.filter((row) => guess.some((other) => other[0] === row[0]));
   assert.deepEqual(overlap, []);
+  const gallimimus = guess.find((row) => row[1] === "Gallimimus");
+  const omniraptor = guess.find((row) => row[1] === "Omniraptor");
+  assert.match(gallimimus[0], /quick omnivore scout/);
+  assert.deepEqual(gallimimus.slice(2), ["Deinosuchus", "Tyrannosaurus"]);
+  assert.match(omniraptor[0], /feathered raptor and a pack hunter/);
+  assert.doesNotMatch(omniraptor[0], /omnivore scout/);
+  assert.ok(omniraptor.includes("Gallimimus"));
 });
 
 test("served rounds come from the bank, hide the answer, and keep the 500 coin payout", () => {
