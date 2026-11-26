@@ -73,12 +73,14 @@
     };
     requestAnimationFrame(step);
   }
+  let endCrateCelebration = () => {};
   function celebrateCrate(result) {
     const stage = document.getElementById("arcade-crate-stage");
     const label = result && result.reward && result.reward.label ? result.reward.label : "Reward collected";
     tone(392, 0.08, "triangle", 0.04);
     tone(523, 0.1, "triangle", 0.04, 0.09);
     tone(659, 0.16, "triangle", 0.045, 0.18);
+    endCrateCelebration();
     if (!stage) return Promise.resolve();
     stage.replaceChildren();
     stage.hidden = false;
@@ -102,21 +104,26 @@
     close.focus();
     return new Promise(resolve => {
       let settled = false;
-      const finish = () => {
+      const finish = (hide) => {
         if (settled) return;
         settled = true;
         document.removeEventListener("keydown", onKey);
-        stage.replaceChildren();
-        stage.hidden = true;
-        stage.setAttribute("aria-hidden", "true");
+        if (hide) {
+          stage.replaceChildren();
+          stage.hidden = true;
+          stage.setAttribute("aria-hidden", "true");
+        }
+        if (endCrateCelebration === finishBound) endCrateCelebration = () => {};
         resolve();
       };
+      const finishBound = () => finish(false);
       const onKey = event => {
-        if (event.key === "Escape" || event.key === "Enter") finish();
+        if (event.key === "Escape" || event.key === "Enter") finish(true);
       };
-      close.addEventListener("click", finish);
+      endCrateCelebration = finishBound;
+      close.addEventListener("click", () => finish(true));
       document.addEventListener("keydown", onKey);
-      setTimeout(finish, reducedMotion() ? 900 : 2800);
+      setTimeout(() => finish(true), reducedMotion() ? 900 : 2800);
     });
   }
   window.HollowValleyArcadeFx = {

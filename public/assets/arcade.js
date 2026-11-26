@@ -183,7 +183,7 @@
       'li',
       arcadeHistoryLine(entry, new Date(entry.opened_at).toLocaleString('en-AU', { timeZone: 'Australia/Brisbane' })),
     )));
-    if (window.HollowValleyArcadeLeaderboard) window.HollowValleyArcadeLeaderboard.refresh();
+    if (window.HollowValleyArcadeLeaderboard) window.HollowValleyArcadeLeaderboard.refresh(true);
   }
 
   el('daily').addEventListener('click', async () => {

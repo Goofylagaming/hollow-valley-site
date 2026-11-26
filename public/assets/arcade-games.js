@@ -90,7 +90,7 @@
       if (done || round.id !== activeId) return;
       done = true;
       row.querySelectorAll("button").forEach(button => { button.disabled = true; });
-      try { await finish(await post("/answer", { id: round.id, choice }), host); }
+      try { await finish(await post("/answer", { id: round.id, choice }), host, () => round.id === activeId); }
       catch (error) {
         done = false;
         row.querySelectorAll("button").forEach(button => { button.disabled = false; });
@@ -149,7 +149,7 @@
           const other = result.pair ? buttons[result.pair.position - 1] : null;
           if (other) { paintCard(other, result.pair.symbol, true); other.disabled = true; }
         }
-        if (result.complete || result.expired || result.duplicate) await finish(result, host);
+        if (result.complete || result.expired || result.duplicate) await finish(result, host, () => round.id === activeId);
       } catch (error) { status(error.message); }
       finally { busy = false; }
     }
@@ -299,10 +299,8 @@
     epoch += 1;
     activeId = round.id;
     if (game === "reaction") return playReaction(round);
-    if (game === "higher-lower") await playHigher(round);
-    else if (game === "memory-match") await playMemory(round);
-    const playButton = document.getElementById("play");
-    if (playButton) playButton.disabled = false;
+    if (game === "higher-lower") return playHigher(round);
+    if (game === "memory-match") return playMemory(round);
   }
   window.HollowValleyArcadeGames = { handles, play, games: GAMES };
 })();
