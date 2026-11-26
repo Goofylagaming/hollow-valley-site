@@ -201,6 +201,13 @@
     shapeLayer.dataset.preview="false";
   }
 
+  function territoryCountLabel(count){
+    const total=Math.max(0,Number(count)||0);
+    const words=["No","One","Two","Three","Four","Five","Six","Seven","Eight","Nine"];
+    const word=words[total]||String(total);
+    return total===1?`${word} territory`:`${word} territories`;
+  }
+
   function render(data){
     state=data;
     syncAdminControls(data);
@@ -232,7 +239,7 @@
       root.dataset.phase=data.timer?.phase||"idle";
       $("[data-tw-owner]").textContent=data.event?.owner||"—";
       $("[data-tw-challenger]").textContent=data.event?.challenger||"—";
-      $("[data-tw-territory]").textContent="Four territories";
+      $("[data-tw-territory]").textContent=territoryCountLabel(data.holdings.length);
       $("[data-tw-phase]").textContent="HOLDERS";
       shapeLayer.dataset.phase="control-live";
       shapeLayer.dataset.preview="false";

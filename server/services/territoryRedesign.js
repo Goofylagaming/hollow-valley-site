@@ -34,6 +34,26 @@ function coinsPerHour(env = process.env) {
   return Number.isSafeInteger(value) ? Math.max(0, Math.min(500, value)) : 25;
 }
 
+// TERRITORY_WARS_PROTECTION_MINUTES sits with the other Territory Wars tuning
+// vars (TERRITORY_WARS_REDESIGN_ENABLED, TERRITORY_WARS_HOLDER_REWARDS_ENABLED,
+// TERRITORY_WARS_SEASONS_ENABLED, TERRITORY_WARS_HOLDER_COINS_PER_HOUR, and the
+// TERRITORY_WARS_WINDOW_* clock). Unset defaults to 30 minutes of protection
+// after a capture or successful defence, then the zone can be challenged again
+// inside the same window. 0 keeps the previous lock until the next window.
+function protectionMinutes(env = process.env) {
+  const raw = env.TERRITORY_WARS_PROTECTION_MINUTES;
+  if (raw === undefined || String(raw).trim() === "") return 30;
+  const value = Number(String(raw).trim());
+  if (!Number.isInteger(value) || value < 0) return 30;
+  return value;
+}
+
+function protectionDeadline(nowMs, env = process.env) {
+  const minutes = protectionMinutes(env);
+  if (minutes === 0) return warWindow.nextWindowStart(nowMs, env).toISOString();
+  return new Date(nowMs + minutes * 60 * 1000).toISOString();
+}
+
 function ensureSchema() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS territory_holdings (
@@ -413,23 +433,31 @@ function closeAttack(attack, outcome, nowMs) {
 
 function capture(zone, attack, nowMs) {
   const attacker = groupById(attack.attacker_hv_group_id);
-  const protection = warWindow.nextWindowStart(nowMs).toISOString();
+  const protection = protectionDeadline(nowMs);
   db.prepare(`
     UPDATE territory_holdings
     SET owner_hv_group_id = ?, control_score = -100, protection_until = ?, held_since = ?, rewarded_until = ?, updated_at = datetime('now')
     WHERE territory_key = ?
   `).run(attack.attacker_hv_group_id, protection, iso(nowMs), iso(nowMs), zone.key);
   closeAttack(attack, "capture", nowMs);
-  addLog(zone.key, "capture", `${tagName(attacker)} captured ${zone.name}. Protected until the next war window.`);
+  addLog(zone.key, "capture", `${tagName(attacker)} captured ${zone.name}. Protected until ${protection}.`);
 }
 
 function defend(zone, attack, nowMs, reason) {
   const owner = attack.defender_hv_group_id ? groupById(attack.defender_hv_group_id) : null;
   closeAttack(attack, owner ? "defence" : "expired", nowMs);
+  if (owner) {
+    const protection = protectionDeadline(nowMs);
+    db.prepare(`
+      UPDATE territory_holdings
+      SET control_score = -100, protection_until = ?, updated_at = datetime('now')
+      WHERE territory_key = ?
+    `).run(protection, zone.key);
+    addLog(zone.key, "defence", `${tagName(owner)} defended ${zone.name}. Protected until ${protection}. ${reason}`);
+    return;
+  }
   db.prepare("UPDATE territory_holdings SET control_score = -100, updated_at = datetime('now') WHERE territory_key = ?").run(zone.key);
-  addLog(zone.key, owner ? "defence" : "status", owner
-    ? `${tagName(owner)} defended ${zone.name}. ${reason}`
-    : `${zone.name} was not captured. ${reason}`);
+  addLog(zone.key, "status", `${zone.name} was not captured. ${reason}`);
 }
 
 function maybeAutoClaim(zone, row, nowMs) {
@@ -738,6 +766,7 @@ function publicState(nowMs = Date.now(), { tickAlready = false } = {}) {
     },
     lineupCap: LINEUP_CAP,
     liveSubstitutionDelayMinutes: LIVE_SUB_DELAY_MS / 60000,
+    protectionMinutes: protectionMinutes(),
     holdings,
     season,
     event: focus ? {
@@ -823,7 +852,11 @@ function resetHoldings(nowMs = Date.now()) {
     try { db.exec("ROLLBACK"); } catch {}
     throw error;
   }
-  addLog("south-plains", "status", "Admin reset all four territory holdings.");
+  const activeCount = zones.catalog().length;
+  const resetMessage = activeCount === 1
+    ? "Admin reset the active territory holding."
+    : `Admin reset all ${activeCount} territory holdings.`;
+  addLog(zones.catalog()[0]?.key || "south-plains", "status", resetMessage);
   return publicState(nowMs);
 }
 
@@ -1004,5 +1037,6 @@ module.exports = {
   overlayHoldings,
   splitCoins,
   coinsPerHour,
+  protectionMinutes,
   LINEUP_CAP,
 };

@@ -30,7 +30,7 @@
     27: { status: 'building', note: "A private read-only spectator dashboard is developed and tested. Real-source verification and FPS integration remain unfinished. The new dashboard is not live." },
     29: { status: 'partial', note: "Live: the public website and game-server status page. Expanded service checks and staff-reviewed incident history are developed and tested but are not live. Existing status signals do not verify every game action, Discord message or marketplace delivery." },
     30: { status: 'partial', added: '2026-11-11', note: 'Live: private browser sanctuary, patrol and migration alerts, per-life visit counters and profile toggles. Tracking starts with the next dinosaur observation. The Windows companion and verified in-game notification delivery remain unfinished.' },
-    31: { status: 'building', note: "Territory Wars remains in development. A four-territory Saturday window, website Groups, holder coins and kill momentum are built behind flags that default off. Live game verification and the Saturday test are unfinished, so the system is not marked complete." },
+    31: { status: 'building', note: "Territory Wars remains in development. South Plains is the only active territory for the Saturday 7–9pm Brisbane window; West Trail, Delta Highlands and Swamp stay archived for a later season. Website Groups, holder coins, kill momentum and same-night re-challenge protection are built behind flags that default off. Live game verification and the Saturday test are unfinished, so the system is not marked complete." },
   };
   const stages = [
     { title: 'Progression & identity', subtitle: 'Build a lasting place in the Valley', features: [

@@ -1,5 +1,9 @@
 // War contests run inside one weekly window. Australia/Brisbane is AEST (UTC+10)
 // all year; Intl is used so a different TERRITORY_WARS_WINDOW_TZ still works.
+// TERRITORY_WARS_WINDOW_DAY, TERRITORY_WARS_WINDOW_START and TERRITORY_WARS_WINDOW_END
+// set that clock. TERRITORY_WARS_PROTECTION_MINUTES (territoryRedesign.js) is the
+// post-capture and post-defence lock: unset defaults to 30 minutes, and 0 locks
+// the zone until the next window.
 const WEEKDAYS = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
 function parseClock(value, fallback) {

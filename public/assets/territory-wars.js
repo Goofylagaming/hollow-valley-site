@@ -479,9 +479,17 @@ function escapeText(value) {
   return String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[ch]));
 }
 
+function territoryCountLabel(count) {
+  const total = Math.max(0, Number(count) || 0);
+  const words = ["No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
+  const word = words[total] || String(total);
+  return total === 1 ? `${word} territory` : `${word} territories`;
+}
+
 function renderRedesignPublic(data) {
-  const focus = (data.holdings || []).find((item) => item.attack) || (data.holdings || [])[0];
-  text("tw-territory-name", "Four territories");
+  const holdings = data.holdings || [];
+  const focus = holdings.find((item) => item.attack) || holdings[0];
+  text("tw-territory-name", territoryCountLabel(holdings.length));
   text("tw-event-name", data.window?.open
     ? "War window is open. A group can walk an unclaimed zone or finish a declared challenge."
     : "Protected outside the Saturday 7pm–9pm Brisbane window. Challenges can still be declared.");
@@ -493,17 +501,23 @@ function renderRedesignPublic(data) {
   text("tw-challenger-percent", `${focus?.challengerControl ?? 0}%`);
   text("tw-starts", data.window?.label || "Saturday window");
   text("tw-ends", "Contests pause when the window closes");
-  text("tw-protection", data.window?.nextStart ? `Next window ${formatDate(data.window.nextStart)}` : "None");
+  const protectionUntil = focus?.protected && focus?.protectionUntil ? focus.protectionUntil : null;
+  text(
+    "tw-protection",
+    protectionUntil
+      ? `Protected until ${formatDate(protectionUntil)}`
+      : (data.window?.nextStart ? `Next window ${formatDate(data.window.nextStart)}` : "None")
+  );
   text("tw-presence", "Claim zone presence captures. Kills only nudge momentum.");
-  text("tw-registration-count", String((data.holdings || []).length));
+  text("tw-registration-count", String(holdings.length));
   const list = document.getElementById("tw-holdings");
   if (list) {
     list.hidden = false;
-    list.innerHTML = (data.holdings || []).map((item) => `
+    list.innerHTML = holdings.map((item) => `
       <article class="tw-holding">
         <strong>${escapeText(item.name)}</strong>
         <span>Held by ${escapeText(item.ownerLabel || "nobody")}</span>
-        <small>${item.attack ? `${escapeText(item.attack.attackerLabel)} challenging · ${escapeText(item.attack.status)}` : "No active challenge"} · claim radius ${escapeText(item.claimRadius)} map units</small>
+        <small>${item.attack ? `${escapeText(item.attack.attackerLabel)} challenging · ${escapeText(item.attack.status)}` : "No active challenge"}${item.protected && item.protectionUntil ? ` · protected until ${escapeText(formatDate(item.protectionUntil))}` : ""} · claim radius ${escapeText(item.claimRadius)} map units</small>
       </article>`).join("");
   }
   const log = document.getElementById("tw-event-log");
