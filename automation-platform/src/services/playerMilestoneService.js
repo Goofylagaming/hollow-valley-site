@@ -36,12 +36,20 @@ function get() {
       if (!location || !['x','y','z'].every(k => typeof location[k] === 'number' && Number.isFinite(location[k])) ||
           !Object.values(layers).some(value => Array.isArray(value) && value.length)) return { point: null };
       return prime.zoneMembership(location);
-    }, normalizeSpecies: prime.normalizeSpecies, growthFraction: prime.growthFraction });
+    }, normalizeSpecies: prime.normalizeSpecies, growthFraction: prime.growthFraction, onZoneChange: detail => {
+      try { require('./playerNoticeService').onZoneChange(detail); }
+      catch (error) { console.warn('[player-notices] zone transition failed:', error.message); }
+    } });
   }
   return store;
 }
 function recordSnapshot(players, sampledAt) {
   if (process.env.PLAYER_MILESTONES_ENABLED === 'false') return;
+  try {
+    require('./playerNoticeService').beginSnapshot((players || []).map(player => player && player.steamId));
+  } catch (error) {
+    console.warn('[player-notices] snapshot baseline failed:', error.message);
+  }
   for (const player of players) {
     try { get().record(player, Date.parse(sampledAt)); }
     catch (error) { console.warn('[player-milestones] observation failed:', error.message); }

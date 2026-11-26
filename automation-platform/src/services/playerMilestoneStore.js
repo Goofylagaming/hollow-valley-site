@@ -16,7 +16,7 @@ function steam(value) {
   if (!/^\d{17}$/.test(String(value))) throw new Error('Steam login required');
   return String(value);
 }
-function createMilestoneStore(db, { membership, normalizeSpecies, growthFraction }) {
+function createMilestoneStore(db, { membership, normalizeSpecies, growthFraction, onZoneChange }) {
   const growthValue = value => typeof value === 'number' && Number.isFinite(value) ? growthFraction(value) : null;
   db.exec(`
     CREATE TABLE IF NOT EXISTS player_milestone_state (
@@ -119,8 +119,14 @@ function createMilestoneStore(db, { membership, normalizeSpecies, growthFraction
               if (!known) state.visits[kind].push(name);
             }
             if (prior === null) return; // Initial observation is not an entrance alert.
+            const left = prior.filter(name => !names.includes(name));
+            // EventAI notices are a separate channel. Keep this callback free of
+            // preference checks so website toggles cannot change detection.
+            if (typeof onZoneChange === 'function' && (entered.length || left.length)) {
+              try { onZoneChange({ steamId: id, kind, entered: entered.slice(), left, at }); }
+              catch (error) { console.warn('[player-milestones] zone notice failed:', error.message); }
+            }
             if (kind === 'sanctuary') {
-              const left = prior.filter(name => !names.includes(name));
               const parts = [];
               if (left.length) parts.push(`Sanctuary left: ${left.join(', ')}`);
               if (entered.length) parts.push(`Sanctuary entered: ${entered.join(', ')}`);

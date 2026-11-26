@@ -61,3 +61,18 @@ database over player purchases or progress. Both services retain their existing
 persistent disks. Deploy automation and website at the tested revision and verify
 `/readyz`, private endpoint authentication, and published assets. No game-server
 restart is needed.
+
+## EventAI toasts and !prime
+
+A separate, default-off path can show the same migration, patrol, and sanctuary
+transitions through the EventAI `notify` verb. It reuses this detector, including
+sanctuary leave, and does not use RCON `directMessage` or the profile toggles.
+`PLAYER_MILESTONES_EVENTAI_NOTIFY` defaults false. `PRIME_CHAT_NOTIFY_ENABLED`
+defaults true and only controls `!prime` replies.
+
+The VPS script `scripts/windows/Deliver-HollowValleyNotices.ps1` posts
+`prime_request` lines to `POST /api/presence-feed/notices` and writes the returned
+toasts into the EventAI inbox. The presence snapshot script is not modified.
+Zone toasts usually take 15–30 seconds. `!prime` usually takes 5–10 seconds.
+Unsetting the zone flag stops zone toasts immediately. See
+`automation-platform/README.md` for the request shape, cooldown, and rollback.
