@@ -326,7 +326,7 @@ test('prime replies cover enabled, disabled, missing and failed tracker reads', 
   assert.throws(() => notices.collect({ primeRequests: { id: 'nope' } }), /primeRequests must be an array/);
 });
 
-test('a prime backlog over 100 still releases zone notices and keeps the remainder', () => {
+test('a prime backlog is answered in full and does not block a zone notice', () => {
   const notices = createPlayerNoticeService({
     zoneNotifyEnabled: true,
     primeChatNotifyEnabled: true,
@@ -336,20 +336,19 @@ test('a prime backlog over 100 still releases zone notices and keeps the remaind
   notices.beginSnapshot([alice]);
   notices.beginSnapshot([alice]);
   notices.onZoneChange({ steamId: alice, kind: 'migration', entered: ['South Rail'], left: [], at: 5000 });
-  const requests = Array.from({ length: 101 }, (_, index) => ({
+  const requests = Array.from({ length: 40 }, (_, index) => ({
     id: `chat-prime-backlog-${index}`,
     steam: alice,
     ts: index,
   }));
-  let seenZone = false;
-  let body = notices.collect({ primeRequests: requests });
-  for (let attempt = 0; attempt < 8 && !seenZone; attempt += 1) {
-    seenZone = body.notices.some(notice => notice.text === 'Entered migration zone: South Rail');
-    if (!seenZone) body = notices.collect({});
-  }
-  assert.equal(seenZone, true);
-  const remainder = notices.collect({ primeRequests: [requests[100]] });
-  assert.equal(remainder.notices.some(notice => notice.text === UNAVAILABLE), true);
+  const first = notices.collect({ primeRequests: requests });
+  const second = notices.collect({ primeRequests: requests.slice(20) });
+  const zone = notices.collect({});
+  const replies = [...first.notices, ...second.notices].filter(notice => notice.text === UNAVAILABLE);
+  assert.equal(replies.length, 40);
+  assert.equal(new Set(replies.map(notice => notice.id)).size, 40);
+  assert.ok(zone.notices.some(notice => notice.text === 'Entered migration zone: South Rail'));
+  assert.equal(notices.collect({ primeRequests: [requests[0]] }).notices.length, 0);
 });
 
 test('prime chat can be switched off without affecting zone notices', () => {

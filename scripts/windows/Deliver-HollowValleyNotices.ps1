@@ -242,7 +242,7 @@ function Invoke-NoticePass {
 
     if ($script:Dry) {
         $dryBatches = 1
-        if ($requests.Count -gt 100) { $dryBatches = [int][Math]::Ceiling($requests.Count / 100.0) }
+        if ($requests.Count -gt 20) { $dryBatches = [int][Math]::Ceiling($requests.Count / 20.0) }
         Write-NoticeLog ("DRY-RUN would POST {0} prime request(s) in {1} batch(es) to {2}" -f $requests.Count, $dryBatches, $endpoint)
         foreach ($request in $requests) {
             Write-NoticeLog ("DRY-RUN prime id={0} steam={1}" -f $request.id, $request.steam)
@@ -269,7 +269,7 @@ function Invoke-NoticePass {
     $posted = 0
     do {
         $slice = New-Object System.Collections.Generic.List[object]
-        $take = [Math]::Min(100, $remaining.Count)
+        $take = [Math]::Min(20, $remaining.Count)
         for ($index = 0; $index -lt $take; $index++) { [void]$slice.Add($remaining[$index]) }
         if ($take -gt 0) { $remaining.RemoveRange(0, $take) }
         $body = Get-RequestBody -Requests $slice.ToArray()

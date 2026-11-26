@@ -7,7 +7,6 @@ const COOLDOWN_MS = 60 * 1000;
 const NOTICE_TTL_MS = 60 * 1000;
 const MAX_CLAIM = 20;
 const MAX_QUEUE = 200;
-const MAX_PRIME_REQUESTS = 100;
 const PRIME_ID_TTL_MS = 30 * 60 * 1000;
 
 const SHORT_SPECIES = Object.freeze({
@@ -159,7 +158,15 @@ function createPlayerNoticeService(options = {}) {
 
   function prune(now) {
     queue = queue.filter(notice => now - notice.createdAt <= NOTICE_TTL_MS);
-    if (queue.length > MAX_QUEUE) queue = queue.slice(queue.length - MAX_QUEUE);
+    if (queue.length > MAX_QUEUE) {
+      // Prime replies are already marked answered. Drop zone toasts first so a
+      // full queue cannot erase a !prime line that will not be retried.
+      const primes = queue.filter(notice => notice.category === 'prime');
+      const zones = queue.filter(notice => notice.category !== 'prime');
+      const zoneRoom = Math.max(0, MAX_QUEUE - primes.length);
+      queue = [...primes, ...zones.slice(Math.max(0, zones.length - zoneRoom))];
+      if (queue.length > MAX_QUEUE) queue = queue.slice(queue.length - MAX_QUEUE);
+    }
     for (const [id, seenAt] of seenPrimeIds) {
       if (now - seenAt > PRIME_ID_TTL_MS) seenPrimeIds.delete(id);
     }
@@ -259,7 +266,9 @@ function createPlayerNoticeService(options = {}) {
     if (!primeEnabled()) return;
     const now = clock();
     const seenInBody = new Set();
+    let room = MAX_CLAIM;
     for (const request of requests) {
+      if (room <= 0) break;
       if (!request || typeof request !== 'object' || Array.isArray(request)) {
         console.warn('[player-notices] ignored prime request');
         continue;
@@ -270,9 +279,11 @@ function createPlayerNoticeService(options = {}) {
         console.warn('[player-notices] ignored prime request');
         continue;
       }
-      if (seenInBody.has(id) || !rememberPrime(id, now)) continue;
+      if (seenInBody.has(id) || seenPrimeIds.has(id)) continue;
       seenInBody.add(id);
-      enqueue(steam, primeTextFor(steam), 'prime');
+      if (!enqueue(steam, primeTextFor(steam), 'prime')) continue;
+      rememberPrime(id, now);
+      room -= 1;
     }
   }
 
@@ -296,13 +307,12 @@ function createPlayerNoticeService(options = {}) {
       throw noticeError('primeRequests must be an array');
     }
     const requests = body.primeRequests || [];
-    // A larger backlog is left unprocessed so the caller can send it next time.
-    // Rejecting the whole body would also block zone notices that share this call.
-    const accepted = requests.length > MAX_PRIME_REQUESTS ? requests.slice(0, MAX_PRIME_REQUESTS) : requests;
-    if (accepted.length !== requests.length) {
-      console.warn(`[player-notices] accepted ${accepted.length} of ${requests.length} prime requests`);
+    // One response can carry MAX_CLAIM notices. Extra prime requests stay
+    // unmarked so the caller can send them on the next call.
+    if (requests.length > MAX_CLAIM) {
+      console.warn(`[player-notices] prime batch capped at ${MAX_CLAIM}; resend the rest`);
     }
-    acceptPrimeRequests(accepted);
+    acceptPrimeRequests(requests);
     return { notices: claim() };
   }
 

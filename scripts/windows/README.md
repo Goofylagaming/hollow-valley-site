@@ -63,7 +63,7 @@ Defaults:
 - service: `https://hollow-valley-automation.onrender.com`
 - log: `C:\HollowValley\Logs\notices-YYYYMMDD.log`
 
-The first time the results file is seen, the tail starts at the current end so old lines are not replayed. If the file later shrinks, the offset resets to the start of the new file. Each pass still posts, even with no new prime lines, so zone notices are collected. Prime requests are posted 100 at a time. The saved tail moves only after every batch in that pass succeeds, so a large backlog cannot stall zone toasts. Inbox lines are appended one at a time, UTF-8 without a BOM, and the file is not held open.
+The first time the results file is seen, the tail starts at the current end so old lines are not replayed. If the file later shrinks, the offset resets to the start of the new file. Each pass still posts, even with no new prime lines, so zone notices are collected. Prime requests are posted 20 at a time, matching the number of notices one response can return. The saved tail moves only after every batch in that pass succeeds, so a large backlog cannot stall zone toasts or drop replies. Inbox lines are appended one at a time, UTF-8 without a BOM, and the file is not held open.
 
 `!prime` lines with `"ok": false` are ignored. Steam IDs must be 17 digits.
 
