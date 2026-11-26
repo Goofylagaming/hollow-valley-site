@@ -198,6 +198,28 @@
     let done = false;
     let release = () => {};
     const settled = new Promise(resolve => { release = resolve; });
+    async function recover(message) {
+      clearKeys();
+      if (message) {
+        status(message);
+        const line = document.createElement("p");
+        line.textContent = message;
+        host.replaceChildren(line);
+      }
+      let refreshed = false;
+      try {
+        if (window.HollowValleyArcade && window.HollowValleyArcade.refresh) {
+          await window.HollowValleyArcade.refresh();
+          refreshed = true;
+        }
+      } catch (error) {
+        status(error.message);
+      }
+      if (!refreshed) {
+        const play = document.getElementById("play");
+        if (play) play.disabled = false;
+      }
+    }
     async function tap() {
       if (done || mine !== attempt || round.id !== activeId) return;
       done = true;
@@ -205,7 +227,7 @@
       const body = { id: round.id, choice: "Tap" };
       if (token) body.token = token;
       try { await finish(await post("/answer", body), host); }
-      catch (error) { status(error.message); }
+      catch (error) { await recover(error.message); }
       release();
     }
     go.addEventListener("click", () => tap());
@@ -216,7 +238,7 @@
       while (!done && mine === attempt && round.id === activeId) {
         let signal;
         try { signal = await post("/signal", { id: round.id }); }
-        catch (error) { status(error.message); break; }
+        catch (error) { await recover(error.message); break; }
         if (done || mine !== attempt || round.id !== activeId) break;
         if (signal.state === "countdown") {
           readout.textContent = String(signal.count);
@@ -233,9 +255,7 @@
           window.HollowValleyArcadeFx && window.HollowValleyArcadeFx.playGo();
           break;
         } else {
-          readout.textContent = "Too slow";
-          done = true;
-          status("Too slow. That round has closed.");
+          await recover("Too slow. That round has closed.");
           break;
         }
         await sleep(150);

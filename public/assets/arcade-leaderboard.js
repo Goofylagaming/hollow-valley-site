@@ -3,6 +3,7 @@
 (() => {
   let lastFetch = 0;
   let pending = null;
+  let rendered = false;
 
   function safeName(name) {
     const value = String(name || "").trim();
@@ -79,10 +80,13 @@
       try {
         const response = await fetch("/api/valley-arcade/weekly");
         const data = await response.json().catch(() => ({}));
+        if (response.status === 401) return;
         if (!response.ok) throw new Error(data.error || "Leaderboard unavailable.");
         render(section, data);
+        rendered = true;
         lastFetch = Date.now();
       } catch (error) {
+        if (rendered) return;
         section.hidden = false;
         const message = document.createElement("p");
         message.textContent = error.message;

@@ -33,6 +33,11 @@ test("lobby hooks and new arcade files stay self-contained", () => {
   assert.doesNotMatch(games, /round\.opens|opens\s*-\s*Date|reactionMs\s*:/);
   assert.match(board, /\/api\/valley-arcade\/weekly/);
   assert.match(board, /bragging rights only/);
+  assert.match(board, /response\.status === 401/);
+  assert.match(board, /if \(rendered\) return/);
+  assert.match(games, /async function recover/);
+  const lobbyMarkup = html.slice(html.indexOf('id="arcade-content"'), html.indexOf("</main>"));
+  assert.match(lobbyMarkup, /id="arcade-leaderboard"/);
   assert.match(fx, /hv-arcade-sound/);
   assert.match(fx, /localStorage\.getItem\(SOUND_KEY\) === "1"/);
   assert.match(fx, /prefers-reduced-motion/);
