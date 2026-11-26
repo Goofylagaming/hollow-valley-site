@@ -141,13 +141,22 @@ router.post('/arcade/:action', (req,res) => {
       case 'settings': return res.json(arcade.settings());
       case 'configure': return res.json(arcade.configure(body.actor,body));
       case 'start': return res.json(games.start(body.steamId,body.game,Date.now(),body.requestKey));
-      case 'answer': return res.json(games.answer(body.steamId,body.id,body.choice));
+      // Clock, token check and score come from this process. Client timestamps are ignored.
+      case 'answer': return res.json(games.answer(body.steamId,body.id,body.choice,Date.now(),body.token));
+      case 'signal': return res.json(games.signal(body.steamId,body.id,Date.now()));
+      case 'flip': return res.json(games.flip(body.steamId,body.id,body.position,Date.now()));
       case 'leaderboard': {
         const config=arcade.settings();
         if (!config.enabled || config.emergency) return res.sendStatus(404);
         const rows=economy.db.prepare(`SELECT sum(score) AS score FROM arcade_rounds
           WHERE settled_day=? GROUP BY steam_id ORDER BY score DESC LIMIT 10`).all(arcade.dayKey(Date.now()));
         return res.json(rows);
+      }
+      // steamId in this payload is for the website name lookup. The public route strips it.
+      case 'weekly': {
+        const config=arcade.settings();
+        if (!config.enabled || config.emergency) return res.sendStatus(404);
+        return res.json(require('../services/valleyArcadeLeaderboard').weekly(body.steamId, Date.now()));
       }
       default: return res.sendStatus(404);
     }
