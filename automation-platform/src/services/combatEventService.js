@@ -50,6 +50,11 @@ const HOUR_MS = 60 * 60 * 1000;
 if (!db.prepare('PRAGMA table_info(combat_events)').all().some(c => c.name === 'victim_species')) {
   db.exec('ALTER TABLE combat_events ADD COLUMN victim_species TEXT');
 }
+for (const column of ['killer_x', 'killer_y', 'killer_z', 'victim_x', 'victim_y', 'victim_z']) {
+  if (!db.prepare('PRAGMA table_info(combat_events)').all().some(c => c.name === column)) {
+    db.exec(`ALTER TABLE combat_events ADD COLUMN ${column} REAL`);
+  }
+}
 const DAY_MS = 24 * HOUR_MS;
 const BRISBANE_OFFSET_MS = 10 * HOUR_MS;
 
@@ -107,9 +112,22 @@ function validateOccurredAt(value) {
   return time.toISOString();
 }
 
+function finiteCoord(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function readLocation(value) {
+  if (!value || typeof value !== 'object') return { x: null, y: null, z: null };
+  return { x: finiteCoord(value.x), y: finiteCoord(value.y), z: finiteCoord(value.z) };
+}
+
 function normalizeEvent(input = {}, env = process.env) {
   const victimSteamId = validateSteamId(input.victimSteamId);
   const killerSteamId = validateSteamId(input.killerSteamId, { optional: true });
+  const killerLocation = readLocation(input.killerLocation);
+  const victimLocation = readLocation(input.victimLocation);
   return {
     id: validateEventId(input.eventId || input.id),
     occurredAt: validateOccurredAt(input.occurredAt),
@@ -119,6 +137,8 @@ function normalizeEvent(input = {}, env = process.env) {
     victimName: cleanName(input.victimName),
     victimSpecies: canonicalCombatSpecies(input.victimSpecies),
     source: sourceName(env),
+    killerLocation,
+    victimLocation,
   };
 }
 
@@ -230,8 +250,9 @@ function ingestEvent(input, { env = process.env } = {}) {
 
     db.prepare(`
       INSERT INTO combat_events
-        (id, occurred_at, killer_steam_id, killer_name, victim_steam_id, victim_name, source, victim_species)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        (id, occurred_at, killer_steam_id, killer_name, victim_steam_id, victim_name, source, victim_species,
+         killer_x, killer_y, killer_z, victim_x, victim_y, victim_z)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       event.id,
       event.occurredAt,
@@ -240,7 +261,13 @@ function ingestEvent(input, { env = process.env } = {}) {
       event.victimSteamId,
       event.victimName,
       event.source,
-      event.victimSpecies
+      event.victimSpecies,
+      event.killerLocation?.x ?? null,
+      event.killerLocation?.y ?? null,
+      event.killerLocation?.z ?? null,
+      event.victimLocation?.x ?? null,
+      event.victimLocation?.y ?? null,
+      event.victimLocation?.z ?? null
     );
 
     upsertPlayer(event.victimSteamId, event.victimName);
@@ -427,6 +454,46 @@ function leaderboard({ hours = 24 * 31, period = null, limit = 100, nowMs = Date
   };
 }
 
+function locationFrom(row, prefix) {
+  const x = row[`${prefix}_x`];
+  const y = row[`${prefix}_y`];
+  const z = row[`${prefix}_z`];
+  if (![x, y].every((value) => value === null || value === undefined || Number.isFinite(Number(value)))) return null;
+  if (x === null || x === undefined || y === null || y === undefined) return null;
+  return { x: Number(x), y: Number(y), z: z === null || z === undefined ? null : Number(z) };
+}
+
+function listForTerritory({ since, limit = 100 } = {}) {
+  const safeLimit = Math.max(1, Math.min(250, Number(limit) || 100));
+  const after = since ? validateOccurredAt(since) : null;
+  const rows = after
+    ? db.prepare(`
+        SELECT * FROM combat_events
+        WHERE datetime(occurred_at) > datetime(?)
+        ORDER BY occurred_at ASC, id ASC
+        LIMIT ?
+      `).all(after, safeLimit)
+    : db.prepare(`
+        SELECT * FROM combat_events
+        ORDER BY occurred_at ASC, id ASC
+        LIMIT ?
+      `).all(safeLimit);
+  return {
+    events: rows.map((row) => ({
+      id: row.id,
+      eventId: row.id,
+      occurredAt: row.occurred_at,
+      killerSteamId: row.killer_steam_id,
+      killerName: row.killer_name,
+      victimSteamId: row.victim_steam_id,
+      victimName: row.victim_name,
+      victimSpecies: row.victim_species,
+      killerLocation: locationFrom(row, 'killer'),
+      victimLocation: locationFrom(row, 'victim'),
+    })),
+  };
+}
+
 module.exports = {
   enabled,
   configured,
@@ -434,6 +501,7 @@ module.exports = {
   state,
   normalizeEvent,
   ingestEvent,
+  listForTerritory,
   getPlayerReset,
   resetPlayerStats,
   brisbaneCalendarWindow,

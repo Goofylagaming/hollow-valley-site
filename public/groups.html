@@ -59,6 +59,11 @@
           <div id="groups-members" class="groups-rows"></div>
           <section id="groups-owner-panel" class="groups-owner" hidden>
             <div class="list-heading"><span>GROUP MANAGEMENT</span><span>Owner only</span></div>
+            <form id="groups-tag-form" class="groups-form">
+              <label for="groups-tag">Territory tag</label>
+              <div class="groups-inline"><input id="groups-tag" required minlength="2" maxlength="6" placeholder="e.g. HDS" autocomplete="off"><button type="submit" class="primary-button green">Save tag</button></div>
+              <small>2–6 letters or numbers. Shown on the live map while your group holds a territory.</small>
+            </form>
             <form id="groups-player-search-form" class="groups-form">
               <label for="groups-player-search">Find a player already registered on Hollow Valley</label>
               <div class="groups-inline"><input id="groups-player-search" minlength="2" maxlength="80" placeholder="Search Steam username or Steam ID" autocomplete="off"><button type="submit" class="primary-button green">Find player</button></div>
@@ -87,6 +92,6 @@
     <footer><span>© 2026 Hollow Valley</span><span>AUSTRALIAN ISLE SERVER</span><a href="/">Back to top ↑</a></footer>
   </div>
   <script src="/assets/common.js?v=2026112001"></script>
-  <script src="/assets/groups.js?v=3"></script>
+  <script src="/assets/groups.js?v=4"></script>
 </body>
 </html>

@@ -3,6 +3,7 @@ const serverStatus = require("./serverStatus");
 const { fromRconLocation, toLatLong, project, BOUNDS, REGIONS } = require("../evrimaMap");
 const { territoryGeometry, classifyLatLong } = require("./territoryGeometry");
 const { isRemovedTerritory, activeTerritoryNames } = require("./territoryAreas");
+const territoryZones = require("./territoryZones");
 const {
   direction8,
   timerState,
@@ -227,7 +228,22 @@ function attackNames(event, attack) {
 }
 
 function previewTerritories() {
+  if (process.env.TERRITORY_WARS_REDESIGN_ENABLED === "1") {
+    return territoryZones.catalog();
+  }
   return activeTerritoryNames(REGIONS);
+}
+
+function previewEntryName(entry) {
+  if (typeof entry === "string") return entry;
+  return String(entry?.name || entry?.key || "");
+}
+
+function previewEntryGeometry(entry) {
+  if (entry && typeof entry === "object" && entry.geometry) return entry.geometry;
+  const name = previewEntryName(entry);
+  const key = entry && typeof entry === "object" ? entry.key : name;
+  return territoryGeometry({ territoryName: name, territoryKey: key || name });
 }
 
 function zonePayload(geometry, selfRadar = null) {
@@ -254,22 +270,20 @@ function buildAdminPreviewState(user, requestedTerritory) {
   if (!user?.is_admin) return null;
 
   const available = previewTerritories();
+  const labels = available.map(previewEntryName).filter(Boolean);
   const wanted = String(requestedTerritory || "").trim();
   const allSelected = ["__all__", "all", "all territories"].includes(wanted.toLowerCase());
   const selected = allSelected
     ? "__all__"
-    : available.find((name) => name.toLowerCase() === wanted.toLowerCase())
-      || (available.includes("South Plains") ? "South Plains" : available[0]);
+    : labels.find((name) => name.toLowerCase() === wanted.toLowerCase())
+      || (labels.includes("South Plains") ? "South Plains" : labels[0]);
 
-  const geometry = selected === "__all__" ? null : territoryGeometry({
-    territoryName: selected,
-    territoryKey: selected,
-  });
+  const selectedEntry = selected === "__all__"
+    ? null
+    : available.find((entry) => previewEntryName(entry).toLowerCase() === String(selected).toLowerCase());
+  const geometry = selected === "__all__" ? null : previewEntryGeometry(selectedEntry || selected);
   const previewZones = selected === "__all__"
-    ? available.map((name) => zonePayload(territoryGeometry({
-        territoryName: name,
-        territoryKey: name,
-      }))).filter(Boolean)
+    ? available.map((entry) => zonePayload(previewEntryGeometry(entry))).filter(Boolean)
     : [];
 
   return {
@@ -309,10 +323,61 @@ function buildAdminPreviewState(user, requestedTerritory) {
       allTerritories: selected === "__all__",
       territoryName: selected === "__all__" ? "All Territories" : selected,
       territoryValue: selected,
-      territories: ["__all__", ...available],
+      territories: ["__all__", ...labels],
       zones: previewZones,
       readOnly: true,
     },
+  };
+}
+
+function buildRedesignOverlay(user) {
+  const redesign = require("./territoryRedesign");
+  const catalog = require("./territoryZones");
+  const holdings = redesign.overlayHoldings() || [];
+  const focus = holdings.find((item) => item.attack) || holdings[0] || null;
+  const drawn = holdings.map((item) => {
+    const geometry = catalog.byKey(item.key)?.geometry;
+    const payload = zonePayload(geometry);
+    if (!payload) return null;
+    payload.holderTag = item.ownerTag || null;
+    payload.holderName = item.ownerName || null;
+    payload.territoryName = item.name;
+    return payload;
+  }).filter(Boolean);
+  return {
+    ok: true,
+    redesign: true,
+    generatedAt: new Date().toISOString(),
+    viewer: {
+      mode: user?.is_admin ? "admin" : "player",
+      side: "spectator",
+      role: null,
+      groupName: null,
+      groupTag: null,
+      inBattlefield: false,
+      inClaim: false,
+    },
+    event: focus ? {
+      id: focus.key,
+      name: focus.name,
+      status: "live",
+      territoryName: focus.name,
+      owner: focus.ownerLabel,
+      challenger: focus.attack?.attackerLabel || null,
+    } : null,
+    attack: focus?.attack ? {
+      id: focus.attack.id,
+      status: focus.attack.status,
+      attacker: focus.attack.attackerLabel,
+      defender: focus.ownerLabel,
+    } : null,
+    timer: { phase: "control-live", label: "Territory holdings", endsAt: null },
+    control: { owner: focus?.ownerControl ?? 100, challenger: focus?.challengerControl ?? 0 },
+    zones: drawn[0] || null,
+    holdings: drawn,
+    intel: { attackerDirection: null, generalized: true, exactOpponentPositionsExposed: false },
+    server: { online: false, configured: false, lastChecked: null },
+    preview: { active: false, available: Boolean(user?.is_admin), allTerritories: false, territoryName: null, territoryValue: null, territories: [], zones: [], readOnly: true },
   };
 }
 
@@ -323,6 +388,9 @@ function buildOverlayState(user, {
 } = {}) {
   if (preview && user?.is_admin) {
     return buildAdminPreviewState(user, previewTerritory);
+  }
+  if (process.env.TERRITORY_WARS_REDESIGN_ENABLED === "1") {
+    return buildRedesignOverlay(user);
   }
   const latest = latestEvent();
   // Removing a Territory Wars area hides its overlay but never deletes the
@@ -405,7 +473,7 @@ function buildOverlayState(user, {
       allTerritories: false,
       territoryName: null,
       territoryValue: null,
-      territories: user?.is_admin ? ["__all__", ...previewTerritories()] : [],
+      territories: user?.is_admin ? ["__all__", ...previewTerritories().map(previewEntryName)] : [],
       zones: [],
       readOnly: true,
     },

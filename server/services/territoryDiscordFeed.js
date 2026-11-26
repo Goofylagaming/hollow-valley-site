@@ -107,6 +107,15 @@ function toFeedEvent(log) {
   };
 }
 
+function toHoldingFeedEvent(log) {
+  return {
+    ...log,
+    fiveMinuteWarning: Boolean(log.fiveMinuteWarning),
+    defenderDiscordIds: Array.isArray(log.defenderDiscordIds) ? log.defenderDiscordIds : [],
+    attackStartsAt: log.attackStartsAt || null,
+  };
+}
+
 async function syncOnce() {
   if (running) return { skipped: 'already-running' };
   running = true;
@@ -119,6 +128,16 @@ async function syncOnce() {
       }
       // Only advance after the durable HerbyBot outbox accepted this event.
       advanceCursor(row.logId);
+    }
+    if (process.env.TERRITORY_WARS_REDESIGN_ENABLED === "1") {
+      const redesign = require("./territoryRedesign");
+      for (const row of redesign.pendingFeedRows(25)) {
+        if (RELAY_KINDS.has(String(row.kind || "").toLowerCase())) {
+          await automation.publishTerritoryWarFeedEvent(toHoldingFeedEvent(row));
+          forwarded += 1;
+        }
+        redesign.advanceFeed(row.logId);
+      }
     }
     return { forwarded };
   } finally {

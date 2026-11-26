@@ -936,4 +936,6 @@ module.exports = {
 
 module.exports.legacyRequest = (path, options) => call(`/legacy${path}`, options);
 module.exports.postTerritoryVictory = payload => call('/territory-results', {method:'POST',body:payload});
+module.exports.postTerritoryHolderRewards = payload => call('/territory-holder-rewards', { method: 'POST', body: payload });
+module.exports.postTerritorySeasonArchive = payload => call('/territory-season-archives', { method: 'POST', body: payload });
 module.exports.dailyLogin = (action, body) => call('/admin-wallet/daily-login/' + action, { method:'POST', body });

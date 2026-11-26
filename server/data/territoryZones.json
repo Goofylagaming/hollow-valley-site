@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "units": "lat-long",
+  "metresPerUnit": 10,
+  "howToEdit": "Change centerLat, centerLong, claimRadius or battlefieldRadius in this file, then restart the website. One lat-long unit is 10 metres. Claim radius must stay smaller than battlefield radius. These circles are a small part of the named Gateway region, not the whole nearest-anchor area. Set active to false to archive a territory for a later season. Do not delete rows from territory_holdings; leave archived zones in this file so their history stays.",
+  "territories": [
+    {
+      "key": "south-plains",
+      "name": "South Plains",
+      "active": true,
+      "seededFrom": "South Plains anchor in server/evrimaMap.js REGIONS (lat 250, long -302)",
+      "centerLat": 250,
+      "centerLong": -302,
+      "claimRadius": 12,
+      "battlefieldRadius": 36
+    },
+    {
+      "key": "west-trail",
+      "name": "West Trail",
+      "active": false,
+      "note": "Archived for a later season.",
+      "seededFrom": "West Rail anchor in server/evrimaMap.js (lat -4, long -238). Gateway has no zone named West Trail.",
+      "centerLat": -4,
+      "centerLong": -238,
+      "claimRadius": 12,
+      "battlefieldRadius": 36
+    },
+    {
+      "key": "delta-highlands",
+      "name": "Delta Highlands",
+      "active": false,
+      "note": "Archived for a later season.",
+      "seededFrom": "Between the Delta anchor (lat 33, long 177) and Highland (lat -127, long -80), kept on the Delta side of that gap. Gateway has no zone named Delta Highlands.",
+      "centerLat": 10,
+      "centerLong": 140,
+      "claimRadius": 12,
+      "battlefieldRadius": 36
+    },
+    {
+      "key": "swamp",
+      "name": "Swamp",
+      "active": false,
+      "note": "Archived for a later season.",
+      "seededFrom": "Swamps anchor in server/evrimaMap.js REGIONS (lat 273, long 74)",
+      "centerLat": 273,
+      "centerLong": 74,
+      "claimRadius": 12,
+      "battlefieldRadius": 36
+    }
+  ]
+}

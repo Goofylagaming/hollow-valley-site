@@ -147,6 +147,7 @@
           <ellipse class="tw-zone-shape claim" cx="${cx}" cy="${cy}" rx="${crx}" ry="${cry}"><title>${esc(z.territoryName)} Claim Zone · ${z.claimRadiusMetres ?? "?"}m radius</title></ellipse>
           <circle class="tw-zone-center" cx="${cx}" cy="${cy}" r="2.5"><title>${esc(z.territoryName)}</title></circle>
           <text class="tw-zone-label tw-territory-name" x="${cx}" y="${(Number(cy)-Number(cry)-5).toFixed(1)}" text-anchor="middle">${esc(z.territoryName)}</text>
+          ${z.holderTag || z.holderName ? `<text class="tw-zone-label tw-holder-tag" x="${cx}" y="${(Number(cy)+Number(cry)+16).toFixed(1)}" text-anchor="middle">${esc(z.holderTag ? "[" + z.holderTag + "]" : z.holderName)}</text>` : ""}
         </g>`;
     }
     return `
@@ -200,6 +201,13 @@
     shapeLayer.dataset.preview="false";
   }
 
+  function territoryCountLabel(count){
+    const total=Math.max(0,Number(count)||0);
+    const words=["No","One","Two","Three","Four","Five","Six","Seven","Eight","Nine"];
+    const word=words[total]||String(total);
+    return total===1?`${word} territory`:`${word} territories`;
+  }
+
   function render(data){
     state=data;
     syncAdminControls(data);
@@ -225,6 +233,20 @@
     }
 
     root.dataset.preview="false";
+    if(Array.isArray(data.holdings) && data.holdings.length){
+      root.hidden=false;
+      root.dataset.mode=data.viewer?.mode||"player";
+      root.dataset.phase=data.timer?.phase||"idle";
+      $("[data-tw-owner]").textContent=data.event?.owner||"—";
+      $("[data-tw-challenger]").textContent=data.event?.challenger||"—";
+      $("[data-tw-territory]").textContent=territoryCountLabel(data.holdings.length);
+      $("[data-tw-phase]").textContent="HOLDERS";
+      shapeLayer.dataset.phase="control-live";
+      shapeLayer.dataset.preview="false";
+      shapeLayer.dataset.allTerritories="true";
+      shapeLayer.innerHTML=data.holdings.map((zone)=>zoneMarkup(zone,{compact:true})).join("");
+      return;
+    }
     if(!data.event){
       clearOverlay();
       return;

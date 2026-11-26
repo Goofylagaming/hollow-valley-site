@@ -67,7 +67,7 @@
     show("groups-current-panel",!!g);show("groups-create-panel",!g);
     if(g){
       const owner=g.ownerSteamId===steam;
-      text("groups-name-title",g.name);text("groups-created","Created "+date(g.createdAt)+" · Website group");
+      text("groups-name-title",g.tag?"["+g.tag+"] "+g.name:g.name);text("groups-created","Created "+date(g.createdAt)+" · Website group"+(g.tag?" · tag "+g.tag:" · no territory tag yet"));
       text("groups-capacity",g.members.length+" / "+g.capacity);
       text("groups-leave",owner?"Leave and transfer ownership":"Leave group");
       $("groups-members").innerHTML=g.members.map(u=>
@@ -101,6 +101,10 @@
     }catch(error){alert(error.message||"Could not update group.",true);}
   }
   function wire(){
+    $("groups-tag-form")?.addEventListener("submit",async event=>{
+      event.preventDefault();
+      await action("/tag",{tag:$("groups-tag").value.trim()});
+    });
     $("groups-create-form").addEventListener("submit",async event=>{
       event.preventDefault();
       const name=$("groups-name").value.trim();

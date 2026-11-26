@@ -66,6 +66,8 @@ const PORT = process.env.PORT || 3000;
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 // Defaults OFF: safe to merge code before a verified production DB backup.
 const TERRITORY_WARS_ADMIN_TEST_ENABLED = process.env.TERRITORY_WARS_ADMIN_TEST_ENABLED === "1";
+const TERRITORY_WARS_REDESIGN_ENABLED = process.env.TERRITORY_WARS_REDESIGN_ENABLED === "1";
+const TERRITORY_WARS_PLAYER_ACCESS_ENABLED = process.env.TERRITORY_WARS_PLAYER_ACCESS_ENABLED === "1";
 const HOLLOW_VALLEY_HOSTNAME = "hollowvalleyisle.com";
 const LEGACY_HOSTNAMES = new Set([
   "hollowvalley.herbydeathsquadgames.com",
@@ -197,6 +199,9 @@ function createApp() {
 
     if (isAdminPage) return requireTerritoryAdmin(req, res, next);
 
+    const endpoint = req.path.replace(/\/+$/, "") || "/";
+    if (isTerritoryApi && (endpoint === "/internal/state" || endpoint === "/internal/attack")) return next();
+
     if (!req.user?.steam_id || !/^\d{17}$/.test(String(req.user.steam_id))) {
       if (isPlayerPage) {
         return res.redirect(302, "/auth/steam?returnTo=%2Fgroups%2Fterritory-wars%2F");
@@ -206,6 +211,10 @@ function createApp() {
 
     if (admin) return next();
 
+    const playerWarAccess = TERRITORY_WARS_REDESIGN_ENABLED && TERRITORY_WARS_PLAYER_ACCESS_ENABLED;
+    if (playerWarAccess && isPlayerPage) return next();
+    if (playerWarAccess && isTerritoryApi && !endpoint.startsWith("/admin")) return next();
+
     if (isPlayerPage) {
       res.set("Cache-Control", "no-store, private");
       return res.sendFile(path.join(__dirname, "pages", "territoryInvites.html"));
@@ -213,7 +222,6 @@ function createApp() {
 
     // Keep event state, rosters, and every admin/group management endpoint
     // private. A player may only fetch their own invitations or accept one.
-    const endpoint = req.path.replace(/\/+$/, "") || "/";
     const readInvites = req.method === "GET" && endpoint === "/invites";
     const acceptInvite = req.method === "POST" && endpoint === "/group/invite/accept";
     if (isTerritoryApi && (readInvites || acceptInvite)) return next();

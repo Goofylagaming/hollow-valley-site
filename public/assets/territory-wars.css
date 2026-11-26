@@ -1,3 +1,7 @@
+.tw-holdings { display: grid; gap: 8px; margin-top: 12px; }
+.tw-holding { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.03); }
+.tw-holding strong { font-size: 15px; }
+.tw-holding small { color: #aa9b86; }
 .tw-shell {
   display: grid;
   gap: 16px;

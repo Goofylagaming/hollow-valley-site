@@ -12,6 +12,26 @@ const progression = require('../services/progressionService');
 const router = express.Router();
 router.use(requireHerbyBotToken);
 
+router.get('/territory-wars/state', async (_req, res) => {
+  const base = String(process.env.HOLLOW_VALLEY_SITE_URL || process.env.HOLLOW_VALLEY_API_BASE_URL || process.env.PUBLIC_SITE_URL || '').trim().replace(/\/$/, '');
+  const token = String(process.env.TERRITORY_WARS_INTERNAL_TOKEN || '').trim();
+  if (!base || !token) {
+    return res.status(503).json({ error: 'Territory Wars website bridge is not configured.' });
+  }
+  try {
+    const response = await fetch(`${base}/api/territory-wars/internal/state`, {
+      headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return res.status(response.status).json({ error: payload.error || 'Territory Wars state is unavailable.' });
+    }
+    return res.json(payload);
+  } catch (error) {
+    return res.status(503).json({ error: error.message || 'Territory Wars state is unavailable.' });
+  }
+});
+
 router.get('/status', async (_req, res) => {
   try {
     const publicStatus = await getPublicStatus();

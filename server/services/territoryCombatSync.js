@@ -392,6 +392,23 @@ function syncSince(event) {
 async function syncOnce() {
   ensureSchema();
   if (running) return { skipped: true, reason: 'already-running' };
+  if (process.env.TERRITORY_WARS_REDESIGN_ENABLED === "1") {
+    running = true;
+    try {
+      const redesign = require("./territoryRedesign");
+      const payload = await territoryCombatClient.listEvents({ since: redesign.combatSince(), limit: 250 });
+      const events = Array.isArray(payload?.events) ? payload.events : [];
+      const result = redesign.ingestCombat(events);
+      lastError = null;
+      lastSyncAt = new Date().toISOString();
+      return { skipped: false, ...result, lastSyncAt };
+    } catch (error) {
+      lastError = error.message || String(error);
+      throw error;
+    } finally {
+      running = false;
+    }
+  }
   const event = latestLiveEvent();
   if (!event) return { skipped: true, reason: 'no-live-event' };
 

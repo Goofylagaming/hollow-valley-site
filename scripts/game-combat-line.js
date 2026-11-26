@@ -25,6 +25,18 @@ function cleanName(value) {
   return name ? name.slice(0, 80) : null;
 }
 
+function parseKillLocation(text) {
+  // The Isle labels this the same way as RCON: X is east/west and Y is north/south.
+  // territoryCombatSync swaps those axes before comparing them with the map.
+  const match = /at:\s*X=([-+0-9.]+)\s+Y=([-+0-9.]+)\s+Z=([-+0-9.]+)/i.exec(String(text || ""));
+  if (!match) return null;
+  const x = Number(match[1]);
+  const y = Number(match[2]);
+  const z = Number(match[3]);
+  if (![x, y, z].every(Number.isFinite)) return null;
+  return { x, y, z };
+}
+
 function parseCombatLine(line) {
   const text = String(line || '');
   if (!text.includes('LogTheIsleKillData:')) return null;
@@ -39,6 +51,7 @@ function parseCombatLine(line) {
 
   const kill = /^Killed the following player:\s*(.*?),\s*\[(\d{17})\],\s*Dino:/i.exec(outcome);
   if (kill) {
+    const location = parseKillLocation(outcome) || parseKillLocation(text);
     return {
       occurredAt,
       killerSteamId: actorSteamId,
@@ -46,6 +59,8 @@ function parseCombatLine(line) {
       victimSteamId: kill[2],
       victimName: cleanName(kill[1]),
       victimSpecies: outcome.slice(kill[0].length).split(',')[0].trim() || null,
+      killerLocation: location,
+      victimLocation: location,
     };
   }
 
@@ -62,4 +77,4 @@ function parseCombatLine(line) {
   return null;
 }
 
-module.exports = { parseUnrealUtcTimestamp, parseIsleLocalTimestamp, parseCombatLine };
+module.exports = { parseUnrealUtcTimestamp, parseIsleLocalTimestamp, parseCombatLine, parseKillLocation };
