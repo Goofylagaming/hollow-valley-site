@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const express = require('express');
 const { createVoiceRouter } = require('../server/routes/voice');
-const { mintLiveKitToken, liveKitConfig, TOKEN_TTL_SECONDS } = require('../server/services/voiceToken');
+const { mintLiveKitToken, liveKitConfig, probeLiveKit, TOKEN_TTL_SECONDS } = require('../server/services/voiceToken');
 const { TokenVerifier } = require('livekit-server-sdk');
 
 const now = Date.parse('2026-11-26T00:00:00Z');
@@ -32,7 +32,7 @@ function cache(characters = [character(self, 812345.125, -743210.5, 99001.25), c
   };
 }
 
-function appFor(state, { enabled = true, user = { steam_id: self, username: 'Moss' }, mint, units = '100' } = {}) {
+function appFor(state, { enabled = true, user = { steam_id: self, username: 'Moss' }, mint, units = '100', probe } = {}) {
   let minted = null;
   const env = {
     VOICE_ENABLED: enabled ? '1' : '0',
@@ -46,6 +46,7 @@ function appFor(state, { enabled = true, user = { steam_id: self, username: 'Mos
     getState: () => state,
     env,
     now: () => now,
+    probe,
     mintToken: mint || (async (input) => {
       minted = input;
       return {
@@ -109,9 +110,9 @@ test('voice token is refused when disabled, signed out, missing Steam, off serve
     { name: 'discord only', state: cache(), user: { steam_id: null, username: 'Discord' }, status: 403, code: 'STEAM_REQUIRED' },
     { name: 'short steam id', state: cache(), user: { steam_id: '12345' }, status: 403, code: 'STEAM_REQUIRED' },
     { name: 'not on server', state: cache([character(other, 1, 2, 3, 'Fern')]), status: 403, code: 'NOT_ON_SERVER' },
-    { name: 'stale snapshot', state: cache(undefined, { voiceSampledAt: new Date(now - 60000).toISOString() }), status: 503, code: 'VOICE_OFFLINE' },
-    { name: 'rcon offline', state: cache(undefined, { rconOnline: false }), status: 503, code: 'VOICE_OFFLINE' },
-    { name: 'bad scale', state: cache(), units: '0', status: 503, code: 'VOICE_OFFLINE' },
+    { name: 'stale snapshot', state: cache(undefined, { voiceSampledAt: new Date(now - 60000).toISOString() }), status: 503, code: 'SNAPSHOT_STALE' },
+    { name: 'rcon offline', state: cache(undefined, { rconOnline: false }), status: 503, code: 'SNAPSHOT_UNAVAILABLE' },
+    { name: 'bad scale', state: cache(), units: '0', status: 503, code: 'VOICE_SCALE' },
   ];
   for (const item of cases) {
     let called = false;
@@ -212,6 +213,50 @@ test('livekit token grants the steam identity a microphone in one room', async (
   for (const key of Object.keys(claims)) assert.equal(['location', 'x', 'y', 'z'].includes(key), false);
 });
 
+test('admin diagnosis names the gate and does not return coordinates or secrets', async () => {
+  const probe = async () => ({ status: 'unauthorized', urlOk: true, roomOk: true, keyPresent: true, secretPresent: true });
+  const denied = appFor(cache(), { user: { steam_id: self, is_admin: 0 }, probe });
+  await withServer(denied.app, async (base) => {
+    const response = await fetch(`${base}/api/voice/diagnosis`);
+    assert.equal(response.status, 403);
+  });
+  const allowed = appFor(cache(), { user: { steam_id: self, is_admin: 1 }, probe });
+  await withServer(allowed.app, async (base) => {
+    const response = await fetch(`${base}/api/voice/diagnosis`);
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.reason, 'ok');
+    assert.equal(body.selfPositioned, true);
+    assert.equal(body.positionedCount, 2);
+    assert.equal(body.livekit.status, 'unauthorized');
+    assert.equal(body.steamFormatOk, true);
+    const encoded = JSON.stringify(body);
+    for (const secret of ['812345', '743210', '99001', 'super-secret-value', self, other, 'location', 'Tyrannosaurus']) {
+      assert.equal(encoded.includes(secret), false, secret);
+    }
+  });
+});
+
+test('livekit probe classifies unauthorized without echoing the secret', async () => {
+  const env = {
+    LIVEKIT_URL: 'wss://voice.example.test',
+    LIVEKIT_API_KEY: 'key',
+    LIVEKIT_API_SECRET: 'super-secret-value',
+    LIVEKIT_ROOM: 'hollow-valley',
+  };
+  const denied = await probeLiveKit(env, {
+    listRooms: async () => {
+      const error = new Error('unauthorized');
+      error.status = 401;
+      throw error;
+    },
+  });
+  assert.equal(denied.status, 'unauthorized');
+  assert.equal(JSON.stringify(denied).includes('super-secret-value'), false);
+  const offline = await probeLiveKit({ ...env, LIVEKIT_ROOM: 'not a room' });
+  assert.equal(offline.status, 'not_configured');
+});
+
 test('voice page, navigation, and server entry stay off the map position feed', () => {
   const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
   const page = read('public/voice.html');
@@ -227,6 +272,8 @@ test('voice page, navigation, and server entry stay off the map position feed', 
   assert.match(page, /livekit-client@2\.25\.0/);
   assert.match(page, /integrity="sha384-/);
   assert.match(client, /\/api\/voice\/gains/);
+  assert.match(client, /\/api\/voice\/diagnosis/);
+  assert.match(client, /The voice room did not connect/);
   assert.match(client, /GATE_RMS/);
   assert.doesNotMatch(client, /\/api\/map\/positions/);
   assert.doesNotMatch(route, /\/api\/map\/positions|RCON_HOST|RCON_PASSWORD/);

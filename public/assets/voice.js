@@ -6,6 +6,8 @@
     steam: ["Steam sign-in required", "Voice needs a Steam account. Discord-only sign-in cannot join."],
     offline: ["Voice offline", "Voice is offline until a fresh server snapshot says you are on Hollow Valley."],
     "not-on-server": ["Voice offline", "Join the Hollow Valley Isle server, then leave this tab open. Voice starts when your Steam account is on a fresh snapshot."],
+    livekit: ["Voice room unreachable", "The snapshot check passed, but this browser could not join the voice room."],
+    mic: ["Microphone unavailable", "The microphone could not be opened. Another app may be using it."],
     blocked: ["Microphone blocked", "The browser blocked the microphone. Allow microphone access for this site, then try again."],
     connecting: ["Connecting", "Allow the microphone if your browser asks. It stays open while this tab is open."],
     on: ["Mic on", "Microphone is open. Quiet sound is not sent until you speak."],
@@ -37,6 +39,7 @@
   let muted = false;
   let speaking = false;
   let micAttempts = 0;
+  let connectFailed = false;
   let latest = new Map();
   let session = null;
   let connectChain = Promise.resolve();
@@ -86,11 +89,37 @@
 
   function failureState(result) {
     const code = result.body && result.body.code;
-    if (result.status === 404 || code === "VOICE_DISABLED") return "disabled";
-    if (result.status === 401 || code === "NOT_LOGGED_IN") return "signed-out";
-    if (code === "STEAM_REQUIRED") return "steam";
-    if (code === "NOT_ON_SERVER") return "not-on-server";
-    return "offline";
+    if (result.status === 404 || code === "VOICE_DISABLED") return { state: "disabled" };
+    if (result.status === 401 || code === "NOT_LOGGED_IN") return { state: "signed-out" };
+    if (code === "STEAM_REQUIRED") return { state: "steam" };
+    if (code === "NOT_ON_SERVER") return { state: "not-on-server" };
+    if (code === "SNAPSHOT_STALE") return { state: "offline", detail: "The server snapshot is more than 30 seconds old, so voice is staying off." };
+    if (code === "SNAPSHOT_UNAVAILABLE") return { state: "offline", detail: "The server snapshot is not marked online, so voice is staying off." };
+    if (code === "VOICE_SCALE") return { state: "offline", detail: "Voice scale is not configured as a positive number." };
+    if (code === "LIVEKIT_MINT_FAILED") return { state: "livekit", detail: "The server could not sign a voice token. Check the LiveKit URL, key, secret, and room." };
+    if (code === "BAD_ORIGIN") return { state: "offline", detail: "Open this page on hollowvalleyisle.com and try again." };
+    return { state: "offline" };
+  }
+
+  async function adminNote() {
+    try {
+      const me = window.HDS && await window.HDS.loadMe();
+      if (!me || !me.user || !me.user.is_admin) return "";
+      const response = await fetch("/api/voice/diagnosis", { credentials: "same-origin", headers: { Accept: "application/json" } });
+      if (!response.ok) return "";
+      const body = await response.json();
+      const livekit = body.livekit && body.livekit.status ? body.livekit.status : "unknown";
+      const age = Number.isFinite(body.ageMs) ? `${body.ageMs} ms` : "unknown";
+      return ` Admin check: gate ${body.reason}, age ${age}, positioned ${body.selfPositioned ? "yes" : "no"}, LiveKit ${livekit}.`;
+    } catch {
+      return "";
+    }
+  }
+
+  async function showFailure(state, detail) {
+    setState(state, detail);
+    const note = await adminNote();
+    if (note) setState(state, `${detail || (STATUS[state] && STATUS[state][1]) || ""} ${note}`.trim());
   }
 
   function parseGains(body) {
@@ -239,7 +268,12 @@
     if (!rawStream || !rawStream.getAudioTracks().some((track) => track.readyState === "live")) {
       releaseMic();
       rawStream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          channelCount: { ideal: 1 },
+        },
         video: false,
       });
     }
@@ -283,9 +317,10 @@
       if (!result.ok) {
         silenceAll();
         const code = result.body && result.body.code;
-        if (code === "NOT_ON_SERVER" || result.status === 401 || result.status === 404) {
+        if (code === "NOT_ON_SERVER" || code === "SNAPSHOT_STALE" || code === "SNAPSHOT_UNAVAILABLE" || result.status === 401 || result.status === 404) {
           await disconnectRoom();
-          setState(failureState(result));
+          const failure = failureState(result);
+          await showFailure(failure.state, failure.detail);
         }
         return;
       }
@@ -306,7 +341,7 @@
       applyVolumes();
     });
     nextRoom.on(events.Disconnected, () => {
-      if (leaving || refreshing) return;
+      if (leaving || refreshing || connectFailed) return;
       clearTimeout(reconnectTimer);
       reconnectTimer = setTimeout(() => { enqueue(() => refreshSession()); }, 2000);
     });
@@ -327,6 +362,7 @@
       room = new window.LivekitClient.Room();
       bindRoom(room);
     }
+    connectFailed = false;
     if (room.state !== "connected") await room.connect(session.url, session.token);
     try { await room.startAudio(); } catch { /* a later click calls startAudio */ }
     await publishMic();
@@ -342,8 +378,10 @@
     if (leaving) return;
     const result = await requestToken();
     if (!result.ok) {
+      connectFailed = true;
       await disconnectRoom();
-      setState(failureState(result));
+      const failure = failureState(result);
+      await showFailure(failure.state, failure.detail);
       return;
     }
     session = result.body;
@@ -354,9 +392,14 @@
     }
     refreshing = true;
     try {
+      connectFailed = false;
       if (room.state === "connected") await room.disconnect();
       await room.connect(session.url, session.token);
       await publishMic();
+    } catch (error) {
+      connectFailed = true;
+      await reportJoinError(error);
+      return;
     } finally {
       refreshing = false;
     }
@@ -365,9 +408,31 @@
     if (!muted) setState("on");
   }
 
-  function micBlocked(error) {
+  function safeErrorName(error) {
     const name = error && error.name;
-    return name === "NotAllowedError" || name === "PermissionDeniedError" || name === "SecurityError" || name === "NotFoundError";
+    return typeof name === "string" && /^[A-Za-z]{1,40}$/.test(name) ? name : "Error";
+  }
+
+  function mediaProblem(error) {
+    const name = error && error.name;
+    if (name === "NotAllowedError" || name === "PermissionDeniedError" || name === "SecurityError") return "blocked";
+    if (name === "NotFoundError" || name === "NotReadableError" || name === "OverconstrainedError" || name === "AbortError") return "mic";
+    return "";
+  }
+
+  async function reportJoinError(error) {
+    const kind = mediaProblem(error);
+    const name = safeErrorName(error);
+    if (kind === "blocked") {
+      micAttempts += 1;
+      await showFailure(micAttempts > 1 ? "blocked" : "connecting", "Click Enable microphone to start. The microphone then stays on while this tab is open.");
+      return;
+    }
+    if (kind === "mic") {
+      await showFailure("mic", `The microphone could not be opened (${name}). Another app may be using it.`);
+      return;
+    }
+    await showFailure("livekit", `The voice room did not connect (${name}). The snapshot check had already allowed a token.`);
   }
 
   async function startVoice() {
@@ -383,19 +448,16 @@
     setState("connecting");
     const result = session ? { ok: true, body: session } : await requestToken();
     if (!result.ok) {
-      setState(failureState(result));
+      const failure = failureState(result);
+      await showFailure(failure.state, failure.detail);
       return;
     }
     session = result.body;
     try {
       await connectSession();
     } catch (error) {
-      if (micBlocked(error)) {
-        micAttempts += 1;
-        setState(micAttempts > 1 ? "blocked" : "connecting", "Click Enable microphone to start. The microphone then stays on while this tab is open.");
-        return;
-      }
-      setState("offline");
+      connectFailed = true;
+      await reportJoinError(error);
     }
   }
 
@@ -419,7 +481,8 @@
     try {
       const result = await requestToken();
       if (!result.ok) {
-        setState(failureState(result));
+        const failure = failureState(result);
+        await showFailure(failure.state, failure.detail);
         return;
       }
       session = result.body;
