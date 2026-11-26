@@ -431,7 +431,7 @@ window.HDS = (function () {
     const slot = document.getElementById("nav-slot");
     if (!slot) return;
     try {
-      const response = await fetch("/partials/nav.html?v=primalbound6", { cache: "no-store", credentials: "same-origin" });
+      const response = await fetch("/partials/nav.html?v=merch1", { cache: "no-store", credentials: "same-origin" });
       if (!response.ok) throw new Error(`Navigation returned HTTP ${response.status}`);
       slot.innerHTML = await response.text();
       // Correct old PRIMALBOUND links even if a stale partial escapes an intermediary cache.
