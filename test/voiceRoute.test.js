@@ -110,7 +110,7 @@ test('voice token is refused when disabled, signed out, missing Steam, off serve
     { name: 'discord only', state: cache(), user: { steam_id: null, username: 'Discord' }, status: 403, code: 'STEAM_REQUIRED' },
     { name: 'short steam id', state: cache(), user: { steam_id: '12345' }, status: 403, code: 'STEAM_REQUIRED' },
     { name: 'not on server', state: cache([character(other, 1, 2, 3, 'Fern')]), status: 403, code: 'NOT_ON_SERVER' },
-    { name: 'stale snapshot', state: cache(undefined, { voiceSampledAt: new Date(now - 60000).toISOString() }), status: 503, code: 'SNAPSHOT_STALE' },
+    { name: 'stale snapshot', state: cache(undefined, { voiceSampledAt: new Date(now - 60001).toISOString() }), status: 503, code: 'SNAPSHOT_STALE' },
     { name: 'rcon offline', state: cache(undefined, { rconOnline: false }), status: 503, code: 'SNAPSHOT_UNAVAILABLE' },
     { name: 'bad scale', state: cache(), units: '0', status: 503, code: 'VOICE_SCALE' },
   ];
@@ -163,7 +163,8 @@ test('gains payload has no coordinates and an eligible token uses only the Steam
     const gains = await gainsResponse.json();
     assert.equal(gainsResponse.status, 200);
     assert.match(gainsResponse.headers.get('cache-control'), /no-store/);
-    assert.deepEqual(keysDeep(gains), ['gains', 'identity', 'gain', 'audible', 'displayName']);
+    assert.deepEqual(keysDeep(gains), ['positionsSlow', 'gains', 'identity', 'gain', 'audible', 'displayName']);
+    assert.equal(gains.positionsSlow, false);
     assert.equal(gains.gains.length, 1);
     assert.equal(gains.gains[0].identity, other);
     assert.equal(gains.gains[0].displayName, 'Fern');
@@ -177,7 +178,8 @@ test('gains payload has no coordinates and an eligible token uses only the Steam
     const tokenResponse = await postToken(base);
     const token = await tokenResponse.json();
     assert.equal(tokenResponse.status, 200);
-    assert.deepEqual(Object.keys(token).sort(), ['expiresAt', 'identity', 'room', 'token', 'url']);
+    assert.deepEqual(Object.keys(token).sort(), ['expiresAt', 'identity', 'positionsSlow', 'room', 'token', 'url']);
+    assert.equal(token.positionsSlow, false);
     assert.equal(token.identity, self);
     assert.equal(token.room, 'hollow-valley');
     assert.equal(JSON.stringify(token).includes('super-secret-value'), false);
@@ -226,6 +228,8 @@ test('admin diagnosis names the gate and does not return coordinates or secrets'
     const body = await response.json();
     assert.equal(response.status, 200);
     assert.equal(body.reason, 'ok');
+    assert.equal(body.maxSnapshotAgeMs, 60000);
+    assert.equal(body.positionsSlow, false);
     assert.equal(body.selfPositioned, true);
     assert.equal(body.positionedCount, 2);
     assert.equal(body.livekit.status, 'unauthorized');
@@ -257,6 +261,41 @@ test('livekit probe classifies unauthorized without echoing the secret', async (
   assert.equal(offline.status, 'not_configured');
 });
 
+test('a snapshot between 30s and 60s still issues a token and gains', async () => {
+  const slowState = cache(undefined, { voiceSampledAt: new Date(now - 30938).toISOString() });
+  let called = false;
+  const { app } = appFor(slowState, {
+    mint: async (input) => {
+      called = true;
+      return {
+        url: 'wss://hollow-valley-voice-0thawldt.livekit.cloud',
+        token: 'signed-token',
+        room: 'hollow-valley',
+        identity: input.identity,
+        expiresAt: new Date(now + 1800000).toISOString(),
+      };
+    },
+  });
+  await withServer(app, async (base) => {
+    const tokenResponse = await postToken(base);
+    const token = await tokenResponse.json();
+    assert.equal(tokenResponse.status, 200);
+    assert.equal(token.positionsSlow, true);
+    assert.equal(called, true);
+    const gainsResponse = await fetch(`${base}/api/voice/gains`);
+    const gains = await gainsResponse.json();
+    assert.equal(gainsResponse.status, 200);
+    assert.equal(gains.positionsSlow, true);
+    assert.equal(gains.gains.length, 1);
+    assert.equal(gains.gains[0].gain, 1);
+    assert.equal(gains.gains[0].audible, true);
+    const encoded = JSON.stringify({ token, gains });
+    for (const secret of ['812345', '743210', '99001', 'location']) {
+      assert.equal(encoded.includes(secret), false, secret);
+    }
+  });
+});
+
 test('voice page, navigation, and server entry stay off the map position feed', () => {
   const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
   const page = read('public/voice.html');
@@ -274,6 +313,10 @@ test('voice page, navigation, and server entry stay off the map position feed', 
   assert.match(client, /\/api\/voice\/gains/);
   assert.match(client, /\/api\/voice\/diagnosis/);
   assert.match(client, /The voice room did not connect/);
+  assert.match(page, /Positions are updating slowly/);
+  assert.match(read('public/voice.html'), /id="voice-slow-notice"/);
+  assert.match(read('.env.example'), /VOICE_MAX_SNAPSHOT_AGE_MS=60000/);
+  assert.match(read('render.yaml'), /key: VOICE_MAX_SNAPSHOT_AGE_MS\n\s+value: "60000"/);
   assert.match(client, /GATE_RMS/);
   assert.doesNotMatch(client, /\/api\/map\/positions/);
   assert.doesNotMatch(route, /\/api\/map\/positions|RCON_HOST|RCON_PASSWORD/);

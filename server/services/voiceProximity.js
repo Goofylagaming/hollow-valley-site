@@ -6,6 +6,8 @@
 // The same fail-closed timestamp and ServerOnline/RconOnline rules run against
 // the automation snapshot already cached by server/services/serverStatus.js.
 const DEFAULT_MAX_AGE_MS = 30000;
+const SLOW_AFTER_MS = 30000;
+const DEFAULT_MAX_SNAPSHOT_AGE_MS = 60000;
 const DEFAULT_UNITS_PER_METER = 100;
 
 function positionOf(p) {
@@ -58,6 +60,20 @@ function authorizedPair(snapshotState, fromId, toId, unitsPerMeter) {
 
 function voiceEnabled(env = process.env) {
   return String(env.VOICE_ENABLED || '').trim() === '1';
+}
+
+// Blank or invalid values use 60s. The pure readSnapshot() port still defaults to 30s.
+function maxSnapshotAgeMs(env = process.env) {
+  const raw = env.VOICE_MAX_SNAPSHOT_AGE_MS;
+  if (raw == null || String(raw).trim() === '') return DEFAULT_MAX_SNAPSHOT_AGE_MS;
+  const value = Number(String(raw).trim());
+  if (!Number.isFinite(value) || value <= 0) return DEFAULT_MAX_SNAPSHOT_AGE_MS;
+  return value;
+}
+
+function resolveMaxAge(maxAgeMs, env) {
+  if (Number.isFinite(maxAgeMs) && maxAgeMs > 0) return maxAgeMs;
+  return maxSnapshotAgeMs(env);
 }
 
 // 100 is the Voice repo's test-fixture scale, not a measured Evrima metre.
@@ -182,8 +198,9 @@ function positionedLocation(location) {
 }
 
 // Counts only. Callers must not add coordinates, names, or SteamIDs to this result.
-function explainVoice(state, steamId, { nowMs = Date.now(), unitsPerMeter: scale, maxAgeMs } = {}) {
-  const assessment = assessVoice(state, steamId, { nowMs, unitsPerMeter: scale, maxAgeMs });
+function explainVoice(state, steamId, { nowMs = Date.now(), unitsPerMeter: scale, maxAgeMs, env } = {}) {
+  const limit = resolveMaxAge(maxAgeMs, env);
+  const assessment = assessVoice(state, steamId, { nowMs, unitsPerMeter: scale, maxAgeMs: limit });
   const records = cacheClosed(state) ? [] : sourceRecords(state);
   let steamIdCount = 0;
   let positionedCount = 0;
@@ -202,6 +219,9 @@ function explainVoice(state, steamId, { nowMs = Date.now(), unitsPerMeter: scale
     ok: assessment.ok,
     reason: assessment.reason,
     ageMs: Number.isFinite(parsedAt) ? nowMs - parsedAt : null,
+    maxSnapshotAgeMs: limit,
+    slowAfterMs: SLOW_AFTER_MS,
+    positionsSlow: assessment.positionsSlow === true,
     online: state?.online === true,
     stale: state?.stale === true,
     hasError: Boolean(state?.lastError),
@@ -214,22 +234,27 @@ function explainVoice(state, steamId, { nowMs = Date.now(), unitsPerMeter: scale
   };
 }
 
-function assessVoice(state, steamId, { nowMs = Date.now(), unitsPerMeter: scale, maxAgeMs } = {}) {
+function assessVoice(state, steamId, { nowMs = Date.now(), unitsPerMeter: scale, maxAgeMs, env } = {}) {
+  const limit = resolveMaxAge(maxAgeMs, env);
   if (!Number.isFinite(scale) || scale <= 0) {
-    return { ok: false, reason: 'invalid_scale', gains: [], displayName: 'Survivor' };
+    return { ok: false, reason: 'invalid_scale', positionsSlow: false, gains: [], displayName: 'Survivor' };
   }
   const built = websiteSnapshot(state);
-  const snapshot = readSnapshot(built.snapshot, { nowMs, maxAgeMs });
+  const snapshot = readSnapshot(built.snapshot, { nowMs, maxAgeMs: limit });
   const displayName = built.names.get(String(steamId)) || 'Survivor';
+  const parsedAt = Date.parse(built.snapshot.GeneratedAt || '');
+  const ageMs = Number.isFinite(parsedAt) ? nowMs - parsedAt : null;
+  const positionsSlow = snapshot.valid && Number.isFinite(ageMs) && ageMs >= SLOW_AFTER_MS && ageMs <= limit;
   if (!snapshot.valid) {
-    return { ok: false, reason: snapshot.reason, gains: [], displayName };
+    return { ok: false, reason: snapshot.reason, positionsSlow: false, gains: [], displayName };
   }
   if (!snapshot.players.has(String(steamId))) {
-    return { ok: false, reason: 'not_on_server', gains: [], displayName };
+    return { ok: false, reason: 'not_on_server', positionsSlow: false, gains: [], displayName };
   }
   return {
     ok: true,
     reason: 'ok',
+    positionsSlow,
     gains: publicGains(snapshot, steamId, scale, built.names),
     displayName,
   };
@@ -243,7 +268,10 @@ module.exports = {
   explainVoice,
   voiceEnabled,
   unitsPerMeter,
+  maxSnapshotAgeMs,
   sanitizeName,
   DEFAULT_MAX_AGE_MS,
+  DEFAULT_MAX_SNAPSHOT_AGE_MS,
+  SLOW_AFTER_MS,
   DEFAULT_UNITS_PER_METER,
 };

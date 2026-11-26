@@ -25,6 +25,7 @@
           <small>VOICE STATUS</small>
           <h2 id="voice-status-label" data-state="checking">Checking voice…</h2>
           <p id="voice-status-detail">Proximity voice stays off until the page can confirm it is enabled.</p>
+          <p id="voice-slow-notice" class="hv-voice-slow" hidden>Positions are updating slowly. Volume may lag until the next snapshot.</p>
         </div>
         <div class="hv-voice-actions">
           <a class="hv-voice-button" id="voice-steam-link" href="/auth/steam?returnTo=/voice" hidden>Sign in with Steam</a>
@@ -54,6 +55,6 @@
   </div>
   <script src="/assets/common.js?v=2026112001"></script>
   <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.25.0/dist/livekit-client.umd.js" integrity="sha384-eouj+XYEvNyK57uIXG6Mm8ezzAFObb0/f4uMNWsZdQT2cghns/Mvq7QWCnzv6T/B" crossorigin="anonymous"></script>
-  <script src="/assets/voice.js?v=2"></script>
+  <script src="/assets/voice.js?v=3"></script>
 </body>
 </html>
