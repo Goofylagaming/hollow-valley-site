@@ -326,6 +326,32 @@ test('prime replies cover enabled, disabled, missing and failed tracker reads', 
   assert.throws(() => notices.collect({ primeRequests: { id: 'nope' } }), /primeRequests must be an array/);
 });
 
+test('a prime backlog over 100 still releases zone notices and keeps the remainder', () => {
+  const notices = createPlayerNoticeService({
+    zoneNotifyEnabled: true,
+    primeChatNotifyEnabled: true,
+    primeTracker: { trackerState() { return { enabled: false }; } },
+  });
+  notices.beginSnapshot([]);
+  notices.beginSnapshot([alice]);
+  notices.beginSnapshot([alice]);
+  notices.onZoneChange({ steamId: alice, kind: 'migration', entered: ['South Rail'], left: [], at: 5000 });
+  const requests = Array.from({ length: 101 }, (_, index) => ({
+    id: `chat-prime-backlog-${index}`,
+    steam: alice,
+    ts: index,
+  }));
+  let seenZone = false;
+  let body = notices.collect({ primeRequests: requests });
+  for (let attempt = 0; attempt < 8 && !seenZone; attempt += 1) {
+    seenZone = body.notices.some(notice => notice.text === 'Entered migration zone: South Rail');
+    if (!seenZone) body = notices.collect({});
+  }
+  assert.equal(seenZone, true);
+  const remainder = notices.collect({ primeRequests: [requests[100]] });
+  assert.equal(remainder.notices.some(notice => notice.text === UNAVAILABLE), true);
+});
+
 test('prime chat can be switched off without affecting zone notices', () => {
   let primeOn = true;
   const h = harness({

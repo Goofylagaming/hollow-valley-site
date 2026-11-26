@@ -238,11 +238,12 @@ function Invoke-NoticePass {
     if ($haveFile) { $chunk = Read-ResultChunk -Offset $offset }
     if ($chunk.Reset) { Write-NoticeLog 'Results file shrank. Tail offset was reset.' }
     $requests = @(Get-PrimeRequests -Text $chunk.Text)
-    $body = Get-RequestBody -Requests $requests
     $endpoint = ($BaseUrl.TrimEnd('/')) + '/api/presence-feed/notices'
 
     if ($script:Dry) {
-        Write-NoticeLog ("DRY-RUN would POST {0} prime request(s) to {1}" -f $requests.Count, $endpoint)
+        $dryBatches = 1
+        if ($requests.Count -gt 100) { $dryBatches = [int][Math]::Ceiling($requests.Count / 100.0) }
+        Write-NoticeLog ("DRY-RUN would POST {0} prime request(s) in {1} batch(es) to {2}" -f $requests.Count, $dryBatches, $endpoint)
         foreach ($request in $requests) {
             Write-NoticeLog ("DRY-RUN prime id={0} steam={1}" -f $request.id, $request.steam)
         }
@@ -259,31 +260,43 @@ function Invoke-NoticePass {
     }
 
     $headers = @{ Authorization = ('Bearer ' + $script:Token) }
-    try {
-        $response = Invoke-RestMethod -Method Post -Uri $endpoint -Headers $headers -Body $body -ContentType 'application/json; charset=utf-8' -TimeoutSec 20
-    } catch {
-        $status = ''
-        if ($_.Exception.Response) { $status = [string]$_.Exception.Response.StatusCode }
-        Write-NoticeLog ("POST failed status={0}" -f $status)
-        return
+    $remaining = New-Object System.Collections.Generic.List[object]
+    foreach ($request in @($requests)) {
+        if ($request) { [void]$remaining.Add($request) }
     }
-
-    if ($haveFile) { Save-TailState -Offset ([int64]$chunk.NextOffset) }
-
     $delivered = 0
     $noticeCount = 0
-    if ($response -and $response.notices) {
-        foreach ($notice in @($response.notices)) {
-            if (-not $notice) { continue }
-            $noticeCount++
-            try {
-                if (Write-EventAiNotice -Notice $notice) { $delivered++ }
-            } catch {
-                Write-NoticeLog 'Inbox write failed for one notice.'
+    $posted = 0
+    do {
+        $slice = New-Object System.Collections.Generic.List[object]
+        $take = [Math]::Min(100, $remaining.Count)
+        for ($index = 0; $index -lt $take; $index++) { [void]$slice.Add($remaining[$index]) }
+        if ($take -gt 0) { $remaining.RemoveRange(0, $take) }
+        $body = Get-RequestBody -Requests $slice.ToArray()
+        try {
+            $response = Invoke-RestMethod -Method Post -Uri $endpoint -Headers $headers -Body $body -ContentType 'application/json; charset=utf-8' -TimeoutSec 20
+        } catch {
+            $status = ''
+            if ($_.Exception.Response) { $status = [string]$_.Exception.Response.StatusCode }
+            Write-NoticeLog ("POST failed status={0}. Tail offset was not moved." -f $status)
+            return
+        }
+        $posted += $take
+        if ($response -and $response.notices) {
+            foreach ($notice in @($response.notices)) {
+                if (-not $notice) { continue }
+                $noticeCount++
+                try {
+                    if (Write-EventAiNotice -Notice $notice) { $delivered++ }
+                } catch {
+                    Write-NoticeLog 'Inbox write failed for one notice.'
+                }
             }
         }
-    }
-    Write-NoticeLog ("primeRequests={0} notices={1} inbox={2}" -f $requests.Count, $noticeCount, $delivered)
+    } while ($remaining.Count -gt 0)
+
+    if ($haveFile) { Save-TailState -Offset ([int64]$chunk.NextOffset) }
+    Write-NoticeLog ("primeRequests={0} notices={1} inbox={2}" -f $posted, $noticeCount, $delivered)
 }
 
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}

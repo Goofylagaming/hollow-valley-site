@@ -296,8 +296,13 @@ function createPlayerNoticeService(options = {}) {
       throw noticeError('primeRequests must be an array');
     }
     const requests = body.primeRequests || [];
-    if (requests.length > MAX_PRIME_REQUESTS) throw noticeError('Too many primeRequests');
-    acceptPrimeRequests(requests);
+    // A larger backlog is left unprocessed so the caller can send it next time.
+    // Rejecting the whole body would also block zone notices that share this call.
+    const accepted = requests.length > MAX_PRIME_REQUESTS ? requests.slice(0, MAX_PRIME_REQUESTS) : requests;
+    if (accepted.length !== requests.length) {
+      console.warn(`[player-notices] accepted ${accepted.length} of ${requests.length} prime requests`);
+    }
+    acceptPrimeRequests(accepted);
     return { notices: claim() };
   }
 
