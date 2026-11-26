@@ -7,6 +7,7 @@ const {
   proximity,
   authorizedPair,
   assessVoice,
+  explainVoice,
 } = require('../server/services/voiceProximity');
 
 const now = Date.parse('2026-11-19T04:37:02Z');
@@ -120,6 +121,36 @@ test('website cache fails closed when stale, offline, or RCON is not online', ()
   const leaked = JSON.stringify(assessVoice(websiteCache(characters, { rconOnline: false }), self, { nowMs: now, unitsPerMeter: 100 }));
   assert.equal(leaked.includes('812345'), false);
   assert.equal(leaked.includes('743210'), false);
+});
+
+test('a fresh positioned player passes and the explanation has no coordinates', () => {
+  const self = '76561198000000011';
+  const state = websiteCache([
+    character(self, 812345.125, -743210.5, 99001.25, 'Moss'),
+  ]);
+  const explained = explainVoice(state, self, { nowMs: now, unitsPerMeter: 100 });
+  assert.equal(explained.ok, true);
+  assert.equal(explained.reason, 'ok');
+  assert.equal(explained.ageMs, 0);
+  assert.equal(explained.selfPositioned, true);
+  assert.equal(explained.positionedCount, 1);
+  assert.equal(explained.serverFlag, 'absent');
+  assert.equal(explained.rconFlag, 'absent');
+  const encoded = JSON.stringify(explained);
+  for (const secret of ['812345', '743210', '99001', 'location', 'Moss', self]) {
+    assert.equal(encoded.includes(secret), false, secret);
+  }
+});
+
+test('missing coordinates are not on server even when the public status is online', () => {
+  const self = '76561198000000011';
+  const state = websiteCache([{ steamId: self, name: 'Goofy', species: 'Tyrannosaurus', location: null }]);
+  const explained = explainVoice(state, self, { nowMs: now, unitsPerMeter: 100 });
+  assert.equal(explained.reason, 'not_on_server');
+  assert.equal(explained.online, true);
+  assert.equal(explained.positionedCount, 0);
+  assert.equal(explained.selfPositioned, false);
+  assert.equal(JSON.stringify(explained).includes('Goofy'), false);
 });
 
 test('duplicate website identities and a missing player are not authorized', () => {

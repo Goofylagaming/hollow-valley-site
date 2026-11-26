@@ -1,6 +1,6 @@
 'use strict';
 
-const { AccessToken, TrackSource } = require('livekit-server-sdk');
+const { AccessToken, RoomServiceClient, TrackSource } = require('livekit-server-sdk');
 const { sanitizeName } = require('./voiceProximity');
 
 const TOKEN_TTL_SECONDS = 30 * 60;
@@ -60,8 +60,47 @@ async function mintLiveKitToken({ identity, name, env = process.env, nowMs = Dat
   };
 }
 
+function liveKitFlags(env = process.env) {
+  return {
+    urlOk: /^wss:\/\/.+/i.test(String(env.LIVEKIT_URL || '').trim()),
+    roomOk: /^[A-Za-z0-9_-]{1,64}$/.test(String(env.LIVEKIT_ROOM || '').trim()),
+    keyPresent: Boolean(String(env.LIVEKIT_API_KEY || '').trim()),
+    secretPresent: Boolean(String(env.LIVEKIT_API_SECRET || '').trim()),
+  };
+}
+
+// Confirms the key can call LiveKit. The result is a status word only.
+async function probeLiveKit(env = process.env, { listRooms, timeoutMs = 5000 } = {}) {
+  const flags = liveKitFlags(env);
+  const config = liveKitConfig(env);
+  if (!config) return { status: 'not_configured', ...flags };
+  const list = listRooms || (async () => {
+    const host = config.url.replace(/^wss:/i, 'https:');
+    const client = new RoomServiceClient(host, config.apiKey, config.apiSecret);
+    await client.listRooms([config.room]);
+  });
+  let timer;
+  try {
+    await Promise.race([
+      Promise.resolve().then(() => list()),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(Object.assign(new Error('timeout'), { code: 'TIMEOUT' })), timeoutMs);
+      }),
+    ]);
+    return { status: 'ok', ...flags };
+  } catch (error) {
+    const message = String(error?.message || '');
+    const unauthorized = error?.status === 401 || /unauthor|unauth|permission denied|invalid api key/i.test(message);
+    return { status: error?.code === 'TIMEOUT' ? 'unreachable' : unauthorized ? 'unauthorized' : 'unreachable', ...flags };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 module.exports = {
   mintLiveKitToken,
   liveKitConfig,
+  liveKitFlags,
+  probeLiveKit,
   TOKEN_TTL_SECONDS,
 };

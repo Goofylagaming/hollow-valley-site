@@ -164,6 +164,56 @@ function publicGains(snapshotState, fromId, scale, names) {
   return gains;
 }
 
+function sampleTime(state) {
+  if (state && Object.prototype.hasOwnProperty.call(state, 'voiceSampledAt')) return state.voiceSampledAt;
+  if (typeof state?.generatedAt === 'string') return state.generatedAt;
+  if (typeof state?.lastChecked === 'string') return state.lastChecked;
+  return null;
+}
+
+function flagLabel(state, lower, upper) {
+  const value = literalFlag(state, lower, upper);
+  if (value === null) return 'absent';
+  return value === true;
+}
+
+function positionedLocation(location) {
+  return Boolean(location && typeof location === 'object' && ['x', 'y', 'z'].every((key) => typeof location[key] === 'number' && Number.isFinite(location[key])));
+}
+
+// Counts only. Callers must not add coordinates, names, or SteamIDs to this result.
+function explainVoice(state, steamId, { nowMs = Date.now(), unitsPerMeter: scale, maxAgeMs } = {}) {
+  const assessment = assessVoice(state, steamId, { nowMs, unitsPerMeter: scale, maxAgeMs });
+  const records = cacheClosed(state) ? [] : sourceRecords(state);
+  let steamIdCount = 0;
+  let positionedCount = 0;
+  const self = String(steamId || '');
+  let selfPositioned = false;
+  for (const record of records) {
+    const id = record?.steamId == null ? '' : String(record.steamId);
+    const positioned = positionedLocation(record?.location);
+    if (/^\d{17}$/.test(id)) steamIdCount += 1;
+    if (positioned && /^\d{1,32}$/.test(id)) positionedCount += 1;
+    if (id === self && positioned) selfPositioned = true;
+  }
+  const sampledAt = sampleTime(state);
+  const parsedAt = Date.parse(sampledAt || '');
+  return {
+    ok: assessment.ok,
+    reason: assessment.reason,
+    ageMs: Number.isFinite(parsedAt) ? nowMs - parsedAt : null,
+    online: state?.online === true,
+    stale: state?.stale === true,
+    hasError: Boolean(state?.lastError),
+    serverFlag: flagLabel(state, 'serverOnline', 'ServerOnline'),
+    rconFlag: flagLabel(state, 'rconOnline', 'RconOnline'),
+    characterCount: records.length,
+    steamIdCount,
+    positionedCount,
+    selfPositioned,
+  };
+}
+
 function assessVoice(state, steamId, { nowMs = Date.now(), unitsPerMeter: scale, maxAgeMs } = {}) {
   if (!Number.isFinite(scale) || scale <= 0) {
     return { ok: false, reason: 'invalid_scale', gains: [], displayName: 'Survivor' };
@@ -190,6 +240,7 @@ module.exports = {
   proximity,
   authorizedPair,
   assessVoice,
+  explainVoice,
   voiceEnabled,
   unitsPerMeter,
   sanitizeName,
