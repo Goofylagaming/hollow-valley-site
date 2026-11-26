@@ -11,26 +11,19 @@
     return value;
   }
   function mount() {
-    let section = document.getElementById("arcade-leaderboard");
-    const host = document.getElementById("arcade-content");
-    if (!section && host) {
-      section = document.createElement("section");
-      section.id = "arcade-leaderboard";
-      section.className = "arcade-panel";
-      const progress = host.querySelector("section");
-      if (progress) progress.after(section);
-      else host.prepend(section);
-    }
-    return section;
+    return document.getElementById("arcade-leaderboard");
   }
   function render(section, data) {
     section.hidden = false;
-    section.replaceChildren();
-    const heading = document.createElement("h2");
-    heading.id = "arcade-leaderboard-title";
-    heading.textContent = "This week";
-    section.setAttribute("aria-labelledby", heading.id);
-    const note = document.createElement("p");
+    const heading = document.getElementById("arcade-leaderboard-heading");
+    if (heading) heading.textContent = "This week";
+    let note = document.getElementById("arcade-leaderboard-note");
+    if (!note) {
+      note = document.createElement("p");
+      note.id = "arcade-leaderboard-note";
+      if (heading) heading.after(note);
+      else section.prepend(note);
+    }
     let reset = "Monday 00:00 Brisbane";
     if (data.resetAt) {
       reset = new Intl.DateTimeFormat("en-AU", {
@@ -38,15 +31,16 @@
       }).format(new Date(data.resetAt)) + " Brisbane";
     }
     note.textContent = "Top 10 correct plays. Resets " + reset + ". Rank is bragging rights only, with no coins or crates.";
-    section.append(heading, note);
-    const entries = Array.isArray(data.entries) ? data.entries : [];
-    if (!entries.length) {
-      const empty = document.createElement("p");
-      empty.textContent = "No correct plays recorded this week yet.";
-      section.append(empty);
-    } else {
-      const list = document.createElement("ol");
+    const list = document.getElementById("arcade-leaderboard-list");
+    if (list) {
       list.className = "arcade-board";
+      const entries = Array.isArray(data.entries) ? data.entries : [];
+      list.replaceChildren();
+      if (!entries.length) {
+        const empty = document.createElement("li");
+        empty.textContent = "No correct plays recorded this week yet.";
+        list.append(empty);
+      }
       for (const row of entries) {
         const item = document.createElement("li");
         if (data.you && row.rank === data.you.rank) item.className = "is-you";
@@ -61,15 +55,18 @@
         item.append(rank, name, score);
         list.append(item);
       }
-      section.append(list);
     }
-    const you = document.createElement("p");
-    you.className = "arcade-you";
+    let you = document.getElementById("arcade-leaderboard-you");
+    if (!you) {
+      you = document.createElement("p");
+      you.id = "arcade-leaderboard-you";
+      you.className = "arcade-you";
+      section.append(you);
+    }
     const yours = data.you || {};
     you.textContent = yours.rank == null
       ? "You · " + safeName(yours.name) + " · no correct plays this week"
       : "You · " + safeName(yours.name) + " · rank " + yours.rank + " · " + (Number(yours.score) || 0) + " correct";
-    section.append(you);
   }
   async function refresh(force) {
     const section = mount();
@@ -87,12 +84,13 @@
         lastFetch = Date.now();
       } catch (error) {
         if (rendered) return;
+        const content = document.getElementById("arcade-content");
+        if (!content || content.hidden) return;
         section.hidden = false;
-        const message = document.createElement("p");
-        message.textContent = error.message;
-        const heading = document.createElement("h2");
-        heading.textContent = "This week";
-        section.replaceChildren(heading, message);
+        const note = document.getElementById("arcade-leaderboard-note") || document.createElement("p");
+        note.id = "arcade-leaderboard-note";
+        note.textContent = error.message;
+        if (!note.parentNode) section.append(note);
       } finally {
         pending = null;
       }

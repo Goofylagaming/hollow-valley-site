@@ -7,7 +7,8 @@
     { id: "reaction", label: "Reaction", detail: "Wait for GO, then tap. Under 120 ms does not count." }
   ];
   const keys = new Map();
-  let attempt = 0;
+  let epoch = 0;
+  let switchTicket = 0;
   let activeId = null;
   let keyHandler = null;
 
@@ -47,8 +48,11 @@
     return round;
   }
   function stage() {
-    install();
-    return document.getElementById("arcade-game-stage");
+    return document.getElementById("answers");
+  }
+  function showPrompt(text) {
+    const question = document.getElementById("question");
+    if (question) question.textContent = text || "";
   }
   function describe(result) {
     if (result.score) {
@@ -62,13 +66,9 @@
   }
   async function finish(result, host, stillCurrent) {
     const current = () => typeof stillCurrent !== "function" || stillCurrent();
-    if (!current()) {
-      try {
-        if (window.HollowValleyArcade && window.HollowValleyArcade.refresh) await window.HollowValleyArcade.refresh();
-      } catch (error) { status(error.message); }
-      return;
-    }
+    if (!current()) return;
     clearKeys();
+    showPrompt("");
     window.HollowValleyArcadeFx && window.HollowValleyArcadeFx.playResult(result);
     const line = document.createElement("p");
     line.textContent = describe(result);
@@ -79,8 +79,10 @@
   async function playHigher(round) {
     const host = stage();
     if (!host) return;
+    showPrompt(round.prompt || "Higher or lower?");
     const prompt = document.createElement("p");
-    prompt.textContent = round.prompt || "Higher or lower?";
+    prompt.className = "arcade-hint";
+    prompt.textContent = "Keyboard: H or Arrow Up for Higher, L or Arrow Down for Lower.";
     const row = document.createElement("div");
     row.className = "arcade-choice-row";
     let done = false;
@@ -103,10 +105,7 @@
       button.addEventListener("click", () => choose(choice));
       row.append(button);
     }
-    const hint = document.createElement("p");
-    hint.className = "arcade-hint";
-    hint.textContent = "Keyboard: H or Arrow Up for Higher, L or Arrow Down for Lower.";
-    host.replaceChildren(prompt, row, hint);
+    host.replaceChildren(row, prompt);
     bindKeys(event => {
       const key = event.key.toLowerCase();
       if (key === "h" || event.key === "ArrowUp") { event.preventDefault(); choose("Higher"); }
@@ -121,8 +120,7 @@
   async function playMemory(round) {
     const host = stage();
     if (!host) return;
-    const prompt = document.createElement("p");
-    prompt.textContent = round.prompt || "Find the matching pairs.";
+    showPrompt(round.prompt || "Find the matching pairs.");
     const grid = document.createElement("div");
     grid.className = "arcade-memory";
     grid.setAttribute("role", "group");
@@ -181,11 +179,11 @@
     const hint = document.createElement("p");
     hint.className = "arcade-hint";
     hint.textContent = "Tap a card or use the arrow keys, then Enter.";
-    host.replaceChildren(prompt, grid, hint);
+    host.replaceChildren(grid, hint);
     buttons[0].focus();
   }
   async function playReaction(round) {
-    const mine = attempt;
+    const mine = epoch;
     const host = stage();
     if (!host) return;
     const readout = document.createElement("p");
@@ -205,7 +203,7 @@
     let done = false;
     let release = () => {};
     const settled = new Promise(resolve => { release = resolve; });
-    function stillMine() { return mine === attempt && round.id === activeId; }
+    function stillMine() { return mine === epoch && round.id === activeId; }
     async function recover(message, fromTap) {
       if (!stillMine() || (!fromTap && done)) return;
       clearKeys();
@@ -231,7 +229,7 @@
       }
     }
     async function tap() {
-      if (done || mine !== attempt || round.id !== activeId) return;
+      if (done || !stillMine()) return;
       done = true;
       go.disabled = true;
       const body = { id: round.id, choice: "Tap" };
@@ -245,14 +243,14 @@
       if (event.code === "Space" || event.code === "Enter") { event.preventDefault(); tap(); }
     });
     try {
-      while (!done && mine === attempt && round.id === activeId) {
+      while (!done && stillMine()) {
         let signal;
         try { signal = await post("/signal", { id: round.id }); }
         catch (error) {
-          if (!done) await recover(error.message);
+          if (!done && stillMine()) await recover(error.message);
           break;
         }
-        if (done || mine !== attempt || round.id !== activeId) break;
+        if (done || !stillMine()) break;
         if (signal.state === "countdown") {
           readout.textContent = String(signal.count);
           go.textContent = "Wait";
@@ -268,69 +266,43 @@
           window.HollowValleyArcadeFx && window.HollowValleyArcadeFx.playGo();
           break;
         } else {
-          await recover("Too slow. That round has closed.");
+          if (stillMine() && !done) await recover("Too slow. That round has closed.");
           break;
         }
         await sleep(150);
       }
     } finally {
-      if (!done && !token) release();
+      if (mine !== epoch) release();
+      else if (!done && !token) release();
     }
     await settled;
   }
   async function play(game) {
+    const ticket = ++switchTicket;
+    let round;
+    try {
+      round = await startGame(game);
+    } catch (error) {
+      if (ticket !== switchTicket) return;
+      status(error.message);
+      const playButton = document.getElementById("play");
+      if (playButton) playButton.disabled = false;
+      try {
+        if (window.HollowValleyArcade && window.HollowValleyArcade.refresh) await window.HollowValleyArcade.refresh();
+      } catch (refreshError) {
+        status(refreshError.message);
+      }
+      return;
+    }
+    if (ticket !== switchTicket) return;
     clearKeys();
-    attempt += 1;
-    const round = await startGame(game);
+    epoch += 1;
     activeId = round.id;
-    if (game === "higher-lower") return playHigher(round);
-    if (game === "memory-match") return playMemory(round);
     if (game === "reaction") return playReaction(round);
+    if (game === "higher-lower") await playHigher(round);
+    else if (game === "memory-match") await playMemory(round);
+    const playButton = document.getElementById("play");
+    if (playButton) playButton.disabled = false;
   }
-  function addSelectOptions() {
-    const select = document.getElementById("game");
-    if (!select) return;
-    for (const game of GAMES) {
-      if ([...select.options].some(option => option.value === game.id)) continue;
-      const option = document.createElement("option");
-      option.value = game.id;
-      option.textContent = game.label;
-      select.append(option);
-    }
-  }
-  function install() {
-    addSelectOptions();
-    if (window.HollowValleyArcadeGamesAutoMount === false || document.getElementById("arcade-extra-games")) return;
-    const host = document.getElementById("arcade-content");
-    if (!host) return;
-    const section = document.createElement("section");
-    section.id = "arcade-extra-games";
-    section.className = "arcade-panel";
-    const heading = document.createElement("h2");
-    heading.textContent = "More free challenges";
-    const intro = document.createElement("p");
-    intro.textContent = "Same daily plays, XP and Valley Coins as the other challenges. Nothing here is wagered.";
-    const list = document.createElement("div");
-    list.className = "arcade-game-list";
-    for (const game of GAMES) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "arcade-game-card";
-      const title = document.createElement("strong");
-      title.textContent = game.label;
-      const detail = document.createElement("small");
-      detail.textContent = game.detail;
-      button.append(title, detail);
-      button.addEventListener("click", () => play(game.id).catch(error => status(error.message)));
-      list.append(button);
-    }
-    const panel = document.createElement("div");
-    panel.id = "arcade-game-stage";
-    section.append(heading, intro, list, panel);
-    const challenges = [...host.children].find(node => node.querySelector && node.querySelector("#game"));
-    if (challenges) challenges.after(section);
-    else host.append(section);
-  }
-  window.HollowValleyArcadeGames = { handles, play, install, games: GAMES };
-  install();
+  window.HollowValleyArcadeGames = { handles, play, games: GAMES };
 })();

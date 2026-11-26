@@ -74,17 +74,16 @@
     requestAnimationFrame(step);
   }
   function celebrateCrate(result) {
+    const stage = document.getElementById("arcade-crate-stage");
     const label = result && result.reward && result.reward.label ? result.reward.label : "Reward collected";
     tone(392, 0.08, "triangle", 0.04);
     tone(523, 0.1, "triangle", 0.04, 0.09);
     tone(659, 0.16, "triangle", 0.045, 0.18);
-    const overlay = document.createElement("div");
-    overlay.className = "arcade-crate-overlay";
-    if (reducedMotion()) overlay.classList.add("is-static");
-    const dialog = document.createElement("div");
-    dialog.setAttribute("role", "dialog");
-    dialog.setAttribute("aria-modal", "true");
-    dialog.setAttribute("aria-label", "Crate opened");
+    if (!stage) return Promise.resolve();
+    stage.replaceChildren();
+    stage.hidden = false;
+    stage.setAttribute("aria-hidden", "false");
+    stage.classList.toggle("is-static", reducedMotion());
     const chest = document.createElement("div");
     chest.className = "arcade-chest";
     chest.setAttribute("aria-hidden", "true");
@@ -99,9 +98,7 @@
     const close = document.createElement("button");
     close.type = "button";
     close.textContent = "Nice";
-    dialog.append(chest, prize, close);
-    overlay.append(dialog);
-    document.body.append(overlay);
+    stage.append(chest, prize, close);
     close.focus();
     return new Promise(resolve => {
       let settled = false;
@@ -109,14 +106,15 @@
         if (settled) return;
         settled = true;
         document.removeEventListener("keydown", onKey);
-        overlay.remove();
+        stage.replaceChildren();
+        stage.hidden = true;
+        stage.setAttribute("aria-hidden", "true");
         resolve();
       };
       const onKey = event => {
         if (event.key === "Escape" || event.key === "Enter") finish();
       };
       close.addEventListener("click", finish);
-      overlay.addEventListener("click", event => { if (event.target === overlay) finish(); });
       document.addEventListener("keydown", onKey);
       setTimeout(finish, reducedMotion() ? 900 : 2800);
     });
