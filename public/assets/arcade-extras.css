@@ -1,0 +1,29 @@
+.arcade-choice,.arcade-memory-card,.arcade-go,#arcade-sound,#arcade-crate-stage button{min-height:44px;min-width:44px;touch-action:manipulation}
+.arcade-choice-row{display:flex;flex-wrap:wrap;gap:12px}
+.arcade-choice{font-size:1.15rem;padding:12px 20px}
+.arcade-memory{display:grid;grid-template-columns:repeat(3,minmax(44px,1fr));gap:12px;max-width:420px}
+.arcade-memory-card{font-size:1.2rem;border-radius:12px;background:#243528;color:#e7f0df;border:1px solid #a4bf88}
+.arcade-memory-card.is-up{background:#3d5a34}
+.arcade-memory-card:disabled{opacity:1}
+.arcade-countdown{font-size:clamp(2.4rem,10vw,4.5rem);margin:8px 0;min-height:1.2em}
+.arcade-go{width:100%;font-size:clamp(2rem,8vw,3.4rem);border:0;border-radius:16px;background:#3a4a32;color:#d5e6c8}
+.arcade-go.is-go{background:#1f8a4c;color:#fff}
+.arcade-hint{color:#c9d7c2}
+.arcade-board{list-style:none;padding:0;margin:12px 0}
+.arcade-board li{display:grid;grid-template-columns:3rem 1fr auto;gap:12px;align-items:center;min-height:44px;border-bottom:1px solid #7e9c743d}
+.arcade-board li.is-you{background:#27492c88}
+.arcade-rank{font-variant-numeric:tabular-nums}
+.arcade-you{color:#e7cf91}
+#arcade-sound{margin-top:12px}
+.arcade-choice:focus-visible,.arcade-memory-card:focus-visible,.arcade-go:focus-visible,#arcade-sound:focus-visible,#arcade-crate-stage button:focus-visible{outline:3px solid #e7cf91;outline-offset:2px}
+#arcade-crate-stage{margin:12px 0;text-align:center}
+.arcade-chest{width:140px;height:110px;margin:8px auto 16px;position:relative;animation:arcade-shake 420ms ease}
+.arcade-chest-body{position:absolute;left:0;right:0;bottom:0;height:68px;background:#6d4a2b;border:3px solid #e7cf91;border-radius:0 0 12px 12px}
+.arcade-chest-lid{position:absolute;left:0;right:0;top:8px;height:42px;background:#8a5a32;border:3px solid #e7cf91;border-bottom:0;border-radius:12px 12px 0 0;transform-origin:center top;animation:arcade-lid 700ms ease forwards}
+.arcade-prize{font-size:1.35rem;color:#e7cf91}
+@keyframes arcade-shake{0%,100%{transform:rotate(0)}25%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}75%{transform:rotate(-2deg)}}
+@keyframes arcade-lid{to{transform:translateY(-22px) rotate(-8deg)}}
+@media (prefers-reduced-motion:reduce){
+  .arcade-chest,.arcade-chest-lid{animation:none}
+}
+#arcade-crate-stage.is-static .arcade-chest,#arcade-crate-stage.is-static .arcade-chest-lid{animation:none}

@@ -15,6 +15,11 @@
     { id: 'daily-puzzle', name: 'Daily Puzzle', summary: 'Finish today’s track pattern. Everyone gets the same puzzle.' },
     { id: 'guess-the-dino', name: 'Guess the Dino', summary: 'Read the clue and name the dinosaur.' },
   ];
+  GAME_CARDS.push(
+    { id: 'higher-lower', name: 'Higher or Lower', summary: 'Guess the next track count. The server keeps the draw.' },
+    { id: 'memory-match', name: 'Memory Match', summary: 'Flip one card at a time. Matches stay face up.' },
+    { id: 'reaction', name: 'Reaction', summary: 'Wait for GO, then tap. Under 120 ms does not count.' },
+  );
 
   async function api(path, body, base = '/api/arcade') {
     const response = await fetch(base + path, body ? {
@@ -118,8 +123,10 @@
     el('arcade-signed-out').hidden = true;
     el('arcade-content').hidden = false;
     el('progress').textContent = `Level ${current.level} / 100 · ${current.xp.toLocaleString('en-AU')} XP · ${current.balance.toLocaleString('en-AU')} VC`;
-    el('xp').value = current.level === 100 ? 500 : current.xp % 500;
     el('xp').max = current.xpPerLevel || 500;
+    const xpValue = current.level === 100 ? 500 : current.xp % 500;
+    if (window.HollowValleyArcadeFx && window.HollowValleyArcadeFx.animateXp) window.HollowValleyArcadeFx.animateXp(el('xp'), xpValue);
+    else el('xp').value = xpValue;
     el('plays').textContent = `${current.playsRemaining} free plays remaining today`;
     el('daily').disabled = current.dailyClaimed;
     el('daily').textContent = current.dailyClaimed ? 'Daily reward claimed' : 'Claim daily XP + fragment';
@@ -134,6 +141,9 @@
         button('Open earned crate', async () => {
           noteCrateOpen(crate.family);
           const result = await act('/open', { crateId: crate.id });
+          if (window.HollowValleyArcadeFx && window.HollowValleyArcadeFx.celebrateCrate) {
+            await window.HollowValleyArcadeFx.celebrateCrate(result);
+          }
           status(`Collected: ${arcadeRewardName(result.reward)}`);
         }),
       );
@@ -173,6 +183,7 @@
       'li',
       arcadeHistoryLine(entry, new Date(entry.opened_at).toLocaleString('en-AU', { timeZone: 'Australia/Brisbane' })),
     )));
+    if (window.HollowValleyArcadeLeaderboard) window.HollowValleyArcadeLeaderboard.refresh(true);
   }
 
   el('daily').addEventListener('click', async () => {
@@ -196,6 +207,10 @@
     }
     el('play').disabled = true;
     try {
+      if (window.HollowValleyArcadeGames && window.HollowValleyArcadeGames.handles(selectedGame)) {
+        await window.HollowValleyArcadeGames.play(selectedGame);
+        return;
+      }
       const round = await act('/start', { game: selectedGame }, '/api/valley-arcade');
       el('question').textContent = round.prompt;
       el('answers').replaceChildren(...(round.choices || []).map((choice) => button(choice, async () => {
@@ -211,6 +226,7 @@
     }
   });
 
+  window.HollowValleyArcade = { refresh, status };
   renderGames();
   refresh()
     .then(() => status('Ready to play.'))
