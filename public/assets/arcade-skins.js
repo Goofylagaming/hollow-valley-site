@@ -9,9 +9,10 @@
   }
   for(const def of defs){const card=document.createElement('article');card.className='arcade-card';card.dataset.skin=def.id;
     const name=document.createElement('h2');name.textContent=def.name;const desc=document.createElement('p');desc.textContent=def.description;
-    const swatches=document.createElement('div');swatches.className='skin-swatches';
-    for(const key of ['body','markings','flank','underbelly','detail1','maleDisplay']){const s=document.createElement('span');s.style.background=def.colors[key];s.title=key+' '+def.colors[key];swatches.append(s);}
-    const button=document.createElement('button');button.textContent='Preview '+def.name;button.onclick=()=>preview(def);
+    const swatches=document.createElement('div');swatches.className='skin-swatches';swatches.setAttribute('aria-hidden','true');
+    const swatchNames={body:'Body',markings:'Markings',flank:'Flank',underbelly:'Underbelly',detail1:'Detail',maleDisplay:'Display'};
+    for(const key of Object.keys(swatchNames)){const s=document.createElement('span');s.style.background=def.colors[key];s.title=swatchNames[key];swatches.append(s);}
+    const button=document.createElement('button');button.type='button';button.textContent='Preview '+def.name;button.onclick=()=>preview(def);
     card.append(name,swatches,desc,button);el('skin-cards').append(card);
   }
   el('preview-species').onchange=()=>preview(selected);preview(selected);

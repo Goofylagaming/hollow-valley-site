@@ -16,4 +16,33 @@
     try{await action();await load();el('arcade-status').textContent='Saved.';}catch(e){el('arcade-status').textContent=e.message;}finally{b.disabled=false;}
   };
   load().then(()=>el('arcade-status').textContent='').catch(e=>el('arcade-status').textContent=e.message);
+
+  const availabilityStatus=document.getElementById('availability-status');
+  function showAvailability(settings){
+    el('enabled').checked=Boolean(settings.enabled);
+    el('emergency').checked=Boolean(settings.emergency);
+    el('unlimited').checked=settings.cap===null;
+    el('cap').value=settings.cap??250000;
+    el('cap').disabled=el('unlimited').checked;
+  }
+  el('unlimited').addEventListener('change',()=>{el('cap').disabled=el('unlimited').checked;});
+  fetch('/api/valley-arcade/settings').then(async response=>{
+    const value=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(value.error||'Arcade availability settings are unavailable.');
+    showAvailability(value);
+  }).catch(error=>{availabilityStatus.textContent=error.message;});
+  document.getElementById('availability').addEventListener('submit',async event=>{
+    event.preventDefault();
+    const button=event.submitter;button.disabled=true;
+    try{
+      const cap=el('unlimited').checked?null:el('cap').valueAsNumber;
+      if(cap!==null&&(!Number.isSafeInteger(cap)||cap<0)) throw new Error('Enter a whole-number cap, or choose Unlimited.');
+      const response=await fetch('/api/valley-arcade/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cap,enabled:el('enabled').checked,emergency:el('emergency').checked})});
+      const value=await response.json().catch(()=>({}));
+      if(!response.ok) throw new Error(value.error||'Unable to save availability.');
+      showAvailability(value);
+      availabilityStatus.textContent='Availability saved.';
+    }catch(error){availabilityStatus.textContent=error.message;}
+    finally{button.disabled=false;}
+  });
 })();

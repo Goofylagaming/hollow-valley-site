@@ -1,7 +1,20 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin · Valley Arcade</title>
-<link rel="stylesheet" href="/assets/styles.css?v=17"><link rel="stylesheet" href="/assets/arcade.css?v=1"></head><body><main class="arcade">
+<link rel="stylesheet" href="/assets/styles.css?v=38"><link rel="stylesheet" href="/assets/arcade.css?v=3"></head><body><main class="arcade">
 <a href="/admin">Admin</a><h1>Valley Arcade</h1><p id="arcade-status" role="status">Loading…</p>
-<p><a href="/admin-valley-arcade.html">Pause Arcade / emergency controls</a> · <a href="/arcade">Player lobby</a></p>
+<p><a href="/arcade">Player lobby</a></p>
+<section class="arcade-panel" aria-labelledby="arcade-availability-heading">
+<h2 id="arcade-availability-heading">Arcade availability</h2>
+<p>These controls pause play and set the daily Valley Coin cap for challenge payouts. They do not change crate odds. Wagering stays off.</p>
+<form id="availability">
+<label><input type="checkbox" id="enabled"> Enable Arcade</label>
+<label>Daily game earnings cap (VC; excludes earned crates) <input id="cap" type="number" min="0" max="9007199254740991" step="1"></label>
+<label><input type="checkbox" id="unlimited"> Unlimited</label>
+<label><input type="checkbox" id="emergency"> Emergency disable</label>
+<p>Wagering disabled</p>
+<button type="submit">Save availability</button>
+</form>
+<p id="availability-status" role="status"></p>
+</section>
 <div id="admin-content" hidden><p id="totals"></p>
 <section class="arcade-panel"><h2>Reward tables</h2><p>Changes apply to newly earned crates only. Types: coins (amount), skin (presetId, duplicate: convert or reroll, duplicateCoins), dinosaur (species, growthPercent). Every reward needs an id, label and positive integer weight. No paid crates or subscriber RNG perks.</p>
 <form id="config-form"><label>Configuration JSON<textarea id="config" required></textarea></label><button>Validate & save</button></form></section>
@@ -13,4 +26,4 @@
 <label>Crate family<select name="family"><option>valley</option><option>alpha</option><option>prime</option><option>event</option></select></label>
 <label>Amount<input name="amount" type="number" min="1" max="100" value="1" required></label><button>Grant earned reward</button></form></section>
 <section class="arcade-panel"><h2>Recent reward audit</h2><pre id="audit" style="white-space:pre-wrap;overflow-wrap:anywhere"></pre></section></div>
-</main><script src="/assets/admin-arcade.js?v=1"></script></body></html>
+</main><script src="/assets/admin-arcade.js?v=2"></script></body></html>

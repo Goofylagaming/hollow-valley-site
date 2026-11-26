@@ -1,0 +1,83 @@
+.merch-main { padding: 28px clamp(16px, 4vw, 48px) 56px; color: #f2ead4; }
+.merch-hero {
+  margin: 0 0 28px;
+  padding: clamp(24px, 4vw, 44px);
+  border: 1px solid #466c51;
+  border-radius: 12px;
+  background: linear-gradient(100deg, #071c16f2, #123a28d9), url("/assets/images/hollow-valley-banner.png") center / cover;
+}
+.merch-kicker { margin: 0; color: #a3ddb0; font-size: 10px; font-weight: 800; letter-spacing: .12em; text-wrap: balance; }
+.merch-hero h1 { margin: 14px 0; color: #f4e6c9; font: 600 clamp(32px, 4vw, 52px) / 1.12 Georgia, serif; }
+.merch-hero p { max-width: 40rem; margin: 0; color: #c8d5c9; font-size: 15px; line-height: 1.7; }
+.merch-primary {
+  display: inline-block;
+  margin-top: 18px;
+  padding: 13px 18px;
+  border: 1px solid #c8b47a;
+  border-radius: 7px;
+  background: #1b4a33;
+  color: #fff0c8;
+  font-size: 14px;
+  font-weight: 750;
+}
+.merch-primary:hover { background: #246044; }
+.merch-section { margin-top: 28px; }
+.merch-section h2 { margin: 0 0 14px; color: #f5e6bb; font: 600 clamp(24px, 3vw, 34px) / 1.2 Georgia, serif; }
+.merch-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.merch-card {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid #355f47;
+  border-radius: 11px;
+  background: linear-gradient(145deg, #0d2d20, #071912);
+}
+.merch-card figure { margin: 0; }
+.merch-card img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 520px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #04140f;
+}
+.merch-card figcaption {
+  margin-top: 8px;
+  color: #a3ddb0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+.merch-card h3 { margin: 12px 0 6px; color: #f5e6bb; font: 600 22px / 1.25 Georgia, serif; }
+.merch-card p { margin: 0; color: #bdd0c2; font-size: 13px; line-height: 1.65; }
+.merch-price { margin-top: 10px; color: #f0d48a; font-weight: 750; }
+.merch-card a {
+  display: inline-block;
+  margin-top: 12px;
+  color: #e8cc8a;
+  font-size: 13px;
+  font-weight: 750;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.merch-collections { display: flex; flex-wrap: wrap; gap: 10px; }
+.merch-collections a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid #466c51;
+  border-radius: 8px;
+  background: #0d2d20;
+  color: #f2e1b5;
+  font-weight: 750;
+}
+.merch-collections a:hover { border-color: #91c899; background: #133426; }
+.merch-main a:focus-visible { outline: 2px solid #ffe09d; outline-offset: 4px; }
+@media (max-width: 700px) {
+  .merch-main { padding: 18px 14px 40px; }
+  .merch-grid { grid-template-columns: 1fr; }
+  .merch-hero h1 { font-size: 32px; }
+  .merch-card h3 { font-size: 20px; }
+}
