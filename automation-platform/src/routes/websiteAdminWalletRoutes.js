@@ -158,6 +158,12 @@ router.post('/arcade/:action', (req,res) => {
         if (!config.enabled || config.emergency) return res.sendStatus(404);
         return res.json(require('../services/valleyArcadeLeaderboard').weekly(body.steamId, Date.now()));
       }
+      // Same read as GET /api/valley-arcade/recent-wins. Client fields are ignored.
+      case 'recent-wins': {
+        const config=arcade.settings();
+        if (!config.enabled || config.emergency) return res.sendStatus(404);
+        return res.json(require('../services/valleyArcadeRecentWins').recent(Date.now()));
+      }
       default: return res.sendStatus(404);
     }
   } catch { return res.status(409).json({error:'Round or settings unavailable.'}); }

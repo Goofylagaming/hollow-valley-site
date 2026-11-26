@@ -20,6 +20,7 @@ const websiteRoutes = require('./routes/websiteRoutes');
 const websiteCombatRoutes = require('./routes/websiteCombatRoutes');
 const websiteTerritoryFeedRoutes = require('./routes/websiteTerritoryFeedRoutes');
 const websiteAdminWalletRoutes = require('./routes/websiteAdminWalletRoutes');
+const valleyArcadeRecentWinsRoutes = require('./routes/valleyArcadeRecentWinsRoutes');
 const websiteDailyLoginRoutes = require('./routes/websiteDailyLoginRoutes');
 const skinSharePolicyRoutes = require('./routes/skinSharePolicyRoutes');
 const herbyBotRoutes = require('./routes/herbyBotRoutes');
@@ -218,6 +219,11 @@ app.use('/api/website/admin-wallet', (_req, res, next) => {
   res.set('Cache-Control', 'no-store');
   next();
 }, websiteAdminWalletRoutes);
+
+app.use('/api/valley-arcade', (_req, res, next) => {
+  res.set('Cache-Control', 'private, no-store');
+  next();
+}, valleyArcadeRecentWinsRoutes);
 
 app.use('/api/website/daily-login', (_req, res, next) => {
   res.set('Cache-Control', 'no-store');
