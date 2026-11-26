@@ -80,3 +80,5 @@ services:
         sync: false
       - key: VOICE_UNITS_PER_METER
         sync: false
+      - key: VOICE_MAX_SNAPSHOT_AGE_MS
+        value: "60000"

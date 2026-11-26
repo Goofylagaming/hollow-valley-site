@@ -2,7 +2,7 @@
 
 const express = require('express');
 const { requireAdmin } = require('../middleware/requireAuth');
-const { assessVoice, explainVoice, unitsPerMeter, voiceEnabled } = require('../services/voiceProximity');
+const { assessVoice, explainVoice, maxSnapshotAgeMs, unitsPerMeter, voiceEnabled } = require('../services/voiceProximity');
 const { mintLiveKitToken, probeLiveKit } = require('../services/voiceToken');
 
 const STEAM_ID = /^\d{17}$/;
@@ -51,7 +51,11 @@ function createVoiceRouter({ getState, mintToken, env, now, probe } = {}) {
       fail(res, 503, 'VOICE_SCALE', 'Voice is offline.');
       return null;
     }
-    const assessment = assessVoice(readState(), steamId, { nowMs: nowMs(), unitsPerMeter: scale });
+    const assessment = assessVoice(readState(), steamId, {
+      nowMs: nowMs(),
+      unitsPerMeter: scale,
+      maxAgeMs: maxSnapshotAgeMs(currentEnv),
+    });
     if (!assessment.ok) {
       const [status, code, error] = GATE_HTTP[assessment.reason] || [503, 'VOICE_OFFLINE', 'Voice is offline.'];
       fail(res, status, code, error);
@@ -93,6 +97,7 @@ function createVoiceRouter({ getState, mintToken, env, now, probe } = {}) {
         room: issued.room,
         identity: issued.identity,
         expiresAt: issued.expiresAt,
+        positionsSlow: allowed.assessment.positionsSlow === true,
       });
     } catch {
       console.warn('[voice] token mint failed');
@@ -108,9 +113,10 @@ function createVoiceRouter({ getState, mintToken, env, now, probe } = {}) {
     }
     const steamId = String(req.user?.steam_id || '');
     const scale = unitsPerMeter(currentEnv);
+    const limit = maxSnapshotAgeMs(currentEnv);
     const explanation = scale == null
-      ? { ok: false, reason: 'invalid_scale', ageMs: null, online: false, stale: false, hasError: false, serverFlag: 'absent', rconFlag: 'absent', characterCount: 0, steamIdCount: 0, positionedCount: 0, selfPositioned: false }
-      : explainVoice(readState(), steamId, { nowMs: nowMs(), unitsPerMeter: scale });
+      ? { ok: false, reason: 'invalid_scale', ageMs: null, maxSnapshotAgeMs: limit, slowAfterMs: 30000, positionsSlow: false, online: false, stale: false, hasError: false, serverFlag: 'absent', rconFlag: 'absent', characterCount: 0, steamIdCount: 0, positionedCount: 0, selfPositioned: false }
+      : explainVoice(readState(), steamId, { nowMs: nowMs(), unitsPerMeter: scale, maxAgeMs: limit });
     let livekit = { status: 'not_configured' };
     try {
       livekit = await probeLive(currentEnv);
@@ -123,6 +129,9 @@ function createVoiceRouter({ getState, mintToken, env, now, probe } = {}) {
       steamFormatOk: STEAM_ID.test(steamId),
       reason: explanation.reason,
       ageMs: explanation.ageMs,
+      maxSnapshotAgeMs: explanation.maxSnapshotAgeMs,
+      slowAfterMs: explanation.slowAfterMs,
+      positionsSlow: explanation.positionsSlow === true,
       online: explanation.online,
       stale: explanation.stale,
       hasError: explanation.hasError,
@@ -147,6 +156,7 @@ function createVoiceRouter({ getState, mintToken, env, now, probe } = {}) {
     const allowed = guard(req, res);
     if (!allowed) return undefined;
     return res.json({
+      positionsSlow: allowed.assessment.positionsSlow === true,
       gains: allowed.assessment.gains.map((entry) => ({
         identity: entry.identity,
         gain: entry.gain,

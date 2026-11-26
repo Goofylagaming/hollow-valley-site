@@ -112,7 +112,7 @@ test('website cache fails closed when stale, offline, or RCON is not online', ()
   const self = '76561198000000011';
   const characters = [character(self, 812345.125, -743210.5, 99001.25, 'Moss')];
   const fresh = websiteCache(characters);
-  assert.equal(assessVoice(fresh, self, { nowMs: now + 30001, unitsPerMeter: 100 }).ok, false);
+  assert.equal(assessVoice(fresh, self, { nowMs: now + 60001, unitsPerMeter: 100 }).reason, 'stale_timestamp');
   assert.equal(assessVoice(websiteCache(characters, { online: false }), self, { nowMs: now, unitsPerMeter: 100 }).reason, 'unavailable');
   assert.equal(assessVoice(websiteCache(characters, { rconOnline: false }), self, { nowMs: now, unitsPerMeter: 100 }).reason, 'unavailable');
   assert.equal(assessVoice(websiteCache(characters, { serverOnline: false }), self, { nowMs: now, unitsPerMeter: 100 }).ok, false);
@@ -140,6 +140,36 @@ test('a fresh positioned player passes and the explanation has no coordinates', 
   for (const secret of ['812345', '743210', '99001', 'location', 'Moss', self]) {
     assert.equal(encoded.includes(secret), false, secret);
   }
+});
+
+test('snapshot age under 30s is normal, 30s to the cutoff stays open, and past the cutoff closes', () => {
+  const self = '76561198000000011';
+  const other = '76561198000000012';
+  const state = websiteCache([
+    character(self, 0, 0, 0, 'Moss'),
+    character(other, 2000, 0, 0, 'Fern'),
+  ]);
+  const fresh = assessVoice(state, self, { nowMs: now + 29999, unitsPerMeter: 100 });
+  assert.equal(fresh.ok, true);
+  assert.equal(fresh.positionsSlow, false);
+  assert.equal(fresh.gains[0].gain, 1);
+  const atSlowStart = assessVoice(state, self, { nowMs: now + 30000, unitsPerMeter: 100 });
+  assert.equal(atSlowStart.ok, true);
+  assert.equal(atSlowStart.positionsSlow, true);
+  assert.equal(atSlowStart.gains[0].audible, true);
+  const reported = assessVoice(state, self, { nowMs: now + 30938, unitsPerMeter: 100, maxAgeMs: 60000 });
+  assert.equal(reported.ok, true);
+  assert.equal(reported.positionsSlow, true);
+  assert.equal(reported.gains[0].gain, 1);
+  const atCutoff = explainVoice(state, self, { nowMs: now + 60000, unitsPerMeter: 100 });
+  assert.equal(atCutoff.ok, true);
+  assert.equal(atCutoff.positionsSlow, true);
+  assert.equal(atCutoff.maxSnapshotAgeMs, 60000);
+  const closed = assessVoice(state, self, { nowMs: now + 60001, unitsPerMeter: 100 });
+  assert.equal(closed.ok, false);
+  assert.equal(closed.reason, 'stale_timestamp');
+  assert.equal(closed.positionsSlow, false);
+  assert.deepEqual(closed.gains, []);
 });
 
 test('missing coordinates are not on server even when the public status is online', () => {

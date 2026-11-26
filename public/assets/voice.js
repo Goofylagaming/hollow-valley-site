@@ -20,6 +20,7 @@
   const enableButton = document.getElementById("voice-enable");
   const muteButton = document.getElementById("voice-mute");
   const nearby = document.getElementById("voice-nearby");
+  const slowNotice = document.getElementById("voice-slow-notice");
   if (!label || !detail || !enableButton || !muteButton || !nearby) return;
 
   const GATE_RMS = 0.02;
@@ -43,6 +44,15 @@
   let latest = new Map();
   let session = null;
   let connectChain = Promise.resolve();
+
+  function setSlowNotice(on) {
+    if (slowNotice) slowNotice.hidden = !on;
+  }
+
+  function rememberSession(body) {
+    session = body;
+    setSlowNotice(body && body.positionsSlow === true);
+  }
 
   function setState(state, customDetail) {
     const copy = STATUS[state] || STATUS.offline;
@@ -93,7 +103,7 @@
     if (result.status === 401 || code === "NOT_LOGGED_IN") return { state: "signed-out" };
     if (code === "STEAM_REQUIRED") return { state: "steam" };
     if (code === "NOT_ON_SERVER") return { state: "not-on-server" };
-    if (code === "SNAPSHOT_STALE") return { state: "offline", detail: "The server snapshot is more than 30 seconds old, so voice is staying off." };
+    if (code === "SNAPSHOT_STALE") return { state: "offline", detail: "The server snapshot is too old, so voice is staying off." };
     if (code === "SNAPSHOT_UNAVAILABLE") return { state: "offline", detail: "The server snapshot is not marked online, so voice is staying off." };
     if (code === "VOICE_SCALE") return { state: "offline", detail: "Voice scale is not configured as a positive number." };
     if (code === "LIVEKIT_MINT_FAILED") return { state: "livekit", detail: "The server could not sign a voice token. Check the LiveKit URL, key, secret, and room." };
@@ -110,13 +120,15 @@
       const body = await response.json();
       const livekit = body.livekit && body.livekit.status ? body.livekit.status : "unknown";
       const age = Number.isFinite(body.ageMs) ? `${body.ageMs} ms` : "unknown";
-      return ` Admin check: gate ${body.reason}, age ${age}, positioned ${body.selfPositioned ? "yes" : "no"}, LiveKit ${livekit}.`;
+      const cutoff = Number.isFinite(body.maxSnapshotAgeMs) ? `${body.maxSnapshotAgeMs} ms` : "unknown";
+      return ` Admin check: gate ${body.reason}, age ${age}, cutoff ${cutoff}, positioned ${body.selfPositioned ? "yes" : "no"}, LiveKit ${livekit}.`;
     } catch {
       return "";
     }
   }
 
   async function showFailure(state, detail) {
+    setSlowNotice(false);
     setState(state, detail);
     const note = await adminNote();
     if (note) setState(state, `${detail || (STATUS[state] && STATUS[state][1]) || ""} ${note}`.trim());
@@ -325,6 +337,7 @@
         return;
       }
       latest = parseGains(result.body);
+      setSlowNotice(result.body.positionsSlow === true);
       applyVolumes();
     } catch {
       silenceAll();
@@ -384,7 +397,7 @@
       await showFailure(failure.state, failure.detail);
       return;
     }
-    session = result.body;
+    rememberSession(result.body);
     if (!room || !window.LivekitClient) {
       setState("connecting");
       await connectSession();
@@ -452,7 +465,7 @@
       await showFailure(failure.state, failure.detail);
       return;
     }
-    session = result.body;
+    rememberSession(result.body);
     try {
       await connectSession();
     } catch (error) {
@@ -485,7 +498,7 @@
         await showFailure(failure.state, failure.detail);
         return;
       }
-      session = result.body;
+      rememberSession(result.body);
       await startVoice();
     } catch {
       setState("offline");
