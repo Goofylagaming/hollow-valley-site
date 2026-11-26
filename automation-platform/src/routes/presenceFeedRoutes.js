@@ -1,9 +1,22 @@
 const express = require('express');
 const { requirePresenceFeedToken } = require('../middleware/presenceFeedAuth');
 const playerPresence = require('../services/playerPresenceService');
+const playerNotices = require('../services/playerNoticeService');
 
 const router = express.Router();
 router.use(requirePresenceFeedToken);
+
+router.post('/notices', (req, res) => {
+  try {
+    return res.status(200).json(playerNotices.collect(req.body || {}));
+  } catch (error) {
+    const status = Number.isInteger(error.status) ? error.status : 400;
+    return res.status(status).json({
+      error: error.message || 'Presence notice request failed.',
+      code: error.code || 'NOTICES_INVALID',
+    });
+  }
+});
 
 router.post('/snapshot', async (req, res) => {
   try {

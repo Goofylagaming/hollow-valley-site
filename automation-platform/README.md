@@ -201,6 +201,40 @@ Website server-to-server protected:
 
 See `WEBSITE_INTEGRATION.md` for the live-site contract, `ECONOMY_MARKETPLACE.md` for the wallet/marketplace architecture, `HERBYBOT_INTEGRATION.md` for the existing-bot bridge, and `DEPLOYMENT.md` for the staged rollout/cutover procedure.
 
+## In-game EventAI zone toasts and !prime
+
+Players can receive an EventAI toast when the existing milestone detector confirms a zone change, and when they type `!prime`. Lua does not call HTTP. `scripts/windows/Deliver-HollowValleyNotices.ps1` tails CommandBridge `results.ndjson` and writes EventAI `inbox.ndjson`. `Send-HollowValleyPresence.ps1` is unchanged.
+
+`POST /api/presence-feed/notices` uses the same presence-feed token as the snapshot route (`Authorization: Bearer` or `X-Presence-Feed-Token`).
+
+Request:
+
+```json
+{ "primeRequests": [ { "id": "chat-prime-76561198000000000-1", "steam": "76561198000000000", "ts": 1732600000 } ] }
+```
+
+Response, each notice handed out once:
+
+```json
+{ "notices": [ { "id": "uuid", "steam": "76561198000000000", "text": "Entered migration zone: South Rail" } ] }
+```
+
+Zone text is `Entered migration zone: {name}`, `Entered patrol zone: {name}`, `Entered sanctuary: {name}`, or `Left sanctuary: {name}`. A successful `!prime` line looks like `Rex 87% · PRIME 2h 14m · Migration 2 · Patrol 1 · Sanctuary 1 · now: South Rail`. If `PRIME_TRACKER_ENABLED` is off, the player has no current life, or the read fails, the text is exactly `Prime tracker unavailable right now`.
+
+The detector is the existing milestone store (Vulnona shapes, two samples at least 3 seconds apart). The first accepted snapshot after an automation restart, and the first snapshot after a player was missing from the previous snapshot, does not emit a zone toast. Each player has a separate 60 second cooldown for migration enter, patrol enter, sanctuary enter, and sanctuary leave. Uncollected notices expire after 60 seconds. Text is limited to 200 characters and cannot contain quotes, backslashes, or control characters. At most 20 notices are returned per call; prime replies are first, and the rest stay queued. Steam IDs must be 17 digits. Prime request ids are deduped.
+
+| Variable | Default | Effect |
+| --- | --- | --- |
+| `PLAYER_MILESTONES_EVENTAI_NOTIFY` | `false` | Zone toasts. `false` or unset stops new zone notices and drops any still queued. |
+| `PRIME_CHAT_NOTIFY_ENABLED` | `true` | `!prime` replies. `false` stops those replies. Zone toasts stay on their own flag. |
+| `PRIME_TRACKER_ENABLED` | `false` | When off, `!prime` still replies, with the unavailable line. |
+
+Rollback does not need a game-server restart. Turn `PLAYER_MILESTONES_EVENTAI_NOTIFY` off to stop zone toasts. Turn `PRIME_CHAT_NOTIFY_ENABLED` off to stop `!prime` replies. Stopping the Windows delivery script stops both from reaching the inbox. The website overlay and the older RCON direct-message path are separate.
+
+Latency is about 15–30 seconds for zones (presence snapshot plus the detector's confirming sample, then a delivery poll) and about 5–10 seconds for `!prime` (delivery poll plus one EventAI tick). A crossing that never gets a second sample is still missed, same as the website toast.
+
+This change does not enable the flags on Render and does not deploy. Copy `Deliver-HollowValleyNotices.ps1` to the VPS only after review. See `scripts/windows/README.md`.
+
 ## Deployment status
 
 The isolated `hollow-valley-automation` Render service uses the `automation-platform/` root directory from the unified `master` source. Auto-deploy remains disabled unless deliberately changed.
