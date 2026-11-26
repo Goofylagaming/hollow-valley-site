@@ -3,7 +3,7 @@
   const el = (id) => document.getElementById(id);
   const pending = new Map();
   let signedIn = false;
-  let selectedGame = 'trivia';
+  let selectedGame = null;
 
   /**
    * Lobby game cards. PR 2 adds Higher/Lower, Memory Match and Reaction by
@@ -71,24 +71,114 @@
     return control;
   }
 
+  function iconFor(id) {
+    return {
+      trivia: '?',
+      'daily-puzzle': '#',
+      'guess-the-dino': 'D',
+      'higher-lower': 'H',
+      'memory-match': 'M',
+      reaction: 'R',
+    }[id] || '✦';
+  }
+
+  function accountLabel(name) {
+    const value = String(name || '').replace(/\s+/g, ' ').trim();
+    if (!value || /\d{17}/.test(value)) return 'Player';
+    return value;
+  }
+
+  function showAccount(name) {
+    const signin = el('arcade-signin');
+    const account = el('arcade-account');
+    if (signin) signin.hidden = true;
+    if (account) {
+      account.hidden = false;
+      account.textContent = accountLabel(name);
+    }
+  }
+
+  function syncPressed() {
+    for (const button of document.querySelectorAll('.arcade-row[data-game]')) {
+      button.setAttribute('aria-pressed', String(button.dataset.game === selectedGame));
+    }
+  }
+
+  function openGame(id) {
+    const game = GAME_CARDS.find((entry) => entry.id === id);
+    if (!game) return;
+    if (selectedGame && selectedGame !== id && window.HollowValleyArcadeGames && window.HollowValleyArcadeGames.stop) {
+      window.HollowValleyArcadeGames.stop();
+      el('question').textContent = '';
+      el('answers').replaceChildren();
+    }
+    selectedGame = id;
+    syncPressed();
+    const stage = el('arcade-stage');
+    if (stage) stage.hidden = false;
+    const title = el('arcade-stage-title');
+    if (title) title.textContent = game.name;
+    const panel = el('arcade-how-panel');
+    if (panel) panel.textContent = game.summary;
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (stage && stage.scrollIntoView) stage.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'nearest' });
+  }
+
+  function gameButton(game) {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'arcade-row';
+    card.dataset.game = game.id;
+    card.setAttribute('aria-pressed', 'false');
+    const icon = document.createElement('span');
+    icon.className = 'arcade-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = iconFor(game.id);
+    const copy = document.createElement('span');
+    copy.className = 'arcade-row-copy';
+    copy.append(node('strong', game.name), node('small', game.summary));
+    card.append(icon, copy);
+    card.addEventListener('click', () => {
+      openGame(game.id);
+      const play = el('play');
+      if (play) play.focus();
+    });
+    return card;
+  }
+
+  function renderRail() {
+    const nav = el('arcade-rail-games');
+    if (!nav) return;
+    nav.replaceChildren(...GAME_CARDS.map((game) => gameButton(game)));
+  }
+
   function renderGames() {
     const cards = GAME_CARDS.map((game) => {
-      const card = document.createElement('button');
-      card.type = 'button';
-      card.className = 'arcade-card arcade-game-card';
-      card.dataset.game = game.id;
-      card.setAttribute('role', 'listitem');
-      card.setAttribute('aria-pressed', String(game.id === selectedGame));
-      card.append(node('strong', game.name), node('span', game.summary));
-      card.addEventListener('click', () => {
-        selectedGame = game.id;
-        for (const other of el('arcade-games').querySelectorAll('.arcade-game-card')) {
-          other.setAttribute('aria-pressed', String(other.dataset.game === selectedGame));
-        }
+      const article = document.createElement('article');
+      article.className = 'arcade-card arcade-game-card';
+      article.setAttribute('role', 'listitem');
+      const how = document.createElement('button');
+      how.type = 'button';
+      how.className = 'arcade-how';
+      how.textContent = 'How it works';
+      const panelId = 'arcade-card-how-' + game.id;
+      how.setAttribute('aria-expanded', 'false');
+      how.setAttribute('aria-controls', panelId);
+      const panel = document.createElement('p');
+      panel.id = panelId;
+      panel.className = 'arcade-how-copy';
+      panel.hidden = true;
+      panel.textContent = game.summary;
+      how.addEventListener('click', () => {
+        const shown = panel.hidden;
+        panel.hidden = !shown;
+        how.setAttribute('aria-expanded', String(shown));
       });
-      return card;
+      article.append(gameButton(game), how, panel);
+      return article;
     });
     el('arcade-games').replaceChildren(...cards);
+    syncPressed();
   }
 
   /**
@@ -114,6 +204,18 @@
     el('arcade-signed-out').hidden = false;
     el('arcade-content').hidden = true;
     el('play').disabled = false;
+    const board = el('arcade-leaderboard');
+    if (board) board.hidden = true;
+    const signin = el('arcade-signin');
+    const account = el('arcade-account');
+    if (signin) signin.hidden = false;
+    if (account) account.hidden = true;
+    const coins = el('arcade-coins');
+    const level = el('arcade-level');
+    if (coins) coins.textContent = '—';
+    if (level) level.textContent = 'Level —';
+    el('plays').textContent = 'Sign in to see plays left today';
+    el('xp').value = 0;
   }
 
   let current;
@@ -123,11 +225,20 @@
     el('arcade-signed-out').hidden = true;
     el('arcade-content').hidden = false;
     el('progress').textContent = `Level ${current.level} / 100 · ${current.xp.toLocaleString('en-AU')} XP · ${current.balance.toLocaleString('en-AU')} VC`;
+    const coins = el('arcade-coins');
+    const level = el('arcade-level');
+    if (coins) coins.textContent = current.balance.toLocaleString('en-AU');
+    if (level) level.textContent = `Level ${current.level}`;
     el('xp').max = current.xpPerLevel || 500;
     const xpValue = current.level === 100 ? 500 : current.xp % 500;
     if (window.HollowValleyArcadeFx && window.HollowValleyArcadeFx.animateXp) window.HollowValleyArcadeFx.animateXp(el('xp'), xpValue);
     else el('xp').value = xpValue;
-    el('plays').textContent = `${current.playsRemaining} free plays remaining today`;
+    el('plays').textContent = `${current.playsRemaining} plays left today`;
+    if (window.HDS && window.HDS.loadMe) {
+      window.HDS.loadMe().then((me) => {
+        if (signedIn) showAccount(me && me.user && me.user.username);
+      }).catch(() => { if (signedIn) showAccount(''); });
+    } else showAccount('');
     el('daily').disabled = current.dailyClaimed;
     el('daily').textContent = current.dailyClaimed ? 'Daily reward claimed' : 'Claim daily XP + fragment';
     el('play').disabled = current.playsRemaining === 0;
@@ -205,13 +316,15 @@
       el('arcade-signin').focus();
       return;
     }
+    const gameId = selectedGame || 'trivia';
+    if (!selectedGame || el('arcade-stage').hidden) openGame(gameId);
     el('play').disabled = true;
     try {
-      if (window.HollowValleyArcadeGames && window.HollowValleyArcadeGames.handles(selectedGame)) {
-        await window.HollowValleyArcadeGames.play(selectedGame);
+      if (window.HollowValleyArcadeGames && window.HollowValleyArcadeGames.handles(gameId)) {
+        await window.HollowValleyArcadeGames.play(gameId);
         return;
       }
-      const round = await act('/start', { game: selectedGame }, '/api/valley-arcade');
+      const round = await act('/start', { game: gameId }, '/api/valley-arcade');
       el('question').textContent = round.prompt;
       el('answers').replaceChildren(...(round.choices || []).map((choice) => button(choice, async () => {
         const result = await api('/answer', { id: round.id, choice }, '/api/valley-arcade');
@@ -226,7 +339,18 @@
     }
   });
 
+  const howButton = el('arcade-how');
+  if (howButton) {
+    howButton.addEventListener('click', () => {
+      const panel = el('arcade-how-panel');
+      const open = panel.hidden;
+      panel.hidden = !open;
+      howButton.setAttribute('aria-expanded', String(open));
+    });
+  }
+
   window.HollowValleyArcade = { refresh, status };
+  renderRail();
   renderGames();
   refresh()
     .then(() => status('Ready to play.'))

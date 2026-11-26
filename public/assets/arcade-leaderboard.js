@@ -32,9 +32,36 @@
     }
     note.textContent = "Top 10 correct plays. Resets " + reset + ". Rank is bragging rights only, with no coins or crates.";
     const list = document.getElementById("arcade-leaderboard-list");
+    const entries = Array.isArray(data.entries) ? data.entries : [];
+    let podium = document.getElementById("arcade-podium");
+    if (!podium) {
+      podium = document.createElement("div");
+      podium.id = "arcade-podium";
+      podium.className = "arcade-podium";
+      podium.setAttribute("aria-label", "Top three this week");
+      if (list) list.before(podium);
+      else section.append(podium);
+    }
+    const yours = data.you || {};
+    const podiumCard = row => {
+      const card = document.createElement("article");
+      card.className = "arcade-podium-card rank-" + row.rank;
+      if (Number(row.rank) === Number(yours.rank)) card.classList.add("is-you");
+      const rank = document.createElement("span");
+      rank.className = "arcade-rank";
+      rank.textContent = String(row.rank);
+      const name = document.createElement("strong");
+      name.textContent = safeName(row.name);
+      const score = document.createElement("span");
+      score.className = "arcade-score";
+      score.textContent = (Number(row.score) || 0) + " correct";
+      card.append(rank, name, score);
+      return card;
+    };
+    const byRank = rank => entries.find(row => Number(row.rank) === rank);
+    podium.replaceChildren(...[byRank(2), byRank(1), byRank(3)].filter(Boolean).map(podiumCard));
     if (list) {
       list.className = "arcade-board";
-      const entries = Array.isArray(data.entries) ? data.entries : [];
       list.replaceChildren();
       if (!entries.length) {
         const empty = document.createElement("li");
@@ -42,8 +69,9 @@
         list.append(empty);
       }
       for (const row of entries) {
+        if (Number(row.rank) <= 3) continue;
         const item = document.createElement("li");
-        if (data.you && row.rank === data.you.rank) item.className = "is-you";
+        if (Number(row.rank) === Number(yours.rank)) item.className = "is-you";
         const rank = document.createElement("span");
         rank.className = "arcade-rank";
         rank.textContent = String(row.rank);
@@ -63,7 +91,6 @@
       you.className = "arcade-you";
       section.append(you);
     }
-    const yours = data.you || {};
     you.textContent = yours.rank == null
       ? "You · " + safeName(yours.name) + " · no correct plays this week"
       : "You · " + safeName(yours.name) + " · rank " + yours.rank + " · " + (Number(yours.score) || 0) + " correct";
@@ -77,7 +104,10 @@
       try {
         const response = await fetch("/api/valley-arcade/weekly");
         const data = await response.json().catch(() => ({}));
-        if (response.status === 401) return;
+        if (response.status === 401) {
+          section.hidden = true;
+          return;
+        }
         if (!response.ok) throw new Error(data.error || "Leaderboard unavailable.");
         render(section, data);
         rendered = true;

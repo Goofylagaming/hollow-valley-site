@@ -13,10 +13,18 @@ const { db } = require("../server/db");
 const you = "76561198000000111";
 const hidden = "76561198000000222";
 const calls = [];
-const state = { weekly: null };
+const state = { weekly: null, recent: null, recentStatus: 0 };
 client.arcadeRequest = async (action, body) => {
   calls.push({ action, body });
   if (action === "weekly") return state.weekly;
+  if (action === "recent-wins") {
+    if (state.recentStatus) {
+      const error = new Error("missing");
+      error.status = state.recentStatus;
+      throw error;
+    }
+    return state.recent;
+  }
   return { ok: true, state: action };
 };
 delete require.cache[require.resolve("../server/routes/valleyArcade")];
@@ -90,11 +98,69 @@ await t.test("reaction and memory forwards keep the server clock and session ide
   } finally { await server.close(); }
 });
 
+await t.test("recent wins replace steam ids with the weekly display name", async () => {
+  state.recentStatus = 0;
+  state.recent = {
+    entries: [
+      { steamId: you, type: "crate", name: "Emberwake", rarity: "Legendary", timestamp: "2026-11-26T09:00:00.000Z" },
+      { steamId: hidden, type: "crate", name: "Frostveil skin", rarity: "Rare", timestamp: "2026-11-26T08:00:00.000Z" },
+      { steamId: you, type: "crate", name: "500 Valley Coins", rarity: "Legendary", timestamp: "2026-11-26T07:00:00.000Z", amount: 500 },
+      { steamId: you, type: "future-drop", name: "Verdant Warden", rarity: "Epic", timestamp: "2026-11-26T06:00:00.000Z", amount: 500 }
+    ]
+  };
+  const server = await listen({ id: 7, steam_id: you, username: "Josh", is_admin: 0 });
+  try {
+    calls.length = 0;
+    const response = await server.request("/recent-wins?steamId=" + hidden);
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get("cache-control"), /no-store/);
+    const payload = await response.json();
+    assert.equal(payload.entries[0].player, "Josh");
+    assert.equal(payload.entries[0].name, "Emberwake");
+    assert.equal(payload.entries[0].type, "crate");
+    assert.equal(payload.entries[0].rarity, "Legendary");
+    assert.equal(payload.entries[0].timestamp, "2026-11-26T09:00:00.000Z");
+    assert.match(payload.entries[1].player, /^Survivor #\d{4}$/);
+    assert.equal(payload.entries[1].player.includes("12345"), false);
+    assert.equal(payload.entries[2].type, "future-drop");
+    assert.equal(payload.entries[2].name, "Verdant Warden");
+    assert.equal(payload.entries.some(row => /coin/i.test(row.name)), false);
+    const encoded = JSON.stringify(payload);
+    assert.equal(encoded.includes(you), false);
+    assert.equal(encoded.includes(hidden), false);
+    assert.equal(encoded.includes("steamId"), false);
+    assert.equal(encoded.includes("amount"), false);
+    assert.equal(encoded.includes("Valley Coins"), false);
+    assert.equal(calls[0].action, "recent-wins");
+    assert.equal(calls[0].body.steamId, you);
+    assert.equal(calls[0].body.steamId === hidden, false);
+  } finally { await server.close(); }
+});
+
+await t.test("recent wins hide when automation refuses the arcade", async () => {
+  state.recentStatus = 404;
+  const server = await listen({ id: 7, steam_id: you, username: "Josh", is_admin: 0 });
+  try {
+    calls.length = 0;
+    const response = await server.request("/recent-wins");
+    assert.equal(response.status, 404);
+    const body = await response.text();
+    assert.equal(body.includes(you), false);
+    assert.equal(body.includes(hidden), false);
+    assert.equal(calls[0].action, "recent-wins");
+    assert.equal(calls[0].body.steamId, you);
+  } finally {
+    state.recentStatus = 0;
+    await server.close();
+  }
+});
+
 await t.test("anonymous and disabled arcade requests never reach automation", async () => {
   const anon = await listen(null);
   try {
     calls.length = 0;
     assert.equal((await anon.request("/weekly")).status, 401);
+    assert.equal((await anon.request("/recent-wins")).status, 401);
     assert.equal(calls.length, 0);
   } finally { await anon.close(); }
   process.env.VALLEY_ARCADE_ENABLED = "0";
@@ -102,6 +168,7 @@ await t.test("anonymous and disabled arcade requests never reach automation", as
   try {
     calls.length = 0;
     assert.equal((await signedIn.request("/weekly")).status, 404);
+    assert.equal((await signedIn.request("/recent-wins")).status, 404);
     assert.equal((await signedIn.request("/signal", { id: "round" })).status, 404);
     assert.equal(calls.length, 0);
   } finally {

@@ -90,6 +90,34 @@ function arcadeHistoryLine(entry, when) {
   return when ? `${when} · ${family} · ${name}` : `${family} · ${name}`;
 }
 
+function arcadeAgo(timestamp, now) {
+  const then = Date.parse(timestamp);
+  if (!Number.isFinite(then) || !Number.isFinite(now)) return '';
+  const seconds = Math.max(0, Math.round((now - then) / 1000));
+  if (seconds < 45) return 'just now';
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 48) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
+}
+
+// Crate rows read "Rex pulled a Legendary Emberwake · 2m ago".
+// Any other type uses a plain verb so a future highlight cannot break the strip.
+function arcadeRecentLine(entry, now = Date.now()) {
+  if (!entry || typeof entry !== 'object') return '';
+  const player = String(entry.player || '').replace(/\s+/g, ' ').trim();
+  const item = String(entry.name || '').replace(/\s+/g, ' ').trim();
+  const rarity = String(entry.rarity || '').replace(/\s+/g, ' ').trim();
+  const visible = `${player} ${item} ${rarity}`;
+  if (!player || !item || !rarity || /\d{17}/.test(visible) || /\b(?:vc|valley\s+coins?)\b/i.test(visible)) return '';
+  const when = arcadeAgo(entry.timestamp, now);
+  if (!when) return '';
+  const article = /^[aeiou]/i.test(rarity) ? 'an' : 'a';
+  const verb = String(entry.type || '').toLowerCase() === 'crate' ? 'pulled' : 'earned';
+  return `${player} ${verb} ${article} ${rarity} ${item} · ${when}`;
+}
+
 const arcadePresent = {
   arcadeFamilyName,
   arcadeRewardName,
@@ -98,6 +126,7 @@ const arcadePresent = {
   arcadeOddsLine,
   arcadeEntitlementLine,
   arcadeHistoryLine,
+  arcadeRecentLine,
 };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = arcadePresent;

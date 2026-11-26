@@ -310,6 +310,8 @@ window.HDS = (function () {
   ];
 
   function railEnabled(path) {
+    // /arcade draws its own shell. /arcade-skins still uses this rail.
+    if (path === "/arcade") return false;
     return path === "/" || [
       "/profile", "/wallet", "/skins", "/friends", "/groups", "/mydinos",
       "/dinostorage", "/bodydrop", "/marketplace", "/arcade"

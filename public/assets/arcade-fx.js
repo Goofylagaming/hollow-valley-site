@@ -38,7 +38,7 @@
   }
   function installSound() {
     if (document.getElementById("arcade-sound")) return;
-    const header = document.querySelector(".arcade header") || document.body;
+    const header = document.getElementById("arcade-sound-slot") || document.querySelector(".arcade header") || document.body;
     const button = document.createElement("button");
     button.type = "button";
     button.id = "arcade-sound";

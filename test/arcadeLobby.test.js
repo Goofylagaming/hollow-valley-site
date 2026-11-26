@@ -147,6 +147,32 @@ test('crate odds round the existing weights and rewards use friendly names', () 
 
   const unnamed = present.arcadeRewardName({ species: 'tyrannosaurus', growthPercent: 49, id: 'rex-49' });
   assert.equal(unnamed, '49% Tyrannosaurus');
+  const now = Date.parse("2026-11-26T10:00:00.000Z");
+  assert.equal(present.arcadeRecentLine({
+    player: "Rex",
+    type: "crate",
+    name: "Emberwake",
+    rarity: "Legendary",
+    timestamp: new Date(now - 120000).toISOString(),
+    amount: 500,
+  }, now), "Rex pulled a Legendary Emberwake · 2m ago");
+  const unknown = present.arcadeRecentLine({
+    player: "Rex",
+    type: "signal",
+    name: "Emberwake",
+    rarity: "Epic",
+    timestamp: new Date(now).toISOString(),
+  }, now);
+  assert.equal(unknown, "Rex earned an Epic Emberwake · just now");
+  assert.equal(unknown.includes("signal"), false);
+  assert.equal(present.arcadeRecentLine({
+    player: "Rex",
+    type: "crate",
+    name: "500 Valley Coins",
+    rarity: "Legendary",
+    timestamp: new Date(now).toISOString(),
+  }, now), "");
+
   assert.equal(present.arcadeHistoryLine({
     id: 'crate-1',
     family: 'alpha',
