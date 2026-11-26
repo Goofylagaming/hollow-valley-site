@@ -91,7 +91,7 @@ function buildJoinMessage(player = {}) {
     .slice(0, 48) || 'survivor';
   const template = String(
     process.env.JOIN_MESSAGE_TEMPLATE ||
-    'Welcome to Hollow Valley, {player}! Join us at discord.gg/herbydeathsquadgames'
+    'Welcome to Hollow Valley, {player}! Join us at https://discord.gg/hollowvalley'
   ).replace(/[\x00\r\n]/g, ' ').trim();
 
   const message = template.replaceAll('{player}', safeName).replace(/\s+/g, ' ').trim();
