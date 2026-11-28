@@ -29,6 +29,21 @@ db.exec(`
 const MAX_BATCH = 10;
 const DEFAULT_ACTION_QUEUE_COOLDOWN_MS = 2000;
 const DEFAULT_ACTION_QUEUE_LOCK_TIMEOUT_MS = 45000;
+// Pending rows older than this are closed as failures and never handed to the
+// relay. Synchronous callers already stop waiting well inside this window:
+// DinoStorage list and skin wear default to 12s, admin / DinoStorage mutations
+// and marketplace file ops default to 7s, and the website and HerbyBot clients
+// default to 8s. With the action queue on, the next pending row can still sit
+// through one in-flight lock (default 45s) and the 2s cooldown, so 90s leaves
+// that command a turn. render.yaml sets COMMAND_BRIDGE_TIMEOUT_MS=20000, but
+// this service never reads it. The Windows relay drops stale commands before
+// BinaryLane delivery; that script is outside this repo, so 90s is the
+// server-side cutoff. It clears a multi-day backlog in one poll and stays
+// above the lock. Clamped to 30-600 seconds.
+const DEFAULT_DISPATCH_MAX_AGE_SECONDS = 90;
+const MIN_DISPATCH_MAX_AGE_SECONDS = 30;
+const MAX_DISPATCH_MAX_AGE_SECONDS = 600;
+const EXPIRED_BEFORE_DISPATCH = 'expired_before_dispatch';
 
 function boundedMs(name, fallback, min, max) {
   const value = Number(process.env[name]);
@@ -42,6 +57,72 @@ function actionQueueSettings() {
     cooldownMs: boundedMs('GAME_ACTION_QUEUE_COOLDOWN_MS', DEFAULT_ACTION_QUEUE_COOLDOWN_MS, 0, 30000),
     lockTimeoutMs: boundedMs('GAME_ACTION_QUEUE_LOCK_TIMEOUT_MS', DEFAULT_ACTION_QUEUE_LOCK_TIMEOUT_MS, 5000, 300000),
   };
+}
+
+function dispatchMaxAgeSeconds() {
+  return boundedMs(
+    'COMMAND_BRIDGE_DISPATCH_MAX_AGE_SECONDS',
+    DEFAULT_DISPATCH_MAX_AGE_SECONDS,
+    MIN_DISPATCH_MAX_AGE_SECONDS,
+    MAX_DISPATCH_MAX_AGE_SECONDS,
+  );
+}
+
+function expiredBeforeDispatchResult(row) {
+  return JSON.stringify({
+    id: row.id,
+    verb: row.verb,
+    steam: row.steam,
+    source: row.expected_source,
+    ok: false,
+    msg: EXPIRED_BEFORE_DISPATCH,
+    error: EXPIRED_BEFORE_DISPATCH,
+  });
+}
+
+// Age is the command payload `ts` (unix seconds), which is the timestamp the
+// relay can see. Rows with no usable `ts` fall back to created_at. Only
+// pending rows are closed: a dispatched or acknowledged command may already
+// be on the game server and must not be replayed or rewritten.
+function expirePendingBeforeDispatch(nowSeconds = Math.floor(Date.now() / 1000)) {
+  const maxAgeSeconds = dispatchMaxAgeSeconds();
+  const cutoff = nowSeconds - maxAgeSeconds;
+  const rows = db.prepare(`
+    SELECT id, verb, steam, expected_source
+    FROM command_bridge_http_requests
+    WHERE status = 'pending'
+      AND (
+        (
+          CAST(json_extract(payload, '$.ts') AS INTEGER) > 0
+          AND CAST(json_extract(payload, '$.ts') AS INTEGER) <= ?
+        )
+        OR (
+          COALESCE(CAST(json_extract(payload, '$.ts') AS INTEGER), 0) <= 0
+          AND datetime(created_at) <= datetime('now', ?)
+        )
+      )
+  `).all(cutoff, `-${maxAgeSeconds} seconds`);
+
+  const mark = db.prepare(`
+    UPDATE command_bridge_http_requests
+    SET status = 'completed',
+        result_json = ?,
+        completed_at = datetime('now')
+    WHERE id = ? AND status = 'pending'
+  `);
+
+  let expired = 0;
+  for (const row of rows) {
+    const result = mark.run(expiredBeforeDispatchResult(row), row.id);
+    expired += Number(result.changes || 0);
+  }
+  return expired;
+}
+
+function logExpiredBeforeDispatch(count) {
+  if (count > 0) {
+    console.log(`[command-bridge] expired ${count} pending command(s) before dispatch`);
+  }
 }
 
 function cleanupOldRows() {
@@ -95,10 +176,12 @@ function lastCompletedAction() {
     SELECT id, verb, steam,
            CAST((julianday('now') - julianday(completed_at)) * 86400000 AS INTEGER) AS age_ms
     FROM command_bridge_http_requests
-    WHERE status = 'completed' AND completed_at IS NOT NULL
+    WHERE status = 'completed'
+      AND completed_at IS NOT NULL
+      AND COALESCE(json_extract(result_json, '$.error'), '') != ?
     ORDER BY datetime(completed_at) DESC
     LIMIT 1
-  `).get() || null;
+  `).get(EXPIRED_BEFORE_DISPATCH) || null;
 }
 
 function actionQueueState() {
@@ -139,9 +222,15 @@ function claimPending(limit = MAX_BATCH) {
   const settings = actionQueueSettings();
   const safeLimit = settings.enabled ? 1 : Math.max(1, Math.min(MAX_BATCH, Number(limit) || MAX_BATCH));
   const claimed = [];
+  let expiredCount = 0;
 
   db.exec('BEGIN IMMEDIATE');
   try {
+    // Close commands the relay would only reject. This does not dispatch them
+    // and does not count as a real completion, so the inter-command cooldown
+    // stays reserved for commands that actually ran.
+    expiredCount = expirePendingBeforeDispatch();
+
     // Anti-crash queue: while enabled, only one CommandBridge action may be in
     // flight at a time. Parking, BodyDrop, Prime, restore/admin actions and skin
     // mutations all converge here before the BinaryLane agent can touch UE4SS.
@@ -151,6 +240,7 @@ function claimPending(limit = MAX_BATCH) {
       const state = actionQueueState();
       if (state.locked) {
         db.exec('COMMIT');
+        logExpiredBeforeDispatch(expiredCount);
         return [];
       }
     }
@@ -176,6 +266,7 @@ function claimPending(limit = MAX_BATCH) {
     }
 
     db.exec('COMMIT');
+    logExpiredBeforeDispatch(expiredCount);
     return claimed;
   } catch (error) {
     try { db.exec('ROLLBACK'); } catch {}
@@ -296,4 +387,6 @@ module.exports = {
   getSummary,
   actionQueueSettings,
   actionQueueState,
+  dispatchMaxAgeSeconds,
+  EXPIRED_BEFORE_DISPATCH,
 };
