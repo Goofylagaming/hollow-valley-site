@@ -51,6 +51,12 @@ services:
         value: automation-platform-is-sole-publisher
       - key: COMMAND_BRIDGE_TIMEOUT_MS
         value: 20000
+      # Pending commands older than this are failed without dispatch, so a
+      # relay outage cannot leave a backlog in front of a fresh command.
+      # 90 seconds stays above caller waits and the 45s in-flight lock.
+      # COMMAND_BRIDGE_TIMEOUT_MS above is not read by this service.
+      - key: COMMAND_BRIDGE_DISPATCH_MAX_AGE_SECONDS
+        value: "90"
 
       # Serialize UE4SS-facing actions so parking, BodyDrop, Prime/admin and skin
       # mutations cannot execute concurrently. A final sub-mod result releases
